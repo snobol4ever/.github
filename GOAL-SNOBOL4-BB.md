@@ -6,7 +6,23 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06n (Sonnet — CAS-SENTINEL-CLEAN+MON-RE; SCRIP `1336ce55`)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06o (Sonnet — ZWS-FENCE-WHACK-FIX; SCRIP `48b6b89d`)
+
+⭐ **SESSION WORK (Sonnet, 2026-08-06o) — ZWS-FENCE-WHACK-FIX:**
+
+**ROOT CAUSE FOUND (measured via gdb + .s inspection):** Under the ZWS canonical frame (op_zw=1), `rbp=claim_base` (ZW-15 `lea rbp,[rbp+8]` raised it by 8). The activation floor = old_rbp push site = address `[rbp-8]`. Two sites in `bb_match_fence1.cpp` used `mov rsp` (a load) instead of `lea rsp` (address arithmetic), depositing the old_rbp VALUE into rsp instead of pointing rsp AT the old_rbp slot. `pop rbp` after that read from garbage → rip=heap-address → SEGV.
+
+**FIX:** (1) FENCE0 interior sync box (`ival==0`): `mov rsp,rbp` (wrong under op_zw=1 — rbp=claim_base not floor) → `_.op_zw ? lea rsp,[rbp#-8] : mov rsp,rbp`. (2) `fence_whack_commit` op_zw arm: `mov rsp,qword ptr [rbp#-8]` (load) → `lea rsp,qword ptr [rbp#-8]` (address). Both mirror `bb_match_begin.cpp:155` exactly. Default (op_zw=0) paths unchanged.
+
+**GATES:** default 118/23/0/0 (unchanged) · armed 100/23/0/18 (+1 pass: G04 FENCE0-as-last promoted crash→pass). Regen ×3 zero delta.
+
+**OPEN (inherited + updated):**
+1. **18 remaining armed regressions** — 14 FENCE-class crashes (G05/G08/G09/G17/G21/F04/H02/H03/H04/H18/H19/H20/H22/H30) + 2 FENCE-class wrong (H14/H23) + 2 ALT capture wrong (A05/A06). The remaining FENCE crashes fall into two classes: (a) FENCE0 mid-pattern under UCLAIM (`sub rsp,Kc` claim, then FENCE0 `mov rsp,rbp` whacks ABOVE the claim, subsequent elements do `add rsp,K` into caller territory — G05 class); (b) FENCE(P) crash — H02 class has `nblob_real=0`, neither ZWS nor ZWR armed, still UCLAIM; crash mechanism TBD from gdb. Monitor-first on next rung.
+2. **HEAD-PIN bug** (`roman.sno` wrong output) — pre-existing, diagnosed, fix known; not yet gate-tested.
+3. **A05/A06/H14/H23 WRONG-output** — capture `W` not applied; pump runs but entry has wrong coords.
+4. **W-2 steps 1–2, 4–5** (step 3 struck — already landed).
+
+## ⭐⭐ CURSOR HISTORY — 2026-08-06n (Sonnet — CAS-SENTINEL-CLEAN+MON-RE; SCRIP `1336ce55`)
 
 ⭐ **SESSION WORK (Sonnet, 2026-08-06n) — CAS-SENTINEL-CLEAN + MON-RE:**
 
