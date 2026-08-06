@@ -6,7 +6,25 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-05b (Opus — COMBINATOR STORAGE LAWS SETTLED BY DELETION; Lon-directed)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06 (Fable, Lon hands-on — ARBNO-LON LANDED; GATE GREEN 130/11/0/0, FIRST GREEN IN CURSOR HISTORY)
+
+**THE 5 NESTED-ARBNO SIGSEGVs ARE CLEARED (H24 H25 X02 X06 X11), both media.** SCRIP `c7a276f6` + feature `.s` `77236760`; corpus `f47e2469` (35 XPASS dropped from XFAIL.run per the suite's same-commit law — deferred debt from s9, now paid). Suite: **130 pass / 11 xfail / 0 XPASS / 0 REGRESSION, exit 0.** Killswitch `SCRIP_ARBNO_FRAMELESS=0` reverts the class to the legacy chain arm.
+
+⭐ **LON RULINGS 2026-08-06 (supersede the CSL frame draft and the 48B-frame sketch of the same morning):** ARBNO needs NO frame, NO counter, NO element links, NO view register, and NO chain — *"When will that chain be traversed? Never."* Growth is released wholesale by the BRACKET constructs only (MATCH_END final whack / FENCE commit / STATEMENT_END). **Frame census refined: {STATEMENT · FUNCTION · MATCH_BEGIN · FENCE1} — ARBNO dropped out** (CSL-5 answered). Operand law confirmed by Lon: **ALL operands rsp-relative; RBP holds housekeeping ONLY** (the FB-STMT directive, now construct-complete). Register mandate: pattern state via **R12(CAS island)/R13(Σ)/R14(δ)/R15(Δ) only** — no globals.
+
+⭐ **THE LANDED MECHANISM (bb_match_arbno.cpp `bb_match_arbno_frameless`, ~12 insns vs ~40):** ONE 16B α-carved rsp cell `{Δ0 dword, yield dword}`; σ junction = `cmp r14d,[rsp+4]; je resume`; exhaust = `cmp r14d,[rsp+0]` — δ==Δ0 ⟺ nothing committed (σ guarantees every committed instance advanced; the un-match cascade restores δ instance-by-instance), so δ arrives at ω already ==Δ0: **the Δ-assert holds by construction**. Instance k's entry IS the (k−1)th yield — one rolling datum, the shipping semantics. Gated `op_arbno_framed && op_arbno_body_k0` (nested ∧ body-all-K0 via the zd_k ONE-AUTHORITY — never a second K list).
+
+⭐ **X02 GDB GROUND TRUTH (this session, the prescribed s10 probe):** iteration-2's inner header was written at phys == iteration-1's LIVE outer element view (`e6d8`); corruption surfaced as MATCH_END `mov rsp,[rbp+64]` → rsp=0x3 (STRING tag). The counter/link machinery WAS the defect; deletion, not repair, was the fix.
+
+⚠ **MODE=compile SUITE LANE IS DARK AT HEAD (pre-existing, NOT this rung):** `scrip --compile f -o out` fails `-o` parsing in this container ("cannot open '-o'"), so the suite's m4 lane is 0-pass and `XFAIL.compile` was never created. Direct as+gcc proof used instead: X02/X06/H25/X11 mode-4 binaries oracle-exact. **Named rung: fix `-o` (driver argv), then `BASELINE=1 MODE=compile` to birth XFAIL.compile.**
+
+**NEXT RUNGS (in order):**
+1. **ARB-LON-K16 — widen the frameless arm past body-K0:** K>0 bodies (ASSIGN_SAVE cells, DEFER records) need per-site static-depth compensation for the one cell (the op_zread shape, one level in). Then delete the legacy chain arm + counter/link/U2 quads for top-level too (top-level is single-activation — the same two-compare form with the cell in the head claim).
+2. **CAS-R12-UNIFY (Lon mandate):** every `ABSQ(RT_CAS_TOP)` reader/writer in bb_match_begin/end → r12; cell demoted to boot-seed; fixes the documented blob-capture mismatch (emit.h ZW-16 note). Then `g_patstk_sp` eradication with the C-scanner retirement. RULING 4's match-scoped island narrowing rides along.
+3. **FENCE-WHACK-ON:** flip `fence_u2_frame` default (built, documented, gated off — "cheapest real win on the board").
+4. **m4 `-o` driver fix + XFAIL.compile baseline** (see above).
+
+
 
 **⛔ READ `ARCH-SNOBOL4.md` §THE THREE COMBINATORS BEFORE PROPOSING ANY ERADICATION RUNG FOR SEQUENCE / ALTERNATE / ARBNO.**
 Evidence: `FINDING-2026-08-05b-CLAUDE-SN4-ALT-SHELL-IS-WIRING-...md`. Embodiment: `test_sno_1.c` **341 → 312 insns** (-O0), oracle-exact.
@@ -56,50 +74,7 @@ Body claims nothing ⇒ frontier never moves ⇒ `ζ==base` true on first pop �
 ⚠ **PROBE HYGIENE — `test_sno_1.c` alone returns a FALSE GREEN on any of this.** Its β selector fired **ZERO times**
 before this session (instrumented); all four static ALT wirings "passed." Use the two `test_sno_alt_d*.c` probes.
 
-## ⭐⭐⭐ LADDER CSL — COMBINATOR STORAGE LAWS → RSP FORTH STACK (opened 2026-08-05b, Lon: "make any undone items part of the work list")
-
-**PURPOSE:** the three storage laws are proved at SINGLE DEPTH on standalone C embodiments only. This ladder closes
-every gap between that and a finalized RSP FORTH-style stack. **⛔ NOT READY TO FINALIZE UNTIL CSL-6.** Each rung is
-falsifiable and ships a killswitch per the ladder law. Contract: `ARCH-SNOBOL4.md` §THE THREE COMBINATORS + §3b.
-
-- [~] **CSL-1 — PARTIAL 2026-08-05b: DEFECT CLASS REPRODUCED IN C. ⛔ NON-ZERO GRANTS ARE NECESSARY BUT NOT SUFFICIENT.**
-      `test_sno_arbno_csl1_nested.c` embodies X02. On the FAILING subject `'(ab)(c'` (forces full unwind; oracle `=F`)
-      the cursor at `OARB_ω` is **WRONG FOR ALL FOUR GRANT COMBINATIONS**: IG=0/OG=0 → Δ=5 · IG=1/OG=0 → Δ=4 ·
-      IG=0/OG=1 → Δ=5 · **IG=1/OG=1 → Δ=2** (correct: 0). So CSL-1a's non-zero-grant fix does NOT close nested ARBNO —
-      **there is a SECOND defect.** ⚠ **ALL FOUR PRINT THE ORACLE-CORRECT `=F` — fifth vacuity; output is fully blind here.**
-      ⚠ The SUCCEEDING subject `'(ab)(c)'` never reaches `OARB_ω` at all (greedy path wins) — **a passing X02 CANNOT
-      exercise the unwind. Probe nested ARBNO with the FAILING subject.**
-      SUSPECT (matches the s10 cursor's own diagnosis): `IARB_α` resets the inner frontier per outer iteration, so when the
-      outer retract resumes `RP_β → IARB_β`, the previous outer iteration's inner cells have been clobbered — the
-      "second outer element's body window overlaps first-iteration frame slots" reading, now reproduced in C.
-      NEXT: bisect which of the two ARBNOs loses the cursor (instrument Δ at IARB_ω and at each outer retract).
-      ORIGINAL RUNG TEXT: NESTED-ARBNO EMBODIMENT (decisive; do FIRST). Embody **X02** (`POS(0) ARBNO('(' ARBNO(NOTANY(')')) ')') RPOS(0)`
-      on `'(ab)(c)'` → `=S`) as a C probe in `corpus/probe/bb/`, oracle-anchored. This is the exact shape of all 5 open
-      SIGSEGVs. **FALSIFIES OR CONFIRMS the two-tier verdict on the case that is actually broken.** Sub-question raised at
-      close of s-b and NOT yet answered: **X02's body contains NO stateful combinator (no ALT), so nothing allocates —
-      does the outer ARBNO's `ζ--` depth test still work when the frontier never moves?** If not, the "ARBNO owns zero
-      bytes" law was PARASITIC on the body having storage, and must be restated. **CSL-1a below is the cheap version of
-      exactly this question — run it before building X02.**
-- [x] **CSL-1a — DONE 2026-08-05b: LAW FALSIFIED, RESTATED. See cursor above.** ARBNO OVER A NON-ALLOCATING BODY. `POS(0) ARBNO(LEN(1)) RPOS(0)`. Body is a
-      pure {0,1} matcher with zero storage. If ARBNO still needs zero storage → law holds. If the depth test breaks →
-      **the law is qualified: ARBNO needs its own depth datum whenever the body allocates nothing.**
-- [ ] **CSL-2 — DEFER-IN-BODY EMBODIMENT.** The O(1) whack assumes EVERYTHING above the mark is dead at final success.
-      `ARCH-SNOBOL4.md` §s146 says retained suspensions **interleave their carves between iteration frames**. If anything
-      above the mark must SURVIVE, blanket `mov rsp,mark` destroys it and reclamation must become selective. **UNTESTED —
-      this is the case that would break the mechanism §3b recommends.**
-- [ ] **CSL-3 — RECURSIVE-PATTERN EMBODIMENT.** Manual p.65: `ITEM = SPAN(...) | *LIST` / `LIST = "(" ITEM ARBNO("," ITEM) ")"`.
-      Runtime-unbounded ARBNO nesting via `*VAR`. Confirms the unbounded tier is real and not just lexical nesting.
-- [ ] **CSL-4 — BUILD SCRIP; ESTABLISH THE REAL WATERMARK.** No `scrip` binary has been built this session; the
-      90/11/35/5 figure is INHERITED from a cursor, not measured. Build, run the probe suite, record what is actually true.
-- [ ] **CSL-5 — NAME THE FIVE CONSTRUCTS.** PLAN.md's LADDER W says "RBP frames at the five constructs for the unbounded
-      case" but names only the count. Three are surveyed (SEQUENCE / ALTERNATE / ARBNO). **Identify and survey the other two.**
-- [ ] **CSL-6 — EMITTER RUNG (LAST).** Only after CSL-1…5. Requires: a NAMED CLAIM AUTHORITY surviving any port collapse
-      (the SE-6 trap — `zls_grant_locals` dispatches on KIND), a killswitch giving byte-identical revert, and the gate green.
-      ⛔ **The C embodiments are STRUCTURALLY BLIND to claim ownership** (`_slab[65]` is a literal array; C allocates it
-      regardless of what claims it). **No embodiment result transfers to the emitter without this rung's own proof.**
-
-**NEXT RUNG: unchanged — the 5 nested-ARBNO SIGSEGVs (H24 H25 X02 X06 X11). See the prior cursor below.**
-The combinator laws above are a *constraint* on how that gets fixed, not a replacement for fixing it.
+## ⭐⭐⭐ PRIOR CURSOR — 2026-08-05b (Opus — COMBINATOR STORAGE LAWS; CSL LADDER CLOSED 2026-08-06 by the ARBNO-LON rulings above: CSL-1 root class FIXED, CSL-1a's corrected law SUBSUMED (the frameless σ/Δ0 form needs no minimum grant — the junction is cursor-compared, depth-free), CSL-4 done (watermark measured 90/35/11/5 then driven GREEN), CSL-5 answered ({STATEMENT·FUNCTION·MATCH_BEGIN·FENCE1}), CSL-2/3 fold into rung ARB-LON-K16, CSL-6 landed as the frameless arm itself.)
 
 ## ⭐⭐⭐ PRIOR CURSOR — 2026-08-05 (Sonnet s10 — SEQ-ERAD ROOT CAUSE DIAGNOSED; gate 90 pass, 5 REG — STILL NOT GREEN)
 
