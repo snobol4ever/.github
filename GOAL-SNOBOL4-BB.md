@@ -6,16 +6,25 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06d (Sonnet — STATEMENT-PORT LAWS IMPLEMENTED; xc318 m3 296/21 +3; MATCH_BEGIN frame gate corrected)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06e (Sonnet — STMT-BETA-LAND DIAGNOSED; beta-tag overload is the blocker; no commits this session)
 
-⭐ **STATEMENT-PORT LAWS IMPLEMENTED (SCRIP `cc39c095`) — three changes:**
-**(R1, emit.cpp flat_beta_used_scan):** `IR_STATEMENT_BEGIN` added to always-live β set. `nN_statement_begin_β:` now appears in every emitted `.s` as the named failure landing. Beta trampoline: `β → jmp ω = next stmt α = F-goto target`. Routing of match_begin exhaust + element ω edges to this label is the next lower rung.
-**(R2, bb_match_begin.cpp rpin):** `flat_deep_arrival → flat_layout_unknown`. MATCH_BEGIN sets RBP frame ONLY when `zls_g_region(g)<=0` (genuinely unknown extent). Statically-extented ARBNO statements (K16, K0-in-place) emit zero frame overhead and release by static ADD. Witnessed: p3 lost `mov rbp, rsp # stmt_base` entirely.
-**(R3, lower_snobol4.c sno_build_graph):** `fail_tgt[]` parallel array saves each statement's fT; STATEMENT_BEGIN ω wired to fT so DRIVE_PAIR routes `statement_begin_β → fT` correctly. 4 probes oracle-exact vs sbl both modes.
+⭐ **SESSION FINDINGS (Sonnet, 2026-08-06e) — R1 rung fully diagnosed, two-layer blocker identified:**
 
-**FRESH WATERMARK:** xc318 **m3 296/21 · m4 275/40 (pre-existing -o driver issue) · DIVERGE 20** (unchanged set); probe suite 8 FAIL (pre-existing IR_LANG_SNO staleness). Parent: SCRIP `512ff8cd` → `cc39c095`.
+**(Layer 1 — solved in analysis):** β is a **pure landing pad**, no release. By the UNWIND LAW every box already freed its own K rolling home through β/ω, so rsp is at the claim base on arrival at `STATEMENT_BEGIN.β`. This collapses R1 to ONE edge: `MATCH_BEGIN`'s exhaust only. Element failures belong to `MATCH_BEGIN.β` (the scanner retry loop, manual Ch.18 step 6) and must NOT move.
 
-**NEXT RUNGS (in order):** 1. **DELETE the legacy chain arm** (unblocked by the K16 census) + counter/link/U2 quads. 2. **Route match_begin exhaust + element-ω edges → statement_begin_β** (lower rung, completes R1). 3. **CAS-R12-UNIFY.** 4. **FENCE-WHACK-ON** (`fence_u2_frame` default flip). 5. **m4 `-o` argv fix** → `XFAIL.compile` birth. 6. W-2 ARM-ALL/flip → W-4 xc318 reds → W-5 legacy deletion.
+**(Layer 1 — first approach failed, root cause measured):** Simple `lc_γ_to_β(fJ, sbeg)` introduced 3 regressions (064 crash, 067 wrong output, 175 hang). Root cause: the **β tag propagates through GOTO chains** in `emit.cpp` flat_drive (`if (!gib) gib = (_g->γ.sz is β)`, lines 2166/2479). Re-porting the shared `fJ` retagged every edge chasing through it. Measured on 067: emission collapsed 546 → 306 lines, two statements fell out of the walk.
+
+**(Layer 1 — correct approach found):** Mint a **dedicated exhaust-only GOTO** `fB` inside `sno_lower_match` (out-param `out_land`), wire only `MATCH_BEGIN.ω → fB`, β-port only `fB` in the post-loop. `fJ` untouched. With this: all 5 statements survive in 067, β chain correct end-to-end (`n4_β → n12_α`, `n12_β → n22_α`), 067 prints `both correct`. WIP patch at commit time: 100-line diff, not yet committed.
+
+**(Layer 2 — newly surfaced, is the real blocker):** 067 **segfaults after printing correctly**. The β tag `0xce 0xb2` is **overloaded** — it means BOTH (a) "jump to the target's β label" AND (b) "this is a scanner retry back-edge: suppress release here" (`emit.cpp:2069`, `2475/2480`). When `MATCH_BEGIN.ω` acquires the tag via `fB`, its release is suppressed — correct output but broken rsp at exit. The five spellings of this check (`2069`, `2162-2167`, `2474-2480`, `2543`, `2587-2589`) are one decision spelled five times (s22k law violation). They need to be split: *"targets a β label"* vs *"is a retry back-edge that frees nothing"*.
+
+**WATERMARK:** patterns m3 **107/15** (baseline, same as cc39c095 — no regressions introduced, no commits). SCRIP `cc39c095` · corpus `c04dd8d8` · `.github` `c50b3d0b`. All trees clean at origin.
+
+**NEXT RUNGS (in order):**
+1. **SPLIT the β-tag overload** in `emit.cpp` — separate `0xce 0xb2` meaning (a) label-selector from meaning (b) retry-back-edge release suppression. The five spellings (`2069`, `2162`, `2474`, `2543`, `2587`) are ONE authority; introduce a second port tag for (b) or a predicate that identifies retry edges by graph topology rather than tag. This is the GATE for R1 completion.
+2. **STMT-BETA-LAND** (completes R1): land the `fB` dedicated-landing approach on top of the tag split. `sno_lower_match` gets `IR_t ** out_land`; `fB` β-ports to `sbeg`; `fJ` untouched. No release at β per the UNWIND LAW.
+3. **DELETE the legacy chain arm** + counter/link/U2 quads (unblocked by K16 census, independent of above).
+4. **CAS-R12-UNIFY.** 5. **FENCE-WHACK-ON.** 6. **m4 `-o` argv fix.** 7. W-2 ARM-ALL/flip.
 
 ## ⭐⭐ CURSOR HISTORY — 2026-08-06c (Fable, Lon hands-on — DECLINE CENSUS DOCUMENTED (queue-#1 doc half DONE); STATEMENT-PORT LAWS RULED; INDEPENDENT VERIFICATION GREEN)
 
