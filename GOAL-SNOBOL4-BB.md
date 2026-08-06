@@ -6,7 +6,23 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06m (Fable — MECH2-R12-FIX LANDED; SCRIP `590b9140`)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06n (Sonnet — CAS-SENTINEL-CLEAN+MON-RE; SCRIP `1336ce55`)
+
+⭐ **SESSION WORK (Sonnet, 2026-08-06n) — CAS-SENTINEL-CLEAN + MON-RE:**
+
+**CAS-SENTINEL-CLEAN:** `g_patstk_sp` / `g_patstk_base` / `c_rt_patstk_lazy_init` deleted. The pattern stack island (8MB VAS) was carry-state in the 24-byte CAS sentinel `[+0]=tag0,[+8]=rsp_mark,[+16]=patstk_snapshot` so the failure path could restore `g_patstk_sp` without a frame-addressed reload. The model is pure R12/DCAP-island — no separate pattern stack exists. Slot `[+16]` is zeroed (dead pad) so the 24-byte stride matches `rt_dcap_e` entry size. Removed from: `pattern_match.c` (globals + init fn), `gen_runtime.c` (call), `rtx_match.S` (lazy-init stub tombstoned `ud2`; inlined test + `.Lme_patstk_cold` deleted from `rt_match_enter`), `bb_match_begin.cpp` (both sentinel pushes + all fail-exit restores), `bb_match_end.cpp` (success-path restores).
+
+**MON-RE:** Statement monitor tap moved INSIDE the alpha box (`bb_statement.cpp`) so jump-entered statements trace correctly. Previously the tap fired before the alpha label — every jump-reached statement missed the trace event. `emit.cpp:1000` stages `op_mon_stmt_tap`; `emit.h` carries the field.
+
+**GATES:** default probe 118/23/0/0 (unchanged). Regen ×3 real deltas (5 benchmark, 40 feature, 17 demo artifacts updated).
+
+**OPEN (inherited from 2026-08-06m):**
+1. **A05/A06/H14/H23 WRONG-output** — capture `W` not applied; pump runs but entry has wrong coords. Monitor-first.
+2. **FENCE-class 15 crashes** (F04/G04/G05/G08/G09/G17/G21/H02/H03/H04/H18/H19/H20/H22/H30) — different defect cluster; bracket with monitor.
+3. **HEAD-PIN bug** (`roman.sno` wrong output, confirmed pre-existing at `590b9140`): in a multi-statement graph, each `bb_match_begin` HEAD-PIN does `mov rbp,rsp` to its own claim base; when stmt A's match fails after stmt B ran, rbp holds stmt B's claim base → `FRQ(off+48..72)` PATCTX restores read garbage. Fix: `mov rbp,[rsp+hoff(op_off+40)]` before the PATCTX restores on the fail exit. Mechanism fully diagnosed; fix not yet gate-tested.
+4. **W-2 steps 1–2, 4–5** (step 3 struck — already landed).
+
+## ⭐⭐ CURSOR HISTORY — 2026-08-06m (Fable — MECH2-R12-FIX LANDED; SCRIP `590b9140`)
 
 ⭐ **SESSION WORK (Fable, 2026-08-06m) — MECH2-R12-FIX (codegen only; default regime byte-neutral):**
 
