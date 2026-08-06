@@ -6,7 +6,22 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06l (Fable — three cursor items falsified by measurement; fresh armed-regime evidence base; mech-2 r12 collision lead)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06m (Fable — MECH2-R12-FIX LANDED; SCRIP `590b9140`)
+
+⭐ **SESSION WORK (Fable, 2026-08-06m) — MECH2-R12-FIX (codegen only; default regime byte-neutral):**
+
+**ROOT CAUSE (confirmed by gdb):** W-1b's `mov r12,rsp` (mech2_framebase save) in `bb_match_begin` predated CAS-R12-UNIFY. After that rung r12 is the live DCAP/CAS top; the save overwrote it with a stack address on every armed blob-clause match_begin, so every subsequent `bb_match_capture` push wrote 24B entries at a garbage address (CAS top = 8 in the original crash). Visible in gdb: r12=8 (before fix) → r12=0x7ffff2bff048 valid heap address (after fix).
+
+**FIX (bb_match_begin + bb_match_end, 8 sites):** (1) Delete the `mov r12,rsp` save — `rbp==α−8` is pinned by the preceding `push rbp; mov rbp,rsp` and never borrowed as ARBNO element view in the mech-2 arm (that's the chain arm's domain). (2) Delete both mech2_framebase restores `mov rbp,r12` — self-assign no-ops since rbp is already the frame base. (3) Rewrite all four `mov rsp,r12` whack sites as `mov rsp,rbp`. (4) Rewrite the sentinel push from r10-staged `[RT_DCAP_TOP]` form to CAS-R12-UNIFY direct-r12 form (mirrors the non-mech2 arm); keep `[RT_DCAP_TOP]` cell update since bb_match_end's mech-2 arm reads the cell for its backward sentinel scan.
+
+**GATES:** default probe 118/23/0/0 · armed combo (ZD_MATCH=1+ZW_RB=1) 99/23/0/19 — same count as before but **H15/H28/H29 promoted to PASS** (+3), A05/A06/H14/H23 moved **crash→wrong** (capture W not applied; separate defect). 15 FENCE-class crashes remain (F04/G04/G05/G08/G09/G17/G21/H02/H03/H04/H18/H19/H20/H22/H30 — all FENCE0/FENCE1 patterns under the armed combo; not the r12 defect).
+
+**NEXT RUNGS (updated):**
+1. **A05/A06/H14/H23 WRONG-output** — capture `W` not applied; pump runs but entry has wrong coords. Suspected: `bb_match_capture`'s `eax` load (saved_delta via `rt_cap_top` / `rspd(fc_disp)`) reads wrong slot under armed combo. Monitor-first when context budget allows.
+2. **FENCE-class 15 crashes** — different defect cluster; bracket with monitor.
+3. **W-2 steps 1–2, 4–5** (step 3 struck — already landed).
+
+## ⭐⭐ CURSOR HISTORY — 2026-08-06l (Fable — three cursor items falsified by measurement; fresh armed-regime evidence base; mech-2 r12 collision lead)
 
 ⭐ **SESSION WORK (Fable, 2026-08-06l) — measurement session, zero code commits (nothing regen-triggering touched):**
 
