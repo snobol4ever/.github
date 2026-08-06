@@ -6,7 +6,20 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06f (Sonnet — STMT-BETA-LAND R1 LANDED + m4 -o flag; SCRIP `169ad6b4`, corpus `91659735`)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06g (Sonnet — CAS-R12-UNIFY LANDED, queue #1 DONE; live match-family arms speak r12, cell = boot-seed)
+
+⭐ **SESSION WORK (Sonnet, 2026-08-06g) — the Lon-mandated r12 unify, 8 edits / 3 templates:** capture's BOTH COND push/pop `IF(op_zw)/IF(!op_zw)` forks collapsed to one unconditional r12 body (the two bodies were insn-identical modulo register — the unify deletes the fork); begin's default-arm sentinel written AT r12 (7→5 insns, r10 stage + cell store gone) and both fail-exit scans WALK r12 (the walk IS the pop); end's release_pump reads `rsi←r12`, post-pump scan+pop on r12 (callee-saved through the pump's C calls), tail/default recovery scans seed from r12.  **Scope law learned:** capture HAD to convert same-commit — begin/end-only would recreate the ZW16 mismatch inverted (ZW16's true hazard = MIXED regime, two authorities; this is a faithful substitution to ONE).  RULING 4 intact: the CAS stays a separate arena, only the CURSOR is register-resident.  Nesting inherited not mirrored: `rt_outer_call` = driver-only boot seed (2 callers), `rt_chain_enter` push/pops without reseed, pump→`*VAR` preserves r12 callee-saved.  Dead op_zw2/op_zw arms untouched (10 residual `ABSQ(RT_CAS_TOP)` refs, ALL dead-arm → W-5); **live-arm cell census = 0**.  Full text: `FINDING-2026-08-06g-CLAUDE-SN4-CAS-R12-UNIFY-LANDED-...md`.
+
+**GATES:** xc318 BY SET — m4 **EXACT** (274/38/5s), m3 delta = the named 127/152 bistable pair only (293/24), DIV 18 composition moved by that swap alone.  Bench **A/B-identical** 14/3/4 pre/post (⚠ the carried "18/21" is STALE at this HEAD — re-measured, CENSUS SHELF LIFE).  Regen ×3 zero-drift; run-1 sweep attributed 3-way in the FINDING (**06f never ran crosscheck/feature regens** — that debt is paid here; + ancient ZD_MATCH-era artifacts retired; + this rung's own 24–44 lines/match-program, stash-isolated).  Witnesses: z4_capture REF-OK · fence-commit == sbl.  **Pre-existing bracketed:** `('a' . X) FENCE 'z'` fail-path segfault, rc=139 identical pre-edit (stash A/B) = the W-1c.0 crash class, not this rung's.  ⚠ Container fact re-proven: detached background jobs DIE (s126); xc318 runs as 4 foreground chunk farms (/tmp/xc[A-D], ~100s total).
+
+**NEXT RUNGS (in order):**
+1. **CAS-R12 phase 2** — `g_patstk_sp` eradication with C-scanner retirement; then RULING 4's match-scoping of the ARENA itself (carve/reset at MATCH_BEGIN, release at MATCH_END, retire the process-wide 8MB pin + the W-1c.4 one-line `CAS` definition at pin_va.h:9).
+2. **FENCE-WHACK-ON** — `fence_u2_frame` default flip (SCRIP_U2=1 regressed 7 programs at last probe; investigate before flip; W-1c.0's fence-fail segfault likely gates this).
+3. **DELETE legacy chain arm** (K16 census done) + the dead op_zw2/op_zw arms' 10 cell refs ride W-5.
+4. **m4 `-o` fopen-before-preamble fix.**
+5. **W-2 ARM-ALL/flip** → W-4 xc318 reds → W-5 legacy forest.
+
+## ⭐⭐ CURSOR HISTORY — 2026-08-06f (Sonnet — STMT-BETA-LAND R1 LANDED + m4 -o flag; SCRIP `169ad6b4`, corpus `91659735`)
 
 ⭐ **SESSION WORK (Sonnet, 2026-08-06f) — R1 fully landed, three coordinated changes:**
 
