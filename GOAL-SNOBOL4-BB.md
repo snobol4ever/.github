@@ -6,7 +6,29 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06k (Sonnet — W-1c.3 Part B patstk slot retired; chain arm census stale)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06l (Fable — three cursor items falsified by measurement; fresh armed-regime evidence base; mech-2 r12 collision lead)
+
+⭐ **SESSION WORK (Fable, 2026-08-06l) — measurement session, zero code commits (nothing regen-triggering touched):**
+
+**FALSIFICATION 1 — CHAIN-PROMOTE-19 IS MOOT (drop the rung):** `SCRIP_ARBNO_DIAG=1` census over all 19 (D09-D13/G19-G20/H24-H25/X01-X08/X11): every one declines K16 on **`sq=0`** — the body span contains ALT/inner-ARBNO/FENCE/DEFER (nested combinators), the class the frameless arm excludes BY DESIGN. There is no fixable blocker; they are structurally chain-class and **all 19 PASS at HEAD `171e4a03` on the default regime** (probe suite 118/23/0/0 reconfirmed). The chain arm is their correct home until W-2/W-3 restructures it; its deletion stays blocked exactly as the 06k note measured.
+
+**FALSIFICATION 2 — the s113 ZW_RB dead-code finding RECONFIRMED at HEAD, mechanism now explained:** 23/23 pattern-heavy programs (`--compile` md5, incl. X01/D10/G19) byte-identical `SCRIP_ZW_RB=0` vs `=1`. Mechanism: `zwr` (emit.cpp:2059) requires `hpos >= 0` — an armed match run — which only exists under `SCRIP_ZD_MATCH=1`, default-OFF since SEQ-ERAD s9. ZW_RB alone is inert; **the real mechanism-2 state is the COMBO `SCRIP_ZD_MATCH=1 SCRIP_ZW_RB=1`**, which had no post-W-1c measurement until this session (below). Also: **W-2.3's "three s23t edits" are ALREADY LANDED** (has_blob hoist emit.cpp:2047 s24a/b; `zw_nblob_ok(nblob_real, has_blob)` zws gate :2055; `operands[2i]` subwalk per ALPHA s26 note) — strike that sub-step.
+
+**FALSIFICATION 3 — the xc318 "+1 flip" on 127 was an ASLR coin, not a mech-2 effect:** fixed invocation of 127_pat_json_keyvalue oscillates F F P P F P (no env delta; `randomize_va_space=2`) — the S231 oscillation class, W-4's target, exactly. Full xc318 at this HEAD, container-local, RT `-O0`: OFF m3 279/24/14 · m4 265/40/10/2L; ZW_RB=1 identical BY SET modulo that coin.
+
+**FRESH ARMED-REGIME EVIDENCE BASE (the re-measurement SEQ-ERAD s9 demanded before any re-arming):** 141-probe run-suite at HEAD `171e4a03`: default **118/23/0/0** · `ZD_MATCH=1` **96/23/0/22** · `ZD_MATCH=1+ZW_RB=1` **99/23/0/19** — mechanism-2 is REACHABLE and net **+3** under arming, but the armed regime trails default by 19. Classification: **17 CRASH** {A05 A06 G04 G05 G08 G09 G21 H02 H03 H04 H14 H18 H19 H20 H22 H23 H30} + **2 WRONG** {F04 G17}. Crash-dominant ⇒ likely few shared roots.
+
+**⭐ MECH-2 R12 COLLISION LEAD (specific, gdb-classified, NOT monitor-proven):** A05 armed-combo crash fires in the statement AFTER the match succeeds (`=S` printed) at the first heap-touching C call (`c_str_concat_d → rt_gcheap_init → dl_iterate_phdr`), with **r12=8** — a clobbered CAS top. `bb_match_begin.cpp:38` (`mov r12,rsp`, note mech2_framebase) carries the stale claim "R12 is free (R12-ERAD/ARCH-ICON)" — **W-1b predates CAS-R12-UNIFY**, which made r12 the live CAS top; 7 mech-2 sites total (1 writer begin:38 + 6 readers begin:107/115, end:113/122/127/134), all op_zw2-gated so the collision is INVISIBLE at default. Hypothesis: under the armed combo, mech-2 overwrites the CAS top with a stack address and every `bb_match_capture` push then writes 24B entries onto the C stack — the ZW16 hazard's last un-unified citizen (08-06g finding: "the ZW16 hazard was the mixed regime"). Register scarcity IS the wall: rbx=WS frontier, r13/r14/r15=Σ/δ/Δ, rbp=ARBNO-borrowed, r12=CAS — no free callee-saved reg. **Candidate fix direction (for the monitor to confirm/deny): mech-2 recovers the frame base from the CAS sentinel's existing `[marker+8]` rsp mark (LIFO `sub r12,24` recoverable, depth-free) instead of a private register — consuming the one authority instead of fighting it.**
+
+**GATES at close:** default probe 118/23/0/0 · xc318 as above · zero repo diffs (SCRIP/corpus untouched; regen not owed — no codegen files edited).
+
+**NEXT RUNGS (corrected order):**
+1. ~~CHAIN-PROMOTE-19~~ **DROPPED (falsified above).** Chain-arm deletion stays parked at W-5 behind a nested-capable replacement.
+2. **MECH2-R12-MONITOR** — MONITOR-FIRST on A05 under `SCRIP_ZD_MATCH=1 SCRIP_ZW_RB=1`; bracket the divergence; test the sentinel-mark fix direction above; then re-run the 19-set. This is the W-2 prerequisite: the flip's gate (`SCRIP_WHOLESALE`≡ZW_RB) must DO something correct before it can default-ON.
+3. **F04/G17 WRONG-output pair** — monitor after the crash cluster clears (different defect class).
+4. **W-2 steps 1–2, 4–5** (step 3 struck — already landed) → W-4 → W-5 legacy forest (op_zw2/op_zw census this session: zw_rb_on() ×3 emit.cpp; op_zw2 5 files; op_zw 7 files incl. bb_match_fence1's whack-commit — entangled, per-arm reachability required, parking confirmed correct).
+
+## ⭐⭐ CURSOR HISTORY — 2026-08-06k (Sonnet — W-1c.3 Part B patstk slot retired; chain arm census stale)
 
 ⭐ **SESSION WORK (Sonnet, 2026-08-06k):**
 
