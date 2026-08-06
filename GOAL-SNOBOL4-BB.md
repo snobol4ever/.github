@@ -6,7 +6,26 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06j (Sonnet — W-1c.3 NO-SCAN + W-1c.4 RT_DCAP_TOP LANDED)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06k (Sonnet — W-1c.3 Part B patstk slot retired; chain arm census stale)
+
+⭐ **SESSION WORK (Sonnet, 2026-08-06k):**
+
+**W-1c.3 Part B — patstk slot `op_off+8` retired (SCRIP `171e4a03`, corpus `f1726c29`):** The α patstk snapshot at `FRQ(op_off+8)` deleted from `bb_match_begin`. All four paths now read patstk from the sentinel `[r12+16]` directly: hfc fail-exit (LIFO `sub r12,24` → `[r12+16]`, prior commit), non-hfc fail-exit (sub moved to TOP of branch → `[r12+16]`, slot-read deleted), `bb_match_end` rfc/non-rfc fork unified on the L(9) scan (non-rfc slot-read at `FRQ(op_off+8)` deleted, both arms scan via r10). Slot `op_off+8` reverts to `head.zeta_mark` (its `zeta_storage.c` grant). The op_tail L(8) and `release_pump` L(5) scans are kept — they are pre-pump range-locators where live capture count is runtime-variable. Gates: 118/23/0/0 · witness 9/9. Regen ×3 real deltas.
+
+**CHAIN ARM DELETION BLOCKED — census stale (NOT committed):** Goal file's "33 dispatches all legitimately declined; already xfail/DIVERGE" is **stale at HEAD `e65ff67d`**. Bombing the chain arm body caused **19 regressions** (D09-D13, G19-G20, H24-H25, X01-X08, X11 — all were PASSING via the chain arm). Correct sequence: promote these 19 programs to the frameless arm FIRST, then bomb. New prerequisite rung: `CHAIN-PROMOTE-19` — audit why each declines the frameless arm and fix the blocker.
+
+**GATES:** run-suite 118/23/0 · compile-suite 0/141/0 · witness ladder 9/9. All green.
+
+**NEXT RUNGS (in order):**
+1. ✅ **XFAIL.compile birth** — DONE (corpus `10c87a40`).
+2. ✅ **FENCE-WHACK-ON (W-1c.1)** — DONE (SCRIP `b07fe2c9`).
+3. ✅ **ARBNO view-restore (W-1c.2)** — DONE (SCRIP `f11a59b2`).
+4. ✅ **W-1c.4 `RT_CAS_TOP` rename** — DONE (SCRIP `a07e4143`).
+5. ✅ **W-1c.3 NO-SCAN failure exits** — DONE (SCRIP `a897764e`).
+6. ✅ **W-1c.3 NO-SCAN L(6) post-pump** — DONE (SCRIP `e65ff67d`).
+7. ✅ **W-1c.3 Part B patstk slot retired** — DONE (SCRIP `171e4a03`).
+8. **CHAIN-PROMOTE-19** — audit why D09-D13/G19-G20/H24-H25/X01-X08/X11 decline frameless arm; fix; then bomb the chain arm.
+9. **W-2 ARM-ALL/flip** → W-4 xc318 reds → W-5 legacy forest.
 
 ⭐ **SESSION WORK (Sonnet, 2026-08-06j):**
 
