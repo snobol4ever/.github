@@ -6,18 +6,23 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06h (Sonnet — XFAIL.compile BORN; Bug 6 STF+mech-2 RESOLVED; XFAIL.run D11/G01/H21 dropped)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06i (Sonnet — W-1c.1 FENCE-WHACK-ON + W-1c.2 ARBNO view-restore LANDED)
 
-⭐ **SESSION WORK (Sonnet, 2026-08-06h) — orientation + gates + XFAIL.compile birth:**  Full code read of mech-2 prologue/whack/leave chain confirmed Bug 6 (STF+mech-2 rbp clobber) is ALREADY RESOLVED by W-1b r12-save + CAS-R12-UNIFY: all 6 corpus-accessible programs from the named 11-regression set (064/157/162/164/174/176) now pass gate-ON; the 18 "regressions" in the pre-update gate were pre-existing SIGSEGV/timeout in BOTH gate-OFF and gate-ON (not mech-2 caused).  XFAIL.run updated: D11/G01/H21 dropped (now pass), 23 known-failing.  XFAIL.compile born: `BASELINE=1 MODE=compile` — 141 known-failing, gate immediately green.  Regen ×3 zero-drift.  corpus `10c87a40`.
+⭐ **SESSION WORK (Sonnet, 2026-08-06i):**
 
-**GATES:** run-suite OFF=118/23/0 · run-suite ON (`SCRIP_ZW_RB=1`) 118/23/0 · compile-suite 0/141/0.  All three green.
+**W-1c.1 FENCE-WHACK-ON (SCRIP `b07fe2c9`):** `fence_u2_frame` was sharing `SCRIP_U2` with `arbno_u2_frame`. `SCRIP_U2=1` triggered both, and the arbno rbp save/restore had 18 nested-ARBNO regressions. Fix: decoupled — `fence_u2_frame` now reads `SCRIP_U2_FENCE` (default ON, `=0` to disable); `arbno_u2_frame` kept `SCRIP_U2` (now dead). Witness ladder 9/9, gate clean.
+
+**W-1c.2 ARBNO view-restore (SCRIP `f11a59b2`, corpus `2ddec3d7`):** Chain arm used `zv()=rbp` as element view. DEFINE function calls inside the ARBNO body clobber rbp (their own frame base), breaking the callee-saved ABI contract at exhaust. Fix: unconditional rbp save into slot+32 at α; unconditional rbp restore from slot+32 at L(2) exhaust before rsp restore. Sigma/phi paths intentionally have NO view-restore — the chain-link walk terminates with rbp=MATCH_BEGIN-rbp by invariant, and FRQ reads are pinned-rbp-relative (depth-immune). `zeta_storage.c` slot+32 grant made unconditional (was `SCRIP_U2` gated). `arbno_u2_frame()` deleted — `SCRIP_U2=1` now has zero consumers and no longer regresses. Gate: run OFF=118/23/0 ON=118/23/0 SCRIP_U2=1=118/23/0 compile=0/141/0 all green. Regen ×3: benchmark 0 delta, feature 4 files, demo 14 files (slot+32 shifts ARBNO node sizes).
+
+**GATES:** run-suite OFF=118/23/0 · ON (`SCRIP_ZW_RB=1`) 118/23/0 · compile-suite 0/141/0. All three green. Witness ladder 9/9.
 
 **NEXT RUNGS (in order):**
 1. ✅ **XFAIL.compile birth** — DONE (corpus `10c87a40`).
-2. **CAS-R12 phase 2** — `g_patstk_sp` eradication with C-scanner retirement; then RULING 4's match-scoping of the ARENA itself (carve/reset at MATCH_BEGIN, release at MATCH_END, retire the process-wide 8MB pin + the W-1c.4 one-line `CAS` definition at pin_va.h:9).
-3. **FENCE-WHACK-ON** — `fence_u2_frame` default flip (SCRIP_U2=1 regressed 7 programs at last probe; investigate before flip; W-1c.0's fence-fail segfault likely gates this).
-4. **DELETE legacy chain arm** (K16 census done) + the dead op_zw2/op_zw arms' 10 cell refs ride W-5.
-5. **W-2 ARM-ALL/flip** → W-4 xc318 reds → W-5 legacy forest.
+2. ✅ **FENCE-WHACK-ON (W-1c.1)** — DONE (SCRIP `b07fe2c9`). `SCRIP_U2_FENCE=0` killswitch.
+3. ✅ **ARBNO view-restore (W-1c.2)** — DONE (SCRIP `f11a59b2`). Slot+32 unconditional; `SCRIP_U2` retired.
+4. **CAS-R12 phase 2 / W-1c.3** — `g_patstk_sp` eradication with C-scanner retirement; then RULING 4's match-scoping of the ARENA (carve/reset at MATCH_BEGIN, release at MATCH_END, retire the process-wide 8MB pin + the W-1c.4 one-line `CAS` definition at pin_va.h:9).
+5. **DELETE legacy chain arm** (K16 census done) + dead op_zw2/op_zw arms ride W-5.
+6. **W-2 ARM-ALL/flip** → W-4 xc318 reds → W-5 legacy forest.
 
 ## ⭐⭐ CURSOR HISTORY — 2026-08-06f (Sonnet — STMT-BETA-LAND R1 LANDED + m4 -o flag; SCRIP `169ad6b4`, corpus `91659735`)
 
