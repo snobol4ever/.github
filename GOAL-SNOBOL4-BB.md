@@ -14,6 +14,8 @@ The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS conti
 
 **Gates:** suite **131 pass / 10 xfail / 0 XPASS / 0 REG** (N14 exhaust-retract promoted out of XFAIL.run same-commit; the K16=0 arm's single expected delta IS N14 = HEAD reproduced). xc318 default m3 **293/24** m4 **287/28**, movement = `158_pat_cap_arbno_each_iter` F→P BOTH modes, zero new, DIVERGE 7 = baseline. K16=0: m3 set EXACT; m4 delta = the 127/152 flake pair only. Killswitch-OFF `.s` byte-identical to `c7a276f6` (stash A/B ×4 programs). Regen ×3 clean, zero artifact drift.
 
+⭐ **TOP-LEVEL-K0 CONVERGENCE LANDED SAME DAY (SCRIP `512ff8cd`, corpus `c04dd8d8`): suite 133/8/0/0.** The framed gate on the K0 arm was scoping conservatism — pure-rsp, +16 billed by zd_k(ARBNO)=16, so the static-distance laws hold at depth 0; non-tail only (op_tail wins first). Fixed N08/N09 (outer `$`/`.` over a K0-ARBNO group): **outer-pending cells compose with STATIC delta — the laws bar only DYNAMIC delta**, now witnessed from both sides. xc318 movement = the 127/152 flake alone (127 has no ARBNO node; no causal path).
+
 ⭐ **SCRIP_ZW_RB=1 IS DEAD CODE AT HEAD (W-1b list is STALE):** byte-identical both arms; the mech-2 predicate is parasitic on UCLAIM staging that only default-OFF `SCRIP_ZD_MATCH` populates. The default regime already IS the model trunk (shape census in the FINDING). **W-5 deletes the ZWR/UCLAIM forest; nobody debugs it.**
 
 **NEXT RUNGS (in order):**
