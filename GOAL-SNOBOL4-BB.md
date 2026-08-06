@@ -6,7 +6,24 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06 (Fable, Lon hands-on — ARBNO-LON LANDED; GATE GREEN 130/11/0/0, FIRST GREEN IN CURSOR HISTORY)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06b (Fable, Lon hands-on — ARB-LON-K16 LANDED; SUITE 131/10/0/0; xc318 m3 293 m4 287; ZW_RB PROVEN DEAD)
+
+**Rung 1 of the 2026-08-06 queue is LANDED.** `bb_match_arbno_frameless_k`: the 16B `{Δ0,yield}` cell RE-HOMED to the frontier at each σ commit — σ reads the previous cell one level in at `[rsp+kk]` (kk = Σ zd_k over the body span, THE ONE K AUTHORITY), copies Δ0 forward; exhaust reads `[rsp+0]`; retract frees 16 onto the body frontier for PAIR(1). Non-popping growth kk+16/commit, released by bracket whacks only. Statement release goes mech-2 when the arm fired (`g_arbk16_stmt` latch → `op_stmt_dyn` → `lea rsp,[rbp+op_zgpop]` before the old_rbp reload); FAIL exits stay static LAWFULLY — the exhaust cascade retracts all growth during unwind (FOUR-CLAUSE LAW, witnessed).
+
+**Admission (ONE routing authority = the emit.cpp IR_MATCH_ARBNO prelude, BEFORE the fc_tail claim; env killswitches `SCRIP_ARBNO_K16`/`SCRIP_ARBNO_FRAMELESS` read there ONLY; template keys purely on staged `op_arbno_body_kk>0`, above the geometry bombs):** sequence-only span ∧ kk>0 ∧ **!framed** ∧ **no outer-pending SAVE**. The two declines are LAWS, not caution — see `FINDING-2026-08-06-CLAUDE-SN4-ARB-LON-K16-LANDED-...md`: (A) net-zero-delta under a legacy chain outer (X03/X05), (B) static SAVE↔COND distance across the ARBNO (166; fc_tail's fpb CONFLATES body-interior with outer cells — the discriminator is the match-bracket scan, window = (MATCH_BEGIN, next MATCH_BEGIN) because **MATCH_END's cfg index precedes the body nodes**, a creation-order trap now on record).
+
+**Gates:** suite **131 pass / 10 xfail / 0 XPASS / 0 REG** (N14 exhaust-retract promoted out of XFAIL.run same-commit; the K16=0 arm's single expected delta IS N14 = HEAD reproduced). xc318 default m3 **293/24** m4 **287/28**, movement = `158_pat_cap_arbno_each_iter` F→P BOTH modes, zero new, DIVERGE 7 = baseline. K16=0: m3 set EXACT; m4 delta = the 127/152 flake pair only. Killswitch-OFF `.s` byte-identical to `c7a276f6` (stash A/B ×4 programs). Regen ×3 clean, zero artifact drift.
+
+⭐ **SCRIP_ZW_RB=1 IS DEAD CODE AT HEAD (W-1b list is STALE):** byte-identical both arms; the mech-2 predicate is parasitic on UCLAIM staging that only default-OFF `SCRIP_ZD_MATCH` populates. The default regime already IS the model trunk (shape census in the FINDING). **W-5 deletes the ZWR/UCLAIM forest; nobody debugs it.**
+
+**NEXT RUNGS (in order):**
+1. **K16 widen honestly or document the declines** (DEFER-body exclusion; the outer-pending class belongs to a future carry-capable arm) — then **delete the legacy chain arm + counter/link/U2 quads + top-level-K0 convergence** (top-level single-activation = the same two-compare form, cell in the head claim).
+2. **CAS-R12-UNIFY** (Lon mandate): every `ABSQ(RT_CAS_TOP)` in bb_match_begin/end → r12; cell → boot-seed; then `g_patstk_sp` eradication. RULING 4 island-narrowing rides along.
+3. **FENCE-WHACK-ON:** flip `fence_u2_frame` default — cheapest real win on the board.
+4. **m4 `-o` driver argv fix** then `BASELINE=1 MODE=compile` → birth `XFAIL.compile`.
+5. Then W-2 ARM-ALL/flip; W-4 the remaining xc318 reds toward ALL-programs; W-5 legacy deletion (chain, ZWR/UCLAIM, ENDJMP/op_wsteal, killswitch fold).
+
+## ⭐⭐ CURSOR HISTORY — 2026-08-06 (Fable, Lon hands-on — ARBNO-LON LANDED; GATE GREEN 130/11/0/0, FIRST GREEN IN CURSOR HISTORY)
 
 **THE 5 NESTED-ARBNO SIGSEGVs ARE CLEARED (H24 H25 X02 X06 X11), both media.** SCRIP `c7a276f6` + feature `.s` `77236760`; corpus `f47e2469` (35 XPASS dropped from XFAIL.run per the suite's same-commit law — deferred debt from s9, now paid). Suite: **130 pass / 11 xfail / 0 XPASS / 0 REGRESSION, exit 0.** Killswitch `SCRIP_ARBNO_FRAMELESS=0` reverts the class to the legacy chain arm.
 
