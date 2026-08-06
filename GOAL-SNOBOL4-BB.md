@@ -6,7 +6,18 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06c (Fable, Lon hands-on — DECLINE CENSUS DOCUMENTED (queue-#1 doc half DONE); STATEMENT-PORT LAWS RULED; INDEPENDENT VERIFICATION GREEN)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06d (Sonnet — STATEMENT-PORT LAWS IMPLEMENTED; xc318 m3 296/21 +3; MATCH_BEGIN frame gate corrected)
+
+⭐ **STATEMENT-PORT LAWS IMPLEMENTED (SCRIP `cc39c095`) — three changes:**
+**(R1, emit.cpp flat_beta_used_scan):** `IR_STATEMENT_BEGIN` added to always-live β set. `nN_statement_begin_β:` now appears in every emitted `.s` as the named failure landing. Beta trampoline: `β → jmp ω = next stmt α = F-goto target`. Routing of match_begin exhaust + element ω edges to this label is the next lower rung.
+**(R2, bb_match_begin.cpp rpin):** `flat_deep_arrival → flat_layout_unknown`. MATCH_BEGIN sets RBP frame ONLY when `zls_g_region(g)<=0` (genuinely unknown extent). Statically-extented ARBNO statements (K16, K0-in-place) emit zero frame overhead and release by static ADD. Witnessed: p3 lost `mov rbp, rsp # stmt_base` entirely.
+**(R3, lower_snobol4.c sno_build_graph):** `fail_tgt[]` parallel array saves each statement's fT; STATEMENT_BEGIN ω wired to fT so DRIVE_PAIR routes `statement_begin_β → fT` correctly. 4 probes oracle-exact vs sbl both modes.
+
+**FRESH WATERMARK:** xc318 **m3 296/21 · m4 275/40 (pre-existing -o driver issue) · DIVERGE 20** (unchanged set); probe suite 8 FAIL (pre-existing IR_LANG_SNO staleness). Parent: SCRIP `512ff8cd` → `cc39c095`.
+
+**NEXT RUNGS (in order):** 1. **DELETE the legacy chain arm** (unblocked by the K16 census) + counter/link/U2 quads. 2. **Route match_begin exhaust + element-ω edges → statement_begin_β** (lower rung, completes R1). 3. **CAS-R12-UNIFY.** 4. **FENCE-WHACK-ON** (`fence_u2_frame` default flip). 5. **m4 `-o` argv fix** → `XFAIL.compile` birth. 6. W-2 ARM-ALL/flip → W-4 xc318 reds → W-5 legacy deletion.
+
+## ⭐⭐ CURSOR HISTORY — 2026-08-06c (Fable, Lon hands-on — DECLINE CENSUS DOCUMENTED (queue-#1 doc half DONE); STATEMENT-PORT LAWS RULED; INDEPENDENT VERIFICATION GREEN)
 
 ⭐ **LON RULINGS 2026-08-06 (afternoon, binding — the STATEMENT-PORT LAWS):** (1) statement FAILURE lands at STATEMENT_BEGIN's **β** — the release there may WHACK-FREE BY ADD because the UNWIND law (ω frees own K) plus the abandon path's absolute `cas_rsp_mark` re-base guarantee rsp==claim base on every failure arrival; (2) statement SUCCESS lands at STATEMENT_END's **α**; (3) STATEMENT_BEGIN sets an RBP frame **ONLY for UNKNOWN stack-depth statements** ("DO NOT set up a frame when you do not need it") — known extent ⇒ `add rsp,ΣK`; unknown extent (a FRAMELESS_K arbno's committed growth) ⇒ STATEMENT_END pops the frame (`lea rsp,[rbp+K]` off stmt_base + old_rbp restore, the landed `op_stmt_dyn`/`dyn_whack` mechanism). **Census on HEAD emission (N04): all three laws HOLD** — success jmps `n19_statement_end_α` carrying the ONE dyn_whack in the program; the fail glue releases by ADD on the β side; frames added beyond the dyn statement: zero.
 
