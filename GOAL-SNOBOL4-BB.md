@@ -6,7 +6,28 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06e (Sonnet — STMT-BETA-LAND DIAGNOSED; beta-tag overload is the blocker; no commits this session)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06f (Sonnet — STMT-BETA-LAND R1 LANDED + m4 -o flag; SCRIP `169ad6b4`, corpus `91659735`)
+
+⭐ **SESSION WORK (Sonnet, 2026-08-06f) — R1 fully landed, three coordinated changes:**
+
+**(1) β-TAG SPLIT** (`emit.cpp`): five raw `0xce 0xb2` byte-sniffs collapsed to `port_sz_beta()` per the s22k one-authority law.  New `beta_is_stmt_land(tgt)` predicate distinguishes label-selection (all β edges route to `betas[k]`) from release-suppression (only retry back-edges suppress; a β edge into `IR_STATEMENT_BEGIN` is a pure landing pad — by the UNWIND LAW every box freed own K rolling home, rsp at claim base on arrival).  Three steal guards (UNWIND/ENDJMP/ZW5) now read `omega_is_retry = omega_is_beta && !beta_is_stmt_land(otgt)`.  ZD-5b planner `oin` suppression gets the same conjunct.  Byte-neutral: six witness `.s` files byte-identical vs HEAD `cc39c095`.
+
+**(2) fB dedicated exhaust GOTO** (`lower_snobol4.c` + new `lc_γ_tag_β` in `lower_common.c`): `sno_lower_match` gains `out_land` param; fB = `lc_build(IR_GOTO, fJ, NULL)` + `lc_γ_tag_β(fB)`.  **Tag-only** (not `lc_γ_to_β`) is the key insight: fB's `γ.node` stays `= fJ`, preserving the full GOTO chain to fT so the emitter's used-scan reaches every subsequent statement (the 175 root cause: `lc_γ_to_β` severed the chain from node 10@ to n11@→n12@→n13@, dropping the second `STATEMENT_BEGIN` from `used[]`).  Post-loop retags `fB.γ.sz = β` without touching `fB.γ.node`.
+
+**(3) ZPOP-FOLD guard** (`emit.cpp`): when the fold's `betas[_fk]` lookup finds a `beta_is_stmt_land` target, set `_fk = -1` before the `while`.  Root cause of 06e Layer 2: fold entered, `flat_trivial_beta(STATEMENT_BEGIN)` returned 0, exited with `_sum=0`, trailing `g_emit.op_wpop = 0` erased the UCLAIM-staged release (`add rsp,192` vanished from 067's exhaust site — measured via `.s` diff).
+
+**Also landed: m4 `-o` flag** (`scrip.c`): `scrip --compile -o out.s prog.sno` redirects `--compile` output to a file (both `-o FILE` and `-oFILE` accepted; NULL = stdout unchanged).  Note: `emit_textf()` preamble emits before the fopen in the current form — full capture requires fopen before the preamble; sufficient for the XFAIL.compile baseline rung which uses shell redirect.
+
+**WATERMARK:** xc318 m3 **295/22** (+1 vs HEAD cc39c095 294/23) · m4 **275/40** (unchanged) · DIVERGE **19** (152 env-pad flake — byte-identical `.s`, nondeterministic on both builds). `067_pat_fence_fn_vs_kw` promoted FAIL→PASS m3. `175_pat_bal_generator_retry` holds PASS. No regressions. Regen ×3 clean. SCRIP `169ad6b4` · corpus `91659735` · `.github` this commit.
+
+**NEXT RUNGS (in order):**
+1. **CAS-R12-UNIFY** — every `ABSQ(RT_CAS_TOP)` reader/writer in `bb_match_begin/end` → r12; cell demoted to boot-seed; `g_patstk_sp` eradication with C-scanner retirement. RULING 4 island-narrowing rides along.
+2. **FENCE-WHACK-ON** — `fence_u2_frame` default flip (SCRIP_U2=1 currently regresses 7 programs; needs investigation before flip).
+3. **DELETE legacy chain arm** — replace chain arm body with `x86_bomb()` (33 dispatches all legitimately declined per K16 census; already xfail/DIVERGE; census: `sq=0` blocklist kinds majority, `osv=1` outer-pending SAVE, `framed=1` nested contexts).
+4. **m4 `-o` fopen-before-preamble fix** — move fopen before `emit_textf()` calls for full file capture.
+5. **W-2 ARM-ALL/flip** → W-4 xc318 reds → W-5 legacy forest (ZWR/UCLAIM, ENDJMP/op_wsteal, killswitch fold).
+
+
 
 ⭐ **SESSION FINDINGS (Sonnet, 2026-08-06e) — R1 rung fully diagnosed, two-layer blocker identified:**
 
