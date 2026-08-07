@@ -51,6 +51,8 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **SCRIP RENAME** | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename. |
 | **Icon BB (Ground Zero)** | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. |
 | **ICN-GVA-M3** | `GOAL-ICN-GVA-M3.md` | Icon globals `[rbx+k*16]` mode-3; M3-ARENA-1..4. |
+| **ICN ZFRAME RESTORE** ⬅ concurrent w/ ZETA-CELLS (2026-08-07) | `GOAL-ICN-ZFRAME-RESTORE.md` | FRAMES on stack; anchor `8d0665c8` parity; ICN-FR-1 open. |
+| **ICN ZETA CELLS** ⬅ NEW 2026-08-07, concurrent w/ ZFRAME-RESTORE | `GOAL-ICN-ZETA-CELLS.md` | 100% per-BB ζ cells on RSP FORTH spine; LVA+GVA; ZK-0 open. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See file. |
 | **Pascal BB** | `GOAL-PASCAL-BB.md` | 7th frontend (P4 subset); toolchain in `corpus/programs/pascal/`. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
