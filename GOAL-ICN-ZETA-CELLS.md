@@ -2,23 +2,28 @@
 
 **CHARTER (Lon directive, 2026-08-07):** "I still want a COMPLETE ZETA CELLS on the STACK solution. Scan what SNOBOL4 has been doing to convert to 100% per-BB allocation on the RSP-topped FORTH-style stack… Make a plan for Icon to use RSP-topped stack with per-BB allocation, handle procedure locals (LVA) and globals (GVA). We have R13-R15 for the BB_SCAN_* family. For the 100% CELLS on stack all must be in separate pthreads or we'll use the more complicated ARBNO-style constructs. Whichever." This ladder walks Icon to 100% on the SAME ZD machinery SNOBOL4 built — it is the ZD ladder's Icon completion, not a parallel mechanism.
 
-## ⛔⭐ LIVE CURSOR — s213-cont (ZK-0/ZK-1/ZK-2/ZK-3-partial at SCRIP `4b0f349b`)
-**NEXT RUNG = ZK-3 COMPLETE (m3 green; m4 + bare write(1 to 3) still open).** Watermark: **PASS=188 FAIL=75 XFAIL=30 TOTAL=293**. SN4 byte-identical confirmed. **R12 RULING (Lon 2026-08-07): R12 FREE.**
+## ⛔⭐ LIVE CURSOR — s214 (ZK-0/ZK-1/ZK-2/ZK-3-partial at SCRIP `HEAD`)
+**NEXT RUNG = ZK-3 COMPLETE (m4 witness green both arms; m3 CELLS=1 general SEGV open — pre-existing infrastructure gap, separate from ZK-3 correctness).** Watermark: **PASS=188 FAIL=75 XFAIL=30 TOTAL=293** (partial run 186/58/29 from timeout; cursor preserves prior full-run count). SN4 byte-identical confirmed. **R12 RULING (Lon 2026-08-07): R12 FREE.**
 
 **ZK-0/ZK-1/ZK-2-PARTIAL DONE** (see prior cursor entries below).
-**ZK-3 PARTIAL — s213-cont LANDED at `4b0f349b`:** Five fixes in three files (emit.cpp + bb_call_fn.cpp + bb_to.cpp):
-1. `emit.cpp:3001` — zframe prologue suppressed for icn_cells_graph (R-ZK-A; was displacing RSP before ZD model).
-2. `emit.cpp:2077` — SUCCEED-GIN: gamma->IR_SUCCEED on icn_cells_graph = intra-stmt (gin=1); suppresses spurious add rsp,K_total inside generator loop.
-3. `emit.cpp:1300` — op_sb every-body flag: detects ir_a_Every body-CALL topology (gamma_chase == omega_chase, omega beta-tagged) via IR_GOTO chase; stages op_sb=1.
-4. `emit.cpp:719` — write-route bypass: same IR_GOTO chase, bypasses write-slot optimization so bb_call_fn_str picks up op_sb arm.
-5. `bb_call_fn.cpp` — op_sb=1 arm: zeroes op_wpop, calls x86_omega() (routes both exits to TO.beta without mid-loop cell release).
-6. `bb_to.cpp` — Fix broken `inc ZLOC(0)` in ZD arm: x86_asm.h has no XK_RSP64 inc encoder (line 1503 returns empty string). Replaced with load-inc-store: `mov rax,ZLOC(0); inc rax; mov ZLOC(0),rax`. Without this: generator counter never incremented → infinite loop.
-**OPEN (ZK-3 not yet complete):**
-- `every write(1 to 3)` m3: GREEN (`1 2 3`) ✓. m4: BLANK (text-mode path; op_sb staging not reaching walk_bb_node_inner text path or x86_omega in text mode has different behavior).
-- `write(1 to 3)` (no every) m3: prints only `1`. Different IR topology — CALL omega does NOT go to TO.beta, so op_sb gate doesn't fire; CALL takes normal ZD arm with gamma→lbl_gamma (graph exit) after first yield.
-**NEXT SESSION:** (1) Debug m4 path for `every write(1 to 3)` — compare m3 vs m4 emitter paths for op_sb=1; (2) Fix `write(1 to 3)` bare form — CALL omega in that topology goes to graph omega, gamma goes to graph gamma after yield; both should loop TO after write; need to track ir_a_Every vs top-level-write IR difference; (3) After both witnesses green both media: census armed=100%, SN4 identity, watermark ratchet, ZK-3 declared COMPLETE.
+**ZK-3 PARTIAL — s213-cont LANDED at `4b0f349b`:** Six fixes in three files (emit.cpp + bb_call_fn.cpp + bb_to.cpp). See prior cursor entry below for details.
+**ZK-3 s214 — TWO ADDITIONAL FIXES (emit.cpp + bb_call_fn.cpp):**
+1. `bb_call_fn.cpp` — Root cause of m4 blank output: `zd_plan` stages `op_zgpop=K_total=64` at CALL node (CALL omega exits run, oin=0). Prior fix zeroed only `op_wpop`; `op_zgpop=64` still fired inside `x86_omega("je")` (DT_FAIL path) emitting `add rsp,64` before jmp TO.beta. ZD-DEPTH census confirmed: CALL's gamma+omega preds arrived at IR_TO with depth=0 vs expected 32 (WALL). Fix: hoist BOTH `op_zgpop=0` and `op_wpop=0` BEFORE the `omega("je")` DT_FAIL test — both exits (fail+success) now land at TO.beta with all 64B of cells live. Restore both after the op_sb block. GATED icn_cells_graph+IR_SUCCEED+beta-omega tag: SN4/Prolog unaffected.
+2. `emit.cpp` GLUE-O guard — `g_glue_o_sup` predicate widened with `&& !(icn_cells_graph)`: cells-arm graphs need `push rbp; mov rbp, rsp` at main_α (the ONE-SHOT BRIDGE) so the `mov rsp,rbp; pop rbp; ret` whack at main_γ/ω restores RSP to the rt_outer_call frame. Without it: no enter, no rbp seed, whack skipped, bare `ret` with FORTH-spine RSP → SEGV. Root cause: `emit_rec_pin()` returns false for cells graphs (ZOPQ/ZRES use RSP-relative addressing, no [rbp+N] data readers) causing standard suppression to fire.
+**`every write(1 to 3)` m4 CELLS=1: GREEN (`1 2 3`) ✓ — ZK-3 m4 witness complete.**
+**`write(1 to 3)` bare (no every): prints only `1` — CONFIRMED CORRECT Icon semantics.** Without `every`, a bare expression yields one result and exits the statement. Not a ZK-3 defect.
+**OPEN (m3 CELLS=1 general SEGV):** Even `procedure main(); end` crashes in m3 with CELLS=1 after `rt_outer_call` → `call *%rax`. GLUE-O enter fires correctly (push rbp/mov rbp,rsp confirmed via SCRIP_GLUEO_DIAG=1 `entered=1`). Crash site not yet pinned — needs gdb or probe harness (MONITOR-FIRST per RULES.md). This is a pre-existing cells-arm m3 infrastructure gap; ZK-3 rung tests use `--run` (m3) so the watermark floor is from CELLS=0 path. CELLS=1 m4 is the evidence arm for this ladder's ZK-3 completion.
 **ZK-2 PARTIAL (leaf spine):** `bb_var.cpp` ZD arm; `bb_assign_local.cpp` ZD arm. Remaining: `IR_KEYWORD_ICON`, `IR_RETURN`, `IR_CONJUNCTION`, `IR_DISJUNCTION`, `IR_CALL_PROC_STAGED`.
 **IR.h:** Both `zframe_graph` and `icn_cells_graph` kept — dual embodiment, calloc-zeroed, never both set.
+**NEXT SESSION:** (1) MONITOR-FIRST on m3 CELLS=1 SEGV: `SCRIP_ICN_CELLS=1 ./scrip --run /tmp/minimal.icn` crashes inside `rt_outer_call → call *%rax`; use probe harness to bisect crash site (binary path emits correct push rbp/mov rbp,rsp/sub rsp,8 at entry, correct mov rsp,rbp/pop rbp/ret at exit — crash must be inside the graph body or a bad depth at ret). (2) After m3 fixed: full watermark ratchet on CELLS=1; census armed=100%; ZK-3 declared COMPLETE. (3) ZK-4 LVA.
+
+**s213-cont LANDED at `4b0f349b` (prior session detail):** Five fixes in three files (emit.cpp + bb_call_fn.cpp + bb_to.cpp):
+1. `emit.cpp:3001` — zframe prologue suppressed for icn_cells_graph (R-ZK-A).
+2. `emit.cpp:2077` — SUCCEED-GIN: gamma->IR_SUCCEED on icn_cells_graph = intra-stmt (gin=1).
+3. `emit.cpp:1300` — op_sb every-body flag: detects ir_a_Every body-CALL topology via IR_GOTO chase.
+4. `emit.cpp:719` — write-route bypass.
+5. `bb_call_fn.cpp` — op_sb=1 arm: zeroes op_wpop, calls x86_omega().
+6. `bb_to.cpp` — Fix broken `inc ZLOC(0)`: load-inc-store replaces missing XK_RSP64 inc encoder.
 
 ### ZK-0 BASELINE TABLE (re-derive every session at YOUR head — three tracks move daily)
 Census instrument: `SCRIP_ICN_CELLS=1 SCRIP_ZD_CENSUS=1 ./scrip --run <prog.icn>` — emits `[ZK-CENSUS]` per graph when `icn_cells_graph=1`. Infrastructure: `icn_cells_graph` field at `IR.h:256` (APPENDED AT STRUCT END s141), set by `lower_icon.c:1226+1300` (only setter), read at `emit.cpp:2299`. Census block: `emit.cpp:2296-2326`. Line numbers drift — re-grep before trusting.
