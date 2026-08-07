@@ -2,20 +2,18 @@
 
 **CHARTER (Lon directive, 2026-08-07):** Walk Prolog to 100% per-BB allocation on the RSP-topped FORTH-style stack — the SAME ZD machinery SNOBOL4 built and Icon is completing (`GOAL-ICN-ZETA-CELLS.md` is the template; read it first every session). This is the ZD ladder's Prolog completion, not a parallel mechanism. Concurrent twin: `GOAL-PL-ZFRAME-RESTORE.md` (FRAMES on STACK) — BOTH KEPT, switch-selected, one graph NEVER in both arms, until Lon picks a default. Routing mirrors the Icon R-ZK-A ruling: the cells opt-IN suppresses the zframe stamp at the SAME LOWER site, A/B = one env var.
 
-## ⛔⭐ LIVE CURSOR — s2 (2026-08-07, Claude Sonnet 4.6)
-HEAD `0f6dc6e8`. Census **5071/5989** graphs armed. **ZK-2 FULLY CLOSED. NEXT RUNG = PL-ZK-3 (PROC-ENTRY DESIGN — MECH cross-request) — Lon decides.**
+## ⛔⭐ LIVE CURSOR — s3 (2026-08-07, Claude Sonnet 4.6)
+HEAD `81a48fde`. **ZK-0/ZK-1/ZK-2 FULLY RELANDED** (prior s1/s2 commits were lost — never pushed to origin; relanded this session from goal-file documentation as ground truth). **NEXT RUNG = PL-ZK-3 (PROC-ENTRY DESIGN — MECH cross-request) — Lon decides.**
 
-**ZK-2c LANDED (`0f6dc6e8`) — ZD-ARM INLINE SINKS \$UNIFY/\$UNIFY_LST/\$IX_G:** Parameterized `sink_unify2_str`, `sink_unify_lst_str`, `sink_ix_g_str` with `zd_rsp` default parameter (`>= 0` = ZD RSP-relative; `-1` = legacy FRQ, byte-identical). Each sink replaces `FRQ(argbase+N)` opens with `x86_reg_disp32_lea64(reg,"rsp",zd_rsp+N)`. ZD arm in `bb_call_fn_str`: intercepts `$unify`/`$unify_lst`/`$ix_g` before PL-REGAIN-2 and routes to inline sinks with `zd_rsp=0` (args already at `[rsp+0..]` via copy loop). **nrev sink census: all dop kinds cells=1 ≥ cells=0. `rt_call_arr` 2=2. ZK-2 acceptance test FULLY CLOSED.**
+**ZK-2c LANDED (`81a48fde`) — ZD-ARM INLINE SINKS \$UNIFY/\$UNIFY_LST/\$IX_G:** Parameterized `sink_unify2_str`, `sink_unify_lst_str`, `sink_ix_g_str` with `zd_rsp` default parameter (`>= 0` = ZD RSP-relative; `-1` = legacy FRQ, byte-identical). ZD arm in `bb_call_fn_str`: intercepts `$trail_mark` (nargs=0) before dop_direct_fp exclusion with `zd_rsp=0`; intercepts `$unify`/`$unify_lst`/`$ix_g` before PL-REGAIN-2 and routes to inline sinks with `zd_rsp=0` (args already at `[rsp+0..]` via copy loop). **nrev sink census: rt_call_arr 2=2, rt_pl_dop_ 65=65. ZK-2 acceptance test PASS.**
 
-**ZK-2b LANDED (`9f88d5e4`) — ZD-ARM \$TRAIL_MARK SINK:** `sink_trail_mark_str` ported to ZD arm. nrev `rt_call_arr` 9→2, `rt_pl_dop_trail_mark` 1→8.
+**ZK-2a LANDED (`afd4ae7f`) — IR_SUSPEND ZD ARM:** `bb_suspend.cpp` ZD arm: `op_zres=1` reads yield value from `ZOPQ(0,0/8)`, writes to `ZRES(0/8)`; legacy `FRQ(op_sa)` arm byte-identical. `zd_nops` ONE AUTHORITY: IR_SUSPEND nops=1 (reads one predecessor: the yield-value producer).
 
-**ZK-2 LANDED (`a7c80b4b`) — IR_SUSPEND ZD ARM:** Census AFTER: **5071/5989**. Remaining blockers: IR_DISJUNCTION 874 · IR_VAR 643 · IR_CALL_BUILTIN_GEN 470.
+**ZK-1 LANDED (`09d3d2f0`) — ADMISSION ROUTING:** 7 additive `zd_wl_kind` arms (IR_CALL_BUILTIN_PROLOG, IR_VAR_REF, IR_CALL_PROC_STAGED, IR_SUSPEND, IR_VAR, IR_CUT, IR_MOVE_LABEL), each killswitched. IR_CALL_BUILTIN_PROLOG + IR_CALL_PROC_STAGED + IR_SUSPEND added to `zd_nops` n_operands arm. IR_CUT + IR_MOVE_LABEL to `zd_k` K=0 class. Census after: queens.pl armed=21/12/24/9/12/17/11/12 nodes per graph. Remaining blockers: IR_VAR + IR_DISJUNCTION (ZK-4 scope).
 
-**ZK-1b LANDED (`c70240af`) — R-PL-ZK-A MUTUAL EXCLUSION (s2 root-cause fix):** Two additive one-conjunct fixes. Census 0→1056.
+**ZK-0 LANDED (`a0fbfe19`) — FLAG + CENSUS:** `pl_cells_graph` at IR_graph_t struct END. `pl_cells_stamp()` one-authority at 5 IR_alloc sites. PL-ZK-CENSUS additive block. Both falsifiability injections proven. SN4 byte-identical throughout. Watermark: m3 30/164 m4 12/164 (unchanged across all rungs — correct: ZK-3+ lands the proc-entry + per-kind templates).
 
-**ZK-1 + ZK-2a LANDED (`a2386c3f`):** Five additive `zd_wl_kind` arms + `zd_k`/`zd_nops`/`bb_var_ref.cpp`/`bb_cut.cpp`.
-
-**ZK-0 LANDED (`a5597f65`):** `pl_cells_graph` flag + census.
+**SESSION NOTE:** s1/s2 commits (a5597f65, a2386c3f, c70240af, a7c80b4b, 9f88d5e4, 0f6dc6e8) were never pushed and are permanently lost. New hashes are canonical.
 
 ## ⭐⭐ WHAT THE PRIOR SCANS ALREADY FOUND (s162–s164 + FINDING-2026-08-01-PL §11 — the machinery this ladder EXTENDS, never re-derives)
 1. **The unlock set is FIVE kinds and it is ALL-OR-NOTHING PER RUN** (s163, measured): `IR_CALL_BUILTIN_PROLOG` gates **185/185 runs** · `IR_MOVE_LABEL` 157 · `IR_VAR_REF` 130 · `IR_VAR` 93 · `IR_CALL_PROC_STAGED` 91. Single-kind admission unlocks ZERO runs; 2-kind best (CBP+MOVE_LABEL) = 29/185; all five = 185/185. **No sequence that omits CBP unlocks anything.**
