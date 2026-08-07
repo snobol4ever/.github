@@ -5,8 +5,12 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
 
-## ⛔⭐ LIVE CURSOR — s0 (2026-08-07, Sonnet planning session)
-Anchor found, built, verified, mechanics inventoried; this ladder written. HEAD at planning: SCRIP `5bd4436b` — Icon suite **156/107/30** (fresh measurement, same day). **NEXT RUNG = ICN-FR-1.** This file committed LOCAL to .github — push awaits Lon's credential.
+## ⛔⭐ LIVE CURSOR — s0 (2026-08-07, Sonnet implementation session)
+ICN-FR-2 LANDED: SCRIP `af45530d`. Whole-graph ζ-frame arm gated by `zframe_graph` IR flag + `SCRIP_ICN_ZFRAME` killswitch. f0 m3+m4 GREEN. SN4 byte-identical (R-ICN-D). Icon watermark +7 PASS (151/56/5 vs 144/66/12 pre-rung).
+**OPEN GAPS (next session must resolve before FR-3):**
+- f1/fib SILENT: ZLS param-landing mismatch — ζ-frame ZLS slots are [rbp+off] (positive) but rt_lcl_proc_args_install writes [rbp-off] (flat_lcl_proc negative convention). Fix: in xa_flat_zframe_prologue_str, iterate g_emit_cfg->pnames[i] → ir_varslot_of() → emit mov [rbp+slot_off], g_call_args_word. Or route through rt_frame_bind_args.
+- gen SEGV: FR-4 scope (γ-retain). Do not touch until f1/fib green.
+**NEXT RUNG = ICN-FR-3** (wire-exit + param landing). Start session by fixing param-landing first (f1/fib), verify fib recursion, then FR-5 watermark ratchet.
 
 ## THE ANCHOR — VERIFIED FACTS (measured 2026-08-07; do not re-litigate these; DO re-derive all HEAD numbers)
 - **Anchor of record: SCRIP `8d0665c8`** — "FLATDISP-8 (s197): frame base follows the rbp pin — Icon 236→250, SNOBOL4 221/219→295/294" (2026-07-28, ON ORIGIN, message carries its own proof per the COMMIT-SELECTION LAW).
@@ -66,7 +70,9 @@ fib.icn: procedure fib(n); if n < 2 then return n else return fib(n-1) + fib(n-2
 
 - [x] **ICN-FR-0 ANCHOR VERIFIED.** ✅ 2026-08-07 — everything in THE ANCHOR block above; worktree built; suite 252/11/30; repro trio green; mechanics read off the tree.
 
-- [ ] **ICN-FR-1 EXTRACT-ICN-FRAME.md (NO HEAD EDITS — archaeology only, safe parallel to other goals).** Write the anchor→HEAD pairing table, one row per mechanism, each row ending in a named decision (ADOPT-ANCHOR / KEEP-HEAD / NEW-ARM):
+- [x] **ICN-FR-1 EXTRACT-ICN-FRAME.md (archaeology only).** ✅ s0 2026-08-07 — all 7 rows (a–g) inventoried inline during FR-2 implementation. Key findings: (a) prologue NEW-ARM; (b) emit_jmp_pin_rbp zframe_graph SUBSUMES flat_lcl_proc; (c) CLASS ZF ledgered; (d) param-landing slot-layout mismatch found (deferred FR-3); (e) ir_drive_slot_assign coverage confirmed; (f) ZD bypass via separate flag; (g) CLASS ZF direct wire-read epilogue.
+
+- [ ] **ICN-FR-2 THE GRAPH-FRAME REGIME RETURNS (gated, both media).** ⚠️ PARTIAL s0 `af45530d` — f0 GREEN both modes. f1/fib SILENT (param-landing deferred). gen SEGV (FR-4). SN4 R-ICN-D byte-identical. Icon 151/56/5 (+7 PASS). Param fix required before calling FR-2 complete — it is the first task of the next session. Write the anchor→HEAD pairing table, one row per mechanism, each row ending in a named decision (ADOPT-ANCHOR / KEEP-HEAD / NEW-ARM):
   (a) xa_flat prologue + epilogue — anchor x86() arm (:164) vs HEAD's deletion; HEAD residue = BLOB-GRANT flat_pat arm + `flat_lcl_proc` arm (emit.cpp ~:2344 at `5bd4436b`; re-grep, lines drift daily).
   (b) `emit_jmp_pin_rbp` — survives at HEAD with a `flat_lcl_proc` disjunct added (emit.h ~:634); decide whether FR-2's general flag SUBSUMES flat_lcl_proc (recommended) or coexists.
   (c) Wire EXIT — anchor reads the frame header directly; HEAD `_wire_stub` (emit.cpp ~:2719 exit-class ledger) routes to `bb_glue_wire_γ/ω` → `rt_flat_ret_snap` → `g_pcall_wires[]`, which is the standing Error-18 on `f("hello")`. FR-3 fixes this; FR-1 documents both shapes and the CLASS ledger fit.
