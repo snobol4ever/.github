@@ -39,6 +39,11 @@ w1_o/w1_p: the proc returns, **subsequent toplevel statements execute correctly*
 - **Full roman at default rc=0-but-wrong-output**: same proc/ref shape yet exits alive with degraded values — consistent with the stale slot holding a survivable-but-wrong value under roman's deeper call texture. UNVERIFIED unification; the wrong-output bug keeps its own W-1 line until the monitor says otherwise.
 - **161_pat_defer_fn_nested_match / ZW-13 seal**: adjacent (defer re-entrancy) but that class is armed-only; X12 is default-regime.
 
+## GDB SESSION DATA (07f addendum, bounded per TIME-BOXED rule)
+- The NULL jump originates from the **static in-binary emitted region** (~0x418d68 neighborhood appears as the stale caller frame — the SEG_CODE slab class, not the mmap'd pat_pool), narrowing the site to the m3 static-slab exit glue.
+- **The crash point MOVES under gdb** (env/argv length shifts it) — the 127/152-class absolute-sensitivity signature. This is strong mechanism evidence: the consumed slot is addressed absolutely/at a skewed depth, exactly the class W-3's frames are predicted to make impossible. Any A/B on this bug MUST control env length (`setarch -R`, fixed argv).
+- One run showed a single anomalous `output_str` hit in the crasher that the clean twin never makes (both assign only literals to OUTPUT); non-reproducible under the shifted env — logged as a lead, not a fact.
+
 ## NEXT MECHANICAL STEP (W-1, MONITOR-FIRST toolchain)
 gdb spin-counter at the CLASS D resume-record push + at the proc RETURN whack on X12; watch the 16B record's slot across the whack; the land-mine is whichever reader consumes it post-release. Fix directions, in preference order: consume-on-success (pop the record at γ when the blob completes forward), or park the record off-stack (claim slot, not push).
 
