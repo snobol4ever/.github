@@ -5,12 +5,25 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, same day)
 **`GOAL-PL-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine.** Lon: same two-track shape as Icon — FRAMES on STACK and CELLS on STACK developed simultaneously, BOTH KEPT, switch-selected until Lon picks a default. Rules of engagement mirrored from the Icon pair: one graph NEVER in both arms (the cells track's opt-IN suppresses the zframe stamp at the SAME LOWER site this file's R-PL-A defines); shared choke sites (`zd_*` one-authority lines, staging choke, xa_flat arms) take ADDITIVE arms only; `=0`/unset identity is a completion criterion on every behavioral edit; `git pull --rebase` before every commit — FIVE-plus concurrent tracks now share this emitter (SN4 MECH/CLIMB, ICN ZFRAME/CELLS, PL ZFRAME/CELLS).
 
-## ⛔⭐ LIVE CURSOR — s1 (2026-08-07, Sonnet — PL-FR-2 IN PROGRESS; partial landing)
-SCRIP `23ed5c92`. **PL-FR-2 PARTIAL LANDED** — 4 files committed:
-(1) `src/lower/lower_prolog.c`: `SCRIP_PL_ZFRAME` killswitch + stamp loop (mirrors ICN-FR-2 exactly); (2) `src/templates/xa_flat.cpp`: `flat_lex=1` arm calls `rt_jmp_frame_lexprep2(rbp, seed_off, kt-32)`; `flat_lex=0` keeps `rt_icn_zframe_args_install`; (3) `src/contracts/IR.h`: comment updated naming `lower_prolog.c` as second stamper; (4) **TAG-3 FIX `src/templates/bb_var_ref.cpp`**: TAG-3 commit `03cecd87` renumbered `DT_N` 9→0x28 but the template still emitted `0x100000009L` (v=9,slen=1 = OLD DT_N). `plw_entry` checks `v==DT_N(40)` — mismatch silently made every Prolog `$unify` on a variable a no-op. Fix: `(long)DT_N|(1L<<32)` symbolic. LD_PRELOAD probes confirmed: frame geometry correct (kt=368, seed_off=288, region_bytes=336), arg binding correct (frame[1] = hello atom), wire header correct. `rung01_hello` GREEN m3+m4. `say(hello)` GREEN. Simple recursion GREEN. Base-case `app([], [c], R)` GREEN.
-**OPEN BLOCKER: `first([a,b,c], X)` writes `_G0` not `a`.** Head pattern `[H|_]` does not bind H. Cause: at least one more stale DT_N=9 site in the head-matching / arg-landing path (the `$mkc`, `$ix_g`, or `rt_frame_bind_args` path). Systematic fix: `grep -rn "0x100000009\|= 9,.*slen\|v.*== 9\b" src/templates/ src/runtime/` to find and fix ALL stale old-DT_N baked constants, then verify nrev green both modes = FR-2 completion.
-**NEXT = FR-2 completion: find+fix remaining stale DT_N sites → nrev green m3+m4 → SN4 crosscheck byte-identical × 3 regen → SCRIP_PL_ZFRAME=0 byte-identity.**
-**s0b carried:** Anchor verified `20b56c9a` 22/22 both modes. EXTRACT-PL-FRAME.md committed. Both anchor worktrees (`wt-pl-last`, `wt-pl-anchor`) verified on disk.
+## ⛔⭐ LIVE CURSOR — s2 (2026-08-07, Sonnet — PL-FR-2 SENTINEL GUARDS LANDED; ANON VAR CELL OPEN)
+SCRIP `8fa12915`. **PL-FR-2 SENTINEL GUARD COMMIT LANDED** (`8fa12915`): `bb_var.cpp` + `bb_var_ref.cpp` op_off/op_sa sentinel guards changed from `>= 0`/`< 0` to `!= -1`/`== -1` matching the ICN-FR-3 contract (negative offsets are valid zframe local addresses; -1 is the only absent sentinel). SN4 byte-identical (arithmetic.sno md5 confirmed). ZFRAME=0 self-identical.
+
+**UPSTREAM SYNC:** Origin moved to `0ead65a5` (ICN-FR-3 WIP cont: vslot sign fix positive + sentinel guards) concurrent with this session. That commit already landed the positive-vslot fix for `scrip_ir.c`, `emit.cpp`, `rt.c`. Our session confirmed the same fixes independently and merged cleanly.
+
+**DIAGNOSIS COMPLETE — 5-BUG CLUSTER FULLY UNDERSTOOD:**
+1. `emit.cpp` IR_VAR drive: `(voff >= 0)` → `(voff != -1)` — LANDED upstream `0ead65a5`
+2. `bb_var.cpp`: `op_off >= 0` → `op_off != -1` — LANDED `8fa12915`
+3. `bb_var_ref.cpp`: two `< 0` → `== -1` guards — LANDED `8fa12915`
+4. `scrip_ir.c` vslot sign: negative → positive offsets — LANDED upstream `0ead65a5`
+5. `rt_icn_zframe_args_install` positive offset comment — LANDED upstream `0ead65a5`
+
+**OPEN BLOCKER: Prolog anonymous vars (G0/G1/G2 from `_` in head patterns like `[H|_]`) hit the `bb_var_ref` bomb arm.** Root cause: anonymous vars appear ONLY as `IR_VAR_REF` nodes; they have no `pnames`/`lnames` entry; `bb_varslot_peek("G1")` → -1 → no addressable cell. `first([a,b,c], X)`, `nrev`, `fib`, `[H|T]=L` all fail here. Named-param binding (`set(X) :- X = hello`) works correctly for params with frame vslots.
+
+**FIX REQUIRED:** Each `IR_VAR_REF` with `op_sa == -1 && op_gva_k < 0` needs a Prolog WAM cell. The cell must be a PLJ-heap allocation (`rt_plj_alloc(16)`) initialized as `{DT_PLVAR, 0, self}` — NOT the ZLS result slot itself (self-referential `{DT_N, slen=1, p=&slot}` causes infinite loop in `plw_cell_deref_slow`). Implementation: add `rt_pl_fresh_var_ref` to `by_name_dispatch.c` or `rt.c` that allocs a PLVAR cell and returns the VAR_REF descriptor; call it from `bb_var_ref` in the `op_sa == -1` arm (gated on a Prolog indicator — `g_emit.zframe_graph && !op_zres` or via a new `op_pl_anon` flag set at IR_VAR_REF emit time for G-named vars). Alternative: have `lower_prolog.c` register anonymous var slots explicitly in `g->lnames`/`g->nlocals` so they get frame vslots from `ir_drive_slot_assign`; `rt_icn_zframe_args_install` (or a new `rt_pl_zframe_anon_init`) then initializes them as PLVARs.
+
+**NEXT = FR-2 completion:** implement anonymous var cell allocation → `first([a,b,c], X)` GREEN → nrev GREEN → fib GREEN → full bench sweep both modes → SN4 × 3 regen crosscheck → ZFRAME=0 identity → FR-2 commit.
+
+**s1 carried:** Anchor verified `20b56c9a` 22/22 both modes. EXTRACT-PL-FRAME.md committed. Anchor worktrees may need re-creation (session did not verify disk state).
 
 ## THE ANCHOR — VERIFIED FACTS (measured 2026-08-07 in-session; do not re-litigate; DO re-derive all HEAD numbers)
 - **Anchor of record: SCRIP `20b56c9a`** (2026-08-01 00:39, ON ORIGIN — the carve-kill PARENT, the last pre-death commit). PROMOTED 2026-08-07 by measurement: fresh build zero errors both logs, no libgc; against today's corpus **m3 bench 22/22 rc=0 AND full m4 sweep 22/22** (worktree `/home/claude/wt-pl-last`).
