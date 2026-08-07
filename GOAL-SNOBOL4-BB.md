@@ -8,8 +8,26 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 ## ⛔ DEFINITION OF DONE (HQ 2026-08-03e) — "ω for every box"; before all six, report the fraction, never the word
 1. `SCRIP_UNWIND` default ON tree-wide + U-3 deletions landed. 2. ω-coverage = 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 3. Orphan-adds = 0 outside the whitelist (⛔ audit the whitelist first — SHED-5 landed, the rsp,8 entry may be stale-permissive). 4. UCLAIM census = 0 (`zvo_uclaim_k` returns 0 every run; loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — the single-space spelling is a FALSE INSTRUMENT). 5. Wall census == framed-enter count over the framed constructs. 6. xc318 BY SET ≥ baseline both modes · rc=139 tail cleared · bench 18/21 hold-or-better · regen ×4.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-07c (Fable — DOC SHRINK; PB-1 verified at HEAD; PB-1s design + witnesses; PB-2/PB-3)
-(Updated at session close — see the entry appended below this header line.)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-07c (Fable — DOC SHRINK + PB-2 LANDED; SCRIP `87c72227`, corpus `032052db`)
+
+**DOC SHRINK (Lon directive):** Orientation set compressed. GOAL-SNOBOL4-BB.md 1236→131 lines; ALPHA/OMEGA to absorbed stubs (open items re-homed: O-PB-2 bisect method → W-2.4); RULES/PLAN/REPO/ARCH-ICON/TEMPLATE-REVAMP terse, all rules and rungs preserved. Pre-shrink `.github` = `8744c3d5`, post-shrink = `2005ab85`.
+
+**PB WITNESSES COMMITTED (`corpus/probe/`, oracle refs from SPITBOL):**
+- `pb_snapshot_imm.sno`: `X='Z'; 'AZB' ? 'A' $ X X` → oracle `S A` (BUILD-time X='Z' matches 'Z'; $ X then commits X='A' on success). SCRIP → `F A` (uses LIVE X='A' for second X; PB-1s scope — no stage-2 snapshot yet). Status: **PB-1s customer, not PB-2**.
+- `pb_stitch_snapshot.sno`: `P='123'; Q='A' P 'Z'; P='XXX'; 'A123Z' ? Q` → oracle `S`. **PASS** (SCRIP uses BUILD snapshot of Q).
+- `pb_stitch_defer.sno`: `P='123'; Q='A' *P 'Z'; P='XXX'; 'AXXXZ'?Q` → `S1`, `'A123Z'?Q` → `F2`. **PASS** (`*P` tracks new P=XXX; old 123 fails).
+- `pb_stitch_compose.sno`: `R=Q Q Q; P,Q reassigned; 'A12A12A12'?R` → `S`. **PASS** (R snapshots composition).
+
+**PB-2 VALUE INVOKE PARITY LANDED (`SCRIP 87c72227`):** `bb_match_value` reads the pattern DESCR via `FR(op_a_slot)` which on a PINNED graph (deep_arrival=1 because IR_MATCH_VALUE is in the graph) takes the rbp arm → `[rbp+128]` = wrong address. Root cause chain: (1) drive-case never staged `op_a_slot` properly (now uses nd_slot for MATCH_VALUE); (2) the ZLS layout places MATCH_BEGIN's 32B region before the VAR, so `zls_off(VAR)=128` maps to machine `[rsp+96]` via `zvo_resolve`; (3) pinned `FR()` bypasses `zvo` entirely. Fix: new `x86_frame_off_rsp(off)` helper in `x86_asm.h` — always the RSP/zvo arm, never pinned-rbp. Template now `x86_zref(x86_frame_off_rsp(_.op_a_slot), 1)` at both consumer leas. **Gates:** bb probe suite `0/3 xfail/0 REG` (clean); xc sample 113→114/7→6 (+1 PASS); pb_dbg3 (P=LEN(2)) and pb_dbg4 (Q='AZ') both m3+m4 PASS; stitch_snapshot/defer/compose all m3+m4 PASS.
+
+**NEXT RUNGS (ordered):**
+1. **PB-1s STITCH REPRESENTATION** — Lon consult required before landing code. Design: node set {INVARIANT-SEG, VALUE-LEAF (snapshotted DESCR at stage-2 = assignment time), SEQ-STITCH, ALT-STITCH, DEFER-BY-NAME}. pb_snapshot_imm gates this: `X='Z'; 'AZB'?'A' $ X X` must SUCCEED with X='A' (BUILD snapshot 'Z' for second X, $ X commits 'A' on success). The current IR_MATCH_VALUE reads the LIVE NV cell; PB-1s must instead load the DESCR snapshot into a spine cell at stage-2.
+2. **PB-3 SEAL SHRINK** (gated on PB-1 census=0, already met): drop PATREF from zws/zwr seals. `SCRIP_ZWS_DIAG` on roman should show both statement runs unsealed post-PB-3.
+3. **PB-4** roman armed measure (`SCRIP_ZD_MATCH=1`).
+4. **PB-5** delete IR_MATCH_PATREF enum + consumers.
+5. **W-1 Bug 6** (STF+mech-2 nested frame): HEAD-PIN roman wrong-output; re-measure armed combo after FENCE-SEMANTICS moved the fence-class set.
+
+**WATERMARK (08-07c):** bb probe `0/3 xfail/0 REG` · xc sample n=120 m3 114/6 (vs baseline 113/7, +1). Roman wrong-output pre-existing.
 
 ## ⛔⭐⭐⭐ LADDER PB — 5-STAGE STATEMENT EXECUTION / PATREF DELETION ⬅ TOP PRIORITY (Lon 2026-08-07)
 
