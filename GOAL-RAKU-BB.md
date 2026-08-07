@@ -15,16 +15,16 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
-## ▶ LIVE CURSOR — s2026-08-07c (RK-ZC-6: bool_compare_store LANDED — Claude Sonnet 4.6)
+## ▶ LIVE CURSOR — s2026-08-07d (RK-GRAM-3d: IR_GALT alternation m4 PASS — Claude Sonnet 4.6)
 
-**[THIS SESSION] RK-ZC-6 LANDED AND COMMITTED (`17b6b674`). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+**[THIS SESSION] RK-GRAM-3d PARTIALLY LANDED — commit `0488a042`. Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
-**NEXT RUNG:** RK-GRAM-3d — alternation (`IR_ALT`) with δ-restore-on-β. DESCOPED until now; the ζ-cell-stack ladder is complete (719/0 m3+m4). Fresh full-budget session; read ARCH-x86.md + ARCH-SCRIP.md + ARCH-ICON.md §"String scanning" FIRST per the standing requirement.
+**NEXT RUNG:** RK-GRAM-3d-m3-fix — m3 delta passback. In mode-3 (JIT in-process), `.Lgrambox_γ` reads r14=0 instead of the updated cursor after arm-1 matches. The save (`mov [rsp+0], r14d` at IR_GALT α) and restore (`mov r14d, [rsp+0]` at β) use literal-RSP addressing via the x86 parser's XK_RSP32 path (`x86_rsp_store32`/`x86_rsp_load32`), which is correct in both media. The binary encoding (`44 89 34 24`) should be correct. Root cause undiagnosed — gdb not available in container; next session should install gdb (`apt-get install -y gdb`) and trace r14 at the arm-1 γ exit before `proc_gram__G__TOP_γ` runs. After m3-fix: RK-ZC-7 (harness sees rc), RK-ZC-8 (regime gate).
 
-**PRE-EXISTING FAILURES:** None (smoke suite 719/719 PASS FAIL=0 DECLINED=0 both modes). `for @a`-family (12) resolved in interim commits before this session. `bool_compare_store` resolved this session. Icon `until` (1) and Prolog `clause` (1) are pre-existing in their own suites, unrelated to Raku.
+**PRE-EXISTING FAILURES:** None (smoke suite 719/719 PASS FAIL=0 DECLINED=0 both modes). RK-GRAM-3d m3 delta passback is a NEW open item (not a regression — existing tests unaffected). Icon `until` (1) and Prolog `clause` (1) are pre-existing in their own suites, unrelated to Raku.
 
-**WATERMARK:** m3 **719/0**, m4 **719/0** (PASS/FAIL — DIFF-IDENTICAL across both modes, parity invariant holds). Peers: Icon 13/1 (pre-existing `until`), SNOBOL4 7/0, Prolog 4/1 (pre-existing `clause`). Lang-blind gate rc=0, no_bb_bin_t OK.
-**LAST SESSION:** s2026-08-07c (this session), commit `17b6b674`.
+**WATERMARK:** m3 **719/0**, m4 **719/0** (PASS/FAIL — parity invariant holds). Peers: Icon 13/1 (pre-existing `until`), SNOBOL4 7/0, Prolog 4/1 (pre-existing `clause`). Lang-blind gate rc=0, no_bb_bin_t OK.
+**LAST SESSION:** s2026-08-07d (this session), commit `0488a042`.
 
 ⛔ **THE PIVOT (Lon, this session): RAKU IS NOT BROKEN BY RAKU WORK — IT WAS LEFT BEHIND BY THE REGIME MIGRATION, AND THE FIX IS TO CARRY IT ONTO `ZC_STORAGE_CELL_STACK`, NOT TO RESTORE THE OLD SPINE.** RK-GRAM-3d is DESCOPED until this ladder is green: an alternation box built on a spine where `sub f($a) { return $a*2 }` cannot return is built on sand.
 
