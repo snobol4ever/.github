@@ -5,8 +5,49 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
 
-## ⛔⭐ LIVE CURSOR — s6 (2026-08-07, Sonnet s6 — FR-3 complete, FR-4 root cause diagnosed; context ~90%)
-**NEXT RUNG = ICN-FR-4 (generators on-spine).** SCRIP `fcbb75b7` (pushed). Watermark official harness: **PASS=217 FAIL=46 XFAIL=30 TOTAL=293.** Repro trio green. gen.icn SEGV = FR-4.
+## ⛔⭐ LIVE CURSOR — s7 (2026-08-07, Sonnet s7 — FR-4 deep debug; three-layer bug, layers 1+2 fixed, layer 3 active)
+**NEXT RUNG = ICN-FR-4 Layer 3 (old_rbp clobber fix).** SCRIP `996bcfe9` (pushed). Watermark: **PASS=217 FAIL=46 XFAIL=30 TOTAL=293** (unchanged — FR-4 WIP not yet passing). f0/f1 green. gen.icn/gen_simple.icn SEGV after first yield.
+
+### FR-4 THREE-LAYER ROOT CAUSE — layers 1+2 fixed, layer 3 active
+
+**Layer 1 FIXED — Wrong β trigger**: The β arm now does `rt_gen_get_fb → generator_rbp; mov rbp,rax; mov rsp,rax; jmp [rax+cont_off]` where cont_off = zls_g_resume_by_name(callee) at emit time. The generator_rbp is saved to FRQ(act+8) at L(3) from the epilogue's rax (no stack-based call needed).
+
+**Layer 2 FIXED — Wrong rdi:rsi in γ epilogue**: xa_flat_zframe_epilogue_γ now loads `rdi=[rbp+0]; rsi=[rbp+8]` (FRQ(0/8) = yield value stored by bb_suspend) instead of stale rax:rdx. Also adds `mov rax,rbp` before rbp-restore to pass generator_rbp to L(3) in rax. L(3) stores it to FRQ(act+8) call-free.
+
+**Layer 3 ACTIVE — old_rbp header clobber**:
+Generator's prologue stores caller_rbp at `[entry_rsp - 8]` = `[rbp + kt - 8]` (the stack header). Between the first yield and the β-resume, the caller executes write() → rt_call_arr. The `call rt_call_arr` pushes its return address to `[stmt_claim_rsp - 8]` = `[entry_rsp - 8]` = **the old_rbp slot**, permanently corrupting it. When β-resume fires proc_g_ω → `mov rbp, [rbp+kt-8]` reads garbage → SEGV.
+
+**Evidence**: gen_simple.icn (single suspend) prints "1" then SEGVs. Root cause confirmed by tracing: write(1) call at stmt_claim_rsp pushes return addr to [entry_rsp-8] = old_rbp slot.
+
+**Attempts and why they failed**:
+- `sub rsp, 8` guard: rt_call_arr's return address still hits old_rbp at [entry_rsp-16]
+- `sub rsp, 16` guard: same problem, just one level deeper
+- Relocate old_rbp to [rbp+kt-32]: still only 32 bytes from entry_rsp; rt_call_arr frame (≥32 bytes on -O0) reaches it. Also broke fib (layout change propagated to non-generator γ epilogue).
+
+**CORRECT FIX (not yet implemented)**:
+Save caller_rbp while rsp is still in the FORTH stack zone (deep below entry_rsp), where C calls can't reach the header. Two-step in xa_flat_zframe_epilogue_γ:
+1. BEFORE `lea rsp,[rbp+kt]` (while rsp is safely deep in FORTH stack): call `rt_gen_get_caller_rbp()` → rax; `mov r8, rax`
+2. AFTER: `lea rsp,[rbp+kt]; mov rcx,[rbp+kt-24]; mov rbp,r8; jmp rcx`
+
+Requires storing caller_rbp somewhere safe. Options:
+- A) In the generator's prologue, call `rt_gen_save_caller_rbp(old_rbp)` which stores in a parallel array (like g_pcall_wires). The prologue runs at a safe rsp depth.
+- B) Repurpose pcall.rname (pointer field, offset 8) — currently holds proc name, but could hold caller_rbp during the generator's active span. `rt_gen_save_caller_rbp(rbp)` at prologue, `rt_gen_get_caller_rbp()` in epilogue.
+- C) Callee-saved register r15 (check if GVA uses it — see g_gva_active in emit.h). Prologue saves caller_rbp to r15; epilogue reads r15.
+
+**Recommended option B** (pcall.rname repurpose): minimal change, no struct size change, the rname field isn't needed after proc registration.
+
+### Implementation Plan for Layer 3
+
+1. In `rt.c`: add `void rt_gen_save_caller_rbp(void *rbp)` → `g_pcall[top-1].rname = (const char *)rbp`
+2. In `rt.c`: add `void *rt_gen_get_caller_rbp(void)` → `return (g_pcall_top > 0) ? (void *)g_pcall[g_pcall_top-1].rname : NULL`
+3. In `rtx_icngen.S`: add RTX wrappers (delegate to C twins)
+4. In `xa_flat.cpp`: revert old_rbp back to `[rbp+kt-8]` (restore pre-session layout for fib fix). Change epilogue γ/ω to call `rt_gen_get_caller_rbp` before `lea rsp,[rbp+kt]`. Use r8 as temporary.
+5. In `xa_flat.cpp`: in generator prologue, after `mov rbp, rsp`, call `rt_gen_save_caller_rbp([rbp+kt-8])`.
+6. Test: gen_simple.icn green, gen.icn green, fib green, full suite ≥ FR-3 watermark.
+
+### Key WIP Commits
+- `fba93a77` — FR-4 WIP (Layers 1+2 fixed, Layer 3 broken)
+- `996bcfe9` — Merge of remote ZK-4/ZD-5b work with WIP
 
 ### FR-3 COMPLETE — criteria re-read and met
 ICN-FR-3 criteria: f1 AND fib green both modes (recursion proves per-activation frames) · Error 18 extinct · SN4 held.
