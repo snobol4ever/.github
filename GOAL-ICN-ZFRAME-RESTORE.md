@@ -5,28 +5,42 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
 
-## ⛔⭐ LIVE CURSOR — s5 (2026-08-07, Sonnet s5 — the vslot override was WRONG and is DELETED; Icon 217, Prolog +85)
-**ICN-FR-3 STILL OPEN, but its diagnosis is REPLACED. SCRIP `1567f28a` (tree clean, NOT PUSHED — needs Lon's credential).**
-Watermark, OFFICIAL harness: **Icon PASS=217 FAIL=46 XFAIL=30 TOTAL=293** (was 206/57/30 at `8fa12915`). Prolog **interp 132/32, compile 126/38** (was 47/117 both). SN4 byte-identical, 318/318, md5 `47ef94a6a76f53503e0c9f49bb41b26c`. Repro trio GREEN (f0/f1/fib); gen.icn SEGV = FR-4.
+## ⛔⭐ LIVE CURSOR — s6 (2026-08-07, Sonnet s6 — FR-3 complete, FR-4 root cause diagnosed; context ~90%)
+**NEXT RUNG = ICN-FR-4 (generators on-spine).** SCRIP `fcbb75b7` (pushed). Watermark official harness: **PASS=217 FAIL=46 XFAIL=30 TOTAL=293.** Repro trio green. gen.icn SEGV = FR-4.
 
-### ⛔ TWO PRIOR CURSOR CLAIMS ARE FALSIFIED — DO NOT RE-IMPLEMENT THEM
-1. **"ZLS vslots are FORTH-spine offsets, wrong for zframe" — FALSE.** ZLS grants vslots as FLAT-FRAME offsets into the graph root scope (`zeta_storage.c` `zls_field(root,...)`). With rbp pinned to the flat base, `FRQ(off)=[rbp+off]` addresses them correctly BY CONSTRUCTION. Layout: params `16+i*16` · `base=16+np*16` · node RESULT cells `base+k*16` (k=0..K-1) · named **and implicit** locals AFTER them at `base+K*16+j*16`. ZLS's own IR_ASSIGN/IR_VAR/IR_VAR_REF name scan (~:536) already grants IMPLICIT locals (the undeclared-`x`-in-`initial` case) with a dedup guard.
-2. **The s4 override built on (1) ALIASED every local onto a result cell** — it re-granted locals at `(np+j+1)*16` = `base+j*16`, which IS result cell k=j. Its own in-tree comment conceded the overlap and shipped. **DELETED at `1567f28a`** (not gated — a killswitch on a proven-wrong arm is dead code). A/B strictly nested: 11 fixed, ZERO broken (rung07_control_repeat_break rung16_subscript_sub_every rung18_real_relop_{mixed_relop,real_eq,real_lt} rung35_block_body_{every_do_block,if_block,if_else_block} rung36_jcon_{concord,meander} rung37_mutual).
-3. **s4's prescribed next task — "assign anonymous value-producing nodes rbp-relative frame slots via `bb_slot_register`" — rests on the SAME false premise. DO NOT DO IT.** The `until2`/rung09 garbage it cited is NOT a base mismatch: `until (i:=i+1)>=3 do write(i)` prints `1`, garbage, `3` — iterations 1 and 3 correct, only the **β re-entry** pass wrong. That is FR-4 (generators/resume on-spine), not FR-3.
+### FR-3 COMPLETE — criteria re-read and met
+ICN-FR-3 criteria: f1 AND fib green both modes (recursion proves per-activation frames) · Error 18 extinct · SN4 held.
+- **mode-3:** f0 ✅ f1 ✅ fib ✅. **mode-4 (--compile + as + gcc):** f0 ✅ f1 ✅ fib ✅. Error 18 gone from all three.
+- SN4 proven by direct byte comparison at two bases, 318/318, md5 `47ef94a6a76f53503e0c9f49bb41b26c`.
+- ICN-FR-3 rung box may be checked.
 
-### ⛔ HARNESS FACT — Icon counts are void unless the runner does BOTH
-Feed each program's `.stdin` when present AND `cd` to the program's directory (`test_icon_all_rungs.sh:89-97`). An ad-hoc runner that fed `/dev/null` and stayed in cwd mis-scored **8** programs (`rung27_read_*` and jcon file-readers). Also: never run two suites concurrently — an orphaned run appends to the fail list and timeout-class results flip under load. Validate every run by checking the fail-file line count equals the reported FAIL total.
+### FR-4 ROOT CAUSE — FULLY DIAGNOSED (do the fix next session)
+**The `bcps_spine_gen_arm` template (`bb_call_proc_staged.cpp:534`) places NO resume landing word on the spine.**
 
-### REMAINING GAP TO ANCHOR PARITY = 43 PROGRAMS (217 + 43 = 252)
-All 11 anchor die-list programs are in the fail set and are OUT OF SCOPE (GOAL-ICON-BB FAIL-ZERO owns them). The in-scope residue classified by failure mode at `1567f28a`:
-- **SEGV (10)** — `rung03_suspend_{gen,gen_compose,gen_filter,return}` `rung09_loops_{repeat_counter,until_gen}` `rung36_jcon_{cxprimes,genqueen,level}` `rung37_subscript_genproc`. Every one is a generator/suspend program. **This is FR-4's work queue.**
-- **HANG (13)** — `rung11_bang_augconcat` `rung23_table_key` `rung35_every_gen_block` `rung37_{cset_ops,proc_lookup}` + jcon `{coerce,lists,mffsol,queens,record,string1,substring,table}`. Non-terminating resume loops; also FR-4-flavoured.
-- **WRONG (10)** — `rung01_paper_to_by` `rung09_loops_repeat_break` `rung27_read_read_count` `rung37_{neg_pos,scan_alt}` + jcon `{lexcmp,numeric,parse,prepro,wordcnt}`. `to_by` and `repeat_break` are the β-re-entry class above.
-- **EMPTY (10)** — jcon `{concord…}` cluster, mostly file/IO-shaped.
-**NEXT RUNG = ICN-FR-4 (generators on-spine).** FR-3's wire exit is not disproven by anything in this residue — f1 + fib (recursion, per-activation frames) are green in both the default arm, which was FR-3's stated completion criterion. Recommend declaring FR-3 complete after one deliberate re-read of its criteria, then opening FR-4 against the SEGV list above, MONITOR-FIRST.
+The GENP-SPINE protocol comment says `"jmp qword [rsp] (the record's landing word sits AT the frontier by LIFO balance"`. That law was derived for the per-BB FORTH-spine model where each activation allocates 16B and `[entry_rsp]` holds a placed landing word. **The zframe prologue does `sub rsp,kt` (a whole-frame allocation), not per-BB cells.** After γ-retain (the generator's `xa_flat_zframe_epilogue_γ` runs `lea rsp,[rbp+kt]`), the restored rsp equals the generator's entry rsp. `[rsp]` at that point is whatever data was at the TOP of the CALLER's spine — NOT a code pointer. So `jmp [rsp]` at the β resume site jumps to a data word → SEGV.
 
-### ⛔ CROSS-TRACK: the deleted block was a SHARED choke site
-`zframe_graph` is now stamped by **both** `lower_icon.c:1422` and `lower_prolog.c:1385` (PL-FR-2). The deletion therefore changes Prolog too. Per the rules of engagement (shared sites take additive arms; never edit another track's arm) Prolog was **measured before the cut, not after** — it gains +85 interp / +79 compile. Noted in `GOAL-PL-ZFRAME-RESTORE.md`. If PL later wants zframe-specific vslot behaviour it must be added as its own arm, keyed behaviourally, never by restoring this one.
+**The fix (FR-4 work):** At the generator call site (β re-entry arm in `bcps_spine_gen_arm`), push an explicit resume landing word onto the caller's spine **before** the first call into the generator. The landing is a pointer to `L(3)_resume_entry` (the β path's actual re-entry point after `rt_gen_spine_resume_enter`). Shape:
+```
+; α call path — before rt_proc_call_open_det:
+lea  rax, L(3_landing)      ; address of the resume entry
+push rax                    ; push landing word AT [rsp] where γ-retain will leave it
+; ... rt_proc_call_open_det ...
+; γ-retain unwinds to entry_rsp, finds [rsp] = landing address; β restore: mov rsp,FRQ(act+8)+add 8 (pop the landing); jmp L(3_landing)
+```
+Alternatively — and cleaner for the zframe model — **skip `jmp [rsp]` entirely** and jump directly to L(3_landing) from the β arm, using `FRQ(act+8)` only to verify the saved-rsp invariant. The resume protocol for zframe does not need an RSP-based dispatch because rbp is pinned and depth-immune; the β re-entry can be a direct `jmp L(3)` with `mov rsp,FRQ(act+8)` still restoring the FORTH frontier before the re-entry.
+
+**Gate: zframe graphs only.** `g_emit.zframe_graph` gates every change; the cells arm and SNOBOL4/Prolog paths are byte-identical.
+
+### CROSS-TRACK: vslot override DELETED (from s5 notes)
+The param/local vslot override in `ir_drive_slot_assign` is DELETED at `fcbb75b7`. Two prior cursor claims are FALSIFIED — do not re-implement them:
+1. "ZLS vslots are FORTH-spine offsets" — FALSE. ZLS grants flat-frame offsets, correct under the pin.
+2. "anonymous producers need rbp-relative `bb_slot_register` calls" — wrong premise, and the until2/rung09 garbage is a β re-entry defect (FR-4), not a base mismatch.
+
+### HARNESS FACT
+Feed `.stdin` files + `cd` to program dir (mirrors `test_icon_all_rungs.sh:89-97`). Never run two suites concurrently.
+
+### 43 PROGRAMS TO ANCHOR PARITY (217 + 43 = 252)
+In-scope residue by failure mode: SEGV(10) HANG(13) WRONG(10) EMPTY(10) — classified in s5 cursor, all generator/resume-shaped. FR-4's work queue is the SEGV list: rung03_suspend_{gen,gen_compose,gen_filter,return} rung09_loops_{repeat_counter,until_gen} rung36_jcon_{cxprimes,genqueen,level} rung37_subscript_genproc.
 
 ## THE ANCHOR — VERIFIED FACTS (measured 2026-08-07; do not re-litigate these; DO re-derive all HEAD numbers)
 - **Anchor of record: SCRIP `8d0665c8`** — "FLATDISP-8 (s197): frame base follows the rbp pin — Icon 236→250, SNOBOL4 221/219→295/294" (2026-07-28, ON ORIGIN, message carries its own proof per the COMMIT-SELECTION LAW).
