@@ -8,6 +8,20 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 ## ⛔ DEFINITION OF DONE (HQ 2026-08-03e) — "ω for every box"; before all six, report the fraction, never the word
 1. `SCRIP_UNWIND` default ON tree-wide + U-3 deletions landed. 2. ω-coverage = 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 3. Orphan-adds = 0 outside the whitelist (⛔ audit the whitelist first — SHED-5 landed, the rsp,8 entry may be stale-permissive). 4. UCLAIM census = 0 (`zvo_uclaim_k` returns 0 every run; loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — the single-space spelling is a FALSE INSTRUMENT). 5. Wall census == framed-enter count over the framed constructs. 6. xc318 BY SET ≥ baseline both modes · rc=139 tail cleared · bench 18/21 hold-or-better · regen ×4.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-07d (Sonnet — PB-1s DIAGNOSIS; SCRIP `pending`, corpus `032052db`)
+
+**PB-1s DIAGNOSIS (this session):** Full root-cause analysis of `pb_snapshot_imm`. The pre-chain hoist approach (IR_VAR before MATCH_BEGIN via `cx->pre[]` drain) was implemented, confirmed to fix the snapshot (`F A` → `F Z`), but then correctly **reverted** after ZLS boundary analysis. Diagnosis: hoisting the IR_VAR before MATCH_BEGIN in the BFS execution order places it in the ZLS **header region** (positive rbp-relative slots), shifting MATCH_BEGIN's outer-context save offsets by 16B and breaking the subject-DESCR read for every stored-pattern match (pb_stitch_snapshot: `S` → `F`). Monitor confirmed: step 8 divergence, same slot addresses but wrong rbp base. The approach is correct in principle; the ZLS boundary crossing is the obstacle.
+
+**ANNOTATION LANDED:** `IR_LIT(mv).sval = (char *) t->v.sval` on every `IR_MATCH_VALUE` minted from a plain-ref `TT_VAR`. Stores the variable name for future template use. Zero regressions — probe 147/7 and xc m4 267/48 byte-identical to HEAD `87c72227`. No commit yet (annotation only; no behavioral change).
+
+**LON RULING NEEDED before any code lands — two options:**
+
+**Option A — MATCH_BEGIN pre-snapshots plain-ref MATCH_VALUE nodes.** MATCH_BEGIN already has a positive-rbp header region that survives across retries. MATCH_BEGIN's α iterates the pattern range looking for IR_MATCH_VALUE nodes with sval set, and emits one NV-read per node into each node's own slot BEFORE the match body runs. The plain-ref VAR stays in the match chain (no ZLS disruption); its slot is written by MATCH_BEGIN's α instead of by its own α. Witness gate: `pb_snapshot_imm` → `S A`.
+
+**Option B — New phase split.** IR_MATCH_VALUE gains a stage-2 phase driven as a pre-chain entry but using the MATCH_BEGIN header slot region (positive rbp). Requires ZLS to assign a header-region slot to MATCH_VALUE-with-sval. More invasive than A.
+
+**⚠ DO NOT LAND PB-1s code without Lon ruling on A vs B.** The pre-chain approach fails silently (pb_stitch_snapshot regresses) unless the ZLS boundary issue is resolved.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-07c (Fable — DOC SHRINK + PB-2 LANDED; SCRIP `87c72227`, corpus `032052db`)
 
 **DOC SHRINK (Lon directive):** Orientation set compressed. GOAL-SNOBOL4-BB.md 1236→131 lines; ALPHA/OMEGA to absorbed stubs (open items re-homed: O-PB-2 bisect method → W-2.4); RULES/PLAN/REPO/ARCH-ICON/TEMPLATE-REVAMP terse, all rules and rungs preserved. Pre-shrink `.github` = `8744c3d5`, post-shrink = `2005ab85`.
