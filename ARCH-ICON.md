@@ -1,141 +1,38 @@
-# ARCH-ICON.md — Icon Frontend and BB Execution
+# ARCH-ICON.md — Icon Frontend and BB Execution (register truth for ALL BB codegen)
 
-Frontend: Icon. Produces shared IR (tree_t* via icon_parse). See ARCH-IR.md.
-
----
+Frontend: Icon → shared IR. See ARCH-IR.md. This file also carries the LIVE REGISTER CONTRACT that every BB template (all languages) obeys.
 
 ## Execution model
+Icon is goal-directed: every expression Succeeds (γ, may resume for more) or Fails (ω). That IS the Byrd Box four-port model — α start · β resume · γ succeed · ω fail. Icon uses BB_PUMP (generate until ω); SNOBOL4 uses BB_SCAN (try each cursor position).
 
-Icon is a goal-directed language. Every expression either:
-- **Succeeds** (gamma port) — produces a value, may produce more on resume
-- **Fails** (omega port) — produces no value, terminates generator
+**STACKLESS (GROUND ZERO 3).** Icon emits ZERO SM opcodes, no value stack, no r12-TOS, no rt_push/pop. Each box's value lives in a flat per-box DATA slot; consumers read operand boxes' slots directly (Proebsting: `plus.value ← E1.value + E2.value`). Unbounded backtrack state (ARBNO, recursion) = per-box .bss arena by depth. Inter-box transitions are direct `jmp`. Reference embodiment: `corpus/probe/bb/test_icon.c`.
 
-This is exactly the Byrd Box four-port model: alpha (start), beta (resume),
-gamma (succeed), omega (fail). Icon IS a Byrd Box graph. Every construct is
-a box. The broker pumps it (BB_PUMP mode).
+**Relational ops are NOT booleans** — a comparison is a {0,1} generator: γ yields a value, ω fails; constructs only choose where γ/ω go (verified vs canonical `ocomp.r` and JCON `ir_opfn`).
 
-**Key distinction from SNOBOL4:** SNOBOL4 uses BB_SCAN (try each cursor
-position). Icon uses BB_PUMP (generate all values until omega).
+## Variable model (Lon 2026-06-03) — two backends, switch-selected, BOTH kept
+- OLD per-procedure frame slots (`g_bb_varslot`, `[r12+off]` historically) — fast, per-graph namespace.
+- NEW shared NV dictionary (`NV_GET_fn`/`NV_SET_fn`, same hash dict as SNOBOL4/Snocone/Rebus) — one cross-language global namespace. Only the GLOBAL arm of IR_VAR/IR_ASSIGN reroutes; locals stay frame slots. Kept side-by-side for A/B perf + standalone-Icon compilation. Ladder: `GOAL-ICN-GLOBAL-NV.md`.
 
-**STACKLESS (foundational, GROUND ZERO 3, 2026-05-30).** An Icon program emits
-ZERO SM opcodes and uses NO value stack — no SM value stack, no `r12` TOS, no
-`rt_push_*`/`rt_pop_*`. Every box's value lives in a **flat per-box DATA slot**
-(`&pBB->value` / `&pBB->counter` / `&pBB->state`); a consumer reads its operand
-boxes' slots directly (operands known at emit time via α/β), exactly as Proebsting
-specifies (`plus.value ← E1.value + E2.value`). Unbounded-depth backtrack state
-(ARBNO, recursion) lives in a **per-box .bss arena** indexed by depth — never a
-global stack. Inter-box transitions are direct `jmp`. The reference embodiment is
-`corpus/probe/bb/test_icon.c` (and the archived stackless emitter
-`SCRIP/archive/backend/emit_emitters/emit_x64.c`, which benchmarked faster than
-SPITBOL because there is no stack). The prior mode-3 build that introduced an SM
-value stack is SUPERSEDED — see `GOAL-ICON-BB.md` → "GROUND ZERO 3".
+## ⛔ REGISTER CONTRACT (CORRECTED 2026-07-18; verified vs live x86_asm.h + zeta_choices.h)
+- ζ frame selection = `ZC_FRAME` build constant, default `ZC_FRAME_RSP` (s65 R12-ERAD). `x86_zr()` = **RSP** (FORTH-style port cells + carve discipline, shared with C stack).
+- `x86_fb()` = **PER-GRAPH (s197 FLATDISP-8):** RBP for graphs whose prologue pins it (`emit_jmp_pin_rbp()` = flat_deep_arrival || flat_pat || flat_gen — suspended generators, pattern blobs, deep arrivals; `xa_flat` emits `mov [rsp+kt-8],rbp; mov rbp,rsp`); RSP for depth-static graphs (rbp untouched, `op_flat_disp` compensation on the rsp arm). ONE selector `x86_fb_pinned()` feeds all accessors in BOTH media. `ZC_FRAME_R12` accessor arm DELETED outright (ZR-RSPRBP-1, `da8c2347`); `x86_r12_modrm` renamed `x86_frame_modrm`.
+- **R12 is FREE of frame duty** → in SNOBOL4 match code r12 = live DCAP/CAS top (CAS-R12-UNIFY). **R13=Σ subject base · R14=δ cursor (0-based; &pos=δ+1) · R15=Δ subject length.** RO constants sealed `[rip+disp]` (bb_pat_any idiom). Result DESCRs go to the box's own 16B frame slot.
+- **RBX = WS/GC bump-frontier TOP** (ZC_PORT_HEAP α-carve, dormant under default ZC_PORT_FORTH where grants spend as `sub rsp,K`). GVA globals address ABSOLUTE (`ABSQ(RT_GVA_VA + k*16)`), no register base.
 
-**Relational ops are NOT booleans (foundational).** A comparison is a
-zero-or-one-result generator: it succeeds (yields a value → γ) or fails
-(→ ω). Verified across both references: canonical Icon
-`operator{0,1} <= cmplte(x,y)` → `return y` / `fail` (`ocomp.r`); JCON
-`ir_opfn(<=, args, failLabel)` routes failure to `failLabel`. The
-construct (`if`/`while`/`until`/`case`) only chooses where the γ/ω edges
-go; the comparison needs no per-construct boolean test. SCRIP historically
-reified a `LAST_OK` flag + a `BB_IF` router instead — see
-`STUDY-JCON-ICON-CONTROL-FLOW-2026-05-29-OPUS48.md` for the full three-way
-comparison and the IBB-9-2 / IBB-9-RELOP-PORTS plan derived from it.
+## String scanning — ICN-SCAN BB family (canonical set closed: fstranl.r any/bal/find/many/match/upto · fscan.r move/pos/tab · control `?` live, `?:=`, `=s` sugar)
+Two semantic families (do not blur): position-returners δ-untouched — any/match/many {0,1}; upto/find/bal {*} generators (suspend each position; β re-pumps via bb_to). Cursor-movers reversed-on-resume — tab/move write δ, restore saved δ on β then fail; pos is stateless compare. Genuinely different from SNOBOL4 pattern leaves (which thread the cursor); reuse = Σ/δ/Δ walk + cset test loop.
 
----
-
-## Variable model — frame slots (OLD) and shared NV dictionary (NEW), side by side (Lon directive, 2026-06-03)
-
-Icon variable *references* resolve through one of two backends. **Both are kept side by side, selected by a command-line switch** — the OLD path already exists and is proven, and the NEW path is being added at the SAME call sites (`IR_VAR` read, `IR_ASSIGN` write), so a switch is a cheap refactor rather than a rewrite. See `GOAL-ICN-GLOBAL-NV.md` for the rung ladder (GN-1…GN-FENCE) and the switch's exact name/default.
-
-- **OLD — per-procedure frame slots (`g_bb_varslot` / `bb_varslot_peek`).** A global gets an integer frame slot, addressed `[r12+off]` in the one-register frame. This is the model inherited from `icont`'s integer-index symbol resolution. It is local-optimal (a register-relative load, no hashing) but the namespace is per-graph: a global written by an Icon box is NOT visible to a SNOBOL4/Snocone/Rebus box, because those resolve names through the NV dictionary, not Icon frame slots.
-
-- **NEW — shared NV dictionary (`NV_GET_fn` / `NV_SET_fn`), EXACTLY like SNOBOL4.** An Icon global becomes a name-keyed lookup in the SAME hash dictionary (`_var_buckets[_var_hash(name)]`, core.c) that SNOBOL4/Snocone/Rebus already use for every variable. **This makes Icon globals share the one variable namespace with all those languages** — a global set by an Icon BB is read by a SNOBOL4 BB through the same `bb_var_global` / `NV_GET_fn` path, with zero dispatch and zero extra machinery (the four ports + DESCR_t are the universal protocol). Locals (procedure params + `local`/`static`) stay frame slots in BOTH modes — only the GLOBAL arm of `IR_VAR`/`IR_ASSIGN` is rerouted.
-
-**Why keep both (the directive's intent):** (1) **Performance measurement** — we want the head-to-head cost of frame-slot globals (OLD) vs NV-dictionary globals (NEW): a `[r12+off]` load/store vs a hash lookup + chain walk. The switch lets the SAME corpus run both ways for a clean A/B. (2) **Independent-Icon compilation** — when Icon is compiled standalone (not in a polyglot mix that needs cross-language sharing), the OLD frame-slot model may stay available as a faster, self-contained option; the NEW shared-dictionary model is for the cross-language case. The end state is therefore BOTH backends retained, switch-selected, not OLD-deleted-for-NEW.
-
-(Mode-2 interpreter note deleted 2026-07-01 — mode 2 no longer exists.)
-
----
-
-## String scanning — the ICN-SCAN BB family (Lon directive, 2026-06-03)
-
-**Every string-scanning operation Icon offers is its own stackless BB.** The canonical set is closed —
-`refs/icon-master/src/runtime/fstranl.r`: `any` `bal` `find` `many` `match` `upto`; `fscan.r`: `move` `pos`
-`tab`; plus the control forms `?` (scan env, LIVE — `bb_gen_scan.cpp` + `bb_keyword.cpp`, SCRIP `d46b943`),
-`?:=` (scan-assign) and `=s` (sugar, `tab(match(s))`, a lowerer rewrite — no box). Rung ladder with ONE STEP
-PER BOX: **GOAL-ICON-BB.md → "ICN-SCAN LADDER"** (ICN-SCAN-0 … ICN-SCAN-FENCE).
-
-**Register contract (CORRECTED 2026-07-18, verified vs live `x86_asm.h` + `zeta_choices.h` — the prior
-2026-06-30 table said R12=ζ and RBX=GVA base; BOTH are superseded):** ζ frame selection is the `ZC_FRAME`
-BUILD CONSTANT (`src/contracts/zeta_choices.h`), **default `ZC_FRAME_RSP` since s65 R12-ERAD**. Under it:
-`x86_zr()` = **RSP** (control-flow-lifetime ζ rides the machine stack — FORTH port cells + carve
-discipline, shared with the C call stack) and `x86_fb()` = **PER-GRAPH since s197 (FLATDISP-8)**:
-**RBP for graphs whose prologue pins it** — `emit_jmp_pin_rbp()` = `flat_deep_arrival || flat_pat ||
-flat_gen`, i.e. suspended generators, pattern blobs, and deep-arrival graphs, where `xa_flat` emits
-`mov [rsp+kt-8], rbp; mov rbp, rsp` and rbp is therefore the depth-immune activation base — and
-**RSP for depth-static determinate graphs**, which never touch rbp at all (a free GPR for the whole
-activation) and carry LOWER's `op_flat_disp` compensation instead. ONE selector, `x86_fb_pinned()`,
-feeds all five accessors in BOTH media, so the base a reference NAMES is always the base the
-prologue ESTABLISHES. (History: REG-7 U3/U5 seeded rbp unconditionally; s188/s189 forced rsp
-unconditionally and BROKE both Icon generators and SNOBOL4 pat blobs by leaving the seed in place
-while the accessors stopped naming it; s197 made the selection per-graph rather than a build
-constant. All `FR`/`FRQ` spellings resolve `[fb+off]`, depth-compensated ONLY on the rsp arm.)
-**R12 is FREE** (residual: the six-register coexpr save in `bb_create.cpp` covers it regardless. ⭐ **CORRECTED
-s201: the `ZC_FRAME_R12` accessor arm no longer "survives as compile-time-selectable history" — it is DELETED
-outright, ZR-RSPRBP-1, SCRIP `da8c2347`.** It had zero `#if` consumers; the ζ basis set is now CLOSED at RSP and
-RBP, and the per-graph selection between those two is `x86_fb_pinned()`. The frame modrm encoder was renamed
-`x86_r12_modrm` → `x86_frame_modrm` in the same slice, since it encodes `x86_fb_num()` and never r12.) Subject
-registers unchanged: **R13=Σ subject base · R14=δ cursor (0-based; `&pos = δ+1`) · R15=Δ subject length**
-(live in `bb_gen_scan.cpp`'s scan-env swap). RO constants sealed `[rip+disp]`; the membership test is the
-`bb_pat_any.cpp` idiom. Result DESCRs go to the box's own 16-byte frame slot; consumers read the
-producer's slot.
-
-⛔ **RBX (CORRECTED 2026-07-18, supersedes the 2026-06-30 note):** the GVA-base role is RETIRED — globals
-now address ABSOLUTE, `bb_assign_global`'s `ABSQ(RT_GVA_VA + gva_k*16)`, no register base. **RBX is
-reserved as the WS/GC bump-frontier TOP**: the `ZC_PORT_HEAP` α-carve emits `mov rax,rbx; add rbx,K;
-cmp rbx,[RT_WS_LIMIT]; ja <refill>` (x86_asm.h ~1620, HZ-1). The build default is `ZC_PORT_FORTH`
-(grants spend as `sub rsp,K`), so the rbx allocator is the HEAP arm's ratified contract, dormant under
-FORTH — plus three named inert rbx-dance holdouts (`bb_gvar_assign_concat`, `bb_pattern_break/len`,
-`bb_ref_invariant`). RBP is the ζ frame base under the RSP default (see the corrected contract above);
-`NV_GET_fn`/`NV_SET_fn` remain plain C calls.
-
-**Two semantic families (fstranl.r function signatures — do not blur):**
-- **Position-returners, δ untouched:** `any`/`match`/`many` are `function{0,1}` (one result or fail);
-  `upto`/`find`/`bal` are `function{*}` GENERATORS (suspend each position; β re-pumps via the generator-β
-  chain edge, the `bb_to` mechanism). None of these moves `&pos`.
-- **Cursor-movers, REVERSED on resume:** `tab`/`move` (`function{0,1+}`, fscan.r) write δ and restore the
-  saved δ on β then fail. `pos` is a stateless `{0,1}` compare. Only tab/move ever write δ — `tab(upto(c))`
-  is the composition idiom and reads upto's slot like any consumer.
-
-This is genuinely DIFFERENT from SNOBOL4 pattern matching (checked against canonical sources 2026-06-03 — see
-GOAL-ICON-BB Watermark): SNOBOL pattern leaves thread the cursor; Icon scan functions return position VALUES.
-Reuse = the Σ/δ/Δ register walk + the cset test loop; the value contract and the `{*}` re-pump are Icon's own.
-
----
-
-## Box structure for Icon constructs (from corpus/probe/bb/test_icon.c)
-
-  construct_alpha:  initialize state; compute first value; goto gamma or omega
-  construct_beta:   advance state; compute next value; goto gamma or omega
-  construct_gamma:  value ready — wire to caller's success label
-  construct_omega:  exhausted — wire to caller's fail label
-
-Four-column form: LABEL / OPERATOR / OPERANDS / GOTO — in test_icon.c's C
-rendering the OPERATOR and OPERANDS fuse into one ACTION expression.
-State (cur, lo, hi, index, etc.) lives in the DATA block (zeta struct),
-allocated fresh per alpha-entry. CODE is shared.
-
----
+## Box structure (from corpus/probe/bb/test_icon.c)
+```
+construct_α: init state; first value; goto γ or ω
+construct_β: advance; next value; goto γ or ω
+construct_γ: value ready — wire to caller success
+construct_ω: exhausted — wire to caller fail
+```
+State lives in the per-α DATA block; CODE is shared.
 
 ## JCON reference
+`refs/jcon-master/tran/irgen.icn` — 43 `ir_a_*` procedures; `ir_info(start,resume,failure,success)` = the four-port record. Ground truth for every construct's port topology.
 
-`refs/jcon-master/tran/irgen.icn` — 43 `ir_a_*` procedures, one per Icon AST construct. `ir_info(start, resume, failure, success)` = the four-port record. Ground truth for every construct's port topology.
-
----
-
-## Co-expressions and TT_SUSPEND
-
-**LANDED 2026-07-01 (GOAL-IR-IMMUTABLE-EMIT RUNGs 1-5):** `create`/`@`/coret/cofail via the pthread+semaphore model in `src/runtime/rt/rt_coexpr.c` + `bb_create/bb_activate/bb_coret/bb_cofail` templates, end-to-end both modes. (The former ucontext `coro_runtime.c` framing is superseded.) Still banned: implementing Byrd constructs as `DESCR_t foo(void *zeta, int entry)` C functions.
-
----
-
+## Co-expressions
+LANDED 2026-07-01: create/`@`/coret/cofail via pthread+semaphore (`rt_coexpr.c` + bb_create/activate/coret/cofail), both modes. C-function Byrd constructs remain banned.

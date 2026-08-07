@@ -1,325 +1,36 @@
-# TEMPLATE REVAMP — CONSTRUCTION RULES (DRAFT for review, 2026-06-01)
+# TEMPLATE REVAMP — CONSTRUCTION RULES (binding for every encoder/template edit)
 
-Synthesized from Lon's session notes. **DRAFT** — not yet folded into the five GOAL-*-BB files /
-RULES.md / the purity+concurrency gates. That fold-in is the grand-master-reorg (byte-identical-×5
-block, like the other FACT RULES). Review first.
+**WHY.** Each box once carried two divergent arms (hand-coded BINARY byte map + TEXT GAS) plus a hand-counted patch-offset table; they drift on every edit. The revamp: one box = ONE description; medium switched invisibly; patch positions DISCOVERED.
 
-**WHY (the problem being killed).** Each BB box carried TWO divergent arms — `MEDIUM_BINARY` (hand-coded
-byte map) + `MEDIUM_TEXT` (GAS) — PLUS a hand-counted `bb_bin_t` patch-offset table. The two arms drift
-(e.g. BINARY baked `movabs` absolute addresses while TEXT used position-independent `lea [rip+...]`); the
-literal `{13,65,80,84,95}` offsets break on every edit. This is the SPIN and CHURN every GOAL-*-BB session
-keeps paying. The revamp makes a box ONE description, medium switched invisibly, patch positions discovered.
+## THE RULES (R1–R13 are style rules; the three FACT RULES below are gated)
+- **R1** No `MEDIUM_MACRO_DEF` arm.
+- **R2 ONE MEDIUM, INVISIBLE.** BINARY and TEXT come from the SAME body; the template never branches on medium; `x86_*` encoders switch internally.
+- **R3** One `return` per `PLATFORM_*` arm (X86 only for now).
+- **R4** The x86 arm is one `+`-chain of `x86(...)` calls (wrapped by IF/FOR) — no statements, no temporaries.
+- **R5** No locals in the x86 arm; operands from `_` (g_emit) ONLY: promoted node scalars (`_.op_sval`/`_.op_ival`/…), labels/ports, driver handoffs, literals. NEVER `pBB`, NEVER `_.node`. Pure parameterless accessors reading `_` are the sanctioned sugar.
+- **R6** All variance inline in the one concat: `X + IF(cond,A) + FOR(i,lo,hi,BODY(i)) + …`.
+- **R7** `x86(mnem, …)` front-end keyed on the mnemonic; overloads select encoders. New instruction shape ⇒ add encoder + dispatch case in `x86_asm.h` — never hand-write bytes in a template.
+- **R8** Concat is pure; side effects (emit bytes, register patch, define label) only in `bb_emit_x86(...)` called from the extern "C" wrapper.
+- **R9 IN-BAND PATCH RECORDS.** Patch/label sites are tagged records in the returned string; `bb_emit_x86` discovers byte positions while copying. Records: `L <len> <bytes>` literal · `J <port>` rel32 patch · `D <port>` define (ports 0=α 1=β 2=γ 3=ω; ids ≥4 = box-local via `L(n)` + `x86("def"/"jmp"/jcc, L(n))`, `x86_begin()` first in a looping box) · `E <idx>`/`F <idx>` = the driver-minted pair loop (`x86_pair_loop()`). One primitive `bb_emit_patch_rel32` serves jmp/lea-rip/call-rip.
+- **R10** BINARY must byte-agree with `as` on the TEXT arm (same short-form/REX.W/SIB). Only intentional divergences: RO load (movabs vs lea [rip]) and jump encoding.
+- **R11** TEXT-first conversion: TEXT arm is source of truth; re-express in `x86()`; encoders regenerate BINARY.
+- **R12** Go fast; no full-regression ceremony on conversions (a couple of `as` .o compares optional).
+- **R13** Formatting/comments deferred.
 
----
+## ⛔ FACT RULE — TEMPLATE READS ONLY g_emit; pBB AND NODE-NEIGHBORS FORBIDDEN (Lon 2026-06-01)
+Operand data is gathered BEFORE the template runs and handed through `_`. Only fields DIRECTLY ON THE NODE are promoted (at the single dispatch point: `nd->FIELD` → g_emit slot; never `nd->α->…`/`nd->c[i]->…`). Converted boxes are `pBB`-parameterless end-to-end (fn/wrapper/prototype/dispatch), so neighbor-reads don't compile; the `_.node` back-door is gated by `scripts/test_gate_template_no_node.sh` == 0. Why: one operand source; BB-FUSION physically impossible.
 
-## STATUS — START HERE (updated 2026-06-02)
+## ⛔ FACT RULE — `bb_bin_t` ABOLISHED; PATCH METADATA IN-BAND (Lon 2026-06-02)
+No box names `bb_bin_t`, declares one, or calls `bb_emit_asm_result`; no `.size()`-of-running-buffer as a patch offset. Enforcement: type deleted (compiler) + `grep -rn 'bb_bin_t\|bb_emit_asm_result' src/emitter/` == 0. The one way: return one `x86(...)` concat; emit via `bb_emit_x86`.
 
-**The shared looping-box keystone is LANDED at SCRIP `origin/main` = `30e8422`.** All four sessions
-(SNOBOL4 / Icon / Prolog / Raku) should **rebase onto `30e8422` before converting any box**, especially any
-box with an internal loop or RW scratch — the internal-label + ζ-frame support already exists; do NOT rebuild it
-(it lives in the SHARED file `x86_asm.h`, so a parallel implementation would collide). See the two sections
-below: "RESOLVED — INTERNAL LABELS + ζ-FRAME SCRATCH" (the API + reference boxes) and the updated
-"`x86_asm.h` VOCABULARY". Reference conversions to copy: `bb_pat_pos.cpp` (loop-free) and `bb_pat_span.cpp`
-(looping). Per-box recipe + the byte-verify-vs-`as` discipline:
-`HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
+## ⛔ FACT RULE — ONE MEDIUM, INVISIBLE: NO MEDIUM-BRANCHED INSTRUCTION, NO RAW BYTES IN A TEMPLATE (Lon 2026-06-02)
+**The named FORBIDDEN SHAPE:** the pair `IF(MEDIUM_TEXT, " <gas-insn>") + IF(MEDIUM_BINARY, x86_Lrec(bytes…))` — one instruction written twice. Every instruction goes through ONE `x86(mnem,…)`; missing encoder = the bug, medium-branch = the symptom. Forbidden in templates: `x86_Lrec/x86_Jrec/x86_Drec/x86_b1(/x86_b2(/x86_b3(/bytes(/u8(/u32le/u64le`, `IF(MEDIUM_BINARY,…)`, `IF(MEDIUM_MACRO_DEF,…)`. Allowed carve-out: TEXT-ONLY annotations with no byte form (leading `α:` label line, `s_comment`) — `IF(MEDIUM_TEXT, <comment-or-label>)` with NO binary twin. Gate: `scripts/test_gate_template_medium_invisible.sh`. (This rule + the two above are three faces of one end state; the gates reach zero together, box by box.)
 
-Each session converts its OWN boxes (table under "DIVVY-UP MATERIAL" below) and edits only its own files; the
-dispatch/decl inserts land on different lines and `x86_asm.h` additions are additive. The ONE remaining shared
-item — the VARIABLE-LENGTH define/jmp-pair loop for the combinators (`bb_pat_alt/cat/match`, FENCE pair path) — is
-now **DESIGNED** (see "STILL OPEN → DESIGNED" below: two pointer-carrying records `'P'`/`'Q'` in `x86_asm.h`); it
-awaits a clean dedicated landing of the shared `x86_asm.h` edit (all four sessions aware), then each session
-converts its own combinators with the identical FOR-over-pair-array body.
+## ζ-FRAME SCRATCH (landed `30e8422`)
+Box-local RW state: claim `int off = bb_slot_claim(N);` in the extern, stash in `_.x86_scratch_off`; access `FR(off)`/`FRQ(off)` (frame modrm; register-relative so BINARY==TEXT; never movabs a process addr, never rip-rel .data). Reference conversions: `bb_pat_pos.cpp` (loop-free) · `bb_pat_span.cpp` (looping, L(0)/L(1)).
 
----
+## x86_asm.h VOCABULARY (grow it there, never inline)
+mov/cmp/test (REX.W-aware) · add/sub (imm8/imm32) · cmp_imm · movsxd · lea_subj_cursor `[r13+rcx]` · movzx_subj_byte · push/pop · movimm (movabs) · load_ro/call_ro · jcc/jmp/deflabel (ports) · internal labels `L(n)` · frame `FR/FRQ(off)` mov/add family · `x86_pair_loop()` (records E/F) · `bb_slot_claim(bytes)` · `x86("note", name)` GOTO-column annotations. jcc: je/jne/jl/jle/jge/jg (+ what has been added since — grep x86_asm.h, it is the source of truth).
 
-## THE RULES
-
-**R1 — DROP `MEDIUM_MACRO_DEF`.** No macro-def arm. Delete any `IF(MEDIUM_MACRO_DEF, …)`.
-
-**R2 — ONE MEDIUM, INVISIBLE.** BINARY and TEXT are produced by the SAME body. The template NEVER branches
-on the medium. The `x86_*` encoders switch on the medium global internally (`MEDIUM_BINARY` → in-band record
-stream; else → GAS text). A reader of the template cannot tell which medium is active.
-
-**R3 — ONE RETURN PER `PLATFORM_*`.** Each `if (PLATFORM_X86)` / `PLATFORM_JVM` / … has exactly ONE `return`
-of a single concatenation expression. (X86 ONLY for now; JVM/JS/NET/WASM arms stay stubbed/unchanged.)
-
-**R4 — STRING CONCATENATION ONLY.** The x86 arm is one `+`-chain of `x86(...)` calls (wrapped by IF/FOR).
-No statements, no imperative control flow, no temporaries.
-
-**R5 — NO LOCAL VARIABLES (x86 arm); OPERANDS FROM `_` ONLY.** The x86 arm declares no local and references
-no `pBB`. Operand data comes from:
-  - (a) **promoted node scalars on `_`** — `_.op_sval`, `_.op_ival`, … (set at the single dispatch point from
-    `nd->FIELD`; see the FACT RULE below);
-  - (b) **`_` (g_emit) globals** — labels (`_.lbl_α/β/γ/ω`), ports, medium, driver handoffs (child cache,
-    pair arrays, subject slot, match labels);
-  - (c) **literals**.
-  **NEVER the `pBB` parameter and NEVER `_.node`** (see FACT RULE). Pure parameterless accessor functions
-  reading `_` are the sanctioned way to keep the arm local-free and English-readable, e.g.
-  `static inline long lenN(){ return (long)(int)_.op_ival; }` → `x86("add","eax",lenN())`.
-  (The function-top `int nid/sid` that feed the NON-x86 platform arms are out of scope of this rule.)
-
-**R6 — ALL VARIANCE INLINE, IN THE ONE CONCAT.** Conditionals and repetition fold INTO the single
-concatenation via combinators — never per-variant `if`-blocks or early returns:
-  `X + IF(cond, A) + Y + FOR(i, lo, hi, BODY(i)) + IF(SPECIAL_MODE, Z) + …`
-
-**R7 — `x86(...)` FRONT-END, KEYED ON THE MNEMONIC (1st arg).** The template-facing API is ONE overloaded
-`x86(mnem, …)`. The first arg (mnemonic string) PLUS the trailing args' cardinality/type select the encoding
-via C++ overloading. The typed `x86_*` encoders are the internal implementation. Forms in use:
-```
-x86("mov",  "eax", "r14d")              reg/mem 2-op  (mov/cmp/test/movsxd/movzx/lea-subj)
-x86("add",  "eax", N)                   reg, imm      (add/sub imm8-or-imm32; mov-imm)
-x86("jmp",  PORT_GAMMA)   x86("def", PORT_BETA)        jmp / jcc / label-define (ports)
-x86("jg",   PORT_OMEGA)                 conditional jump to a port
-x86("call", "memcmp", ptr)              RO runtime-helper call
-x86("lea",  "rdi", "[rip + __]", addr, label)          RO pointer load
-x86("push", "r10")   x86("pop", "r10")  push / pop
-```
-Add a NEW shape by adding an encoder + a dispatch case in `x86_asm.h` — NEVER by hand-writing bytes in a
-template.
-
-**R8 — SIDE-EFFECT-FREE CONCAT; SIDE EFFECTS ONLY IN `bb_emit_x86`.** Every function in the concatenation is
-PURE (returns a string, mutates nothing). The only side effects — emit bytes, register a rel32 patch, define
-a label — happen in `bb_emit_x86(...)`, called from the `extern "C"` wrapper AFTER the pure string is built:
-```
-extern "C" void bb_pat_len(IR_t *pBB) { bb_emit_x86(bb_pat_len_str(pBB)); }
-```
-
-**R9 — IN-BAND PATCH RECORDS REPLACE `bb_bin_t`.** Patch/label sites are TAGGED RECORDS inside the returned
-string; `bb_emit_x86` walks them and DISCOVERS each byte position as it copies — no hand-counted offsets to
-drift. Records (BINARY only; TEXT passes through as GAS):
-  - `L <len> <bytes>` — literal code bytes
-  - `J <port>`        — rel32 patch to a port label (the preceding `L` carries the opcode)
-  - `D <port>`        — define a port label here (0 bytes)
-  Ports: `0=α 1=β 2=γ 3=ω`. ONE primitive (`bb_emit_patch_rel32`, `disp = target − (site+4)`) serves jmp
-  rel32, `lea [rip+disp]`, and `call qword [rip+disp]`. This IS the "BEGIN/END patch-marker" idea made
-  concrete: the `J`/`D` tag is the marker; the displacement is computed by the primitive, not the template.
-
-**R10 — BINARY MUST AGREE WITH TEXT (`as`).** For every plain instruction, the BINARY bytes equal what `as`
-produces from the TEXT arm — same short-form choice (imm8 vs imm32), same REX.W width, same SIB. The ONLY
-intentional medium-specific encodings: the RO load (BINARY `movabs imm64` vs TEXT `lea [rip+label]` /
-`call sym@PLT`) and jumps (BINARY discovered rel32 vs TEXT named label). Making the RO load
-position-independent in BINARY too (`lea [rip+disp]` into a sealed RO trailer) is REG-RO — a one-function
-change in the encoder, no template edit.
-
-**R11 — TEXT-FIRST CONVERSION.** To convert a box: take the **TEXT arm as source of truth**, THROW AWAY the
-hand-coded BINARY arm + its `bb_bin_t`, and re-express the TEXT in `x86(...)` calls; the encoders regenerate
-BINARY. Hand conversion (deterministic auto-conversion is too hard).
-
-**R12 — NO SAFETY NET / GROUND ZERO / GO FAST.** Everything is effectively broken (we are at
-`write("hello world")`); byte-identity against the broken baseline is NOT the goal. Do NOT run full
-regression suites — optional only: a couple of before/after `as` `.o` comparisons. Four parallel sessions
-fix any few typos. The over-testing in the v1 session is exactly what we are avoiding. Move STRAIGHT-FORWARD.
-
-**R13 — FORMAT/COMMENTS DEFERRED.** Do not polish formatting or comments until the GOAL-*-BB sprints finish.
-
----
-
-## ⛔ FACT RULE — A TEMPLATE READS ONLY g_emit; pBB AND NODE-NEIGHBORS ARE FORBIDDEN (Lon directive 2026-06-01)
-
-**A BB template emits exactly ONE node's machine code. Its x86 arm references NO `pBB` and NEVER dereferences
-a node neighbor.** All operand data a template needs is GATHERED BEFORE the template is called and handed in
-through the `_` (g_emit) region. Specifically:
-
-1. **Only fields DIRECTLY ON THE NODE may be promoted.** At the single dispatch point (`emit_core.c`, where
-   `g_emit.node/nid/sid` are already set) the emitter copies the handful — **four or five** — of
-   directly-accessible node fields into dedicated g_emit slots: today `g_emit.op_sval = nd->sval` and
-   `g_emit.op_ival = nd->ival` (more added the same way as boxes need them). These are the ONLY promotions;
-   a promotion is `nd->FIELD`, never `nd->α->…` / `nd->c[i]->…` / a sibling.
-
-2. **The template reads ONLY `_`** — promoted operands (`_.op_sval`, `_.op_ival`, …), labels/ports
-   (`_.lbl_α/β/γ/ω`, `PORT_*`), driver-supplied handoffs (`_.child_fn`, child cache, the pair arrays,
-   subject-slot, match labels), and literals. It does **NOT** reference a `pBB` parameter (there is none —
-   see below) and does **NOT** dereference `_.node` (dereferencing `_.node` is a back-door to neighbors via
-   `_.node->α` — equally forbidden). **The `pBB` parameter is REMOVED** from a converted box end-to-end: the
-   `bb_X_str()` template fn, the `extern "C" void bb_X(void)` wrapper, the `bb_templates.h` prototype, and the
-   `emit_core.c` dispatch call are all parameterless; EVERY arm (x86 + the not-yet-revamped JVM/JS/NET/WASM)
-   reads `_` (`_.op_sval`/`_.op_ival`/`_.nid`/`_.sid`). With no `pBB` in scope, the temptation cannot exist.
-
-3. **NEVER reach a neighbor to gather information.** A template cannot read `pBB->α`, `pBB->c[]`,
-   `pBB->next`, or any child/sibling/parent — it has no node handle at all (no `pBB`, no `_.node` deref). If a
-   box needs such a fact, the **driver** (`emit_bb.c` flat-drive / `emit_core` promotion) resolves it FIRST and
-   deposits a SCALAR (or a child-cache entry / a g_emit field) — exactly the existing `bb_match` (subject
-   slot + element labels) and combinator (child heads + pair arrays) pattern. There is no emit-time case that
-   genuinely requires a neighbor read.
-
-**WHY (two reasons):** (a) **no confusion** — there is exactly one place operands come from (`_`), so a
-template can never silently depend on graph shape; (b) **it makes BB-FUSION impossible** — a template
-physically cannot reach into the next box and weld two boxes into one "double-indemnity" box, because it has
-no handle on any node but the promoted scalars of its own. One node → one template → its own code only.
-
-**ENFORCEMENT (answering "could we actually enforce that?"):** mostly **the COMPILER, structurally** — once
-`pBB` is removed from the signature, a template that writes `pBB->anything` or `pBB->α` simply does not
-compile. That is far stronger than a grep gate and needs no maintenance. The ONE residual that a compiler
-can't catch is `_.node` (because `_` is still in scope and `.node` is a real field): a one-line gate
-`scripts/test_gate_template_no_node.sh` greps `BB_templates/*.cpp` for `_.node`/`g_emit.node` and must read
-zero. So the rule is enforceable, and the enforcement is: parameter-removal (compiler) + a trivial `_.node`
-grep. **COMPLETION TEST:** (a) no `pBB` parameter on any converted box (fn / wrapper / prototype / dispatch
-all `void`) — compiler-guaranteed; (b) `test_gate_template_no_node.sh` == 0; (c) the promoted g_emit fields
-are set at the single dispatch point from `nd->FIELD` only (never a neighbor); (d) this FACT RULE body is
-byte-identical across the five GOAL-*-BB files once folded in.
-
----
-
-## ⛔ FACT RULE — `bb_bin_t` IS ABOLISHED; PATCH METADATA TRAVELS IN-BAND (Lon directive 2026-06-02)
-
-**The `bb_bin_t { sites, labels, is_def, bytes }` struct and `bb_emit_asm_result(out, bin)` are DELETED. No
-box may name `bb_bin_t`, declare a `bb_bin_t bin`, or call `bb_emit_asm_result`.** The struct was the carrier
-for a hand-counted/ FUNCTION-counted patch-offset table — the `bin.sites.push_back((int)b.size())` idiom that
-is invalid: it computes a patch offset with `b.size()` (a function of the running buffer) instead of letting
-the position be DISCOVERED. That idiom is the exact nonsense the revamp kills, and the strongest way to kill
-it is to remove the type so the idiom does not COMPILE (the same enforcement-by-deletion as the `pBB`-removal
-rule — a grep gate is unnecessary when the compiler rejects it).
-
-**THE ONE WAY: every BB template returns ONE concatenation of `x86(...)` calls and is emitted by
-`bb_emit_x86(out)`.** Patch sites are TAGGED RECORDS inside that string (`L` literal bytes / `J` rel32-to-port
-/ `D` define-port / internal-label `L(n)` / pair-loop `E`/`F`); `bb_emit_x86` walks them and DISCOVERS each
-byte position as it copies. There is NO separate offset list, so NOTHING can drift and no function ever counts
-bytes. (This SUPERSEDES the earlier "TWO LITERAL FORMS ONLY" framing for the BINARY arm: the hand-coded literal
-byte map with a literal offset tuple was a *transitional* form; the in-band record stream is the END form, and
-it is what the `b.size()` ledger was driving toward — the ledger reaches zero when the last `bb_bin_t` user is
-converted, not by rewriting offset tuples by hand.)
-
-**FORBIDDEN:** `struct bb_bin_t`, `bb_bin_t bin`, `bb_emit_asm_result(...)`, `bin.sites`/`bin.labels`/
-`bin.is_def`, and `(int)b.size()` (or any `.size()` of a running byte buffer used as a patch offset) anywhere
-in `src/emitter/BB_templates/`, `XA_templates/`, or `emit_str.*`. **ALLOWED / REQUIRED:** `bb_emit_x86(out)`;
-the `x86(...)` front-end and the `x86_*` encoders in `x86_asm.h`; the in-band records they emit. The carve-out
-for `bb_emit_asm_result` walking a finished string is GONE — that function no longer exists.
-
-**ENFORCEMENT:** structural (the compiler) — `bb_bin_t` is not declared anywhere, so any use fails to compile.
-Plus a one-line gate `scripts/test_gate_no_bb_bin_t.sh`: `grep -rn 'bb_bin_t\|bb_emit_asm_result' src/emitter/`
-== 0. **COMPLETION TEST:** (a) `emit_str.h` declares neither `bb_bin_t` nor `bb_emit_asm_result`; (b) the gate
-reads zero; (c) every BB template is emitted via `bb_emit_x86`; (d) `make scrip` + `make libscrip_rt` rc=0
-(the build comes back once every consumer is converted); (e) this FACT RULE body is byte-identical across the
-five GOAL-*-BB files once folded in.
-
-## ⛔ FACT RULE — ONE MEDIUM, INVISIBLE: NO `IF(MEDIUM_BINARY,…)` INSTRUCTION BRANCH, NO RAW-BYTE PRODUCER IN A TEMPLATE (Lon directive 2026-06-02)
-
-**A template NEVER writes an instruction twice — once as GAS text, once as raw bytes — and NEVER branches on
-the medium to pick between them.** The forbidden shape (the exact nonsense this rule kills):
-```
-  + IF(MEDIUM_TEXT,  std::string(" mov rbx, rsp\n"))      // same instruction…
-  + IF(MEDIUM_BINARY, x86_Lrec(x86_b3(0x48, 0x89, 0xE3))) // …written a second time as bytes
-```
-Every instruction goes through ONE `x86(mnem, …)` call; the encoder switches medium INTERNALLY, so the
-template body is identical for BINARY and TEXT and a reader cannot tell which medium is active (R2 made into a
-FACT RULE). If an instruction has no `x86()` form yet, ADD an encoder + dispatch case to `x86_asm.h` (one
-place, byte-verified vs `as`) — NEVER hand-encode it inline in the template. The missing encoder is the bug;
-the medium-branch is the symptom.
-
-**FORBIDDEN inside `src/emitter/BB_templates/*.cpp`:** the raw-byte producers `x86_Lrec`, `x86_Jrec`,
-`x86_Drec`, `x86_b1(`, `x86_b2(`, `x86_b3(`, `bytes(`, `u8(`, `u32le`, `u64le`; and any `IF(MEDIUM_BINARY, …)`
-or `IF(MEDIUM_MACRO_DEF, …)` carrying instruction bytes. Those record/byte primitives are PRIVATE to
-`x86_asm.h` (the encoders' implementation) — a template only ever sees the `x86(...)` front-end + the markers
-(`L(n)`, `FR(off)`, `FRQ(off)`, `PORT_*`).
-
-**ALLOWED carve-out — TEXT-ONLY ANNOTATIONS THAT HAVE NO BYTE FORM:** a box's leading `α:` label
-(`s_1asm(std::string(_.lbl_α)+":")`) and human comments (`s_comment(...)`) legitimately exist only in the GAS
-arm, so wrapping THOSE in `IF(MEDIUM_TEXT, …)` is fine (they emit nothing in BINARY and carry no instruction).
-The line is: `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(MEDIUM_BINARY, <bytes>)` is OK; an
-`IF(MEDIUM_TEXT,<gas-instruction>) + IF(MEDIUM_BINARY,<bytes>)` PAIR is the violation. Non-x86 platform arms
-(JVM/JS/NET/WASM) are out of scope (X86 ONLY for now) and keep their `s_*asm` text.
-
-**ENFORCEMENT:** mostly structural — the record/byte producers can be made `static`/file-private to
-`x86_asm.h` so a template that names them fails to compile (future hardening). Until then, a gate
-`scripts/test_gate_template_medium_invisible.sh`: in `BB_templates/*.cpp`, `grep` for `x86_Lrec`, `x86_b1(`,
-`x86_b2(`, `x86_b3(`, `bytes(`, `u32le`, `u64le`, `IF(MEDIUM_BINARY`, `IF(MEDIUM_MACRO_DEF` → must read zero;
-`IF(MEDIUM_TEXT` is allowed ONLY when the argument is `s_comment(`/`s_1asm(`-label (no instruction).
-**COMPLETION TEST:** (a) zero raw-byte producers and zero `IF(MEDIUM_BINARY,…)`/`IF(MEDIUM_MACRO_DEF,…)` in any
-`BB_templates/*.cpp`; (b) every instruction emitted via an `x86(...)` call; (c) the gate green and in the
-Session-Setup gate list; (d) this FACT RULE body byte-identical across the five GOAL-*-BB files once folded in.
-
-(NOTE — this rule, the `bb_bin_t`-ABOLISHED rule, and the no-`pBB`/`_.node` rule are three faces of ONE end
-state: a converted box is pure `x86()` concatenation reading only `_`. A box that still hand-encodes bytes also
-still carries `bb_bin_t` and still branches on the medium; converting it to `x86()` clears all three at once.
-The three gates therefore reach zero together, box-by-box, as the revamp completes.)
-
-## WORKED EXEMPLARS (copy these)
-
-- **Conformant boxes (this session), all `pBB`-free end-to-end (fn/wrapper/prototype/dispatch all `void`):**
-  `bb_pat_rem`, `bb_pat_len`, `bb_pat_any`, `bb_pat_notany`, and `bb_lit` (migrated off `_.node`). Every arm
-  reads `_` only (`_.op_sval`/`_.op_ival`/`_.nid`/`_.sid`); zero `pBB`, zero `_.node` in code AND comments.
-
-## RULE CLASS — NORMAL RULES vs FACT RULES, AND WHAT IS ACTUALLY ENFORCEABLE
-
-A **FACT RULE** in this repo earns the name by having a mechanical **COMPLETION TEST** (a grep/gate that
-verifies it) and being kept byte-identical across the GOAL-*-BB files. A **normal rule** is a convention
-recorded in prose; it is followed by discipline, not checked by a script.
-
-- **R1–R13 are NORMAL RULES.** "One return per platform," "all variance inline," "string concatenation only,"
-  "TEXT-first," "go fast / no safety net" are style/process conventions. They are NOT cleanly gateable (a grep
-  can't tell good `IF(...)` folding from bad), so making them FACT RULES would buy a maintenance burden
-  (byte-identical-×5 + a flaky gate) with no real teeth. Keep them as prose rules in the goal file.
-- **The "reads only `_`; no `pBB`; no neighbor" rule IS a good FACT RULE** — precisely because it is
-  enforceable, and mostly **structurally** (the compiler), which is the strongest kind. Removing the
-  parameter is the trick: with no `pBB` in scope the prohibited code does not compile, so the rule enforces
-  itself with zero gate maintenance. Only the `_.node` back-door needs a one-line grep gate.
-
-So the honest answer to "could we properly enforce that? seems hard": the *style* rules are hard to enforce
-and should stay normal rules; the *no-neighbor* rule is easy to enforce and is worth promoting to a FACT
-RULE — and it's already 90%-enforced by the compiler the moment `pBB` is gone (done, this session).
-
-## RESOLVED (LANDED 2026-06-02, SCRIP `30e8422`) — INTERNAL LABELS + ζ-FRAME SCRATCH
-
-**INTERNAL LABELS — DONE, use it; do NOT reinvent it.** R9's records now also encode box-local labels:
-`D <id>` / `J <id>` with `id ≥ X86_INTERNAL_BASE (4)` are box-local (ports stay `0..3`). The `bb_emit_x86`
-walker maps each `id ≥ 4` to a fresh per-box `bb_label_t` and resolves forward+backward refs via the EXISTING
-`bb_label_define` / `bb_emit_patch_rel32` patch list — no new patch machinery. Front-end:
-  - `x86("def", L(n))` defines internal label n; `x86("jmp", L(n))` / `x86("jcc-mnem", L(n))` jump to it.
-  - A LOOPING box's extern calls `x86_begin()` BEFORE building the string (sets the per-box uid used for the
-    TEXT label name `.Lx<uid>_<n>`; no-op in BINARY).
-**ζ-FRAME SCRATCH — DONE.** Box-local RW state lives in the ζ-frame `[r12+off]`, register-relative so
-BINARY==TEXT (PER-BOX LOCAL STORAGE / NO-VALUE-STACK; never `movabs` a process addr, never rip-rel `.data`):
-  - claim with `int off = bb_slot_claim(N);` in the extern (declare `int bb_slot_claim(int);` locally), stash in
-    `_.x86_scratch_off`; access with `FR(off)`: `x86("mov", FR(off), imm)`, `x86("mov", FR(off), reg)` (store),
-    `x86("mov", reg, FR(off))` (load), `x86("add", FR(off), imm)`, `x86("add", reg, FR(off))`.
-**REFERENCE CONVERSION = `bb_pat_span.cpp`** (the first looping box; loop=`L(0)`, done=`L(1)`, z/zo in the
-ζ-frame, β give-back). Loop-free reference = `bb_pat_pos.cpp`. Full recipe + byte-verify-vs-`as` discipline in
-`HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`. **Rebase onto `30e8422` first.**
-
-## RESOLVED (LANDED 2026-06-02, Prolog PL-RV-3) — VARIABLE-LENGTH define/jmp-pair loop
-
-`bb_pat_alt`/`bb_pat_cat`/`bb_match` (and FENCE's pair path) — and the Prolog combinators `bb_conj`/`bb_ite` —
-carry a VARIABLE-LENGTH define/jmp-pair loop over `g_emit.xa_bb_emit_pair_{n,define,jmp}`: a runtime-count loop
-where each pair OPTIONALLY defines an externally-owned `bb_label_t` glue label and OPTIONALLY emits `jmp` to
-one (def-only / jmp-only / def+jmp all occur). All five boxes hand-rolled the byte-identical loop. The idiom is
-NOT a `FOR(…) over x86("def"/"jmp", id)` — those bake a FIXED port/internal id into the record, but these
-labels are DRIVER-MINTED pointers, not ports. The resolution is a single combinator primitive in `x86_asm.h`:
-
-```cpp
-inline std::string x86_pair_loop();   // emits the whole g_emit.xa_bb_emit_pair_* loop
-```
-
-It mirrors `x86_jmp`/`x86_deflabel` but, instead of a fixed id, its records carry the PAIR INDEX and the walker
-fetches the `bb_label_t*` out of `g_emit` by that index — so no raw pointer rides in the 1-byte-id stream. Two
-new `bb_emit_x86` records: **`'E' <idx>`** = define `xa_bb_emit_pair_define[idx]` here (0 bytes); **`'F' <idx>`**
-= rel32-patch to `xa_bb_emit_pair_jmp[idx]` (the preceding `'L'` carries the `E9`, exactly like `'J'`). TEXT
-emits the same GAS the boxes hand-rolled (`LABEL:\n` ; `" jmp LABEL\n"`), so the primitive is byte-identical to
-the loops it replaces in BOTH media. A converted combinator is then just `return x86_pair_loop();` (plus any
-leading comment). **Prolog `bb_conj`/`bb_ite` converted (PL-RV-3); SNOBOL4 `bb_pat_cat`/`bb_pat_alt` adopt the
-same call when they convert** — they read the same `g_emit` fields, so it serves them directly, no further design.
-
-## `x86_asm.h` VOCABULARY (current — updated `30e8422`)
-
-`x86_mov/cmp/test` (REX.W width-aware) · `x86_add_rr` (`add reg,reg`, 01/r) · `x86_add/x86_sub` (imm8 short-form
-when it fits, else imm32) · `x86_cmp_imm` (`cmp reg,imm`: imm8 / eax 0x3D / imm32) · `x86_movsxd` ·
-`x86_lea_subj_cursor` (`lea dst,[r13+rcx]`) · `x86_movzx_subj_byte` (`movzx dst,[r13+rcx]`) ·
-`x86_store_cursor_mirror` (legacy `[r10]`, dies at REG-RO) · `x86_push/x86_pop` · `x86_movimm` (movabs) ·
-`x86_load_ro` · `x86_call_ro` · `x86_jcc/x86_jmp/x86_deflabel` (PORTS) ·
-**INTERNAL LABELS:** `x86_begin()` · `L(n)` + `x86("def"/"jmp"/jcc, L(n))` (`x86_jmp_id/x86_jcc_id/x86_deflabel_id`) ·
-**ζ-FRAME `[r12+off]`:** `FR(off)` + `x86_frame_mov_imm/_store/_load/_add_imm/_add_to_reg` (`x86_r12_modrm` SIB) ·
-**PAIR LOOP:** `x86_pair_loop()` (variable-length `xa_bb_emit_pair_*` define/jmp combinator; records `'E'`/`'F'`) ·
-`bb_slot_claim(bytes)` (node-free frame claim). jcc mnemonics: je/jne/jl/jle/jge/jg. Consumer: `bb_emit_x86`.
-
----
-
-## DIVVY-UP MATERIAL (b.size() ledger — the function-byte-counter sites = the revamp debt)
-
-| Owner | Files (b.size count) |
-|-------|----------------------|
-| **SNOBOL4** | ✅ **CENSUS s78 (closes s77 F3): b.size() = 0 across ALL BB templates — the pair-loop debt below was CLEARED during s60-76; row retained as history.** `bb_pat_cat`(2), `bb_pat_alt`(2), `bb_match`(1) + FENCE-pair path — pair-loop design RESOLVED (`x86_pair_loop()`, Prolog PL-RV-3); convert each to `return …prologue… + x86_pair_loop();` (reads the same `g_emit.xa_bb_emit_pair_*`, no further design). **Loop-free remainder ALL DONE** (`bb_pat_span`/`break`/`pos`/`tab`/`atp`/`arb`/`fence`/`defer`/`abort`/`rem`/`len`/`any`/`notany`/`lit`). |
-| **Prolog** | `bb_builtin`(28), `bb_goal`(13), `bb_choice`(6), `bb_disj`(2), `bb_unify`(1), `bb_catch`(1) remaining. DONE: `bb_cut`(PL-RV-1), `bb_arith`(PL-RV-2), `bb_ite`+`bb_conj`(PL-RV-3, via `x86_pair_loop()`). |
-| **Icon** | ✅ **REVAMP COMPLETE — all three medium gates 0** (`medium_invisible`, `bb_bin_t`, `no_handencoded_bytes --strict`). DONE: `bb_binop_arith`(`b8db625`), `bb_unop`(`0b7a166`), `bb_succeed`(`2ac3fcd`), `bb_every`(`f4b1f6b`, BINARY arm), `bb_call`(`0b7a166`, all 60 sites — keeps `pBB`), plus all converted leaves. **STALE-LEDGER CORRECTION (2026-06-02):** the old entries `bb_iterate`(17)/`bb_binop_gen`(11)/`bb_upto`(6)/`bb_to_by`(5)/`bb_to`(5)/`bb_alt`(5)/`bb_seq`(4)/`bb_suspend`(2) listed `b.size()` counts from an OLDER architecture — those standalone `bb_*.cpp` template files **no longer exist**. Those generator families now emit via the `emit_bb.c` flat-drive machinery (`flat_drive_every`/`flat_drive_alt`/`flat_drive_gen_alt` + `FILL` → already-converted leaf templates) and most still **loudly EXCISE in m3/m4** via `icn_kind_native_stub` (IR_GEN_SCAN/GEN_ALT/SUSPEND/ALT/PROC_GEN/CSET_*/MAP/GREP). Lighting them up native is GROUND-ZERO rung work (write the stackless template), NOT x86()-revamp debt — there is nothing left to convert. |
-| **Raku** | `bb_rk_gather` + `bb_nfa` (verify counts). |
-
-Each session converts its own boxes TEXT-first per R1–R13 and helps a neighbor with the loop-free leaves.
-The internal-label design (OPEN ITEM) is the shared prerequisite for every looping box across all four.
+## STATUS
+Keystone + internal labels + ζ-frame + pair loop all LANDED. SNOBOL4/Icon template `b.size()` debt = 0 (census s78); Prolog remainder listed in git history; conversions proceed per-box TEXT-first under the rules above.
