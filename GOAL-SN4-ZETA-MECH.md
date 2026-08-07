@@ -2,16 +2,17 @@
 
 **CHARTER (Lon 2026-08-08, verbatim intent):** every BB allocates its OWN per-box result + locals at α; RBP used ONLY where absolutely necessary; WHACK-free at final and fenced γ; UNWIND-free from ω; exactly TWO invocation glue kinds — ONE-SHOT and PASS-THRU (+ the framed enter/leave pair as the sole rbp writer); ALL work to get the FORTH-style stack FINISHED AND DONE. Twin ladder: `GOAL-SN4-ZETA-CLIMB.md` walks the language 1+1 → EXEC/CODE on this mechanism; this file owns STRUCTURE (emit.cpp / zeta_storage.c / emit.h / templates / x86_asm.h). Protocol: RULES.md; ARCH-ICON.md + GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md before any template/encoder edit. This file ABSORBS LADDER W from GOAL-SNOBOL4-BB.md (HQ retains history; the live cursor for stack work is HERE).
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-07 s3 (Sonnet 4.6 — M-1 partial+; SCRIP `e8a5f74b`, corpus `6f5e8102`)
-**M-0 CONFIRMED:** m3 **124/18/0/0** · m4 **116/26/0/0** at open. No drift.
-**M-1 STATUS: H14/H23/A05(m3)/A06(m3) FIXED; F04 and A05/A06(m4) remain open.**
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-07 s4 (Sonnet 4.6 — M-1 partial+; SCRIP `33e9f2f3`, corpus `acbd6df8`)
+**M-0 CONFIRMED:** m3 **128/14/0/0** · m4 **123/19/0/0** at open (above crater 124/18 · 116/26 from s3 fixes). No drift.
+**M-1 STATUS: H14/H23/A05(m3)/A06(m3)/F03/F05/G06/G22/G23 FIXED; F04(m3) and A05/A06(m4) remain open.**
 Fix 1 (`8e46f05f`): mech-2 MATCH_END reads `r12` not stale `[RT_DCAP_TOP]` → H14/H23 PASS both modes.
-Fix 2 (`e8a5f74b`): ZB-FC-3c coherence — `fc_cond_fp` checks `fc_arm_member(save)` at query time (arm-member table complete by emit, not by lower registration); if SAVE is ALT-arm resident, returns -1 → COND falls to `rt_cap_top` (coherent with SAVE's `rt_cap_push`) → A05/A06 PASS m3.
+Fix 2 (`e8a5f74b`): ZB-FC-3c coherence — `fc_cond_fp` checks `fc_arm_member(save)` at query time → A05/A06 PASS m3.
+Fix 3 (`33e9f2f3`): ZWS backward-edge wpop=0 — ZD planner forward-only guard (k>r) wrongly gave oin=0 for members whose ω is a backward edge within the ZWS run (SAVE→MATCH_BEGIN.β, LIT-after-FENCE1→MATCH_BEGIN.af), inflating zwpop by Kc+zd. Fix: zws-armed branch uses any-direction run-membership (window-integrity scan already confirmed no escaping edges). K==0 gate on ZD-5b β-tag sniff also removed (same law applies to K=16 SAVE). Side-effects: F03/F05/G06/G22/G23 PASS m4.
+**F04 m3:** SEGV pre-existing in binary JIT path (stash/unstash confirms same rc=139 before and after fix 3). ZD planner now correct (SAVE wpop=0 in both modes). Mode-4 clean. MONITOR-FIRST on m3 binary path next session.
 **A05/A06 m4:** SEGV; `rt_cap_top`/mech-2 runtime interaction. XFAIL.compile unchanged. MONITOR-FIRST next session.
-**F04 diagnosis:** ZWS ARMED (`nblob_real=0`). SAVE `fc_bytes=16`, COND `fc_disp=0` (correct). SEGV. SAVE β: `add rsp,16; add rsp,256; jmp match_begin_β`. Extra `add rsp,256` = `op_wpop=256` staged at SAVE's ω-jmp via `x86_beta_trampoline`. SAVE is a mid-run ZD node, not statement-terminal; wrong `op_wpop` value corrupts rsp → SEGV. Staging bug: ZD planner assigns terminal wpop to SAVE. MONITOR-FIRST next session.
 **Roman rc=139:** unchanged, M-2(a) customer.
-**Probe: m3 128/14/0/0 · m4 118/24/0/0** (crater 124/18 · 116/26). CREDENTIAL NOTE: PAT needed for push.
-**NEXT SESSION ENTRY POINT:** (1) F04 MONITOR-FIRST — `op_wpop=256` on SAVE β; check ZD planner staging for mid-run SAVE nodes under ZWS. (2) A05/A06 m4 SEGV — MONITOR-FIRST after F04. (3) All five clear → M-1 done → M-2(a) roman.
+**Probe close: m3 128/14/0/0 · m4 123/19/0/0** (crater 124/18 · 116/26). CREDENTIAL NOTE: PAT needed for push.
+**NEXT SESSION ENTRY POINT:** (1) F04 m3 MONITOR-FIRST — binary JIT path SEGVs; ZD planner correct; planner diag (`SCRIP_ZD_DIAG=1 --run`) shows wpop=0 on SAVE and n17. (2) A05/A06 m4 SEGV — MONITOR-FIRST. (3) All five clear → M-1 done → M-2(a) roman.
 
 ## ⛔ DEFINITION OF DONE (inherits BB HQ DoD; selectors already gone)
 1. ω-coverage 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 2. Orphan-adds 0 outside audited whitelist. 3. UCLAIM MACHINERY PHYSICALLY DELETED (not just census 0): `zvo_uclaim_k`, owner-table declined extension, staging twins, head `sub rsp,Kc` arm — greps == 0. 4. Wall census == framed-enter count over the framed set {STATEMENT(unknown-extent) · MATCH_BEGIN(blob/mech-2) · FENCE1 · FUNCTION}. 5. Exactly THREE glue spellings tree-wide (see GLUE TAXONOMY); THE GLUE DOES NOT WHACK — grep-enforced. 6. Killswitch fold complete (M-5 list) — per-kind gate names == 0 outside this doc. 7. xc318 BY SET ≥ pre-flip baseline (m3 280 / m4 260) both modes · rc=139 tail cleared · bench 18/21 hold-or-better · regen ×4 · `rbp-op-refs` < 14198 (08-03f) and trending down.
