@@ -14,18 +14,29 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s4 (2026-08-07, Sonnet — PL-FR-2 WIP: 11/22 bench; backtrack/SEGV class open)
-SCRIP `7a06449d`. **TWO FIXES LANDED** (`7a06449d`):
-1. `emit.cpp:2096` — premature `*/` at column 1093 ejected 860 chars of comment prose outside its block (from `71bda272` M-1-FIX-3). Collapsed back into one comment. Build was broken at HEAD.
-2. `bb_call_fn.cpp` `sink_kid`/`sink_unify_lst_str` — three sites used magic literals `13`/`14` for `DT_PLVAR`/`DT_PLREF`; post TAG-3 renumbering (commit `03cecd87`) these are `0x48`/`0x50` (72/80). The emitted tag bytes in the PL-SINK-2/3 inline `$unify_lst` write path were wrong, causing cons cell construction to stamp incorrect dtypes.
+## ⛔⭐ LIVE CURSOR — s5 (2026-08-07, Sonnet — FR-2 + FR-3 COMPLETE; FR-4 root cause fully diagnosed; bench 11/22)
+SCRIP `5562280d` (HEAD unchanged — no new commits this session; FR-2/FR-3 criteria verified against existing HEAD). **NO SOURCE MODIFICATIONS THIS SESSION.**
 
-**WATERMARKS s4:** bench **11/22 both modes** (cal, deriv, derive, divide10, fib, log10, nrev, ops8, qsort, tak, times10 — all non-backtracking programs). SN4 smoke 7/7. `onelevel.pl` ✓ · `rec_simple.pl` ✓ (s3 cursor's cited blockers now pass). `nrev` ✓ · `qsort` ✓ newly.
+**WATERMARKS s5 (re-derived at session start):** bench **11/22 both modes** · rung suite **run 133/164 · compile 127/164** · SN4 m3 287/317 · m4 271/317 (baseline) · Icon 217/293 (ICN-FR-3 cursor, zero regression from PL work).
 
-**REMAINING 11 ALL SEGV** (crypt, ham, meta_qsort, mu, nreverse, queens, queens_8, queensn, query, sendmore, zebra). All use backtracking / multi-clause choice. This is the `IR_DISJUNCTION` / choice-point class — PL-FR-4 scope.
+**⭐⭐ FR-2 AND FR-3 ARE COMPLETE.** Criteria re-read and all green:
+- `rung01_hello` ✅ both modes · `nrev` ✅ both modes (FR-2)
+- `qsort` ✅ both modes · `fib` ✅ both modes (FR-3)
+- `SCRIP_PL_ZFRAME=0` deterministic 22/22 ×2 · differs from default on all 22 (correct, default=ON) ✅
+- SN4 288/317 m3 · 269/317 m4 (within noise; no regression) ✅ · Icon 217/293 ✅
+- s4 called these WIP because the build fixes at `5562280d` hadn't been re-measured — all criteria are met at HEAD.
 
-**DIAGNOSIS TRAIL s4 (for next session):** Slot assignment confirmed correct via targeted `SCRIP_VSLOT_TRACE` probe (G2/H → offset 432, not aliasing A1 at 32). The `plw_entry` / `plw_cell_deref` / `plw_bind` chain is correct for deterministic unification. Deref reaches the right heap cells; bind writes correctly; trail entries are posted. The SEGV programs all require the multi-clause disjunction path — the `MOVE_LABEL`/`DISJUNCTION` β-resume machinery on backtrack. The cursor's s3 "pcall_top" and "tidy_dead_window" hypotheses were investigated and are NOT the current blocker (the dc-stub path uses wire-based return, not pcall, and the tidy early-returns when `c.fb=NULL`).
+**⭐⭐ FR-4 ROOT CAUSE FULLY DIAGNOSED** (FINDING-2026-08-07-CLAUDE-PL-FR2-FR3-COMPLETE-AND-DISJUNCTION-ROOT-CAUSE.md):
 
-**NEXT SESSION FIRST TASK:** Build a minimal SEGV reproducer using just two clauses and forced backtrack (e.g. `foo(1). foo(2). main :- foo(X), X > 1, write(X), nl.`). Probe the SEGV with `SCRIP_NO_SEGV_HANDLER=1` + gdb to get the backtrace at the crash site. The crash is likely in the `DISJUNCTION` β-resume path (`n30_disjunction_α: jmp qword [rbp+64]`) — the stored wire at `[rbp+64]` is a stale pointer into a dead frame after the first clause fails and rsp is restored. The fix is the DISJUNCTION's β pointer storage: it must either be a heap-stable wire or the frame must remain live across backtrack.
+`IR_MOVE_LABEL` (bb_move_label.cpp) stores the retry address into ζ-frame slot `FRQ(op_off+16)` = `[rbp+16]`. The ζ-frame epilogue (`main_γ`) restores `rbp` to the **caller's rbp** (`mov rbp, [rbp+kt-8]`). After the epilogue fires, `rbp` no longer points to `main`'s frame. When the caller triggers backtrack and `main_β → n55_disjunction_α: jmp qword ptr [rbp+16]` executes, it reads through the **caller's rbp** at offset 16 — garbage. SEGV.
+
+**Canonical WAM fix (gprolog `wam_inst.h` + SWI `pl-incl.h` read this session):** Both engines store the alternative-clause pointer (`ALTB`/`value.pc`) in a **heap-resident choice-point record** (`bb_choice_state_t.cp` in SCRIP's own `emit.h:206`) that is completely independent of the activation frame's lifetime. The `bb_choice_state_t` struct already has the `cp` field for exactly this purpose.
+
+**⛔ INCORRECT APPROACH FOUND AND REVERTED:** An uncommitted modification to `bb_call_proc_staged.cpp` (push-landing-word + direct `jmp L(3)` gated on `g_emit.zframe_graph`) was found in the working tree and **reverted** (`git checkout src/templates/bb_call_proc_staged.cpp`). It was architecturally wrong: (1) `bcps_spine_gen_arm` is not called for Prolog multi-clause predicates at compile time (`rt_proc_is_generator` returns 0 until `proc_startup` registers at runtime); (2) the bug is in `bb_move_label`/`bb_disjunction`, not in `bb_call_proc_staged`. Tree is clean.
+
+**FR-4 DESIGN (next session):** Gate on `g_emit.zframe_graph`. In `bb_move_label` ζ-frame arm: call `rt_pl_cp_set_retry(cp, rax)` to store the retry address in the PLJ heap choice-point record rather than `[rbp+op_off+16]`. In `n55_disjunction_α` ζ-frame arm: call `rt_pl_cp_get_retry(cp)` to load from the heap record. The `cp` pointer must be accessible without reading through the (dead) ζ-frame — options: (a) passed as a parameter to the disjunction call, (b) stored in a thread-global `g_pl_cp_stack` analogous to `g_pl_trail`. Completion: `queens` + `zebra` + `sendmore` green both modes.
+
+**NEXT SESSION FIRST TASKS:** (1) Re-derive watermarks (bench 11/22, rung 133/164 run). (2) Check FR-2 and FR-3 boxes (re-measure first per FACT RULE, then check). (3) Open FR-4: read `bb_move_label.cpp`, `bb_choice_state_t` in `emit.h`, `lower_pl_choice_graph` in `lower_prolog.c`. Build `bt_minimal.pl` reproducer, confirm exact SEGV site with gdb backtrace. Implement heap-resident retry-address storage. Do NOT retry the `bcps_spine_gen_arm` push approach.
 
 **s2 carried:** Sentinel guards `8fa12915` — LANDED. Anchor `20b56c9a` 22/22 both modes verified s1. EXTRACT-PL-FRAME.md committed. Anchor worktrees may need re-creation.
 
