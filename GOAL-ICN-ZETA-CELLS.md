@@ -2,19 +2,23 @@
 
 **CHARTER (Lon directive, 2026-08-07):** "I still want a COMPLETE ZETA CELLS on the STACK solution. Scan what SNOBOL4 has been doing to convert to 100% per-BB allocation on the RSP-topped FORTH-style stack… Make a plan for Icon to use RSP-topped stack with per-BB allocation, handle procedure locals (LVA) and globals (GVA). We have R13-R15 for the BB_SCAN_* family. For the 100% CELLS on stack all must be in separate pthreads or we'll use the more complicated ARBNO-style constructs. Whichever." This ladder walks Icon to 100% on the SAME ZD machinery SNOBOL4 built — it is the ZD ladder's Icon completion, not a parallel mechanism.
 
-## ⛔⭐ LIVE CURSOR — s213 (ZK-0/ZK-1/ZK-2/ZK-3-partial LANDED 2026-08-07 at SCRIP `5144d4be`)
-**NEXT RUNG = ZK-3 COMPLETE (one-line zframe fix then witness proof).** Watermark at commit: **PASS=173 FAIL=34 XFAIL=5 TOTAL=212** (local suite; broader crosscheck ~293 from prior session). SN4 byte-identical verified this session. **R12 RULING (Lon 2026-08-07): R12 FREE.** ZK-6 assignment TBD.
+## ⛔⭐ LIVE CURSOR — s213-cont (ZK-0/ZK-1/ZK-2/ZK-3-partial at SCRIP `4b0f349b`)
+**NEXT RUNG = ZK-3 COMPLETE (m3 green; m4 + bare write(1 to 3) still open).** Watermark: **PASS=188 FAIL=75 XFAIL=30 TOTAL=293**. SN4 byte-identical confirmed. **R12 RULING (Lon 2026-08-07): R12 FREE.**
 
-**ZK-0 DONE:** `icn_cells_graph` on `IR_graph_t` (struct END, s141); `lower_icon.c` stamps all Icon graphs when `SCRIP_ICN_CELLS=1`; `SCRIP_ZD_CENSUS=1` per-graph census (K_total/armed/declined/bss_arena/blocker histogram).
-**ZK-1 (admission gate) DONE this session:** `zd_wl_kind` ICN-FR-2 early-return (`if (g_emit.zframe_graph) return 0`) was blocking ALL cells-arm graphs — `lower_icon.c` stamps `zframe_graph=1` on EVERY Icon graph wholesale (ICN-FR-2, default ON). Added additive conjunct: `&& !(g_emit_cfg && g_emit_cfg->icn_cells_graph)` so the early-return does not fire for cells-arm graphs. Census immediately moved from `armed=0` to `armed=2/2 (100%)` for hello.icn and `armed=4/4 (100%)` for every-do. Previously: `IR_VAR`/`IR_ASSIGN` locals admitted (ZK-1 original). Both conjuncts now live on the same line.
-**ZK-2 PARTIAL (leaf spine):** `bb_var.cpp` ZD arm; `bb_assign_local.cpp` ZD arm. Remaining leaf kinds: `IR_KEYWORD_ICON`, `IR_RETURN`, `IR_CONJUNCTION`, `IR_DISJUNCTION`, `IR_CALL_PROC_STAGED`.
-**ZK-3 PARTIAL (bound terminals) LANDED this session:** `zd_wl_kind` — IR_BOUND/IR_UNMARK admitted as K=0 transparent bracket pair, gated on `SCRIP_ICN_CELLS=1 && icn_cells_graph`, ONE-AUTHORITY. `zd_k` — IR_BOUND/IR_UNMARK added to K=0 list, ONE LINE ONLY. `bb_bound.cpp` — cells arm: BOUND saves RSP to `FRQ(op_off)`; UNMARK routes through `x86_gamma()` which emits `add rsp,op_zgpop` automatically via X86H_JMP/GAMMA hook. BOTH-MEDIUM, TEMPLATE-ONLY. Legacy slot-restore arm intact.
-**OPEN BUG (ZK-3 completion blocker, one line):** `emit.cpp:3002` copies `g_emit_cfg->zframe_graph` → `g_emit.zframe_graph` for ALL Icon graphs. This triggers the zframe prologue (`sub rsp,flat_frame_bytes; mov rbp,rsp`) on cells-arm graphs, displacing RSP before the ZD depth model starts — ZOPQ reads land at wrong offsets (`write(1 to 3)` prints 0 not 1). **One-line fix at emit.cpp:3002:**
-```c
-g_emit.zframe_graph = (g_emit_cfg && g_emit_cfg->zframe_graph && !g_emit_cfg->icn_cells_graph) ? 1 : 0;
-```
-Suppresses zframe prologue for cells-arm graphs per R-ZK-A mutual exclusion law (`lower_icon.c` sets `icn_cells_graph` XOR `zframe_graph`, never both). After fix: rebuild → verify `write(1 to 3)` → `1`, `every write(1 to 3)` → `1 2 3`, census `armed=100%`, SN4 byte-identical → run `test_icon_all_rungs.sh` for watermark → ZK-3 complete.
-**IR.h:** Both `zframe_graph` (ZFRAME-RESTORE track, upstream) and `icn_cells_graph` (CELLS track) kept — deliberate dual embodiment, calloc-zeroed defaults, no graph ever in both arms.
+**ZK-0/ZK-1/ZK-2-PARTIAL DONE** (see prior cursor entries below).
+**ZK-3 PARTIAL — s213-cont LANDED at `4b0f349b`:** Five fixes in three files (emit.cpp + bb_call_fn.cpp + bb_to.cpp):
+1. `emit.cpp:3001` — zframe prologue suppressed for icn_cells_graph (R-ZK-A; was displacing RSP before ZD model).
+2. `emit.cpp:2077` — SUCCEED-GIN: gamma->IR_SUCCEED on icn_cells_graph = intra-stmt (gin=1); suppresses spurious add rsp,K_total inside generator loop.
+3. `emit.cpp:1300` — op_sb every-body flag: detects ir_a_Every body-CALL topology (gamma_chase == omega_chase, omega beta-tagged) via IR_GOTO chase; stages op_sb=1.
+4. `emit.cpp:719` — write-route bypass: same IR_GOTO chase, bypasses write-slot optimization so bb_call_fn_str picks up op_sb arm.
+5. `bb_call_fn.cpp` — op_sb=1 arm: zeroes op_wpop, calls x86_omega() (routes both exits to TO.beta without mid-loop cell release).
+6. `bb_to.cpp` — Fix broken `inc ZLOC(0)` in ZD arm: x86_asm.h has no XK_RSP64 inc encoder (line 1503 returns empty string). Replaced with load-inc-store: `mov rax,ZLOC(0); inc rax; mov ZLOC(0),rax`. Without this: generator counter never incremented → infinite loop.
+**OPEN (ZK-3 not yet complete):**
+- `every write(1 to 3)` m3: GREEN (`1 2 3`) ✓. m4: BLANK (text-mode path; op_sb staging not reaching walk_bb_node_inner text path or x86_omega in text mode has different behavior).
+- `write(1 to 3)` (no every) m3: prints only `1`. Different IR topology — CALL omega does NOT go to TO.beta, so op_sb gate doesn't fire; CALL takes normal ZD arm with gamma→lbl_gamma (graph exit) after first yield.
+**NEXT SESSION:** (1) Debug m4 path for `every write(1 to 3)` — compare m3 vs m4 emitter paths for op_sb=1; (2) Fix `write(1 to 3)` bare form — CALL omega in that topology goes to graph omega, gamma goes to graph gamma after yield; both should loop TO after write; need to track ir_a_Every vs top-level-write IR difference; (3) After both witnesses green both media: census armed=100%, SN4 identity, watermark ratchet, ZK-3 declared COMPLETE.
+**ZK-2 PARTIAL (leaf spine):** `bb_var.cpp` ZD arm; `bb_assign_local.cpp` ZD arm. Remaining: `IR_KEYWORD_ICON`, `IR_RETURN`, `IR_CONJUNCTION`, `IR_DISJUNCTION`, `IR_CALL_PROC_STAGED`.
+**IR.h:** Both `zframe_graph` and `icn_cells_graph` kept — dual embodiment, calloc-zeroed, never both set.
 
 ### ZK-0 BASELINE TABLE (re-derive every session at YOUR head — three tracks move daily)
 Census instrument: `SCRIP_ICN_CELLS=1 SCRIP_ZD_CENSUS=1 ./scrip --run <prog.icn>` — emits `[ZK-CENSUS]` per graph when `icn_cells_graph=1`. Infrastructure: `icn_cells_graph` field at `IR.h:256` (APPENDED AT STRUCT END s141), set by `lower_icon.c:1226+1300` (only setter), read at `emit.cpp:2299`. Census block: `emit.cpp:2296-2326`. Line numbers drift — re-grep before trusting.
