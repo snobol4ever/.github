@@ -2,8 +2,8 @@
 
 **CHARTER (Lon directive, 2026-08-07):** "I still want a COMPLETE ZETA CELLS on the STACK solution. Scan what SNOBOL4 has been doing to convert to 100% per-BB allocation on the RSP-topped FORTH-style stack… Make a plan for Icon to use RSP-topped stack with per-BB allocation, handle procedure locals (LVA) and globals (GVA). We have R13-R15 for the BB_SCAN_* family. For the 100% CELLS on stack all must be in separate pthreads or we'll use the more complicated ARBNO-style constructs. Whichever." This ladder walks Icon to 100% on the SAME ZD machinery SNOBOL4 built — it is the ZD ladder's Icon completion, not a parallel mechanism.
 
-## ⛔⭐ LIVE CURSOR — s0 (carved 2026-08-07, Icon orientation session; no code landed)
-**NEXT RUNG = ZK-0.** Carved at SCRIP HEAD `f2751777` (2 past the ZFRAME plan's `5bd4436b`); Icon suite at `5bd4436b` measured fresh same day by the ZFRAME session: **156/107/30**. Re-derive at YOUR head — 55 commits of drift were measured in ONE morning today. This file committed LOCAL to .github; push awaits Lon's credential.
+## ⛔⭐ LIVE CURSOR — s0 (carved + pushed 2026-08-07, Icon orientation + planning session; no code landed)
+**NEXT RUNG = ZK-0.** Carved at SCRIP HEAD `f2751777` (55 past the cursor snapshot `ef4841f1` in GOAL-ICON-BB; 2 past ZFRAME plan's `5bd4436b`); Icon suite at `5bd4436b` measured fresh same day by the ZFRAME session: **156/107/30**. Re-derive at YOUR head every session — three tracks move this daily. **R12 RULING (Lon 2026-08-07): R12 is FREE for this ladder to use however is best** — pending-record top, suspension base, any ZK-6/ZK-7 role. The RULES.md `test_gate_icn_no_stack` ban targeted the old value-stack TOS regime; Lon's ruling supersedes it for this arm. Record your ZK-6 assignment of r12 here.
 
 ## ⛔ CONCURRENCY BANNER — THREE LIVE TRACKS ON ONE EMITTER (read before any edit)
 1. **SNOBOL4 PB** (`GOAL-SNOBOL4-BB.md`, PLAN top priority) — statement-execution ladder on the SHARED emitter. Its watermark is a gate on every commit here.
@@ -25,7 +25,7 @@ The two Icon storage arms select on ONE switch at ONE site: the LOWER site where
 ## REGISTER CONTRACT FOR THIS LADDER (verify against x86_asm.h, the register source of truth, every session)
 - **RSP** = the FORTH spine top. Grants `sub rsp,K` at α; releases ONLY at bound terminals (ZK-3).
 - **R13/R14/R15 = RESERVED for the BB_SCAN_* family** (Σ subject base · δ cursor · Δ length — Lon, this charter). The cells arm NEVER claims, spills to, or scratches them. Gate in ZK-8.
-- **R12 ⛔** in Icon graphs (RULES.md gates `test_gate_icn_no_stack`/`one_reg_frame`). If ZK-6 option P wants a pending-record top (SN4's r12 DCAP/CAS analogue), that is a NAMED LON DECISION: release r12 for Icon, or use a memory-cell top per the ZC_PORT_INLINE precedent. Do not pre-empt.
+- **R12 — FREE FOR THIS LADDER'S USE (Lon ruling 2026-08-07).** Use it for whatever is best — pending-record top (analogue of SN4's DCAP/CAS r12 role), suspension base, or any other per-BB management role ZK-6 or ZK-7 finds optimal. ⛔ The RULES.md gate `test_gate_icn_no_stack` was written to ban the OLD value-stack r12-as-TOS; Lon's explicit 2026-08-07 release supersedes that restriction for this ladder's arm. Document what ZK-6 assigns r12 to in this cursor and in the gate script so future walkers know the ruling applies.
 - **RBP** — belongs to the FRAMES track for graph frames; the cells arm touches it ONLY as the bound-bracket base where the mech-2 dynamic whack requires one (the ARB-K16 shape), and only inside this arm's own bracket protocol.
 - **RBX** = heap bump-frontier (dormant under ZC_PORT_FORTH) — untouched. **RAX/RCX/RDX** scratch + wire ABI (rcx=γ rdx=ω at proc enter). GVA addressing per ZK-5 interlock.
 
