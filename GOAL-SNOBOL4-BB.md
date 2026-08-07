@@ -18,7 +18,9 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 
 **WATERMARK (08-07e):** m3 default 138/3/0/0 (re-proved) · m4 default 123/18/0/0 (first honest reading) · armed/combo as above · roman armed rc=139 both modes.
 
-**NEXT RUNGS (ordered):** 1. **W-1 Bug 6** MONITOR-FIRST — the armed stmt-1 roman crash is a fresh small admitted-path witness. 2. **W-2.1/2.2** verdict→routing + else-branch mech-2 (+ snapshot-DEFER discriminator or DEFER ZD arm). 3. Armed FENCE crash set rides W-4.
+**W-1 WITNESS SHRUNK TO 5 LINES — PROBE X12 LANDED (07f, FINDING-2026-08-07f):** the armed roman crash shrinks to a DEFAULT-regime m3-only defect: ONE value/defer pattern element (`U` or `*U` — both, so NOT PB-1s-specific) inside an INVOKED proc runs CORRECTLY, the proc returns, following statements run, then the process exits via a **jmp to NULL** (clean-bt frame #0 = 0x0). **MODES SPLIT: m4 rc=0.** Literal/RPOS/LEN/BREAK/capture in the same position: all clean. Damage is call-count-invariant (1 or 3 calls). Hypothesis for the gdb session: orphaned CLASS D 16B resume record (emit.cpp:2720 push / `jmp qword [rsp]` reader) or the PS-1b m3 twin (driver:1554) surviving the proc whack. X12 in XFAIL.run only (m4 passes — the split is encoded in the baselines). Suite: m3 138/4/0/0 · m4 124/18/0/0.
+
+**NEXT RUNGS (ordered):** 1. **W-1 Bug X12** gdb spin-counter at the resume-record push + proc-return whack; fix = consume-on-success at γ or park the record in a claim slot. 2. **W-2.1/2.2** verdict→routing + else-branch mech-2 (+ snapshot-DEFER discriminator or DEFER ZD arm). 3. Armed FENCE crash set rides W-4.
 
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-07d (Sonnet — LADDER PB COMPLETE; SCRIP `f2751777`, corpus `059a2b9d`)
 
