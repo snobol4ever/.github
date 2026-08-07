@@ -7,79 +7,58 @@
 
 ## ⚡ THREE-MILESTONE AUTHORSHIP AGREEMENT
 
-**Claude Sonnet is the third developer of snobol4ever — co-author of SCRIP / SCRIP.**
+**Claude Sonnet is the third developer of snobol4ever — co-author of SCRIP.**
 
-### Milestone 1 ✅ Session #57, 2026-04-28
-beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`).
-
-### Milestone 2 ⏳
-`scrip_stage2` compiled by `scrip_stage1` produces output identical to `scrip_stage1` compiling itself.
-
-### Milestone 3 ⏳
-All languages × all backends green.
+### Milestone 1 ✅ Session #57, 2026-04-28 — beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`).
+### Milestone 2 ⏳ — `scrip_stage2` compiled by `scrip_stage1` == `scrip_stage1` compiling itself.
+### Milestone 3 ⏳ — All languages × all backends green.
 
 ---
 
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
-1. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude/.github` (public,
-   no token needed — verified by direct clone test, 2026-07-01; `git push` still needs a credential)
-2. Read `PLAN.md`. Find goal in table below.
+1. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude/.github` (public; `git push` needs a credential)
+2. Read `PLAN.md`; find the goal in the table.
 3. Read `RULES.md` in full.
-4. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
-5. **If touches language corpus — read `CORPUS-LOCATIONS.md`.**
-6. **If MODE3-EMIT or MODE4-EMIT, or ANY Byrd-box codegen / template / BB-LOCAL-STORAGE work (every `GOAL-*-BB` rung qualifies) — read the BB-CODEGEN DESIGN SET first, NON-NEGOTIABLE:**
-   - **Read `ARCH-ICON.md`** (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`). The former six-doc set (ARCH-x86 / ARCH-SCRIP / REGISTER-LAYOUT) was pruned to live content 2026-07-01; the ORIENTATION SYNOPSIS in `GOAL-IR-IMMUTABLE-EMIT.md` that once distilled it was itself deleted 2026-07-05 (Lon directive) — read the ARCH docs directly, there is no synopsis to chase.
-   - **Read `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` before writing or editing ANY `x86_asm.h` encoder or ANY `xa_*`/`bb_*` template code — NON-NEGOTIABLE, not just for boxes already mid-conversion.** Its R2/R7/R9/R10 and the "ONE MEDIUM, INVISIBLE" FACT RULE govern every new encoder too: one `x86(...)` concatenation, medium switched invisibly inside the encoder, consumed via `bb_emit_x86`'s in-band `L`/`J`/`D`/`E`/`F` record walk — never a hand-written `IF(MEDIUM_TEXT,...)+IF(MEDIUM_BINARY,...)` pair duplicating one instruction twice (see that doc's own named "forbidden shape"). Added 2026-07-07 after this exact mistake was made twice in one SNOBOL4-BB session before being caught.
-   A `GOAL-*-BB` rung ASSUMES you have read these. If a rung touches per-box state and does not link here, that rung is defective — fix the rung's pointer before coding.
-7. Open Goal file. Open that repo's REPO file.
-8. Run Goal file's `## Session Setup` scripts.
-9. Find first incomplete Step (`- [ ]`). Do it.
+4. PARSER-* or Snocone → read `SNOBOL4-SNOCONE-PRIMER.md` first.
+5. Touches language corpus → read `CORPUS-LOCATIONS.md`.
+6. **Any BB codegen / template / `x86_asm.h` work (every `GOAL-*-BB` rung) → read the BB-CODEGEN DESIGN SET FIRST, NON-NEGOTIABLE:** `ARCH-ICON.md` (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`) and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (R2/R7/R9/R10 + the ONE-MEDIUM-INVISIBLE FACT RULE govern every new encoder; the `IF(MEDIUM_TEXT,..)+IF(MEDIUM_BINARY,..)` pair is the named forbidden shape).
+7. Open the Goal file + that repo's REPO file.
+8. Run the Goal file's `## Session Setup` scripts.
+9. Trust the goal file's `LIVE CURSOR` (never this table's Step column — stale by design). Find first incomplete Step. Do it.
 
 ### Clone SPITBOL oracle
 ```bash
 git clone https://github.com/snobol4ever/x64 /home/claude/x64
 /home/claude/x64/bin/sbl -b file.sno
 ```
-(Public, no token needed — verified by direct clone test, 2026-07-01.)
 
 ---
 
 ## Active Goals
 
-| Goal | File | Step |
+| Goal | File | Step (stale by design — trust the goal file's LIVE CURSOR) |
 |------|------|------|
-| **IR REDUCE / NO-MANGLE** ⬅ GROUND ZERO #5 (Lon 2026-06-27) | `GOAL-IR-IMMUTABLE-EMIT.md` | Emitter READS IR, never mutates it (45 mangle sites in emit_bb.c → 0) + collapse 224 IR opcodes toward the canonical JCON-33 reduced set, ONE BB per instruction. IRM-0 gate landed. **[RE-CORRECTED 2026-07-01, later same day: the `operand_aux` deletion IS NOW LANDED (SCRIP `a3de01d2`, Lon directive) — all setter sites → `ir_operand_push`, fallback readers collapsed, API removed; `IR_t.operands/n_operands` is the single operand store, grep = 0 in build files.]** **All 5 language BB sessions build on this clean spine — do FIRST.** **[2026-07-04: ICON-ONLY retired — SN4-PAT (SNOBOL4 pattern-IR reconstruction) is now #1 priority, top of `GOAL-IR-IMMUTABLE-EMIT.md`.]** **[2026-07-06, Lon "EUREKA times ten": CURRENT PRIORITY is per-BB self-allocation. SEQUENCE: ⭐⭐ZB-PORTS first (formalize α/β/γ/ω as overloadable `x86()` primitives — the experimentation scaffold), THEN ⭐ZB-ACT-0 (the alloc/free wiring as the ports' `alloc` flavor). Both in the §ZB-ACT ladder of `GOAL-IR-IMMUTABLE-EMIT.md`; see the CURRENT-PRIORITY banner atop its PIVOT section. Cracking it makes recursion + backtracking + EVAL + CODE fall out for free. Free-delineation resolved from the 4/28 milestone: CALLER-side, both γ/ω return edges (one4all now public).]** |
-| **Raku BB (OOP)** | `GOAL-RAKU-BB.md` | OO LADDER at the TOP of `GOAL-RAKU-BB.md`, top-to-bottom (first `- [ ]` rung). See goal file. |
-| **DEAD-CODE SWEEP** ⬅ (Sonnet 2026-06-14) | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed (`5e483bf`): documented-20 RESOLVED (19 cut + 1 closed-subgraph non-removable). Oracle 59→43 dead. Fixpoint surfaced (rt_in_native_chunk + other-lexer input/yyunput). See goal file batch-4 handoff. |
-| **BB-FIXUP** ⬅ NEW (Lon 2026-06-04) | `GOAL-BB-FIXUP.md` | Attended round-robin hygiene sweep; cursor in `.github/BB-REVAMP-TRACKER.md`. See goal file. |
-| **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Re-partition `src/` by pipeline role. Open: GMR-8(b). See goal file. |
-| **RUNTIME RENAME** (Lon 2026-06-02) | `GOAL-RUNTIME-RENAME.md` | DE-NAME emitter/runtime. Open: LI-CORE (Lon decision). See goal file. |
-| **RUNTIME REORG** (Lon 2026-06-02) | `GOAL-RUNTIME-REORG.md` | Each runtime FILE → CS subsystem. See goal file. |
-| **SCRIP RENAME** (Lon 2026-05-30) | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename rung. See goal file. |
-| **Ground Zero (Icon-BB)** ⬅ #1 | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. See goal file for live state. |
-| **ICN-GVA-M3** | `GOAL-ICN-GVA-M3.md` | Extend Icon globals to `[rbx+k*16]` in mode-3 (in-process RX slab). 4 steps: M3-ARENA-1/2/3/4. Prereq: ICN-GVA (mode-4) DONE. |
-| **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. |
-| **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. |
-| **SNOBOL4 BB — WHOLESALE (LADDER W)** ⬅ (Lon 2026-08-03f: fronts closed, one seat) | `GOAL-SNOBOL4-BB.md` | Alloc on α, free on ω, whack on final+fenced success; RBP frames at the five constructs for the unbounded case; arm ALL, flip, debug the ladder, delete legacy. ALPHA/OMEGA ABSORBED — see TAKE-BACK TABLE. ⬅ **TOP PRIORITY (Lon 2026-08-07): 5-STAGE STATEMENT EXECUTION — LADDER PB in goal file (PATREF deletion + STITCH BBs; roman.sno witness).** W ladder continues beneath it. |
-| **SNOBOL4 RTX** ⬅ SPLIT OUT s186 (2026-07-27) | `GOAL-SNOBOL4-RTX.md` | Runtime rewritten in optimized x86-64 asm, per-family kill-switch, then eradicate C. **UNPARKED s214 (Lon grant "all your choices").** s214: mode-4 was dead tree-wide on one hidden symbol (m4 141→311, SCRIP `488ecb73`); the TAB/RTAB blocker and the 277/38 watermark were BOTH false at HEAD. Ladder was orphaned by the s176 shrink of `GOAL-SNOBOL4-BB.md`; recovered from `950e6a9f` and re-homed so it can run CONCURRENTLY with the ζ ladder above. Contract: `ARCH-SNOBOL4-RTX.md`. Next: RTX-4 SLICE 2. ⛔ RTX-11/12 are NOT concurrency-safe — they touch `x86_asm.h` + fire `.s` regen ×3. |
-| **Raku BB** | `GOAL-RAKU-BB.md` | See the Raku BB (OOP) row above and the OO LADDER in the goal file. |
-| **Pascal BB** | `GOAL-PASCAL-BB.md` | 7th frontend (P4 subset); reference toolchain in `corpus/programs/pascal/`. See goal file. |
+| **IR REDUCE / NO-MANGLE** ⬅ GROUND ZERO #5 | `GOAL-IR-IMMUTABLE-EMIT.md` | Emitter reads IR, never mutates; collapse 224 opcodes toward JCON-33; per-BB self-allocation (ZB-PORTS → ZB-ACT) per the file's CURRENT-PRIORITY banner. |
+| **SNOBOL4 BB** ⬅ **TOP PRIORITY (Lon 2026-08-07): LADDER PB — 5-STAGE STATEMENT EXECUTION (PATREF deletion + STITCH BBs; roman witness).** | `GOAL-SNOBOL4-BB.md` | LADDER W (wholesale α-alloc/ω-free, RBP frames at the framed constructs) continues beneath PB. ALPHA/OMEGA absorbed. |
+| **SNOBOL4 RTX** ⬅ split s186 | `GOAL-SNOBOL4-RTX.md` | Runtime in optimized asm; per-family kill-switch. Contract `ARCH-SNOBOL4-RTX.md`. Next RTX-4 SLICE 2. ⛔ RTX-11/12 not concurrency-safe (x86_asm.h + regen ×3). |
+| **Raku BB (OOP)** | `GOAL-RAKU-BB.md` | OO LADDER top of file. |
+| **DEAD-CODE SWEEP** | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed; see file. |
+| **BB-FIXUP** | `GOAL-BB-FIXUP.md` | Round-robin hygiene; cursor in `BB-REVAMP-TRACKER.md`. |
+| **SRC REORG** | `GOAL-SRC-REORG.md` | Open GMR-8(b). |
+| **RUNTIME RENAME / REORG** | `GOAL-RUNTIME-RENAME.md` / `GOAL-RUNTIME-REORG.md` | LI-CORE (Lon decision) / per-file CS subsystems. |
+| **SCRIP RENAME** | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename. |
+| **Icon BB (Ground Zero)** | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. |
+| **ICN-GVA-M3** | `GOAL-ICN-GVA-M3.md` | Icon globals `[rbx+k*16]` mode-3; M3-ARENA-1..4. |
+| **Prolog BB** | `GOAL-PROLOG-BB.md` | See file. |
+| **Pascal BB** | `GOAL-PASCAL-BB.md` | 7th frontend (P4 subset); toolchain in `corpus/programs/pascal/`. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
-| **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
-| **PST SNOBOL4** | `GOAL-PST-SNOBOL4.md` | SN4-SC-6 smoke blocked by EC-3* regression. |
-| **PST Snocone** | `GOAL-PST-SNOCONE.md` | MIRROR-GAP-SC-SC-5: XDSAR in bb_build_brokered. |
-| **PST Raku** | `GOAL-PST-RAKU.md` | PRF-14-6 OPEN — leaf-pushers misuse shift. |
-| **PST Prolog** | `GOAL-PST-PROLOG.md` | PST-PL-SC — delete ~64 helpers, rewrite grammar. |
-| **TEMPLATES x86** | `GOAL-TEMPLATES-X86.md` | Backend: x86 (mode-3 native + mode-4 compile), all languages. Per-language state in `GOAL-*-BB.md`. |
-| **TEMPLATES JVM** | `GOAL-TEMPLATES-JVM.md` | Backend: JVM (Jasmin → .class), all languages. |
-| **TEMPLATES .NET** | `GOAL-TEMPLATES-NET.md` | Backend: SCRIP MSIL emitter (≠ snobol4dotnet repo), all languages. |
-| **TEMPLATES JS** | `GOAL-TEMPLATES-JS.md` | Backend: JavaScript (node), all languages. |
-| **TEMPLATES WASM** | `GOAL-TEMPLATES-WASM.md` | Backend: WebAssembly (WAT → node host), all languages. |
-| **IR REDESIGN** ⬅ NEW (Lon 2026-06-07) | `GOAL-IR-REDESIGN.md` | Slim IR_t: drop value/counter/state; rename α→a β→b; exec state → parallel array. IRD-0 open. |
-| **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed; IEP-5/6/7/9 blocked on CHUNKS. |
-| **Universal Gen IR** | `GOAL-LOWER-REDESIGN.md` | LR-S2 — delete bb_node_t path. |
+| **PST Parent / SNOBOL4 / Snocone / Raku / Prolog** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` + `GOAL-PST-*.md` | See files. |
+| **TEMPLATES X86 / JVM / .NET / JS / WASM** | `GOAL-TEMPLATES-*.md` | Per-backend; per-language state in `GOAL-*-BB.md`. |
+| **IR REDESIGN** | `GOAL-IR-REDESIGN.md` | IRD-0 open. |
+| **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed. |
+| **Universal Gen IR** | `GOAL-LOWER-REDESIGN.md` | LR-S2. |
 | **Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | SCT-1f or SCT-BEAUTY-SC-PARSE. |
 
 ---
@@ -97,16 +76,16 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 
 ## Architecture
 
-Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared AST. LOWER compiles AST to the shared IR graph. An OPTIMIZER stage (`src/optimizer/`, `optimizer_run(g)`) sits between LOWER and the EMITTER, ON by default (`SCRIP_OPT=0` to disable — emergency-only, see RULES.md). The IR graph's consumer is the EMITTER (`emitter/`, the per-box templates + dispatch + x86 encoders) walks it and emits native code in TWO 1:1-corresponding modes — mode-3 BINARY in-process / mode-4 TEXT via as+gcc (JVM/.NET/JS/WASM arms dormant under X86-ONLY). Modes 1 and 2 are DELETED (no AST-walk evaluator, no IR-graph software interpreter); see GOAL-MODE34-IDENTICAL.md.
+Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip, Pascal) produces the shared AST. LOWER compiles AST → shared IR graph. OPTIMIZER (`src/optimizer/`, ON by default; `SCRIP_OPT=0` emergency-only) sits between LOWER and the EMITTER. The EMITTER (`emitter/` — per-box templates + dispatch + x86 encoders) walks the graph and emits native code in TWO 1:1 modes — mode-3 BINARY in-process, mode-4 TEXT via as+gcc (JVM/.NET/JS/WASM dormant under X86-ONLY). Modes 1/2 DELETED.
 
-`src/` layout by pipeline role: `parser/` (the 6 language front-ends) · `contracts/` (the spine types beside their allocators: descr, ast, ir, stage2, SM opcode enum) · `lower/` (AST→IR only) · `emitter/` (BB/XA templates + dispatch, serves mode-3 and mode-4) · `machine/` (the RX slab + stage2 preamble) · `runtime/` (the library: `core/` SNOBOL model, `rt/` shared low-level helpers, `builtins/` generator/scanner/resolver/builtin tables) · `driver/` (CLI + mode-3/mode-4 selector) · `backends/` (dormant non-x86: driver+runtime sides + jasmin.jar) · `tools/` (proof/scaffolding harnesses) · `attic/` (dead Stack-Machine residue).
+`src/` by pipeline role: `parser/` (7 front-ends) · `contracts/` (spine types + allocators) · `lower/` · `emitter/` · `machine/` (RX slab + stage2 preamble) · `runtime/` (`core/`, `rt/`, `builtins/`) · `driver/` · `backends/` (dormant non-x86) · `tools/` · `attic/`.
 
 ---
 
 ## Session trigger phrases
 
 | Lon says | Meaning |
-|----------|---------| 
+|----------|---------|
 | "here we go" | Session starting |
 | "perform hand off" | End of session — update goal state, commit, push per RULES.md |
 | "perform emergency hand off" | Same, note breakage |
