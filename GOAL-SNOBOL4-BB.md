@@ -8,15 +8,21 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 ## ⛔ DEFINITION OF DONE (HQ 2026-08-03e) — "ω for every box"; before all six, report the fraction, never the word
 1. `SCRIP_UNWIND` default ON tree-wide + U-3 deletions landed. 2. ω-coverage = 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 3. Orphan-adds = 0 outside the whitelist (⛔ audit the whitelist first — SHED-5 landed, the rsp,8 entry may be stale-permissive). 4. UCLAIM census = 0 (`zvo_uclaim_k` returns 0 every run; loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — the single-space spelling is a FALSE INSTRUMENT). 5. Wall census == framed-enter count over the framed constructs. 6. xc318 BY SET ≥ baseline both modes · rc=139 tail cleared · bench 18/21 hold-or-better · regen ×4.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-07 (Sonnet — X07 DEFER FAST-PATH β WIP; SCRIP `5bd4436b`, corpus `22f016d7`)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-07d (Sonnet — LADDER PB COMPLETE; SCRIP `f2751777`, corpus `059a2b9d`)
 
-**X07 REGRESSION DIAGNOSED (PB-1s debt):** `'(12,345,6)' ? POS(0) '(' ITEM ARBNO(',' ITEM) ')' RPOS(0)` — ITEM is a plain-ref DEFER (PATV$k, DT_P → SPAN blob). PB-1s DEFER fast path (`rt_defer_get_pat_fn` non-NULL → `jmp rax` into blob) never pushes a β record onto rsp. `DEFER_β: jmp [rsp]` then reads garbage when downstream (ARBNO) exhausts and backtracks to DEFER.β.
+**LADDER PB COMPLETE — all five rungs landed this session:**
 
-**FIX WIP (SCRIP `5bd4436b`):** At L(4) (blob γ arrival), push L(5) address as β record (`sub rsp,8; push rax`). L(5) = DEFER ω wire = MATCH_BEGIN.β. Gated on `!op_defer_in_arbno` (IR_t.in_arbno set when `sno_in_arbno>0` at lower site — inside ARBNO body, ARBNO owns rsp, so β push shifts the rsp ARBNO.α stored, corrupting ARBNO.φ restore). X07 baselined in XFAIL.run.
+**X07 ROOT CAUSE (not the WIP diagnosis):** WIP `5bd4436b` blamed ARBNO and a missing β-push record. Bisection showed any pattern with ≥2 plain refs failed regardless of ARBNO. Shim trace: `rt_match_enter(lo=pointer, hi=0)` — garbage subject. The `_pb1s_adj` adjacency chase in `zeta_storage.c` walked exactly ONE `VAR→ASSIGN(PATV$)` pair; with N plain refs the chain has N hops, the chase broke at hop 2, TOS grant declined, MATCH_BEGIN read `FRQ(op_sa)=[rbp+224]` against a producer that stored `[rsp+224]` (off by prologue push-rbp 8). Fix: bounded loop (≤128 hops) over the alternating VAR/ASSIGN chain until it reaches MATCH_BEGIN. WIP β-push (IR_t.in_arbno, op_defer_in_arbno, L(4) block) confirmed dead by forced-off A/B — cleaned in same commit. X07 removed from XFAIL.run.
 
-**NEXT (first thing next session):** X07 still fails with fix applied. Tracing (mode-4 LD_PRELOAD): `rt_dcap_end_ok_open` (MATCH_END) never reached; `rt_match_ctx_restore` fires from MATCH_BEGIN.af with `r15 = pointer value` (Δ corrupted). Outer DEFER is scan-head (op_scan=1); L(4) writes `g_scan_hit_start → [rbp+112]` (start_δ). Suspected: scan-head L(4) update aliases `start_δ` destructively when MATCH_BEGIN.β retry loop re-enters with the wrong scan cursor. **Read `src/runtime/rtx/rtx_match.S` for rt_match_enter r13/r15 setup; then check whether `[rbp+112]` = start_δ vs scan_head_off points to the right slot; MONITOR-FIRST on X07 vs SPITBOL after fix attempt.**
+**PB-3 SEAL SHRINK:** IR_MATCH_PATREF removed from both ZW-13 graph-scope seal loops (zws + zwr) in emit.cpp. DEFER stays (sole recursion vehicle, manual p.122). BY-SET identical: PATREF was never minted after PB-1, seal never fired.
 
-**WATERMARK (08-07 session close):** probe 137/4 xfail (D06–D08+X07)/0 REG · PB witnesses pb_snapshot_imm/stitch_snapshot/defer/compose PASS · SCRIP_PB_SNAP=0 byte-identical (X07=S) · xc NOT re-run this session (pending X07 fix).
+**PB-5 PATREF DELETION:** IR_MATCH_PATREF deleted from all seven files in the PB-0c worklist (IR.h enum, scrip_ir.c name, zeta_storage.c ×10, ir_query.c, bb_pat_build.cpp, emit.cpp ×12, lower_snobol4.c killswitch mint arm). Completion gate: `grep -rn IR_MATCH_PATREF src/` == 0 live code references. ✅
+
+**WATERMARK (08-07d):** probe 138/3 xfail (D06–D08)/0 REG mode-3 · 0 REG mode-4 · xc318 BY SET 0 P→F both modes · all PB witnesses (pb_snapshot_imm=S A / stitch_snapshot=S / stitch_defer=S1+F2 / stitch_compose=S / X07=S) match SPITBOL · regen ×3 (no .s delta: PATREF was never emitted at HEAD).
+
+**NEXT RUNGS (ordered):**
+1. **PB-4** roman armed measure (`SCRIP_ZD_MATCH=1`): its own commit, Lon/perf-regime decision.
+2. **W-1 Bug 6** (STF+mech-2 nested frame): HEAD-PIN roman wrong-output; re-measure armed combo post-FENCE-SEMANTICS; MONITOR-FIRST.
 
 
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-07c (Fable — DOC SHRINK + PB-2 LANDED; SCRIP `87c72227`, corpus `032052db`)
@@ -50,11 +56,11 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 
 **LANDED:** PB-0 recon (census in PB-5 worklist below) · **PB-1 LOWER SWAP** (SCRIP `9480c35e`): lower_snobol4.c:1257 TT_VAR-in-pattern-position → `IR_MATCH_VALUE(operand[0]=VAR cell)` via the 1586/1599 eager idiom; DEFER (:1251) untouched; killswitch `SCRIP_PAT_BUILD=0` restores the PATREF mint byte-identical; roman PATREF nodes 18→0; gate M4 17/4, 0 regressions. `sub rsp,224` remains (PB-3). Head-PIN roman wrong-output is pre-existing, unrelated (fix recipe in W-1 notes).
 
-- [ ] **PB-1s STITCH REPRESENTATION (design rung — Lon consult before landing):** runtime pattern-value node set {INVARIANT-SEG (ref to static blob), VALUE-LEAF (snapshotted DESCR), SEQ-STITCH, ALT-STITCH, DEFER-BY-NAME}; pattern-ASSIGNMENT builders with plain refs emit stage-2 STITCH BBs (fetch constituents eagerly, source order, compose new structure); invoke path walks the structure. Witnesses vs SPITBOL oracle: `pb_stitch_snapshot.sno` (`P='123'; Q='A' P 'Z'; P='XXX'; 'A123Z' ? Q` — must SUCCEED on the snapshot) + `*` twin (must track new P). PB-0b census WIDENS to pattern-assignment builders: PAT$N interiors minting by-name refs carry the same invalid timing (`R = Q Q Q` is the witness).
-- [ ] **PB-2 VALUE INVOKE PARITY:** bb_match_value's DT_PATTERN arm must carry the full invoke protocol (β resume = suspended blob continuation, wire quad) sourced from the CELL — diff against bb_match_defer's path, port anything missing. Gate: stored-pattern corpus class (`S ? P`, P holds pattern) green both modes.
-- [ ] **PB-3 SEAL SHRINK:** drop IR_MATCH_PATREF from the ZW-13 graph seals (zws ~emit.cpp:2057 AND zwr ~:2061) + the zdyn veto trio — gated on PB-1 census = 0 minted. DEFER stays sealed (legitimately re-entrant, manual p.122). Gate: `SCRIP_ZWS_DIAG` on roman shows both statement runs unsealed (decline reason moves off "seal").
-- [ ] **PB-4 ROMAN ARM MEASURE** (`SCRIP_ZD_MATCH=1`, NOT default): roman.s shows MATCH_BEGIN canonical frame + per-BB 16B carves, ZERO 224-class claims; re-run 141-probe armed, classify remaining armed regressions (expect FENCE-class residue = MECH2/W-2 debt).
-- [ ] **PB-5 DELETE:** IR_MATCH_PATREF enum + all consumers + PB-1 killswitch. Worklist (PB-0c census): `IR.h:141` enum · `scrip_ir.c:105` name · `zeta_storage.c` ×10 (`DEFER||PATREF` pairs — delete the PATREF half; :141/256/295/345/361/403/431/596/609/981) · `ir_query.c:16` · `rt/bb_pat_build.cpp:77` · `emit.cpp` ×12 (dispatch :947 shared w/ DEFER, deep-arrival :2878, zstatic :2927, zdyn :2013, span-shrink :2053, zws :2057, zwr :2061, RPO :2239, SPD-2 :2616, ARBNO _sq :951, op_sval :853, defer_op :857) · lower_snobol4.c:1257 mint (killswitch arm). `IR.h:225 pat_static` stays (DEFER reads it). Completion: `grep -rn IR_MATCH_PATREF src/` == 0 · regen ×3.
+- [x] **PB-1s STITCH / SNAPSHOT** — LANDED `cce3b164`: N-ref pre-chain chase in `_pb1s_adj` (zeta_storage.c bounded loop ≤128 hops); WIP β-push dead-code cleaned. X07 closed. pb_snapshot_imm PASS (BUILD snapshot semantics correct).
+- [x] **PB-2 VALUE INVOKE PARITY** — LANDED `87c72227` (prior session): `x86_frame_off_rsp` helper, always RSP/zvo arm.
+- [x] **PB-3 SEAL SHRINK** — LANDED `f2751777`: PATREF removed from ZW-13 zws + zwr loops; DEFER stays.
+- [x] **PB-5 DELETE** — LANDED `f2751777`: IR_MATCH_PATREF deleted tree-wide; grep == 0.
+- [ ] **PB-4 ROMAN ARM MEASURE** (`SCRIP_ZD_MATCH=1`, NOT default; own commit, Lon decision): roman.s shows MATCH_BEGIN canonical frame + per-BB 16B carves, ZERO 224-class claims.
 - [ ] **PB-6:** ZD_MATCH default flip rides W-2's OWN gate (blocked on FENCE-class armed crashes) — explicitly NOT this ladder's flip.
 
 ## ⭐⭐⭐ CURSOR — 2026-08-07a (Sonnet — FENCE-SEMANTICS; SCRIP `8ab4c266`)
