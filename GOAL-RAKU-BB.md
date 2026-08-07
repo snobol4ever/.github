@@ -15,18 +15,16 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
-## ▶ LIVE CURSOR — s2026-08-07b (RK-ZC: RAKU ONTO ζ CELLS ON THE STACK — Lon PIVOT directive — Claude Sonnet 4.6)
+## ▶ LIVE CURSOR — s2026-08-07c (RK-ZC-6: bool_compare_store LANDED — Claude Sonnet 4.6)
 
-**[THIS SESSION] RK-ZC-5 LANDED AND COMMITTED (`55d1598b`). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+**[THIS SESSION] RK-ZC-6 LANDED AND COMMITTED (`17b6b674`). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
-**NEXT RUNG:** RK-ZC-6 — `bool_compare_store` (1). The lone unclustered residual. Diagnose before landing the `for @a` cluster below — it cannot be a knock-on from either of the two known pre-existing issues and must be characterized fresh.
+**NEXT RUNG:** RK-GRAM-3d — alternation (`IR_ALT`) with δ-restore-on-β. DESCOPED until now; the ζ-cell-stack ladder is complete (719/0 m3+m4). Fresh full-budget session; read ARCH-x86.md + ARCH-SCRIP.md + ARCH-ICON.md §"String scanning" FIRST per the standing requirement.
 
-**PRE-EXISTING FAILURES (separate from LOOP-CTL, not this rung's work):**
-1. **`for @a`-family (12 smokes: `for_array_pointy`, `for_array_topic`, `block_nosemi_nested_for`, `block_nosemi_mid_stmt_then_bare`, `trail_methcall_noargs`, `trail_methcall_args`, `trail_semi_still_works`, `postfix_for_topic`, `methcall_mod_for`, `upto_prefix_pointy`, `upto_prefix_topic`, `trail_mod_say_for`):** DESCR type mismatch in the IR_TO counter path. The `TT_EVERY` → `TT_FOR_RANGE` desugaring creates a loop index variable whose `n_var` reads `[rbp+32]` as a 16B DESCR (type at `[rbp+32]`, val at `[rbp+40]`). But `IR_TO` only writes an 8B raw int64 counter at `[rbp+32]` via `inc [rbp+32]`; the type slot `[rbp+40]` stays 0 (DT_SNUL = null). `arr_at` then receives a null-typed index and fails. The `for 1..3 -> $i` path passes because the TO counter is used directly as `$i` (DESCR type=3=DT_INT is set correctly there). WITNESS: `my @a = (10,20,30); for @a -> $v { say $v }` → blank blank 30 (index 0 and 1 read as null-typed, index 2 prints correctly because... it doesn't; third actually passes through a lucky path — measure carefully before touching). FIX DIRECTION: the `n_var` node that reads the IR_TO counter needs to synthesize a full DT_INT DESCR from the raw int, OR `IR_TO` must write a full DESCR at `[rbp+32/40]` and use a separate 8B counter slot, OR the desugaring must encode the index differently.
-2. **`bool_compare_store` (1):** Not yet diagnosed. Do not assume it is related to either issue above.
+**PRE-EXISTING FAILURES:** None (smoke suite 719/719 PASS FAIL=0 DECLINED=0 both modes). `for @a`-family (12) resolved in interim commits before this session. `bool_compare_store` resolved this session. Icon `until` (1) and Prolog `clause` (1) are pre-existing in their own suites, unrelated to Raku.
 
-**WATERMARK:** m3 **706/13**, m4 **706/13** (fail set DIFF-IDENTICAL across both modes — the m3/m4 parity invariant holds). Peers: Icon 12/2 (pre-existing, confirmed stash/restore), SNOBOL4 7/0. Lang-blind gate rc=0.
-**LAST SESSION:** s2026-08-07b (this session), commit `55d1598b`.
+**WATERMARK:** m3 **719/0**, m4 **719/0** (PASS/FAIL — DIFF-IDENTICAL across both modes, parity invariant holds). Peers: Icon 13/1 (pre-existing `until`), SNOBOL4 7/0, Prolog 4/1 (pre-existing `clause`). Lang-blind gate rc=0, no_bb_bin_t OK.
+**LAST SESSION:** s2026-08-07c (this session), commit `17b6b674`.
 
 ⛔ **THE PIVOT (Lon, this session): RAKU IS NOT BROKEN BY RAKU WORK — IT WAS LEFT BEHIND BY THE REGIME MIGRATION, AND THE FIX IS TO CARRY IT ONTO `ZC_STORAGE_CELL_STACK`, NOT TO RESTORE THE OLD SPINE.** RK-GRAM-3d is DESCOPED until this ladder is green: an alternation box built on a spine where `sub f($a) { return $a*2 }` cannot return is built on sand.
 
