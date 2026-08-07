@@ -14,7 +14,34 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s5 (2026-08-07, Sonnet — FR-2 + FR-3 COMPLETE; FR-4 root cause fully diagnosed; bench 11/22)
+## ⛔⭐ LIVE CURSOR — s6 (2026-08-07, Sonnet — FR-4 retry runtime landed; emitter α-label fix pending; bench 11/22)
+
+**HEAD:** post-s6 (rt_pl_retry_push/pop added to rt.c and rt.h; template arms reverted pending α-label staging)  
+**Watermarks (re-derived s6):** Bench 22 m3 11/22 · m4 11/22 · rung 133/164 interp · 127/164 compile — match s5 exactly.
+
+**FINDING:** FINDING-PL-FR4-RETRY-STACK.md — full diagnosis of the rendezvous medium (choice-point stack) AND the value bug (β label vs α label); canonical WAM citations (gprolog wam_inst.h:92-107, SWI pl-incl.h:1825-1838).
+
+**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop`).  Emitter integration BLOCKED on one architectural issue: `bb_move_label`'s ζ-frame arm must push the **α** label of call_proc_staged (not β = TGT0).  The α label is `lbls[k]` in emit.cpp ~:2627; it needs staging into `g_emit.lbl_t1`.
+
+**ONE-LINE FIX for next session:**
+1. `emit.cpp` ~:2627 — add after the wantb line: `if (wantb && g_emit.zframe_graph) g_emit.lbl_t1 = lbls[k]->name;`
+2. `emit.h` — add `const char *lbl_t1;` to emit_state_t
+3. `bb_move_label.cpp` — `ml_retry_store` ζ-frame arm: use `g_emit.lbl_t1` instead of `X86T_TGT0` / TGT0
+4. `bb_indirect_goto.cpp` — ζ-frame arm: `rt_pl_retry_pop → test rax → je ω → jmp rax` (correct as designed)
+5. `bb_call_proc_staged.cpp` — NO CHANGE; β is never entered on the ζ-frame Prolog backtrack path
+
+**WHY α NOT β:** Disjunction pops the retry address and jumps to it.  If it's β, β calls `rt_gen_spine_resume_enter` then dispatches via `jmp [rsp]` (crashes ζ-frame) or `jmp L(3)` (loops: L(3) calls `rt_gen_spine_pass_γ` which re-delivers clause 1 result unchanged).  If it's **α**, α re-calls `rt_proc_call_open_det` which advances the Prolog resolution cursor to the next clause and returns its body fn ptr; the clause executes, fires γ, move_label fires again and pushes α again for the NEXT backtrack.  Clean LIFO, correct clause sequence.
+
+**NEXT SESSION FIRST TASKS:**
+1. Pull all repos, re-derive watermarks (bench 11/22, rung 133/164 run) — 5 min.
+2. Implement the 5-item change set above — ~30 min.
+3. Build `bt_minimal.pl`, confirm `red\ngreen\nblue\n`, rc=0.
+4. Run bench 22 both modes — expect improvement from 11/22 toward 22/22.
+5. Run rung suite both modes — expect improvement.
+6. SN4 + Icon byte-identity crosscheck (SCRIP_PL_ZFRAME=0 identity included).
+7. Commit + `bash scripts/handoff_status.sh`.
+
+## ~~s5 cursor (superseded)~~
 SCRIP `5562280d` (HEAD unchanged — no new commits this session; FR-2/FR-3 criteria verified against existing HEAD). **NO SOURCE MODIFICATIONS THIS SESSION.**
 
 **WATERMARKS s5 (re-derived at session start):** bench **11/22 both modes** · rung suite **run 133/164 · compile 127/164** · SN4 m3 287/317 · m4 271/317 (baseline) · Icon 217/293 (ICN-FR-3 cursor, zero regression from PL work).
