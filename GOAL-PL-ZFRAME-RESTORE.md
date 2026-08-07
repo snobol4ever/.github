@@ -5,6 +5,13 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, same day)
 **`GOAL-PL-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine.** Lon: same two-track shape as Icon — FRAMES on STACK and CELLS on STACK developed simultaneously, BOTH KEPT, switch-selected until Lon picks a default. Rules of engagement mirrored from the Icon pair: one graph NEVER in both arms (the cells track's opt-IN suppresses the zframe stamp at the SAME LOWER site this file's R-PL-A defines); shared choke sites (`zd_*` one-authority lines, staging choke, xa_flat arms) take ADDITIVE arms only; `=0`/unset identity is a completion criterion on every behavioral edit; `git pull --rebase` before every commit — FIVE-plus concurrent tracks now share this emitter (SN4 MECH/CLIMB, ICN ZFRAME/CELLS, PL ZFRAME/CELLS).
 
+## ⛔ CROSS-TRACK NOTICE (ICN s5, 2026-08-07) — the zframe vslot override is DELETED; PL gained +85/+79
+`ir_drive_slot_assign`'s `zframe_graph` param/local vslot override is a **SHARED choke site**: PL-FR-2 stamps `zframe_graph` at `lower_prolog.c:1385`, so that block was live for Prolog too. It has been **DELETED** at SCRIP `1567f28a` by the ICN-ZFRAME session. Prolog was **measured before the cut, not after**, per the rules of engagement:
+- **Prolog rung suite: interp 47/117 -> 132/32 · compile 47/117 -> 126/38.** Strict gain, no renegotiation needed.
+- Icon 206/57/30 -> 217/46/30 (11 fixed, 0 broken). SN4 byte-identical 318/318.
+**WHY it was wrong:** ZLS vslot offsets are FLAT-FRAME offsets in the graph root scope, correct under a pinned rbp by construction — the "FORTH-spine offsets" premise was false. The override re-granted locals at `(np+j+1)*16` = `base+j*16`, which IS node result cell k=j, aliasing every local onto a result cell. ZLS already grants params, named locals, AND implicit locals (its own IR_ASSIGN/IR_VAR/IR_VAR_REF scan, `zeta_storage.c` ~:536, with a dedup guard).
+**If PL needs zframe-specific vslot behaviour later, add it as PL's OWN arm keyed behaviourally — do not restore this one.** Full rationale is the separator comment at the deletion site and the `1567f28a` commit message.
+
 ## ⛔⭐ LIVE CURSOR — s2 (2026-08-07, Sonnet — PL-FR-2 SENTINEL GUARDS LANDED; ANON VAR CELL OPEN)
 SCRIP `8fa12915`. **PL-FR-2 SENTINEL GUARD COMMIT LANDED** (`8fa12915`): `bb_var.cpp` + `bb_var_ref.cpp` op_off/op_sa sentinel guards changed from `>= 0`/`< 0` to `!= -1`/`== -1` matching the ICN-FR-3 contract (negative offsets are valid zframe local addresses; -1 is the only absent sentinel). SN4 byte-identical (arithmetic.sno md5 confirmed). ZFRAME=0 self-identical.
 
