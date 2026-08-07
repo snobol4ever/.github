@@ -174,6 +174,7 @@ Killswitch-OFF arm stays byte-identical every rung through W-4 (regen no-ops pro
 - IR_GOTO monitor-tap gating (`MONITOR_GOTO_TAP`, emit.cpp:991) — reversion candidate, did not fix defect C.
 
 ## ↗ MOVED OUT / SUPERSEDED
+- **LADDER W + all stack-mechanism work → `GOAL-SN4-ZETA-MECH.md` (structure) + `GOAL-SN4-ZETA-CLIMB.md` (correctness, 1+1 → EXEC/CODE)** — Lon 2026-08-08 consolidation order; REGIME DELETION slice 1 landed (SCRIP `de837576`, corpus `f65d8278`, both selectors physically gone, crater baseline m3 124/18/0/0 · m4 116/26/0/0, Icon proven byte-identical over 303 emissions). The live stack cursor is in MECH; this file retains laws-of-record + history only.
 - SN4-RTX → `GOAL-SNOBOL4-RTX.md` (RTX-11/12 not concurrency-safe). ZHEAP/CELL ladder superseded by the design of record (ZC_PORT_HEAP rbx α-carve stays dormant-ratified).
 - IR_GOTO opcode STAYS (monitor trace anchor; optimizer already folds redundant instances).
 
