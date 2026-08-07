@@ -27,3 +27,6 @@ Crater baseline (shared with ZFRAME-RESTORE): HEAD `c0372fec` bench **0/22** m3.
 This file NEVER lands a new frame/glue/claim protocol — MECH owns structure (cross-request in both cursors). Shared chokes (`zd_wl_kind`/`zd_k`/`zd_nops` one-authority lines, staging choke, `bb_call_fn.cpp` dfp chain) take ADDITIVE arms only. `git pull --rebase` before every commit; re-derive every count at session start; line numbers drift daily — re-grep, never trust. Perf claims blocked on the deterministic instrument (item 6). `.github` pushes last.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+
+## DRAFT RULING R-PL-ZK-A (walker default, s0b; Lon overrides at any session start)
+ZK-0's naming decision defaults to: ADD a separate `pl_cells_graph` field at IR_graph_t struct END (s141 ABI law) — cheapest, zero Icon coupling, no rename churn. A shared behavior-named `cells_graph` consolidation becomes a later hygiene rung once both language arms are proven. This unblocks ZK-0 without waiting on the ruling.

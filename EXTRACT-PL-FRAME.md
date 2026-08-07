@@ -22,3 +22,9 @@ CARVE-KILL `ef9a7d2c`+`1ba33ea6` deleted **all nine prologue arms** (BARE · FRA
 4. Zero-fill decision for (b) — measured, not argued.
 
 **Method note:** anchor worktrees are for building + grepping, never wholesale reading; every claim above carries its line anchor for that reason.
+
+## VERIFY QUEUE RESULTS (s0b 2026-08-07 — QUEUE CLOSED, FR-1 COMPLETE)
+1. **Board arm table (`SCRIP_XAF_MARK=1` emit sweep, all 22 at the anchor): FRAME_RSP ×22 · LEXPREP2 ×101 · every other arm ZERO** (incl. NOFILL, GEN_RESUMABLE, JMP_*, adopt-class). ⇒ FR-2 board parity needs exactly TWO arm shapes; the adopt/backtrack-frame question moves WHOLLY to FR-4 and needs beyond-board witnesses there.
+2. **Seed/landing settled by READ (anchor rt.c:1518 lexprep2 + :614 bind_args):** `rt_jmp_frame_lexprep2(fb,suffix_off,region_bytes)` = pcall-record registration (`c->fb=fb`, lex-only guard) + NULVCL seed of slot 0 + **NULVCL splat of [suffix_off, region_bytes)** + `rt_frame_bind_args` (g_call_args → `fb+16*(i+1)` copy, NULVCL pad of missing params, variadic rest via make_list/agg, named_rest empty-string seed); optional `SCRIP_ZLS_POISON` pre-fill. **VERDICT for rows (a)+(d): REUSE the surviving C wholesale — FR-2's Prolog jmp-entry arm re-emits the anchor's hdr + `mov rdi,rsp` / `mov32 esi,seed_off` / `mov32 edx,kt-32` / call sequence. No new runtime function.**
+3. **RE-SCOPED into FR-2 completion (already in its rung text):** the flagged-graph FATAL sweep (row e) and the `=0` byte-identity bypass sweep (row f) require the flag to exist — dynamic halves move; static half done in row (f).
+4. **CLOSED by item 2:** the NULVCL splat IS the zero-fill for jmp-entry frames; the FRAME_RSP outer arm keeps its rep-stosb + 65544 floor as-was. Restore as-was; re-measure only if FR-2 witnesses fail.
