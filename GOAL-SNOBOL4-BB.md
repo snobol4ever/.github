@@ -6,6 +6,33 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-07a (Sonnet — FENCE-SEMANTICS; SCRIP `8ab4c266`)
+
+⭐ **SESSION WORK (Sonnet, 2026-08-07a) — FENCE-SEMANTICS (FENCE-WHACK-UCLAIM / FENCE-PASS-THROUGH / FENCE-NONSPINE / SEAL-UNWIND / FENCE1-IN-ARBNO):**
+
+**SEMANTICS (manual-grounded):**
+- FENCE0 (bare `FENCE`): matches null forward; backup through it ABORTS the whole attempt (no anchor advance). First-position FENCE0 anchors the match regardless of `&ANCHOR`.
+- FENCE1 (`FENCE(P)`): matches as P; **"Pattern backup will always pass through FENCE(). Note that backup through FENCE() does not cause the match to abort"** (manual p.222 verbatim). Alternatives WITHIN P are invisible on backup; elements LEFT of the fence stay live and can be retried.
+
+**FIXES LANDED (all committed, `8ab4c266`):**
+1. **FENCE-WHACK-UCLAIM** (`bb_match_fence1.cpp`): retired the s137 non-zw floor whack (`mov rsp,rbp`) in the FENCE1 commit glue and the FENCE0 ival=0 box. The whack stole the statement claim's release authority — the seal-fail route's staged `add rsp,K` then double-freed. Commit now does `fence_release(off)` (own-span watermark restore only). Cured f6d SEGV, H26/G23 hang, H06.
+2. **FENCE-PASS-THROUGH** (`lower_snobol4.c` + template): `first_f0` tracks the first FENCE0; `first_fence` keeps only the early-out. All three `fail_r`/`fail_p` formulas use `first_f0`. FENCE1 outside ARBNO bodies is now a normal seam element: `right_sealed=0`, right exhaust repoints into F.β (pass-through), F.ω resumes left generator. β landing moved BELOW the framed_leave (pass-through arrivals have no fence frame). `sno_seq_nary` gained `out_rtail` for correct multi-element left-run resume surface. Flipped H01 =F→=S. Witnesses: T4/T5 in fence_probe.sno.
+3. **FENCE-NONSPINE** (`lower_snobol4.c`): whole-pattern/nested FENCE1 (under `$`/`.`/ALT arm, as a whole pattern) now builds the sealing F-box. Gated `!sno_in_arbno && !g_sno_in_patproc` (both proven necessary by measured regressions). Cured T6 (manual's own `FENCE(BREAK(',')|REM) $ STR *DIFFER`).
+4. **FENCE1-IN-ARBNO** (`lower_snobol4.c` + template): FENCE1 inside ARBNO body takes a dedicated sealed ival=1 path (watermark + P sub-body, right_sealed, no seam repoint). ival=2 marker suppresses `fence_u2_frame()`: ARBNO owns rbp; nested push/pop corrupts it. Cured 066_capture_then_fenced_arbno and 142_pat_arbno_fence_arbno.
+5. **SEAL-UNWIND** (`emit.cpp` + `bb_match_begin.cpp` + `lower_snobol4.c`): `pat_seal` rerouted through a φ-tagged GOTO into MATCH_BEGIN's new na_f landing (PAIR(3)/L(1) in all three template arms — emit.cpp stages pair[3]=na_f for BEGIN nodes). Closes the `zeta_storage.c` KNOWN BYPASS: seal kills (FENCE0 abort, ABORT pattern) now take the full anchor-exhaust unwind (CAS pop, rsp restore, rt_match_ctx_restore, claim release) rather than jumping raw-fJ and skipping it. Cured t1m (SEGV→rc=0) and t1x2 (silent→f1/f2).
+
+**GATES:**
+- **141-probe suite**: 138 pass · 3 xfail (D06–D08, non-fence) · **0 REGRESSION**. 20 XPASS flips dropped from XFAIL.run: F01–F03/F05–F06, G02/G06/G12/G13/G15/G16/G18/G22/G23, H01/H06/H08/H10/H26/H27.
+- **Crosscheck vs HEAD**: m3 +1 fixed (157_pat_cap_arb_alt_keep), 0 new regressions. m4 106_pat_fence_with_capture pre-existing HEAD failure (not new).
+- Regen: feature ×40 .s files updated; benchmark/demo skipped (corpora absent in this env).
+
+**OPEN (remaining after this rung):**
+1. **3 probe suite xfail**: D06/D07/D08 (non-fence family, not this rung).
+2. **FENCE1 inside ARBNO body — nonspine path**: `g_sno_in_patproc` gate means FENCE1 under `$`/`.` inside a PAT$ blob (stored pattern) is still transparent (old behavior). Recorded question. Witness: 127_pat_json_keyvalue m4 still passes via transparent path; SCRIP_ZD_FENCE1=0 cures a planner verdict flip there (the new F box changes graph shape and triggers the zdyn veto). Next rung to investigate if it surfaces.
+3. **mode-3 full-probe T6 sequence crash**: `fence_probe.sno` crashes in mode-3 at T6 when run as the complete 8-test file. Confirmed pre-existing (pristine HEAD crashes identically at the same slice). Not a regression from this rung.
+4. **ARBNO-body FENCE1 nonspine**: the `!sno_in_arbno` gate on TT_FENCE whole-pattern case means a FENCE1 directly under `$`/`.` inside an ARBNO body still lowers transparently. The `sno_in_arbno` flag correctly covers the spine-splitter case. Open for ZB-ITER rung when ARBNO frame management is re-designed.
+5. **H11/H12** (FENCE1 INSIDE ARBNO body, tail-seal question): deliberately left as-is. The `sno_in_arbno` gate keeps these on the old sealed wiring. See XFAIL D06–D08 family.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-06o (Sonnet — ZWS-FENCE-WHACK-FIX; SCRIP `48b6b89d`)
 
 ⭐ **SESSION WORK (Sonnet, 2026-08-06o) — ZWS-FENCE-WHACK-FIX:**
