@@ -42,6 +42,8 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 |------|------|------|
 | **IR REDUCE / NO-MANGLE** ⬅ GROUND ZERO #5 | `GOAL-IR-IMMUTABLE-EMIT.md` | Emitter reads IR, never mutates; collapse 224 opcodes toward JCON-33; per-BB self-allocation (ZB-PORTS → ZB-ACT) per the file's CURRENT-PRIORITY banner. |
 | **SNOBOL4 BB** ⬅ **TOP PRIORITY (Lon 2026-08-07): LADDER PB — 5-STAGE STATEMENT EXECUTION (PATREF deletion + STITCH BBs; roman witness).** | `GOAL-SNOBOL4-BB.md` | LADDER W (wholesale α-alloc/ω-free, RBP frames at the framed constructs) continues beneath PB. ALPHA/OMEGA absorbed. |
+| **SN4 ζ-MECH** ⬅ NEW 2026-08-08 (Lon: FORTH stack FINISHED AND DONE; absorbs LADDER W) | `GOAL-SN4-ZETA-MECH.md` | Regime selectors DELETED (`de837576`); crater baseline in cursor; M-1 Bug 6 open. |
+| **SN4 ζ-CLIMB** ⬅ NEW 2026-08-08 (twin; Opus walks 1+1 → EXEC/CODE) | `GOAL-SN4-ZETA-CLIMB.md` | C-0 open; XFAIL = work queue. |
 | **SNOBOL4 RTX** ⬅ split s186 | `GOAL-SNOBOL4-RTX.md` | Runtime in optimized asm; per-family kill-switch. Contract `ARCH-SNOBOL4-RTX.md`. Next RTX-4 SLICE 2. ⛔ RTX-11/12 not concurrency-safe (x86_asm.h + regen ×3). |
 | **Raku BB (OOP)** | `GOAL-RAKU-BB.md` | OO LADDER top of file. |
 | **DEAD-CODE SWEEP** | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed; see file. |
