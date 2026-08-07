@@ -1,0 +1,29 @@
+# GOAL-PL-ZETA-CELLS.md — Prolog at 100% per-BB ζ CELLS on the RSP-topped FORTH stack
+
+**CHARTER (Lon directive, 2026-08-07):** Walk Prolog to 100% per-BB allocation on the RSP-topped FORTH-style stack — the SAME ZD machinery SNOBOL4 built and Icon is completing (`GOAL-ICN-ZETA-CELLS.md` is the template; read it first every session). This is the ZD ladder's Prolog completion, not a parallel mechanism. Concurrent twin: `GOAL-PL-ZFRAME-RESTORE.md` (FRAMES on STACK) — BOTH KEPT, switch-selected, one graph NEVER in both arms, until Lon picks a default. Routing mirrors the Icon R-ZK-A ruling: the cells opt-IN suppresses the zframe stamp at the SAME LOWER site, A/B = one env var.
+
+## ⛔⭐ LIVE CURSOR — s0 (2026-08-07, Fable — charter session; no code landed)
+Crater baseline (shared with ZFRAME-RESTORE): HEAD `c0372fec` bench **0/22** m3. Target = anchor parity 22/22 both modes ON THIS ARM. **NEXT RUNG = PL-ZK-0.**
+
+## ⭐⭐ WHAT THE PRIOR SCANS ALREADY FOUND (s162–s164 + FINDING-2026-08-01-PL §11 — the machinery this ladder EXTENDS, never re-derives)
+1. **The unlock set is FIVE kinds and it is ALL-OR-NOTHING PER RUN** (s163, measured): `IR_CALL_BUILTIN_PROLOG` gates **185/185 runs** · `IR_MOVE_LABEL` 157 · `IR_VAR_REF` 130 · `IR_VAR` 93 · `IR_CALL_PROC_STAGED` 91. Single-kind admission unlocks ZERO runs; 2-kind best (CBP+MOVE_LABEL) = 29/185; all five = 185/185. **No sequence that omits CBP unlocks anything.**
+2. ⛔ **THE SINK-BYPASS DEFECT IS THE REAL BLOCKER** (s163, structural + sized): the ZD arm in `bb_call_fn_str` early-returns BEFORE `dop_direct_fp` and the PL-SINK ladder — an armed call emits generic `rt_call_arr` by-name dispatch, discarding SINK-1/2/4/8 (~97% of the data plane: 65 `rt_pl_dop_*` vs 2 `rt_call_arr` sites in nrev.s). Silently-green perf regression class. **DESIGN CORRECTION OF RECORD: ZD IS A STORAGE DISCIPLINE, NOT A DISPATCH ROUTE** — sink/dop selection stays; only operand SOURCE (ZOPQ vs FRQ) and result DEST (ZRES vs FRQ) move. ZD-PL-A (dop_direct_fp inside the ZD arm) LANDED s163b; slice 2a ($trail_mark, 30% of main traffic, needs the `esi==0` runtime read first) and 2b ($unify, addressing parameterization) are SPECIFIED NOT LANDED.
+3. ⭐ **PROC-ENTRY IS THE ONE ITEM THAT IS NOT "ARM ANOTHER KIND"** (FINDING-08-01 §11): 781 frame refs (17.3%) with NO BB to own them — the entry protocol itself (wire header, saved rcx/rdx/rbp). Per-BB self-allocation needs an explicit design answer here: a FUNCTION-class frame per SN4 MECH's frame census, or wire cells at fixed spine offsets. **CROSS-REQUEST TO `GOAL-SN4-ZETA-MECH.md` — this is a MECH-shaped decision; never land a new frame/glue protocol from this file.**
+4. ⚠ **The `IR_VAR` "RETIRED AS VACUOUS — DO NOT WIDEN" ruling was made for SN4 GLOBALS** and needs re-examination for Prolog (Prolog vars ARE graph locals) — a reasoned re-open with Lon visibility, never a blind widen (s163 NEXT(d)).
+5. **Storage-weight vs run-gating are DIFFERENT ORDERINGS and a ladder needs both** (FINDING-08-01 §11): `move_label` gates 157 runs on 5 refs; `lit_string`/`lit_integer` own 438 refs and gate nothing.
+6. **Instruments that exist:** `SCRIP_ZD_CENSUS` per-graph census (ZK-0 pattern, falsify both directions before believing any zero) · `SCRIP_ZD_GAP` callee= reporting · LD_PRELOAD PLT interposition for dynamic hotness (s148, `perf`/`gdb` absent in container) · the deterministic-instrument gap (s164: wall time DISQUALIFIED on Prolog until one exists — every perf claim on this ladder inherits that gate).
+
+## RUNGS (each: own commit, killswitch, `=0` byte-identity, SN4+ICN+PL-zframe-arm invariance, FINDING per land mine)
+- [ ] **PL-ZK-0 FLAG + CENSUS.** Cells opt-in stamp at the lower_prolog site (suppressing zframe per the routing ruling) + `SCRIP_ZD_CENSUS` reachable for Prolog graphs; falsify the census both directions (known-armed and known-declined programs). ⚠ NAMING DECISION FOR LON: reuse/rename `icn_cells_graph` (it is language-prefixed; the behavior-named alternative is one shared `cells_graph` field with per-language stampers) — record the ruling here.
+- [ ] **PL-ZK-1 ADMISSION ROUTING.** Additive third-conjunct arms in `zd_wl_kind` for the five kinds, gated on the Prolog cells flag; existing arms untouched (the ICN ZK-1 idiom verbatim).
+- [ ] **PL-ZK-2 LEAF SPINE + SINK PRESERVATION.** Template ZD arms for the five kinds; **the acceptance test is the sink census, not just correctness** — an armed nrev must keep its `rt_pl_dop_*`/sink profile (slice 2b addressing parameterization lands here or the rung does not close). CBP is first BY LAW (item 1).
+- [ ] **PL-ZK-3 PROC-ENTRY DESIGN** (item 3): the MECH cross-request resolved and implemented; wire header + arg landing as cells or a FUNCTION frame.
+- [ ] **PL-ZK-4 CHOICE POINTS + TRAIL.** `IR_DISJUNCTION` K + retry β re-entry WITHOUT release (the non-popping law); trail interplay with cell release on backtrack — the transit guarantee (bindings pop on retreat).
+- [ ] **PL-ZK-5 SUSPEND CLASS.** Predicate/generator graphs (the 70.3%): pending-cells vs pthread decided by measurement, the ICN-ZK suspension-decision shape.
+- [ ] **PL-ZK-6 RATCHET.** bench 22/22 m3+m4 on the cells arm · rung 164/164 both modes · smoke 5/5 · sink census ≥ legacy arm.
+- [ ] **PL-ZK-7 GATES + DOCS.** Cells-arm gate script; A/B table vs the zframe arm (the two-backends precedent) for Lon's default ruling; cursor sync.
+
+## COORDINATION
+This file NEVER lands a new frame/glue/claim protocol — MECH owns structure (cross-request in both cursors). Shared chokes (`zd_wl_kind`/`zd_k`/`zd_nops` one-authority lines, staging choke, `bb_call_fn.cpp` dfp chain) take ADDITIVE arms only. `git pull --rebase` before every commit; re-derive every count at session start; line numbers drift daily — re-grep, never trust. Perf claims blocked on the deterministic instrument (item 6). `.github` pushes last.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
