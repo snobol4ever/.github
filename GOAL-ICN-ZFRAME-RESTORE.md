@@ -5,18 +5,13 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
 
-## ⛔⭐ LIVE CURSOR — s1 (2026-08-07, Sonnet continuation session)
-ICN-FR-2 COMPLETE: SCRIP `bcf05d33`. f0+f1+fib ALL GREEN m3. SN4 byte-identical (R-ICN-D). Icon watermark 165→188 (+23 PASS, zero regressions). SCRIP_ICN_ZFRAME=0 reverts to pre-rung Error-18 behavior.
-**8-bug chain resolved this session (see commit message):**
-- A: zd_wl_kind zframe exclusion (ZD spine offsets incompatible with pre-alloc frame)
-- B: lbl_α binary-mode definition for dc stub backward-jmp X-record
-- C: flat_dc_body_p = &lbl_α (not lbl_α_body) for zframe arm
-- D: dc stub r10 saves arg ptr; [r10+0]/[r10+8] loads (XK_R10MIR avoidance)
-- E: dc stub text fallback flat_lbl_α (not flat_lbl_α_body)
-- F: gamma epilogue: mov rdi,rax; mov rsi,rdx before jmp (frame0 for lex procs)
-- G+H: rt_icn_zframe_args_install() new fn reads g_call_args[] directly (no pcall)
-**STILL OPEN:** gen SEGV (FR-4 scope, γ-retain). Do not touch until FR-3 is done.
-**NEXT RUNG = ICN-FR-3** (wire-exit for non-dc jmp-entry path → gen Error 18 → correct).
+## ⛔⭐ LIVE CURSOR — s2 (2026-08-07, Sonnet continuation session)
+ICN-FR-3 IN PROGRESS: SCRIP `1ea225f7`. f0+f1+fib ALL GREEN m3+m4. SN4 byte-identical (R-ICN-D). Icon watermark 188→195 (+7 PASS, zero regressions). Two dc-stub bugs fixed:
+**BUG A — caller-save violation:** dc stub staging loop read dcarg4[i] from live registers after rt_arg_stage clobbered them (rdx gone after iteration 0, iteration 1 segfaulted). Fix: push all np cell ptrs onto stack before loop; load [rsp+i*8] in each iteration; clean with add rsp,push_bytes. Witness: rung02_proc_add_proc.
+**BUG B — SysV stack alignment:** single push r11 left rsp≡8 at jmp proc_f_α; propagated as systematic 8-byte parity error through all C calls inside proc; cascaded to dl_iterate_phdr movaps SIGSEGV on GC heap init. Fix: double-push r11 → rsp≡0 at proc entry; shims double-pop to retrieve real retaddr; need_align_pad condition flipped (odd np now needs pad). Witness: rung32 string-returning procs, rung36_jcon_statics.
+**STILL OPEN (same session):** static/initial variables: write(x) after initial x:=10 returns null. GVA write at [0x70001000] executes (write("A")/write("B")/write("C") markers confirmed) but n3_var_α reads null back. Cause not yet identified — not args_install (np=0,nl=0→skipped), not frame overwrite. Next step: instrument mode-3 binary to print [0x70001000] bytes immediately after n12_assign_α writes, to determine whether write goes to wrong address or is overwritten.
+**gen SEGV still FR-4 scope, γ-retain. Do not touch until FR-3 complete.**
+**NEXT RUNG = ICN-FR-3 continued** — fix static/initial null-read; then rung09 local-var stale-rsp; then full-suite ratchet toward FR-3 completion (f1+fib both modes ✓ — that criterion already met; Error 18 extinct on the quartet ✓).
 
 ## THE ANCHOR — VERIFIED FACTS (measured 2026-08-07; do not re-litigate these; DO re-derive all HEAD numbers)
 - **Anchor of record: SCRIP `8d0665c8`** — "FLATDISP-8 (s197): frame base follows the rbp pin — Icon 236→250, SNOBOL4 221/219→295/294" (2026-07-28, ON ORIGIN, message carries its own proof per the COMMIT-SELECTION LAW).
