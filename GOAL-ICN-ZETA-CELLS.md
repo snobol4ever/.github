@@ -2,8 +2,13 @@
 
 **CHARTER (Lon directive, 2026-08-07):** "I still want a COMPLETE ZETA CELLS on the STACK solution. Scan what SNOBOL4 has been doing to convert to 100% per-BB allocation on the RSP-topped FORTH-style stack… Make a plan for Icon to use RSP-topped stack with per-BB allocation, handle procedure locals (LVA) and globals (GVA). We have R13-R15 for the BB_SCAN_* family. For the 100% CELLS on stack all must be in separate pthreads or we'll use the more complicated ARBNO-style constructs. Whichever." This ladder walks Icon to 100% on the SAME ZD machinery SNOBOL4 built — it is the ZD ladder's Icon completion, not a parallel mechanism.
 
-## ⛔⭐ LIVE CURSOR — s1 (ZK-0 COMPLETE 2026-08-07, census instrument verified + baseline table committed; no code landed)
-**NEXT RUNG = ZK-1.** Worked at SCRIP HEAD `f2751777`. Icon suite re-derived at session start: **PASS=157 FAIL=106 XFAIL=30 TOTAL=293** (goal file said 156/107/30 from ZFRAME session same day — one program difference, timing/timeout). **R12 RULING (Lon 2026-08-07): R12 is FREE for this ladder to use however is best** — pending-record top, suspension base, any ZK-6/ZK-7 role. ZK-6 assignment TBD; record here when decided.
+## ⛔⭐ LIVE CURSOR — s2 (ZK-0/ZK-1/ZK-2 LANDED 2026-08-07 at SCRIP `7428e903`)
+**NEXT RUNG = ZK-3.** Watermark at commit: **PASS=174 FAIL=89 XFAIL=30 TOTAL=293** (ZFRAME-RESTORE upstream merged same day, pushed Icon 156→174; cells arm contributes additively). SN4 crosscheck fail sets identical to pre-rung HEAD (127/152 pre-existing). **R12 RULING (Lon 2026-08-07): R12 FREE.** ZK-6 assignment TBD.
+
+**ZK-0 DONE:** `icn_cells_graph` on `IR_graph_t` (struct END, s141); `lower_icon.c` stamps all Icon graphs when `SCRIP_ICN_CELLS=1`; `SCRIP_ZD_CENSUS=1` per-graph census (K_total/armed/declined/bss_arena/blocker histogram). Falsified both directions: hello K_total=32 (armed), `local x:=42` armed=4/K_total=48, declined proc → IR_RETURN blocker.
+**ZK-1 DONE:** `zd_wl_kind` ZD-2h extended with additive third conjunct — `IR_VAR`/`IR_ASSIGN` locals admitted when `icn_cells_graph=1`. Existing arms unchanged. Killswitch: `SCRIP_ICN_CELLS=0` → inert.
+**ZK-2 PARTIAL (leaf spine):** `bb_var.cpp` ZD arm (op_zres: FRQ(op_sa)→ZRES); `bb_assign_local.cpp` ZD arm (op_zres: ZOPQ(0)→FRQ(op_sb)). BOTH-MEDIUM, TEMPLATE-ONLY, ONE-AUTHORITY. Remaining leaf kinds to arm: `IR_KEYWORD_ICON`, `IR_RETURN`, `IR_CONJUNCTION`, `IR_DISJUNCTION`, `IR_CALL_PROC_STAGED`.
+**IR.h:** Both `zframe_graph` (ZFRAME-RESTORE track, upstream) and `icn_cells_graph` (CELLS track) kept — deliberate dual embodiment, calloc-zeroed defaults, no graph ever in both arms.
 
 ### ZK-0 BASELINE TABLE (re-derive every session at YOUR head — three tracks move daily)
 Census instrument: `SCRIP_ICN_CELLS=1 SCRIP_ZD_CENSUS=1 ./scrip --run <prog.icn>` — emits `[ZK-CENSUS]` per graph when `icn_cells_graph=1`. Infrastructure: `icn_cells_graph` field at `IR.h:256` (APPENDED AT STRUCT END s141), set by `lower_icon.c:1226+1300` (only setter), read at `emit.cpp:2299`. Census block: `emit.cpp:2296-2326`. Line numbers drift — re-grep before trusting.
