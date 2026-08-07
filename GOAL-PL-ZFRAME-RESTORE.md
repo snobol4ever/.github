@@ -40,3 +40,6 @@ bench 22 board (queensn = perf vehicle; three files named queens.pl — full pat
 3–4 sessions mirroring Icon (FR-1+start-2 · FR-2/FR-3 · FR-4/FR-5 · FR-6/FR-7); every rung boundary a safe handoff. Report approximate context percentage at natural checkpoints unasked; anchor worktree (`/home/claude/wt-pl-anchor` this session) is for building + grepping, never wholesale reading. HEAD moves daily under 5+ parallel tracks — re-derive every number at session start; the flag-gate + tri-language byte-identity is the armor. Anchor parity (22/22 both modes) is THIS ladder's finish line; perf (the sink ladder, RTX) stays with GOAL-PROLOG-BB / GOAL-PROLOG-RTX. This file cannot coerce its walker; the cursor, the gates, and Lon's review are the enforcement.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+
+## ⛔ SESSION-START NOTE FOR NEXT WALKER
+FR-1 is `[~]` not `[x]` — the 4-item VERIFY QUEUE in `EXTRACT-PL-FRAME.md` must run FIRST (zero HEAD edits; sweeps only) before FR-2 may open. Do not skip to FR-2.
