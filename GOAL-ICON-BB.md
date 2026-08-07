@@ -22,6 +22,8 @@ kt = `g_emit.flat_frame_bytes` at emit time. BOTH-MEDIUM mandatory. Then `f("hel
 
 **After that:** full suite target ≥161. Then ICN-FB-0 instrument, then ICN-CARVE-1 (`bb_to` ZD arm already scaffolded at `ef4841f1` — needs admission in `zd_wl_kind` for IR_TO and `zd_nops` update).
 
+**⛔ CONCURRENT TRACKS NOTICE (2026-08-07):** two sister ladders now run SIMULTANEOUSLY on Lon's directive — `GOAL-ICN-ZFRAME-RESTORE.md` (FRAMES on stack; anchor `8d0665c8` parity) and `GOAL-ICN-ZETA-CELLS.md` (100% per-BB CELLS on the RSP FORTH spine; **ICN-CARVE below is ABSORBED there**). This file keeps: the suite/FAIL-ZERO/XFAIL-ZERO ownership, ICN-FB, and the standing records. Re-derive every count fresh — .github and SCRIP move under three concurrent sessions.
+
 ### ▶ PRIOR CURSOR (s210, 2026-08-04)
 
 **⭐ NEXT RUNG — ICN-PROC-FRAME (complete implementation design, ready to code):**
@@ -455,6 +457,8 @@ resolves against rbp. Under FB-STMT (default-on) they diverge. Every step below 
   ICN-FB-4's DYNAMIC set. Killswitch retained.
 
 ## ▶ ICN-CARVE — gradual per-BB allocation (kills the 141 KB frame)
+
+**⛔ ABSORBED (2026-08-07, single-copy rule): this ladder is now owned by `GOAL-ICN-ZETA-CELLS.md` (ZK-0..ZK-8), which extends it to Lon's 100%-cells end state (LVA/GVA + the suspension decision). The rungs below are FROZEN as historical context — do not walk them from here; ICN-CARVE-2's `zd_stub_ok` tension is ZK-1, CARVE-0's sizing is ZK-0's census, CARVE-1's admissions are ZK-2, CARVE-3 is ZK-8's assertion.**
 
 - [ ] **ICN-CARVE-0 — SIZE IT.** Per-graph histogram of `sub rsp,K` (K, site count, peak live depth). s204
   measured max **141,056** in ONE carve, 4,166 sites. Report peak RSS alongside — the directive's complaint is
