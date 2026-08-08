@@ -45,6 +45,7 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **SN4 ζ-MECH** ⬅ NEW 2026-08-08 (Lon: FORTH stack FINISHED AND DONE; absorbs LADDER W) | `GOAL-SN4-ZETA-MECH.md` | Regime selectors DELETED (`de837576`); crater baseline in cursor; M-1 Bug 6 open. |
 | **SN4 ζ-CLIMB** ⬅ NEW 2026-08-08 (twin; Opus walks 1+1 → EXEC/CODE) | `GOAL-SN4-ZETA-CLIMB.md` | C-0 open; XFAIL = work queue. |
 | **SNOBOL4 RTX** ⬅ split s186 | `GOAL-SNOBOL4-RTX.md` | Runtime in optimized asm; per-family kill-switch. Contract `ARCH-SNOBOL4-RTX.md`. Next RTX-4 SLICE 2. ⛔ RTX-11/12 not concurrency-safe (x86_asm.h + regen ×3). |
+| **RTCC — GLOBAL REGISTER LIBERATION** ⬅ NEW 2026-08-08 (Lon strategy pivot; absorbs/generalizes RTX-11) | `GOAL-RTCC.md` | Veneer at every C-RT boundary; claim all 9 caller-saved GPRs + XMM8–15 as VM globals. RC-0 open (concurrency-safe half). ⛔ RC-1..RC-4 NOT-CONCURRENCY-SAFE — Lon routes the sole-writer window. |
 | **Raku BB (OOP)** | `GOAL-RAKU-BB.md` | OO LADDER top of file. |
 | **DEAD-CODE SWEEP** | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed; see file. |
 | **BB-FIXUP** | `GOAL-BB-FIXUP.md` | Round-robin hygiene; cursor in `BB-REVAMP-TRACKER.md`. |
