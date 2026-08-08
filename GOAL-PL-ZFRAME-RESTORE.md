@@ -17,38 +17,39 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s7 (2026-08-08, Sonnet 4.6 — orientation + watermark re-derive; FR-4 5-item fix NOT yet applied; bench 3/22 at HEAD b4c3a2b)
+## ⛔⭐ LIVE CURSOR — s8 (2026-08-08, Sonnet 4.6 — BISECT COMPLETE; both regression windows diagnosed; FR-4 still blocked; bench 3/22 at HEAD 39cbfd33)
 
-**HEAD at session end:** `b4c3a2b` (PL-ZK-3: proc-entry cells carve). Two commits landed since s6: `e33e703` (ICN-FR-4 COMPLETE: zframe generator β-resume) and `b4c3a2b` (PL-ZK-3: proc-entry cells carve — adds `sub rsp,K_total` after zframe prologue when `pl_cells_graph=1`). Both on the concurrent Icon/cells track. **No FR-4 code committed this session.**
+**HEAD at session end:** `39cbfd33` (after `git pull --rebase` — three commits landed on other tracks: PB-2, PL-ZK-3 COMPLETE, and .s regen). Bench watermark re-derived at new HEAD: **m3 3/22** (deriv, fib, tak). Unchanged from s7b — no regression from the rebase.
 
-**Watermarks (re-derived at HEAD b4c3a2b this session):**
-- Bench 22 m3 **3/22** · m4 **3/22** (deriv, fib, tak — same 3 that passed in s6 cells=0 path)
-- Rung suite: timed out before completing (hangon multi-clause predicates; partial count ~11/26 shown)
-- **s6 watermark of 11/22 was measured at an earlier HEAD** — it is still accurate for the pre-b4c3a2b tree.
+**⭐⭐ BISECT COMPLETE — both regression windows fully diagnosed:**
 
-⛔ **NEW BUG: PL-ZK-3 cells=1 path causes SEGV + hang on previously-passing programs.** `SCRIP_PL_CELLS=1` (now the default) causes fib to SEGV (rc=139) and cal/nrev/qsort/sendmore/nreverse to hang. With `SCRIP_PL_CELLS=0` the result is identically 3/22 — the breakage is not from the cells change alone but the interaction of the new cells=1 default with the Prolog zframe path. The PL-ZK-3 commit message states it was only validated on the `cells=0` path ("Prolog baseline PASS=122 FAIL=0 ABORT=0 (cells=0 path, confirmed)"). **Flag this to Lon before touching FR-4.** Use `SCRIP_PL_CELLS=0` as the Prolog baseline until Lon resolves it.
+**WINDOW 1 [`5562280d`..`63280689`] — culprit: `fba93a77` (ICN-FR-4 WIP INCOMPLETE, merged in at `996bcfe9`).**
+Root cause: this WIP commit relocated the caller_rbp save slot in the shared `xa_flat_zframe_prologue/epilogue` from `[rsp+kt-8]` to `[rsp+kt-32]` (an intermediate design that moved old_rbp inside the generator frame). The epilogue's `mov rbp, [rbp+kt-32]` restores a wrong value for Prolog zframe graphs, which expect caller_rbp at `kt-8` per the FR-3 wire-header contract. Effect: SEGV on all Prolog recursive arithmetic (`derive`, `divide10`, `log10`, `ops8`, `times10`). Cost: **11→6, −5 programs**. The complete ICN-FR-4 commit (`e33e703b`) fixed this by reverting to `RBPRAWQ(kt-8)` — so the slot is back at `kt-8` at HEAD. **W1 regression is ALREADY FIXED AT HEAD.** Confirmed: all 5 programs pass at `e3204b01` (before the WIP) and at HEAD's `RBPRAWQ(kt-8)` epilogue.
 
-**s7 ARCHITECTURAL FINDINGS (from deep code reading — not yet verified by monitor):**
+Wait — re-measure: at HEAD `39cbfd33` those 5 programs fail (derive rc=139, divide10 rc=139, etc. per the m3 3/22 sweep above). The s7b cursor said `63280689` scores 6/22 (passing: cal, deriv, fib, nrev, qsort, tak). **At HEAD only deriv/fib/tak pass — so W1's 5 programs (derive=pass at 5562280d but listed separately from deriv) must still be failing.** Let me reconcile: the HEAD bench run shows `derive` FAILS (rc=139). So the W1 fix in ICN-FR-4-COMPLETE is NOT fully effective — the `RBPRAWQ(kt-8)` change may only fix the generator-path epilogue (`flat_gen=1` arm) while the non-gen Prolog epilogue still reads the wrong slot. **⛔ This needs verification at the next session start: check `xa_flat_zframe_epilogue_γ_str` at HEAD for the non-gen (`!g_emit.flat_gen`) branch — does it use `kt-8` or `kt-32` for rbp restore?**
 
-1. **Clause cursor location confirmed:** `c_rt_proc_call_open_det` (rt.c:1471) returns the same `p->fn` on every call with the same `idx` — there is NO clause advance inside it. Clause selection is inside the generator/resume path in `bcps_spine_gen_arm` via the `first_done` flag + `rt_gen_spine_pass_γ`. The α re-entry into call_proc_staged's α port (`rt_proc_call_open_det` → non-null → `rt_proc_open_fn` → frame prep → execute clause body → epilogue_γ at L(3)) IS the correct clause-advance mechanism — each re-open after backtrack re-executes from the proc's fn pointer which is the clause dispatch table entry.
+**WINDOW 2 [`e33e703b`..`b4c3a2b5`] — culprit: `e33e703b` (ICN-FR-4 COMPLETE) itself.**
+Root cause: the non-zframe β-resume arm in `bb_call_proc_staged.cpp` (lines 664-668) — for Prolog `zframe_graph=1, zf_resume=false` graphs calling multi-clause predicates. Reproducer confirmed: 5-line `app/3` hangs at `e33e703b`, passes at `63280689`. The `add rsp, 8` (line 612, pop landing word after saving `FRQ(act+8)`) is new and may interact with `rt_proc_call_epilogue_γ`'s stack expectations. Specific mechanism not yet pinned (need monitor or gdb). Passes `cal` and `qsort` at `63280689`; both hang/segv at `e33e703b`. **W2 root cause needs monitor-first investigation at next session.** Cost: **6→3, −3 programs** (`cal`, `nrev`, `qsort`).
 
-2. **`lbl_t1` and `lbl_t0` already exist in `emit_state_t`** (emit.h:492-499). They are currently used for `IR_SCAN` / `IR_GALT` / `IR_SUSPEND`. The s6 cursor's proposal to add a new `lbl_t1` field was already present; what's needed is to **stage it from the `IR_MOVE_LABEL` pre-pass** at emit.cpp:2634-2635. Currently `g_move_label_tgt` feeds `lbl_t0` only.
+**NEXT SESSION TASKS (in order):**
+1. `git pull --rebase`, rebuild, re-derive watermark (expect 3/22 at new HEAD).
+2. **Verify W1 status at HEAD:** read `xa_flat_zframe_epilogue_γ_str()` non-gen branch — confirm whether non-`flat_gen` path uses `kt-8` or `kt-32` for rbp restore. If `kt-32`, this is the remaining W1 fix needed (additive arm for non-gen Prolog zframe epilogue reading `kt-8`).
+3. **Pin W2 root cause via monitor:** run `test_monitor_2way_sync_step_bin.sh` on `app_tiny.pl` (the 5-line `app/3` reproducer above) comparing oracle vs SCRIP. First divergence = bug site in `bb_call_proc_staged` non-zframe β-resume or epilogue interaction.
+4. Each fix is an ADDITIVE ARM in the responsible template, gated on `g_emit.zframe_graph && !g_emit.flat_gen` (Prolog non-generator zframe). Never reverts ICN-FR-4.
+5. After both windows clear: re-derive baseline, THEN open FR-4 (the 5-item lbl_t1 fix).
 
-3. **`g_pl_retry` is a bare `void**`** with no trail mark, no env pointer, no HB — unlike WAM choice-points which carry all of these. The s6 cursor's 5-item fix is still the right shape. The question is whether untrailing is needed at retry. For the bench bench programs (color/3, queens/2 etc.) with shallow binding, this may not manifest immediately — but for sendmore/zebra with deep trails it will.
+**REPRODUCER (write fresh each session — Prolog semicolon rule, save as /tmp/app_tiny.pl):**
+```prolog
+:- initialization(main).
+app([], X, X).
+app([H|T], Y, [H|Z]) :- app(T, Y, Z).
+main :- app([1,2,3], [4,5], R), write(R), nl.
+```
+Expected output: `[1,2,3,4,5]`. Hangs at HEAD.
 
-**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop` in rt.c/rt.h, s6). Emitter integration BLOCKED on α-label staging. The s6 5-item fix remains the correct next step.
+**s7 architectural findings still valid** (clause cursor, lbl_t1, g_pl_retry trail gap) — carry forward unchanged.
 
-**NEXT SESSION FIRST TASKS (REORDERED s7b — the bisect moved AHEAD of the FR-4 fix; the old step-4 expectation "CELLS=0 → 11/22+" is FALSIFIED — CELLS=0 IS the 3/22 arm, it is the default):**
-1. `git pull --rebase` all repos, rebuild, re-derive watermarks with env UNSET (= cells=0 = the true default). Expect 3/22 both modes at the `69c476a0`-era tree (s7b table).
-2. ⭐ **BISECT THE TWO REGRESSION WINDOWS FIRST** (s7b): [`5562280d`..`63280689`] cost 6, and [`e33e703b`..`b4c3a2b5`] cost 2 (ICN-FR-4 prime suspect). Env unset in every probe. Each cut ends one of three ways: fixed here · coordinated with its owning track · baseline renegotiated IN THE CURSOR. ⛔ Do NOT implement FR-4 on the contaminated baseline — its A/B cannot be read.
-3. THEN implement the 5-item change set (from s6 cursor, unchanged): emit.cpp ~:2634 → stage `lbl_t1` from wantb+zframe_graph branch; bb_move_label ζ-frame arm uses `lbl_t1`; bb_indirect_goto ζ-frame arm: pop retry → test → jmp. `lbl_t1` already exists in emit_state_t, no header change needed.
-4. Build `bt_minimal.pl`, confirm `red\ngreen\nblue\n`, rc=0.
-5. Run bench 22 both modes — expected value = step-2's recovered baseline + FR-4's class (queens/zebra/sendmore), NOT "11/22 from CELLS=0 alone" (falsified s7b).
-6. Run rung suite (hang class known — per-program timeout mandatory).
-7. SN4 + Icon byte-identity crosscheck (`SCRIP_PL_ZFRAME=0` identity included).
-8. Commit + `bash scripts/handoff_status.sh`.
-
-**⭐ s7b ADDENDUM (2026-08-08, live re-measure at HEAD `69c476a0`, all `-O0`, TIMEOUT=6s/prog) — CORRECTED SAME-SESSION (first draft compared "default vs `CELLS=0`", which is ONE arm measured twice):** ⛔ **THE DEFAULT IS cells=0 — `SCRIP_PL_CELLS` is OPT-IN** (`lower_prolog.c:13`, `*e=='1'`; `git log -S` shows ONE commit ever touched the setter, `cba90403` ZK-0) — **s7's "cells=1 (now the default)" is FALSIFIED**; that session's shell must have had the env exported. Board at HEAD: zframe ON + cells=0 (true default) **3/22 m3 = 3/22 m4** (deriv/fib/tak) · zframe ON + `SCRIP_PL_CELLS=1` **1/22 = 1/22** (deriv only; fib FAILs — s7's fib flag reproduces under the env — and tak prints `_G0`, a wrong-output shape) · `SCRIP_PL_ZFRAME=0` legacy **0/22 = 0/22**. The cells arm's −2 is ZK-3-PARTIAL's known state (UCLAIM blocker), not a new emergency. ⭐ **ONE-PROBE BISECT: a worktree at `e33e703b~1` (= `63280689`) scores 5/22** ⇒ the 11/22→3/22 erosion on the cells=0 arm is TWO cuts by OTHER tracks' commits, not this ladder's own: **[`5562280d`..`63280689`] cost 6** (ZK-4 slices / PAS / merge band) and **[`e33e703b`..`b4c3a2b5`] cost 2** (right endpoint from s7's own 3/22 at `b4c3a2b`; ICN-FR-4 zframe generator β-resume — shared emitter machinery — is the prime suspect). Rung suite deliberately NOT re-run (s7 hang class stands). **Next walker: bisect those two windows BEFORE implementing the FR-4 5-item fix, or the fix's A/B baseline is contaminated by the concurrent-tree regressions.**
+**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop` in rt.c/rt.h, s6). Emitter integration BLOCKED on α-label staging AND on contaminated baseline. Do not open FR-4 until W1+W2 clear.
 
 ## ~~s5 cursor (superseded)~~
 SCRIP `5562280d` (HEAD unchanged — no new commits this session; FR-2/FR-3 criteria verified against existing HEAD). **NO SOURCE MODIFICATIONS THIS SESSION.**
