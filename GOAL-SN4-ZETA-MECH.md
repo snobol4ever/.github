@@ -105,3 +105,17 @@ CLIMB (`GOAL-SN4-ZETA-CLIMB.md`) has right-of-way on per-defect fixes; a fix req
 
 ## WATERMARK OF RECORD
 = this file's LIVE CURSOR gate lines. Crater baseline m3 124/18/0/0 · m4 116/26/0/0 is the floor; every rung ≥ it BY SET; DoD 7 restores ≥ pre-flip xc318 280/260. Re-prove at open and close; never carry counts across container speeds.
+
+---
+## LIVE CURSOR UPDATE — 2026-08-08 session end
+
+**M-1:** COMPLETE (all probes)  
+**M-2(a) STATUS:** IN PROGRESS
+
+**What was solved this session:**
+- Part 1 (LBL__ body CLASS C→P): **FIXED** — `_is_lbl` hunk in scrip.c both loops. NOT YET COMMITTED.
+- Part 2 (flat_layout_unknown interaction with 3-stmt bodies): **PENDING** — next session entry point.
+
+**Working tree:** `src/driver/scrip.c` has 4-line diff (2 hunks), correct, uncommitted.  
+**Watermark at handoff:** m3 137/4xfail/0REG · m4 139/3/0REG  
+**Next:** Fix `flat_layout_unknown=1` for LBL__ bodies, then commit both hunks together.
