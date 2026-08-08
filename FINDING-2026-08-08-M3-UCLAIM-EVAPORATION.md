@@ -1,0 +1,3 @@
+# FINDING 2026-08-08 — M-3 UCLAIM EVAPORATION (Lon directive) + WL-DELETE
+SCRIP `1351d299` (M-3) + `b455c491` (WL-DELETE). Full detail: GOAL-SN4-ZETA-MECH.md s12 cursor.
+UCLAIM was the SOLE storage regime for every SN4 match statement (MATCH_BEGIN never ZD-admitted -> all-or-nothing declined every match run onto the claim). Its deletion therefore zeroed the probe suite (135->0 m3, 132->0 m4), not a partial crater. Universal BB admission + MATCH_BEGIN/FENCE1 carve recovery -> 29/106R m3. The 106 = match-shell templates still addressing legacy ZLS flat coordinates with nothing behind them; rebuild = per-BB PATCTX + sliding offsets (M-2a), then delete the legacy FRQ arm + zls registrar.
