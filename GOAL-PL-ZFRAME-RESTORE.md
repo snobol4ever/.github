@@ -47,6 +47,8 @@
 6. SN4 + Icon byte-identity crosscheck (`SCRIP_PL_ZFRAME=0` identity included).
 7. Commit + `bash scripts/handoff_status.sh`.
 
+**⭐ s7b ADDENDUM (2026-08-08, live re-measure at HEAD `69c476a0`, all `-O0`, TIMEOUT=6s/prog):** bench board m3 **3/22** = m4 **3/22** (deriv/fib/tak) on BOTH the default arm AND `SCRIP_PL_CELLS=0` — reproduces s7 five commits later. `SCRIP_PL_ZFRAME=0` legacy = **0/22 both modes** (the zframe arm is worth +3 at HEAD). ⭐ **ONE-PROBE BISECT: a worktree at `e33e703b~1` (= `63280689`) scores 5/22** ⇒ the 11/22→3/22 erosion is TWO cuts by OTHER tracks' commits, not this ladder's own: **[`5562280d`..`63280689`] cost 6** (ZK-4 slices / PAS / merge band) and **[`e33e703b`..`b4c3a2b5`] cost 2** (ICN-FR-4 zframe generator β-resume — shared emitter machinery — is the prime suspect; PL-ZK-3's carve cannot explain the `CELLS=0` arm). ⚠ The probe ran that tree's DEFAULT cells arm — pin `SCRIP_PL_CELLS=0` when bisecting for real. Rung suite deliberately NOT re-run (s7 hang class stands). **Next walker: bisect those two windows BEFORE implementing the FR-4 5-item fix, or the fix's A/B baseline is contaminated by the concurrent-tree regressions.**
+
 ## ~~s5 cursor (superseded)~~
 SCRIP `5562280d` (HEAD unchanged — no new commits this session; FR-2/FR-3 criteria verified against existing HEAD). **NO SOURCE MODIFICATIONS THIS SESSION.**
 
