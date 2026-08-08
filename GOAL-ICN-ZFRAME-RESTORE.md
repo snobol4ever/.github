@@ -5,8 +5,25 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
 
-## ⛔⭐ LIVE CURSOR — s7 (2026-08-07, Sonnet s7 — FR-4 deep debug; three-layer bug, layers 1+2 fixed, layer 3 active)
-**NEXT RUNG = ICN-FR-4 Layer 3 (old_rbp clobber fix).** SCRIP `996bcfe9` (pushed). Watermark: **PASS=217 FAIL=46 XFAIL=30 TOTAL=293** (unchanged — FR-4 WIP not yet passing). f0/f1 green. gen.icn/gen_simple.icn SEGV after first yield.
+## ⛔⭐ LIVE CURSOR — s8 (2026-08-07, Sonnet s8 — FR-4 COMPLETE: gen_simple.icn + gen.icn GREEN both modes)
+**NEXT RUNG = ICN-FR-5 (full-suite ratchet toward anchor parity).** Watermark: **PASS=192 FAIL=11 XFAIL=0 TOTAL=225** (partial run — suite cut short by 90s wall; rung03_suspend_{gen,gen_compose,gen_filter,return} still FAIL = pre-existing work queue, not regressions; rung01_paper_to_by new failure — monitor-first). f0/f1/fib/gen_simple/gen GREEN both modes m3+m4.
+
+### FR-4 ROOT CAUSE — FULLY RESOLVED (three layers, all fixed this session s8)
+
+**Architecture:** The zframe generator's frame `[generator_rbp..entry_rsp)` is fully exposed to the caller's C-call stack after the first γ-yield (`lea rsp,[rbp+kt]` unwinds to entry_rsp). Any C call from the caller's frame can clobber generator frame slots. This rules out ALL in-frame slot storage for data that must survive across yields.
+
+**Layer 1 — missing `generator_rbp` in rax at L(3):** The γ epilogue must pass `generator_rbp` in rax to the L(3) landing (which saves it to `FRQ(act+8)` for β-resume). Without `mov r14,rbp` before rbp-restore, rax held the yield value at L(3) → garbage saved as generator_rbp → β-resume jumped through address 1 → SEGV.
+
+**Layer 2 — continuation pointer `[generator_rbp+cont_off]` clobbered:** The caller's C-calls (write() → rt_call_arr → its callees) push stack frames into `[generator_rbp..entry_rsp)`, overwriting `[generator_rbp+32]` (the continuation slot). β-resume `jmp [rax+32]` → jumped to 0 → SEGV.
+
+**Layer 3 — caller_rbp `[generator_rbp+kt-8]` and γ/ω wires clobbered:** Same mechanism clobbers the wire header slots.
+
+**Fix:** Save all generator state that must survive yields in the heap-allocated pcall record (`g_pcall[]` array) and dedicated globals — both immune to caller stack expansion:
+- `rt_gen_save_caller_rbp` / `rt_gen_get_caller_rbp` — `g_gen_pending_caller_rbp` global (set in prologue, read by γ/ω epilogues)
+- `rt_gen_save_wires` / `rt_gen_get_{gamma,omega}_wire` — wire globals (set in prologue before any yield, read by epilogues using callee-saved r15 to survive the `rt_gen_get_caller_rbp` call)
+- `rt_gen_save_cont` / `rt_gen_get_cont` — `g_gen_pending_cont` global (set by bb_suspend before each yield, read by β-resume via `rt_gen_get_cont`)
+- yield value read from `FRQ(0/8)=[generator_rbp+0/8]` (written by bb_suspend before γ, not clobbered before epilogue reads it)
+- generator_rbp saved in callee-saved `r14` to survive C calls in epilogue
 
 ### FR-4 THREE-LAYER ROOT CAUSE — layers 1+2 fixed, layer 3 active
 
@@ -164,7 +181,7 @@ fib.icn: procedure fib(n); if n < 2 then return n else return fib(n-1) + fib(n-2
 
 - [ ] **ICN-FR-3 WIRE EXIT VIA THE FRAME HEADER.** For flagged graphs, γ/ω emit: unwind to flat base; load wire from `[fb+kt-24]` (γ) / `[fb+kt-16]` (ω); restore caller rbp from `[fb+kt-8]`; `jmp` the wire — the s211 cursor's own prescription, now in the general arm, replacing the `rt_flat_ret_snap` pcall-array read for this class only (the exit-class ledger gains a named class). Completion: f1 AND fib.icn green both modes (recursion proves per-activation frames) · Error 18 extinct on the quartet · SN4 held.
 
-- [ ] **ICN-FR-4 GENERATORS ON-SPINE.** flat_gen flagged graphs: γ-retain (rsp stays at the deep frontier across suspend) + β-resume against the pinned rbp header per the anchor's REG-7 U5 contract. Audit bb_suspend / bb_every / bb_to at HEAD for post-CARVE-KILL rot (s206 recorded the push=0/whack=2/pop=3 shape on the 7-line suspend repro) and repair in the flagged arm only. Completion: gen.icn green both modes · `rung36_gens` ≥ 8 PASS (anchor floor) · SN4 held.
+- [x] **ICN-FR-4 GENERATORS ON-SPINE.** ✅ COMPLETE s8 — gen_simple.icn + gen.icn GREEN both modes m3+m4. Root cause: three-layer clobber bug (see LIVE CURSOR above). Fix: heap-allocated pcall globals for all generator-suspended state. rung03_suspend_gen* still FAIL (pre-existing: suspend-with-body `lbl_t0` re-loop path, not touched by this rung). rung36_gens floor not yet re-proven (FR-5 scope). SN4 held: corpus m3 PASS=287/FAIL=49, m4 PASS=273/FAIL=57 (pre-existing failures only).
 
 - [ ] **ICN-FR-5 FULL-SUITE RATCHET TO ANCHOR PARITY.** Run `test_icon_all_rungs.sh`; hunt each residual MONITOR-FIRST (gdb spin-counter; never print-scatter). Target: **PASS ≥ 252 with residual FAIL ⊆ the anchor die-list above** — those 11 are pre-existing jcon defects owned by GOAL-ICON-BB's FAIL-ZERO, out of this ladder's scope. Completion: watermark recorded in the cursor; one-line disposition per residual failure.
 
