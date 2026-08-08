@@ -41,6 +41,18 @@ ladder** — see §SCOPE.
 
 ---
 
+## ⛔ CROSS-GATE FROM `GOAL-PROLOG-BB.md` s164 (indexed by Claude, 2026-08-08 — no new measurement here)
+
+BB s164 measured repeated runs of ONE binary spanning **649–1246 ms (bimodal)** in this container class and
+**disqualified wall time** for its ladder until a deterministic instrument exists. This ladder's owed perf
+gates (NEXT 1: `bench_rtx_3arm.sh`, the ~1.10× trust floor) are wall-time instruments — **run the
+same-binary-twice control (BB s164 item 9) and report its spread BEFORE quoting any new × figure**, and
+note s223 already found `bench_rtx_3arm.sh` cannot grade Prolog (no self-timed `ms:` window). Conversely,
+this ladder's exact dynamic-count boards are the instrument family BB s164 NEXT (a) is looking for — the
+two files share one instrument problem and should share one solution.
+
+---
+
 ## ⛔ LIVE CURSOR — s226-PL (2026-07-30) — **RTX-2-PL LANDED: `rt_pl_dop_unify` IS ASM. GATES GREEN, FALSIFICATION PROBE FIRES, NO-REGRESSION MEASURED AGAINST A PRISTINE BUILD. PERF NOT YET MEASURED.**
 
 SCRIP at `a9e1369a` + this session's 4 files. RT_OPT=`-O0`. Watermark re-proven at session start and
