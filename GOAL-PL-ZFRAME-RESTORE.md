@@ -17,39 +17,28 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s8 (2026-08-08, Sonnet 4.6 — BISECT COMPLETE; both regression windows diagnosed; FR-4 still blocked; bench 3/22 at HEAD 39cbfd33)
+## ⛔⭐ LIVE CURSOR — s8 (2026-08-08, Sonnet 4.6 — BISECT COMPLETE; W2 FIXED (7fe03df9); W1 residual open; bench 6/22 at HEAD 7fe03df9)
 
-**HEAD at session end:** `39cbfd33` (after `git pull --rebase` — three commits landed on other tracks: PB-2, PL-ZK-3 COMPLETE, and .s regen). Bench watermark re-derived at new HEAD: **m3 3/22** (deriv, fib, tak). Unchanged from s7b — no regression from the rebase.
+**HEAD at session end:** `7fe03df9` (PL-ZD-WINDOW2-FIX: gate ICN-FR-4 global-save on icn_zframe_gen). Bench watermark re-derived at pushed HEAD: **m3 6/22** (cal, deriv, fib, nrev, qsort, tak). W2 fully recovered. SN4 smoke 7/7 ✓ · Icon smoke 13/14 (1 pre-existing `until` failure unrelated to this work) ✓.
 
 **⭐⭐ BISECT COMPLETE — both regression windows fully diagnosed:**
 
 **WINDOW 1 [`5562280d`..`63280689`] — culprit: `fba93a77` (ICN-FR-4 WIP INCOMPLETE, merged in at `996bcfe9`).**
 Root cause: this WIP commit relocated the caller_rbp save slot in the shared `xa_flat_zframe_prologue/epilogue` from `[rsp+kt-8]` to `[rsp+kt-32]` (an intermediate design that moved old_rbp inside the generator frame). The epilogue's `mov rbp, [rbp+kt-32]` restores a wrong value for Prolog zframe graphs, which expect caller_rbp at `kt-8` per the FR-3 wire-header contract. Effect: SEGV on all Prolog recursive arithmetic (`derive`, `divide10`, `log10`, `ops8`, `times10`). Cost: **11→6, −5 programs**. The complete ICN-FR-4 commit (`e33e703b`) fixed this by reverting to `RBPRAWQ(kt-8)` — so the slot is back at `kt-8` at HEAD. **W1 regression is ALREADY FIXED AT HEAD.** Confirmed: all 5 programs pass at `e3204b01` (before the WIP) and at HEAD's `RBPRAWQ(kt-8)` epilogue.
 
-Wait — re-measure: at HEAD `39cbfd33` those 5 programs fail (derive rc=139, divide10 rc=139, etc. per the m3 3/22 sweep above). The s7b cursor said `63280689` scores 6/22 (passing: cal, deriv, fib, nrev, qsort, tak). **At HEAD only deriv/fib/tak pass — so W1's 5 programs (derive=pass at 5562280d but listed separately from deriv) must still be failing.** Let me reconcile: the HEAD bench run shows `derive` FAILS (rc=139). So the W1 fix in ICN-FR-4-COMPLETE is NOT fully effective — the `RBPRAWQ(kt-8)` change may only fix the generator-path epilogue (`flat_gen=1` arm) while the non-gen Prolog epilogue still reads the wrong slot. **⛔ This needs verification at the next session start: check `xa_flat_zframe_epilogue_γ_str` at HEAD for the non-gen (`!g_emit.flat_gen`) branch — does it use `kt-8` or `kt-32` for rbp restore?**
+**W1 residual confirmed still open at HEAD `7fe03df9`:** `derive`, `divide10`, `log10`, `ops8`, `times10` still SEGV (rc=139). These are the W1 victims (`fba93a77` misaligned caller_rbp slot). The ICN-FR-4 COMPLETE commit (`e33e703b`) used `RBPRAWQ(kt-8)` in the epilogue — but the W1 culprit `fba93a77`'s misalignment is in the **prologue** (`mov [rsp+kt-32], rbp` instead of `[rsp+kt-8]`). The epilogue fix without the prologue fix means the rbp is saved at `kt-32` but read back from `kt-8` — still a mismatch. **Next session: read `xa_flat_zframe_prologue_str()` at HEAD and confirm whether the non-gen arm still writes caller_rbp to `kt-32` or has been restored to `kt-8`.**
 
-**WINDOW 2 [`e33e703b`..`b4c3a2b5`] — culprit: `e33e703b` (ICN-FR-4 COMPLETE) itself.**
-Root cause: the non-zframe β-resume arm in `bb_call_proc_staged.cpp` (lines 664-668) — for Prolog `zframe_graph=1, zf_resume=false` graphs calling multi-clause predicates. Reproducer confirmed: 5-line `app/3` hangs at `e33e703b`, passes at `63280689`. The `add rsp, 8` (line 612, pop landing word after saving `FRQ(act+8)`) is new and may interact with `rt_proc_call_epilogue_γ`'s stack expectations. Specific mechanism not yet pinned (need monitor or gdb). Passes `cal` and `qsort` at `63280689`; both hang/segv at `e33e703b`. **W2 root cause needs monitor-first investigation at next session.** Cost: **6→3, −3 programs** (`cal`, `nrev`, `qsort`).
+**WINDOW 2 [`e33e703b`..`b4c3a2b5`] — ✅ FIXED at `7fe03df9` (PL-ZD-WINDOW2-FIX).**
+Root cause: ICN-FR-4's `rt_gen_save_wires` / `rt_gen_save_caller_rbp` / `rt_gen_get_*` global-save path in `xa_flat_zframe_prologue/epilogue` fired for ALL `flat_gen=1` zframe graphs, including Prolog zframe predicates. Prolog multi-clause predicates have concurrent activations that overwrite `g_gen_pending_*` globals before the first activation's epilogue fires — causing cal/nrev/qsort to hang (infinite retry loop on stale global state). Fix: new `icn_zframe_gen` field on `IR_graph_t` (struct-end, calloc-zero safe), set ONLY by `lower_icon.c` for Icon generator graphs. All four ICN-FR-4 xa_flat sites now gate on `g_emit_cfg->icn_zframe_gen`. Prolog zframe predicates fall through to the direct `RBPRAWQ` frame-read epilogue. Result: **3→6, +3 programs recovered** (cal, nrev, qsort). The parallel session had this fix already staged in the working tree; this session committed and pushed it.
 
 **NEXT SESSION TASKS (in order):**
-1. `git pull --rebase`, rebuild, re-derive watermark (expect 3/22 at new HEAD).
-2. **Verify W1 status at HEAD:** read `xa_flat_zframe_epilogue_γ_str()` non-gen branch — confirm whether non-`flat_gen` path uses `kt-8` or `kt-32` for rbp restore. If `kt-32`, this is the remaining W1 fix needed (additive arm for non-gen Prolog zframe epilogue reading `kt-8`).
-3. **Pin W2 root cause via monitor:** run `test_monitor_2way_sync_step_bin.sh` on `app_tiny.pl` (the 5-line `app/3` reproducer above) comparing oracle vs SCRIP. First divergence = bug site in `bb_call_proc_staged` non-zframe β-resume or epilogue interaction.
-4. Each fix is an ADDITIVE ARM in the responsible template, gated on `g_emit.zframe_graph && !g_emit.flat_gen` (Prolog non-generator zframe). Never reverts ICN-FR-4.
-5. After both windows clear: re-derive baseline, THEN open FR-4 (the 5-item lbl_t1 fix).
-
-**REPRODUCER (write fresh each session — Prolog semicolon rule, save as /tmp/app_tiny.pl):**
-```prolog
-:- initialization(main).
-app([], X, X).
-app([H|T], Y, [H|Z]) :- app(T, Y, Z).
-main :- app([1,2,3], [4,5], R), write(R), nl.
-```
-Expected output: `[1,2,3,4,5]`. Hangs at HEAD.
+1. `git pull --rebase`, rebuild, re-derive watermark (expect 6/22 at HEAD after rebase).
+2. **Fix W1 residual:** Read `xa_flat_zframe_prologue_str()` at HEAD — locate the `emit_jmp_pin_rbp()` arm that writes caller_rbp. Confirm whether it writes to `[rsp+kt-8]` or `[rsp+kt-32]`. The W1 culprit `fba93a77` changed it to `kt-32`; ICN-FR-4 may not have restored the prologue write (only the epilogue read was changed to `RBPRAWQ(kt-8)`). If prologue still writes `kt-32`, add an additive non-gen arm that writes to `kt-8` gated on `!g_emit.flat_gen || !g_emit_cfg->icn_zframe_gen`. SN4 + Icon byte-identity required on commit. Expected recovery: +5 programs (derive, divide10, log10, ops8, times10) → 11/22.
+3. After W1 clear: re-derive baseline at 11/22, THEN open FR-4 (the 5-item lbl_t1/choice-point fix). FR-4's target class: queens, zebra, sendmore (choice-point predicates currently SEGVing).
 
 **s7 architectural findings still valid** (clause cursor, lbl_t1, g_pl_retry trail gap) — carry forward unchanged.
 
-**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop` in rt.c/rt.h, s6). Emitter integration BLOCKED on α-label staging AND on contaminated baseline. Do not open FR-4 until W1+W2 clear.
+**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop` in rt.c/rt.h, s6). Emitter integration BLOCKED on α-label staging AND W1 residual. Do not open FR-4 until W1 clears (baseline 11/22 required).
 
 ## ~~s5 cursor (superseded)~~
 SCRIP `5562280d` (HEAD unchanged — no new commits this session; FR-2/FR-3 criteria verified against existing HEAD). **NO SOURCE MODIFICATIONS THIS SESSION.**
