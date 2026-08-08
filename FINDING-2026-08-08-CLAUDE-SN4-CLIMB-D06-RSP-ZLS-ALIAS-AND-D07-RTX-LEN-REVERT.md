@@ -97,3 +97,40 @@ Blocked pending MECH structural fix.
 
 ### Watermark (unchanged)
 m3 135/7/0/0 · m4 139/3/0/0 · 0 REGRESSION both modes. SCRIP HEAD `e0fb77e7`.
+
+---
+
+## D08 — DIAGNOSED, MECH CROSS-REQUEST (appended s17)
+
+### Program
+```snobol4
+SUBJ ? SPAN('0123456789') $ N LEN(*N) . FIELD
+```
+Expected: `FIELD=ABCDEFGHIJKL`. Actual: `FIELD=` (empty).
+
+### Root cause
+The `sno_pre_req` mechanism for `LEN(*N)` places `COERCE_INTEGER` in the PRE-CHAIN
+(before MATCH_BEGIN). This is correct when N is set before the match (D07). But in
+D08, `$ N` (MATCH_ASSIGN_IMM) sets N TO the matched span DURING the match. The
+pre-chain COERCE reads N's value BEFORE `$ N` fires — getting null string → integer 0.
+LEN(0) succeeds trivially (matching the null string), so `. FIELD` captures nothing.
+
+### Verified
+- N before match: empty string. COERCE_INTEGER(empty) = 0. LEN(0) matches null. FIELD = empty.
+- N after match: "12" (correctly set by $ N). But too late for the pre-chain.
+- Manual p.87: `SPAN('0123456789') $ N LEN(*N)` — SPAN matches, immediately assigns to N,
+  then `*N` fetches N's CURRENT value at LEN-execution time (the newly set "12" → 12).
+
+### COERCE_INTEGER slot vs read address
+ζ slot for COERCE_INTEGER: `+240`. `FRQ(op_sa+8)` = `rsp + 248 + op_zdepth`. At
+MATCH_LEN, `op_zdepth=160`, so reads `[rsp+408]`. Actual COERCE result at `[rsp+400+8]
+= [rsp+408]` — the READ IS CORRECT. The value read is wrong (N's pre-match value = 0)
+not the address. s16 "cross-arm mismatch" diagnosis was wrong; the slot offset is fine.
+
+### Fix direction (MECH cross-request)
+`sno_pre_req` for `LEN(*N)` must not be used when the `*N` argument variable is also
+a capture target (`$ N`) earlier in the same pattern. In that case, COERCE_INTEGER must
+be emitted as an in-body node sequenced after MATCH_ASSIGN_IMM (the `$ N` commit).
+This is a lowerer structural change — the pre-chain vs in-body decision for `LEN(*N)`
+must inspect whether the argument variable is also a `$ VAR` capture target in the same
+pattern. If so, COERCE_INTEGER is emitted inline after the last `$ N` IMM. MECH territory.
