@@ -17,25 +17,40 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s10 (2026-08-08, Sonnet 4.6 — W1-BUG2-FIX committed (ae443c85 post-rebase); bench 12/22; NEXT = open FR-4)
+## ⛔⭐ LIVE CURSOR — s10-cont (2026-08-08, Sonnet 4.6 — FR-4 INFRA committed (baaa4667); bench 12/22; NEXT = FR-4 full rung: bb_call_proc_staged Prolog-zframe β arm)
 
-**s10 HEAD at session end: `ae443c85`** (W1-BUG2-FIX, post-rebase over `c1b0ace1` UCLAIM-DELETION concurrent commit). Bench watermark re-derived post-rebase: **m3 12/22**. PASSING: cal deriv derive divide10 fib log10 mu nrev ops8 qsort tak times10. W1 fully recovered (+6 over s9's 6/22). SN4 beauty.sno IDENTICAL with/without SCRIP_PL_ZFRAME. ZFRAME=0 produces empty output on all — correct, matches broken pre-FR-2 baseline (g_plw_floor_bypass gates on is_prolog && zframe_graph only).
+**s10-cont HEAD at session end: `baaa4667`** (PL-FR-4 INFRA: g_pl_cp_stack push/pop skeleton + bb_indirect_goto zframe arm). Bench watermark: **m3 12/22** (unchanged — FR-4 body not yet landed). SN4 beauty.sno byte-identical confirmed.
+
+**FR-4 ROOT CAUSE — fully diagnosed this session:**
+
+The hang after first result (queens/zebra/nreverse/all backtracking predicates) comes from **`bb_call_proc_staged`'s β-resume path** entering a dead ζ-frame via the generator spine resume protocol. Specifically:
+
+1. `n28_call_proc_staged_α` calls `proc_bar$2F1_α` (a Prolog generator with its own ζ-frame), saves `[rsp]` to `FRQ(act+8)`, receives γ-return (first clause result), pops pcall — the generator's C stack frame is then DEAD.
+2. On `fail`, `n28_call_proc_staged_β` fires: calls `rt_gen_spine_resume_enter`, reads `FRQ(act+8)` (the saved rsp into the dead frame), does `jmp [rsp]` — jumps into the dead frame. This is the hang (jumping into reclaimed C stack = loops or crashes in garbage code).
+3. `bb_move_label` / `bb_indirect_goto` are a separate (outer) issue for `; true` disjunction — the inner issue is in `bb_call_proc_staged`'s β arm.
+4. The clause-cursor mechanism: `proc_bar$2F1` uses a suspend-slot `[rbp+320]` updated by `n4_suspend_α` → `n4_suspend_β`. Second entry requires jumping to `n4_suspend_β` WITH a valid frame (trail mark at `[rbp+32/40]` needed by `n5_call_builtin_prolog_α`'s trail unwind). Cannot just α-reinvoke (resets to clause 1 every time).
+
+**THE CORRECT FR-4 DESIGN (confirmed by reading ICN-FR-4 Layer 3 code in bb_suspend.cpp + bb_call_proc_staged.cpp):**
+
+The Icon zframe generator β-resume (ICN-FR-4, `zf_resume=true` arm in `bb_call_proc_staged`) already solved this:
+- `bb_suspend`'s α fires `rt_gen_save_cont(lbl_t1)` to save the continuation label to `g_gen_pending_cont` (heap-immune global)
+- `bb_call_proc_staged`'s β arm reads `rt_gen_get_cont()` → the saved suspend-β label, then re-enters via `rt_gen_get_fb()` (generator rbp from pcall.fb, still valid at β time for Icon because icn_zframe_gen graphs use a different epilogue that preserves pcall.fb)
+
+For Prolog, `zf_resume=false` because `zls_g_icn_zframe_gen_by_name` returns 0 (lower_prolog never sets `icn_zframe_gen`). Two things needed:
+1. **`bb_suspend.cpp` line 23**: extend the `rt_gen_save_cont` guard from `icn_zframe_gen` to ALSO fire for Prolog zframe generators: `(g_emit.flat_gen && (g_emit_cfg->icn_zframe_gen || g_emit_cfg->zframe_graph)) && _.op_sb >= 0 && _.lbl_t1_p`. This saves the suspend-β to `g_gen_pending_cont` before each yield.
+2. **`bb_call_proc_staged.cpp`**: add `pl_zf_resume = g_emit_cfg->zframe_graph && (zf_cont_off >= 0) && !zls_g_icn_zframe_gen_by_name(_.op_sval)` — then at L(3) (γ landing): save generator_rbp to `FRQ(act+8)` same as `zf_resume` arm; at β: call `rt_gen_get_cont()` for the saved suspend-β, call `rt_gen_get_fb()` for generator_rbp (from pcall.fb — valid if `rt_jmp_frame_lexprep2` set it), pin rbp/rsp, jmp to suspend-β.
+3. **BUT**: `pcall.fb` validity at β time: for Prolog, `rt_jmp_frame_lexprep2` sets `pcall.fb = fb` (line 1587 in rt.c). After `rt_proc_call_epilogue_γ` pops the pcall at L(3), `pcall.fb` is gone. Must save generator_rbp BEFORE epilogue_γ fires — exactly what `zf_resume=true` arm does (`mov FRQ(act+8), rax` at L(3) before `rt_proc_call_epilogue_γ`). BUT the Prolog ζ-frame's rbp is also dead (the C frame was cleaned up). `rt_gen_get_fb()` reads `g_pcall[top-1].fb` — after the pop, top-1 is the CALLER's pcall, not the generator's.
+4. **CORRECT RESOLUTION**: For Prolog zframe β, DON'T need the old generator rbp. The continuation label from `rt_gen_get_cont()` + a FRESH call to `rt_proc_call_open_det` (to get a new frame for `proc_bar$2F1_α`) + then jumping to the saved suspend-β (skipping `_α_body`'s reset of `[rbp+320]`) + restoring the trail mark to the new frame. This is a small shim: allocate fresh frame → populate trail mark from a saved mark → jmp suspend-β.
+5. **SIMPLEST WORKING DESIGN**: Store trail-mark AND suspend-β in `g_pl_cp_stack` (pushed as a 2-word pair at suspend time inside `proc_bar`), then at β: pop both, call `rt_proc_call_open_det` (fresh frame), store trail-mark into `[rbp+32/40]`, jmp suspend-β. `g_pl_cp_stack` entries become `{trail_mark_descr, cont_addr}` pairs.
 
 **NEXT SESSION TASKS (in order):**
 1. `git pull --rebase`, rebuild, re-derive watermark (expect 12/22).
-2. Open FR-4: read `bb_move_label.cpp`, `bb_choice_state_t` in `emit.h`, `lower_pl_choice_graph` in `lower_prolog.c`. Build `bt_minimal.pl` reproducer (a two-clause predicate that backtracks), confirm exact SEGV site for queens/zebra/sendmore with gdb backtrace. FR-4 design (from s5 cursor): gate on `g_emit.zframe_graph`; in `bb_move_label` ζ-frame arm call `rt_pl_cp_set_retry(cp, rax)` to store retry address in the PLJ heap choice-point record rather than `[rbp+op_off+16]`; in `n55_disjunction_α` ζ-frame arm call `rt_pl_cp_get_retry(cp)`. The `cp` pointer must be accessible without reading through the dead ζ-frame — option (b) `g_pl_cp_stack` thread-global. Completion: queens + zebra + sendmore green both modes.
-3. SN4 + Icon byte-identity on every FR-4 commit.
+2. Extend `g_pl_cp_stack` entries to `{trail_mark_lo, trail_mark_hi, cont_addr}` triples. Add `rt_pl_cp_push3(long tm_lo, long tm_hi, void *cont)` + `rt_pl_cp_pop3(long *tm_lo, long *tm_hi)` → returns cont. Three new fields in rt.c + rt.h.
+3. In `bb_suspend.cpp`: when `g_emit_cfg->zframe_graph && g_emit.flat_gen && _.op_sb >= 0 && _.lbl_t1_p`: emit a `rt_pl_cp_push3` call at α (before the yield) with trail-mark from `FRQ(32)/FRQ(40)` (the `n0` result slot) and `lbl_t1` (the suspend-β). Byte-identical for non-Prolog-zframe.
+4. In `bb_call_proc_staged.cpp`: add `pl_zf_resume` arm in the β section: call `rt_pl_cp_pop3(&tm_lo, &tm_hi)` → cont; call `rt_proc_call_open_det(gi_idx, nargs)` → fresh fn ptr; push `.L(7)` as landing word; jmp fn (enters `proc_bar$2F1_α` fresh, `rt_jmp_frame_lexprep2` initializes frame); ON RETURN at `.L(7)`: write `tm_lo/tm_hi` to `[rbp+32/40]` (restoring trail mark for `n5`); jmp cont (= suspend-β → `n5_call_builtin_prolog_α`). SN4/Icon watermarks: `g_emit_cfg->zframe_graph=0` for non-Prolog → byte-identical.
+5. SN4 + Icon byte-identity crosscheck after each commit.
+6. Test suite: `bt_minimal.pl` then bench 12/22 → target 15+/22 (nreverse, queens-class, sendmore).
 
-**s10 FINDINGS — W1 Bug 2 root cause and fix (three-file):**
-- **Root cause:** `plc_dead_cstack` opens `/proc/self/maps` and calls `fgets`+`sscanf` with `char ln[256]` on stack (on every first call when `stk_have=0`). Called from Prolog JIT code where RSP is misaligned by 8 (`dop_unwind_nothrow` -O0 frame: `push rbp` + `push rbx` + `sub 0x38` = 72 = 8 mod 16; propagates through `pl_trail_unwind` and `plc_dead_cstack`'s own `sub 0x140` frame making `sscanf`'s `movaps` SEGV). Confirmed via gdb disassembly (`dop_unwind_nothrow` at `5ff445`, `plc_dead_cstack` at `b65`).
-- **NULL-sentinel trap:** Cannot use `g_plw_unwind_floor = NULL` as the bypass signal — `g_plw_unwind_floor` starts NULL at process init, so `dop_call`/`dop_call_nothrow` would never set the floor on any first call, breaking the non-zframe Prolog path entirely. Required a dedicated `g_plw_floor_bypass` int global.
-- **by_name_dispatch.c:** added `g_plw_floor_bypass`; both `dop_call` and `dop_call_nothrow` gate their floor-set on `!g_plw_floor_bypass`.
-- **pl_cell.h:** moved `!g_plw_unwind_floor` guard in `plc_dead_cstack` to TOP of function (before `stk_have` check) — original placement after the maps-read block meant the function would still call `sscanf` even when floor was NULL.
-- **scrip.c:** set `g_plw_floor_bypass=1` around `rt_outer_call` for `is_prolog && bbg->zframe_graph`; also set in `icn_zf_main_call` arm for `!icn_zframe_gen`. Conditioned on `zframe_graph` (not just `is_prolog`) so `SCRIP_PL_ZFRAME=0` path is unaffected.
-
-**NEXT SESSION TASKS (in order):**
-1. `git pull --rebase`, rebuild, re-derive watermark (expect 12/22 after rebase).
-2. Open FR-4. Design already in file: gate on `g_emit.zframe_graph`. In `bb_move_label` ζ-frame arm: call `rt_pl_cp_set_retry(cp, rax)` to store retry address in PLJ heap choice-point record. In `n55_disjunction_α` ζ-frame arm: call `rt_pl_cp_get_retry(cp)`. Completion: queens + zebra + sendmore green both modes → 15/22.
 
 ## ⛔⭐ LIVE CURSOR — s9 (2026-08-08, Sonnet 4.6 — W1-GC-WARMUP committed (b01ef7ff); bench 6/22; Bug 2 (trail-unwind/plc_dead_cstack SEGV) is next blocker)
 
