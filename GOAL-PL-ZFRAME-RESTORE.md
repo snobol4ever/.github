@@ -14,31 +14,34 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s6 (2026-08-07, Sonnet — FR-4 retry runtime landed; emitter α-label fix pending; bench 11/22)
+## ⛔⭐ LIVE CURSOR — s7 (2026-08-08, Sonnet 4.6 — orientation + watermark re-derive; FR-4 5-item fix NOT yet applied; bench 3/22 at HEAD b4c3a2b)
 
-**HEAD:** post-s6 (rt_pl_retry_push/pop added to rt.c and rt.h; template arms reverted pending α-label staging)  
-**Watermarks (re-derived s6):** Bench 22 m3 11/22 · m4 11/22 · rung 133/164 interp · 127/164 compile — match s5 exactly.
+**HEAD at session end:** `b4c3a2b` (PL-ZK-3: proc-entry cells carve). Two commits landed since s6: `e33e703` (ICN-FR-4 COMPLETE: zframe generator β-resume) and `b4c3a2b` (PL-ZK-3: proc-entry cells carve — adds `sub rsp,K_total` after zframe prologue when `pl_cells_graph=1`). Both on the concurrent Icon/cells track. **No FR-4 code committed this session.**
 
-**FINDING:** FINDING-PL-FR4-RETRY-STACK.md — full diagnosis of the rendezvous medium (choice-point stack) AND the value bug (β label vs α label); canonical WAM citations (gprolog wam_inst.h:92-107, SWI pl-incl.h:1825-1838).
+**Watermarks (re-derived at HEAD b4c3a2b this session):**
+- Bench 22 m3 **3/22** · m4 **3/22** (deriv, fib, tak — same 3 that passed in s6 cells=0 path)
+- Rung suite: timed out before completing (hangon multi-clause predicates; partial count ~11/26 shown)
+- **s6 watermark of 11/22 was measured at an earlier HEAD** — it is still accurate for the pre-b4c3a2b tree.
 
-**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop`).  Emitter integration BLOCKED on one architectural issue: `bb_move_label`'s ζ-frame arm must push the **α** label of call_proc_staged (not β = TGT0).  The α label is `lbls[k]` in emit.cpp ~:2627; it needs staging into `g_emit.lbl_t1`.
+⛔ **NEW BUG: PL-ZK-3 cells=1 path causes SEGV + hang on previously-passing programs.** `SCRIP_PL_CELLS=1` (now the default) causes fib to SEGV (rc=139) and cal/nrev/qsort/sendmore/nreverse to hang. With `SCRIP_PL_CELLS=0` the result is identically 3/22 — the breakage is not from the cells change alone but the interaction of the new cells=1 default with the Prolog zframe path. The PL-ZK-3 commit message states it was only validated on the `cells=0` path ("Prolog baseline PASS=122 FAIL=0 ABORT=0 (cells=0 path, confirmed)"). **Flag this to Lon before touching FR-4.** Use `SCRIP_PL_CELLS=0` as the Prolog baseline until Lon resolves it.
 
-**ONE-LINE FIX for next session:**
-1. `emit.cpp` ~:2627 — add after the wantb line: `if (wantb && g_emit.zframe_graph) g_emit.lbl_t1 = lbls[k]->name;`
-2. `emit.h` — add `const char *lbl_t1;` to emit_state_t
-3. `bb_move_label.cpp` — `ml_retry_store` ζ-frame arm: use `g_emit.lbl_t1` instead of `X86T_TGT0` / TGT0
-4. `bb_indirect_goto.cpp` — ζ-frame arm: `rt_pl_retry_pop → test rax → je ω → jmp rax` (correct as designed)
-5. `bb_call_proc_staged.cpp` — NO CHANGE; β is never entered on the ζ-frame Prolog backtrack path
+**s7 ARCHITECTURAL FINDINGS (from deep code reading — not yet verified by monitor):**
 
-**WHY α NOT β:** Disjunction pops the retry address and jumps to it.  If it's β, β calls `rt_gen_spine_resume_enter` then dispatches via `jmp [rsp]` (crashes ζ-frame) or `jmp L(3)` (loops: L(3) calls `rt_gen_spine_pass_γ` which re-delivers clause 1 result unchanged).  If it's **α**, α re-calls `rt_proc_call_open_det` which advances the Prolog resolution cursor to the next clause and returns its body fn ptr; the clause executes, fires γ, move_label fires again and pushes α again for the NEXT backtrack.  Clean LIFO, correct clause sequence.
+1. **Clause cursor location confirmed:** `c_rt_proc_call_open_det` (rt.c:1471) returns the same `p->fn` on every call with the same `idx` — there is NO clause advance inside it. Clause selection is inside the generator/resume path in `bcps_spine_gen_arm` via the `first_done` flag + `rt_gen_spine_pass_γ`. The α re-entry into call_proc_staged's α port (`rt_proc_call_open_det` → non-null → `rt_proc_open_fn` → frame prep → execute clause body → epilogue_γ at L(3)) IS the correct clause-advance mechanism — each re-open after backtrack re-executes from the proc's fn pointer which is the clause dispatch table entry.
+
+2. **`lbl_t1` and `lbl_t0` already exist in `emit_state_t`** (emit.h:492-499). They are currently used for `IR_SCAN` / `IR_GALT` / `IR_SUSPEND`. The s6 cursor's proposal to add a new `lbl_t1` field was already present; what's needed is to **stage it from the `IR_MOVE_LABEL` pre-pass** at emit.cpp:2634-2635. Currently `g_move_label_tgt` feeds `lbl_t0` only.
+
+3. **`g_pl_retry` is a bare `void**`** with no trail mark, no env pointer, no HB — unlike WAM choice-points which carry all of these. The s6 cursor's 5-item fix is still the right shape. The question is whether untrailing is needed at retry. For the bench bench programs (color/3, queens/2 etc.) with shallow binding, this may not manifest immediately — but for sendmore/zebra with deep trails it will.
+
+**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop` in rt.c/rt.h, s6). Emitter integration BLOCKED on α-label staging. The s6 5-item fix remains the correct next step.
 
 **NEXT SESSION FIRST TASKS:**
-1. Pull all repos, re-derive watermarks (bench 11/22, rung 133/164 run) — 5 min.
-2. Implement the 5-item change set above — ~30 min.
+1. `git pull --rebase` all repos, rebuild with `SCRIP_PL_CELLS=0` as baseline. Re-derive watermarks — expect same 3/22. Flag cells=1 bug to Lon.
+2. Implement the 5-item change set (from s6 cursor, unchanged): emit.cpp ~:2634 → stage `lbl_t1` from wantb+zframe_graph branch; bb_move_label ζ-frame arm uses `lbl_t1`; bb_indirect_goto ζ-frame arm: pop retry → test → jmp. `lbl_t1` already exists in emit_state_t, no header change needed.
 3. Build `bt_minimal.pl`, confirm `red\ngreen\nblue\n`, rc=0.
-4. Run bench 22 both modes — expect improvement from 11/22 toward 22/22.
-5. Run rung suite both modes — expect improvement.
-6. SN4 + Icon byte-identity crosscheck (SCRIP_PL_ZFRAME=0 identity included).
+4. Run bench 22 both modes with `SCRIP_PL_CELLS=0` — expect improvement from 3/22 toward 11/22+.
+5. Run rung suite.
+6. SN4 + Icon byte-identity crosscheck (`SCRIP_PL_ZFRAME=0` identity included).
 7. Commit + `bash scripts/handoff_status.sh`.
 
 ## ~~s5 cursor (superseded)~~
