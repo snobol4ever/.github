@@ -2,8 +2,15 @@
 
 **CHARTER (Lon directive, 2026-08-07):** "I still want a COMPLETE ZETA CELLS on the STACK solution. Scan what SNOBOL4 has been doing to convert to 100% per-BB allocation on the RSP-topped FORTH-style stack… Make a plan for Icon to use RSP-topped stack with per-BB allocation, handle procedure locals (LVA) and globals (GVA). We have R13-R15 for the BB_SCAN_* family. For the 100% CELLS on stack all must be in separate pthreads or we'll use the more complicated ARBNO-style constructs. Whichever." This ladder walks Icon to 100% on the SAME ZD machinery SNOBOL4 built — it is the ZD ladder's Icon completion, not a parallel mechanism.
 
-## ⛔⭐ LIVE CURSOR — s217 (ZK-4 SLICE 3 COMPLETE at SCRIP `26fb52e0`)
-**NEXT RUNG = ZK-4 SLICE 4 — LVA: proc α-grant carves (nparams+nlocals)×16 as FIRST cells; params install from g_call_args[]; locals null-init. Recursion witness: fib.icn.**
+## ⛔⭐ LIVE CURSOR — s217 (ZK-4 COMPLETE at SCRIP `087bd707`)
+**NEXT RUNG = ZK-5 — GVA: globals stay OFF the stack by design. Route IR_VAR/IR_ASSIGN GLOBAL arm to GVA slots. Interlock with GOAL-ICN-GVA-M3.**
+
+**ZK-4 COMPLETE — s217 LANDED at `087bd707`:** LVA (params + locals + return value) on the RSP FORTH spine.
+Two commits this session:
+- SLICE 3 (`26fb52e0`): SUCCEED-GIN narrowed by beta-omega conjunct — `write(42)` m3 CELLS=1 rc=0 ✓
+- SLICE 4 (`087bd707`): IR_RETURN admitted on cells arm — proc body fully armed. THREE ONE-AUTHORITY EDITS: zd_wl_kind (SCRIP_ZD_RETURN=0 killswitch, gated icn_cells_graph, det-return only); zd_k (IR_RETURN K=0 class); zd_nops (1-operand arm). ZD template arm in bb_return.cpp: ZOPQ(0,0/8) → FRQ(0)/FRQ(8) → x86_gamma() with op_zgpop K_total release.
+CENSUS: f(x) `proc_flat n=5 armed=5 K_total=64 declined_nodes=0` ✓; f(x, local y) `proc_flat n=7 armed=7 K_total=80 declined_nodes=0` ✓.
+COMPLETION CRITERION: fib(10) m3 CELLS=1 → 55 rc=0 ✓; fib(10) m4 CELLS=1 (full pipeline: compile→as→gcc→run) → 55 rc=0 ✓. Icon suite baseline: PASS=217 FAIL=46 XFAIL=30 (no regression). CELLS=1: PASS=184 FAIL=79 XFAIL=30.
 
 **ZK-4 SLICE 3 COMPLETE — s217 LANDED at `26fb52e0` — m3 CELLS=1 SEGV CLOSED:**
 ROOT CAUSE: `zd_plan` SUCCEED-GIN arm (`emit.cpp:2095`) set `gin=1` (suppressing `zgpop`) whenever CALL_BUILTIN's γ arc terminated at IR_SUCCEED — including the top-level `write(42)` topology where ω→FAIL, not a beta port. The prior comment claimed "SUCCEED gamma always routes to a consumer beta, never to the statement terminal" which `write(42)` falsifies: its ω is FAIL, not TO.β. Without `zgpop`, the γ `jmp main_γ` carries no `add rsp,K_total`; in m3 the outer RX machinery sees RSP 32B short and SEGVs after correct output. In m4 `exit()` ignores RSP — invisible until m3 ran.
