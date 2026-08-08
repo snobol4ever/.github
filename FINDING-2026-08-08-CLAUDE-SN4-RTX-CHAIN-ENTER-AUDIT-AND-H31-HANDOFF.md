@@ -61,3 +61,17 @@ H31 is the minimal real-world witness (JSON key-value parser) for the MECH H-cla
 - m4 **114/25/0** (114 pass · 3 xfail · 25R) — crater baseline confirmed
 - (Crater = UCLAIM physical deletion landing; H31 adds one xfail to each baseline)
 
+
+---
+
+### Post-rebase addendum: CAPGEN-ERAD (parallel seat `83ff2b1d`) cleared H31's SIGSEGV
+
+After rebasing onto `372d4b60`, H31 behavior changed:
+- **Before rebase:** rc=139 SIGSEGV — `g_cap_gen` save/restore in MATCH_BEGIN/END caused crash
+- **After CAPGEN-ERAD:** rc=0, wrong output — `k=age s= n="age":42 b=` vs oracle `k=age s= n=42 b=`
+
+NVAL now receives the entire remaining subject `"age":42` instead of just `42`. The FENCE(str|num|bool) alternation selection fails: `str` arm attempts `'"' BREAK('"') . SVAL '"'` and loses, but FENCE is not correctly routing the cursor to the `num` arm at the right subject position — the `.NVAL` conditional-assign fires on the wrong slice.
+
+**For MECH H-class:** H31 is now a clean wrong-output failure, not a crash. Monitor-first protocol is directly applicable (no SIGSEGV handler interference). The behavioral failure is the FENCE-over-ALT cursor-position / capture routing bug, distinct from the old crash. H31 remains xfail in both modes.
+
+Watermark post-rebase (`372d4b60`): RTX m3 **265/52/0** · m4 **253/63/1** · DIVERGE **11** · MECH m3 **124/17/0** · m4 **123/16/0**.
