@@ -11,6 +11,10 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 ## ⛔ DEFINITION OF DONE (HQ 2026-08-03e) — "ω for every box"; before all six, report the fraction, never the word
 1. `SCRIP_UNWIND` default ON tree-wide + U-3 deletions landed. 2. ω-coverage = 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 3. Orphan-adds = 0 outside the whitelist (⛔ audit the whitelist first — SHED-5 landed, the rsp,8 entry may be stale-permissive). 4. UCLAIM census = 0 (`zvo_uclaim_k` returns 0 every run; loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — the single-space spelling is a FALSE INSTRUMENT). 5. Wall census == framed-enter count over the framed constructs. 6. xc318 BY SET ≥ baseline both modes · rc=139 tail cleared · bench 18/21 hold-or-better · regen ×4.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-08-session (Sonnet — regen ×3 post-M-3 UCLAIM deletion; SCRIP `c1b0ace1`, corpus `bccf1cec`)
+
+**REGEN ONLY — no code changes this session.** M-3 UCLAIM physical deletion (merged `3c5c1f71`) left benchmark/feature/demo `.s` artifacts stale. Regenned all three corpora at HEAD: benchmark 9 changed (roman.s −208 lines, stmt_claim/sub-rsp-224 = 0), feature 48 changed (net −1721 lines), demo 16 changed (net −2418 lines). Five feature EMIT-FAILs (`coverage_sno_nodes`, `test_case`, `test_math`, `test_stack`, `test_string`) are M-3 crater casualties, not updated per script policy. **NEXT: W-1 Bug 6** (STF+mech-2 nested frame conflict) — MONITOR-FIRST on armed roman rc=139 admitted-path crash.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-07-session (Sonnet — X12 JE-PIN + W-2a PATV$ stamp + W-2b DEFER ZD admit; SCRIP `46568b43`, corpus `c7d85936`)
 
 **THREE RUNGS LANDED THIS SESSION:**
