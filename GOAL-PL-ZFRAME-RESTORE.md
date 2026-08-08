@@ -17,9 +17,14 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s10 (2026-08-08, Sonnet 4.6 — W1-BUG2-FIX committed (edfc1852); bench 12/22; NEXT = re-derive baseline then open FR-4)
+## ⛔⭐ LIVE CURSOR — s10 (2026-08-08, Sonnet 4.6 — W1-BUG2-FIX committed (ae443c85 post-rebase); bench 12/22; NEXT = open FR-4)
 
-**s10 HEAD at session end: `edfc1852`** (W1-BUG2-FIX). Bench watermark: **m3+m4 12/22**. W1 fully recovered (+6 over s9's 6: derive/divide10/log10/ops8/times10 + deriv). SN4 beauty.sno IDENTICAL with/without SCRIP_PL_ZFRAME. ICN rung01_paper_compound IDENTICAL. ZFRAME=0 failures pre-existing (stash-verified: same failures at HEAD before fix).
+**s10 HEAD at session end: `ae443c85`** (W1-BUG2-FIX, post-rebase over `c1b0ace1` UCLAIM-DELETION concurrent commit). Bench watermark re-derived post-rebase: **m3 12/22**. PASSING: cal deriv derive divide10 fib log10 mu nrev ops8 qsort tak times10. W1 fully recovered (+6 over s9's 6/22). SN4 beauty.sno IDENTICAL with/without SCRIP_PL_ZFRAME. ZFRAME=0 produces empty output on all — correct, matches broken pre-FR-2 baseline (g_plw_floor_bypass gates on is_prolog && zframe_graph only).
+
+**NEXT SESSION TASKS (in order):**
+1. `git pull --rebase`, rebuild, re-derive watermark (expect 12/22).
+2. Open FR-4: read `bb_move_label.cpp`, `bb_choice_state_t` in `emit.h`, `lower_pl_choice_graph` in `lower_prolog.c`. Build `bt_minimal.pl` reproducer (a two-clause predicate that backtracks), confirm exact SEGV site for queens/zebra/sendmore with gdb backtrace. FR-4 design (from s5 cursor): gate on `g_emit.zframe_graph`; in `bb_move_label` ζ-frame arm call `rt_pl_cp_set_retry(cp, rax)` to store retry address in the PLJ heap choice-point record rather than `[rbp+op_off+16]`; in `n55_disjunction_α` ζ-frame arm call `rt_pl_cp_get_retry(cp)`. The `cp` pointer must be accessible without reading through the dead ζ-frame — option (b) `g_pl_cp_stack` thread-global. Completion: queens + zebra + sendmore green both modes.
+3. SN4 + Icon byte-identity on every FR-4 commit.
 
 **s10 FINDINGS — W1 Bug 2 root cause and fix (three-file):**
 - **Root cause:** `plc_dead_cstack` opens `/proc/self/maps` and calls `fgets`+`sscanf` with `char ln[256]` on stack (on every first call when `stk_have=0`). Called from Prolog JIT code where RSP is misaligned by 8 (`dop_unwind_nothrow` -O0 frame: `push rbp` + `push rbx` + `sub 0x38` = 72 = 8 mod 16; propagates through `pl_trail_unwind` and `plc_dead_cstack`'s own `sub 0x140` frame making `sscanf`'s `movaps` SEGV). Confirmed via gdb disassembly (`dop_unwind_nothrow` at `5ff445`, `plc_dead_cstack` at `b65`).
