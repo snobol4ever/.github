@@ -38,16 +38,17 @@
 
 **FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop` in rt.c/rt.h, s6). Emitter integration BLOCKED on α-label staging. The s6 5-item fix remains the correct next step.
 
-**NEXT SESSION FIRST TASKS:**
-1. `git pull --rebase` all repos, rebuild with `SCRIP_PL_CELLS=0` as baseline. Re-derive watermarks — expect same 3/22. Flag cells=1 bug to Lon.
-2. Implement the 5-item change set (from s6 cursor, unchanged): emit.cpp ~:2634 → stage `lbl_t1` from wantb+zframe_graph branch; bb_move_label ζ-frame arm uses `lbl_t1`; bb_indirect_goto ζ-frame arm: pop retry → test → jmp. `lbl_t1` already exists in emit_state_t, no header change needed.
-3. Build `bt_minimal.pl`, confirm `red\ngreen\nblue\n`, rc=0.
-4. Run bench 22 both modes with `SCRIP_PL_CELLS=0` — expect improvement from 3/22 toward 11/22+.
-5. Run rung suite.
-6. SN4 + Icon byte-identity crosscheck (`SCRIP_PL_ZFRAME=0` identity included).
-7. Commit + `bash scripts/handoff_status.sh`.
+**NEXT SESSION FIRST TASKS (REORDERED s7b — the bisect moved AHEAD of the FR-4 fix; the old step-4 expectation "CELLS=0 → 11/22+" is FALSIFIED — CELLS=0 IS the 3/22 arm, it is the default):**
+1. `git pull --rebase` all repos, rebuild, re-derive watermarks with env UNSET (= cells=0 = the true default). Expect 3/22 both modes at the `69c476a0`-era tree (s7b table).
+2. ⭐ **BISECT THE TWO REGRESSION WINDOWS FIRST** (s7b): [`5562280d`..`63280689`] cost 6, and [`e33e703b`..`b4c3a2b5`] cost 2 (ICN-FR-4 prime suspect). Env unset in every probe. Each cut ends one of three ways: fixed here · coordinated with its owning track · baseline renegotiated IN THE CURSOR. ⛔ Do NOT implement FR-4 on the contaminated baseline — its A/B cannot be read.
+3. THEN implement the 5-item change set (from s6 cursor, unchanged): emit.cpp ~:2634 → stage `lbl_t1` from wantb+zframe_graph branch; bb_move_label ζ-frame arm uses `lbl_t1`; bb_indirect_goto ζ-frame arm: pop retry → test → jmp. `lbl_t1` already exists in emit_state_t, no header change needed.
+4. Build `bt_minimal.pl`, confirm `red\ngreen\nblue\n`, rc=0.
+5. Run bench 22 both modes — expected value = step-2's recovered baseline + FR-4's class (queens/zebra/sendmore), NOT "11/22 from CELLS=0 alone" (falsified s7b).
+6. Run rung suite (hang class known — per-program timeout mandatory).
+7. SN4 + Icon byte-identity crosscheck (`SCRIP_PL_ZFRAME=0` identity included).
+8. Commit + `bash scripts/handoff_status.sh`.
 
-**⭐ s7b ADDENDUM (2026-08-08, live re-measure at HEAD `69c476a0`, all `-O0`, TIMEOUT=6s/prog):** bench board m3 **3/22** = m4 **3/22** (deriv/fib/tak) on BOTH the default arm AND `SCRIP_PL_CELLS=0` — reproduces s7 five commits later. `SCRIP_PL_ZFRAME=0` legacy = **0/22 both modes** (the zframe arm is worth +3 at HEAD). ⭐ **ONE-PROBE BISECT: a worktree at `e33e703b~1` (= `63280689`) scores 5/22** ⇒ the 11/22→3/22 erosion is TWO cuts by OTHER tracks' commits, not this ladder's own: **[`5562280d`..`63280689`] cost 6** (ZK-4 slices / PAS / merge band) and **[`e33e703b`..`b4c3a2b5`] cost 2** (ICN-FR-4 zframe generator β-resume — shared emitter machinery — is the prime suspect; PL-ZK-3's carve cannot explain the `CELLS=0` arm). ⚠ The probe ran that tree's DEFAULT cells arm — pin `SCRIP_PL_CELLS=0` when bisecting for real. Rung suite deliberately NOT re-run (s7 hang class stands). **Next walker: bisect those two windows BEFORE implementing the FR-4 5-item fix, or the fix's A/B baseline is contaminated by the concurrent-tree regressions.**
+**⭐ s7b ADDENDUM (2026-08-08, live re-measure at HEAD `69c476a0`, all `-O0`, TIMEOUT=6s/prog) — CORRECTED SAME-SESSION (first draft compared "default vs `CELLS=0`", which is ONE arm measured twice):** ⛔ **THE DEFAULT IS cells=0 — `SCRIP_PL_CELLS` is OPT-IN** (`lower_prolog.c:13`, `*e=='1'`; `git log -S` shows ONE commit ever touched the setter, `cba90403` ZK-0) — **s7's "cells=1 (now the default)" is FALSIFIED**; that session's shell must have had the env exported. Board at HEAD: zframe ON + cells=0 (true default) **3/22 m3 = 3/22 m4** (deriv/fib/tak) · zframe ON + `SCRIP_PL_CELLS=1` **1/22 = 1/22** (deriv only; fib FAILs — s7's fib flag reproduces under the env — and tak prints `_G0`, a wrong-output shape) · `SCRIP_PL_ZFRAME=0` legacy **0/22 = 0/22**. The cells arm's −2 is ZK-3-PARTIAL's known state (UCLAIM blocker), not a new emergency. ⭐ **ONE-PROBE BISECT: a worktree at `e33e703b~1` (= `63280689`) scores 5/22** ⇒ the 11/22→3/22 erosion on the cells=0 arm is TWO cuts by OTHER tracks' commits, not this ladder's own: **[`5562280d`..`63280689`] cost 6** (ZK-4 slices / PAS / merge band) and **[`e33e703b`..`b4c3a2b5`] cost 2** (right endpoint from s7's own 3/22 at `b4c3a2b`; ICN-FR-4 zframe generator β-resume — shared emitter machinery — is the prime suspect). Rung suite deliberately NOT re-run (s7 hang class stands). **Next walker: bisect those two windows BEFORE implementing the FR-4 5-item fix, or the fix's A/B baseline is contaminated by the concurrent-tree regressions.**
 
 ## ~~s5 cursor (superseded)~~
 SCRIP `5562280d` (HEAD unchanged — no new commits this session; FR-2/FR-3 criteria verified against existing HEAD). **NO SOURCE MODIFICATIONS THIS SESSION.**
