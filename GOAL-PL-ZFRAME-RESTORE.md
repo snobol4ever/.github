@@ -17,6 +17,21 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
+## ⛔⭐ LIVE CURSOR — s10 (2026-08-08, Sonnet 4.6 — W1-BUG2-FIX committed (edfc1852); bench 12/22; NEXT = re-derive baseline then open FR-4)
+
+**s10 HEAD at session end: `edfc1852`** (W1-BUG2-FIX). Bench watermark: **m3+m4 12/22**. W1 fully recovered (+6 over s9's 6: derive/divide10/log10/ops8/times10 + deriv). SN4 beauty.sno IDENTICAL with/without SCRIP_PL_ZFRAME. ICN rung01_paper_compound IDENTICAL. ZFRAME=0 failures pre-existing (stash-verified: same failures at HEAD before fix).
+
+**s10 FINDINGS — W1 Bug 2 root cause and fix (three-file):**
+- **Root cause:** `plc_dead_cstack` opens `/proc/self/maps` and calls `fgets`+`sscanf` with `char ln[256]` on stack (on every first call when `stk_have=0`). Called from Prolog JIT code where RSP is misaligned by 8 (`dop_unwind_nothrow` -O0 frame: `push rbp` + `push rbx` + `sub 0x38` = 72 = 8 mod 16; propagates through `pl_trail_unwind` and `plc_dead_cstack`'s own `sub 0x140` frame making `sscanf`'s `movaps` SEGV). Confirmed via gdb disassembly (`dop_unwind_nothrow` at `5ff445`, `plc_dead_cstack` at `b65`).
+- **NULL-sentinel trap:** Cannot use `g_plw_unwind_floor = NULL` as the bypass signal — `g_plw_unwind_floor` starts NULL at process init, so `dop_call`/`dop_call_nothrow` would never set the floor on any first call, breaking the non-zframe Prolog path entirely. Required a dedicated `g_plw_floor_bypass` int global.
+- **by_name_dispatch.c:** added `g_plw_floor_bypass`; both `dop_call` and `dop_call_nothrow` gate their floor-set on `!g_plw_floor_bypass`.
+- **pl_cell.h:** moved `!g_plw_unwind_floor` guard in `plc_dead_cstack` to TOP of function (before `stk_have` check) — original placement after the maps-read block meant the function would still call `sscanf` even when floor was NULL.
+- **scrip.c:** set `g_plw_floor_bypass=1` around `rt_outer_call` for `is_prolog && bbg->zframe_graph`; also set in `icn_zf_main_call` arm for `!icn_zframe_gen`. Conditioned on `zframe_graph` (not just `is_prolog`) so `SCRIP_PL_ZFRAME=0` path is unaffected.
+
+**NEXT SESSION TASKS (in order):**
+1. `git pull --rebase`, rebuild, re-derive watermark (expect 12/22 after rebase).
+2. Open FR-4. Design already in file: gate on `g_emit.zframe_graph`. In `bb_move_label` ζ-frame arm: call `rt_pl_cp_set_retry(cp, rax)` to store retry address in PLJ heap choice-point record. In `n55_disjunction_α` ζ-frame arm: call `rt_pl_cp_get_retry(cp)`. Completion: queens + zebra + sendmore green both modes → 15/22.
+
 ## ⛔⭐ LIVE CURSOR — s9 (2026-08-08, Sonnet 4.6 — W1-GC-WARMUP committed (b01ef7ff); bench 6/22; Bug 2 (trail-unwind/plc_dead_cstack SEGV) is next blocker)
 
 **s9 HEAD at session end: `b01ef7ff`** (W1-GC-WARMUP). Bench watermark: **m3+m4 6/22** (unchanged — Bug 2 still open). SN4 smoke pre-existing failures unchanged (not a regression). Parallel commits since s8 cursor (ZK-2 ×2 + FR-5 RPO-PASS2) did not affect Prolog bench.
