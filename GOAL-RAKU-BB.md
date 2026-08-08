@@ -15,16 +15,18 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
-## ▶ LIVE CURSOR — s2026-08-08 (RK-ZC-7+8: harness sees rc; zframe regime pin gate — Claude Sonnet 4.6)
+## ▶ LIVE CURSOR — s2026-08-08b (RK-GRAM-3d-m3-fix: GALT both-media arm jmps — Claude Sonnet 4.6)
 
-**[THIS SESSION] RK-ZC-7+8 COMMITTED — commit `3028fdc8`. Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+**[THIS SESSION] RK-GRAM-3d-m3-fix COMMITTED — commit `0ce21c92`. Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
-**NEXT RUNG:** RK-GRAM-3d-m3-fix — m3 delta passback. In mode-3 (JIT in-process), `.Lgrambox_γ` reads r14=0 instead of the updated cursor after arm-1 matches. The save (`mov [rsp+0], r14d` at IR_GALT α) and restore (`mov r14d, [rsp+0]` at β) use literal-RSP addressing via the x86 parser's XK_RSP32 path (`x86_rsp_store32`/`x86_rsp_load32`), which is correct in both media. The binary encoding (`44 89 34 24`) should be correct. Root cause undiagnosed — gdb not available in container; next session should install gdb (`apt-get install -y gdb`) and trace r14 at the arm-1 γ exit before `proc_gram__G__TOP_γ` runs.
+**NEXT RUNG:** RK-GRAM-3d (remaining alternation work). The m3 delta passback is now fixed. The GALT grammar boxes are now correct in both modes — arm-1 and arm-2 both run in m3 binary. Alternation with both literals and char classes passes. Next: extend grammar alternation to more complex patterns, multi-arm rules, and nested subrule alternation; or proceed to whatever Lon directs.
 
-**PRE-EXISTING FAILURES:** None (smoke suite 719/719 PASS FAIL=0 DECLINED=0 both modes, rc-aware). RK-GRAM-3d m3 delta passback is a NEW open item (not a regression — existing tests unaffected). Icon `until` (1) and Prolog `clause` (1) are pre-existing in their own suites, unrelated to Raku.
+**PRE-EXISTING FAILURES:** None (smoke suite 724/724 PASS FAIL=0 DECLINED=0 both modes with RK_GRAM_NATIVE=1). Icon `until` (1) and Prolog `clause` (1) are pre-existing in their own suites, unrelated to Raku.
 
-**WATERMARK:** m3 **719/0**, m4 **719/0** (PASS/FAIL — parity invariant holds, harness now rc-aware). Peers: Icon 14/0, SNOBOL4 6/1 (pre-existing pattern failure, unrelated to Raku), Prolog 4/1 (pre-existing `clause`). Lang-blind gate rc=0, no_bb_bin_t OK.
-**LAST SESSION:** s2026-08-08 (this session), commit `3028fdc8`.
+**WATERMARK:** m3 **724/0**, m4 **724/0** (PASS/FAIL — rc-aware harness; +5 GALT alternation smokes added this session). Peers: Icon 14/0, SNOBOL4 6/1 (pre-existing), Prolog 4/1 (pre-existing). Lang-blind rc=0, no_bb_bin_t rc=0, raku_zframe gate PASS.
+**LAST SESSION:** s2026-08-08b (this session), commits `3028fdc8` (RK-ZC-7+8), `0ce21c92` (RK-GRAM-3d-m3-fix).
+
+**ROOT CAUSE (worth preserving for the record):** `bb_rk_galt()` used `x86("jmp", _.lbl_t0)` and `x86("jmp", _.lbl_t1)` for the arm-entry jumps. These label strings (e.g. `"n2_glit_α"`) parse as `XK_SYM` in the x86 dispatcher. The `XK_SYM` arm at `x86_asm.h:1484` returns empty string in `MEDIUM_BINARY` mode — zero bytes, silently dropping both jumps. Execution fell through to `x86_gamma()` immediately, arm-1 never ran, r14=0 at `.Lgrambox_γ`, `final_delta=0` always. m4 text mode worked because `XK_SYM` emits the text jmp directive there. **Fix:** `x86_jmp_lblptr(_.lbl_t0_p, _.lbl_t0)` works in both media — binary patches a rel32 via the `bb_label_t*` pointer, text emits the directive. **Diagnostic path:** `rk_gram_run_native` showed `final_delta=0, matched=1`; trampoline trace confirmed `r14=0` at `.Lgrambox_γ`; binary dump of the emitted blob showed jmp at +39 going to +214 (gamma epilogue) instead of the arm-1 alpha; single-arm grammar (no GALT) worked correctly (r14=1). `x86("jmp", name)` for `XK_SYM` in MEDIUM_BINARY is a TEXT-ONLY path — generalizable to any template using bare string label names for jmps in binary mode.
 
 ⛔ **THE PIVOT (Lon, this session): RAKU IS NOT BROKEN BY RAKU WORK — IT WAS LEFT BEHIND BY THE REGIME MIGRATION, AND THE FIX IS TO CARRY IT ONTO `ZC_STORAGE_CELL_STACK`, NOT TO RESTORE THE OLD SPINE.** RK-GRAM-3d is DESCOPED until this ladder is green: an alternation box built on a spine where `sub f($a) { return $a*2 }` cannot return is built on sand.
 
