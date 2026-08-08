@@ -1,123 +1,29 @@
-# FINDING 2026-08-08 (CLIMB s14) — `k>r` OIN GUARD WRONG FOR SCAN-RETRY BACK-EDGES; `MATCH_ASSIGN_SAVE` POPPED THE ENTIRE MATCH FRAME MID-MATCH
+# FINDING-2026-08-08 (s14, Opus 4.5) — ZD-5b-LEN zd_ud[] two-writer collision + MATCH_ASSIGN_SAVE mid-match wpop
 
-**Rung:** GOAL-SN4-ZETA-CLIMB C-6 · **Fix:** SCRIP `912c0dbf`
-**Symptom:** `pb_snapshot_imm` rc=134 (stack canary) — output `S A` correct, canary fires
+Both findings in LIVE CURSOR at end of s14. This document records the s14 work; the s15 PB-2 investigation is in this file as an addendum.
 
----
+## Finding 1: zd_ud[] has two writers with two meanings (ZD-5b-LEN)
 
-## THE LAND MINE
+Commit `8970c59e` (replicated as `4eb8350e` on origin after rebase).
 
-`pb_snapshot_imm` (`'AZB' ? 'A' $ X X`) crashes with stack smashing after the
-correct output `S A`.  s13 cursor attributed this to "PB-1s snapshot machinery
-misclassifying `$ X` capture-target."  **That theory is wrong.**
+`zd_ud[]` was written by two arms: blob-closure arm stores `zdh` (crossing depth); UCLAIM `mem[]` arm stores `K` (claim frame size). The `_xh` site read `zd_ud[zd_uh[i]]` assuming the first meaning — all ten witnesses (A05 A06 H08 H10 H14 H15 H23 H26 H28 H29) take the UCLAIM arm, so it read `K`, the `>0` gate passed on a non-depth value, and `_xh` fired on statements with no cross-head read. Fix: dedicated `zd_zdh[]`, written only by the blob-closure arm, init -1, `>=0` is a real predicate.
 
-Manual p.86/87 is unambiguous: the second `X` is a plain name, which snapshots
-at BUILD time (pattern construction), not match time.  The pattern is effectively
-`'A' $ X 'Z'` — it matches `AZ`, assigns `A` to X via immediate assignment, and
-on success X='A'.  Output `S A` is exactly correct.  The snapshot was fine;
-only the stack was not.
+## Finding 2: MATCH_ASSIGN_SAVE oin back-edge guard wrong
 
-## ROOT CAUSE
+Commit `69c476a0` (ZD-5b-SAVE-OIN).
 
-`IR_MATCH_ASSIGN_SAVE` has **ω = MATCH_BEGIN** (the scan-retry back-edge: on
-failure, retry the match from the next subject position).  In `zd_plan`, the
-non-blob path for oin is:
+M-1-FIX-3's oin guard (`k > r`) was forward-only. MATCH_ASSIGN_SAVE on a scan-retry back-edge (omega = MATCH_BEGIN) got `wpop=176`, popping the full match frame mid-match. Fix: drop `k > r` from the oin guard — the guard was preventing compensation on back-edges where wpop fires legitimately.
 
-```c
-for (int k = 0; k < rl; k++) {
-    if (nodes[run[k]] == gt && k > r) gin = 1;
-    if (nodes[run[k]] == ot && k > r) oin = 1;   // k>r guard — WRONG for oin
-}
-```
+## Finding 3 (s15, Sonnet 4.6): pb_snapshot_imm rc=134 — PATCTX saves land in CRT frame (PB-2, CLIMB-territory)
 
-MATCH_BEGIN sits at `k = hpos` in the run.  For SAVE at `r = 5`, `hpos = 4`
-satisfies `k < r`, so the `k > r` guard always fails → `oin = 0`.
+Root cause: `n8_match_begin_α` is a **static-extent armed match** (`flat_layout_unknown=0`, Kc=144, no ZWS/ZWR). `rpin()=0` (EXTENT-GATE requires `flat_layout_unknown=1`). PATCTX saves use `FRQ(_.op_off + N)`. With GLUE-O pinned rbp (`emit_rec_pin=1`, `flat_deep_arrival=1`), `FRQ(48)` produces `"qword ptr [rbp + 48]"` which `x86_parse` classifies as `XK_FR64`. The TEXT encoder (`x86_frame_store64`) then calls `x86_frame_off(48)` which — with `op_stmt_pin=0` (no pin set) and `x86_fb_data()=1` — falls to the raw fallback: returns 48. But the ZD hybrid arm pre-adds `op_flat_disp=48` → `[rbp+96]` inside the CRT frame, stomping the canary.
 
-With `oin = 0`, line 2105 fires:
+**Fix direction (PB-2, stashed in SCRIP for next session):**
 
-```
-zwpop[SAVE] = _wzdepth - K + kc = 32 - 16 + 144 = 176 + 16 - 16 = 176
-```
+Extend `rpin()` in `bb_match_begin.cpp` with arm: `apin() && _.op_udout > 0 && !_.flat_layout_unknown && !_.flat_stmt_frame && !_.op_zw && !_.op_zw2 && !_.flat_jmp_entry`. This establishes a HEAD-PIN (`mov rbp,rsp`) for static-extent armed non-blob matches, giving FRQ a valid claim-base rbp.
 
-The template emits `add rsp, 16` (SAVE's own K) **followed by** `add rsp, 176`
-at the β port.  That releases the entire 192-byte match frame (Kc=144 +
-pre-match producer cells 48 = 192 minus SAVE's own 16) while MATCH_LIT,
-MATCH_ASSIGN_IMM, and MATCH_DEFER are still live inside it.  Every subsequent
-write from those nodes lands in the caller's frame.  The canary in `main` fires
-at the function epilogue.
+A secondary bug then surfaces: MATCH_END's `x86_zls2_release_to_call` restores rsp to the zls2_mark (post-sub-Kc level), but STATEMENT_END's wpop=192 over-releases by `body_carve = op_udout_end - zvo_owner_dout(op_uhead) = 16`. Fix in `bb_match_end.cpp`: emit `sub rsp, body_carve` after the mark restore when `op_stmt_pin > 0 && !flat_layout_unknown && x86_port_cstack()`.
 
-## THE GUARD ASYMMETRY
+Both fixes work for `pb_snapshot_imm` but still cause 3 regressions (D10, D11, H21: ARBNO+DEFER patterns). The regression gate is: ARBNO body blob's MATCH_BEGIN is NOT `flat_jmp_entry=1` as expected. Root cause of regression not fully determined in this session. PB-2 stashed; needs one more narrowing before commit. `pb_snapshot_imm` remains rc=134 at HEAD `69c476a0`.
 
-`k > r` is **correct** for `gin` (γ must point forward in the run — a node
-whose γ exits the run IS a terminal and should carry zgpop).
-
-It is **wrong** for `oin` (ANY intra-run ω target, forward OR backward,
-means the node is not a statement-exit and must NOT carry wpop).  A node
-whose ω back-edges to an earlier run member is still inside the match — the
-scanner is retrying, not leaving.  MATCH_END is the sole release authority.
-
-The blob path (line 2096) already gets this right:
-```c
-if (nblob > 0) { for k in cm[]:
-    if (nodes[k] == ot) oin = 1;   // no positional guard — any cm[] member
-}
-```
-
-The non-blob path inherited the wrong positional guard from the gin clause.
-
-## THE FIX
-
-Drop `k > r` from the `oin` side only:
-
-```c
-else for (int k = 0; k < rl; k++) {
-    if (nodes[run[k]] == gt && k > r) gin = 1;
-    if (nodes[run[k]] == ot) oin = 1;   // ← k>r guard removed
-}
-```
-
-**Effect:** ZD trace confirms `wpop=0` for SAVE, `wpop=192` for MATCH_END (sole
-release authority).  Rogue `add rsp, 176` absent from emitted asm.
-
-**Byte-identical** for all nodes with forward ω (the prior population) — their
-targets are already `k > r` so the guard change doesn't fire.  Only back-edge
-ω nodes are newly protected.
-
-## MEASURED
-
-m3 135/7/0/0 · m4 132/10/0/0 — unchanged from the zdhh fix, 0 REGRESSION.
-
-Regen ×3: 19 feature `.s` files changed (wpop suppressed on SAVE nodes in
-scan-retry patterns), 3 benchmarks changed, 7 demo programs changed.
-Representative oracle checks: word4.sno, wordcount.sno, calculator-1.sno,
-pattern_test.sno — all match SPITBOL oracle.  `string_pattern.sno` benchmark
-crashes under SCRIP (rc=139) **at the s13 watermark commit too** — pre-existing,
-not caused by this fix.
-
-## STILL OPEN — SECOND CRASH SOURCE IN pb_snapshot_imm
-
-The `add rsp, 176` is gone.  **pb_snapshot_imm still crashes** (rc=134).
-
-Second source: PATCTX saves (`outer_Σ/δ/Δ/cap_gen/old_rbp`) are emitted as
-`[rbp + 88/96/104/112/120]` via `FRQ()` in the MATCH_BEGIN template.  In mode 3
-(in-process JIT), `rbp` has not been updated — it retains the compiler-generated
-rbp from `main`'s prologue, which in this build is a `.data`-section address
-(`0x433fd0`).  Those writes land in `.bss`/`.data`, hitting the stack canary at
-`rbp + 128`.
-
-Affected corner: `Kc > 0 AND nblob_real = 0 AND zws = 0 AND zwr = 0`.  In this
-configuration no frame-establishing instruction (`push rbp; lea rbp,[rbp+8]` for
-ZW/mechanism-2, or `mov rbp,rsp` for STF) is emitted before the PATCTX saves.
-
-D07 (Kc=256, nblob=0) takes mechanism-2 (`zwr=1`, confirmed by `push rbp` in
-emitted asm) — so its FRQ expands to `[rbp - negative]` after the valid `push rbp`
-and is safe.  pb_snapshot_imm hits the unframed corner.
-
-**Fix direction:** for the `nblob=0 / zws=0 / zwr=0 / Kc>0` arm, the template
-must either push a minimal rbp frame (aligning with mechanism-2's `push rbp; mov
-rbp,rsp`) or route PATCTX saves to RSP-relative addresses.  This is a template
-structural change — MECH territory (new claim/frame protocol for this corner).
-
-Confirmed pre-existing: identical rc=134 at `01440ed4` (s13 watermark).  Does
-NOT affect any of the 135 currently-passing probes (all take ZW, mechanism-2, or
-avoid MATCH_ASSIGN_SAVE in the unframed corner).
+**⛔ MECH CROSS-REQUEST (s15):** `pb_snapshot_imm` PATCTX canary-smash — static-extent armed match needs HEAD-PIN for PATCTX save safety; fix in bb_match_begin.cpp rpin() + bb_match_end.cpp body_carve compensation. Stashed as `git stash` in SCRIP. Next session: unstash, narrow ARBNO blob exclusion, re-run suite, commit.
