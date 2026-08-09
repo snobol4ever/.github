@@ -17,3 +17,6 @@ The activation block's `x86_gamma()` references the fname-derived γ label; noth
 
 ## 6. IR_LIT is a UNION — sval clobbers ival
 Role flags cannot ride ival beside sval.  MEASURED: the ival==2 guard sank every bind into drive_unowned FATAL.  Discriminator moved to structure (n_operands==0 = bind; ≥1 = block, fname operand always present).
+
+## 7. THE BOARD'S OTHER rc=1 — MECHANISM NAMED (measured 09e close, NO FIX LANDED): main_γ is an EMPTY LABEL falling through into main_ω's hardcoded exit(1)
+Re-measured at HEAD `53a4f62c` on corpus/programs/csnobol4-suite/hello.sno: output "hello world" correct, rc=1 in BOTH modes (09c recorded m3 only — it is both), oracle rc=0.  The emitted epilogue is literally: `main_γ:` (no body) / `main_ω:` / `mov edi, 1` / `call exit@PLT` — success edges jmp main_γ correctly and fall through into the failure exit.  EVERY program exits 1; the crosscheck/board reads rc, hence PASS=0 ERROR=315, fully explained.  FIX (one instruction, NOT landed — needs the xc318 battery since every program's rc changes): give main_γ its own `xor edi,edi; call exit@PLT` in the epilogue emission, both media.  This also recontextualises the fA-session silent-rc=1 reads: failure-exit rc=1 via main_ω is the intended half; the γ fallthrough is the defect.  With this landed, ab_board_sweep.sh should become sound with NO other work.
