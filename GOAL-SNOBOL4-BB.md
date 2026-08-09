@@ -11,6 +11,30 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 ## ⛔ DEFINITION OF DONE (HQ 2026-08-03e) — "ω for every box"; before all six, report the fraction, never the word
 1. `SCRIP_UNWIND` default ON tree-wide + U-3 deletions landed. 2. ω-coverage = 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 3. Orphan-adds = 0 outside the whitelist (⛔ audit the whitelist first — SHED-5 landed, the rsp,8 entry may be stale-permissive). 4. UCLAIM census = 0 (`zvo_uclaim_k` returns 0 every run; loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — the single-space spelling is a FALSE INSTRUMENT). 5. Wall census == framed-enter count over the framed constructs. 6. xc318 BY SET ≥ baseline both modes · rc=139 tail cleared · bench 18/22 hold-or-better · regen ×4.  **⭐ CORRECTION (09f, measured): the denominator is 22, not 21** — `corpus/benchmarks/snobol4/` holds 22 `.sno`, and `indirect_dispatch` carries an `.xfail`.  **AND THIS CRITERION WAS UNREADABLE UNTIL 09f:** every program exited 1 (the γ-fallthrough, FINDING §7), and `test_bench_snobol4_modes.sh` scores CRASH on `rc != 0`, so the suite read **OK=0 CRASH=22** while 18 of the 22 were emitting byte-correct stdout.  Any "bench N/21" figure recorded in a cursor before 09f was read through that broken instrument and must not be treated as a baseline.  Post-GAMMA-EXIT floor, measured and re-proved post-rebase: **OK=17 FAIL=0 CRASH=5** (eval_dynamic hang + the pattern-family m4 SEGVs, which are the FR(op_off) positive-home class routed to OS-2).
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s34b (Sonnet 4.6 — DEMO BENCHMARKS MEASURED + README UPDATED; SCRIP `d2328f8`)
+
+**WATERMARK (re-proved post-rebase onto AB-3b `69ab50b`):** m3 **136/15/0/0** · m4 **135/16/0/0** · 0 REGRESSION both modes.
+
+**BENCHMARK SESSION.** Six IDENT-both-modes pattern demos (the fifteen working-set programs that pass board_sno15_ident):
+- Counter-driven loop (`BN.I = BN.I + 1 / LT(BN.I,N)`) — NOT the standard `reps LEN(1) =` rail harness shape, which SEGVs SCRIP at N=1 (REPLACE positive-home family, 4-line witness, same class as roman/string_pattern).
+- N=2000 (calculator-1-match N=200); window adequacy proved by N=400→2000 convergence (max drift 0.06).
+- `TIME()` brackets match loop only; startup + pattern-blob compile excluded.
+
+| demo | N | SPITBOL | SCRIP m4 | ratio |
+|---|---:|---:|---:|---:|
+| claws5-match | 2000 | 503 ms | 312 ms | **1.61x** |
+| claws5-match-fence | 2000 | 549 ms | 326 ms | **1.68x** |
+| treebank-match | 2000 | 1391 ms | 1330 ms | **1.05x** |
+| treebank-match-fence | 2000 | 1652 ms | 1053 ms | **1.57x** |
+| calculator-1-match | 200 | 8881 ms | 6655 ms | **1.33x** |
+| calculator-1-match-fence | 2000 | 1805 ms | 1838 ms | 0.98x |
+
+**vs 07-24 `a0b9aa41` rail table:** treebank 0.37x→1.05x (+2.8x); calculator-1 0.47x→1.33x (+2.8x); claws5 1.39x→1.61x (+16%). Why: ARBNO chain killed by ARBNO-LON (`c7a276f6`, 08-06) is the named hypothesis — conviction requires `SCRIP_ARBNO_K16=0` A/B on treebank-match, NOT YET RUN.
+
+**PARALLEL SEAT:** AB-3b call-site flip landed (`69ab50b`) while this session ran — rebased cleanly.
+
+**NEXT:** Lon directive from s34 close — parallel work is rewriting constant-folded patterns to NOT use RBP; orient against that rewrite at session open before any pattern work. Re-prove watermark. Consider running `SCRIP_ARBNO_K16=0` A/B to convict/exonerate ARBNO-LON as the 2.8x treebank gain.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s34 (Sonnet 4.6 — MV-BASE + EXPR-CLASSP LANDED; SCRIP `a5c2264`, corpus `a3f11df`)
 
 **WATERMARK at open (s33 HEAD re-proved):** m3 **136/15/0/0** · m4 **135/16/0/0** · 0 REGRESSION both modes (150-probe suite).
