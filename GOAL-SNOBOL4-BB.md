@@ -11,6 +11,21 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 ## ⛔ DEFINITION OF DONE (HQ 2026-08-03e) — "ω for every box"; before all six, report the fraction, never the word
 1. `SCRIP_UNWIND` default ON tree-wide + U-3 deletions landed. 2. ω-coverage = 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 3. Orphan-adds = 0 outside the whitelist (⛔ audit the whitelist first — SHED-5 landed, the rsp,8 entry may be stale-permissive). 4. UCLAIM census = 0 (`zvo_uclaim_k` returns 0 every run; loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — the single-space spelling is a FALSE INSTRUMENT). 5. Wall census == framed-enter count over the framed constructs. 6. xc318 BY SET ≥ baseline both modes · rc=139 tail cleared · bench 18/22 hold-or-better · regen ×4.  **⭐ CORRECTION (09f, measured): the denominator is 22, not 21** — `corpus/benchmarks/snobol4/` holds 22 `.sno`, and `indirect_dispatch` carries an `.xfail`.  **AND THIS CRITERION WAS UNREADABLE UNTIL 09f:** every program exited 1 (the γ-fallthrough, FINDING §7), and `test_bench_snobol4_modes.sh` scores CRASH on `rc != 0`, so the suite read **OK=0 CRASH=22** while 18 of the 22 were emitting byte-correct stdout.  Any "bench N/21" figure recorded in a cursor before 09f was read through that broken instrument and must not be treated as a baseline.  Post-GAMMA-EXIT floor, measured and re-proved post-rebase: **OK=17 FAIL=0 CRASH=5** (eval_dynamic hang + the pattern-family m4 SEGVs, which are the FR(op_off) positive-home class routed to OS-2).
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s34 (Sonnet 4.6 — MV-BASE + EXPR-CLASSP LANDED; SCRIP `a5c2264`, corpus `a3f11df`)
+
+**WATERMARK at open (s33 HEAD re-proved):** m3 **136/15/0/0** · m4 **135/16/0/0** · 0 REGRESSION both modes (150-probe suite).
+**WATERMARK at close:** m3 **136/15/0/0** · m4 **135/16/0/0** · 0 REGRESSION both modes.
+
+**LON DIRECTIVE (session close):** parallel work is rewriting CONSTANT FOLDED patterns and other code to NOT use RBP. The two fixes below address symptoms of that rewrite's customer; the rewrite supersedes them. Next session must orient against that rewrite's state before touching pattern emission.
+
+**MV-BASE LANDED (SCRIP `5caf44a`):** `bb_match_value` both consumer leas switched from `x86_zref(x86_frame_off_rsp(op_a_slot),1)` to `FRQ(op_a_slot)` — THE ONE OFFSET FUNCTION. Root: PB-2 forced the rsp arm; producer stores `[rbp+slot]` (pinned, depth-immune); inside ARBNO bodies rsp has moved → SAME-OFFSET≠SAME-OBJECT → garbage DESCR → `rt_defer_close` strlen SEGV. gdb-bracketed. Witnesses `mv_arbno_callcap` + `mv_valheld_cap` in corpus/probe with sbl refs.
+
+**EXPR-CLASSP LANDED (SCRIP `a5c2264`):** role-3 WIRE-ADOPT prepended to every `EXPR$` thunk graph so CLASS P floor predicate fires → `bb_glue_wire_γ/ω` → `rt_flat_ret_snap` → adopted wires, replacing fossil CLASS C exit (`mov eax,2; ret` against an rbp no prologue established). Root: every caller is the dcap pump wire loop (pcall record always open); thunk exited past it. GLUE-SYM disease. h1/h2/d7 witnesses correct.
+
+**BOARD (board_sno15_ident, TMO=45):** 9/15 IDENT both modes (claws5-match/-fence, treebank-match/-fence, calculator-1×3). Remaining: base claws5 m3 SEGV + m4 dup-label; treebank-list/array m3 DIVERGE + m4 CRASH; calculator-2×3 DIVERGE; json-match×2 timeout. All are parallel-rewrite customers per Lon directive.
+
+**NEXT:** Read parallel-rewrite state; re-prove watermark against it; verify MV-BASE/EXPR-CLASSP subsumed or byte-identical revert before further pattern work.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s33 (Sonnet 4.6 — ZD-8·STFH-CARVE LANDED; SCRIP `9e401158`, corpus `df66eec1`)
 
 **ZD-8·STFH-CARVE LANDED.** FINDING-2026-08-09g §5 fix. `emit_match_begin_stfh_k()` ONE AUTHORITY in `emit.cpp`; `zd_k` IR_MATCH_BEGIN calls it; `bb_match_begin.cpp` template calls it; `zdh_match = zd + K` so STATEMENT_END's gpop includes the stfh carve bytes that survive MATCH_END's zls2_mark restore. Witness `zleak_matchbegin_stfh` rc=0 at 3M iterations; retired from XFAIL both modes. `SCRIP_OS_CAP=0` byte-identical. regen ×3.
