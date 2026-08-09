@@ -5,12 +5,25 @@
 
 **CHARTER (Lon directive, 2026-08-07):** Walk Prolog to 100% per-BB allocation on the RSP-topped FORTH-style stack — the SAME ZD machinery SNOBOL4 built and Icon is completing (`GOAL-ICN-ZETA-CELLS.md` is the template; read it first every session). This is the ZD ladder's Prolog completion, not a parallel mechanism. Concurrent twin: `GOAL-PL-ZFRAME-RESTORE.md` (FRAMES on STACK) — BOTH KEPT, switch-selected, one graph NEVER in both arms, until Lon picks a default. Routing mirrors the Icon R-ZK-A ruling: the cells opt-IN suppresses the zframe stamp at the SAME LOWER site, A/B = one env var.
 
-## ⛔⭐ LIVE CURSOR — s11 (2026-08-08, Claude Sonnet 4.6 — ZK-5B FULL ROOT CAUSE CHAIN FOUND; ALL CODE REVERTED, TREE CLEAN AT `32dc2e0b`)
-**ZK-0/ZK-1/ZK-2/ZK-3/ZK-4 ALL COMPLETE. ZK-5 IN PROGRESS — NEXT RUNG = ZK-5B: three edits correct (emit.cpp + bb_call_fn.cpp), one more required (bb_call_proc_staged.cpp gen-arm cells path). See s11 findings below.**
+## ⛔⭐ LIVE CURSOR — s12 (2026-08-08, Claude Sonnet 4.6 — ZK-5B ATTEMPTED; FALSE POSITIVE CAUGHT; TREE CLEAN AT `c09012d5`)
+**ZK-0/ZK-1/ZK-2/ZK-3/ZK-4 ALL COMPLETE. ZK-5 IN PROGRESS — NEXT RUNG = ZK-5B: all four bugs attempted; false positive measurement caught before commit; Bug 2a conflict open. See s12 findings below.**
 
-**⭐ s11 RULING: Lon said to proceed with Option A. Option A is CORRECT and the three primary edits are verified correct in isolation. The fourth edit (bcps_spine_gen_arm) is needed to complete the rung.**
+**⭐ s12 WATERMARKS (HEAD `c09012d5`, -O0, TIMEOUT=6s):** bench-22 cells=0 PASS=12 FAIL=10 == cells=1 PASS=12 FAIL=10 (byte-identical — HEAD unchanged, no regression introduced). PL coupling gate PASS. SN4 smoke PASS=6. Key witnesses: nrev PASS cells=0/1; fib PASS cells=0, FAIL cells=1 (pre-existing at this HEAD — confirmed by stash A/B test).
 
-**⭐ s11 WATERMARKS (HEAD `32dc2e0b`, -O0, TIMEOUT=6s):** bench-22 cells=0 PASS=12 FAIL=10 == cells=1 PASS=12 FAIL=10 (byte-identical). PL coupling gate PASS. Prolog rung m3: PASS=133 FAIL=31 (parallel sessions improved from s10's 122). SN4 smoke: PASS=6 FAIL=1 (pre-existing pattern).
+**⭐ s12 ATTEMPTED FIXES — FALSE POSITIVE CAUGHT BEFORE COMMIT:**
+Five files edited (emit.cpp ×3, bb_call_fn.cpp ×1, bb_lit_scalar.cpp ×1, bb_var.cpp ×1, bb_var_ref.cpp ×1). First bench-22 cells=1 run returned PASS=12 — appeared correct. Rebuild revealed the test ran against the OLD binary (make had not yet rebuilt). Re-test with rebuilt binary: PASS=5 FAIL=17. All working-tree changes reverted. Tree clean at `c09012d5`.
+
+**⭐ s12 BISECT RESULT — BUG 2A IS THE REGRESSION SOURCE:**
+`SCRIP_ZD_PL_CBP=0` (disables all Prolog ZD admission) restores fib to PASS at cells=1. This pins the regression to Bug 2a: `zd_k($trail_mark) return 0` on `pl_cells_graph`. The conflict: `zd_plan` is called BEFORE the carve and uses `zd_k` internally to accumulate `zd_out[]` depths. If `zd_k` returns 0 for trail_mark, `zd_plan` already computes all downstream `zd_out[]` offsets WITHOUT trail_mark's 16B. The proc-entry carve (`_plk`) is also computed via `zd_k` — so K_total decreases by 16B and `sub rsp,K_total` carves 16B less. But the ZOPQ depth differences (`zd_out[consumer] - zd_out[producer]`) were computed by `zd_plan` WITH the corrected K=0 — they should be self-consistent. ROOT CAUSE NOT YET ISOLATED — the bisect proves Bug 2a causes the regression but the precise mechanism (depth model inconsistency vs template read offset vs carve/release mismatch) was not traced within context budget.
+
+**⭐ s12 NEXT SESSION PROTOCOL:**
+(1) Re-derive watermarks at new HEAD (concurrent sessions continue landing). (2) Isolate Bug 2a with census: `SCRIP_ZD_CENSUS=1 SCRIP_PL_CELLS=1 ./scrip --run fib.pl 2>&1` — compare armed/K_total with and without the `zd_k` trail_mark K=0 edit. (3) Check `zd_plan` source (~line 1974): confirm it calls `zd_k` for depth accumulation — if yes, Bug 2a is self-consistent in the planner and the regression is elsewhere (likely the template arm or the carve/release boundary). (4) Apply Bug 1 fix ALONE and verify bench-22 cells=1 is ≥ baseline before adding Bug 2a. (5) If Bug 2a is confirmed broken: Lon decision required — either (a) abandon K=0 for trail_mark and use a different mechanism to prevent the FRQ/ZRES mismatch, or (b) trace the exact depth disagreement and patch it.
+
+**⭐ s12 BUG 1 FIX — CORRECT DESIGN, NOT YET ISOLATED:**
+LP-2 `flat_all_zd` loop: skip nodes with `zd_out[_i]==-1` (never visited by any run — `zd_plan`'s init sentinel) on `pl_cells_graph`. The prior `!zd_wl_kind` guard is INSUFFICIENT: admitted K=0 nodes (DISJUNCTION n_operands==0, MOVE_LABEL) that are unreachable in the RPO chain (e.g. retry DISJUNCTION in `$reverse_/3`) have `zd_out=-1` and `zd_on=0` and wrongly veto `flat_all_zd`. The `zd_out==-1` sentinel is the exact "never visited" marker set by `zd_plan` init. This edit is independent of Bug 2a and safe to land first.
+
+**⭐ s12 BUG 4 OPTION C — DESIGN CORRECT, DEPENDS ON BUG 2A RESOLUTION:**
+Dual-write pattern (bb_lit_scalar.cpp/bb_var.cpp/bb_var_ref.cpp): when `pl_cells_graph && op_zres && op_off>=0`, write result to BOTH `ZRES(0/8)` (cells spine) AND `FRQ(op_off+0/8)` (ZLS rbp-relative slot). `bcps_spine_gen_arm` reads args via `stage_arg_inline→FRQ(slot)`. Without dual-write, FRQ holds NULVCL and generator calls bind wrong args. Design is correct but inert until Bug 2a (which gates `flat_all_zd=1`, which is required for the gen-arm cells path to fire) is resolved.
 
 **⭐ s11 COMPLETE ROOT CAUSE CHAIN — THREE BUGS FOUND AND FIXED (then reverted together because fix 4 not yet complete):**
 
