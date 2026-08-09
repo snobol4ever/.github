@@ -5,28 +5,29 @@
 
 **CHARTER (Lon 2026-08-08):** walk the ENTIRE SNOBOL4 language bottom-up at the sole ζ-cells-on-stack regime (selectors deleted, SCRIP `de837576`): stop at first failing rung, MONITOR-FIRST, fix, one FINDING per land mine, XFAIL shrinks monotonically (removed in the SAME commit as the fix), move up. Summit = EVAL/CODE/EXEC + beauty drivers + xc318 ≥ pre-flip both modes. Twin: `GOAL-SN4-ZETA-MECH.md` owns STRUCTURE; this file owns CORRECTNESS. A defect whose fix needs new protocol = MECH rung (cross-request both cursors). Protocol: RULES.md (monitor scripts §1: `test_monitor_2way_sync_step_bin.sh` / 3-way PARTICIPANTS · offline `probe.py` &STLIMIT+&DUMP replay bisect · gdb spin-counter, HW watchpoints DEAD in container, `CSN_NO_SEGV_HANDLER=1`/`SCRIP_NO_SEGV_HANDLER` clean-bt · `setarch -R`). Oracle: `/home/claude/x64/bin/sbl -b f.sno`; corpus paths CORPUS-LOCATIONS.md; suite `corpus/probe/bb/run_suite.sh` (m3) + `MODE=compile` (m4).
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s33 (Sonnet 4.6) [H29 CLOSED — FENCE1 U-2 dual-slot watermark; t6m collateral; SCRIP `40b9e2e7`, corpus `075070df`]
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s34 (Sonnet 4.6) [dc_sib_bt CLOSED — ZGPOP-BLOB: ARB ζ-cell overwritten by resume record; zleak_matchbegin_stfh collateral; SCRIP `24b54c50`, corpus `f8f7513a`]
 
 **WATERMARK (post-session, 0 regressions):**
-- m3: **135**/16xf/0/0R
-- m4: **134**/17xf/0/0R
+- m3: **136**/15xf/0/0R
+- m4: **135**/16xf/0/0R
 
-**H29 ROOT CAUSE (measured, MONITOR-FIRST):** `bb_match_fence1` U-2 path pushes inner frame (inner_rbp=outer_rbp−32). `fence_release` in inner-frame paths used `FRQ(op_off)=[rbp+op_off]` with inner rbp → resolved to `[outer_rbp+op_off−32]` = ALTERNATE's saved-r14 cursor slot, not the saved rsp. Loading that cursor value into rsp → crash at next memory access. Bracket: PARTIAL EOF step 4 (scr crash), csn at `VALUE OUTPUT = STRING(2)='ab'`.
+**dc_sib_bt ROOT CAUSE (measured, MONITOR-FIRST spl vs scr):** DEFER fast path (GVA cell hit → `jmp rax` into `proc_PAT$0` blob wrapping ARB). `zd_plan` computes `zd_gp[arb]=16` for the blob graph (CARVE-DATA-ERAD deleted the jmp-entry veto). ZGPOP-STF choke at emit.cpp:841 staged `op_zgpop=16` (only flat_stmt_frame was zeroing it). On blob γ, the x86_asm.h:2263 hook fired `add rsp,16` BEFORE `proc_PAT$0_γ`'s `push rbp; push rax` resume record. The push then landed at `rsp_blob` (ARB-cell location), overwriting the cell. On β re-entry via `jmp [rsp]` → `proc_PAT$0_res` (add rsp,8; pop rbp) → fall-through to `proc_PAT$0_β`, rsp was at `rsp_blob` instead of `rsp_blob−16`. ARB β read `[rsp+0/+4]` 16B above the cell into the blob frame header → garbage counter/start cursor → r14 wrong → `rt_cap_open` got stale saved_delta=0 → X='' on re-entry, crash (rc=139). Monitor bracket: DIVERGE step 8, stno=3, spl `VALUE X=STRING(1)='A'` vs scr `VALUE X=STRING(0)=''`.
 
-**H29 FIX:** Dual-slot save in `fence_mark_save`. U-2 arm writes pre-fence rsp to both `FRQ(off)=[outer_rbp+off]` and `FRQ(off+32)=[outer_rbp+off+32]` before framed_enter. `fence_release` always reads `FRQ(off+32)`: with inner frame live `[inner_rbp+off+32]=[outer_rbp+off]`=slot-1 ✓; with outer frame `[outer_rbp+off+32]`=slot-2 ✓. Both are pre-fence rsp. No alias: inner nodes start at `outer_rbp+op_off−32`, slot-2 at `outer_rbp+op_off+32` — 64B gap. FINDING: `FINDING-2026-08-09-CLAUDE-SN4-CLIMB-H29-FENCE1-U2-DUAL-SLOT-WATERMARK-ALIAS.md`.
+**dc_sib_bt FIX:** One conjunct added to the ZGPOP-STF choke (emit.cpp:841): `(g_emit.flat_stmt_frame || (g_emit.flat_jmp_entry && g_emit.flat_pat)) ? 0 : g_zd_gpop`. CLASS D blobs must retain all ζ-cells across γ so the resume record pushes at true deep frontier. The blob ω unwinds absolutely (`lea rsp,[rbp+kt]`) — no γ-free needed or safe. ONE AUTHORITY at the choke per ZGPOP-STF precedent. FINDING: `FINDING-2026-08-09-CLAUDE-SN4-CLIMB-DC-SIB-BT-ZGPOP-BLOB-ARB-CELL-OVERWRITTEN-BY-RESUME-RECORD.md`.
 
-**t6m COLLATERAL:** Same U-2 alias class. XPASS both modes, retired from XFAIL.
+**zleak_matchbegin_stfh COLLATERAL:** Parallel session fix had already landed. XPASS both modes at open, retired from XFAIL same commit per RULES.md §4.
 
-**XFAIL retired this session:** H29 and t6m both modes.
+**XFAIL retired this session:** dc_sib_bt (passes via fix, was not in XFAIL — was crashing externally). zleak_matchbegin_stfh both modes (parallel XPASS, removed from XFAIL.run + XFAIL.compile).
 
 **C-7 RUNG UPDATE:**
-- H29 **CLOSED** (this fix).
-- t6m **CLOSED** (collateral).
-- **Remaining C-7 open:** H21 (FENCE1 over deferred ALT — probe before inheriting D-gate), dc_sib_bt (defer-β re-yield; sibling ARBNO capture, witness committed `corpus/226f904b`).
+- H29 **CLOSED** (s33 FENCE1 U-2 dual-slot watermark fix).
+- t6m **CLOSED** (s33 collateral).
+- dc_sib_bt **CLOSED** (this fix — ZGPOP-BLOB).
+- **Remaining C-7 open:** H21 (FENCE1 over deferred ALT — probe before inheriting D-gate).
 - X08 (ARBNO with ITEM=SPAN) pre-existing CRASH on HEAD — not gated here.
 - Nested-ARBNO class H24/H25/X02/X06/X11 remain structural (lower-side sno_seq_nary).
 
-**NEXT:** dc_sib_bt (defer-β re-yield, sibling ARBNO capture) or H21. MONITOR-FIRST per RULES.md.
+**NEXT:** H21 (FENCE1 over deferred ALT — probe first, then determine if D-family gate applies). MONITOR-FIRST per RULES.md.
 
 **N21 ROOT CAUSE (measured, MONITOR-FIRST):** `bb_match_arbno_frameless()` (ARBNO-LON K0 arm) missing right-spine RSP compensation. When `RPOS(0)`'s `LIT_INTEGER` arg does `sub rsp,16` and RPOS fails, β re-enters PAIR(2)/as with RSP displaced 16B below the ARBNO cell — `[rsp+4]` reads garbage, stall check bogus, yield-cursor write corrupts LIT_INTEGER's frame, ARBNO loops on same cursor until CAS mark limit fires (~3s) → `=F`. Monitor bracket: DIVERGE step 4, stno=3.
 
