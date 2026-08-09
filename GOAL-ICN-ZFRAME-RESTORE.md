@@ -8,12 +8,25 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
 
-## ⛔⭐ LIVE CURSOR — s14 (2026-08-08, Sonnet s14 — FR-5: orientation + bisect; watermark re-derived; SCRIP `c09012d5`)
-**NEXT RUNG = ICN-FR-5 (continuing — 10 in-scope fails remain).** Watermark re-derived at HEAD `c09012d5`: **m3 PASS=243 FAIL=20 XFAIL=30 TOTAL=293**. SN4 R-ICN-D: roman.sno md5 `e02da06b49f64c44168830cff34bba94` byte-identical with/without zframe (`SCRIP_ICN_ZFRAME=0`). Repro quartet f0/f1/gen/fib ALL GREEN m3.
+## ⛔⭐ LIVE CURSOR — s15 (2026-08-09, Sonnet s15 — FR-5: two root causes fixed; watermark 243→246; SCRIP `f43989e0`)
+**NEXT RUNG = ICN-FR-5 (continuing — 7 in-scope fails remain).** Watermark at HEAD `f43989e0`: **m3 PASS=246 FAIL=17 XFAIL=30 TOTAL=293**. SN4 R-ICN-D: roman.sno md5 `e02da06b49f64c44168830cff34bba94` byte-identical with/without zframe. Repro quartet f0/f1/gen/fib ALL GREEN m3.
 
-**WATERMARK ANATOMY:** 20 FAILs = 10 die-list (out-of-scope, belong to GOAL-ICON-BB FAIL-ZERO) + **10 in-scope residual**. subjpos now PASSES (was in die-list — cured by DT_FAIL fix in s13). Distance to anchor parity: **9** (243+9=252).
+**TWO ROOT CAUSES FIXED THIS SESSION (SCRIP `f43989e0`):**
 
-**10 IN-SCOPE FAILS (FR-5 work queue):** rung36_jcon_{cxprimes, genqueen, level, lexcmp, lists, numeric, parse, prepro, recogn} · rung37_proc_lookup. All jcon-cluster or proc-lookup shaped. **Next priority: MONITOR-FIRST on rung36_jcon_parse** (s13 cursor: "10 vs 11 lines — minimal diff, likely one missing output line from a construct" — smallest diff, fastest to close).
+**BUG-1 FIXED — IR_CALL_VALUE drive never set g_emit.op_sval (emit.cpp).** Binary `!` (apply, `f![g]`) is lowered as `IR_CALL_VALUE` with `IR_LIT(nd).sval="apply"`. The `bb_call_value` template's `cv_is_apply()` routes to `rt_call_apply_spine_prep`/`rt_call_apply_gen_h` which correctly unpack the rhs list before calling the callee. But `g_emit.op_sval` was never set for IR_CALL_VALUE, so `cv_is_apply()` was always false and the apply path was dead. `f![g]![2]` silently failed. Fix: one line `g_emit.op_sval = IR_LIT(nd).sval` in the IR_CALL_VALUE drive case. Cured `rung36_jcon_{parse, lists, numeric}` (+3 PASS).
+
+**BUG-2 FIXED — DT_E = 11 in rtx_icncall.S (stale pre-s229 tag; live value 0x38).** RTX gate `icncall` is ON by default. The asm minted `rt_proc_value` descriptors with tag `0x0B` instead of `0x38`. `procval_name()` checks `v.v != DT_E (0x38)` and rejected every PROC_VALUE descriptor → every bare procedure reference typed as "string" → `type(g) == "string"` not "procedure". The C fallback was correct; the asm optimisation silently corrupted every proc-value. Fix: `#define DT_E 0x38` (cited descr.h line 58). The `_Static_assert` in rtx_init.c cannot reach asm `#define`s — this is the structural gap. Also updated rtx_abi.inc comment with live tag values and ⛔ warning. ⚠ rtx_icnrel.S DT_S=1/DT_I=6 and rtx_icnagg/icnsub.S DT_DATA=100 are also stale (live: DT_S=0x02, DT_I=0x03, DT_DATA=0x70) — left for their own goal sessions.
+
+**WATERMARK ANATOMY:** 17 FAILs = 10 die-list (out-of-scope) + **7 in-scope residual**. Distance to anchor parity: **6** (246+6=252).
+
+**7 IN-SCOPE FAILS (FR-5 remaining work queue):**
+- `rung36_jcon_recogn` — TIMEOUT (recursive suspend: `s()` calls itself inside suspend — MONITOR-FIRST gdb spin on `proc_s_α`)
+- `rung36_jcon_cxprimes` — 3L/25L: primes generator stops after 3 primes. Co-expressions + suspend shape.
+- `rung36_jcon_genqueen` — 0L: n-queens generator produces nothing. Suspend/fail-chain shape.
+- `rung36_jcon_level` — RUNAWAY 9M lines: `suspend E do write(&level)` infinite loop. Known s11 BUG-2 (rsp-drift per β iteration).
+- `rung36_jcon_lexcmp` — 36L=36L, diff on cset image: `'x'` vs `"x"`. Pre-existing `image()` cset-vs-string quoting. Not a frame defect.
+- `rung36_jcon_prepro` — 28L/7L extra: `if s == &features` condition's else-branch fires for all features when `p` is null (preprocessor undefined-symbol interaction). MONITOR-FIRST.
+- `rung37_proc_lookup` — double-execute: fall-off-end proc called twice (DC stub β-resume). Pre-existing; verified unchanged pre/post this session. MONITOR-FIRST gdb on `proc_p_dcα`.
 
 **10 DIE-LIST FAILS (out-of-scope):** rung36_jcon_{args, endetab, fncs1, kwds, mathfunc, mindfa, scan, scan1, scan2, var} — pre-existing FZ-B/C/E jcon clusters in GOAL-ICON-BB FAIL-ZERO ladder.
 
