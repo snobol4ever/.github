@@ -17,9 +17,37 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s11 (2026-08-08, Sonnet 4.6 — FR-4 WIP committed (9eebcbbb); bench m3+m4 6/22; NEXT = fix clause-2-never-fires in pl_zf_resume β path)
+## ⛔⭐ LIVE CURSOR — s12 (2026-08-09, Sonnet — FR-4: the β arm was UNREACHABLE; three defects fixed (`8cf87d3a`); bench m3+m4 6/22 unchanged; NEXT = the n0/$trail_mark clobber)
 
-## ⛔⭐ LIVE CURSOR — s11 (2026-08-08, Sonnet 4.6 — FR-4 WIP committed (9eebcbbb); bench m3+m4 6/22; NEXT = fix clause-2-never-fires in pl_zf_resume β path)
+**s12 HEAD at session end: `8cf87d3a`** (on top of parallel `76c0e95f`). Bench watermark re-derived: **m3+m4 6/22** (cal, deriv, fib, nrev, qsort, tak) — UNCHANGED. This session made a DEAD ARM REACHABLE; it did not by itself fix a program. Said plainly so the next walker does not read progress into the number.
+
+**⭐ THE s11 ARM WAS NEVER SELECTED — root cause of clause-2-never-fires.** `pl_zf_resume` keyed on `g_emit_cfg->resume_slot`, i.e. the **CALLER** graph. For `main :- p(X),...` the caller is `main/0`, non-suspending, `resume_slot == 0` → the predicate was false at EVERY Prolog generator call site, and control fell through to the non-zframe β path (`mov rsp,FRQ(act+8); jmp [rsp]`) straight into the callee's dead C frame. **This is the same defect class as ICN-FR-5 BUG1** (which fixed `zf_resume` from caller-flag to `zls_g_icn_zframe_gen_by_name(callee)`); the Prolog twin never got the matching correction. Now keyed on `zf_cont_off` (= `zls_g_resume_by_name(callee)`), already computed two lines above — callee lookup, one authority.
+
+**THREE DEFECTS FIXED (all in `8cf87d3a`, all gated, tri-language byte-identical):**
+1. `bb_call_proc_staged.cpp` — `pl_zf_resume` caller→CALLEE flag (above).
+2. `zeta_storage.c` — added `zls_g_pl_zf_trail_mark_off_by_name` (mirrors `zls_g_icn_zframe_gen_by_name` verbatim). `pl_tm_off` had the identical caller-graph bug. The `zls_graph_t.pl_trail_mark_off` comment already *promised* this lookup; it did not exist.
+3. `bb_suspend.cpp` — **r11 is the PLT scratch register.** The intercept held the cursor in r11 across `call rt_pl_zf_resume_clear`; gdb caught `rip=0x202, r11=0x202`. Moving it to rax failed too (void C call may clobber the return reg; gdb then showed rip on the DATA address of `g_pl_zf_pending_cursor`). Fixed by persisting the cursor to `FRQ(op_sb)` BEFORE the call — the slot `rt_jmp_frame_lexprep2` already wrote with the same value, so the store is idempotent — then `jmp FRQ(op_sb)`. **RULE FOR THIS LADDER: no live value crosses a C call in a register; park it in the frame.**
+
+**PROOF THE ARM FIRES** (`bt_debug.pl` = `p(1). p(2). p(3). main :- p(X),write(X),nl,fail.`):
+- BEFORE: `push3` once → prints `1` → **HANG (rc=124)**, `pop3` never called.
+- AFTER: `push3` → `pop3` → `lexprep2` applies pending cursor (rs=784) + trail (tm_off=32) → `bb_suspend` intercept fires → clause 2 entered. No SEGV, no hang.
+
+**⛔ THE REMAINING BLOCKER — `n0` CLOBBERS THE RESTORED TRAIL MARK.** On β-resume the fresh frame re-runs `n0` (`$trail_mark`), which records the CURRENT (empty) trail top = **1** and overwrites the mark = **3** that `lexprep2` restored into `[rbp+32]`. `$unwind_nothrow` at clause-2 entry then unwinds to 1 = **a no-op**; `X` stays bound to clause 1's value, and clause 2's unification fails (rc=1, only `1` printed). Witness, from a print in `dop_unwind_nothrow`: `[DBG unwind] mark=1 trail_top=1`.
+
+**⛔ AN INTERCEPT INSIDE `rt_pl_dop_trail_mark` DID NOT FIRE AND WAS REVERTED, NOT COMMITTED.** Two guard spellings tried (with and without the `g_pl_zf_pending_cursor` conjunct — the cursor is already cleared by the `bb_suspend` intercept before `n0` runs, so that conjunct is wrong); the debug print never appeared either way. **CONCLUSION: `$trail_mark` reaches the trail through a DIFFERENT dispatch route than `rt_pl_dop_trail_mark`.** `by_name_dispatch.c:2599` carries a direct-dispatch `strcmp(fn, ...)` ladder — READ THAT FIRST next session; do not re-try the `rt_pl_dop_trail_mark` intercept before you have proven which route `$trail_mark` actually takes (MONITOR-FIRST / breakpoint, not a third guess).
+
+**NEXT SESSION TASKS (in order):**
+1. `git pull --rebase`; rebuild; re-derive watermark (expect 6/22; `8cf87d3a` is the cursor).
+2. Find the LIVE `$trail_mark` route: breakpoint every candidate in `by_name_dispatch.c` (start at the :2599 direct ladder) on `bt_debug.pl`. Name the route before editing it.
+3. Fix the clobber AT THE CANONICAL SHAPE, not with a runtime special case: gprolog stores `TRB` **in the choice-point record** (`wam_inst.h:102`, restored by `Pl_Untrail(TRB(cur_B))` at `wam_inst.c:1430`) and never re-derives it from the retried frame. SCRIP's triple already carries `tm_lo/tm_hi` — the frame slot should be written from the triple AFTER `n0` runs, or `n0` suppressed on the resume path. Prefer suppressing the re-run over patching the value.
+4. Re-measure; target 12→15+/22 (nreverse, queens-class, sendmore).
+5. SN4+ICN byte-identity before every behavioral commit.
+
+**⭐ BYTE-IDENTITY METHOD (s12 — adopt this, raw md5 is a FALSE WITNESS).** Mode-4 `.s` carries ASLR-varying `movabs` immediates and `.S*/.string` blobs: **the identical binary produces a 14-line diff run-to-run.** Normalize before comparing:
+```
+sed -E 's/movabs +([a-z0-9]+), [0-9]+/movabs \1, ADDR/; s/^\.S[0-9]+: +\.string .*/.SN: .string BLOB/'
+```
+s12 witnesses (patched vs stashed, same tree): SN4 `roman.sno` = `c7366400a702b127fc9704c082d8e0f0` · **Icon `generators.icn` = `6d9e7dcd21d36c301c1b46f63e2700eb`** — identical both ways. `generators.icn` is the load-bearing Icon witness because it exercises `IR_SUSPEND`, the template s12 edits.
 
 **s11 HEAD at session end: `9eebcbbb`** (PL-FR-4 WIP: zframe β-resume infrastructure). Bench watermark: **m3+m4 6/22** (unchanged — clause-2-never-fires blocks backtracking predicates). SN4 beauty.sno BROKEN ON HEAD (pre-existing `f6b93e6c` parallel session regression in bb_match_end — not our change).
 
