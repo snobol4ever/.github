@@ -5,21 +5,24 @@
 
 **CHARTER (Lon directive, 2026-08-07):** "I still want a COMPLETE ZETA CELLS on the STACK solution. Scan what SNOBOL4 has been doing to convert to 100% per-BB allocation on the RSP-topped FORTH-style stack… Make a plan for Icon to use RSP-topped stack with per-BB allocation, handle procedure locals (LVA) and globals (GVA). We have R13-R15 for the BB_SCAN_* family. For the 100% CELLS on stack all must be in separate pthreads or we'll use the more complicated ARBNO-style constructs. Whichever." This ladder walks Icon to 100% on the SAME ZD machinery SNOBOL4 built — it is the ZD ladder's Icon completion, not a parallel mechanism.
 
-## ⛔⭐ LIVE CURSOR — s225 (2026-08-08, Claude Sonnet 4.6 — ZK-2 flat_lcl_proc FIX LANDED; SCRIP `0d8e6588`)
-**NEXT RUNG = ZK-2 (continue — flat_lcl_proc fix landed +15 gain (212→227); residual: 0-param/0-local cells-arm procs called from a ZD-spine context segfault — [rbp+24] γ-wire corrupted; find and fix).**
+## ⛔⭐ LIVE CURSOR — s226 (2026-08-09, Claude Sonnet 4.6 — ZK-2 OUTER-MAIN FRAME FIX LANDED; SCRIP `096ac729`)
+**NEXT RUNG = ZK-2 (continue — residual: 11 programs still CELLS=1-only FAIL not in default FAIL; IR_MAKE_LIST, IR_DISJUNCTION n-ary, unpinned IR_VAR_REF remain open from s222 cursor; ZK-6 suspension decision is the common blocker for n-ary disjunction and unpinned VAR_REF).**
 
-**SESSION FINDINGS (s225):**
-Watermarks re-derived at `c1497d39` (HEAD at open): default m3 **PASS=207 FAIL=56 XFAIL=30** · CELLS=1 m3 **PASS=212 FAIL=51 XFAIL=30** — matches s224 exactly.
+**SESSION FINDINGS (s226):**
+Watermarks at open (post-git-pull, HEAD `64e1bcbf`): default m3 **PASS=243 FAIL=20 XFAIL=30** · CELLS=1 m3 **PASS=227 FAIL=36 XFAIL=30** — matches s225 cursor exactly (parallel sessions added 36 programs to default arm, CELLS arm held).
 
-**ROOT CAUSE FOUND AND FIXED (`0d8e6588`):**
-`flat_lcl_proc` at `emit.cpp:2990` was gated on `(nparams>0||nlocals>0)`. A 0-param/0-local `icn_cells_graph` proc (e.g. `inc()` in rung21, `noop()`) got `flat_lcl_proc=0`. With `zframe_graph` also suppressed by R-ZK-A, no wire-header frame was carved and all CLASS ZF guards failed — proc fell through to CLASS P / Prolog DC stub (`rt_pl_dc_prep`), Prolog `mov rsp,rbp; pop rbp; ret` epilogue, and `jmp proc_inc_α_body` (not `proc_inc_α`). The fix adds `||g_emit_cfg->icn_cells_graph` to the `flat_lcl_proc` condition — cells-arm procs unconditionally need the wire-header frame and CLASS ZF exit. ONE LINE, ONE AUTHORITY. Additive: `icn_cells_graph=0` for SN4/Prolog/Raku/Pascal → byte-identical.
+**ROOT CAUSE FOUND AND FIXED (`096ac729`):**
+The outer `main` graph on the cells arm (flat_jmp_entry=0, icn_cells_graph=1) fell through to GLUE-O (push rbp; sub rsp,8) instead of the flat_lcl_proc prologue. Result: 16-byte frame while FRQ node slots reach [rbp+184+], corrupting the C caller's frame and clobbering rbp with a DT_INTEGER value (0x400000002) before the first user proc call — every cells-arm program containing any named procedure SEGVd after printing correct output.
 
-**POST-FIX WATERMARKS at `0d8e6588`:** default m3 **PASS=207 FAIL=56 XFAIL=30** (unchanged, R-ICN-D held) · CELLS=1 m3 **PASS=227 FAIL=36 XFAIL=30** (+15 gain).
+**FOUR COOPERATING FIXES in emit.cpp:**
+(1) flat_lcl_proc condition (line 3000): lifted flat_jmp_entry requirement for icn_cells_graph — outer main (jmp_entry=0) now gets flat_lcl_proc=1 and the correct sub rsp,kt prologue.
+(2) MAIN-GRAPH FIXUP (line 3002): extended to fire for icn_cells_graph. Cells arm has zframe_graph=0 (R-ZK-A) so flat_frame_bytes stayed 0; now gets the 48+jcon_value_region formula same as zframe.
+(3) GLUE-O suppression (line 2395 _legacy): added !flat_lcl_proc — the flat_lcl_proc prologue already pins rbp; GLUE-O's push rbp at lbl_alpha_body overwrote that pin.
+(4) CLASS ZF γ/ω guard (lines 2757/2766): added flat_jmp_entry conjunct to cells-arm condition. Outer main has no wire in rcx/rdx — CLASS ZF's jmp rcx would SEGV. Added correct epilogue: lea rsp,[rbp+kt]; pop rbp; call exit(0/1).
 
-**RESIDUAL SEGFAULT — NEXT SESSION'S FIRST TASK:**
-Rung21/25 procs WITH args (e.g. `inc(x)`) now PASS. Rung21/25 procs with 0 params AND called from a ZD-spine context still segfault after printing correct output. Minimal witness: `noop()` called from `main()` that has ZD cells live. Symptom: correct output printed, then SEGV with rip=0x3 (DT_INTEGER tag) — the γ-wire at `[rbp+24]` of the 0-param proc contains `3` (integer tag) instead of the shim address at the moment of `jmp rcx`. The prologue writes `[rsp+24]=rcx` (the shim) correctly; something overwrites it before γ fires. Census shows `armed=0, K_total=0` for the 0-param proc — zero ZD carves inside the proc itself. The overwrite must come from OUTSIDE — either: (a) something in main's ZD spine writes to a slot that aliases noop's `[rbp+24]`, or (b) the `rt_icn_zframe_args_install` C call inside the proc prologue clobbers that slot via the C ABI red-zone or stack frame. **DIAGNOSTIC STEPS:** (1) Run `SCRIP_NO_SEGV_HANDLER=1 SCRIP_ICN_CELLS=1 gdb ./scrip --run /tmp/diag.icn` with watchpoint on the address that becomes `[rbp+24]` at noop's α — watch for the write that sets it to 3. (2) Check if `rt_icn_zframe_args_install`'s own stack frame (which sits below rbp at [rbp-N] in C ABI) can reach back up to [rbp+24] via spilled register or alignment mismatch. (3) Check whether main's `n1_lit_integer_α` writes `[rsp+112]=3` and at the call site `rsp+112 == proc_noop_rbp+24` — which would require `proc_noop_rbp = rsp+88` at the noop α entry.
+**POST-FIX WATERMARKS at `096ac729`:** default m3 **PASS=243 FAIL=20 XFAIL=30** (unchanged) · CELLS=1 m3 **PASS=232 FAIL=31 XFAIL=30** (+5 gain).
 
-**CONCURRENCY NOTE:** Parallel sessions may have landed commits. Run `git pull --rebase` at open; re-prove watermarks before any edit.
+**CONCURRENCY NOTE:** Run `git pull --rebase` at open; re-prove watermarks before any edit.
 
 **SESSION FINDINGS (s224):**
 Watermarks re-derived at `a6ecca35` (post-gate-fix, reverted emitter): default m3 **PASS=207 FAIL=56 XFAIL=30** · CELLS=1 m3 **PASS=212 FAIL=51 XFAIL=30** (cells arm LEADS by 5; prior cursors had cells far behind — s223 "m3 SEGV open / output 0" was stale at HEAD; `rung02_proc_locals` prints `15 rc=0` on cells arm). SN4 smoke 6/7 (pre-existing `pattern` failure). 55 verdict changes between arms (30 gains, 25 losses). Gate `test_gate_icn_zk5_gva.sh` defect fixed and committed: `set -e` + bare command-substitution silently aborted the script on any scrip crash → fixed with `out=\$(scrip ...); rc=\$?; true` pattern.
