@@ -8,6 +8,24 @@
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
 
+## ⛔⭐ LIVE CURSOR — s18 (2026-08-09, Sonnet s18 — FR-5 ONE-SLOT FIX LANDED; watermark 247→248; SCRIP `8487d499`)
+**NEXT RUNG = ICN-FR-5 (continuing — 5 in-scope fails remain).** Watermark at HEAD `8487d499`: **m3 PASS=248 FAIL=15 XFAIL=30 TOTAL=293**. R-ICN-D: roman.sno md5 `77fc5a38d566fe87392b6e1a6331ac8f` BYTE-IDENTICAL with/without SCRIP_ICN_ZFRAME. Canary `rung17_real_arith_real_add` → `4.0`.
+
+**ONE-SLOT FIX LANDED (SCRIP `8487d499`):** FR-4's four process globals were correct for one pending generator; two simultaneously pending (nested or sibling) caused the second to clobber the first. Fix: persistent `icn_gen_state_t` stack (g_icn_gen_stk, initial cap 64, grows by doubling) keyed by `generator_rbp`. PUSH at `save_wires` (prologue, after `lexprep2` populates `pcall.fb`). UPDATE cont at `save_cont` (each suspend α). POP via `save_wires(gen_rbp, NULL, NULL)` sentinel at ω exit. READ by LIFO scan at γ/ω epilogues and β-resume. Global cache maintained as fast path. KEY ORDERING: `save_wires`/`save_caller_rbp` moved after `lexprep2` in prologue. ω epilogue reads `caller_rbp` BEFORE the pop (saves in `rbx`). Template ABI changes: all save/get functions take `gen_rbp` as first arg; `bb_suspend.cpp`, `xa_flat.cpp` (prologue + both epilogues), `bb_call_proc_staged.cpp` (β arm pre-loads FRQ(act+8) into rdi).
+
+**MEASURED (all probe table GREEN):** pd `1 2 10 20 done`; pb3 `10 20 10 20 done`; pb4 `10 20 done`; pb1 `10 done`; pa `no 1 done`.
+
+**NEWLY PASSING:** `genqueen` rc=1 PASS 56/56 lines (was rc=124 HANG pb4-shape). `cxprimes` rc=1 PASS 25/25 lines (was rc=134 SIGABRT; in XFAIL set — counts as zero in FAIL but shows correctness).
+
+**5 IN-SCOPE FAILS REMAINING:**
+- `rung36_jcon_recogn` — rc=124 HANG. Recursive suspend: `s()` suspends the result of calling itself. Nested depth unbounded → the state stack correctly stores each activation but the β-resume path through multiple nested levels may have a wiring issue. MONITOR-FIRST gdb spin on `proc_s_α`.
+- `rung36_jcon_level` — RUNAWAY (rsp-drift-per-β, distinct mechanism, s11). NOT billable to the one-slot fix.
+- `rung36_jcon_prepro` — &features interaction. MONITOR-FIRST.
+- `rung37_proc_lookup` — DC-stub double-execute, pre-existing. MONITOR-FIRST gdb on `proc_p_dcα`.
+- (1 more to identify — re-run suite at next session open to enumerate from the FAIL=15 set.)
+
+**⛔ STALE-ASM-TAG THIRD INSTANCE STILL LIVE:** `rtx_icnagg.S` and `rtx_icnsub.S` carry `DT_DATA=100` (live `0x70`). Elevated to RULES.md FACT RULE candidate in s17 cursor. Still unfixed at this session's close.
+
 ## ⛔⭐ LIVE CURSOR — s17 (2026-08-09, Opus s17 — CUSTODIAL: re-derived watermark 247, published s16's stranded work; NO new rung)
 **NEXT RUNG = ICN-FR-5 (continuing — 6 in-scope fails; the FIX DIRECTION is written, see FINDING-2026-08-09-…-ONE-SLOT).** Watermark **MEASURED THIS SESSION, TWICE — before and after a mid-handoff rebase that pulled 4 parallel commits (AB-2/AB-3, PL-FR-4 N0-SUPPRESS + W1 m4 twins, .s regen; then ZK-2 IR_BINOP_TEST, OS-2 SLICE-1, OPS-1 driver)** — at HEAD `4a5f8731`: **m3 PASS=247 FAIL=16 XFAIL=30 TOTAL=293**. R-ICN-D re-proven by direct run: roman.sno output md5 `e02da06b49f64c44168830cff34bba94` identical with `SCRIP_ICN_ZFRAME` on and `=0`. Canary `rung17_real_arith_real_add` → `4.0` (no stale-.so).
 
