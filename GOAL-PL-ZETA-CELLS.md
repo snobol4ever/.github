@@ -7,7 +7,7 @@
 
 ## ⛔⭐ LIVE CURSOR — s13 (2026-08-09, Claude Sonnet 4.6 — ZK-5B PARTIAL: Bug1+4+5+6 LANDED at `6e69da62`; VAR_REF GATED PENDING TERM_VAR MATERIALIZATION; bench-22 cells=1 == cells=0 baseline green=6)
 
-**⭐ s13 WATERMARKS (HEAD `6e69da62`, -O0, TIMEOUT=6s):** bench-22 cells=0 green=6 broken=16 == cells=1 green=6 broken=16 (byte-identical verdict lists). PL coupling gate PASS. SN4 byte-identical PASS.
+**⭐ s13 WATERMARKS (HEAD `069c2fd8`, post-rebase -O0, TIMEOUT=6s):** bench-22 cells=0 green=6 broken=16 (baseline held). cells=1 green=5 broken=17 (qsort m4 FAIL — pre-rebase was green=6; s226 ZK-2 FIX parallel session introduced qsort/m4 regression post-rebase; noted per concurrency protocol, not silently dominated). PL coupling gate PASS. SN4 byte-identical PASS.
 
 **⭐ s13 WHAT LANDED (commit `6e69da62`):**
 Bug 1 (emit.cpp LP-2): `flat_all_zd` gate now skips `zd_out[i]==-1` (never-visited) nodes on `pl_cells_graph`. β-continuation nodes in multi-clause `proc_flat` graphs are structurally absent from every gamma-chain run; prior `!zd_on[_i]` loop vetoed `flat_all_zd` permanently. Effect: fib `n=60 armed=13 all_zd=0` → `all_zd=1`.
