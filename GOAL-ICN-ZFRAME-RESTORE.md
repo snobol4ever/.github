@@ -18,11 +18,11 @@
 **NEWLY PASSING:** `genqueen` rc=1 PASS 56/56 lines (was rc=124 HANG pb4-shape). `cxprimes` rc=1 PASS 25/25 lines (was rc=134 SIGABRT; in XFAIL set — counts as zero in FAIL but shows correctness).
 
 **5 IN-SCOPE FAILS REMAINING:**
-- `rung36_jcon_recogn` — rc=124 HANG. Recursive suspend: `s()` suspends the result of calling itself. Nested depth unbounded → the state stack correctly stores each activation but the β-resume path through multiple nested levels may have a wiring issue. MONITOR-FIRST gdb spin on `proc_s_α`.
+- `rung36_jcon_recogn` — rc=124 HANG. Recursive suspend: `s()` suspends the result of calling itself. Nested depth unbounded → state stack stores each activation correctly but β-resume path through multiple nested levels may have a wiring issue. MONITOR-FIRST gdb spin on `proc_s_α`.
 - `rung36_jcon_level` — RUNAWAY (rsp-drift-per-β, distinct mechanism, s11). NOT billable to the one-slot fix.
 - `rung36_jcon_prepro` — &features interaction. MONITOR-FIRST.
 - `rung37_proc_lookup` — DC-stub double-execute, pre-existing. MONITOR-FIRST gdb on `proc_p_dcα`.
-- (1 more to identify — re-run suite at next session open to enumerate from the FAIL=15 set.)
+- `rung03_suspend_return` — pre-existing suspend/return interaction in rung03 cluster. MONITOR-FIRST.
 
 **⛔ STALE-ASM-TAG THIRD INSTANCE STILL LIVE:** `rtx_icnagg.S` and `rtx_icnsub.S` carry `DT_DATA=100` (live `0x70`). Elevated to RULES.md FACT RULE candidate in s17 cursor. Still unfixed at this session's close.
 
