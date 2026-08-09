@@ -5,7 +5,7 @@
 
 **CHARTER (Lon 2026-08-08):** walk the ENTIRE SNOBOL4 language bottom-up at the sole ζ-cells-on-stack regime (selectors deleted, SCRIP `de837576`): stop at first failing rung, MONITOR-FIRST, fix, one FINDING per land mine, XFAIL shrinks monotonically (removed in the SAME commit as the fix), move up. Summit = EVAL/CODE/EXEC + beauty drivers + xc318 ≥ pre-flip both modes. Twin: `GOAL-SN4-ZETA-MECH.md` owns STRUCTURE; this file owns CORRECTNESS. A defect whose fix needs new protocol = MECH rung (cross-request both cursors). Protocol: RULES.md (monitor scripts §1: `test_monitor_2way_sync_step_bin.sh` / 3-way PARTICIPANTS · offline `probe.py` &STLIMIT+&DUMP replay bisect · gdb spin-counter, HW watchpoints DEAD in container, `CSN_NO_SEGV_HANDLER=1`/`SCRIP_NO_SEGV_HANDLER` clean-bt · `setarch -R`). Oracle: `/home/claude/x64/bin/sbl -b f.sno`; corpus paths CORPUS-LOCATIONS.md; suite `corpus/probe/bb/run_suite.sh` (m3) + `MODE=compile` (m4).
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s34 (Sonnet 4.6) [dc_sib_bt CLOSED — ZGPOP-BLOB: ARB ζ-cell overwritten by resume record; zleak_matchbegin_stfh collateral; SCRIP `24b54c50`, corpus `f8f7513a`]
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s34 (Sonnet 4.6) [dc_sib_bt CLOSED — ZGPOP-BLOB: ARB ζ-cell overwritten by resume record; zleak_matchbegin_stfh collateral; SCRIP `6ffa57fe`, corpus `f46d3ebe`]
 
 **WATERMARK (post-session, 0 regressions):**
 - m3: **136**/15xf/0/0R
