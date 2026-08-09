@@ -17,7 +17,25 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s12 (2026-08-09, Sonnet — FR-4: the β arm was UNREACHABLE; three defects fixed (`8cf87d3a`); bench m3+m4 6/22 unchanged; NEXT = the n0/$trail_mark clobber)
+## ⛔⭐ LIVE CURSOR — s13 (2026-08-09, Sonnet — FR-4: N0-SUPPRESS landed (`72554d06`); m3 11/22 (+5 W1 recovery); combined 6/22 (m4 W1-Bug2 blocks 5); NEXT = m4 W1-Bug2 then queens-class)
+
+**s13 HEAD at session end: `72554d06`** (PL-FR-4 N0-SUPPRESS). Bench watermark: **m3 11/22 (+5 from s12) · m4 6/22 (unchanged) · combined 6/22**. SN4 roman.sno + Icon generators.icn byte-identical both directions ✓.
+
+**N0-SUPPRESS fix:** `sink_trail_mark_str` in `bb_call_fn.cpp` gained a `resoff` parameter and a zframe-only guard block: read `g_pl_zf_pending_cursor`; if set (β-resume re-entry), load `rax:rdx` from `FRQ(resoff)` (lexprep2's already-correct trail mark) and jmp to label-101, skipping `pl_trail_mark()`. Byte-identical for SN4/Icon (`zframe_graph=0` → guard absent). Two call sites updated: legacy arm (line 593, passes `resoff`) and ZD arm (line 488, passes `_.op_off`). Root cause confirmed from gprolog `CREATE_CHOICE_COMMON_PART` / `UPDATE_DELETE_COMMON_PART` (`wam_inst.c:1407–1436`): canonical WAM writes `TRB(cur_B)=TR` once at choice-point creation; retry never re-samples it.
+
+**WITNESS:** `bt_debug.pl` (`p(1). p(2). p(3). main :- p(X),write(X),nl,fail.`) — BEFORE: prints `1` only (clause-2 unification failed, X stayed bound). AFTER: prints `1`, `2`, `3`, rc=1 ✓.
+
+**m3 recovery detail:** The 5 W1 programs (`derive`, `divide10`, `log10`, `ops8`, `times10`) now pass m3 — all arithmetic-recursive, fail mode-4 due to W1-Bug2 (`plc_dead_cstack → sscanf` rsp-misalignment in JIT, pre-existing since s9). `g_plw_floor_bypass` mechanism is in place (by_name_dispatch.c:1463); the mode-4 fix needs that bypass to be wired at the correct scrip.c call site for zframe Prolog graphs.
+
+**⛔ REMAINING OPEN:**
+1. **m4 W1-Bug2:** 5 programs (`derive`, `divide10`, `log10`, `ops8`, `times10`) crash in mode-4 at `plc_dead_cstack → sscanf`. `g_plw_floor_bypass=1` must be set around `rt_outer_call` for zframe Prolog graphs in `scrip.c`. Expected recovery: combined +5 → 11/22.
+2. **queens-class (FR-4 remaining):** `queens`, `zebra`, `sendmore`, `ham`, `mu`, `nrev` (some fail backtracking variants) still fail. The N0-SUPPRESS fix is necessary but not sufficient — need to confirm whether `bt_debug.pl`'s pattern (3-clause linear predicate) extends to multi-argument predicates and mutual recursion. Re-measure after W1-Bug2 closes.
+
+**NEXT SESSION TASKS (in order):**
+1. `git pull --rebase`; rebuild; re-derive watermark (expect m3 11/22, m4 6/22, combined 6/22; HEAD `72554d06`).
+2. Fix m4 W1-Bug2: in `scrip.c`, set `g_plw_floor_bypass=1` before `rt_outer_call` and clear after, gated on Prolog zframe graph (check `g->zframe_graph` on the graph being executed). SN4+ICN byte-identity on commit.
+3. After W1-Bug2 clear (expect m4 11/22 = combined 11/22): open queens-class. Run `bt_debug.pl` expanded to `color(red). color(green). color(blue). main :- color(X), color(Y), X\=Y, write(X-Y), nl, fail.` to test 2-arg backtracking before queens.
+4. Re-measure full bench; target 15+/22 both modes.
 
 **s12 HEAD at session end: `8cf87d3a`** (on top of parallel `76c0e95f`). Bench watermark re-derived: **m3+m4 6/22** (cal, deriv, fib, nrev, qsort, tak) — UNCHANGED. This session made a DEAD ARM REACHABLE; it did not by itself fix a program. Said plainly so the next walker does not read progress into the number.
 
