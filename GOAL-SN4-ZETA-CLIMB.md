@@ -5,6 +5,27 @@
 
 **CHARTER (Lon 2026-08-08):** walk the ENTIRE SNOBOL4 language bottom-up at the sole ζ-cells-on-stack regime (selectors deleted, SCRIP `de837576`): stop at first failing rung, MONITOR-FIRST, fix, one FINDING per land mine, XFAIL shrinks monotonically (removed in the SAME commit as the fix), move up. Summit = EVAL/CODE/EXEC + beauty drivers + xc318 ≥ pre-flip both modes. Twin: `GOAL-SN4-ZETA-MECH.md` owns STRUCTURE; this file owns CORRECTNESS. A defect whose fix needs new protocol = MECH rung (cross-request both cursors). Protocol: RULES.md (monitor scripts §1: `test_monitor_2way_sync_step_bin.sh` / 3-way PARTICIPANTS · offline `probe.py` &STLIMIT+&DUMP replay bisect · gdb spin-counter, HW watchpoints DEAD in container, `CSN_NO_SEGV_HANDLER=1`/`SCRIP_NO_SEGV_HANDLER` clean-bt · `setarch -R`). Oracle: `/home/claude/x64/bin/sbl -b f.sno`; corpus paths CORPUS-LOCATIONS.md; suite `corpus/probe/bb/run_suite.sh` (m3) + `MODE=compile` (m4).
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s31 (Sonnet 4.6) [N21 CLOSED — frameless ARBNO fpr_rsp fix; SCRIP `cec5f59`, corpus `1db68e2`]
+
+**WATERMARK (post-fix, zero regressions from our changes):**
+- m3: **146**/3xf/0/0R (N21 ✅ PASS)
+- m4: **145**/4xf/0/0R (N21 ✅ PASS, D06 ✅ PASS via parallel MECH SLACK-RIDER RE-HOME)
+- X08 = pre-existing CRASH on HEAD before this session (confirmed via `git stash` control); NOT a new regression.
+
+**XFAIL retired this session:** N21 from XFAIL.run; D06+N21 from XFAIL.compile.
+
+**N21 ROOT CAUSE (measured, MONITOR-FIRST):** `bb_match_arbno_frameless()` (ARBNO-LON K0 arm) missing the right-spine RSP compensation that `bb_match_arbno_tail()` already has (N02-FIX). When RPOS(0)’s `LIT_INTEGER` arg does `sub rsp,16` then RPOS fails, β re-enters PAIR(2)/as with RSP displaced 16B below the ARBNO cell. `[rsp+4]` reads garbage; stall check bogus; yield-cursor write corrupts LIT_INTEGER’s frame; ARBNO loops on same cursor until CAS mark limit fires (~3s) then exits `=F`. Monitor bracket: DIVERGE step 4, stno=3 — spl LABEL 4 (success), scr LABEL 5 (fail).
+
+**FIX:** new static `arbno_frameless_fpr_rsp(nd)` helper in `emit.cpp` walks `nd→γ.node` summing `zd_k()` per right-spine node, stopping at `IR_MATCH_END`/`IR_MATCH_BEGIN`/`IR_MATCH_ARBNO` (the MATCH_ARBNO stop prevents crossing into enclosing ARBNO territory for nested patterns — validated X04/X06). Result in `op_tail_fpr_rsp`. Template `bb_match_arbno_frameless()` and `bb_match_arbno_frameless_k()` both gain `IF(FPR>0, add rsp,FPR)` at PAIR(2) and PAIR(3) entry. FINDING: `FINDING-2026-08-09-CLAUDE-SN4-CLIMB-N21-FRAMELESS-ARBNO-FPR-RSP.md`. Regen: feature/benchmark/demo ✅.
+
+**C-7 RUNG UPDATE:**
+- N21 **CLOSED** — sibling ARBNO capture with right-spine RPOS now correct.
+- **Remaining C-7 open:** H29 (CRASH, gdb-reachable — FENCE1+TAB/ABORT idiom), H21 (FENCE1 over deferred ALT — probe before inheriting D-family gate), dc_sib_bt (defer-β re-yield; sibling ARBNO capture, witness committed corpus `226f904b`).
+- X08 (ARBNO with ITEM=SPAN pattern) crashes on HEAD — pre-existing, not gated here; needs separate diagnosis.
+- Nested-ARBNO class H24/H25/X02/X06/X11 remain structural (lower-side, sno_seq_nary).
+
+**CONTEXT NOTE:** Session ran to ~98% context. Commits pushed. Next session enters C-7 with H29 (gdb-reachable CRASH) or dc_sib_bt (defer-β re-yield) as first target. MONITOR-FIRST per RULES.md.
+
 ## ⭐ CROSS-SEAT NOTE — 2026-08-09e (from GOAL-SNOBOL4-BB): the DEFINE m4 hard-block is REMOVED
 Every DEFINE-bearing program failed to LINK in m4 at prior HEADs (undefined `<FN>_act_γ`, ld exit 1, rc=1 with zero output through stderr-swallowing harnesses) — a silent ceiling on any m4 rung touching user functions.  Fixed at BB `7170c539` (details FINDING-2026-08-09e-fa-ab3a §4).  MEASURED: ab_recurse/ab_freturn green BOTH modes; **X12 (defer element inside an INVOKED proc — the DEFINE × *P intersection) green BOTH modes.**  CLIMB needs no AB-3b for correctness: the legacy call path is oracle-correct; AB is BB-seat mechanism.  ⚠ The board instrument's OTHER rc=1 (m3 `hello.sno`, driver exit code on success, 09c cursor) remains UNFOUND and is unrelated.  Current watermark (150 probes): m3 146/4 {H29 N21 fence_probe t6m} · m4 144/6 {A06 D06 H29 N21 fence_probe t6m} — the attackable-first set and D06-m4-behind-OPS-2 routing below are unchanged and current.
 
