@@ -26,6 +26,16 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 
 **NEXT:** Read parallel-rewrite state; re-prove watermark against it; verify MV-BASE/EXPR-CLASSP subsumed or byte-identical revert before further pattern work.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 PT-0/PT-1 session (Fable — GOAL-PASSTHRU-RBP-ERAD opened; PAT-INLINE opt-in RED; SCRIP `0bdcf707`, corpus unchanged)
+
+**NEW GOAL FILE: `GOAL-PASSTHRU-RBP-ERAD.md`** — chartered by Lon 2026-08-09 ("constant folded pattern does NOT need an RBP; delete that code; replace it with proper PASS-THRU GLUE"). Work lives in that file; this cursor is the cross-reference.
+
+**PT-0 CENSUS (instrument `scripts/test_census_rbp_frames.sh`, corpus `f46d3ebe`):** demo: 101 PAT$ blobs · 130 `mov rbp,rsp` PAT-BLOB est. Crosscheck/patterns: 130 PAT$ blobs · 93 est. Benchmarks: 8 blobs · 2 est. Deletion-target list T1–T5 + keeper census in the goal file. **Total crosscheck-318 rbp instruction debt: 15,459 instructions across 127 programs = the whole-graph flat_pat/flat_gen pin class** (the STF-UNFLIP measurement, reproduced as the product-wide number).
+
+**PT-1 PAT-INLINE LANDED OPT-IN RED (`SCRIP_PAT_INLINE=1`; env unset = md5-byte-identical legacy, verified on w_pinline1 + claws5-match).** Mechanism: `sno_pat_node` TT_VAR arm — fz-table members lower the stored tree inline into the statement spine; DEFER→blob never minted; statement regime (licensed frames only) handles the elements. **Two open defects under SCRIP_PAT_INLINE=1:** (1) w_pinline1 prints `miss` (suspected assignment-BUILD-path contamination — the arm may fire while lowering the pattern-ASSIGNMENT RHS, splicing match elements into a stage-2 value build for a name that itself contains a fz-table member); (2) claws5-match m3 SEGV rc=139 (attribution pending: hand-inline claws pattern literally at killswitch-off first — if SEGV persists there, pre-existing ALTERNATE-graph frontier, not this change). Both defects documented in `GOAL-PASSTHRU-RBP-ERAD.md` PT-1 cursor. **NEXT: PT-1 steps (1a)/(1b) per that file; then PT-2 dead-blob suppression (the `claws5-match.s` `proc_PAT` elimination); then standard ladder to PT-6 physical deletion.**
+
+**No watermark change this session** — code is opt-in red, suites not re-proven under inline-on. Baseline carried forward: m3 134/17/0/0 · m4 133/18/0/0 · bench OK=17.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s33 (Sonnet 4.6 — ZD-8·STFH-CARVE LANDED; SCRIP `9e401158`, corpus `df66eec1`)
 
 **ZD-8·STFH-CARVE LANDED.** FINDING-2026-08-09g §5 fix. `emit_match_begin_stfh_k()` ONE AUTHORITY in `emit.cpp`; `zd_k` IR_MATCH_BEGIN calls it; `bb_match_begin.cpp` template calls it; `zdh_match = zd + K` so STATEMENT_END's gpop includes the stfh carve bytes that survive MATCH_END's zls2_mark restore. Witness `zleak_matchbegin_stfh` rc=0 at 3M iterations; retired from XFAIL both modes. `SCRIP_OS_CAP=0` byte-identical. regen ×3.
