@@ -5,6 +5,27 @@
 
 **CHARTER (Lon directive, 2026-08-07):** Walk Prolog to 100% per-BB allocation on the RSP-topped FORTH-style stack — the SAME ZD machinery SNOBOL4 built and Icon is completing (`GOAL-ICN-ZETA-CELLS.md` is the template; read it first every session). This is the ZD ladder's Prolog completion, not a parallel mechanism. Concurrent twin: `GOAL-PL-ZFRAME-RESTORE.md` (FRAMES on STACK) — BOTH KEPT, switch-selected, one graph NEVER in both arms, until Lon picks a default. Routing mirrors the Icon R-ZK-A ruling: the cells opt-IN suppresses the zframe stamp at the SAME LOWER site, A/B = one env var.
 
+## ⛔⭐ LIVE CURSOR — s15 (2026-08-09, Claude Sonnet 4.6 — BUG-BETA LANDED `6a4eba9`; bench-22 cells=1 == cells=0 baseline green=11. NEXT RUNG = ZK-5B VAR_REF MATERIALIZATION per s14 protocol.)
+
+**⭐ s15 WATERMARKS (HEAD `6a4eba9`, -O0, TIMEOUT=6s, bench-22):** cells=0 **green=11 broken=11** · cells=1 **green=11 broken=11**. **FULL PARITY.** (s14's green=6 improved to 11 via parallel sessions landing between `ada979eb` and `4a5f873`; BUG-BETA repaired the times10 regression that was the sole cells=1 deficit at `4a5f873`.)
+
+**⭐ s15 WHAT LANDED (commit `6a4eba9`, `bb_call_fn.cpp` line 552):**
+BUG-BETA: `x86_beta_trampoline()` in the ZD arm of `bb_call_fn_str` incorrectly elided the β label define in BINARY mode (m3 `--run`) for CALL_BUILTIN_PROLOG nodes on `pl_cells_graph`. Root cause: `flat_beta_used_scan` computes `bused[]` against `nodes[]` built by the codegen BFS. In BINARY mode (`g_is_text=0`) the GVA RPO pass `if (!g_is_text || entry == g_emit_cfg->entry)` adds group-anchor nodes to `nodes[]`, shifting indices so the β-tagged predecessor edge from node 2 (write/nl CBP) maps to a different `bused[]` slot than in TEXT mode. Result: `bused[3]=0` → `op_beta_dead=1` → trampoline elided → forward ref to `n3_call_builtin_prolog_β` unresolved → `bb_emit_end` abort (rc=134). TEXT mode skips the RPO extension → `bused[3]=1` → clean. Symptom: `( top → write(ok) ; write(failed) ), nl` class programs aborting m3, passing m4.
+Fix: when `pl_cells_graph=1`, bypass `op_beta_dead` and emit `x86_beta() + x86_jmp(X86P_OMEGA)` directly. Net bytes identical to trampoline with `op_beta_dead=0`. SN4/Icon: `pl_cells_graph=0` → `x86_beta_trampoline()` unchanged = byte-identical. Confirmed via `SCRIP_BETA_ELIDE_OFF=1` escape hatch before patching.
+
+**⭐ s15 MEASURED:**
+- bench-22 cells=0: green=11 broken=11 (baseline unchanged)
+- bench-22 cells=1: green=11 broken=11 (was green=10 at `4a5f873`; times10 repaired)
+- Prolog rung interp 147/164 · compile 146/164 (zero regression, A/B stash-confirmed)
+- SN4 crosscheck m3 274/43 · m4 246/42 · DIVERGE=6 (byte-identical A/B)
+- PL coupling gate: PASS
+
+**⭐ s15 SESSION-OPEN PROTOCOL (carried forward from s14, still mandatory):** `git status --short` every repo before first build. Re-derive both bench-22 boards at the new HEAD (parallel sessions active daily). Build the discriminating witness FIRST before attempting ZK-5B Option A/B.
+
+**⭐ s15 ZK-5B NEXT SESSION:** (1) `git status --short` every repo. (2) Re-derive watermarks at new HEAD. (3) Build discriminating witness (program red on cells=1 today that should go green under correct VAR_REF materialization — see s14 CORRECTION OF RECORD). (4) Re-apply `.github/WIP-2026-08-09-PL-ZK-5B-option-A-FALSIFIED.patch`; monitor-first to the divergence; test the `[nargs, nparams)` bound repair per s14 ROOT-CAUSE HYPOTHESIS. (5) Killswitch at RUNTIME site (rt.c) as well as emitter, or single env var for both. (6) Lon's A-vs-B ruling unchanged.
+
+**⭐ s15 LANDED: `6a4eba9` BUG-BETA.** SCRIP tree clean at commit. `.github` push needs credential.
+
 ## ⛔⭐ LIVE CURSOR — s14 (2026-08-09, Claude Opus — ZK-5B OPTION A **AS IMPLEMENTED IS FALSIFIED**: green 6→0. SCRIP TREE CLEAN AT `ada979eb`, ZERO CODE LANDED. NEXT RUNG = ZK-5B, restart from the patch.)
 
 **⭐ s14 WATERMARKS (HEAD `ada979eb`, -O0, TIMEOUT=6s, bench-22 `test_bench_prolog_modes.sh`):** cells=0 **green=6 broken=16** · cells=1 **green=6 broken=16**. **PARITY HOLDS — s13's claim reproduces exactly.** s13's noted `qsort/m4` cells=1 regression (green=5) NO LONGER REPRODUCES; a parallel seat repaired it between `069c2fd8` and `ada979eb`. Re-derive again at open — this number moved under s13 without s13 touching it.
