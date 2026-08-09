@@ -5,7 +5,20 @@
 
 **CHARTER (Lon directive, 2026-08-07):** Walk Prolog to 100% per-BB allocation on the RSP-topped FORTH-style stack — the SAME ZD machinery SNOBOL4 built and Icon is completing (`GOAL-ICN-ZETA-CELLS.md` is the template; read it first every session). This is the ZD ladder's Prolog completion, not a parallel mechanism. Concurrent twin: `GOAL-PL-ZFRAME-RESTORE.md` (FRAMES on STACK) — BOTH KEPT, switch-selected, one graph NEVER in both arms, until Lon picks a default. Routing mirrors the Icon R-ZK-A ruling: the cells opt-IN suppresses the zframe stamp at the SAME LOWER site, A/B = one env var.
 
-## ⛔⭐ LIVE CURSOR — s12 (2026-08-08, Claude Sonnet 4.6 — ZK-5B ATTEMPTED; FALSE POSITIVE CAUGHT; TREE CLEAN AT `c09012d5`)
+## ⛔⭐ LIVE CURSOR — s13 (2026-08-09, Claude Sonnet 4.6 — ZK-5B PARTIAL: Bug1+4+5+6 LANDED at `6e69da62`; VAR_REF GATED PENDING TERM_VAR MATERIALIZATION; bench-22 cells=1 == cells=0 baseline green=6)
+
+**⭐ s13 WATERMARKS (HEAD `6e69da62`, -O0, TIMEOUT=6s):** bench-22 cells=0 green=6 broken=16 == cells=1 green=6 broken=16 (byte-identical verdict lists). PL coupling gate PASS. SN4 byte-identical PASS.
+
+**⭐ s13 WHAT LANDED (commit `6e69da62`):**
+Bug 1 (emit.cpp LP-2): `flat_all_zd` gate now skips `zd_out[i]==-1` (never-visited) nodes on `pl_cells_graph`. β-continuation nodes in multi-clause `proc_flat` graphs are structurally absent from every gamma-chain run; prior `!zd_on[_i]` loop vetoed `flat_all_zd` permanently. Effect: fib `n=60 armed=13 all_zd=0` → `all_zd=1`.
+Bug 4 Option C (bb_lit_scalar, bb_var, bb_call_fn): dual-write to both ZRES(0/8) (FORTH spine) and FRQ(op_off+0/8) (ZLS frame) using r10/r11 intermediaries.
+Bug 5 (bb_call_proc_staged stage_arg_inline + DC LEA): FB-STMT refinement was collapsing all arg reads to `[rsp+0]` on `pl_cells_graph`. Changed to `RBPRAWQ(slot)` which directly names `[rbp+slot]`.
+Bug 6 (emit.cpp zd_wl_kind + bb_var_ref.cpp): Prolog VAR_REF admission disabled via tautology guard (`!pl_cells_graph && pl_cells_graph`). ICN arm guards `!pl_cells_graph`.
+
+**⭐ s13 VAR_REF BLOCKER (Lon decision required):** Prolog `IR_VAR_REF` cells arm cannot simply copy `[rbp+op_sa]` (gives NULVCL for fresh variables — Prolog variables must be heap-allocated `TERM_VAR` cells for unification/trailing). Icon NAMETRAP `{DT_N,slen=1,&slot}` is also wrong — `$unify` rejects it as a non-Prolog term. With VR excluded from admission, predicates with variable arguments get `flat_all_zd=0` → FRQ fallback. Programs passing cells=1 == cells=0 (baseline parity, not a gain). TWO OPTIONS: (A) pre-allocate `TERM_VAR` cells for each param slot in the ZLS frame initializer (`rt_jmp_frame_lexprep2` extension); (B) Prolog VAR_REF reads the param DESCR and calls `rt_pl_fresh_var_ref()` when it detects NULVCL. Option A is cleaner (one authority, zero template change); Option B is a template arm. Lon rules.
+
+**⭐ s13 NEXT SESSION PROTOCOL:** (1) Re-derive watermarks at new HEAD (concurrent sessions). (2) Lon decides Option A vs B for VAR_REF materialization. (3) Implement chosen option; re-enable VAR_REF admission (remove tautology guard). (4) Verify `app([a,b],[c],R)→[a,b,c]`, `nrev`, `fib` with VR enabled. (5) Run bench-22 cells=1 — expect to exceed baseline green=6. (6) Commit as `PL-ZK-5B: VAR_REF TERM_VAR materialization`.
+
 **ZK-0/ZK-1/ZK-2/ZK-3/ZK-4 ALL COMPLETE. ZK-5 IN PROGRESS — NEXT RUNG = ZK-5B: all four bugs attempted; false positive measurement caught before commit; Bug 2a conflict open. See s12 findings below.**
 
 **⭐ s12 WATERMARKS (HEAD `c09012d5`, -O0, TIMEOUT=6s):** bench-22 cells=0 PASS=12 FAIL=10 == cells=1 PASS=12 FAIL=10 (byte-identical — HEAD unchanged, no regression introduced). PL coupling gate PASS. SN4 smoke PASS=6. Key witnesses: nrev PASS cells=0/1; fib PASS cells=0, FAIL cells=1 (pre-existing at this HEAD — confirmed by stash A/B test).
