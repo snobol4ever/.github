@@ -17,9 +17,13 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s13 (2026-08-09, Sonnet — FR-4: N0-SUPPRESS landed (`72554d06`); m3 11/22 (+5 W1 recovery); combined 6/22 (m4 W1-Bug2 blocks 5); NEXT = m4 W1-Bug2 then queens-class)
+## ⛔⭐ LIVE CURSOR — s13 (2026-08-09, Sonnet — FR-4: N0-SUPPRESS `72554d06` + W1 m4 twins `3e13d7a0`; bench 11/22 BOTH MODES (+5); nested 2-gen backtrack proven; NEXT = disjunction `;` path)
 
-**s13 HEAD at session end: `72554d06`** (PL-FR-4 N0-SUPPRESS). Bench watermark: **m3 11/22 (+5 from s12) · m4 6/22 (unchanged) · combined 6/22**. SN4 roman.sno + Icon generators.icn byte-identical both directions ✓.
+**s13 HEAD at session end: `3e13d7a0`** (two commits: `72554d06` N0-SUPPRESS + `3e13d7a0` W1 m4 twins). Bench watermark: **m3 11/22 · m4 11/22 · combined 11/22** (up from 6/22). SN4 roman.sno + Icon generators.icn byte-identical; zero new symbols in their .s.
+
+**W1 m4 twins (`3e13d7a0`):** The compiled -no-pie binary never got m3's two pre-entry fixes. (1) W1-Bug1: core bt confirmed `rt_plj_alloc → rt_gcheap_init → gc_static_segs_init → dl_iterate_phdr` with rsp≡8 — the lazy gc init firing from a misaligned JIT frame, NOT plc_dead_cstack as s9's Bug-2 framing suggested for m4. Fix: emitted `call rt_gcheap_warmup@PLT` in the m4 zframe main wrapper. (2) W1-Bug2: `g_plw_floor_bypass` must be set by PLT call INTO the .so — new `rt_plw_floor_bypass_on()` in by_name_dispatch.c; a direct `[rip+sym]` store from the exe copy-relocates a dead duplicate into the exe's .bss while dop_call (same TU as the definition) binds locally to the .so's still-zero copy. **RULE: the emitted binary controls .so-resident runtime state only through PLT calls, never direct data stores.** Both calls gated `is_prolog && zframe_graph && !icn_cells_graph`, placed before `xor esi` (rsi caller-saved), after the r12 seed (callee-saved); no clears (emitted main exits via zf wires).
+
+**⭐ NESTED BACKTRACK PROVEN:** `color(red). color(green). color(blue). main :- color(X), color(Y), write(X-Y), nl, fail.` prints all NINE pairs red-red…blue-blue in correct order, rc=0 (m3). Two concurrent activations of the same zframe generator interleave correctly on the LIFO triple stack — N0-SUPPRESS + push3/pop3 generalize past the single-clause-chain case. The queens-class blocker is therefore NOT the generator resume protocol.
 
 **N0-SUPPRESS fix:** `sink_trail_mark_str` in `bb_call_fn.cpp` gained a `resoff` parameter and a zframe-only guard block: read `g_pl_zf_pending_cursor`; if set (β-resume re-entry), load `rax:rdx` from `FRQ(resoff)` (lexprep2's already-correct trail mark) and jmp to label-101, skipping `pl_trail_mark()`. Byte-identical for SN4/Icon (`zframe_graph=0` → guard absent). Two call sites updated: legacy arm (line 593, passes `resoff`) and ZD arm (line 488, passes `_.op_off`). Root cause confirmed from gprolog `CREATE_CHOICE_COMMON_PART` / `UPDATE_DELETE_COMMON_PART` (`wam_inst.c:1407–1436`): canonical WAM writes `TRB(cur_B)=TR` once at choice-point creation; retry never re-samples it.
 
@@ -27,196 +31,12 @@
 
 **m3 recovery detail:** The 5 W1 programs (`derive`, `divide10`, `log10`, `ops8`, `times10`) now pass m3 — all arithmetic-recursive, fail mode-4 due to W1-Bug2 (`plc_dead_cstack → sscanf` rsp-misalignment in JIT, pre-existing since s9). `g_plw_floor_bypass` mechanism is in place (by_name_dispatch.c:1463); the mode-4 fix needs that bypass to be wired at the correct scrip.c call site for zframe Prolog graphs.
 
-**⛔ REMAINING OPEN:**
-1. **m4 W1-Bug2:** 5 programs (`derive`, `divide10`, `log10`, `ops8`, `times10`) crash in mode-4 at `plc_dead_cstack → sscanf`. `g_plw_floor_bypass=1` must be set around `rt_outer_call` for zframe Prolog graphs in `scrip.c`. Expected recovery: combined +5 → 11/22.
-2. **queens-class (FR-4 remaining):** `queens`, `zebra`, `sendmore`, `ham`, `mu`, `nrev` (some fail backtracking variants) still fail. The N0-SUPPRESS fix is necessary but not sufficient — need to confirm whether `bt_debug.pl`'s pattern (3-clause linear predicate) extends to multi-argument predicates and mutual recursion. Re-measure after W1-Bug2 closes.
+**⛔ REMAINING OPEN — the disjunction path:** `queens`, `ham`, `mu`, `zebra`, `sendmore`, `crypt`, etc. (11 programs) still fail both modes. Nested generator backtracking is proven green (above), so the frontier is the s12-diagnosed "separate (outer) issue": `; ` disjunction via `bb_move_label`/`bb_indirect_goto` (retry address in `g_pl_retry` per FINDING-PL-FR4-RETRY-STACK.md — emitter integration never landed), plus whatever cut/arith-guard classes the failures decompose into.
 
 **NEXT SESSION TASKS (in order):**
-1. `git pull --rebase`; rebuild; re-derive watermark (expect m3 11/22, m4 6/22, combined 6/22; HEAD `72554d06`).
-2. Fix m4 W1-Bug2: in `scrip.c`, set `g_plw_floor_bypass=1` before `rt_outer_call` and clear after, gated on Prolog zframe graph (check `g->zframe_graph` on the graph being executed). SN4+ICN byte-identity on commit.
-3. After W1-Bug2 clear (expect m4 11/22 = combined 11/22): open queens-class. Run `bt_debug.pl` expanded to `color(red). color(green). color(blue). main :- color(X), color(Y), X\=Y, write(X-Y), nl, fail.` to test 2-arg backtracking before queens.
-4. Re-measure full bench; target 15+/22 both modes.
-
-**s12 HEAD at session end: `8cf87d3a`** (on top of parallel `76c0e95f`). Bench watermark re-derived: **m3+m4 6/22** (cal, deriv, fib, nrev, qsort, tak) — UNCHANGED. This session made a DEAD ARM REACHABLE; it did not by itself fix a program. Said plainly so the next walker does not read progress into the number.
-
-**⭐ THE s11 ARM WAS NEVER SELECTED — root cause of clause-2-never-fires.** `pl_zf_resume` keyed on `g_emit_cfg->resume_slot`, i.e. the **CALLER** graph. For `main :- p(X),...` the caller is `main/0`, non-suspending, `resume_slot == 0` → the predicate was false at EVERY Prolog generator call site, and control fell through to the non-zframe β path (`mov rsp,FRQ(act+8); jmp [rsp]`) straight into the callee's dead C frame. **This is the same defect class as ICN-FR-5 BUG1** (which fixed `zf_resume` from caller-flag to `zls_g_icn_zframe_gen_by_name(callee)`); the Prolog twin never got the matching correction. Now keyed on `zf_cont_off` (= `zls_g_resume_by_name(callee)`), already computed two lines above — callee lookup, one authority.
-
-**THREE DEFECTS FIXED (all in `8cf87d3a`, all gated, tri-language byte-identical):**
-1. `bb_call_proc_staged.cpp` — `pl_zf_resume` caller→CALLEE flag (above).
-2. `zeta_storage.c` — added `zls_g_pl_zf_trail_mark_off_by_name` (mirrors `zls_g_icn_zframe_gen_by_name` verbatim). `pl_tm_off` had the identical caller-graph bug. The `zls_graph_t.pl_trail_mark_off` comment already *promised* this lookup; it did not exist.
-3. `bb_suspend.cpp` — **r11 is the PLT scratch register.** The intercept held the cursor in r11 across `call rt_pl_zf_resume_clear`; gdb caught `rip=0x202, r11=0x202`. Moving it to rax failed too (void C call may clobber the return reg; gdb then showed rip on the DATA address of `g_pl_zf_pending_cursor`). Fixed by persisting the cursor to `FRQ(op_sb)` BEFORE the call — the slot `rt_jmp_frame_lexprep2` already wrote with the same value, so the store is idempotent — then `jmp FRQ(op_sb)`. **RULE FOR THIS LADDER: no live value crosses a C call in a register; park it in the frame.**
-
-**PROOF THE ARM FIRES** (`bt_debug.pl` = `p(1). p(2). p(3). main :- p(X),write(X),nl,fail.`):
-- BEFORE: `push3` once → prints `1` → **HANG (rc=124)**, `pop3` never called.
-- AFTER: `push3` → `pop3` → `lexprep2` applies pending cursor (rs=784) + trail (tm_off=32) → `bb_suspend` intercept fires → clause 2 entered. No SEGV, no hang.
-
-**⛔ THE REMAINING BLOCKER — `n0` CLOBBERS THE RESTORED TRAIL MARK.** On β-resume the fresh frame re-runs `n0` (`$trail_mark`), which records the CURRENT (empty) trail top = **1** and overwrites the mark = **3** that `lexprep2` restored into `[rbp+32]`. `$unwind_nothrow` at clause-2 entry then unwinds to 1 = **a no-op**; `X` stays bound to clause 1's value, and clause 2's unification fails (rc=1, only `1` printed). Witness, from a print in `dop_unwind_nothrow`: `[DBG unwind] mark=1 trail_top=1`.
-
-**⛔ AN INTERCEPT INSIDE `rt_pl_dop_trail_mark` DID NOT FIRE AND WAS REVERTED, NOT COMMITTED.** Two guard spellings tried (with and without the `g_pl_zf_pending_cursor` conjunct — the cursor is already cleared by the `bb_suspend` intercept before `n0` runs, so that conjunct is wrong); the debug print never appeared either way. **CONCLUSION: `$trail_mark` reaches the trail through a DIFFERENT dispatch route than `rt_pl_dop_trail_mark`.** `by_name_dispatch.c:2599` carries a direct-dispatch `strcmp(fn, ...)` ladder — READ THAT FIRST next session; do not re-try the `rt_pl_dop_trail_mark` intercept before you have proven which route `$trail_mark` actually takes (MONITOR-FIRST / breakpoint, not a third guess).
-
-**NEXT SESSION TASKS (in order):**
-1. `git pull --rebase`; rebuild; re-derive watermark (expect 6/22; `8cf87d3a` is the cursor).
-2. Find the LIVE `$trail_mark` route: breakpoint every candidate in `by_name_dispatch.c` (start at the :2599 direct ladder) on `bt_debug.pl`. Name the route before editing it.
-3. Fix the clobber AT THE CANONICAL SHAPE, not with a runtime special case: gprolog stores `TRB` **in the choice-point record** (`wam_inst.h:102`, restored by `Pl_Untrail(TRB(cur_B))` at `wam_inst.c:1430`) and never re-derives it from the retried frame. SCRIP's triple already carries `tm_lo/tm_hi` — the frame slot should be written from the triple AFTER `n0` runs, or `n0` suppressed on the resume path. Prefer suppressing the re-run over patching the value.
-4. Re-measure; target 12→15+/22 (nreverse, queens-class, sendmore).
-5. SN4+ICN byte-identity before every behavioral commit.
-
-**⭐ BYTE-IDENTITY METHOD (s12 — adopt this, raw md5 is a FALSE WITNESS).** Mode-4 `.s` carries ASLR-varying `movabs` immediates and `.S*/.string` blobs: **the identical binary produces a 14-line diff run-to-run.** Normalize before comparing:
-```
-sed -E 's/movabs +([a-z0-9]+), [0-9]+/movabs \1, ADDR/; s/^\.S[0-9]+: +\.string .*/.SN: .string BLOB/'
-```
-s12 witnesses (patched vs stashed, same tree): SN4 `roman.sno` = `c7366400a702b127fc9704c082d8e0f0` · **Icon `generators.icn` = `6d9e7dcd21d36c301c1b46f63e2700eb`** — identical both ways. `generators.icn` is the load-bearing Icon witness because it exercises `IR_SUSPEND`, the template s12 edits.
-
-**s11 HEAD at session end: `9eebcbbb`** (PL-FR-4 WIP: zframe β-resume infrastructure). Bench watermark: **m3+m4 6/22** (unchanged — clause-2-never-fires blocks backtracking predicates). SN4 beauty.sno BROKEN ON HEAD (pre-existing `f6b93e6c` parallel session regression in bb_match_end — not our change).
-
-**s11 INFRASTRUCTURE COMMITTED (all gated, byte-identical for SN4/ICN):**
-- `rt.c`/`rt.h`: `rt_pl_cp_push3/pop3` on SEPARATE `g_pl_zf3_stack` (distinct from `g_pl_cp_stack` used by `IR_INDIRECT_GOTO` — sharing caused triple corruption, Bug 4); `rt_pl_zf_resume_set/clear` + 5 pending-resume globals; `rt_jmp_frame_lexprep2` extended to apply pending cursor+trail to fresh frame
-- `IR.h`: `pl_zf_trail_mark_off` appended to `IR_graph_t` (calloc-safe, struct-end per s141)
-- `zeta_storage.c`: `pl_trail_mark_off` in `zls_graph_t`; setter + lookup
-- `scrip_ir.c`: `ir_drive_slot_assign` scans for `$trail_mark` post-`zls_build`, populates both fields
-- `scrip.c`: Prolog graph **NAME PRE-PASS** before emission loop (both m3/m4) so `zls_g_resume_by_name(callee)` resolves correctly regardless of emission order; `is_prolog` added to all three `zls_graph_name` call sites
-- `bb_suspend.cpp`: pending-cursor intercept at suspend-α, gated on `op_sb == resume_slot` (clause-cursor ONLY — Bug 3 was inner suspend nodes intercepting); if pending: `rt_pl_zf_resume_clear` + `jmp r11` (cursor within live frame); else push3
-- `xa_flat.cpp`: epilogue-γ intercept (dead code path — `bb_suspend` fires first, but retained as safety net)
-- `bb_call_proc_staged.cpp`: `pl_zf_resume` β arm: `FRQ(act)=0` reset (Bug 5 fix), pop triple, `rt_pl_zf_resume_set`, re-stage args via plain `rt_arg_stage`, re-call `rt_proc_call_open_det`, push `L(7)`, set wires `rcx=L(3)/rdx=L(4)`, `jmp rax`
-
-**s11 BUGS FOUND AND FIXED (5 sequential):**
-1. Label collision: `bb_suspend` L(60)/L(61) vs `stage_arg_inline` L(20+) → plain `rt_arg_stage` in β
-2. `cursor_off=-1`: Prolog graphs not named in ZLS → name pre-pass before emission loop
-3. Guard too tight: `rt_jmp_frame_lexprep2` used `suffix_off` as cursor-write bound (cursor IS at `suffix_off` so `784+8<=784` failed) → use `region_bytes`
-4. Stack sharing: `push3` used `g_pl_cp_stack` shared with `bb_indirect_goto` single-word pop → corrupted triples → separate `g_pl_zf3_stack`
-5. `FRQ(act)` stale=1: β-resume's fresh γ-exit took `rt_gen_spine_pass_γ` (k-- only, no pcall pop) not `epilogue_γ` → `mov FRQ(act),0` at β arm start
-
-**REMAINING OPEN — clause-2-never-fires:**
-After β-resume: pending cursor set, re-enter `p/1` α, `bb_suspend` intercept fires at `n50_suspend_α` (`jmp n50_suspend_β` = clause-2 entry within live frame), clause-2 body runs, `n50_suspend_α` fires AGAIN (push3 for clause 3, normal path since pending is now cleared), γ-exits to L(3). But caller never receives X=2 — only X=1 is printed. Suspected: either `rt_pl_cp_pop3` returns 0 unexpectedly (verify with stderr print), or trail unwind at `n51_call_builtin_prolog_α` destroys the arg binding, or the pending mechanism doesn't actually intercept (verify the `op_sb==resume_slot` gate is matching).
-
-**NEXT SESSION TASKS (in order):**
-1. `git pull --rebase`; rebuild; re-derive watermark (expect m3+m4 6/22; `9eebcbbb` is the WIP cursor)
-2. Add `fprintf(stderr, "[DEBUG]...")` in `rt_pl_cp_pop3` and `rt_jmp_frame_lexprep2` pending block to verify (a) pop3 returns non-NULL cursor on first β-resume, and (b) lexprep2 applies the write. Run `bt_debug.pl` (`p(1). p(2). p(3). main :- p(X),write(X),nl,fail.`) and check stderr.
-3. If pop3 returns non-NULL and intercept fires: trace whether `n51_call_builtin_prolog_α` (`rt_pl_dop_unwind_nothrow`) destroys the arg-param binding. The arg is bound via `rt_frame_bind_args` at pcall time BEFORE the trail checkpoint; the unwind should not touch it (it was bound before the mark). Verify by checking if `X` is unbound after unwind.
-4. Fix the root cause; re-measure; target 12→15+/22 (queens/ham/nreverse class).
-5. SN4+ICN byte-identity crosscheck (crosscheck suite) before any behavioral commit.
-6. Beauty.sno regression (`f6b93e6c` parallel session) is pre-existing — do NOT fix in this session without Lon directive.
-
-**FR-4 ROOT CAUSE — fully diagnosed this session:**
-
-The hang after first result (queens/zebra/nreverse/all backtracking predicates) comes from **`bb_call_proc_staged`'s β-resume path** entering a dead ζ-frame via the generator spine resume protocol. Specifically:
-
-1. `n28_call_proc_staged_α` calls `proc_bar$2F1_α` (a Prolog generator with its own ζ-frame), saves `[rsp]` to `FRQ(act+8)`, receives γ-return (first clause result), pops pcall — the generator's C stack frame is then DEAD.
-2. On `fail`, `n28_call_proc_staged_β` fires: calls `rt_gen_spine_resume_enter`, reads `FRQ(act+8)` (the saved rsp into the dead frame), does `jmp [rsp]` — jumps into the dead frame. This is the hang (jumping into reclaimed C stack = loops or crashes in garbage code).
-3. `bb_move_label` / `bb_indirect_goto` are a separate (outer) issue for `; true` disjunction — the inner issue is in `bb_call_proc_staged`'s β arm.
-4. The clause-cursor mechanism: `proc_bar$2F1` uses a suspend-slot `[rbp+320]` updated by `n4_suspend_α` → `n4_suspend_β`. Second entry requires jumping to `n4_suspend_β` WITH a valid frame (trail mark at `[rbp+32/40]` needed by `n5_call_builtin_prolog_α`'s trail unwind). Cannot just α-reinvoke (resets to clause 1 every time).
-
-**THE CORRECT FR-4 DESIGN (confirmed by reading ICN-FR-4 Layer 3 code in bb_suspend.cpp + bb_call_proc_staged.cpp):**
-
-The Icon zframe generator β-resume (ICN-FR-4, `zf_resume=true` arm in `bb_call_proc_staged`) already solved this:
-- `bb_suspend`'s α fires `rt_gen_save_cont(lbl_t1)` to save the continuation label to `g_gen_pending_cont` (heap-immune global)
-- `bb_call_proc_staged`'s β arm reads `rt_gen_get_cont()` → the saved suspend-β label, then re-enters via `rt_gen_get_fb()` (generator rbp from pcall.fb, still valid at β time for Icon because icn_zframe_gen graphs use a different epilogue that preserves pcall.fb)
-
-For Prolog, `zf_resume=false` because `zls_g_icn_zframe_gen_by_name` returns 0 (lower_prolog never sets `icn_zframe_gen`). Two things needed:
-1. **`bb_suspend.cpp` line 23**: extend the `rt_gen_save_cont` guard from `icn_zframe_gen` to ALSO fire for Prolog zframe generators: `(g_emit.flat_gen && (g_emit_cfg->icn_zframe_gen || g_emit_cfg->zframe_graph)) && _.op_sb >= 0 && _.lbl_t1_p`. This saves the suspend-β to `g_gen_pending_cont` before each yield.
-2. **`bb_call_proc_staged.cpp`**: add `pl_zf_resume = g_emit_cfg->zframe_graph && (zf_cont_off >= 0) && !zls_g_icn_zframe_gen_by_name(_.op_sval)` — then at L(3) (γ landing): save generator_rbp to `FRQ(act+8)` same as `zf_resume` arm; at β: call `rt_gen_get_cont()` for the saved suspend-β, call `rt_gen_get_fb()` for generator_rbp (from pcall.fb — valid if `rt_jmp_frame_lexprep2` set it), pin rbp/rsp, jmp to suspend-β.
-3. **BUT**: `pcall.fb` validity at β time: for Prolog, `rt_jmp_frame_lexprep2` sets `pcall.fb = fb` (line 1587 in rt.c). After `rt_proc_call_epilogue_γ` pops the pcall at L(3), `pcall.fb` is gone. Must save generator_rbp BEFORE epilogue_γ fires — exactly what `zf_resume=true` arm does (`mov FRQ(act+8), rax` at L(3) before `rt_proc_call_epilogue_γ`). BUT the Prolog ζ-frame's rbp is also dead (the C frame was cleaned up). `rt_gen_get_fb()` reads `g_pcall[top-1].fb` — after the pop, top-1 is the CALLER's pcall, not the generator's.
-4. **CORRECT RESOLUTION**: For Prolog zframe β, DON'T need the old generator rbp. The continuation label from `rt_gen_get_cont()` + a FRESH call to `rt_proc_call_open_det` (to get a new frame for `proc_bar$2F1_α`) + then jumping to the saved suspend-β (skipping `_α_body`'s reset of `[rbp+320]`) + restoring the trail mark to the new frame. This is a small shim: allocate fresh frame → populate trail mark from a saved mark → jmp suspend-β.
-5. **SIMPLEST WORKING DESIGN**: Store trail-mark AND suspend-β in `g_pl_cp_stack` (pushed as a 2-word pair at suspend time inside `proc_bar`), then at β: pop both, call `rt_proc_call_open_det` (fresh frame), store trail-mark into `[rbp+32/40]`, jmp suspend-β. `g_pl_cp_stack` entries become `{trail_mark_descr, cont_addr}` pairs.
-
-**NEXT SESSION TASKS (in order):**
-1. `git pull --rebase`, rebuild, re-derive watermark (expect 12/22).
-2. Extend `g_pl_cp_stack` entries to `{trail_mark_lo, trail_mark_hi, cont_addr}` triples. Add `rt_pl_cp_push3(long tm_lo, long tm_hi, void *cont)` + `rt_pl_cp_pop3(long *tm_lo, long *tm_hi)` → returns cont. Three new fields in rt.c + rt.h.
-3. In `bb_suspend.cpp`: when `g_emit_cfg->zframe_graph && g_emit.flat_gen && _.op_sb >= 0 && _.lbl_t1_p`: emit a `rt_pl_cp_push3` call at α (before the yield) with trail-mark from `FRQ(32)/FRQ(40)` (the `n0` result slot) and `lbl_t1` (the suspend-β). Byte-identical for non-Prolog-zframe.
-4. In `bb_call_proc_staged.cpp`: add `pl_zf_resume` arm in the β section: call `rt_pl_cp_pop3(&tm_lo, &tm_hi)` → cont; call `rt_proc_call_open_det(gi_idx, nargs)` → fresh fn ptr; push `.L(7)` as landing word; jmp fn (enters `proc_bar$2F1_α` fresh, `rt_jmp_frame_lexprep2` initializes frame); ON RETURN at `.L(7)`: write `tm_lo/tm_hi` to `[rbp+32/40]` (restoring trail mark for `n5`); jmp cont (= suspend-β → `n5_call_builtin_prolog_α`). SN4/Icon watermarks: `g_emit_cfg->zframe_graph=0` for non-Prolog → byte-identical.
-5. SN4 + Icon byte-identity crosscheck after each commit.
-6. Test suite: `bt_minimal.pl` then bench 12/22 → target 15+/22 (nreverse, queens-class, sendmore).
+1. `git pull --rebase`; rebuild; re-derive watermark (expect 11/22 both modes; HEAD `3e13d7a0`).
+2. Decompose the 11 failures by feature: run each, bucket by first divergence (disjunction / cut / assert / arity). `bt_minimal.pl` (`main :- color(X), write(X), nl, fail ; true.`) is the disjunction reproducer from FINDING-PL-FR4-RETRY-STACK.md.
+3. Land the FINDING's one-line change set (α-label retry via `lbl_t1`, `rt_pl_retry_push/pop` emitter arms in `bb_move_label`/`bb_indirect_goto`) — re-read its "Correct fix" section first; the runtime half already exists in rt.c.
+4. SN4+ICN byte-identity before every behavioral commit. Target 15+/22 both modes.
 
 
-## ⛔⭐ LIVE CURSOR — s9 (2026-08-08, Sonnet 4.6 — W1-GC-WARMUP committed (b01ef7ff); bench 6/22; Bug 2 (trail-unwind/plc_dead_cstack SEGV) is next blocker)
-
-**s9 HEAD at session end: `b01ef7ff`** (W1-GC-WARMUP). Bench watermark: **m3+m4 6/22** (unchanged — Bug 2 still open). SN4 smoke pre-existing failures unchanged (not a regression). Parallel commits since s8 cursor (ZK-2 ×2 + FR-5 RPO-PASS2) did not affect Prolog bench.
-
-**s9 FINDINGS:**
-- **W1 prologue hypothesis CLOSED:** `xa_flat_zframe_prologue_str()` line 331 correctly writes caller_rbp to `[rsp+kt-8]` at HEAD — the s8 hypothesis (prologue still writing `kt-32`) was already fixed. The W1 residual has a different cause (two bugs stacked).
-- **W1 Bug 1 FIXED (b01ef7ff):** All 5 W1 victims (`derive`/`divide10`/`log10`/`ops8`/`times10`) crashed at `gc_static_segs_init→dl_iterate_phdr` (glibc `movaps` requires 16-byte RSP; without zframe prologue, RSP is not guaranteed aligned at first `rt_plj_alloc` call from JIT code). The anchor never triggered this because its zframe prologue guaranteed `kt`-aligned RSP. Fix: `rt_gcheap_warmup()` exported from `gc_heap.c`, called from both JIT entry sites in `scrip.c` before `rt_outer_call`/`icn_zf_main_call`.
-- **W1 Bug 2 OPEN (trail-unwind SEGV):** After Bug 1 fix, all 5 programs now crash at `pl_trail_unwind→plc_dead_cstack→sscanf` from JIT frame (frame #7 = JIT blob, frame #8 = null). Same RSP-alignment class of problem: `plc_dead_cstack` allocates `char ln[256]` on stack and calls `sscanf`; crashes when RSP is not 16-byte aligned inside JIT code. `plc_dead_cstack` returns 0 immediately if `g_plw_unwind_floor==NULL` (line 73 of `pl_cell.h`) — Prolog zframe graphs have no C-stack-resident cells, so this is the correct short-circuit. Next session: implement and test.
-- **Bisect (W1 GC regression):** Regression entered at `7f1b77c7` (CARVE-KILL RE-DELETE, s165) — the deletion of `XA_FLAT_PROLOGUE`/`XA_FLAT_EPILOGUE` dispatch from `xa_dispatch()`. This is by design (PL-ZFRAME-RESTORE exists to restore Prolog's frame as a NEW GATED ARM, not a revert). The W1 bugs are consequences of the deletion that must be fixed in the restoration path.
-
-**HEAD at session end (s8):** `7fe03df9` (PL-ZD-WINDOW2-FIX: gate ICN-FR-4 global-save on icn_zframe_gen). Bench watermark re-derived at pushed HEAD: **m3 6/22** (cal, deriv, fib, nrev, qsort, tak). W2 fully recovered. SN4 smoke 7/7 ✓ · Icon smoke 13/14 (1 pre-existing `until` failure unrelated to this work) ✓.
-
-**⭐⭐ BISECT COMPLETE — both regression windows fully diagnosed:**
-
-**WINDOW 1 [`5562280d`..`63280689`] — culprit: `fba93a77` (ICN-FR-4 WIP INCOMPLETE, merged in at `996bcfe9`).**
-Root cause: this WIP commit relocated the caller_rbp save slot in the shared `xa_flat_zframe_prologue/epilogue` from `[rsp+kt-8]` to `[rsp+kt-32]` (an intermediate design that moved old_rbp inside the generator frame). The epilogue's `mov rbp, [rbp+kt-32]` restores a wrong value for Prolog zframe graphs, which expect caller_rbp at `kt-8` per the FR-3 wire-header contract. Effect: SEGV on all Prolog recursive arithmetic (`derive`, `divide10`, `log10`, `ops8`, `times10`). Cost: **11→6, −5 programs**. The complete ICN-FR-4 commit (`e33e703b`) fixed this by reverting to `RBPRAWQ(kt-8)` — so the slot is back at `kt-8` at HEAD. **W1 regression is ALREADY FIXED AT HEAD.** Confirmed: all 5 programs pass at `e3204b01` (before the WIP) and at HEAD's `RBPRAWQ(kt-8)` epilogue.
-
-**W1 residual confirmed still open at HEAD `7fe03df9`:** `derive`, `divide10`, `log10`, `ops8`, `times10` still SEGV (rc=139). These are the W1 victims (`fba93a77` misaligned caller_rbp slot). The ICN-FR-4 COMPLETE commit (`e33e703b`) used `RBPRAWQ(kt-8)` in the epilogue — but the W1 culprit `fba93a77`'s misalignment is in the **prologue** (`mov [rsp+kt-32], rbp` instead of `[rsp+kt-8]`). The epilogue fix without the prologue fix means the rbp is saved at `kt-32` but read back from `kt-8` — still a mismatch. **Next session: read `xa_flat_zframe_prologue_str()` at HEAD and confirm whether the non-gen arm still writes caller_rbp to `kt-32` or has been restored to `kt-8`.**
-
-**WINDOW 2 [`e33e703b`..`b4c3a2b5`] — ✅ FIXED at `7fe03df9` (PL-ZD-WINDOW2-FIX).**
-Root cause: ICN-FR-4's `rt_gen_save_wires` / `rt_gen_save_caller_rbp` / `rt_gen_get_*` global-save path in `xa_flat_zframe_prologue/epilogue` fired for ALL `flat_gen=1` zframe graphs, including Prolog zframe predicates. Prolog multi-clause predicates have concurrent activations that overwrite `g_gen_pending_*` globals before the first activation's epilogue fires — causing cal/nrev/qsort to hang (infinite retry loop on stale global state). Fix: new `icn_zframe_gen` field on `IR_graph_t` (struct-end, calloc-zero safe), set ONLY by `lower_icon.c` for Icon generator graphs. All four ICN-FR-4 xa_flat sites now gate on `g_emit_cfg->icn_zframe_gen`. Prolog zframe predicates fall through to the direct `RBPRAWQ` frame-read epilogue. Result: **3→6, +3 programs recovered** (cal, nrev, qsort). The parallel session had this fix already staged in the working tree; this session committed and pushed it.
-
-**NEXT SESSION TASKS (in order):**
-1. `git pull --rebase`, rebuild, re-derive watermark (expect 6/22 after rebase; b01ef7ff is the W1-GC-WARMUP commit).
-2. **Fix W1 Bug 2 (trail-unwind SEGV):** After the GC-warmup fix, all 5 W1 victims now crash at `pl_trail_unwind → plc_dead_cstack → sscanf` (inside glibc, called from JIT frame). Root cause: `plc_dead_cstack` allocates a local `char ln[256]` and calls `sscanf`; this crashes when RSP is misaligned (no zframe prologue in JIT code). Diagnosis: `g_plw_unwind_floor` is set by `dop_call_nothrow` to its own frame address. `plc_dead_cstack` at line 73 of `pl_cell.h` returns 0 immediately if `g_plw_unwind_floor == NULL`. Prolog zframe graphs have no C-stack-resident cells, so `plc_dead_cstack` should always return 0 for them. **Candidate fix:** set `g_plw_unwind_floor = NULL` for the duration of JIT execution, OR ensure RSP is 16-byte aligned at every `rt_pl_dop_*` call site emitted by JIT code. Read `rtx_plunify.S` lines 85–120 and `dop_call_nothrow` in `by_name_dispatch.c` before proceeding. SN4 + Icon byte-identity required on commit. Expected recovery: +5 programs (derive, divide10, log10, ops8, times10) → 11/22.
-3. After W1 Bug 2 clear: re-derive baseline at 11/22, THEN open FR-4. FR-4's target: queens, zebra, sendmore (choice-point predicates SEGVing due to retry-address in dead zframe slot — design already in file).
-
-**s7 architectural findings still valid** (clause cursor, lbl_t1, g_pl_retry trail gap) — carry forward unchanged.
-
-**FR-4 STATUS:** Runtime infrastructure complete (`rt_pl_retry_push/pop` in rt.c/rt.h, s6). Emitter integration BLOCKED on α-label staging AND W1 residual. Do not open FR-4 until W1 clears (baseline 11/22 required).
-
-## ~~s5 cursor (superseded)~~
-SCRIP `5562280d` (HEAD unchanged — no new commits this session; FR-2/FR-3 criteria verified against existing HEAD). **NO SOURCE MODIFICATIONS THIS SESSION.**
-
-**WATERMARKS s5 (re-derived at session start):** bench **11/22 both modes** · rung suite **run 133/164 · compile 127/164** · SN4 m3 287/317 · m4 271/317 (baseline) · Icon 217/293 (ICN-FR-3 cursor, zero regression from PL work).
-
-**⭐⭐ FR-2 AND FR-3 ARE COMPLETE.** Criteria re-read and all green:
-- `rung01_hello` ✅ both modes · `nrev` ✅ both modes (FR-2)
-- `qsort` ✅ both modes · `fib` ✅ both modes (FR-3)
-- `SCRIP_PL_ZFRAME=0` deterministic 22/22 ×2 · differs from default on all 22 (correct, default=ON) ✅
-- SN4 288/317 m3 · 269/317 m4 (within noise; no regression) ✅ · Icon 217/293 ✅
-- s4 called these WIP because the build fixes at `5562280d` hadn't been re-measured — all criteria are met at HEAD.
-
-**⭐⭐ FR-4 ROOT CAUSE FULLY DIAGNOSED** (FINDING-2026-08-07-CLAUDE-PL-FR2-FR3-COMPLETE-AND-DISJUNCTION-ROOT-CAUSE.md):
-
-`IR_MOVE_LABEL` (bb_move_label.cpp) stores the retry address into ζ-frame slot `FRQ(op_off+16)` = `[rbp+16]`. The ζ-frame epilogue (`main_γ`) restores `rbp` to the **caller's rbp** (`mov rbp, [rbp+kt-8]`). After the epilogue fires, `rbp` no longer points to `main`'s frame. When the caller triggers backtrack and `main_β → n55_disjunction_α: jmp qword ptr [rbp+16]` executes, it reads through the **caller's rbp** at offset 16 — garbage. SEGV.
-
-**Canonical WAM fix (gprolog `wam_inst.h` + SWI `pl-incl.h` read this session):** Both engines store the alternative-clause pointer (`ALTB`/`value.pc`) in a **heap-resident choice-point record** (`bb_choice_state_t.cp` in SCRIP's own `emit.h:206`) that is completely independent of the activation frame's lifetime. The `bb_choice_state_t` struct already has the `cp` field for exactly this purpose.
-
-**⛔ INCORRECT APPROACH FOUND AND REVERTED:** An uncommitted modification to `bb_call_proc_staged.cpp` (push-landing-word + direct `jmp L(3)` gated on `g_emit.zframe_graph`) was found in the working tree and **reverted** (`git checkout src/templates/bb_call_proc_staged.cpp`). It was architecturally wrong: (1) `bcps_spine_gen_arm` is not called for Prolog multi-clause predicates at compile time (`rt_proc_is_generator` returns 0 until `proc_startup` registers at runtime); (2) the bug is in `bb_move_label`/`bb_disjunction`, not in `bb_call_proc_staged`. Tree is clean.
-
-**FR-4 DESIGN (next session):** Gate on `g_emit.zframe_graph`. In `bb_move_label` ζ-frame arm: call `rt_pl_cp_set_retry(cp, rax)` to store the retry address in the PLJ heap choice-point record rather than `[rbp+op_off+16]`. In `n55_disjunction_α` ζ-frame arm: call `rt_pl_cp_get_retry(cp)` to load from the heap record. The `cp` pointer must be accessible without reading through the (dead) ζ-frame — options: (a) passed as a parameter to the disjunction call, (b) stored in a thread-global `g_pl_cp_stack` analogous to `g_pl_trail`. Completion: `queens` + `zebra` + `sendmore` green both modes.
-
-**NEXT SESSION FIRST TASKS:** (1) Re-derive watermarks (bench 11/22, rung 133/164 run). (2) Check FR-2 and FR-3 boxes (re-measure first per FACT RULE, then check). (3) Open FR-4: read `bb_move_label.cpp`, `bb_choice_state_t` in `emit.h`, `lower_pl_choice_graph` in `lower_prolog.c`. Build `bt_minimal.pl` reproducer, confirm exact SEGV site with gdb backtrace. Implement heap-resident retry-address storage. Do NOT retry the `bcps_spine_gen_arm` push approach.
-
-**s2 carried:** Sentinel guards `8fa12915` — LANDED. Anchor `20b56c9a` 22/22 both modes verified s1. EXTRACT-PL-FRAME.md committed. Anchor worktrees may need re-creation.
-
-## THE ANCHOR — VERIFIED FACTS (measured 2026-08-07 in-session; do not re-litigate; DO re-derive all HEAD numbers)
-- **Anchor of record: SCRIP `20b56c9a`** (2026-08-01 00:39, ON ORIGIN — the carve-kill PARENT, the last pre-death commit). PROMOTED 2026-08-07 by measurement: fresh build zero errors both logs, no libgc; against today's corpus **m3 bench 22/22 rc=0 AND full m4 sweep 22/22** (worktree `/home/claude/wt-pl-last`).
-- **Corroborating earlier measured point: `8437c3d7`** (2026-07-30) — ALSO 22/22 both modes at a fresh build this session (worktree `/home/claude/wt-pl-anchor`); its FINDING-2026-07-30-CLAUDE-PL-RTX-ITEM-0 census (2,060,043 `rt_proc_call_open_det` arrivals, reach 19/22, `queensn` = 78% of board traffic = the perf vehicle) remains the board's proof of record. Spot outputs correct at both commits: queens N=16, nrev, qsort.
-- **HEAD `c0372fec` (2026-08-07): bench 0/22** — 13× rc=139 SEGV + 9× rc=1. The break is total, both failure shapes.
-- **Anchor selection SETTLED s0** (COMMIT-SELECTION LAW: the proof travels with the anchor): both candidates measured 22/22 both modes; `20b56c9a` wins as the LATEST green — 92 commits of fixes newer, 21 minutes before the kill. Lon may override at any session start. **Green window of record: `8d0665c8` (07-28, Icon+SN4 peak) → `20b56c9a` (08-01 00:39).**
-- **Death: CARVE-KILL `ef9a7d2c`** (flat prologue emitter deleted, −247 lines) **+ `1ba33ea6`** (epilogue, −299), 2026-08-01 — a LON DIRECTIVE for the per-BB cell campaign. The §7 re-land was REVERTED by the s165 ruling ("DELETE THE PROLOGUE AND EPILOGUE... WE ARE SCOPING AT A DIFFERENT LEVEL NOW"). Honest cost recorded at the time: bench broken=22/22 (FINDING-2026-08-01-CLAUDE-PL-THE-CARVE-IS-NOT-DEAD). ⛔ THE RESTORATION IS A NEW ARM BEHIND A GRAPH FLAG, NEVER A REVERT of those commits.
-
-## ERA MECHANICS — PROLOG-SPECIFIC (from the FINDING record; PL-FR-1 verifies each against the anchor tree)
-1. **Prolog's live prologue arms at the anchor were LEXPREP2 + FRAME_RSP,** not Icon's dc-stub path: LEXPREP2 (jmp-entry lazy-seed via `rt_jmp_frame_lexprep2` — 279 corpus marker hits, s150) and FRAME_RSP (185 hits, s149); both already `x86()`-converted at the anchor (s149/s150), so the resurrection source is template-clean. ⭐ **`rt_jmp_frame_lexprep2` SURVIVES AT HEAD** (`rt.c:1552`) — only the emitter arms died.
-2. **Generator/resumable predicate graphs took the HEAP-FB-ADOPT arm** (`emit_heap_fb_adopt` = `push rbp; mov rbp,rdi`, no rsp carve — activation survives β-resume); pin = `emit_rec_pin()` = jmp_pin ∪ adopt, ONE authority (s160/s161, gate `test_gate_fb_adopt_one_predicate.sh`).
-3. **Frame census at the anchor era: 145 sites / 320,352 B / mean 2,209 B per activation** (s164) — × recursion depth IS the memory complaint the cells track answers; this track restores correctness first.
-4. **The 4,510 whole-graph-frame readers by kind** (FINDING-2026-08-01-PL §11 — the conversion list the cells track inherits): `call_builtin_prolog` 2255 (50%, gates 100% of runs) · **PROC-ENTRY 781 (17.3%, NO BB owns it — wire header + saved rcx/rdx/rbp)** · `var_ref` 732 · `lit_string` 258 · `lit_integer` 180 · `suspend` 125 · `call_proc_staged` 102 · `var` 68 · `move_label` 5 · `disjunction` 4.
-5. ⭐ **THE RESTORE VEHICLE ALREADY EXISTS AT HEAD:** ICN-FR-2 (`bcf05d33`) restored the gated whole-graph ζ-frame regime — `zframe_graph` on `IR_graph_t` (IR.h:256, struct-END, behavior-named), prologue/epilogue/exit arms in xa_flat.cpp + emit.cpp, killswitch pattern proven. IR.h's own comment guarantees Prolog invariance "by construction" precisely because only lower_icon stamps it — **PL-FR-2 makes lower_prolog the second stamper behind `SCRIP_PL_ZFRAME`.** PL-FR-1 decides per-arm whether Icon's restored shapes (dc stub, `rt_icn_zframe_args_install`, γ-retain) cover Prolog's LEXPREP2/adopt shapes or Prolog re-expresses its own arms from the anchor source.
-6. ⛔ **Post-anchor machinery a `zframe` Prolog graph must bypass** (the double-billing list, PL-FR-1(f)): the ZD-PL-A arm in `zd_wl_kind`/`bb_call_fn.cpp` (s163b), NOFC, FB-STMT refine, and anything the SN4 MECH regime-deletion (`de837576`) made unconditional. `SCRIP_PL_ZFRAME=0` must reproduce today's exact (broken) path byte-identically.
-7. ⛔ **DO NOT blind-widen `emit_fb_stmt_scan` to `IR_DISJUNCTION`** — the bail is principled (choice points are not rebalanced by HEAD..RELEASE), s164's standing warning.
-
-## RUNGS (each: own commit, buildable, killswitch, SN4+ICN byte-identity, FINDING per land mine; walk in order)
-- [x] **PL-FR-1 EXTRACT-PL-FRAME.md — COMPLETE s0b (VERIFY QUEUE closed; results in the doc's §VERIFY QUEUE RESULTS; item-3 dynamic sweeps re-scoped INTO PL-FR-2 completion).** Anchor→HEAD pairing per arm, the Icon FR-1 row shape: (a) LEXPREP2 prologue + its epilogue twin; (b) FRAME_RSP outer arm; (c) heap-fb-adopt + `emit_rec_pin` at HEAD vs anchor; (d) param/arg landing (`rt_frame_bind_args` double-copy — restore as-was; the sink lives in GOAL-PROLOG-BB); (e) slot-grant coverage for Prolog value-producers; (f) the bypass enumeration (item 6 above) + how `=0` restores today's path; (g) epilogue/whack shape vs HEAD's exit-class ledger. PLUS: decide REUSE-vs-OWN-ARMS per row (anchor promotion SETTLED s0 — see THE ANCHOR).
-- [ ] **PL-FR-2 THE GRAPH-FRAME REGIME RETURNS FOR PROLOG (gated, both media).** lower_prolog stamps `zframe_graph` on every graph behind `SCRIP_PL_ZFRAME` (default ON for Prolog graphs; `=0` byte-identical to pre-rung HEAD — completion criterion). Prologue/epilogue arms per FR-1's reuse decision. Completion: rung01_hello + nrev green BOTH modes · SN4 crosscheck + Icon 303-emission content-hash byte-identical · `=0` identity · gates not regressed.
-- [ ] **PL-FR-3 WIRE EXIT VIA THE FRAME HEADER** for flagged Prolog graphs (γ/ω unwind to flat base, wires at kt-24/-16, caller rbp kt-8). Completion: qsort + fib green both modes (recursion proves per-activation frames).
-- [ ] **PL-FR-4 PREDICATES + CHOICE POINTS ON-SPINE.** The suspend/generator class (70.3% of frame refs, s164) + `IR_DISJUNCTION` choice points: β-resume against the pinned header, backtrack across activations, trail interplay. Audit for post-carve-kill rot in the flagged arm only. Completion: queens + zebra + sendmore green both modes.
-- [ ] **PL-FR-5 FULL RATCHET TO ANCHOR PARITY.** **bench 22/22 m3 AND m4** · rung suite `test_prolog_rung_suite.sh` 164/164 interp + compile · smoke 5/5 · census instrument reproduces the board's 2,060,043 arrivals ±0 (gate ON). MONITOR-FIRST on every residual.
-- [ ] **PL-FR-6 GATES + PROCESS.** `scripts/test_gate_pl_zframe.sh` (bench quartet both modes + SN4/ICN byte-identity + `=0` identity + DESCENDING-failure ratchet); existing gates re-proven (`test_gate_pl_no_new_global.sh` ratchet, `emit_no_lang`, adopt-one-predicate, fb tripwire, medium-invisible baseline).
-- [ ] **PL-FR-7 CURSOR + DOC SYNC.** GOAL-PROLOG-BB.md cursor pointed at this ladder's outcome; GOAL-ZETA-FOUR.md one-line cross-ref (`8437c3d7` = the Prolog-side frame-rsp anchor); GOAL-PROLOG-RTX.md coordination note. No PLAN.md table edit (RULES).
-
-## WITNESS SET (report every session)
-bench 22 board (queensn = perf vehicle; three files named queens.pl — full path + md5 ALWAYS, the s224/s225 rule) · rung suite 164 · smoke 5 · rung01_hello · nrev · qsort · fib · queens · zebra · census 2,060,043.
-
-## SESSION SIZING + HONEST LIMITS
-3–4 sessions mirroring Icon (FR-1+start-2 · FR-2/FR-3 · FR-4/FR-5 · FR-6/FR-7); every rung boundary a safe handoff. Report approximate context percentage at natural checkpoints unasked; anchor worktree (`/home/claude/wt-pl-anchor` this session) is for building + grepping, never wholesale reading. HEAD moves daily under 5+ parallel tracks — re-derive every number at session start; the flag-gate + tri-language byte-identity is the armor. Anchor parity (22/22 both modes) is THIS ladder's finish line; perf (the sink ladder, RTX) stays with GOAL-PROLOG-BB / GOAL-PROLOG-RTX. This file cannot coerce its walker; the cursor, the gates, and Lon's review are the enforcement.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
-
-## ⛔ SESSION-START NOTE FOR NEXT WALKER
-FR-1 COMPLETE (s0b) — FR-2 MAY OPEN. FR-2 inherits the queue's item-3 dynamic sweeps (flagged-graph FATAL sweep + `=0` byte-identity bypass sweep) as completion criteria; they need the flag to exist and are already in FR-2's text.
