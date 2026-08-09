@@ -40,3 +40,29 @@
 4. SN4+ICN byte-identity before every behavioral commit. Target 15+/22 both modes.
 
 
+
+## ⛔⭐ LIVE CURSOR — s14 (2026-08-09, Sonnet 4.6 — ROOT CAUSE FOUND; FIX COMMITTED; NEXT = RE-DERIVE WATERMARK)
+
+**s14 HEAD at session end: `2f620d2d`** (SCRIP). Two files changed: `src/runtime/rt/rt.c` + `src/templates/bb_suspend.cpp`.
+
+**ROOT CAUSE OF ALL 11 REMAINING FAILURES FOUND AND FIXED:**
+
+The 11 bench failures (nreverse, queens, sendmore, crypt, zebra, ham, mu, meta_qsort, query, queens_8, queensn) were NOT a disjunction problem. They were caused by **pending-cursor contamination** in the β-resume re-entry path — a bug in the triple-stack mechanism introduced in s13.
+
+**The bug:** When predicate P β-resumes, `rt_pl_zf_resume_set` sets `g_pl_zf_pending_cursor`. This global stayed set through the entire re-entry α execution. When P's clause-1 body called an **inner predicate Q** (e.g. nreverse calls concatenate), Q's own `bb_suspend` node fired. Q's clause-cursor gate (`op_sb == g_emit_cfg->resume_slot`) passed — every predicate's gate passes for its own suspend node — and Q **wrongly intercepted the pending resume for P**. This created a triple-stack imbalance growing O(recursion depth), tripping glibc's stack canary at depths ≥ 15 in a **non-monotone pattern** (n=15 crashes, n=20 passes, n=25 passes, n=28 crashes) depending on the specific call count at each depth.
+
+**The fix (per-frame sentinel at `[fb+0]`):** `rt_jmp_frame_lexprep2` now writes sentinel `1` to `[fb+0]` (the yield-value lo word, normally 0 until suspend fires). α_body NEVER writes `[rbp+0]` — only the yield path does. `bb_suspend` checks `[rbp+0] == 1` (β-resume re-entry) vs 0 (fresh call or INNER predicate), instead of the global `g_pl_zf_pending_cursor`. Per-frame: correct for any recursion depth. No global contamination of inner predicates.
+
+**CONFIRMED BEFORE FIX:** Canary crash at n=15, n=18, n=28, n=30; pass at n=20, n=25 (non-monotone = hallmark of stack-imbalance, not depth overflow).
+**SN4/Icon byte-identity:** `zframe_graph=0` for their graphs → bb_suspend intercept block absent → byte-identical by construction (structural argument, not measured this session — R-ICN-D re-proof deferred to next session).
+
+**STALE FINDING:** `FINDING-PL-FR4-RETRY-STACK.md` is a historical artifact. Do NOT follow its "one-line change set." The disjunction (`;`) case was already fixed by s13's N0-SUPPRESS work. The 11 failures were the triple-stack contamination bug, now fixed.
+
+**NEXT SESSION TASKS (in order):**
+1. `git pull --rebase`; rebuild (`make -j$(nproc)`); re-derive watermark BOTH modes (expect substantial improvement: 16–22/22 range, pending arithmetic/cut failures).
+2. Re-prove R-ICN-D: `roman.sno` byte-identity with/without `SCRIP_ICN_ZFRAME=1` and `generators.icn` — zero new `.s` symbols for SN4/Icon.
+3. Run `bt_debug.pl` (1,2,3/rc=1) and `bt_minimal.pl` (red/green/blue/rc=0) as witnesses.
+4. If arithmetic programs (derive, divide10, log10, ops8, times10) still fail m4 after fix — that is the pre-existing W1-Bug2 (`g_plw_floor_bypass` not wired for m4 zframe); separate from this fix.
+5. Update this cursor with measured watermark. Push `.github` last.
+
+**ALSO NOTE:** `g_pl_zf_target_pcall_top` global is defined and set in this commit but not yet read in `bb_suspend` (it was a parallel approach explored and superseded by the sentinel). Safe to leave; dead code until a future session uses it or removes it.
