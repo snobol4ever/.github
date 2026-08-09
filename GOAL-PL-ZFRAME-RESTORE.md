@@ -17,9 +17,39 @@
 
 ⛔ **s3 NOTE:** This session's `lnames` registration (commit `6a87662b`) adds body vars to `lnames` so ZLS grants them slots at its own flat-frame offsets (without the now-deleted override). The deletion is compatible with the lnames approach; verify Prolog body-var vslot correctness at next session start.
 
-## ⛔⭐ LIVE CURSOR — s10-cont (2026-08-08, Sonnet 4.6 — FR-4 INFRA committed (baaa4667); bench 12/22; NEXT = FR-4 full rung: bb_call_proc_staged Prolog-zframe β arm)
+## ⛔⭐ LIVE CURSOR — s11 (2026-08-08, Sonnet 4.6 — FR-4 WIP committed (9eebcbbb); bench m3+m4 6/22; NEXT = fix clause-2-never-fires in pl_zf_resume β path)
 
-**s10-cont HEAD at session end: `baaa4667`** (PL-FR-4 INFRA: g_pl_cp_stack push/pop skeleton + bb_indirect_goto zframe arm). Bench watermark: **m3 12/22** (unchanged — FR-4 body not yet landed). SN4 beauty.sno byte-identical confirmed.
+## ⛔⭐ LIVE CURSOR — s11 (2026-08-08, Sonnet 4.6 — FR-4 WIP committed (9eebcbbb); bench m3+m4 6/22; NEXT = fix clause-2-never-fires in pl_zf_resume β path)
+
+**s11 HEAD at session end: `9eebcbbb`** (PL-FR-4 WIP: zframe β-resume infrastructure). Bench watermark: **m3+m4 6/22** (unchanged — clause-2-never-fires blocks backtracking predicates). SN4 beauty.sno BROKEN ON HEAD (pre-existing `f6b93e6c` parallel session regression in bb_match_end — not our change).
+
+**s11 INFRASTRUCTURE COMMITTED (all gated, byte-identical for SN4/ICN):**
+- `rt.c`/`rt.h`: `rt_pl_cp_push3/pop3` on SEPARATE `g_pl_zf3_stack` (distinct from `g_pl_cp_stack` used by `IR_INDIRECT_GOTO` — sharing caused triple corruption, Bug 4); `rt_pl_zf_resume_set/clear` + 5 pending-resume globals; `rt_jmp_frame_lexprep2` extended to apply pending cursor+trail to fresh frame
+- `IR.h`: `pl_zf_trail_mark_off` appended to `IR_graph_t` (calloc-safe, struct-end per s141)
+- `zeta_storage.c`: `pl_trail_mark_off` in `zls_graph_t`; setter + lookup
+- `scrip_ir.c`: `ir_drive_slot_assign` scans for `$trail_mark` post-`zls_build`, populates both fields
+- `scrip.c`: Prolog graph **NAME PRE-PASS** before emission loop (both m3/m4) so `zls_g_resume_by_name(callee)` resolves correctly regardless of emission order; `is_prolog` added to all three `zls_graph_name` call sites
+- `bb_suspend.cpp`: pending-cursor intercept at suspend-α, gated on `op_sb == resume_slot` (clause-cursor ONLY — Bug 3 was inner suspend nodes intercepting); if pending: `rt_pl_zf_resume_clear` + `jmp r11` (cursor within live frame); else push3
+- `xa_flat.cpp`: epilogue-γ intercept (dead code path — `bb_suspend` fires first, but retained as safety net)
+- `bb_call_proc_staged.cpp`: `pl_zf_resume` β arm: `FRQ(act)=0` reset (Bug 5 fix), pop triple, `rt_pl_zf_resume_set`, re-stage args via plain `rt_arg_stage`, re-call `rt_proc_call_open_det`, push `L(7)`, set wires `rcx=L(3)/rdx=L(4)`, `jmp rax`
+
+**s11 BUGS FOUND AND FIXED (5 sequential):**
+1. Label collision: `bb_suspend` L(60)/L(61) vs `stage_arg_inline` L(20+) → plain `rt_arg_stage` in β
+2. `cursor_off=-1`: Prolog graphs not named in ZLS → name pre-pass before emission loop
+3. Guard too tight: `rt_jmp_frame_lexprep2` used `suffix_off` as cursor-write bound (cursor IS at `suffix_off` so `784+8<=784` failed) → use `region_bytes`
+4. Stack sharing: `push3` used `g_pl_cp_stack` shared with `bb_indirect_goto` single-word pop → corrupted triples → separate `g_pl_zf3_stack`
+5. `FRQ(act)` stale=1: β-resume's fresh γ-exit took `rt_gen_spine_pass_γ` (k-- only, no pcall pop) not `epilogue_γ` → `mov FRQ(act),0` at β arm start
+
+**REMAINING OPEN — clause-2-never-fires:**
+After β-resume: pending cursor set, re-enter `p/1` α, `bb_suspend` intercept fires at `n50_suspend_α` (`jmp n50_suspend_β` = clause-2 entry within live frame), clause-2 body runs, `n50_suspend_α` fires AGAIN (push3 for clause 3, normal path since pending is now cleared), γ-exits to L(3). But caller never receives X=2 — only X=1 is printed. Suspected: either `rt_pl_cp_pop3` returns 0 unexpectedly (verify with stderr print), or trail unwind at `n51_call_builtin_prolog_α` destroys the arg binding, or the pending mechanism doesn't actually intercept (verify the `op_sb==resume_slot` gate is matching).
+
+**NEXT SESSION TASKS (in order):**
+1. `git pull --rebase`; rebuild; re-derive watermark (expect m3+m4 6/22; `9eebcbbb` is the WIP cursor)
+2. Add `fprintf(stderr, "[DEBUG]...")` in `rt_pl_cp_pop3` and `rt_jmp_frame_lexprep2` pending block to verify (a) pop3 returns non-NULL cursor on first β-resume, and (b) lexprep2 applies the write. Run `bt_debug.pl` (`p(1). p(2). p(3). main :- p(X),write(X),nl,fail.`) and check stderr.
+3. If pop3 returns non-NULL and intercept fires: trace whether `n51_call_builtin_prolog_α` (`rt_pl_dop_unwind_nothrow`) destroys the arg-param binding. The arg is bound via `rt_frame_bind_args` at pcall time BEFORE the trail checkpoint; the unwind should not touch it (it was bound before the mark). Verify by checking if `X` is unbound after unwind.
+4. Fix the root cause; re-measure; target 12→15+/22 (queens/ham/nreverse class).
+5. SN4+ICN byte-identity crosscheck (crosscheck suite) before any behavioral commit.
+6. Beauty.sno regression (`f6b93e6c` parallel session) is pre-existing — do NOT fix in this session without Lon directive.
 
 **FR-4 ROOT CAUSE — fully diagnosed this session:**
 
