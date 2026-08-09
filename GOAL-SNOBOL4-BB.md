@@ -235,7 +235,7 @@ Killswitch-OFF arm stays byte-identical every rung through W-4 (regen no-ops pro
 - **GOTO-ERAD** — GE-0 census done (904 boxes/250 programs; static vs indirect `:($…)` vs direct `:<VAR>` vs GOTO_DEFERRED split; the latter three are NOT wire-foldable). GE-1 monitor-tap relocation is the prerequisite; GE-3 lower-side (23 sites incl. structural loop-header placeholders) deferred standalone; then GE-4..9.
 - **SE-7 residue** — fix `corpus/probe/bb/test_sno_cell_5.s:8` dangling `test_sno_5/6` reference (live embodiment is test_sno_cell_5.s itself: call unit, resume = MY continuation).
 - **131_pat_boolean_expr_grammar** — residual = the PATREF `pat_static=0` 528B UCLAIM class → now LADDER PB's customer.
-- **m4 `-o` fopen-before-preamble** — move fopen ahead of the `emit_textf()` preamble for full-file capture (shell redirect suffices meanwhile).
+- ~~**m4 `-o` fopen-before-preamble**~~ CLOSED s29 (2026-08-09): was ALREADY fixed by the 06g sink (scrip.c:878/1331, sink before any `emit_textf`); s29 additionally made `-o` position-independent (`ee8707d8`) — accepted after the source file too, all four call shapes byte-identical to stdout capture.
 - **MON-RE defect B** — stno numbering: `snobol4.y:233` counts grammar-reduced statements; SPITBOL counts every line incl. blanks (`scripts/monitor/build_stno_map.py` canonical). Defect C (runtime-wire stno) root-caused to runtime, emitter exonerated.
 - CARRIED OPEN: MARKER-CAPTURE · arm-quad OVERLAY · fc_cond FIRST-WINS · SYM-VIS-M3 JIT map · Icon generator-scan FORTH cells.
 

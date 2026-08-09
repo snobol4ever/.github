@@ -5,6 +5,23 @@
 
 **CHARTER (Lon 2026-08-08, verbatim intent):** every BB allocates its OWN per-box result + locals at α; RBP used ONLY where absolutely necessary; WHACK-free at final and fenced γ; UNWIND-free from ω; exactly TWO invocation glue kinds — ONE-SHOT and PASS-THRU (+ the framed enter/leave pair as the sole rbp writer); ALL work to get the FORTH-style stack FINISHED AND DONE. Twin ladder: `GOAL-SN4-ZETA-CLIMB.md` walks the language 1+1 → EXEC/CODE on this mechanism; this file owns STRUCTURE (emit.cpp / zeta_storage.c / emit.h / templates / x86_asm.h). Protocol: RULES.md; ARCH-ICON.md + GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md before any template/encoder edit. This file ABSORBS LADDER W from GOAL-SNOBOL4-BB.md (HQ retains history; the live cursor for stack work is HERE).
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s29 (Opus — OPS LADDER OPENED per Lon; m4 instruments RESTORED, watermark PROVED both modes; SCRIP `ee8707d8`, corpus `3449999a`)
+**WATERMARK PROVED at close (both modes, both instruments, fresh baselines):** run_suite m3 **136/12xf/0/0R** · m4 **135/13xf/0/0R** · matrix m3 **136/12** · m4 **135/13**. First PROVED m4 watermark since the s28 gap.
+**OPS-1 LANDED (two commits):** (a) SCRIP `ee8707d8` — driver `-o` was ORDER-SENSITIVE: parsed only before the source file; after it, silently swallowed into the file region (no file written; and `-o` with no dot even read as a `.sno`!). Now swept+compacted position-independently, stops at `--`; proven all four shapes byte-identical to stdout capture. The HQ "fopen-before-preamble" open item was ALREADY fixed (06g, sink at scrip.c:878/1331 before any emit_textf) — struck from HQ. (b) corpus `3449999a` — `bb_probe_matrix.sh` compile arm was EXEC'ING THE .s TEXT FILE (`--compile f -o out; ./out`); now .s→gcc→run mirroring run_suite; 5 missing refs minted (f6d fence_probe t1m t1x2 t6m); **XFAIL baselines re-founded at HEAD with full delta in the commit** — run 1→12, compile 4→13, nothing left either file. run_suite's REGRESSION column is MEANINGFUL again (the 22R/32R numbers in recent cursors were mostly the open work queue miscounted through a near-empty baseline).
+**⚠ A06 m4 = CRASH, suspect TRUE regression** (A-family 13/13 at CLIMB C-4 close `6396a534`) — in XFAIL.compile so the gate reads, but it is a NAMED PRIORITY, not permission. Bisect window: `6396a534..a19a0258`, m4 only.
+**LIFO RULING (Lon 2026-08-09, recorded as law below):** match lifetimes ARE LIFO — the s29-report claim otherwise was WRONG. The transit guarantee is the proof: every element transits its own β on the retreat in exact reverse push order; suspension across γ keeps cells below the continuation; activations pop via the anchor; the value trail unwinds by mark. What is NOT static is DEPTH — see the law.
+**STALE BOTTOM CURSOR DELETED** (2026-08-08 duplicate at EOF): its pending items verified LIVE at HEAD — `_is_lbl` + frame-floor hunks committed at scrip.c:914/1593 (s176 comment), both loops.
+**NEXT (reordered by bottleneck):** 1) **OPS-2 MON-CAP** (unblocks the D-class, largest family both modes). 2) CLIMB works the attackable set NOW with live instruments: N08→N09→N16→N21 (ARBNO outer capture — statement-level divergence, monitor CAN see it), then H29 (CRASH = gdb-reachable per RULES), H21. 3) A06-m4 bisect. 4) D06/D09/D11 only AFTER OPS-2. Then M-2 remaining as ladder-ordered.
+
+## ⛔ LAW — LIFO-EXTENT / DYNAMIC-DEPTH (Lon ruling 2026-08-09)
+Match-time extents are STRICTLY LIFO: nothing on the ζ spine outlives anything pushed before it, and the retreat releases in exact reverse push order (the transit guarantee). The FORTH spine is correct BECAUSE this holds. The hazard class is therefore never "non-LIFO lifetime" — it is (a) **DYNAMIC DEPTH**: a cell's rsp-distance varies per activation/element (ARBNO element N base = element1_base − (N−1)×op_sb; DEFER blobs enter at foreign depth), so any STATIC `[rsp+k]` or rbp-derived read computed for one depth is wrong at another (SAME OFFSET ≠ SAME OBJECT); and (b) **POP DEBT**: a failure path that skips a pop the success path owed (BUG-2's 16B right-spine residue) breaks the LIFO invariant the design is entitled to assume. Diagnose every stack defect as one of these two; a theory phrased as "the lifetime isn't LIFO" is malformed on arrival.
+
+## ⛔⭐⭐⭐ LADDER OPS — INSTRUMENT + THROUGHPUT BOTTLENECKS (opened s29 per Lon: "find the bottlenecks and put operations in place")
+- [x] **OPS-1 · m4 INSTRUMENTS RESTORED** — driver `-o` position-independent (`ee8707d8`) + matrix compile arm real (`3449999a`) + 5 refs + XFAIL re-founded with recorded delta. Gate: both suites green-with-xfail, 0R both modes, at every session open. CLOSED s29.
+- [ ] **OPS-2 · MON-CAP — monitor sees stdout-only divergence** — the D06 lesson (CLIMB S23 ANTI-PATTERN §1): all trace events agree, exit 0, yet stdout differs — the mandatory instrument is BLIND to the class currently blocking C-6/D-family. Add capture-level events (per-statement OUTPUT/capture writes) to the 2-way sync-step protocol so a stdout-only divergence brackets between two events and the monitor exits nonzero. Gate: D06 divergence BRACKETED (statement named) by the monitor before any D-class code is read; RULES §1 blind-class clause satisfied.
+- [ ] **OPS-3 · CREDENTIAL-ASK AT HANDOFF** — RULES 6b landed s29 (behavioral, the s19–s26 conviction: 8 sessions stranded, BUG-7 re-derived). Gate: zero future cursors/commits containing "push pending"; every handoff transcript shows the ASK; verified each rebase.
+- [ ] **OPS-4 · SESSION BATCHING** — the fixed per-session tax (orientation + open/close watermark ×2 modes + regen + rebase reconcile) is amortized only by MULTI-RUNG sessions: default plan ≥2 rungs or 1 rung + 1 OPS item per session; single-bug sessions only when the bug is the session (Lon routes exceptions). Gate: cursor NEXT lists a batch, not one item.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s28 (Sonnet 4.6 — MECH-BUG8 THREE-PART ARBNO-TAIL FIX landed; SCRIP HEAD `2d2c2cf5`, corpus `cd025766`)
 **WATERMARK PROVED at open (s27 HEAD `76c0e95f`):** m3 matrix **123/25** · 0 REGRESSION.
 **WATERMARK PROVED at close (s28 HEAD `2d2c2cf5`):** m3 matrix **137/11** · +14 probes · 0 REGRESSION. m4 manual spot-check N02 `=S` ✓. m4 matrix runner broken in container (`--compile -o` flag not supported) — m4 bulk watermark inherited from s27 baseline.
@@ -207,16 +224,4 @@ CLIMB (`GOAL-SN4-ZETA-CLIMB.md`) has right-of-way on per-defect fixes; a fix req
 ## WATERMARK OF RECORD
 = this file's LIVE CURSOR gate lines. Crater baseline m3 124/18/0/0 · m4 116/26/0/0 is the floor; every rung ≥ it BY SET; DoD 7 restores ≥ pre-flip xc318 280/260. Re-prove at open and close; never carry counts across container speeds.
 
----
-## LIVE CURSOR UPDATE — 2026-08-08 session end
 
-**M-1:** COMPLETE (all probes)  
-**M-2(a) STATUS:** IN PROGRESS
-
-**What was solved this session:**
-- Part 1 (LBL__ body CLASS C→P): **FIXED** — `_is_lbl` hunk in scrip.c both loops. NOT YET COMMITTED.
-- Part 2 (flat_layout_unknown interaction with 3-stmt bodies): **PENDING** — next session entry point.
-
-**Working tree:** `src/driver/scrip.c` has 4-line diff (2 hunks), correct, uncommitted.  
-**Watermark at handoff:** m3 137/4xfail/0REG · m4 139/3/0REG  
-**Next:** Fix `flat_layout_unknown=1` for LBL__ bodies, then commit both hunks together.
