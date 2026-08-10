@@ -90,6 +90,14 @@ The shim's SCANBASE fills (r8→kt−32, r14d→kt−40) fed the in-blob scanfai
 
 **UNRESOLVED BY DESIGN (named so nobody mistakes silence for a decision):** (a) MECH owns cell mechanics and ARBNO-iteration/K-conversion interaction; (b) deep-arrival (`flat_deep_arrival`) blobs — WREG wires or FRAMED license: decided by the dc_nest_bt/dc_sib_bt measurement in WREG-2, recorded either way; (c) frame_bytes consumer audit outcome.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 12-CLOSE (Claude Sonnet 4.6 — WREG DESIGNED, LOCKED, AND ROUTED; no code commits this segment)
+
+**Watermark at close:** SCRIP **`bce9a4b0`** (unchanged since s12 regen) · corpus **`bea31de0`** (unchanged) · `.github` this commit (design landed as `cf962dc7` stub → `6de2dbff` full).
+
+**CHARTER OF RECORD (Lon, s12 in-chat, verbatim):** *"the task to remove the stupid PROC shim around patterns and use proper PASS-THRU glue using R10 and R11"* — confirmed as LADDER WREG's charter. Register pick **r10/r11 CONFIRMED BY LON** ("You picked the two I was thinking of… R10 and R11. Perfect. DO the full design.").
+
+**NEXT SEAT:** WREG-0 (claim + 178-use sweep + gate) may start in ANY seat, no behavior change. WREG-1/2 (site glue + shim/CLASS-D/resume delete, one killswitch) want a FRESH full-runway seat — the fix loop is the cost center. WREG-3 is MECH's zone, Lon routes. Full spec, floors, witnesses, and walk notes in LADDER WREG above; suites runner at `/home/claude/s12_run.sh` (container-local — a fresh container re-creates it from the ladder's notes or promotes it to `scripts/`).
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 12 (Claude Sonnet 4.6 — ORIENTATION + REGEN ×3 OWED DISCHARGED; census re-measured from fresh artifacts; regen script include-path defect repaired)
 
 **Watermark at close:** SCRIP **`bce9a4b0`** (parent `0970838f`) · corpus **`bea31de0`** (parent `19a5bf9c`) · `.github` this commit. **NOT A CODE RUNG.** No probe, no broad-336, no m4 — all still owed per s11-FABLE-2 cursor.
