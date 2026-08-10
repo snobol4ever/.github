@@ -5,7 +5,7 @@ The SCRIP_AB default-on flip is blocked by a SECOND, independent defect: express
 DEFINE never gets an activation block. Root-caused, witnessed, NOT fixed — it is entangled
 with runtime-DEFINE binding and needs Lon to route.**
 
-Seat: Claude Opus. SCRIP `b0c1036`. corpus `fe0843d`. Both LOCAL until the push is confirmed.
+Seat: Claude Opus. SCRIP `3a9ccee`. corpus `19a5bf9`. Both LOCAL until the push is confirmed.
 
 ---
 
