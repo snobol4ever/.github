@@ -90,3 +90,32 @@ Cost: bounded, per-symbol, in `rtx_*.S` only — zero emitter bytes, zero templa
 1. **Lon rules on RC-6b (§6).** If yes, first lane = **roman's defer trio** (one family, 3 symbols, 92.4 M instructions, one workload that exercises all three) — not fibonacci's, whose hot half is unported.
 2. If no: RC-6 is **BLOCKED on per-family RTX eradication** and should be marked so in the rung text rather than left open — a session that opens it today will spend the rung rediscovering §2.
 3. `scripts/util_rtcc_escape_census.sh` re-runs the eligibility count in ~1 s; re-run it after any RTX landing, since eradicating one family moves symbols from INELIGIBLE to ELIGIBLE and is the only thing that does.
+
+---
+
+## 9. ADDENDUM (same session, post-commit) — 14 IS WORKLOAD-INVARIANT, AND s11's m4→m3 TRANSFER QUESTION IS CLOSED STRUCTURALLY
+
+### 9.1 ✅ SECOND WORKLOAD, EXACT SAME CONSTANT
+§4 measured 14 on `fibonacci` only — a single-workload number, which is the exact shape this file has convicted repeatedly. Re-measured on `roman` (the *other* path: deferred-eval, not proc-call):
+
+| workload | ON lines | OFF lines | delta | PLT sites | **veneered** | **delta ÷ veneered** |
+|---|---|---|---|---|---|---|
+| fibonacci | 2262 | 1478 | 784 | 73 | 56 | **14.000** |
+| roman | 3825 | 2383 | 1442 | 120 | **103** | **14.000** |
+
+Reload loads on roman: **412 = 103 × 4.0 exact.** ⇒ **14 is a structural constant of the veneer, not a property of one program.**
+⭐ **AND THE UNVENEERED SET IS A FIXED CONSTANT, NOT A FRACTION:** 73−56 = **17** and 120−103 = **17**. The generated/libc targets that correctly receive no veneer are the same fixed infrastructure set in both programs, though roman emits 64% more code. This is a free sanity check on any future veneer census: **if unveneered ≠ 17 on an x86 SNOBOL4 program, the classifier moved** — an unclassified target is a BUILD ERROR per the registry law, and this is the cheap tripwire for it.
+
+### 9.2 ✅ s11's "DOES THE m4 RANKING TRANSFER TO m3?" — CLOSED, AND THE ANSWER IS STRONGER THAN THE QUESTION
+s11's §NEXT made this a prerequisite for opening RC-6: *"confirm the mode-4 ranking transfers to mode-3 (chartered 1:1, but untested here — and mode-3 is where the veneer runs)."* It does not need an experiment; it is settled by the emission structure, and the structure is gate-enforced:
+
+| check | measured |
+|---|---|
+| veneer call sites in `src/templates/BB_templates/` | **0** — encoder-owned |
+| `MEDIUM_*` in `BB_templates/` | **0** |
+| BOTH-MEDIUM gate (`"ins[0-9]"` / `"Lins[0-9]"` in `src/emitter/`) | **0** |
+| where the medium is selected | **inside** `x86()` dispatch, `x86_asm.h:1645` |
+
+The predicate "does this crossing get a veneer" is evaluated ONCE per site (`g_rtcc_on` + registry class) and the `MEDIUM_BINARY ? wb_bin : wb_text` choice sits strictly DOWNSTREAM of it. ⇒ **THE VENEERED SITE SET IS MEDIUM-INVARIANT BY CONSTRUCTION.** m3 and m4 veneer the same crossings; only the rendering differs (`call sym` vs `call sym@PLT` — and the 14 counts writeback+reload, excluding the call, so it is unchanged by that difference).
+⇒ s11 asked whether the *ranking* transfers. The site set is **identical**, so the census transfers as an IDENTITY, not an approximation — and `crossings_removed × 14` is valid in mode-3, which is where the veneer actually runs.
+⚠ **HONEST LIMIT:** this proves the STATIC site set is medium-invariant. It does not by itself prove DYNAMIC execution counts match between modes — that is mode34-parity's job, a separate gate (`GOAL-MODE34-IDENTICAL.md`), and it is not re-proved here. What is closed is precisely s11's question: the m4 census is not an artifact of the m4 emission path.
