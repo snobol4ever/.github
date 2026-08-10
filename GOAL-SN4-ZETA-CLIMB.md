@@ -5,6 +5,24 @@
 
 **CHARTER (Lon 2026-08-08):** walk the ENTIRE SNOBOL4 language bottom-up at the sole ζ-cells-on-stack regime (selectors deleted, SCRIP `de837576`): stop at first failing rung, MONITOR-FIRST, fix, one FINDING per land mine, XFAIL shrinks monotonically (removed in the SAME commit as the fix), move up. Summit = EVAL/CODE/EXEC + beauty drivers + xc318 ≥ pre-flip both modes. Twin: `GOAL-SN4-ZETA-MECH.md` owns STRUCTURE; this file owns CORRECTNESS. A defect whose fix needs new protocol = MECH rung (cross-request both cursors). Protocol: RULES.md (monitor scripts §1: `test_monitor_2way_sync_step_bin.sh` / 3-way PARTICIPANTS · offline `probe.py` &STLIMIT+&DUMP replay bisect · gdb spin-counter, HW watchpoints DEAD in container, `CSN_NO_SEGV_HANDLER=1`/`SCRIP_NO_SEGV_HANDLER` clean-bt · `setarch -R`). Oracle: `/home/claude/x64/bin/sbl -b f.sno`; corpus paths CORPUS-LOCATIONS.md; suite `corpus/probe/bb/run_suite.sh` (m3) + `MODE=compile` (m4).
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 s36 (Sonnet 4.6) [C-9 splice fix confirmed green post-rebase; watermark re-proved; D12/D13/H31 still inherited open; SCRIP `a5533659`, corpus `f728c278`]
+
+**WATERMARK (re-proved at open AND close, post-rebase):** m3 **133**/15xf/0/**3R** · m4 not re-run (inherited 3R unchanged, no codegen touched this session).
+
+**REBASE RESULT:** `git pull --rebase` pulled `d21b80c5` (RTX-FUNC m4 fix) onto SCRIP; corpus pulled `f728c278`. Zero semantic collision. `942ef1b1` (C-9 REPL-ZDEPTH) confirmed in history. Rebuilt, gates re-proved.
+
+**CAPTURE FAMILY POST-REBASE:** 058 059 060 062 063 064 066 all ✅ both modes. 061 (variable-arg POS, match fails outright) and 065 (pre-existing rc=139 CRASH) unchanged — separate classes, not C-9 splice.
+
+**INDEPENDENT ROOT-CAUSE DERIVATION (this session):** Arrived at the same root cause as s35 independently, via MONITOR-FIRST + in-tree tracer `SCRIP_REPL_TRACE=1` + cheapest-discriminating-experiment protocol. Two hypotheses died before code was read: (1) "prefix dropped" falsified by non-empty suffix probes — suffix also gone; (2) "constant +16" falsified by replacement SHAPE — concat/arith chains carve more than one cell so +16 doesn't hold. Probe reverted; tree clean. Full derivation in `FINDING-2026-08-10-CLAUDE-SN4-CLIMB-C9-SPLICE-FRQ-READS-MISS-BY-REPLACEMENT-SUBTREE-DEPTH-TWO-HYPOTHESES-DIED.md`.
+
+**ADDITIONAL FINDING this session:** The defect is also a **regression vs. committed artifacts**: `062_capture_replacement.s` in corpus carried `[rsp+176/184/64/88]` (correct); HEAD `c7e085fd` emitted `[rsp+160/168/48/72]`. A/B of committed artifact vs current compiler exonerates the C of record without reading any code and names the emitter as the site. IMPORTANT: "sweep the compiler, not the artifacts" — committed `.s` carry PRE-regression honest output and would wrongly exonerate the compiler if used as gate. Do not wire `.s` byte-identity for this family into a gate.
+
+**⚠️ INHERITED REGRESSIONS — NEED AN OWNER:** D12 · D13 · H31 fail at HEAD both before and after `942ef1b1` (proven by stash + pristine rebuild per s35). They were green at s34 watermark (`6ffa57fe`). Introduced between `6ffa57fe` and `c7e085fd` by a parallel seat. Not diagnosed here — left for the seat that introduced them or MECH to own.
+
+**GUIDANCE FOR NEXT SESSION:** The inherited regressions are the highest-priority blocker before C-9 can be closed. Approach: `git bisect good 6ffa57fe bad c7e085fd` on D12 (simplest: "recursive pattern via * (manual LIST)") to identify the introducing commit, then MONITOR-FIRST on that commit's program. C-9 residuals (061 variable-arg POS, test_string, test_case rc=134, TAB-binds-subject) come after the 3R are cleared.
+
+**NEXT:** D12/D13/H31 regression hunt (bisect from `6ffa57fe` to `c7e085fd`); then 061/test_string/test_case residuals; then C-10.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 s35 (Opus 5) [⭐ C-9 SPLICE DEFECT FIXED AND LANDED; SCRIP `9b951391`, corpus regen committed]
 
 **WATERMARK (post-session):** m3 **133**/15xf/0/**3R** · m4 **132**/16xf/0/**3R** — ⚠️ the 3R are **INHERITED, NOT THIS SESSION'S** (see below). crosscheck m3 **242**/75 (was 239/78 at open).
