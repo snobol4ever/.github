@@ -107,3 +107,12 @@ Recipe copied verbatim from `scripts/test_broad_corpus_snobol4.sh` `compile_mode
 
 ### §5d Correction to §2 of this finding
 §2 compared **absolute counts across containers** ("restores the 29 and lands one better than pre-deletion") — exactly what s7's law forbids, since `599601e8` scored 258/253 in one container and 278/273 in another. The co-seat's phrasing is the correct one: the **set-level** claim transfers (every family s10 named broken now passes; `128` still fails as its own defect), the absolute delta is indicative only. §2's measurement stands; §2's phrasing of it does not.
+
+### §5e The five are DETERMINISTIC, and the attribution question has a leading hypothesis already in this file
+**Determinism:** all five reproduce `rc=139` identically on repeated passes (2×, same binary, same container). Not flake — this matters because this project has been burned by nondeterministic witnesses (`AB0` on recursion, the M4 watermark oscillating on a 151 flake), and a flaky signal would not have been safe to hand forward.
+
+**Leading hypothesis — a PRE-EXISTING mode gap, not damage from the revert.** This goal file already records m3-vs-m4 gaps of the same magnitude, measured at **s7, before D-1 ever existed**, on broad-336 and in BOTH killswitch arms:
+- default-ON: m3 **278**/58 · m4 **273**/57+6skip → **5-program gap**
+- KS-OFF: m3 **284**/52 · m4 **278**/52 → **6-program gap**
+
+My measured crosscheck gap is **exactly 5**, one-directional in the same sense (m4 strictly worse). Different corpus, so the sets are not comparable program-for-program — but the magnitude and the direction both match a gap that predates the deletion. Reinforcing it: `c4ef2176` is a *faithful* revert (it restores the deleted arms verbatim), so its emitter output should approximate pre-D-1, which is the regime s7 was measuring. **This does not discharge the attribution — a pristine-parent build still settles it — but it moves the burden: the null hypothesis should now be "long-standing m3/m4 gap," not "the revert broke five programs."** Whoever takes it needs one build of `a5533659` and one m4 crosscheck run.
