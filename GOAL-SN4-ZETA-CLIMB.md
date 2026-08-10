@@ -6,6 +6,36 @@ Three things survive because they are about CORRECTNESS, not scheduling: (1) aft
 
 **CHARTER (Lon 2026-08-08):** walk the ENTIRE SNOBOL4 language bottom-up at the sole ζ-cells-on-stack regime (selectors deleted, SCRIP `de837576`): stop at first failing rung, MONITOR-FIRST, fix, one FINDING per land mine, XFAIL shrinks monotonically (removed in the SAME commit as the fix), move up. Summit = EVAL/CODE/EXEC + beauty drivers + xc318 ≥ pre-flip both modes. Twin: `GOAL-SN4-ZETA-MECH.md` owns STRUCTURE; this file owns CORRECTNESS. A defect whose fix needs new protocol = MECH rung (cross-request both cursors). Protocol: RULES.md (monitor scripts §1: `test_monitor_2way_sync_step_bin.sh` / 3-way PARTICIPANTS · offline `probe.py` &STLIMIT+&DUMP replay bisect · gdb spin-counter, HW watchpoints DEAD in container, `CSN_NO_SEGV_HANDLER=1`/`SCRIP_NO_SEGV_HANDLER` clean-bt · `setarch -R`). Oracle: `/home/claude/x64/bin/sbl -b f.sno`; corpus paths CORPUS-LOCATIONS.md; suite `corpus/probe/bb/run_suite.sh` (m3) + `MODE=compile` (m4).
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 s37 (Opus 5) [D12/D13/H31 A/B-pinned to `1af93e3a` (DEL-T1 D-1) — ⛔ BUT the bisect was VOID WORK and the mechanism/owner are SUPERSEDED by MECH s36d, pulled at close: root cause is `g_blob_ctx[5]`, owner is MECH M-1b, discriminator is RE-ENTRY. Read MECH's cursor for the mechanism. No code changed; SCRIP `a5533659`, corpus `f728c278` untouched]
+
+**WATERMARK:** not re-run this session — **no code changed**, trees left byte-identical to s36 close (SCRIP `a5533659`, corpus `f728c278`). s36's m3 **133**/15xf/0/**3R** stands unmodified. The 3R are the three probes below.
+
+**⭐ THE 3R ARE CONVICTED, MECHANICALLY.** `git bisect run` over the full 33-commit range `6ffa57fe..c7e085fd`, endpoints pre-verified by the driver (NOT taken on the inherited cursor's word — `6ffa57fe` measured D12 PASS rc=0, `c7e085fd` measured FAIL rc=139):
+
+**FIRST BAD COMMIT = `1af93e3a` — "DEL-T1 D-1: DELETE the BLOB-GRANT frame establishment for PAT$ blobs (Lon directive s9)."**
+
+All three confirmed together against the convicted commit and its parent `930539c0` — parent: D12 `=S` ✅ D13 `=F` ✅ H31 `k=age s= n=42 b=` ✅ all rc=0; convicted: **all three rc=139, empty stdout**. One commit, one cause, not three defects. Crash class, not value divergence — the 2-way monitor would be dark to it (zero trace events, zero output), so MON-CAP would have been the prerequisite had this been CLIMB's to hunt.
+
+**⛔ IT IS NOT CLIMB'S TO HUNT — AND NOT A DEFECT.** `1af93e3a`'s own message: *"THIS COMMIT IS DELIBERATELY BREAKING (delete-first by owner direction; DEL-T1 ladder, GOAL-PASSTHRU-RBP-ERAD) … Every pattern program routing through a surviving PAT$ blob is expected broken until D-2."* D12/D13 are recursive `*LIST` patterns; PASSTHRU PT-3 states verbatim that **recursive/sealed-DEFER stays DEFER** — i.e. keeps its blob — so these are surviving-blob programs by design. Repair = PASSTHRU **PT-4 (open, `[ ]`)**, a new frame/glue/linkage protocol, which this ladder's charter forbids CLIMB from landing. **⛔ DO NOT REVERT `1af93e3a`** — owner-directed rung, revert path reserved to its owner.
+
+**⛔⭐ POST-REBASE CORRECTION — MECH s36d (`f2b6ea0e`) LANDED DURING THIS SESSION AND DEMOTES MOST OF THE ABOVE. Read MECH's cursor, not this one, for the mechanism.**
+
+- **THE BISECT WAS UNNECESSARY.** MECH s36 says verbatim *"DO NOT RUN s35's BISECT — IT IS VOID … the DEL-T1 trio was already convicted by two parallel seats on 08-10b."* ~50 min of 1-CPU builds re-derived a known result. Partly avoidable: FINDING-2026-08-10b's hash-correction table names the trio, and I opened it *after* launching the bisect. **Next seat: grep the FINDING set for the suspect commit range BEFORE spending builds.**
+- **RETRACTED — "a fourth uncounted casualty set."** MECH's re-proved watermark m3 133/15/0/**3** · m4 132/16/0/**3** names *"REGRESSION set D12·D13·H31 both modes"* — that watermark **is** this suite. Already counted, and MECH measured **m4** where this session did not.
+- **MECHANISM SUPERSEDED.** Not "recursive-DEFER keeps its blob" (PT-3 carve-out): Lon s36c/s36d rules **"nothing special about `*name` DEFER"**, and MECH named the root cause from source — the process-global mirror **`g_blob_ctx[5]` (`pattern_match.c:624`)**, every reader re-basing off the GLOBAL instead of its own already-correct per-activation cell.
+- **OWNER IS MECH M-1b, NOT PASSTHRU PT-4.** GLOBAL-EXECUTE: `g_blob_ctx` **deleted, not bracketed**; header layer deleted, not rethreaded. My cross-request re-homes to **MECH M-1b**.
+- **⭐ MECH ALSO FALSIFIES THE OBVIOUS NEXT GUESS:** "every blob-bearing program fails" is FALSE — D10 (18 `proc_PAT`, 6 `g_blob_ctx` refs) and D11 **pass both modes**. The discriminator is **RE-ENTRY**, not blob count or capture (`W3_selfrec` hangs on the same footprint as passing D10). D12/D13 are recursive `*LIST` ⇒ re-entrant by construction — that is the right frame for them.
+
+**WHAT SURVIVES:** the clean same-container **parent-vs-convicted A/B on all three probes** (`930539c0` all rc=0 oracle-matching → `1af93e3a` all rc=139 empty), which pins these three specific witnesses to **one** commit and shows one cause, not three defects; plus the container method note in the FINDING (background jobs are reaped between tool calls unless `setsid`; `pgrep -f 'make|cc1'` self-matches the invoking shell and reports a dead build alive).
+
+**s36's GUIDANCE IS STILL RETIRED (this part stands):** "the 3R are the highest-priority blocker before C-9 can be closed" is false as framed. The repair is MECH M-1b structural work; CLIMB cannot land it, and C-9's residuals never depended on it. Waiting idles this ladder behind another seat's rung.
+
+**⛔ CROSS-REQUEST → MECH M-1b:** `corpus/probe/bb/probes/{D12,D13,H31}.sno` as acceptance witnesses. Oracle refs already present and not litigable — **D12/D13 are the SPITBOL manual's own recursive-LIST examples (p.122)**, subjects `(12,(3,45,(6)),78)`→`=S` and `(12,(34)`→`=F`, verbatim. D12/D13 are re-entrant (fits MECH's discriminator); **H31 is the interesting one — FENCE-over-ALT with captures and NO recursion, yet it fails identically**, so if re-entry is the discriminator, H31 either re-enters by a path worth naming or is a second class hiding in the same rc.
+
+**⛔ QUESTION FOR LON (blocks nothing; needs a ruling):** RULES forbids XFAIL additions "except a Lon-ruled park." Should the DEL-T1 casualty set be a **park** — XFAIL tagged `DEL-T1/M-1b`, removed in the same commit as the repair — or stay red as visible debt? Standing red corrodes the watermark as shared state: a seat that lands a *real* regression cannot see it against a red background.
+
+**NEXT:** C-9 residuals, unblocked — 061 (variable-arg POS, match fails outright), `test_string`, `test_case` rc=134, TAB-binds-subject (manual p.143 #10). 065 rc=139 is a separate pre-existing crash class. Then C-10.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 s36 (Sonnet 4.6) [C-9 splice fix confirmed green post-rebase; watermark re-proved; D12/D13/H31 still inherited open; SCRIP `a5533659`, corpus `f728c278`]
 
 **WATERMARK (re-proved at open AND close, post-rebase):** m3 **133**/15xf/0/**3R** · m4 not re-run (inherited 3R unchanged, no codegen touched this session).
