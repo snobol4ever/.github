@@ -74,6 +74,33 @@ If r10/r11 become **globally reserved wires** rather than scratch, the veneer sh
 
 ---
 
+## 2b. ⛔⭐⭐⭐ RECONCILIATION WITH s13c — SAME MECHANISM, OPPOSITE CONCLUSIONS, AND COMPOSED THEY ARE WORSE THAN EITHER
+
+**`23355182` (s13c) landed at 23:22:46, seven minutes before this seat's commit, and this seat did not see it while measuring** — a second STALE-ORIENTATION strike in one session, in the same container, after §5's warning was already drafted. Recorded against myself, not softened: **re-read HEAD immediately before committing, not only at open.**
+
+s13c reached the SAME mechanism independently (`x86_rtcc_wb_bin` stores `[block+56]=r10` / `[block+64]=r11`; `x86_rtcc_rl_bin` restores the scratch tier) and drew the OPPOSITE conclusion — that the veneer is a *guarantee*, yielding two claims:
+- **s13c COROLLARY:** *"the 182 RTX asm sites need NO sweep"* — sweep self-corrected 416 → 234.
+- **s13c DECIDING FACT:** the hazard is that `g_rtcc_on = 0` by default, so at RTCC=OFF every `rt_*` call is bare and the wires die by plain SysV rules ⇒ *"WREG requires RTCC=ON as a CORRECTNESS precondition."*
+
+**Both of us are partly right, and the union is the real picture:**
+
+| | RTCC = OFF | RTCC = ON |
+|---|---|---|
+| **single (leaf) crossing** | wires clobbered — SysV scratch (**s13c**) | wires survive — veneer banks/reloads |
+| **nested / re-entrant crossing** | wires clobbered (**s13c**) | **outer γ destroyed by the inner save (this seat)** |
+
+⛔ **THERE IS NO RTCC SETTING AT WHICH THE VENEER IS A SOUND WIRE-SURVIVAL MECHANISM FOR THE DEFERRED-MID-MATCH SHAPE.** Confirmed by design intent, not inference: `x86_asm.h:299` documents the writeback as *"writeback all 9 GPRs to g_rtcc_block **WITHOUT touching RSP**"* — deliberately not stack-based — and `depth|stack|nest|reentr|push|save_area` returns **zero hits** across `rtcc.h` + `rtcc_init.c`. Flat by construction.
+
+### Two corrections this forces on s13c, neither of them cosmetic
+
+**(a) s13c's routing option (3) does not close the hole it is offered to close.** s13c presents three options and calls (3) *"RTCC goes default-ON as a WREG prerequisite"* the **cleanest**. It is not: flipping RTCC ON fixes the leaf column and leaves the nested cell unrepaired. Of s13c's three, only **(2)** — *"WREG-2 emits its own save/restore when RTCC is off"* — can be made nesting-correct, and **only if that save is per-activation on the FORTH spine (WREG's own ONE LAW) rather than in a flat block.** The honest reading is that (2) generalises: WREG needs a per-activation wire save **regardless of RTCC's setting**, and RTCC then becomes an optimisation for the leaf case rather than the survival mechanism. s13c's own aside — *"'NO SHIM is literal' quietly stops being literal"* — is the correct instinct, and it applies to all three options, not just (2).
+
+**(b) s13c's RTX exemption is CONDITIONAL, and it fails precisely where it matters most.** The exemption argues that what `rtx_match.S` does to the pair inside a call is invisible to a caller that banked and reloaded. True for a **leaf** call. False when the callee re-enters emitted code that crosses again — and `rtx_match.S` **is the match runtime**, i.e. the one file where deferred `*F()` re-entry is not an edge case but the design. So the 182/223 RTX sites are **exempt for leaf crossings, not exempt for `rtx_match.S` (74 lines / 89 occ)** — the very file the Lon-directed bulletin already named *"the sharpest edge in the product"* on independent grounds. **Sweep arithmetic, honest:** 283 occ unconditionally + 223 occ conditionally-exempt, of which `rtx_match.S`'s 89 are not safely exempt at all.
+
+⭐ **What survives from s13c untouched and is genuinely load-bearing:** the observation that WREG is specified **default-ON at WREG-2 on top of a default-OFF RTCC**, i.e. *"that combination ships wires with no survival mechanism."* That is correct, independent of everything above, and is the single most schedule-relevant fact either seat produced.
+
+---
+
 ## 3. STATUS OF s13's ITEM (2) — `AB_TC_REG` PROBE: CHARACTERIZED, NOT CLEARED
 
 s13 recorded the r10 collision at `bb_func_activate.cpp:25` as *"collided, not as broken and not as cleared."* Confirmed independently and **the dormancy is now source-verified rather than asserted**: `rtcc_init.c:20` `unsigned char g_rtcc_on = 0; /* default OFF — killswitch law */` · `rtcc.h:57` `RTCC_GLOBAL_R9_GVA 1` ⇒ `AB_TC_REG = (0 && 1) ? "r10" : "r9"` = **r9 in every default build**. Two seats, two routes, same verdict.
@@ -88,8 +115,8 @@ Behavioural probe, both arms, m3, `ab_defer_call` (a PASSING witness — chosen 
 
 ## 4. NEXT SEAT
 
-1. **Route the §2 question before WREG-1** — veneer-excludes-wires vs depth-indexed block vs WREG-does-not-rely-on-RTCC. This is a design decision with an owner problem (GOAL-RTCC owns the veneer, this goal owns the wires), so it is **Lon's routing call**, not a seat's drive-by.
-2. **Re-state LADDER WREG's sweep-cost line at 506**, and its per-file numbers as occurrences (`bb_call_fn` 97 · `rtx_match.S` 89). The ladder's 178 and the "178 discretionary-scratch renames" sentence are both stale.
+1. **Route the §2/§2b question before WREG-1 — and route it on BOTH seats' evidence, not either alone.** s13c's three options are the right frame; the correction is that (3) does not close the nested cell and (2) only closes it if the save is per-activation on the spine. Owner problem is real (GOAL-RTCC owns the veneer, this goal owns the wires), so this is **Lon's routing call**, not a seat's drive-by.
+2. **Re-state LADDER WREG's sweep-cost line as 283 unconditional + 223 conditionally-exempt occurrences**, per-file in occurrences (`bb_call_fn` 97 · `rtx_match.S` 89, the latter NOT safely exempt). The ladder's 178, s13b's 416, and s13c's 234 are three different units and two different scopes; none is usable as written.
 3. m4 column + broad-336 **still owed** from s8/s12b — untouched by this seat.
 4. `128` and `151` own MONITOR-FIRST rungs — untouched.
 
