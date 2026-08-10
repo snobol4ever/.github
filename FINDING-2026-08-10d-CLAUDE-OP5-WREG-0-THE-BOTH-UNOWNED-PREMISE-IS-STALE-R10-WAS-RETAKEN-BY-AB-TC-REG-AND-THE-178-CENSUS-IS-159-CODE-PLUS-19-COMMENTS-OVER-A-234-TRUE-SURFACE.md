@@ -64,7 +64,36 @@ Gate extended (SCRIP `802cf6bd`) and measured:
 
 The two burn-downs are reported SEPARATELY by the gate and folded together only in the `--strict` verdict, because a template rename and a hand-written-asm rename are different work needing different proofs — the template arm goes through `x86()` encoders under the TEMPLATE-RULES, while `.S` files are outside that discipline entirely.
 
-**Consequence for the ladder's own routing:** LADDER WREG lists RTX nowhere in its sweep cost (*"178 discretionary-scratch renames measured: bb_call_fn 36 · xa_flat 21 · bb_match_end 12 · bb_scan_match 8 · bb_func_activate 7 · bb_call_proc_staged 7 · rest small"*). The bulletin routes it, but the ladder was never updated to match. **The RTX arm needs an owner named before WREG-1 lands**, since by the bulletin's own logic an unswept `rtx_match.S` does not degrade WREG gracefully — it makes it unsafe from the first blob that calls into the match runtime.
+**Consequence for the ladder's own routing:** LADDER WREG lists RTX nowhere in its sweep cost (*"178 discretionary-scratch renames measured: bb_call_fn 36 · xa_flat 21 · bb_match_end 12 · bb_scan_match 8 · bb_func_activate 7 · bb_call_proc_staged 7 · rest small"*). The bulletin routes it, but the ladder was never updated to match. **[SUPERSEDED BY §2c — the veneer already banks the pair, so the RTX arm needs neither owner nor sweep.]** ~~The RTX arm needs an owner named before WREG-1 lands~~, since by the bulletin's own logic an unswept `rtx_match.S` does not degrade WREG gracefully — it makes it unsafe from the first blob that calls into the match runtime.
+
+## 2c. ⛔⭐⭐⭐ THE DECIDING FACT — **WREG HAS A HARD CORRECTNESS DEPENDENCY ON RTCC=ON, AND RTCC IS DEFAULT OFF.** (And the corollary: the 182 RTX sites need NO sweep.)
+
+Chasing §2b's blocker to its root produced the single most consequential fact of this seat. Read `x86_asm.h`:
+
+**`x86_rtcc_wb_bin` (the pre-call half) saves the pair:**
+`mov [rax+56], r10` (R10 slot 7) · `mov [rax+64], r11` (R11 slot 8).
+**`x86_rtcc_rl_bin` (the post-call half) restores exactly the scratch tier** — its own header: *"RC-4 PARTIAL RELOAD: only the SCRATCH TIER {R8, R9, R10, R11} is restored from the block"* — `mov r10,[r11+56]` · `mov r11,[r11+64]`.
+
+**So the save/restore of γ/ω across a C-RT crossing ALREADY EXISTS, is committed, and is the default RC-4 behaviour whenever RTCC is on.** It is precisely the mechanism WREG needs, built for another purpose and already paid for.
+
+⭐ **COROLLARY — §2b's 182-site RTX blocker DISSOLVES.** Whatever `rtx_match.S` does to r10/r11 *inside* the call is invisible to the caller: the wires were banked before the call and reloaded after. The bulletin's escape clause — *"RTX may run concurrently IFF its asm either PRESERVES the pair or sits behind an RTCC veneer"* — is satisfied by the **second** disjunct, structurally, for free. **The RTX arm needs no owner and no sweep; the sweep is 234, not 416.** (Self-correction of this seat's own §2b conclusion, made three tool-calls later. The 182 sites are real; the *inference that they must be swept* was wrong.)
+Note the veneer even clobbers r10 itself for its own indirect-call stub (`movabs r10, ptr; call r10`, justified in-comment as *"R10 already written-back, free as indirect-call scratch"*) — and that is still WREG-safe, because the reload follows. Save → clobber → call → restore is net-preserving.
+
+⛔ **BUT THE GUARANTEE IS ENTIRELY CONDITIONAL, AND THE CONDITION IS OFF BY DEFAULT.** The veneer's first line is a killswitch:
+```c
+inline std::string x86_rtcc_call(const char *sym, uint64_t ptr) {
+    if (!g_rtcc_on) return x86_call_ro(sym, ptr);   /* KILLSWITCH: gate OFF → byte-identical to pre-RTCC */
+```
+With `g_rtcc_on == 0` — **the default** (`rtcc_init.c:20`, *"default OFF — killswitch law"*) — every `rt_*` call is a **bare call with no writeback and no reload**, so r10/r11 are clobbered per plain SysV caller-saved rules by *any* runtime call a blob makes.
+
+**Therefore: at RTCC=OFF, γ/ω in r10/r11 do not survive a single `rt_*` call, and by the bulletin's own standard the failure mode is not a wrong answer but a wild jump.** LADDER WREG lists the veneer as *ground #3* for the register pick — a supporting argument. It is not a supporting argument. **It is a precondition.** The ladder nowhere states that WREG requires RTCC=ON, and the two killswitches currently default in opposite directions: WREG is specified to land **default-ON at WREG-2** (*"ON is default at WREG-2 landing (PT-1 precedent)"*) on top of an RTCC that is **default-OFF**. Landing that combination ships wires with no survival mechanism.
+
+**THE ROUTING QUESTION THIS FORCES (Lon only — it is a strategy call, not an implementation detail).** Three ways out, and they are not equivalent:
+1. **WREG default-OFF until RTCC goes default-ON** — safe, but WREG delivers nothing until the RTCC seat finishes, and PT-1's default-ON precedent is broken.
+2. **WREG-2 emits its own unconditional save/restore around `rt_*` crossings when RTCC is off** — self-sufficient, but it re-implements the veneer and the ladder's *"NO SHIM is literal"* claim quietly stops being literal.
+3. **RTCC goes default-ON as a WREG prerequisite** — cleanest and matches *"this ladder is the payoff of the RTCC investment"* (bulletin), but it makes a five-seat scheduling dependency explicit and hands WREG's schedule to the RTCC seat.
+
+**RESIDUAL HAZARD — CENSUSED AND CLEAN.** `x86("call_bare")` is *"intentionally veneer-free"* in **both** gate states, so any use outside an explicit `rtcc_wb`/`rtcc_rl` bracket would be an unprotected crossing even at RTCC=ON. Measured: **12 uses across 8 templates, and every file's `call_bare` count equals its `rtcc_wb` count equals its `rtcc_rl` count** (`bb_assign_global` 1/1/1 · `bb_binop_arith` 3/3/3 · `bb_binop_concat_slot` 1/1/1 · `bb_binop_gvar_arith_slot` 1/1/1 · `bb_call` 2/2/2 · `bb_call_fn` 1/1/1 · `bb_call_proc_staged` 2/2/2 · `bb_match_begin` 1/1/1). **No unbracketed `call_bare` exists.** Per-file count equality is not per-site pairing, so this is a clean *screen*, not a proof — but it is clean, and it says the residual hazard class is presently empty.
 
 ## 3. LANDED — `scripts/test_gate_wreg_claim.sh` + `scripts/wreg_claim_whitelist.txt` (SCRIP `1d81b015`)
 
