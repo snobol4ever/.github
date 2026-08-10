@@ -11,7 +11,7 @@
 1. **s9 and s10's SCRIP commits do not exist in the repository.** Their `.github` FINDINGs are pushed; their code is not. The s10 cursor's HEAD (`7d67fd90`) and s9's close (`1fa5f0c5`) are `unknown revision`. **The claim-gate v2 that s9 recorded as landed is NOT in the tree** — the tree carries v1, the nondeterministic one.
 2. **The v1 gate was measured reading TRUE in 2 of 12 runs** on an unchanged tree. Independently reproduced, and the undercount is worse than s9 recorded (new low of 5 vs s9's 6). Fixed and falsified both directions.
 3. **RC-6's inherited opening recommendation (`rt_call_arr`, "99 emitted sites") is a STATIC call-site rank** — the exact ranking shape this repo has convicted as anti-correlated with hotness **three times, in two languages**. RC-6's own charter says "ordered purely by *measured* hotness."
-4. **The dynamic instrument RC-6 requires does not exist in this container:** `valgrind`, `perf`, and `ltrace` are all absent, so `profile_callgrind.sh` cannot run. Naming the replacement is a prerequisite of opening RC-6, not a detail.
+4. **RC-6's instrument was BUILT and the inherited target is falsified by five orders of magnitude:** `rt_call_arr` ("99 emitted sites, top of the hotness rank") executes **4 times** on fibonacci while `rt_arg_stage` executes **2,692,537**. And the hot set is **workload-dependent** — on roman the top is `rt_defer_*` and `rt_call_arr` is 100,005. There is no single hotness rank to order RC-6 by.
 
 ---
 
@@ -143,10 +143,31 @@ An independent static census this session (65 benchmark `.s`, all languages) als
 
 ⇒ **RC-6 must open on a DYNAMIC census.** Its charter already says so ("ordered purely by measured hotness"); the recommendation drifted to static because static is cheap. Per SLICE7: *a census is not evidence until it covers the artifact's whole unported call set* — partial censuses do not read as partial, they read as a finished answer with a clean shape.
 
-### 4.1 BLOCKER — the dynamic instrument is missing here
-`valgrind`, `perf`, `ltrace`: **all absent in this container**, so `scripts/profile_callgrind.sh` cannot run. The existing `util_rtx_icn_0d_census.c` is an `LD_PRELOAD` interposer that hand-writes each symbol's exact C signature — sound, but it does not scale to a whole-call-set census and a wrong signature silently corrupts the run.
+### 4.1 RESOLVED — THE INSTRUMENT WAS BUILT, AND IT NEARLY GAVE THE INVERSE ANSWER (`5962917e`)
 
-**Proposed instrument (unbuilt, for Lon's routing): `LD_AUDIT` + `la_pltenter`.** rtld-audit reports every PLT call **without any knowledge of signatures**, which is what makes a whole-call-set census tractable. Open questions to settle before trusting it: whether mode-3's RX-slab calls reach `rt_*` through the PLT at all (mode-4's `as`+`gcc` link should), and the per-call overhead's effect on which window is graded. **Stated as a proposal, not a result — nothing here is measured.**
+`valgrind`/`perf`/`ltrace` are all absent, so `profile_callgrind.sh` cannot run. Built one instead: `scripts/util_rtcc_crossing_audit.c`, an **`LD_AUDIT`** library counting `rt_*` calls per symbol with **zero signature knowledge** — which is what makes a whole-call-set census tractable where `util_rtx_icn_0d_census.c` (one hand-written signature per symbol) does not scale.
+
+⛔ **IT CARRIES A TRAP THAT INVERTS ITS ANSWER, AND I WALKED INTO IT BEFORE CATCHING IT.** `la_pltenter` sees only **PLT-routed** calls. Mode-3 runs generated code from an **RX slab with no PLT**, not a link_map object — so generated→C crossings are **invisible**, and what you measure is intra-C traffic inside `libscrip_rt.so`: the *complement* of the wanted quantity. Measured in mode-3:
+
+| symbol | emitted call sites | mode-3 audit |
+|---|---|---|
+| `rt_call_arr` | 4 | **0** |
+| `rt_arg_stage` | 5 | **0** |
+| `rt_chain_enter` | **0** | 2,692,537 |
+| `rt_gc_point` | **0** | 2,692,537 |
+
+An exact **inverse** correlation. Filing that as hotness would have aimed RC-6 at symbols generated code never calls — **vacuous by construction**, the failure shape this ladder has hit repeatedly. What saved it was the numbers being *too clean*: five straight zeros is a property of the instrument, not of the program.
+
+**Fix:** run on a **mode-4** binary, where the emitted `.s` links into a real ELF and `call rt_foo` goes through the PLT (verified: 4 `rt_call_arr@plt` sites). Arm-match is mandatory — a mode-4 binary emitted under `RTCC=1` and run under `RTCC=0` **SIGSEGVs**, independently reproducing s9's probe (templates-ON + runtime-OFF ⇒ `r9=0`).
+
+### 4.2 TRUE CROSSING COUNTS (mode-4, arm-matched, exact — not sampled)
+
+- **fibonacci:** `rt_gc_point_arr` 2,692,543 · `rt_arg_stage` / `rt_proc_get_fn` / `rt_proc_open_fn` / `rt_goto_transfer` / `rt_flat_wire_adopt` / `rt_sub` 2,692,537 each · `rt_add` 1,346,268 · **`rt_call_arr` = 4**
+- **roman:** `rt_defer_open` / `rt_defer_get_pat_fn` / `rt_defer_close` 2,200,022 each · `rt_sxt_break` 400,022 · **`rt_call_arr` = 100,005**
+
+⭐ **(1) Static rank is anti-correlated — fourth confirmation, sharpest numbers yet.** `rt_arg_stage` and `rt_call_arr` sit **1.36×** apart statically (1031 vs 760 sites) and **673,000×** apart dynamically on fibonacci. The inherited RC-6 target executes **four times**.
+
+⭐ **(2) THERE IS NO SINGLE HOTNESS RANK — THE HOT SET IS WORKLOAD-DEPENDENT.** fibonacci is the procedure-call path (`rt_arg_stage`, `rt_proc_*`, `rt_flat_*`); roman is the deferred-eval pattern path (`rt_defer_*`). They share almost nothing, and `rt_call_arr` moves **4 → 100,005** between them. **RC-6 must be ordered against a STATED workload mix, or per-family against the workload that exercises that family.** A single benchmark's rank is exactly the "partial census reads as a finished answer" shape SLICE7 convicted — and this time the partial answer would have been off by five orders of magnitude.
 
 ---
 
@@ -156,7 +177,7 @@ Discipline note, because the failure mode above is precisely inherited claims ou
 
 - ✅ **RESOLVED LATE IN SESSION — the watermark WAS re-proved.** The `-O0` build finished (1-core, `nproc=1`; a first attempt was killed when a tool timeout took its process group, hence the detached relaunch). **`fibonacci` m3 `result: 832040` at BOTH `SCRIP_RTCC=0` and `SCRIP_RTCC=1`; claim-gate `--strict` PASS at open and close; tree clean; killswitch arms differ as expected (RTCC=1 emits the veneer).**
 - **No SPEED claim is made.** §3.1 reports only the *noise band of an unchanged binary* — an instrument-characterisation number, not an A/B result. No RTCC arm was graded for performance this session, and on the §3.1 numbers this box cannot grade one below ~1.09×.
-- **RC-6 was NOT opened** — §4 argues it must not be opened on the inherited rank, and names the missing instrument. Opening it remains available work.
+- **RC-6 was NOT opened, but it is now openable.** §4 falsifies the inherited target and lands the instrument. What remains before opening: agree the STATED workload mix (§4.2 shows a single benchmark misranks by 10^5), and confirm the mode-4 ranking transfers to mode-3 — the two modes are chartered 1:1, but that is an assumption this session did not test, and mode-3 is where the veneer actually runs.
 - The five duplicated RTCC constants in `x86_asm.h` were **not touched** (NOT-CONCURRENCY-SAFE; needs Lon's routed window). A one-sided guard remains strictly worse than none.
 
 ---
