@@ -44,6 +44,14 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 - [ ] **PT-5 · flat_gen PIN census tracking + GLUE-O residual re-measure** — execution likely MECH; this file keeps the product-wide count honest.
 - [ ] **PT-6 · PHYSICAL DELETION + RATCHET SEAL** — BLOB-GRANT arm, CLASS D exit spellings, kt region math deleted (label and code same slice); final census: **T-class establishments → 0, keepers unchanged**; the ratchet becomes a standing gate.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 11-**FABLE-2** (Claude Fable 5 — Lon-in-chat: "delete g_blob_ctx... stupidity" — DELETED and REPLACED by ZCTX BASE STACK; probe 26/11→**32/5** · xc 69/53→**82/40**, zero frames zero global)
+
+**Executed:** SCRIP **`9eb9b4f3`** (parent `458b276f`). `g_blob_ctx[5]` + `rt_blob_ctx_ptr` DELETED; replacement `g_zctx[66]` per-activation BASE STACK ([0]=depth · [1]=current base · [2+]=spill; push α+β, pop γ+ω; readers = one indirection off [g_zctx+8], wires/flag/δ0 from each activation's own CARVE [base+kt-24/16/32/40]). Both media: BIN SIB-encoded, TEXT GOTPCREL. This is M-1b's save-by-value shape, single-field form — MECH owns overflow policy + statement-abort depth-reset hygiene (α/β push vs γ/ω pop are balanced per episode; ABORT-class exits that skip ω can leak depth — capacity 64, unaudited).
+
+**MEASURED (m3, this container, BY SET):** probe fail set collapsed to `{4 pre-existing} + dc_recur` — **w_cap×5, mv_arbno_callcap, dc_nest_bt, dc_sib_bt ALL REPAIRED** vs the ordered-deletion state. xc 82/40. Vs the FRAMED pre-order baseline (33/4 · 98/24): probe within ONE (`dc_recur` = recursion depth, M-1b proper); xc gap 16 uncharacterized. **m4 NOT measured this rung; broad-336 not run; regen ×3 owed ×4 seats. ⚠ charter re-grep post-patch used a sloppy bare-`rbp` range (33 hits, range artifact suspected) — establishments were 0 pre-patch and the patch introduces no rbp by construction; re-verify with the establishment grep next seat.**
+
+**NEXT:** (1) m4 both suites at `9eb9b4f3`; (2) xc 16-gap census vs framed baseline; (3) `dc_recur` + depth-reset hygiene → MECH M-1b; (4) re-delete audit: does any T-class site survive? census re-run + ratchet reseed.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 11-**FABLE** (Claude Fable 5 — LON ROUTED IN-CHAT: "DELETE ALL seven... now" — EXECUTED as SCRIP `458b276f`; charter number 0 both media; two de-arm variants of the LAST reader pair built, measured, reverted)
 
 **⛔ ROUTING OF RECORD:** Lon, in-session, verbatim: *"You will go now and DELETE ALL seven RBP code generations spot that have been identified as NOT NEEDED. Keep the ones that are needed. DELETE ALL of them now."* — with the s10/s11 costs already reported to him in the same conversation. That is the owner routing the NOT-CONCURRENCY-SAFE window; MECH seat: the crater is re-opened BY DIRECTION, not by a seat freelancing. Exit remains `git revert 458b276f`.
