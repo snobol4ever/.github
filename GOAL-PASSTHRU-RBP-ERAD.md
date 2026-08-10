@@ -43,6 +43,31 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 - [ ] **PT-5 · flat_gen PIN census tracking + GLUE-O residual re-measure** — execution likely MECH; this file keeps the product-wide count honest.
 - [ ] **PT-6 · PHYSICAL DELETION + RATCHET SEAL** — BLOB-GRANT arm, CLASS D exit spellings, kt region math deleted (label and code same slice); final census: **T-class establishments → 0, keepers unchanged**; the ratchet becomes a standing gate.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 9 (Claude Opus 4.5 — DEL-T1 EXECUTED: D-1 delete landed FIRST as ordered, D-2 pass-thru fix-forward PARTIAL; the PT-4 PREREQ frontier is now MEASURED, not predicted)
+
+**Watermark at close:** SCRIP HEAD `5e66bfa6` (D-2) on top of `9f1436b4` (D-1); corpus HEAD `0f02731d` (untouched — NO regen this session, see DEBT).  Lon directive verbatim: *"NO RBP frame for CONSTANT FOLDED patterns. Use flat pass-thru glue. I never want to see that code again."* — discharged: the compiler can no longer emit the `sub rsp,304 / mov [rsp+296],rbp / mov rbp,rsp` blob prologue in either medium.
+
+**D-1 `9f1436b4` — THE DELETE (landed first, alone, breaking by design as ordered).**  Removed from the BLOB-GRANT arm in `emit.cpp`: `sub rsp,kt`, γ/ω wire stores `[kt-24]/[kt-16]`, caller-rbp save `[kt-8]`, `mov rbp,rsp` pin, SCANBASE fills `[kt-32]/[kt-40]` — TEXT snprintf and BINARY `ef_b*` twins together.  Verified: fresh `claws5-match` `proc_PAT$0_α` carries ZERO frame instructions.  One correction inside the same commit (amended): the first cut over-swallowed `emit_label_define_bb(&lbl_attempt)` → emit-time "unresolved forward reference"; restored.  Revert path is this commit alone.
+
+**D-2 `5e66bfa6` — PASS-THRU GLUE (partial repair, honest numbers).**  Blob ADOPTS the caller's frame (rbp = invoking statement's MATCH_BEGIN frame, a licensed keeper, NEVER written in the blob).  Activation memory = pin-free cell carve; the depth-immune anchor is a new runtime cell `g_blob_ctx[5]` {base, γ wire, ω wire, scan flag, δ0} in `src/runtime/pattern_match.c` (+ `rt_blob_ctx_ptr()`, rt_anchor precedent).  α publishes it; scanhit/scanfail, CLASS D γ (record is now `{res, CTX.BASE}`), CLASS D ω (`rsp = ctx.base + kt`) and the β res-stub all read it; the res-stub REFILLS ctx from the suspended activation's carve header, which is the suspend/resume interleaving repair.  `flat_pat` removed from `emit_jmp_pin_rbp()` (emit.h:630) — **mandatory, not a tuning knob**: with the α pin gone, a pinned spelling addresses the INVOKER's frame.
+
+**MEASURED, BY SET, same container, 36 probe witnesses m3:**
+| rung | PASS | FAIL |
+|---|---|---|
+| pre-delete `7b4d310d` | 31 | 5 (pre-existing: ab_freturn, ab_nret_lvalue, ab_redefine, z4_arbno, z4_span) |
+| D-1 only `9f1436b4` | 18 | 18 (13 casualties) |
+| D-1+D-2 `5e66bfa6` | 24 | 12 (7 casualties; **6 repaired**) |
+
+`claws5-match`: SIGABRT(134) under D-1 → **rc=0 under D-2 but output STILL DIFFERS from ref** (not a pass; counted as broken).
+
+**THE 7 REMAINING CASUALTIES — the frontier, named:** `dc_recur`(139), `mv_arbno_callcap`(139), `w_cap_ay`/`w_cap_group`/`w_cap_novowel`/`w_cap_stored`/`w_cap_xxay`(124 hang).  Capture + recursion families.  This is exactly the **PT-4 PREREQ this goal file already predicted**: interior `op_flat_disp` correctness for the match family in blob context (ARBNO/SPAN/BREAK K-conversion).  It is now measured rather than forecast.  NOT closed, NOT claimed closed.
+
+**DEFECT FOUND IN D-2's OWN PLACEMENT (first item of the next rung):** the pass-thru α carve sits INSIDE the `scan_live` block, so `SCRIP_SCAN_OFF=1` now suppresses ACTIVATION ESTABLISHMENT too — all 7 casualties report 139 under the killswitch, which is a CONFOUNDED signal and localizes nothing.  Activation establishment is not scan machinery.  Lift the carve out of that gate before using the killswitch to bisect anything.
+
+**NEXT RUNG, in order:** (1) lift the α carve out of `scan_live` and re-run the killswitch bisect on the 7; (2) attack interior `op_flat_disp` for the capture/ARBNO family in blob context (the PT-4 PREREQ proper) — `w_cap_stored` is the cheapest witness, `dc_recur` the deepest; (3) re-measure BY SET against the table above; (4) broad-336 + regen ×3 once witnesses move.
+
+**DEBT CARRIED (disclosed, not hidden):** broad-336 NOT run this session; regen ×3 NOT performed (corpus untouched) — artifacts on disk still show the pre-delete prologue and are now stale by construction; the census instrument was not re-run.  Deliberate: context ran out and regenerating 300+ artifacts from a knowingly-broken emitter would bury the measured signal above under noise.  Do regen ONLY after the 7 are green or Lon routes otherwise.  ⚠ carried forward, still unowned: `bb_match_end.cpp` 12×r10 TIER-2 gate fail; `128_pat_recursive_grammar` separate defect.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 session 5 (Claude Sonnet 4.6 — PT-0 oracle-confirm done; PT-4 is next; Lon routes PREREQ)
 
 **Watermark at close:** xc318 269m3/48m3/3div (unchanged); RBP ratchet seeded=609 unseeded=0 GATE OK; SCRIP HEAD `87dfb964`; corpus HEAD `dee11d0e`.  **PT-0 + PT-1 + PT-2 + PT-3 complete.  PT-0 oracle-confirm DONE.**  (s5 correction: an earlier s5 cursor write recorded stale hashes `379eb630`/`e3ccea53` — s4 pushed in parallel mid-s5; STALE-ORIENTATION protocol absorbed it; hashes above are ground truth from handoff_status.)
