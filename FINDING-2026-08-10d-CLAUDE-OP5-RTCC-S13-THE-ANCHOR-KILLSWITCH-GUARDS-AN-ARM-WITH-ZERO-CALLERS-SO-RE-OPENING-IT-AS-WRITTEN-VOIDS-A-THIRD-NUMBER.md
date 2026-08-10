@@ -83,3 +83,38 @@ ANCHOR removes **2 instructions and a dependent memory load per site** — 14 by
 - **A KILLSWITCH IS NOT A GATE UNTIL SOMETHING CALLS THE ARM IT GUARDS.** A `#define` that is live, guarded, `-D`-overridable and correct can still be decorative if the arm has no callers. Before A/B-ing any killswitch, **grep its arm for call sites and confirm the ON form appears in emitted output** — the encoder arm existing is not the arm firing. Three RC-5 numbers have now been voided by three *different* mechanisms of the same class: same binary (s9), noise below floor (s10/s11), and now unreachable arm (s13).
 - **A POSITIVE CONTROL IN THE SAME EMISSION IS THE CHEAPEST GUARD AGAINST A NULL RESULT.** GVA firing 106 times in the identical `.s` is what converts "ANCHOR greps to zero" from an ambiguous null into a measurement. Any census reporting a zero should name the non-zero it measured alongside it.
 - **A MECHANISM-DERIVED LAW INHERITS THE MECHANISM'S SCOPE.** "Zero dynamic delta" was true of GVA's mechanism and was carried across the whole rung; ANCHOR's mechanism removes an instruction and a load. Attach mechanism laws to the mechanism, not to the rung number.
+
+---
+
+# ADDENDUM — RUNG 2: s9's OWED `grep -q`-UNDER-`pipefail` SWEEP, FINALLY RUN (SCRIP `72830da4`)
+
+s9 wrote *"Sweep `scripts/` for other `grep -q`-under-`pipefail` sites — portable defect shape."* Four sessions later nobody had. Swept all **175** `pipefail` scripts.
+
+**The claim gate is CLEAN** — its only hit is s11's own warning comment. **Most sites are safe**, and the reason is s11's own law: *the discriminator is the UPSTREAM, not the `-q`*. An `echo "$VAR"` upstream is a **builtin** over a CLI-arg or single-line variable; it completes into the 64 KiB pipe buffer before `grep -q` can exit, so no EPIPE ever occurs.
+
+### Three sites had an UNBOUNDED upstream — FIXED
+| site | upstream | failure direction |
+|---|---|---|
+| `test_gate_icn_zcells_gva.sh:42` | `$census_stderr` — a census, **many lines by design** | ⛔ **SPURIOUS PASS** — reads "no ZK-5-FAIL" when there IS one |
+| `test_gate_icn_global_no_nv_m3.sh:48` | `$TRACE` — stderr of a **traced m3 run** | spurious LOCK-2 **FAIL** |
+| `test_gate_pl_no_new_global.sh:152` | external **`tr` MID-PIPE** | "in set" reads as **NOT in set** |
+
+The ZK-5 case is the same shape as the claim gate's original defect — `COLLISION CLASS` spuriously EMPTY ⇒ spurious PASS — reproduced in a different goal's gate. ⚠ **HANDOFF TO THE ICN-ZETA-CELLS SEAT: prior ZK-5 gate passes are only trustworthy if that witness's census output stayed under ~64 KiB.**
+
+**Fix = herestring** (`grep -q PAT <<< "$VAR"`): there is no upstream *process* to SIGPIPE. **FALSIFIED BOTH DIRECTIONS**, N=10 on s11's 100k-line synthetic:
+
+```
+OLD  echo|grep -q  :  0/10 found a match that IS present
+NEW  grep -q <<<   : 10/10 found a match that IS present
+```
+
+`in_set` verified semantically identical on 5 probes both directions (including the `-qx` substring non-match `bet` → OUT). `bash -n` clean; RTCC claim gate `--strict` re-proved **PASS** after the edits.
+
+### Surveyed, NOT fixed — moderate program-output upstreams, next seat's call
+`test_crosscheck_x86_backend.sh:187` (`$ref_content`) · `test_prolog_rung_suite.sh:68,116` (`$out`/`$got`, external `printf`) · `test_invariants_3x3_harness.sh:526` (`$result`) · `test_smoke_sno_command_match.sh:48` · `test_smoke_monitor_unknown_wildcard.sh:51`. Confirmed safe and deliberately left alone: all `$_CELLS`/`$_cells_arg`/`$mi_line` sites (CLI args, single lines), `util_rtx_symbol_inventory.sh:33` (`head -1` upstream, one line).
+
+### ⚠ MY OWN INSTRUMENT HAD A FALSE-POSITIVE MODE — recorded because the project's laws demand it
+My sweep regex matched `||` as a pipe, so it flagged `util_rtx_claims.sh:242` — which is actually `grep -qx PAT FILE`, the **always-safe no-pipe form**. Caught by reading the site instead of trusting the count. Same class as s11's `LD_AUDIT` complement and s10's 7-vs-8-byte undercount: **a census must be checked against the source, not quoted from the tool.** A grep-based census of shell pipelines cannot distinguish `|` from `||` without context.
+
+### LAW MINTED
+- **AN `echo "$VAR" | grep -q` IS SAFE OR FATAL DEPENDING ONLY ON `sizeof($VAR)` (s13).** Below the 64 KiB pipe buffer the upstream finishes before the reader exits and the construct is correct; above it, the match is lost **deterministically** (measured 0/10 here). So the audit question is never "is there a `grep -q`" but **"can this upstream exceed 64 KiB?"** — which makes *program output, traces, and censuses* the risk class, and *CLI args and single lines* safe. Prefer `<<<` unconditionally: it is the same length and has no upstream process at all.
