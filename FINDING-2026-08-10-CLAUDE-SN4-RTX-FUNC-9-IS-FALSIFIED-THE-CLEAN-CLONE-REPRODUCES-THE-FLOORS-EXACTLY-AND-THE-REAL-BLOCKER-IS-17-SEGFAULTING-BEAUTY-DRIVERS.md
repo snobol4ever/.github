@@ -87,3 +87,64 @@ produced NO output (crash/empty):     17     ← "Segmentation fault" on stderr
 RTX-2's phantoms were DEAD names. RTX-3's were INVENTED names. RTX-4's were LIVE names RECORDED WRONG. **RTX-9's rung had good names and a WRONG CAUSE** — a mechanism inferred from a coincidence (a dangling symlink was visible; the watermark did not match; the first was assumed to explain the second) and never tested against the arithmetic sitting in the rung's own sentence.
 
 ⭐ **The family resemblance is exact: a rung written from a DOCUMENT — or from an INFERENCE — rather than from the TREE.** ARCH §7 step 0 already demands that symbols round-trip against the tree. **This finding argues the same discipline is owed to a rung's stated CAUSE:** before scheduling work against a mechanism, run the cheapest experiment that could disprove it. Here that experiment was adding two numbers.
+
+---
+
+# ADDENDUM (same seat, same build) — RTX-FUNC-11 REDUCED: **THE DEFECT IS `-INCLUDE`-SPECIFIC. IDENTICAL BYTES RUN INLINE AND SEGFAULT WHEN INCLUDED.**
+
+⭐⭐ **THE HEADLINE, AND IT IS A CLEAN PATH-SWAP — RULES.md's prescribed cheapest discriminating experiment, "made to swap paths where possible":**
+
+```
+17 lines pasted INLINE into one file  ->  runs, prints "alive"
+the SAME 17 BYTES via -INCLUDE        ->  Segmentation fault
+```
+
+Reduction ladder from `fence_driver.sno` (21 lines) — every step measured, none inferred:
+1. Driver **minus** its `-INCLUDE` line ⇒ runs and is **ORACLE-EXACT** against `fence_driver.ref`. **The driver body is not implicated at all.**
+2. `-INCLUDE 'global.sno'` + a single `OUTPUT` ⇒ SEGV. The include is the whole defect.
+3. Prefix scan of `global.sno` (163 lines): first crashing prefix = **line 161**, `$UTF_Array[i, 2] = UTF_Array[i, 1] :S(G1)` — preceded by `UTF_Array = SORT(UTF)`.
+4. Suffix scan: smallest crashing region = **lines 145–161 (17 lines)** — 12 `UTF[...]` entries + `SORT` + the indirect-assignment loop.
+5. **Inline-vs-include on those exact 17 lines ⇒ the swap above.**
+
+## WHAT IS EXONERATED (each killed by measurement, not argument)
+- **`-INCLUDE` in general** — a 3-line include of `X = 42` works.
+- **Source size** — 23,447 bytes of comment padding in the included file: **ok**.
+- **Value size / runtime data size** — 12 values of `DUPL('X',40)` built at runtime: **ok**.
+- **Key length** — 12 × 4-char *literal* keys (`'abc1'`): **ok**.
+- **High/non-ASCII bytes** — ASCII `CHAR(65) CHAR(66) CHAR(67)` keys crash exactly as the UTF-8 ones do.
+- **Concatenation as such** — 12 × `'a' 'b' 'c1'` concatenated *literals*: **ok**.
+- **Entry count as such** — 20 entries with short literal keys: **ok**.
+- **`SORT`, the `$` indirect assignment, the out-of-range loop exit, standalone** — none crash in isolation, at any size I tried, without `-INCLUDE`.
+
+## ⛔ WHAT I COULD **NOT** ISOLATE — RECORDED AS A CONTRADICTION, NOT SMOOTHED INTO A MODEL
+The trigger tracks something that scales with **`CHAR()` calls in the included file**, and it is threshold-like:
+
+| included file | total `CHAR()` calls | result |
+|---|---|---|
+| 12 entries × 2 `CHAR` | 24 | ok |
+| 6 entries × 4 `CHAR` | 24 | ok |
+| 12 entries × 3 `CHAR` | 36 | ok |
+| 40 entries × 1 `CHAR` | 40 | **SEGV** |
+| 24 entries × 2 `CHAR` | 48 | **SEGV** |
+| 48 entries × 1 `CHAR` | 48 | **SEGV** |
+| 12 entries × 4 `CHAR` | 48 | **SEGV** |
+| **11 REAL entries × 4 `CHAR`** | **44** | **ok** ⛔ |
+
+⛔ **The last row contradicts the scalar model** (44 > 40, yet ok). The real entries differ from the generated ones in value length and key distribution, so a second variable is in play. **I am not naming a mechanism.** A "total CHAR() calls > ~36" story fits seven rows and is falsified by the eighth; publishing it as *the* rule would hand the next seat a model that breaks on the very program that started this. ⭐ *This is the s223/s217 lesson in a new axis: a probe that fits most of the data is not a conviction.*
+
+## HOW TO REPRODUCE IN ~10 SECONDS (no corpus needed)
+```bash
+cd /tmp && mkdir -p r && cd r
+: > inc_body.sno
+n=1; while [ $n -le 48 ]; do printf "    UTF[CHAR(%s)] = 'v%s'\n" $((40+n)) $n >> inc_body.sno; n=$((n+1)); done
+printf '    UTF_Array = SORT(UTF)\n    i = 0\nG1  i = i + 1\n    $UTF_Array[i, 2] = UTF_Array[i, 1]  :S(G1)\n' >> inc_body.sno
+printf -- "-INCLUDE 'inc_body.sno'\n\tOUTPUT = 'alive'\nEND\n" > p.sno
+scrip --run p.sno                      # -> Segmentation fault
+cat inc_body.sno > inline.sno; printf "\tOUTPUT = 'alive'\nEND\n" >> inline.sno
+scrip --run inline.sno                 # -> alive        (SAME BYTES, no -INCLUDE)
+```
+
+## FOR THE NEXT SEAT
+- ⛔ **Still not root-caused, still MONITOR-FIRST.** The inline arm is a **perfect control**: same source bytes, same runtime work, one path crashes. Run the 2-way monitor with the inline arm as the agreeing reference and take the first divergent event.
+- **Not minted into `corpus/probe/` this seat** — a `.ref` needs the SPITBOL oracle (`/home/claude/x64`), which I did not clone. Recipe above is complete; minting is a 5-minute rung for whoever has the oracle up.
+- **Coverage blind spot, worth a rung of its own:** `crosscheck/` contains **zero live `-INCLUDE` directives**, so the 269-program passing suite is *structurally incapable* of catching any `-INCLUDE` defect. The 17 beauty drivers are the only `-INCLUDE` coverage in the graded set, and all 17 are red. **The gate cannot see this class.**
