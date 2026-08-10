@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-SN4-ZETA-CLIMB, rung C-9 (REPLACEMENT + SPLICE). **Modes:** m3 ≡ m4 (identical wrong output — emission not m3 glue, METHOD §6).
 **Opened at:** SCRIP `c7e085fd`, corpus `9fb2e019` (both AHEAD of the s34 cursor's `6ffa57fe`/`f46d3ebe`; capture family re-proved with ZERO drift).
-**Tree state:** NO SOURCE EDITS. Diagnosis only. Fix is a planner/depth-model change ⇒ MECH cross-request, see COORDINATION at the end.
+**Status:** ⭐ **FIXED AND LANDED** — SCRIP `9b951391`. Diagnosis was completed first with ZERO source edits; the fix followed once Lon ruled the choice mine.
 
 ## MONITOR-FIRST BRACKET (RULES.md §1)
 
@@ -65,14 +65,26 @@ Every pattern-match-with-replacement statement on the FORTH spine. Crosscheck: 0
 - Reference, "Pattern-match with replacement": *"If the pattern match succeeds, the replacement expression is evaluated and replaces the portion of the subject matched. Only the matched portion is replaced; characters adjacent to the matching substring are not disturbed."*
 - Tutorial Ch.6 "Pattern Matching with Replacement": match → conditional assignments performed → replacement evaluated, converted to string, inserted. *"If the pattern matched the entire subject, replacement behaves like a simple assignment statement."* ⬅ **the degenerate case SCRIP currently produces unconditionally**, which is why the defect reads as "assignment" rather than "splice".
 
-## FIX SHAPE — CROSS-REQUEST TO MECH
+## FIX AS LANDED (SCRIP `9b951391`)
 
-The needed quantity is the **live ζ depth of the replacement subtree at the splice**, added to the `FRQ`/`FR` base for `IR_MATCH_REPLACE` only. `op_zdepth` is already documented as exactly this quantity (ZTOS-1 SLIDING-OFFSET AUTHORITY, emit.cpp:830 — Lon s21x-o "ONE main function that does graph traversal and calculates the zeta offsets"), but the choke assigns it the node's OWN K, which is 0 for a K=0 kind. So the question is a depth-model question, not a template question:
+`g_zd_zunder` — staged in the drive loop for `IR_MATCH_REPLACE` ONLY (backward scan to `MATCH_END`, summing `zd_k` over armed run members: the run-local spelling of `zout(REPLACE) − zout(MATCH_END)`), consumed at the choke as an `op_zdepth` addend. Mirrors the `g_zd_ztail`/`IR_TO` precedent exactly — ONE staging site, ONE consumer, ONE authority. 3 insertions / 3 deletions in `emit.cpp`.
 
-- **(A)** Keep `zd_k(IR_MATCH_REPLACE)=0` (correct — it owns no cell) and give the choke a live-depth term distinct from own-K for K=0 readers of a still-resident subtree.
-- **(B)** Fold the replacement subtree before the splice reads, the `op_wpop` route — the direct precedent is **ZD-5b POS/RPOS CONST-WPOP** (emit.cpp:1448, the N21 fix), which pops an orphaned LIT_INT cell rather than compensating each reader.
+**⛔ CORRECTION TO THIS FINDING'S OWN FIRST DRAFT:** it offered option (B), an `op_wpop` fold on the CONST-WPOP precedent. **That is WRONG and must not be revived.** CONST-WPOP pops an *orphaned* cell on the **failure** edge (`je Lγ / add rsp,16 / jmp ω`). The replacement cells here are live on the **success** path — `r9` is a `lea` of `rv`'s own cell — so folding them before the call hands the sink freed stack. Compensating the reads (option A) is the only viable shape.
 
-(B) matches the standing precedent and the ONE-AUTHORITY habit; (A) matches what `op_zdepth` already claims to mean. **This is MECH's call** — CLIMB "NEVER lands a new frame/glue/claim protocol" (COORDINATION), and C-9 additionally carries "replacement-splice PENDING LON RULING (sole-consumer fence retirement)". Surfaced per that instruction; rung C-9 BLOCKED on the ruling + MECH cursor.
+## GATE (full untruncated A/B, pristine HEAD `c7e085fd` vs fixed)
+
+- crosscheck m3 **239/78 → 242/75**; EXACTLY 3 status changes, ALL fail→pass (`062_capture_replacement`, `063_capture_null_replace`, `064_replace_multi_arm`); **ZERO pass→fail**.
+- 141-probe m3 **133/15/0/3R identical before and after** — neutral. m4 **132/16/0/3R**.
+- Probes P1/P5/P7/P8 green in BOTH modes.
+- ⚠️ **`D12`/`D13`/`H31` REGRESSIONS ARE INHERITED, NOT FROM THIS FIX** — proven by stash + pristine rebuild at HEAD: they fail without the change. They were green at the s34 watermark, so a parallel seat broke them between `6ffa57fe` and `c7e085fd`. **Someone should own these.**
+- ⚠️ A first A/B appeared to show 3 pass→fail (`134/135/136` balanced-parens). That was an artifact of my sweep script truncating the failing list with `head -40` while FAIL was 75–78. Re-run untruncated: they fail in BOTH builds. **Recorded so the phantom is not chased.**
+
+## RESIDUAL (NOT this defect)
+
+- `test_case` rc=124 → **rc=134**: the runaway loop WAS a consequence — a clobbered subject made the canonical `ALOOP SUBJ ? PAT = :S(ALOOP)` delete-all idiom (manual Ch.6 p.73) non-convergent. It now terminates but still fails for a separate reason.
+- `test_string` still fails — separate class.
+- `061_capture_in_arbno`: `POS(N)` with a **variable** argument fails the match outright (not a splice defect at all).
+- `065_capture_then_arbno`: pre-existing CRASH.
 
 ## WITNESSES FOR THE FIX GATE
 
