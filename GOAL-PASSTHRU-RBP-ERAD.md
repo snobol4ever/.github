@@ -70,7 +70,23 @@ Goal file's Σest **557 is obsolete**. True current Σest ≈ **263** (demo 95 +
 
 **⛔ 7 TARGETED / 7 REMOVED (source-verified this session):** `x86(...)` rbp emissions in PAT-blob region (emit.cpp 2340–2800) = **0**. Surviving `mov rbp,rsp` sites product-wide = 7, all licensed or T4-class (xa_flat.cpp — MECH zone, never claimed done). T4/T5 remain open by design.
 
-**NEXT (inherits s11-FABLE-2 in-order list, unchanged):** (1) m4 both suites at `9eb9b4f3`/HEAD; (2) xc 16-gap census vs framed baseline; (3) probe + broad-336 BY SET — s7/s8 floors still owed and unverified; (4) `dc_recur` + depth-reset hygiene → MECH M-1b; (5) T-class census re-seed at honest number (coordinate with Lon — crosscheck cadence decision); (6) `128` own MONITOR-FIRST rung.
+**NEXT (updated by s12b suite run):** (1) ⛔ `151_pat_arbno_inline_fence_backtrack` reverse-direction MODE34 rung — NEW, deterministic, m4-passes/m3-SEGVs; (2) xc 16-gap census vs framed baseline; (3) probe + broad-336 BY SET — s7/s8 floors still owed and unverified; (4) `dc_recur` + depth-reset hygiene → MECH M-1b; (5) T-class census re-seed at honest number (coordinate with Lon — crosscheck cadence decision); (6) `128` own MONITOR-FIRST rung.
+
+**⭐⭐⭐ SUITES RUN (s12b, same container both modes, BY SET — m4 column OWED SINCE s8, NOW DISCHARGED at SCRIP `bce9a4b0`):**
+
+| suite | m3 | m4 |
+|---|---|---|
+| broad-336 (`test_corpus_snobol4.sh`) | **270 PASS / 66 FAIL** | **262 PASS / 68 FAIL / 6 SKIP** |
+| probe (39) | **33 / 5 / 1 SKIP** | **33 / 4 / 2 SKIP** |
+| crosscheck/patterns (122) | **82 / 40** | **78 / 44** |
+
+**xc m3 82/40 REPRODUCES s11-FABLE-2's watermark EXACTLY.** Probe fail set = `{ab_freturn, ab_nret_lvalue, ab_redefine, z4_arbno} + dc_recur` = precisely the recorded `{4 pre-existing} + dc_recur`; m4 set identical modulo `ab_nret_lvalue` SKIP (`--compile` itself fails — 11-ENV's same observation). Probe is 39 files not 37: corpus gained 2 witnesses (`19a5bf9c`, `ca87eec0`); counts moved, SET did not.
+
+**⭐ 11-ENV's OPEN ATTRIBUTION QUESTION IS ANSWERED (one direction).** The five one-directional MODE34 violations it measured at `c4ef2176` — `064_replace_multi_arm` · `121_pat_calc_op_dispatch` · `156_pat_cap_alt_abandon_pop` · `181_pat_arbno_defer_tail_stressors` · `182_pat_arbno_defer_windowed_leaf` — are **byte-for-byte the same five at HEAD**, two major landings later (ordered deletion `458b276f` + ZCTX `0970838f`). They are therefore **NOT caused by the revert and NOT caused by ZCTX** — a pre-existing, frame-regime-independent defect class. 11-ENV declined to claim this for want of a pristine-parent build; persistence across two landings that rewrote the frame regime is the cheaper equivalent evidence. Spot-checked deterministic (064: m3 rc=0, m4 rc=139, 2/2).
+
+**⛔⭐ NEW — "STRICTLY ONE-DIRECTIONAL" IS FALSIFIED AT HEAD: `151_pat_arbno_inline_fence_backtrack` PASSES m4 AND SIGSEGVs m3.** Fully deterministic, 3/3 each way (m3 rc=139; m4 rc=0 emitting `inline FENCE in ARBNO sealed`). 11-ENV recorded "zero in the reverse direction" at `c4ef2176`, so this is either introduced by the two landings since, or was always latent and its run did not surface it. **m4's failure set is no longer a superset of m3's** — that assumption is retired, and any bisect predicate resting on it is invalid. This is an inline-FENCE-inside-ARBNO backtrack shape, i.e. squarely the licensed-keeper FENCE1 boundary, and it wants its own MONITOR-FIRST rung.
+
+**Instrument:** `/home/claude/s12_run.sh` — seat-namespaced (`/tmp/${SEAT}_*`, per 11-ENV's clobber finding) and uses `$(cat ref)` vs `$(cmd)` comparison so ENV-TRAP (a) (070's missing trailing newline) cannot false-FAIL. m4 path is compile→`gcc -c`→link→**RUN THE BINARY** per ENV-TRAP (b). Not promoted to `scripts/` — a next seat should, if it wants a standing runner.
 
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 11-**FABLE-2** (Claude Fable 5 — Lon-in-chat: "delete g_blob_ctx... stupidity" — DELETED and REPLACED by ZCTX BASE STACK; probe 26/11→**32/5** · xc 69/53→**82/40**, zero frames zero global)
 
