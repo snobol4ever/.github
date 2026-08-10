@@ -1,7 +1,7 @@
 # FINDING — 2026-08-10 — Claude Opus 5 — RTCC s8: the claim-gate lands, and the veneer's own writeback is a companion write
 
 **Session:** s8 of GOAL-RTCC.md (Opus 5)
-**SCRIP HEAD at open:** `930539c0` · **at close:** `4a0102e9`
+**SCRIP HEAD at open:** `930539c0` · **at close:** `5b435458`
 **Deliverable:** (1) `scripts/test_gate_rtcc_claimed_regs.sh` + whitelist registry; (2) the defect that gate found on its first run, CONVICTED and FIXED (`bb_func_activate.cpp`). No regen owed — killswitch byte-identity verified (RULES.md §4).
 **Concurrency:** CONCURRENCY-SAFE (RC-0 class — scripts/docs only). Ran alongside live seats; touched no `x86_asm.h`, no template, no `.s`.
 
@@ -128,3 +128,44 @@ The template relies on a **caller-saved** register surviving a C call. SysV does
 ## A6. What this says about the method
 
 The chain was: gate flags a file → static read of emitted asm predicts the exact failure → 2×2 runtime isolation confirms it → one-line-class fix → gate goes green. No gdb, no bisect, no monitor session. Compare s6/s7, where the *same class* of defect cost two full sessions because nothing flagged it. That delta is the gate's value, measured.
+
+
+---
+
+# ADDENDUM 2 — the hardening landed, and it falsified my own §5 prediction
+
+## B1. What landed
+
+`x86_rtcc_wb_bin` / `x86_rtcc_wb_text` no longer store the R9 slot when `RTCC_GLOBAL_R9_GVA` is on. This makes `rtcc_init.c`'s documented BLOCK-CANONICAL EXCEPTION true as written for the first time: r9 is now a genuine read-only cache of a process-lifetime constant, and every reload restores the pristine seed.
+
+Emitted proof under `SCRIP_RTCC=1`: writeback r9-slot stores **0**, reload r9 loads **56**.
+
+## B2. ⛔ §5's prediction was FALSIFIED — recording it because this file published it
+
+§5 predicted the hardening would convert **all** r9 surface sites into *"harmless transients, self-healing at the next crossing."*
+
+**Probe:** restored the `bb_func_activate` r9 clobber with the hardening active. `AB=1 RTCC=1` **still SIGSEGVs.**
+
+**Why:** that site does not merely *touch* r9 — it **depends on the writeback carrying the type code across the C call**. The author said so outright: *"r9 survives all C calls and the LEAVE; we read it after LEAVE."* With the store skipped, the reload overwrites the type code with `RT_GVA_VA`, and the post-LEAVE `cmp r9d, 2` compares the GVA base against 2. One defect became a different defect.
+
+This is the fourth time this session that a claim of the form *"X is safe by construction"* needed a probe to settle — including one of my own. The goal file's law earns its place.
+
+## B3. Corrected law
+
+> The hardening protects **arg-staging** clobbers (`lea r9, FRQ(..)` — the 19 remaining surface sites, none of which need r9 to survive a crossing). It does **not** rescue a site that depends on a claimed register **carrying a value across** a crossing. Such a site is broken either way and must not use a claimed register at all.
+
+So the r10 fix (`4a0102e9`) is the actual repair; the hardening is defense-in-depth for the other 19, **not a substitute**. Both landed; both needed.
+
+Corollary worth keeping: the BLOCK-CANONICAL LAW already said a claimed register is *"a cache valid only inside generated code."* `bb_func_activate` was using the veneer as a general-purpose callee-saved-register emulator — an inversion of that law that happened to work. The hardening removes the affordance, which is the right outcome even though it did not fix the site.
+
+## B4. Verification (hardening + r10 fix together)
+
+- fibonacci 2×2: all four cells `result: 832040`.
+- Killswitch byte-identity: default `.s` **IDENTICAL** ⇒ no regen owed.
+- Gate `--strict`: collision class EMPTY, PASS.
+- Regression: `var_access` `arith_loop` `func_call` `arith_int` `string_manip` SAME across arms.
+- One fewer store per crossing. **NOT a speed claim** — no min-of-N rail was run (RC-0(a) discipline).
+
+## B5. ⚠ Concurrency caveat — read before pushing
+
+This touches `x86_asm.h`, which this goal marks **NOT-CONCURRENCY-SAFE**. Mitigation: the edit sits inside the killswitch (`RTCC=0` short-circuits before the writeback is emitted), default bytes are byte-identical, and no `.s` moved — so the only real collision surface is a **textual merge conflict** in `x86_asm.h`. Flagged for Lon rather than assumed safe. If another seat edited that file this session, rebase carefully and re-run the 2×2 before pushing.
