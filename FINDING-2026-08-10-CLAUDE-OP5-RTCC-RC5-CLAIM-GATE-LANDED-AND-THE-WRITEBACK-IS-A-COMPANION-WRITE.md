@@ -1,8 +1,8 @@
 # FINDING — 2026-08-10 — Claude Opus 5 — RTCC s8: the claim-gate lands, and the veneer's own writeback is a companion write
 
 **Session:** s8 of GOAL-RTCC.md (Opus 5)
-**SCRIP HEAD at open:** `930539c0` · **at close:** `a42f4b2a`
-**Deliverable:** `scripts/test_gate_rtcc_claimed_regs.sh` + `scripts/rtcc_claimed_reg_whitelist.txt`. Scripts only; ZERO emitter bytes; no regen owed (RULES.md §4).
+**SCRIP HEAD at open:** `930539c0` · **at close:** `4a0102e9`
+**Deliverable:** (1) `scripts/test_gate_rtcc_claimed_regs.sh` + whitelist registry; (2) the defect that gate found on its first run, CONVICTED and FIXED (`bb_func_activate.cpp`). No regen owed — killswitch byte-identity verified (RULES.md §4).
 **Concurrency:** CONCURRENCY-SAFE (RC-0 class — scripts/docs only). Ran alongside live seats; touched no `x86_asm.h`, no template, no `.s`.
 
 ---
@@ -80,3 +80,51 @@ RC-5's well is thin and the cursor already concedes it: remaining candidates are
 - §4 writeback/companion-write: probe, then the §5 one-liner in Lon's routed window.
 - RC-5-GVA rail still not re-proved on current HEAD with the min-of-N instrument (inherited from s7).
 - Gate is INFORMATIONAL; promote to `--strict` in CI at RC-7.
+
+
+---
+
+# ADDENDUM — the gate paid for itself on its first run
+
+§3 left `bb_func_activate.cpp` flagged-but-unprobed. It was then probed, convicted, and fixed in the same session. Recording the full chain because it is the argument for the gate.
+
+## A1. Static conviction — emitted code, `SCRIP_AB=1 SCRIP_RTCC=1`
+
+```
+.Lx230_1:   movzx r9, cl              <- r9 := type code (0/1/2)
+            cmp   r9d, 2
+            ...  no reload of r9 on the path ...
+.Lx230_7:   mov   [rax+48], r9        <- veneer writeback: CANONICAL GVA slot := 2
+            call  rt_ab_leave_env@PLT
+            mov   r9, [r11+48]        <- reload propagates the poison
+```
+
+This is **H2 realised**: not a local misread but destruction of `RT_GVA_VA` for the remainder of the process. Every one of the program's 72 `[r9+k*16]` accesses then dereferences near-null. Strictly worse than the AB-2 bug s7 fixed, which only corrupted a frame.
+
+## A2. Runtime conviction — 2×2 isolation on `fibonacci.sno`
+
+| | RTCC=0 | RTCC=1 |
+|---|---|---|
+| **AB=0** | ok 340ms | ok 369ms |
+| **AB=1** | ok 233ms | **SIGSEGV** |
+
+Neither flag alone breaks it; the interaction does. Attribution is unambiguous without gdb.
+
+## A3. Why r9 — intent preserved, not overridden
+
+The author's own comment: *"r9 survives all C calls and the LEAVE; we read it after LEAVE for the final dispatch."* They picked r9 **because the RTCC veneer preserves it** — the right property, on a register RC-5-GVA had already claimed. The fix therefore moves to **r10**: scratch-tier claimed (so it equally survives the veneer) with **no VM global assigned**. `AB_TC_REG` / `AB_TC_REG_D`, three sites, gated on `g_rtcc_on && RTCC_GLOBAL_R9_GVA` so the OFF arm still spells r9.
+
+## A4. Verification
+
+- 2×2 all green, `result: 832040` in every cell. **AB=1 RTCC=1 is now the fastest cell at 241ms** vs 354ms baseline (~1.45×) — a board data point, not a rail claim (single run, not min-of-N).
+- **Killswitch byte-identity:** default-arm `.s` byte-IDENTICAL to the committed artifact ⇒ **no regen owed**.
+- Gate `--strict`: collision class **EMPTY**, PASS.
+- Regression across RTCC arms: `var_access` `arith_loop` `func_call` `arith_int` `string_manip` all SAME.
+
+## A5. Carry — a second, deeper defect left with the owning seat
+
+The template relies on a **caller-saved** register surviving a C call. SysV does not guarantee that. At `RTCC=0` it works only because `-O0` `rt_ab_leave_env` happens not to clobber r9 — luck, not contract. The durable fix is an rbp-relative stash (which is what every other access in that template already does). **AB seat's debt; untouched here** — this session fixed the RTCC claim collision only, which is this seat's charter.
+
+## A6. What this says about the method
+
+The chain was: gate flags a file → static read of emitted asm predicts the exact failure → 2×2 runtime isolation confirms it → one-line-class fix → gate goes green. No gdb, no bisect, no monitor session. Compare s6/s7, where the *same class* of defect cost two full sessions because nothing flagged it. That delta is the gate's value, measured.
