@@ -1,6 +1,6 @@
 # FINDING — 2026-08-10 — Claude Opus 5 — RTCC RC-5: THE GVA RAIL NUMBER IS VOID (the OFF arm was never OFF), THE KILLSWITCH IS DEFINED TWICE, AND MY OWN FIX PRODUCED A SPLIT BUILD
 
-**Session:** s9 (Opus 5). **SCRIP HEAD at open and close:** `c7e085fd`. **Net code change: ZERO** — tree verified clean at close; the one edit attempted was probed, FALSIFIED, and reverted. Scripts/docs class, CONCURRENCY-SAFE (RC-0 class).
+**Session:** s9 (Opus 5). **SCRIP HEAD at open and close:** `c7e085fd`. **SCRIP code change: ZERO emitter bytes** — the one header edit attempted was probed, FALSIFIED, and reverted (§3b). Landed: `1fa5f0c5` (claim-gate v2, scripts-only). Scripts/docs class, CONCURRENCY-SAFE (RC-0 class).
 
 ---
 
@@ -32,30 +32,57 @@ The cursor carried this as *"NOT RE-PROVED on current HEAD — re-prove with min
 
 ---
 
-## 2. ROOT CAUSE, DEEPER THAN THE MISSING GUARD — THE KILLSWITCH IS DEFINED TWICE
+## 2. ROOT CAUSE, DEEPER THAN THE MISSING GUARD — FIVE RTCC CONSTANTS ARE DEFINED TWICE
 
-`RTCC_GLOBAL_R9_GVA` has **two definitions**, neither guarded:
+Not one macro — **five**, surfaced mechanically by the new CHECK 3 (§6.4, landed `1fa5f0c5`). Each is defined in **both** `src/runtime/rtx/rtcc.h` and `src/templates/x86_asm.h`, and **all ten definitions are unguarded**:
 
-| file | line | consumer |
+| macro | runtime copy | template copy |
 |---|---|---|
-| `src/runtime/rtx/rtcc.h` | 54 | runtime (`rtcc_init.c` seeds the R9 slot) |
-| `src/templates/x86_asm.h` | 17 | **every template** (`bb_var_global.cpp`, `bb_func_activate.cpp`, …) |
+| `RTCC_SLOT_R8` | `rtcc.h:31` | `x86_asm.h:14` |
+| `RTCC_SLOT_R9` | `rtcc.h:32` | `x86_asm.h:15` |
+| `RTCC_GLOBAL_R8_ANCHOR` | `rtcc.h:44` | `x86_asm.h:16` |
+| `RTCC_GLOBAL_R9_GVA` | `rtcc.h:54` | `x86_asm.h:17` |
+| `RTCC_GVA_REG` | `rtcc.h:55` | `x86_asm.h:18` |
 
-Templates **never include `rtcc.h`.** `x86_asm.h:12-18` hand-copies the externs and the constants (`RTCC_SLOT_R9`, `RTCC_GLOBAL_R8_ANCHOR`, `RTCC_GLOBAL_R9_GVA`, `RTCC_GVA_REG`) with the comment *"slot layout per rtcc.h"*. Confirmed against the recorded dependency file: `out/rt_pic/bb_var_global.d` lists 18 project headers and **`rtcc.h` is not among them.**
+Templates **never include `rtcc.h`.** `x86_asm.h:12-18` hand-copies the externs and constants with the comment *"slot layout per rtcc.h"*. Confirmed against the recorded dependency file: `out/rt_pic/bb_var_global.d` lists 18 project headers and **`rtcc.h` is not among them.**
 
-This is a live latent hazard independent of the A/B question: **editing one copy and not the other silently desynchronises emitter and runtime** — templates emit `[r9+k*16]` while `rtcc_init.c` never seeds the slot, so r9 = 0 and generated code dereferences null. That is the same *class* as the s6/s7 bug the claim-gate was built for, and the claim-gate cannot see it (it greps register usage, not macro definitions).
+### 2a. ⛔ THE OTHER RC-5 SUB-RUNG IS VOID TOO — AND IT WAS **REVERTED** ON THAT NUMBER
+
+`RTCC_GLOBAL_R8_ANCHOR` is the RC-5-ANCHOR killswitch. It is duplicated and unguarded exactly like GVA, so **its A/B was equally un-switchable.** Per `f1fddf55`: *"RC-5: ANCHOR RUNG INFRASTRUCTURE … rung reverted 1.000x rail, correctness win retained."* A rail of **1.000x is precisely what two identical binaries produce.**
+
+So both RC-5 sub-rungs were graded by an A/B that could not change arms, with **opposite** outcomes: **GVA was RETAINED on 1.036x noise; ANCHOR was REVERTED on 1.000x noise.** Neither decision has measurement behind it. The ANCHOR revert should be re-opened once the guard lands — it may have been discarded for no reason. (Its retained correctness win, `099_keyword_rw`, is independent and unaffected.)
+
+### 2b. THE LIVE HAZARD
+
+Editing one copy and not the other **silently desynchronises emitter from runtime** — templates emit `[r9+k*16]` while `rtcc_init.c` never seeds the slot, so r9 = 0 and generated code dereferences null. Reproduced accidentally this session (§3b). Same *class* as the s6/s7 bug the claim-gate was built for; the claim-gate could not see it, because it greps register usage, not macro definitions. CHECK 3 closes that.
 
 ---
 
 ## 3. ⛔ MY OWN CLAIM FALSIFIED — TWICE, AND THE SECOND ONE WAS THE USEFUL PART
 
-**(a) I truncated a grep and concluded from it.** My first census was `grep -rn RTCC_GLOBAL_R9_GVA src/ Makefile | head -12`. The `x86_asm.h` definition fell past line 12 of the output. I concluded "only one `#define`" and designed a fix on that basis. **A `head -N` on a census is a silent denominator error** — the same shape as the s8 "already done was a denominator error" conviction.
+### 3a
+**I truncated a grep and concluded from it.** My first census was `grep -rn RTCC_GLOBAL_R9_GVA src/ Makefile | head -12`. The `x86_asm.h` definition fell past line 12 of the output. I concluded "only one `#define`" and designed a fix on that basis. **A `head -N` on a census is a silent denominator error** — the same shape as the s8 "already done was a denominator error" conviction.
 
-**(b) The fix was a hypothesis and the probe killed it.** I guarded `rtcc.h` and rebuilt with `make ZCFLAGS=-DRTCC_GLOBAL_R9_GVA=0`. Macro-level probe passed (`-D` now yields 0, default still 1). The **downstream probe falsified it**: emitted asm still showed 116 r9-relative accesses, and `fibonacci` now **SIGSEGV'd** — because only 3 objects rebuilt (`rtcc_init.o`, `core.o`, `keywords.o`); the templates read the *other* copy and were never recompiled. Net result: runtime with the claim OFF + templates with the claim ON = null dereference. **A one-sided guard is strictly worse than no guard**, because it makes the documented recipe produce a silently-split build. Reverted; tree verified clean; default arm re-verified at 116 accesses and both gates correct.
+### 3b
+**The fix was a hypothesis and the probe killed it.** I guarded `rtcc.h` and rebuilt with `make ZCFLAGS=-DRTCC_GLOBAL_R9_GVA=0`. Macro-level probe passed (`-D` now yields 0, default still 1). The **downstream probe falsified it**: emitted asm still showed 116 r9-relative accesses, and `fibonacci` now **SIGSEGV'd** — because only 3 objects rebuilt (`rtcc_init.o`, `core.o`, `keywords.o`); the templates read the *other* copy and were never recompiled. Net result: runtime with the claim OFF + templates with the claim ON = null dereference. **A one-sided guard is strictly worse than no guard**, because it makes the documented recipe produce a silently-split build. Reverted; tree verified clean; default arm re-verified at 116 accesses and both gates correct.
 
 ---
 
-## 4. THE MECHANISM ARGUMENT — RC-5-GVA CANNOT MOVE A WALL CLOCK, BY CONSTRUCTION
+## 3bis. ⛔ THE CLAIM GATE ITSELF WAS NONDETERMINISTIC — IT COULD PASS A TREE THAT SHOULD FAIL
+
+Found while extending it; **fixed in `1fa5f0c5`.** The GVARQ-reader loop was `strip_comments "$f" | grep -q "GVARQ("`. Under the script's own `set -o pipefail`, `grep -q` exits on the **first** match and SIGPIPEs the upstream `perl`; the pipeline then reports 141 and the `if` reads **a MATCH AS A MISS.** Race-dependent, therefore nondeterministic.
+
+Six runs over one unchanged tree, ground truth 8: **8, 6, 7, 6, 6, 7** readers — a different set missed each time (`bb_call.cpp`, `bb_call_proc_staged.cpp`, `bb_func_activate.cpp`, `bb_binop_gvar_arith.cpp` all dropped on some run).
+
+**Why it matters:** `COLLISION CLASS = writers ∩ readers`. An under-reported reader set makes the intersection **spuriously empty**, so `GATE: PASS (strict)` was not trustworthy — the exact failure mode this gate was chartered to prevent. s8's falsification test (*"against `2af35d7d^` the gate flags `bb_save_restore.cpp` and exits 1"*) passed **on a coin flip.**
+
+**The tell** was visible in this session's own transcript: two runs of the *unmodified* gate on an unchanged tree printed an identical HAZARD SURFACE (19 sites / 8 files) but **different GVARQ READER lists**. The writers loop already used `grep -c` — which consumes all input and cannot SIGPIPE — so it was always stable. That asymmetry is what exposed the bug.
+
+Fix: `grep -c` + count test. Now **8/8 deterministic** over six consecutive runs, matching ground truth.
+
+**Generalisation worth a sweep:** `grep -q` downstream of a pipe under `set -o pipefail` is unsound *anywhere* in `scripts/`. This is a portable defect shape, not a one-off.
+
+ — RC-5-GVA CANNOT MOVE A WALL CLOCK, BY CONSTRUCTION
 
 Exact encoding delta, measured from emitted asm at the same annotated site (`# N`):
 
@@ -98,8 +125,9 @@ Legitimate A/B (both arms genuinely differ): `SCRIP_RTCC=0` vs `1`, min-of-5, `-
 1. ⛔ **ROUTED WINDOW REQUIRED — 2-line fix, byte-neutral at default.** Guard **both** copies with `#ifndef`/`#endif`, in ONE commit, or leave both alone. `x86_asm.h` is NOT-CONCURRENCY-SAFE. Better still, delete the `x86_asm.h` duplicate and have it include `rtcc.h` — one source of truth for a killswitch — but that is a larger include-graph change and wants its own rung.
 2. **Correct the recipe of record everywhere it appears:** `make ZCFLAGS=-D…`, never `CPPFLAGS=-D…`.
 3. **Grade RC-5 by static encoding delta, not by the rail.** It is deterministic, needs no quiet box, and it is the only instrument with the resolution to see a rung whose dynamic instruction delta is zero.
-4. **Claim gate v2** (scripts-only, concurrency-safe): add the §0a `W → C → R` screen, and add a **macro-coherence check** — assert every RTCC constant has exactly one definition, or that duplicates hold equal values. That converts §2's hazard from latent to mechanical, and it is precisely the defect class the gate was chartered for.
-5. **RC-5 should CLOSE, not continue.** GVA is the largest candidate at 1,076 sites and yields 4.3 KB with zero dynamic delta. The remaining candidates — `g_call_args` (13), `g_scan_hit_start` (8), `g_cap_gen` (8) — are two orders of magnitude smaller and cannot clear any instrument. This converts s8's *recommendation* to go to **RC-6** into a mechanism-backed *conclusion*: RC-6 changes instruction counts (crossings become direct jumps, writebacks vanish), so it is gradeable where RC-5 is not.
+4. ✅ **DONE — claim gate v2 landed `1fa5f0c5`** (scripts-only): the `W → C → R` crossing-carry screen, the macro-coherence check (falsification-tested both directions), and the nondeterminism fix of §3bis. Remaining gate idea for a later rung: sweep `scripts/` for other `grep -q`-under-`pipefail` sites.
+5. **Re-open the RC-5-ANCHOR revert decision** once the guard lands (§2a) — it was discarded on a 1.000x rail that could not switch arms.
+6. **RC-5 should CLOSE, not continue.** GVA is the largest candidate at 1,076 sites and yields 4.3 KB with zero dynamic delta. The remaining candidates — `g_call_args` (13), `g_scan_hit_start` (8), `g_cap_gen` (8) — are two orders of magnitude smaller and cannot clear any instrument. This converts s8's *recommendation* to go to **RC-6** into a mechanism-backed *conclusion*: RC-6 changes instruction counts (crossings become direct jumps, writebacks vanish), so it is gradeable where RC-5 is not.
 
 ---
 
@@ -108,7 +136,7 @@ Legitimate A/B (both arms genuinely differ): `SCRIP_RTCC=0` vs `1`, min-of-5, `-
 - Gate at open and close: `test_gate_rtcc_claimed_regs.sh --strict` PASS.
 - HEAD unchanged `c7e085fd`; `git status` clean at close; killswitch default arm re-verified (116 r9-relative accesses, fibonacci correct both gates).
 - No `.s` regen owed — zero emitter bytes touched.
-- Cursor move: RC-5 rail claim reclassified **VOID (not stale)**; RC-5 recommended CLOSED; RC-6 promoted on mechanism, not preference.
+- Cursor move: **BOTH** RC-5 sub-rung rail claims reclassified **VOID (not stale)** — GVA retained on noise, ANCHOR reverted on noise; RC-5 recommended CLOSED (ANCHOR revert to be re-examined); RC-6 promoted on mechanism, not preference; claim-gate v2 landed with a nondeterminism fix that makes every prior `PASS (strict)` on this gate retrospectively unreliable.
 
 ## 8. SESSION AUTHORS
 LCherryholmes · Claude Opus 5
