@@ -80,3 +80,30 @@ So a stored pattern containing `SPAN`/`BREAK`/alternation reaches **backtrack de
 - **No regen ×3.** Mandated only when lower/emitter is touched; I touched neither.  Still owed by s8/s10 + the RTX-FUNC seat, still entangled with the §0 provenance question, still NOT-CONCURRENCY-SAFE.
 - **No SCRIP or corpus commit.** SCRIP's dirty state is another seat's; committing it — by `-A` or otherwise — would steal their work.
 - **No PLAN.md edit.** GOAL-PASSTHRU-RBP-ERAD remains absent from the Active Goals table (flagged by MECH's cursor and again at my open).  `RULES.md` handoff step 3 forbids editing the table on routine handoff, so this stays **Lon's call**: add it, or retract the goal.
+
+---
+
+## §5 ADDENDUM (same session, after the co-seat committed) — THE WORK IS NOW A REAL COMMIT, /tmp IS ALSO SHARED, AND m4 CHANGES THE VERDICT
+
+### §5a The measured state is no longer uncommitted
+The co-seat committed as SCRIP **`c4ef2176`** *"DEL-T1 REVERT (D-1+D-2+D-3): the delete landed ahead of its own prerequisite — restore the 30 programs, keep the destination."* Its diff is byte-for-byte the stat I measured (3 files, 32(+)/73(−)), and `out/libscrip_rt.so` never moved under my runs (mtime `20:03:45` throughout). **§2's numbers therefore attach to `c4ef2176`, not to a state that exists nowhere.** They also now stand as an *independent* reproduction: the co-seat measured probe 33/4 and crosscheck 98/24 separately and we agree to the digit.
+
+### §5b `/tmp` IS SHARED TOO — AND THE GOAL'S OWN RUNNER HARDCODES IT
+`pt_probe.sh` writes `/tmp/pt_pass.txt` and `/tmp/pt_fail.txt` with no seat namespace. The co-seat re-ran it mid-session and **overwrote my crosscheck m3 fail set** (mtime `20:14:57`, content = the 4-line probe set where mine had written 24). I caught it only because the resulting by-set diff was nonsense — probe program names on one side, crosscheck names on the other. **Had both sets come from the same corpus, the clobber would have been invisible and the diff entirely plausible.** The corrupted comparison was discarded; m3 was re-measured into `/tmp/s11_*` and reproduced 98/24 exactly. **Recommend seat-namespaced result paths (`${SEAT:-$$}`) and copying any `/tmp` evidence the instant it is produced.** §1's rule generalises: under a shared container, *nothing* outside your own repo checkout is private — not the tree, not the build outputs, not `/tmp`.
+
+### §5c m4 MEASURED (owed since s8) — AND IT QUALIFIES THE RESTORATION CLAIM
+Recipe copied verbatim from `scripts/test_broad_corpus_snobol4.sh` `compile_mode4` (lines 33–36): `--compile` → `gcc -c` → link → **run the binary**, because ENV-TRAP (b) voids any m4 column built from `--compile` alone. Runner: `/home/claude/pt_probe_m4.sh`. At `c4ef2176`:
+
+| suite | m3 | m4 |
+|---|---|---|
+| probe (37) | 33 / 4 | **33 / 3 / 1 SKIP** — failing set identical to m3; `ab_nret_lvalue` SKIPs because `--compile` itself fails (m3 runs and fails rc=1) |
+| crosscheck/patterns (122) | 98 / 24 | **93 / 29 / 0 SKIP** |
+
+**Five MODE34-IDENTICAL violations, strictly one-directional — pass in m3, SIGSEGV(139) in m4, none in reverse:** `064_replace_multi_arm` · `121_pat_calc_op_dispatch` · `156_pat_cap_alt_abandon_pop` · `181_pat_arbno_defer_tail_stressors` · `182_pat_arbno_defer_windowed_leaf`. m4's failure set is a strict superset of m3's.
+
+⭐ **The consequence that matters:** `121`, `181`, `182` are three of the six s7 net-negative programs the co-seat's cursor lists as restored. **They are restored in m3 only.** (`070`, `180`, `183` are clean in both.) The revert is still the right call and the restoration is real — but it is **not two-medium green**, and no watermark should be written as if it were.
+
+⚠ **Attribution UNMEASURED.** Whether these five are pre-existing or introduced by the revert requires a pristine-parent (`a5533659`) build; I did not take one because a build contends for the single CPU with a live seat. **Do not read this as caused by `c4ef2176`.** Resolving it is the cheapest remaining step toward a defensible two-medium claim, and it is the first item I hand forward.
+
+### §5d Correction to §2 of this finding
+§2 compared **absolute counts across containers** ("restores the 29 and lands one better than pre-deletion") — exactly what s7's law forbids, since `599601e8` scored 258/253 in one container and 278/273 in another. The co-seat's phrasing is the correct one: the **set-level** claim transfers (every family s10 named broken now passes; `128` still fails as its own defect), the absolute delta is indicative only. §2's measurement stands; §2's phrasing of it does not.
