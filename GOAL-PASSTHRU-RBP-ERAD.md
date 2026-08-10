@@ -46,6 +46,32 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 - [ ] **PT-7 · g_zctx DELETE — LON'S MECHANISM (s11 in-chat, supersedes the wait-for-full-M-1b form): "storing what you needed as BB locals to the BB_DEFER BB box. There are no GLOBALS needed."**  Two-part conversion, then delete: **(a) SITE STATE → BB_DEFER LOCALS** — linkage {γ, ω, base, scanflag, δ0} become the defer box's OWN locals in the LICENSED statement frame (per-activation + depth-immune by the license; allocated by the normal layout pass, so no aliasing by construction; templates touched ⇒ ARCH-ICON + TEMPLATE-RULES read first, NON-NEGOTIABLE).  **(b) INVARIANT INTERIOR REFS → INLINE** (the s8 enclosure-inlining rung executed): a shared blob's reference to an invariant target folds into the blob body, so NO code inside shared blobs ever needs to find caller state — the circularity (shared code cannot know a caller's slot offset) is dissolved by removing the interior defer, not by answering it.  Then `g_zctx` + every push/pop DELETED, one isolated commit.  **EXIT GATE:** `grep -r g_zctx src/` == 0 · probe+xc BY SET ≥ **32/5 · 82/40** floors BOTH modes · census zero globals AND zero T-class frames.  **RESIDUE:** true recursion only (`dc_recur` class — shared code re-entering itself; manual p.123's stack) stays with MECH M-1b, now the WHOLE of its scope here.  Full-runway seat required — the fix loop is the cost center.
 - [ ] **PT-7-ORIG-BRIDGE-FORM (superseded by LON'S MECHANISM above; kept as design record): g_zctx DELETE (Lon commitment, s11-Fable in-chat: "Is this global going to be removed in the future when other things are fixed?" — YES, and this rung is the binding form)** — `g_zctx` is a BRIDGE, not architecture: it exists ONLY because interior depth is not yet restored by construction, so re-entering code cannot find its own carve.  **GATE-IN:** M-1b / interior K-conversion complete — every match-family box's fail/exit path restores entry rsp (the FORTH drain law), `op_flat_disp` valid inside blob context.  **CONVERSION:** every g_zctx consumer (α/β push, γ/ω pop, scanhit/scanfail reads) becomes rsp + emit-time constant; the CLASS-D record's [+8] payload becomes {res,pad} exactly as PT-4's spec already writes; then DELETE the symbol and every push/pop emission, label and code same slice, ONE isolated commit (`git revert` = undo).  **EXIT GATE:** `grep -r g_zctx src/` == 0 · probe+xc BY SET ≥ the `9eb9b4f3` floors (**32/5 · 82/40**) in BOTH modes · census: zero globals AND zero T-class frames — the first state of the product with neither.  Expected side effect: `dc_recur` flips green under the same discipline.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 12 (Claude Sonnet 4.6 — ORIENTATION + REGEN ×3 OWED DISCHARGED; census re-measured from fresh artifacts; regen script include-path defect repaired)
+
+**Watermark at close:** SCRIP **`bce9a4b0`** (parent `0970838f`) · corpus **`bea31de0`** (parent `19a5bf9c`) · `.github` this commit. **NOT A CODE RUNG.** No probe, no broad-336, no m4 — all still owed per s11-FABLE-2 cursor.
+
+**REGEN ×3 DISCHARGED** (owed by four seats, now done):
+- benchmark: 23/23 emitted, 6 changed → corpus `b8920e77`
+- feature: → SCRIP `f6d1653e` then `44c8b1be` (include-path repair landed same session)
+- demo: 15 changed → corpus `bea31de0` (was falsely "Committed." due to missing git identity; committed properly after setting identity per RULES.md)
+
+**⛔ REGEN SCRIPT DEFECT REPAIRED (SCRIP `bce9a4b0`):** `util_regen_feature_s_artifacts.sh` compiled from `$ROOT` (SCRIP), but `test/snobol4/library/*.sno` use `-include 'lib/*.sno'` which resolve against the **corpus** root. Result: 4 library artifacts EMIT-FAILed silently on every regen since s189, keeping stale s189 bytes. Fixed by running compile under `cd "$CORPUS"`. Confirmed pre-existing: `a5533659` skipped the same 4. `coverage_sno_nodes` remains an honest bomb (SN4-PAT subset limit). The script also prints "Committed." unconditionally regardless of git exit status — not fixed here, noted.
+
+**⭐ CENSUS RE-MEASURED FROM FRESH ARTIFACTS (crosscheck/patterns temp regen, not committed — cadence policy unchanged):**
+
+| corpus (.s) | PAT-BLOB est | PAT-BLOB push | MAIN est | TOTAL est |
+|---|---|---|---|---|
+| demo (committed regen) | 58 | 26 | 29 | 95 |
+| benchmarks (committed regen) | 0 | 0 | 9 | 9 |
+| crosscheck/patterns **(stale committed)** | 93 | 139 | 265 | 358 |
+| crosscheck/patterns **fresh from HEAD** | **20** | **9** | **139** | **159** |
+
+Goal file's Σest **557 is obsolete**. True current Σest ≈ **263** (demo 95 + bench 9 + xc-fresh 159). T-class PAT-BLOB in crosscheck: 93 → **20** establishments, 139 → **9** pushes. Crosscheck cadence still unaudited per census instrument's own note — numbers are indicative; do not arm ratchet from temp regen without Lon's routing.
+
+**⛔ 7 TARGETED / 7 REMOVED (source-verified this session):** `x86(...)` rbp emissions in PAT-blob region (emit.cpp 2340–2800) = **0**. Surviving `mov rbp,rsp` sites product-wide = 7, all licensed or T4-class (xa_flat.cpp — MECH zone, never claimed done). T4/T5 remain open by design.
+
+**NEXT (inherits s11-FABLE-2 in-order list, unchanged):** (1) m4 both suites at `9eb9b4f3`/HEAD; (2) xc 16-gap census vs framed baseline; (3) probe + broad-336 BY SET — s7/s8 floors still owed and unverified; (4) `dc_recur` + depth-reset hygiene → MECH M-1b; (5) T-class census re-seed at honest number (coordinate with Lon — crosscheck cadence decision); (6) `128` own MONITOR-FIRST rung.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 11-**FABLE-2** (Claude Fable 5 — Lon-in-chat: "delete g_blob_ctx... stupidity" — DELETED and REPLACED by ZCTX BASE STACK; probe 26/11→**32/5** · xc 69/53→**82/40**, zero frames zero global)
 
 **Executed:** SCRIP **`9eb9b4f3`** (parent `458b276f`). `g_blob_ctx[5]` + `rt_blob_ctx_ptr` DELETED; replacement `g_zctx[66]` per-activation BASE STACK ([0]=depth · [1]=current base · [2+]=spill; push α+β, pop γ+ω; readers = one indirection off [g_zctx+8], wires/flag/δ0 from each activation's own CARVE [base+kt-24/16/32/40]). Both media: BIN SIB-encoded, TEXT GOTPCREL. This is M-1b's save-by-value shape, single-field form — MECH owns overflow policy + statement-abort depth-reset hygiene (α/β push vs γ/ω pop are balanced per episode; ABORT-class exits that skip ω can leak depth — capacity 64, unaudited).
