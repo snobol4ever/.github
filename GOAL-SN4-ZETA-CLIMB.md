@@ -5,6 +5,23 @@
 
 **CHARTER (Lon 2026-08-08):** walk the ENTIRE SNOBOL4 language bottom-up at the sole ζ-cells-on-stack regime (selectors deleted, SCRIP `de837576`): stop at first failing rung, MONITOR-FIRST, fix, one FINDING per land mine, XFAIL shrinks monotonically (removed in the SAME commit as the fix), move up. Summit = EVAL/CODE/EXEC + beauty drivers + xc318 ≥ pre-flip both modes. Twin: `GOAL-SN4-ZETA-MECH.md` owns STRUCTURE; this file owns CORRECTNESS. A defect whose fix needs new protocol = MECH rung (cross-request both cursors). Protocol: RULES.md (monitor scripts §1: `test_monitor_2way_sync_step_bin.sh` / 3-way PARTICIPANTS · offline `probe.py` &STLIMIT+&DUMP replay bisect · gdb spin-counter, HW watchpoints DEAD in container, `CSN_NO_SEGV_HANDLER=1`/`SCRIP_NO_SEGV_HANDLER` clean-bt · `setarch -R`). Oracle: `/home/claude/x64/bin/sbl -b f.sno`; corpus paths CORPUS-LOCATIONS.md; suite `corpus/probe/bb/run_suite.sh` (m3) + `MODE=compile` (m4).
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 s35 (Opus 5) [C-9 ROOT-CAUSED, BLOCKED ON MECH + LON RULING; NO SOURCE EDITS; SCRIP `c7e085fd`, corpus `9fb2e019`]
+
+**WATERMARK:** not re-swept this session (diagnosis-only session, zero source edits — s34 watermark stands unchallenged). Capture family re-proved at open against SCRIP `c7e085fd` / corpus `9fb2e019` (both AHEAD of s34's `6ffa57fe`/`f46d3ebe` — parallel seats landed): 058/059/060/064/066 PASS · 061/062/063 FAIL · 065 CRASH — **EXACT match to s34, zero drift.**
+
+**C-9 ROOT CAUSE (MONITOR-FIRST spl vs scr, then gdb):** `zd_k()` (emit.cpp:2002) classes `IR_MATCH_REPLACE` K=0 (correct — the splice owns no result cell), so the staging choke (emit.cpp:841) sets `op_zdepth = g_zd_k = 0`. But `FRQ(off)` on the RSP/FORTH arm is `[rsp+off+op_zdepth]`, and at the splice **the replacement subtree's ζ-cells are still live on the spine**. All four frame reads (`op_sa`, `op_sa+8`, `op_off`, `op_off+24`) are short by exactly that live depth and read stale stack. `ZOPQ`/`ROQ` are raw-cell/rip escapes that ignore zdepth — which is why `r9` (replacement) and `rdi` (name) are CORRECT while subject and span are garbage. That selectivity is the fingerprint. Monitor bracket: DIVERGE step 4, stno=2, spl `X=STRING(11)='hello there'` vs scr `X=STRING(5)='there'`.
+
+**THE DELTA IS NOT A CONSTANT:** measured +16 for a literal replacement (P1), **+80 for `A '-' B`** (P8) — it is the replacement subtree's ζ footprint. ⛔ Any fix that hardcodes 16 passes P1 and FAILS P8.
+
+**FALSIFIED (do not re-derive):** prefix-only loss · splice arithmetic (`c_rt_match_replace` is textbook-correct) · captures (CORRECT) · first-touch/one-shot bake (P7: same site 3× reads `slen=1` then zeros — garbage, not a one-shot zero) · "2.2M healthy corpus calls" (ALL of it was `test_case` spinning; `slen=0` is NOT a defect signal — `test_stack` PASSES with a legitimately null subject) · `op_off` slot-collision (op_off is correct; only the base is displaced).
+
+**BLAST RADIUS:** every replacement statement on the FORTH spine. 062 · 063 · 064_replace_multi_arm (9/9 sites) · test_string (2/2). **`test_case` rc=124 is likely a CONSEQUENCE** — clobbered subject makes the canonical `ALOOP SUBJ ? PAT = :S(ALOOP)` delete-all idiom (manual Ch.6 p.73) non-convergent. Re-check after the fix before treating that hang as its own defect.
+
+**BLOCKED — CROSS-REQUEST FILED TO MECH:** fix needs a live-depth term for K=0 readers of a still-resident subtree (A), or an `op_wpop` fold of the replacement subtree before the splice reads (B — direct precedent: ZD-5b POS/RPOS CONST-WPOP, emit.cpp:1448, the N21 fix). Both are depth-model/protocol edits; CLIMB never lands those (COORDINATION). C-9 also carries the standing **PENDING LON RULING (sole-consumer fence retirement)** — surfaced here per the rung's own instruction.
+
+**NEXT:** MECH ruling on (A) vs (B), then land + gate on 062/063/064_replace_multi_arm/test_string + probes at `/home/claude/probe/` (P8 is the mandatory non-constant-delta witness), then re-check test_case.
+**FINDING:** `FINDING-2026-08-10-CLAUDE-SN4-CLIMB-C9-REPLACE-IS-K0-SO-OP-ZDEPTH-IS-ZERO-AND-FRQ-READS-MISS-BY-THE-REPLACEMENT-SUBTREE-DEPTH.md`
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-09 s34 (Sonnet 4.6) [C-6/C-7/C-8 CLOSED; C-9 OPEN at replacement splice; SCRIP `6ffa57fe`, corpus `f46d3ebe`]
 
 **WATERMARK (post-session, 0 regressions):**
