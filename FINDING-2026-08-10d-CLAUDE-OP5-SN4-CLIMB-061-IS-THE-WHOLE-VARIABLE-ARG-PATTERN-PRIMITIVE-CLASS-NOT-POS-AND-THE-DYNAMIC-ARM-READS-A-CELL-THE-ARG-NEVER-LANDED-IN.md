@@ -50,9 +50,7 @@ n8_match_pos_α:                     n18_match_pos_α:
 succeed at cursor 0. `r4` sets `N=0`, is **anchored** (scan-retry removed from the picture), and still fails ⇒
 **`[rsp+8]` does not hold the argument.** The dynamic arm is reading a cell the argument never landed in.
 
-**Corroborating context-dependence (this is the fingerprint, and it is why a constant-mis-encoding theory is wrong):**
-`LEN(N)` with `N=0` **succeeds** in `r1`'s flat shape but **fails** in `s1`'s loop shape. A wrong constant would fail uniformly;
-a wrong *offset* yields whatever occupies the slot, which varies with the surrounding statement's ζ footprint. In `r4`'s emission
+**Corroborating evidence (sharpened in §8 — read that, it supersedes the wording here):** `LEN(N=0)` succeeds in `r1`'s flat shape but fails in `s1`'s loop shape. In `r4`'s emission
 `rsp` is reset from `[r12-16]` and decremented (`sub rsp, 32`, the match-frame carve) between argument evaluation
 (`n16_coerce_integer`) and the read — the shape in which a base-relative read goes stale.
 
@@ -96,3 +94,74 @@ Enter at the **choke, not the primitive**: one fix at the dynamic-arm argument r
 `061` is then a regression witness rather than a rung. Acceptance set: `q1 q2 q3 q4 q6 q7 r3 r4 r5 r6` green both modes plus
 `s1`/`s2` sweeps returning identity (`0->0 … 5->5`). The `*N` abort (§4) is a **separate** rung — an unimplemented guard arm,
 not an offset — and should not be folded into the same commit.
+
+---
+
+# §8 — SAME-SESSION ADDENDUM: MONITOR BRACKET OBTAINED, MECHANISM PROVEN VALUE-INDEPENDENT, AND ONE OF MY OWN CLAIMS CORRECTED
+
+## 8.1 MONITOR-FIRST EXECUTED — AND THE MONITOR IS **NOT** DARK FOR THIS CLASS (§3's assertion is now earned, not assumed)
+
+`PARTICIPANTS="spl scr" test_monitor_3way_sync_step_auto.sh` on the anchored `POS(N)` probe. ⚠️ Note for the next seat: the
+`2way..._bin.sh` entry point runs **csn vs spl — two oracles**, and cannot see SCRIP at all; the 3-way harness with an explicit
+`PARTICIPANTS` pair is the one that brackets SCRIP.
+
+```
+| step | stno | spl                          | scr                          | source                        |
+| 5    | 3    | @3 VALUE N = INT=0           | @3 VALUE N = INT=0           | N = 0                         |
+| 6    | 4    | LABEL stno=INT=4             | LABEL stno=INT=4             | X POS(N) 'a'  :F(NOMATCH)     |
+| >7   | 4    | LABEL stno=INT=5             | LABEL stno=INT=7             | (fall-through vs :F branch)   |
+```
+
+Bracket = **inside statement 4's execution**, between last-agree (step 6) and first-diverge (step 7). Independently of §2.4,
+step 5 shows **both engines agreeing `N = INT=0`** immediately before the match ⇒ the variable is correct on entry; the loss is
+strictly inside the match. This is the RULES §1 precondition, discharged.
+
+## 8.2 THE ARGUMENT PROVABLY NEVER REACHES THE PRIMITIVE (value-independence, identical shape)
+
+Three programs differing **only** in the assigned constant:
+
+| N | oracle | m3 |
+|---|--------|----|
+| 0 | `OK[]`   | **NOMATCH** |
+| 1 | `OK[a]`  | `OK[]` |
+| 2 | `OK[ab]` | `OK[]` |
+
+m3 **does not track N**: `N=1` and `N=2` both match **zero** characters, and `N=0` — which for `LEN(0)` can never fail — fails.
+The effective argument is uncorrelated with the source argument. Combined with §2.4 (the variable itself is correct) and 8.1
+(both engines agree on `N` at entry), this closes the question: **the dynamic arm reads a slot unrelated to the argument.**
+
+## 8.3 THE INTERVENING CARVES, IN EMISSION ORDER (var.s)
+
+```
+172:  sub  rsp, 16
+175:  mov  qword ptr [rsp + 0], rax   # result      <- argument descriptor written here
+177:  jmp  n16_coerce_integer_α
+184:  sub  rsp, 16                                  <- coerce box carves its own 16B
+213:  sub  rsp, 32                                  <- match frame carve
+215:  mov  dword ptr [rsp + 0], 0     # start_δ
+      mov  rax, qword ptr [rsp + 8]                 <- ZOPQ(0,8), read off the MOVED rsp
+```
+At read time `[rsp+8]` sits **inside the match frame** (between `start_δ` at `+0` and `rsp_mark` at `+16`) — an unwritten slot
+holding leftovers. Descriptor layout corroborates that `+8` is the right *half* (type/len at `+0`/`+4`, value at `+8`), so the
+half is right and the **base** is wrong: the fixed `+8` does not account for the carves interposed since the write.
+
+## 8.4 ⛔ CORRECTION TO MY OWN §3 — THE DISPLACEMENT IS STRUCTURAL, NOT PADDING-SENSITIVE
+
+§3 called context-dependence "the fingerprint." **Partly wrong, and I am correcting it before anyone builds on it.** Four probes
+with an identical match statement and 0/1/2 extra preceding assignments (`t1_min` `t2_prepad` `t3_exprarg` `t4_two_pad`) fail
+**uniformly**. The displacement comes from the *interposed carve depth* (coerce + match frame), which is a property of the
+construct, not of what preceded it. The r1-vs-s1 difference is a difference of **shape**, not of padding. A next seat testing
+"add a statement and watch it move" would get a null result and might wrongly acquit the offset theory.
+
+## 8.5 ⛔ DO NOT HARDCODE THE DELTA — s35's TRAP APPLIES HERE VERBATIM
+
+The carve depths visible above are 16 + 32 in *this* shape. **Do not turn that into a constant.** s35 recorded, for the
+structurally identical C-9 splice defect: *"THE DELTA IS NOT A CONSTANT: +16 for a literal replacement, +80 for `A '-' B` — the
+subtree's ζ footprint. Any fix hardcoding 16 passes the literal case and FAILS concat."* The same failure mode is available here:
+a richer argument expression (`POS(N + 0)`, a function call) carves more. The correct shape is s35's — **stage the depth at the
+planner and consume it at the choke as an addend** (`g_zd_zunder`/`g_zd_ztail` precedent), computed from the planner's own carve
+accounting, never from a number read off one emission.
+
+**STATUS: still a lead, not a conviction.** What is now PROVEN: the argument never arrives (8.2), the loss is inside the match
+statement (8.1), and the read is base-relative across two interposed carves (8.3). What is NOT proven: that correcting the base
+is sufficient. Confirm which cell the planner *believes* it wrote before editing any offset.
