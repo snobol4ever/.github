@@ -1,7 +1,7 @@
 # FINDING 2026-08-10d (Claude Opus 5) — WREG-0: the design's "both unowned" premise is STALE (r10 was re-taken by AB_TC_REG), and the 178-site census is 159 code + 19 comments over a 234-site TRUE surface
 
 **Goal:** `GOAL-PASSTHRU-RBP-ERAD.md` · LADDER WREG · rung **WREG-0** (claim + sweep + gate).
-**Watermark:** SCRIP `bce9a4b0` at open (== s12-close cursor, nothing moved under this seat) → **`1d81b015`** at this finding. corpus `bea31de0` untouched. Container-fresh clone, unshallowed.
+**Watermark:** SCRIP `bce9a4b0` at open (== s12-close cursor, nothing moved under this seat) → **`802cf6bd`** at this finding. corpus `bea31de0` untouched. Container-fresh clone, unshallowed.
 **Charter served:** Lon, s12/s13 in-chat — *"Eradicate PROC linkage to pattern BLOBS and use proper GLUE using R10 and R11 for GAMMA and OMEGA."*
 **Status: NOT a code rung.** One gate landed (informational, zero behavior change). The sweep itself is NOT done and is explicitly NOT claimed.
 
@@ -43,6 +43,28 @@ Measured at `bce9a4b0` over `src/templates/` + `src/emitter/`:
 The **75-site delta** is the tail a `"r10"`-shaped grep cannot see: bracketed memory operands (`[r10 + 8]`, 191 raw) and sub-register spellings (`r10d`/`r11d`/`r10b`/`r11b`, 9 sites). **That blind spot is not academic — it is the mechanism by which the one pre-existing r10 claim in the product (§1, spelled `r10d` behind a macro) hid from the design's census.** Per-file burn-down is the gate's stdout; the head of it is `bb_call_fn` 82 · `xa_flat` 23 · `x86_asm.h` 16 · `bb_match_end` 12 · `bb_call_proc_staged` 12.
 
 ⚠️ The per-file *quoted* counts also disagree with the design's published split (design: bb_call_fn 36 · xa_flat 21 · bb_match_end 12 · bb_scan_match 8 · bb_func_activate 7 · bb_call_proc_staged 7; measured: 45 · 22 · 12 · 8 · 7 · 7). bb_call_fn is the one real divergence (36 → 45). Not chased this seat; flagged so the sweeping seat sizes bb_call_fn from the gate, not from the ladder text.
+
+## 2b. ⛔⭐⭐ THE RTX ASM SURFACE — 182 MORE SITES THE CENSUS NEVER SAW, AND THE SHARPEST EDGE IN THE PRODUCT
+
+After the census above was taken, this seat's own parent commit turned out to carry a directive that changes the number. `.github` `37e0273c` (CROSS-GOAL BULLETIN, Lon-directed, cross-posted to all five concurrent seats) says to the SNOBOL4-RTX seat, verbatim:
+
+> *"Any RTX asm that clobbers r10 or r11 silently breaks EVERY pattern blob in flight — the wires are live across the entire match, and a corrupted rΓ/rΩ is a wild jump, not a wrong answer. RTX may run concurrently IFF its asm either PRESERVES the pair or sits behind an RTCC veneer.* ⛔ *WREG-0's claim gate must sweep RTX asm sources, not just `src/templates/` — raw-byte and hand-written asm do not grep as `"r10"`."*
+
+Gate extended (SCRIP `802cf6bd`) and measured:
+
+| region | mentions | files | in the design's 178 census? |
+|---|---|---|---|
+| `src/templates/` + `src/emitter/` | **234** | 29 | partially (as 178 raw / 159 code) |
+| `src/runtime/rtx/*.S` hand-written asm | **182** | 10 | **NO — entirely invisible to it** |
+| **TRUE TOTAL** | **416** | **39** | — |
+
+**The sweep is ~2.3× the size the ladder budgets for.** Per-file head of the RTX burn-down: `rtx_match.S` **74** · `rtx_icnsub.S` 25 · `rtx_alloc.S` 18 · `rtx_str.S` 17.
+
+⭐ **`rtx_match.S` at 74 is the single sharpest edge in the product for WREG**, and the reason is structural rather than statistical: it is the MATCH runtime, so it executes *during* a match — precisely the interval in which γ/ω are live in r10/r11. Every other region can at worst corrupt a value; this one corrupts a jump target. The bulletin's phrase is exact.
+
+The two burn-downs are reported SEPARATELY by the gate and folded together only in the `--strict` verdict, because a template rename and a hand-written-asm rename are different work needing different proofs — the template arm goes through `x86()` encoders under the TEMPLATE-RULES, while `.S` files are outside that discipline entirely.
+
+**Consequence for the ladder's own routing:** LADDER WREG lists RTX nowhere in its sweep cost (*"178 discretionary-scratch renames measured: bb_call_fn 36 · xa_flat 21 · bb_match_end 12 · bb_scan_match 8 · bb_func_activate 7 · bb_call_proc_staged 7 · rest small"*). The bulletin routes it, but the ladder was never updated to match. **The RTX arm needs an owner named before WREG-1 lands**, since by the bulletin's own logic an unswept `rtx_match.S` does not degrade WREG gracefully — it makes it unsafe from the first blob that calls into the match runtime.
 
 ## 3. LANDED — `scripts/test_gate_wreg_claim.sh` + `scripts/wreg_claim_whitelist.txt` (SCRIP `1d81b015`)
 
