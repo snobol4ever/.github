@@ -21,6 +21,18 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 ## ⛔ DEFINITION OF DONE (HQ 2026-08-03e) — "ω for every box"; before all six, report the fraction, never the word
 1. `SCRIP_UNWIND` default ON tree-wide + U-3 deletions landed. 2. ω-coverage = 100% of K>0 boxes (U-GATE instrument), crosscheck+benchmarks. 3. Orphan-adds = 0 outside the whitelist (⛔ audit the whitelist first — SHED-5 landed, the rsp,8 entry may be stale-permissive). 4. UCLAIM census = 0 (`zvo_uclaim_k` returns 0 every run; loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — the single-space spelling is a FALSE INSTRUMENT). 5. Wall census == framed-enter count over the framed constructs. 6. xc318 BY SET ≥ baseline both modes · rc=139 tail cleared · bench 18/22 hold-or-better · regen ×4.  **⭐ CORRECTION (09f, measured): the denominator is 22, not 21** — `corpus/benchmarks/snobol4/` holds 22 `.sno`, and `indirect_dispatch` carries an `.xfail`.  **AND THIS CRITERION WAS UNREADABLE UNTIL 09f:** every program exited 1 (the γ-fallthrough, FINDING §7), and `test_bench_snobol4_modes.sh` scores CRASH on `rc != 0`, so the suite read **OK=0 CRASH=22** while 18 of the 22 were emitting byte-correct stdout.  Any "bench N/21" figure recorded in a cursor before 09f was read through that broken instrument and must not be treated as a baseline.  Post-GAMMA-EXIT floor, measured and re-proved post-rebase: **OK=17 FAIL=0 CRASH=5** (eval_dynamic hang + the pattern-family m4 SEGVs, which are the FR(op_off) positive-home class routed to OS-2).
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 (Sonnet 4.6) — SN4-UNROLL-DELETE: SPAN/BREAK/BREAKX unroll deleted by Lon directive; 0 regressions; claws5 +10% slower (honest).
+
+**What landed:** `bb_match_{span,break,breakx}.cpp` — `sp_unroll`/`bk_unroll`/`bx_unroll` deleted; `ZC_SPAN_LIT_UNROLL`/`ZC_UNROLL_FACTOR` deleted from `zeta_choices.h` (zero users); regen ×3 (benchmark, feature, demo). 9 ins / 16 del / 4 files. FINDING: `FINDING-2026-08-11-CLAUDE-SN4-SPAN-BREAK-BREAKX-LOOP-UNROLL-DELETED-FOUR-COPIES-WERE-IDENTICAL-AND-THE-UNROLL-WINS-10PCT.md`.
+
+**Fingerprint:** SCRIP `(post-commit)` · corpus `(post-commit)` · `.github` `(post-commit)`. RT_OPT=-O0.
+
+**Key measurement:** interleaved A/B under `setarch -R`, K=200, claws5-match — U4 median **28–29 ms**, FIX median **31 ms** (~10% slower). By-set diff 622 programs: **0 regressions, 0 improvements**. The four unrolled copies were textually identical; the win is plausibly µop-cache/LSD (25 instructions vs 7-instruction loop). Lon directed deletion regardless.
+
+**BREAKX unexercised:** neither claws5 program uses BREAKX; correctness rests on the broad sweep only. NEXT SEAT: mint a BREAKX probe witness.
+
+**NEXT PRIORITY (from prior cursor — not changed this session):** resume bisect `d2328f81..942ef1b1`, predicate `/home/claude/bisect_tb.sh`, fast witness `treebank-match.sno < treebank.input` (rc=139). See prior cursor below for full board state.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 CONSOLIDATED (Opus 5) — **THE DEMO BOARD IS 2/15 AT HEAD, NOT 9/15. SEVEN PROGRAMS REGRESSED IN 55 COMMITS. BISECT NARROWED, NOT CLOSED.**
 
 **⛔ SUPERSEDED SAME-DAY (CONSOLIDATED-2):** the bisect IS closed (PASSTHRU: first bad `1af93e3a`) and FF-0 is closed with mechanism — blob γ/ω/res never restore rbp; the 2/15 set = the defer programs. Authority: `GOAL-PASSTHRU-RBP-ERAD.md` CONSOLIDATED-2 cursor + `FINDING-2026-08-11-…-FF0-CLOSED-BLOB-GAMMA-NEVER-RESTORES-RBP-….md`.
