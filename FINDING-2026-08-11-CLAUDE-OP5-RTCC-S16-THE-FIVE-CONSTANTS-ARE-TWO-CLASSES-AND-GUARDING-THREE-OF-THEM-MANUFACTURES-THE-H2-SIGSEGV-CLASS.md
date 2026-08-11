@@ -121,3 +121,16 @@ Positive controls: simulated arg-tier claim → GC tripwire fires `USE-AFTER-FRE
 - **A COVERAGE CLAIM IS NOT A COVERAGE MECHANISM** (§9). "Registering the block is sufficient" was true of the *premise* (values do sit in the block) and false of the *mechanism* (`pin_add` never scans). When a comment asserts sufficiency, find the function that does the work and read it — sufficiency claims are where BLOCK-CANONICAL-style laws rot.
 - **PREFER A SELF-ARMING GATE TO A RED ONE** (§10). A gate that is red at HEAD is either ignored or blocks every commit. Encode the condition that makes the defect *live* and let the gate arm itself; the analysis then survives without anyone remembering it.
 - **A KILLED BACKGROUND BUILD READS AS A BROKEN HEAD** (§6). A backgrounded `make` is reaped when the tool call returns, leaving 0-byte objects; the next link failed `undefined reference to bb_assign_global[abi:cxx11]()` on a **clean clone at origin HEAD**. Check object sizes (`find out -name '*.o' -size 0`) before suspecting the tree.
+
+## 12. s16c — RC-8b's "RAX IS DEAD" PREMISE IS **NOT** RETIRED (partial probe, reported as a null)
+
+§8 named the blocker for dropping the arg-tier stores: `wb_bin` uses the RAX store + `movabs rax,block` as its RSP-safe base-register story, so the deletion needs RAX to be genuinely dead before a veneered call — **probed, not assumed** (vararg callees read AL).
+
+**Attempted and NOT completed.** Two censuses, both returned zero, and per s13's law a zero is not a measurement until a non-zero is named beside it. Controls:
+
+- **Vararg census — CONTROL PASSED, reading stands but is NARROW.** Zero variadic `rt_*` declarations; the same regex finds **20** variadic declarations across `src/` (`sno_error(int,const char*,...)`, `rebus_error`, `mremap`), so the instrument works. ⇒ *no `rt_*` callee reads AL*. **But this does not clear the premise**: variadic non-`rt_*` symbols exist and I did not establish whether any is veneered.
+- **Veneered-symbol census — CONTROL FAILED, MY INSTRUMENT WAS WRONG.** I grepped `x86_rtcc_call("sym")` and read 0 veneered symbols. The veneer is not invoked that way: templates emit **`x86("rtcc_wb")` (12 sites) and `x86("rtcc_rl")` (12 sites)** around the call, so the callee symbol is *not* an argument to the veneer at all. Same class as s13b's `.globl` census and s11's `LD_AUDIT` complement — **a census over this tree must use the tree's own spelling.**
+
+⇒ **RC-8b stays blocked on this probe**, and the correct instrument is now named: walk the **12 `x86("rtcc_wb")` template sites** and identify the call each brackets, rather than searching for a symbol-parameterised veneer that does not exist. Recorded so the next session inherits the instrument and not the false zero.
+
+**LAW (reinforced, third occurrence this session): CHECK A ZERO AGAINST A NON-ZERO FROM THE SAME INSTRUMENT.** It caught a bad instrument here (veneered-symbol census), validated a good one (vararg census), and earlier caught the gate's comment-parsing defect. Cost per check: one grep.
