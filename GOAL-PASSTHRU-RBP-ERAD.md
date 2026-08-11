@@ -62,6 +62,17 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 **NEXT SEAT, IN ORDER:** (1) re-place the record per the above (Lon: "you own the ARBNO"); minimal witness is 12 lines, sub-second, no input file. (2) The 6 HANGs — ⛔ **the unanchored scan-retry loop died with the scan blocks, so manual p.204 step 6's advance-and-retry has NO implementation anywhere; that stub is now a CORRECTNESS gap owed at the site, not an optimisation.** (3) `_wire_stub` blobs = last T1 sub-class. (4) m4 column (m3 only this session). (5) s21's `n32b` / `iso_nest` still open — 2-way monitor first.
 
 **Full write-up:** `FINDING-2026-08-11c-CLAUDE-OP5-PASSTHRU-S22-D1-DELETE-LANDED-*.md`.
+**⭐ SCRUTINY / CORRECTIONS FOR NEXT SEAT (s22 close — binding):**
+
+**SCRUTINY 1 — THE RECORD'S PLACE, NOT ITS SIZE.** γ pushes 32B `{res,r10,r11,pad}` onto the spine. ARBNO addresses cursor cells `[rsp+0]`/`[rsp+4]` rsp-relative. One record displaces those reads — COMPARE 1 sees a code pointer, not DELTA0. **Do NOT shrink the record; any non-zero push collides identically.** Candidates in cheapness order: (a) keep `[rsp+0]` as the record slot the site reads, but ARBNO carves its cell FIRST then the record sits ABOVE it so the relative offsets are stable; (b) ARBNO switches to `op_flat_disp`/the ONE selector; (c) per-activation carved slot (not flat global — s14). Option (a) is the narrowest: ARBNO cell stays at `[rsp+0]/[rsp+4]`, γ pushes to `[rsp-32]` (after carve), site reads at `[rsp-32]` or the known negative offset. But the site currently does `jmp [rsp+0]` — so one of these disciplines must give way. Cheapest resolution that keeps the site simple: **ARBNO carves its 16B cell BEFORE γ fires** (it already does — γ fires at the ARBNO frontier, which is ABOVE the cell), so the record goes onto an already-carved spine. The cell is at `[rsp+K]` where K = current frontier depth; γ writes to `[rsp+0]`–`[rsp+24]` which is ABOVE K. **If K > 0 this does not collide.** So the real question is whether the first ARBNO iteration leaves K=0 at the γ edge — compile and measure.
+
+**SCRUTINY 2 — THE UNANCHORED SCAN-RETRY GAP IS A CORRECTNESS HOLE, NOT OPTIONAL.** The scan blocks died with the carve. Manual p.204 step 6: &ANCHOR=0 ⇒ advance start cursor, go to step 2. There is now NO implementation of that advance-and-retry anywhere. The 6 HANGs are almost certainly this. The fix belongs at the SITE side: the `bb_match_defer` β already does the blob-retry direction; the site's ω needs to advance r14d by 1 and re-enter α_body when &ANCHOR=0 and more subject remains. This is not the blob's responsibility.
+
+**SCRUTINY 3 — REGEN ×4 WAS PAID TWICE THIS SESSION, PER RUNG.** No regen debt carried forward.
+
+**SCRUTINY 4 — THE BY-NAME DELTA IS SETTLED (4 repaired / 1 broken) AND THE BROKEN ONE IS ROOT-CAUSED.** Do not repeat that measurement. Start at the re-placement fix for `181`.
+
+
 
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s21 (Claude Sonnet 4.6) — **D-1 DELETE LANDED (`5abdd0ae`): ARBNO DISPATCH FIVE ARMS → TWO. RECURSION-THROUGH-ARBNO (manual p.122 canonical example) REPAIRED. NULL GUARD CONFIRMED BY MEASUREMENT. TWO REGRESSIONS ARE NEWLY VISIBLE DEBT (n32b FAILURE-EDGE NO OUTPUT; iso_nest =F) — PREVIOUSLY ROUTED AROUND, NOW ON THE FRAMELESS ARM FOR THE FIRST TIME.**
 
