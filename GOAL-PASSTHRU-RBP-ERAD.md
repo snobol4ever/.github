@@ -64,6 +64,8 @@ ARBNO carves its own 16B cell and then addresses it at **literal `[rsp+0]`/`[rsp
 
 **Full write-up:** `FINDING-2026-08-11d-CLAUDE-OP5-R10R11-ERAD-SNOBOL4-PATH-COMPLETE-AND-THE-ARBNO-CELL-IS-AT-RSP-ZERO.md`.
 
+**⛔ REGEN ×3 IS OWED AND UNPAID.** This session changed codegen bytes (`src/templates/*.cpp` ×7), so RULES §4 obliges `util_regen_benchmark_s_artifacts.sh` · `util_regen_feature_s_artifacts.sh` · `util_regen_demo_s_artifacts.sh`, in that order, BEFORE the corpus `.s` artifacts can be trusted. NOT run — session held at the credential ask with the debt open. The committed `.s` in corpus therefore predate the eradication and will diverge from current compiler output on any r10/r11 line; **sweep the COMPILER, not the artifacts**, until this is paid.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s23 (Sonnet 4.6) — **BOARD INSTRUMENT WAS DEAD (SCRIP_WREG DELETED). REPLACED. HANG CLASS ROOT-CAUSED: `match_end_α` CLOBBERS r10 AS SCRATCH, NO VENEER BRACKET. FENCE1 IS THE VICTIM.**
 
 **Fingerprint:** SCRIP `a50e2ee` (board script only, no `src/` bytes changed) · corpus `5da04e78` UNTOUCHED · `.github` this commit.
