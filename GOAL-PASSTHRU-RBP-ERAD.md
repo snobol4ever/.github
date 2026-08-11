@@ -67,6 +67,13 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 - [ ] **FF-3 · GATE.** 327B witness byte-equal to sbl → `board_sno15_ident.sh` both modes **≥ 9/15** (the pre-regression floor; then past it) → xc318 BY SET ≥ baseline → regen ×3 (emitter touched).
 - [ ] **FF-4 · SEAL.** Census: T1 establishments REMAIN 0 (nothing restored); ratchet standing gate; cursor move; FINDING.
 
+**⭐ SCRUTINY AMENDMENTS (same seat, session close — three holes found in my own plan, patched here):**
+1. **FF-0b · THE DIVERGE QUARTET IS UNATTRIBUTED — do not assume it shares the culprit.** The bisect predicate tested ONLY the SIGSEGV witness. `calculator-1-match`/`-fence` · `calculator-2-match`/`-fence` DIVERGE (rc=0, wrong bytes) and were NEVER bisected — they may have a different first-bad commit, in which case FF-3's ≥9/15 gate is unreachable by FF-1/FF-2 alone. Cheap settle: build `930539c0` (1af93e3a's parent, already proven GOOD for the SEGV class) and run the quartet once. If DIVERGE persists there ⇒ second defect, own rung, and FF-3's floor becomes 11/15 SEGV-class-only until it lands.
+2. **FF-0 instrument order corrected: gdb PRIMARY, monitor SECONDARY.** A SEGV inside one pattern match can show every statement-level trace event agreeing and then death — the monitor may be blind to this divergence CLASS (RULES: exit 0 is then NOT exoneration; MON-CAP before trusting it). Convict with gdb backtrace + the sibling-asm diff first; use the monitor to confirm placement, not to find it.
+3. **FF-1 protocol clause: if the convicted reader is in `src/templates/*.cpp` or needs an encoder, ARCH-ICON.md + GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md are MANDATORY FIRST READS (RULES, non-negotiable)** — stated here so a fresh seat does not discover it mid-edit.
+
+**⛔ ROUTING FOR LON (three, all cheap):** (a) **Ratify FF ownership HERE** — interior K-conversion was PT-4's open MECH-coordination question and MECH owns the stack-work cursor; your "this session's GOAL" reads as PASSTHRU-owned, one line of ratification stops a fresh seat stalling on the cross-goal clause. (b) **FF-0b verdict routing** — if the DIVERGE quartet is a second defect, who owns it. (c) **`json-match-fence` duplicate** — byte-identical to `json-match`; mint a real FENCE variant or drop the board row (denominator honesty).
+
 ⛔ **Full-runway seats only for FF-1/FF-2** — the fix loop is the cost center; a half-landed interior conversion at end-of-context is a broken tree by construction. FF-0 is cheap and can open any session.
 
 ## ⛔⭐⭐⭐ LADDER PT — incremental sequence to FLAT PASS-THRU (every rung: killswitch + BY SET gates m3+m4 on the probe suite + xc318 + watermark floors ≥ current + regen ×3 when lower/emitter touched + corpus witnesses with SPITBOL refs)
