@@ -93,3 +93,87 @@ rcx/rdx while a site targeting a PAT$ blob must carry r10/r11.
   straddles GOAL-RTCC. Nothing in slice 1 depends on it, because the switch is off.
 - No corpus bytes changed; no regen ×3 (lower/emitter touched, but the OFF arm is byte-identical
   so artifacts are unmoved — regen becomes owed at the moment the default flips, not before).
+
+---
+
+# ⛔⭐⭐⭐ SAME-SEAT CORRECTION (s15b) — I RETRACT THE "SOLE flat_pat ENTRY IS FALSIFIED" CLAIM. IT WAS AN INSTRUMENT ERROR, AND THE INSTRUMENT WAS MINE.
+
+**The title of this file is wrong and is retained only so the retraction is findable at the same path.**
+
+## THE ERROR
+
+I measured wire emission with `grep -c 'lea r10'`. The emitter pads mnemonics with **multiple
+spaces** (`lea              r10`), so that pattern **cannot match** and returned 0 on an arm that
+was emitting the wires correctly. I read the 0 as "the site glue never fired," and built two
+downstream conclusions on it.
+
+⭐ **This is the SAME CLASS of defect s14 convicted in the WREG claim gate** (`grep -c` counting
+LINES and being reported as `mentions`). Two consecutive seats, same instrument family, same
+failure mode: **a grep whose units were never verified against the text it greps.** Recording it
+as a class, not an incident.
+
+## RE-MEASURED, WHITESPACE-TOLERANT (`grep -cE 'lea +r10\b'`)
+
+`dc_sib_bt` ON: `lea r10` **1** · `lea r11` **1** · `jmp r10` **1** · `jmp r11` **1** · `lea rcx`
+8→6. **The mechanism fired end-to-end all along** — site glue AND both CLASS D exits.
+
+## CORRECTED ENTRY CENSUS (ON arm, m3)
+
+| program | PAT$ blobs | blob entries (`lea r10`) | exit pairs (`jmp r10`) | proc entries (`lea rcx,[rip`) |
+|---|---|---|---|---|
+| dc_sib_bt | 1 | 1 | 1 | 6 |
+| dc_nest_bt | 1 | 1 | 1 | 6 |
+| w_cap_ay | 2 | 2 | 2 | 5 |
+| pb_stitch_defer | 1 | 3 | 1 | 7 |
+| mv_valheld_cap | 1 | 2 | 1 | 5 |
+
+**`PAT$ blobs == exit pairs` in every row**, and entries ≥ blobs (several call sites into one
+blob — expected). **Every blob's entries and exits converted through the single `bb_match_defer`
+site.** ⛔ **THEREFORE: PT-2's "the defer fast arm is the SOLE flat_pat entry" is NOT falsified —
+it is CONSISTENT with every row above, and my claim against it is WITHDRAWN.**
+
+**What the three trios at `.Lx75_4/5`, `.Lx75_7/8`, `.Lx77_2/3` actually are:** `.Lx75_4/5` is
+the defer blob entry (it converts to r10/r11 under the switch). The other two are preceded by
+`call rt_proc_open_fn@PLT` — they are **DEFINE'd-proc / one-shot entries**, which MUST keep
+rcx/rdx and correctly do. I mistook the shared pass-thru *contract* for a shared *target class*.
+`bb_glue_pass_wires` having many callers does not make many of them blob entries.
+
+## WHAT SURVIVES THE CORRECTION, UNCHANGED
+
+The **three reader classes** — `scanhit`, `scanfail`, `proc_PAT$N_res`/β + the `[rbp+32]` leak —
+were read from emitted asm, not from the broken grep, and are unaffected. They remain the sole
+explanation of ON 21/17, which **strengthens** the conclusion: with entries and exits now known to
+be fully converted, the surviving readers are the *only* remaining cause. **WREG-4-before-WREG-2
+re-ordering stands, and stands on cleaner evidence than when I first wrote it.**
+
+## ⭐⭐ NEW EVIDENCE THE CORRECTION TURNED UP — s14's VENEER HAZARD, NOW AT INSTRUCTION LEVEL
+
+Tracing rax provenance surfaced the RTCC veneer bracketing a real entry site verbatim:
+
+```
+mov [rax+56], r10        <- veneer writeback: r10 -> g_rtcc_block[7]
+mov [rax+64], r11        <- r11 -> g_rtcc_block[8]
+call rt_proc_open_fn@PLT
+mov r11, [g_rtcc_block]
+mov r10, [r11+56]        <- reload
+mov r11, [r11+64]
+```
+
+s14 derived the flat-cell hazard *"by construction from a measured mechanism, NOT demonstrated by
+a failing program."* **This is that mechanism as shipped instructions at a live call site** — one
+evidentiary step further, still short of a failing witness. The save area is `g_rtcc_block[32]`,
+flat, no depth index: correct at leaf depth, **destroys the outer wires under nesting**. Note the
+sequence sits at a **proc** entry, so it is not yet on the blob wire path — but the manual (p.123)
+guarantees deferred `*F()` mid-match re-entry, which is exactly how a blob's live wires reach a
+veneered crossing. **The routing question s14 put to Lon is unchanged and still owed; this seat
+adds evidence, not a decision.**
+
+## COST OF THE ERROR, STATED PLAINLY
+
+Two false claims were committed (`31cd2fd6`, `1629f576`) and stood for one seat: a retracted
+falsification of PT-2, and a false second cause for the ON red. No code was written on their
+basis, no rung was re-ordered on their basis (the re-ordering rests on the readers, which were
+measured correctly), and the killswitch/floor numbers are unaffected. **Caught by this seat, in
+this seat, before handoff — but it should have been caught by verifying the instrument against
+one line of its own input before trusting a zero.** A zero from a grep is a claim about text, and
+it must be proven the same way any other claim is.
