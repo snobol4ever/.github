@@ -127,3 +127,41 @@ Discovered at cursor-write time (`.github` moved `6bb9f32f`→`984414e3` under t
 **⛔ CONFLICT 2 — THE m4 INLINE CONTROL HOLDS ON MY WITNESS.** They state *"THE INLINE ARM IS A CONTROL IN m3 ONLY — m4 KILLS BOTH ARMS."* On `corpus/probe/rtx11_dynvar_*` at N=40, assembled `gcc -no-pie f.s -L SCRIP/out -lscrip_rt`: **m4 include rc=139, m4 inline rc=0 printing `done`** (§4). Both arms measured in the same command, same binary. Either the two witnesses differ in a way that matters, or one of the two m4 recipes is wrong. ⚠ **I do not claim theirs is wrong** — their m4 recipe was validated by a green `hello` control, and mine differs at least in the `-L` path (`SCRIP/out`, not the repo root; a bare `-L/home/claude/SCRIP` link-fails, which is a plausible way for an m4 arm to look broken for a non-defect reason). **UNRESOLVED — settle before either m4 claim is treated as load-bearing.**
 
 **METHOD NOTE:** two seats independently reduced the same defect within one hour and reached *different* scale laws from *non-overlapping* probe geometries, each internally consistent. That is not redundancy — the disagreement is the finding, and neither seat could have produced it alone.
+
+---
+
+## 11. ⭐⭐ THE 3-D SWEEP RAN — AND IT FALSIFIES **EVERY** SCALE LAW SO FAR, INCLUDING BOTH OF MINE
+
+§10 said a 3-D sweep was owed before any constant is re-quoted. It ran. The enabling move is **decoupling**: in s+8's witness and in my §4 witness, distinct-variables and loop-iterations move together, so neither seat could tell which drives the fault. An outer repeat loop separates them — `V` distinct names, `R` repeats, `V×R` total assignments (`/tmp/gen3.py` shape, inner loop terminating on the failing subscript as the original idiom does).
+
+**MEASURED, D=0 (bare 3-line driver), N=3–4 per point:**
+
+| geometry | distinct V | repeats R | total assigns | crash |
+|---|---|---|---|---|
+| V=16 R=1 | 16 | 1 | 16 | 2/3 |
+| V=8 R=2 | 8 | 2 | 16 | **0/3** |
+| V=1 R=16 | 1 | 16 | 16 | **0/3** |
+| V=20 R=1 | 20 | 1 | 20 | **3/3** |
+| V=10 R=2 | 10 | 2 | 20 | 2/3 |
+| V=5 R=4 | 5 | 4 | 20 | **0/3** |
+| V=1 R=20 | 1 | 20 | 20 | **0/4** |
+| V=1 R=30 | 1 | 30 | 30 | **0/4** |
+| V=1 R=40 | 1 | 40 | 40 | **4/4** |
+| V=1 R=5000 | 1 | 5000 | 5000 | 3/3 |
+
+**FOUR LAWS FALSIFIED:**
+1. **TOTAL ASSIGNMENTS — DEAD.** total=20 gives `V=20,R=1` **3/3 crash** and `V=1,R=20` **0/4 clean**. Same total, opposite verdicts.
+2. **DISTINCT VARIABLES ALONE — DEAD.** `V=10,R=1` is clean; `V=10,R=2` crashes 2/3. The *same ten names* reassigned. ⇒ **re-assigning an ALREADY-EXISTING variable still consumes capacity** — the consumption is not per-name.
+3. **s+8's PRODUCT (vars × iters ≳1500) — DEAD in this geometry.** `V=20,R=1` (product 20) crashes; `V=3,R=500` (product 1500) also crashes; `V=1,R=30` (product 30) is clean while `V=16,R=1` (product 16) crashes 2/3. The ordering is not monotone in the product.
+4. **SIMPLE LINEAR COMBINATIONS — DEAD.** Fitting `cost = aV + b·VR` against the two near-threshold points (`V=16,R=1`, `V=10,R=2`) yields `b=1.5a`, `T=40a`, which then predicts `V=1,R=30` **crashes**; measured **0/4 clean**. Fitting `cost = aV + bR` gives `b=6a`, `T=22a`, which mispredicts the same point far worse. **No one- or two-term model fits.**
+
+**WHAT SURVIVES — ONLY THIS, AND IT IS DELIBERATELY WEAK:**
+- Both axes reach the fault **independently** (V=1 crashes at R≥40; R=1 crashes at V≥20).
+- **Strong asymmetry: distinct variables are far more expensive than repetitions** — ~20 names ≈ ~40 repeats of one name at D=0.
+- **V=1 threshold is bounded: R=30 clean 0/4, R=40 crash 4/4.**
+- The **third axis D** (main-file statement count) shifts thresholds monotonically (§6).
+- Every boundary carries a **probabilistic band** (2/3, 2/4), consistent throughout with an out-of-bounds write, never a logic error.
+
+⇒ ⛔⛔ **STANDING INSTRUCTION FOR THE NEXT SEAT: STOP DERIVING THRESHOLD CONSTANTS.** s+7's `112`, s+8's `1500`, and my own `16`/`17` are each a **1-D slice of a ≥3-D surface**, each internally valid on its own probe geometry and each non-transferable. Three seats have now independently produced a constant and each was falsified by the next geometry tried. **The instrument to reach for is not another sweep — it is instrumentation of the allocation itself** (count the consuming events directly, via the s+8 core-file technique or a counter in the runtime path), because the quantity being consumed is evidently NOT any of {names, assignments, their product, their linear combination} and cannot be inferred from black-box thresholds.
+
+⚠ **THIS SECTION FALSIFIES §6 AND §10 OF THIS SAME DOCUMENT, WRITTEN ONE HOUR EARLIER BY THIS SEAT.** §6 read the padding sweep as "capacity sized from the main file, consumed by runtime-created variables" — the padding result stands as measured, but "runtime-created variables" is the wrong consumption unit (falsification 2). §10's contradiction of s+8 stands, but my own replacement law was no better than theirs. **Recorded rather than edited away: three of the four dead laws in this section are mine.**
