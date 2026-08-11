@@ -41,6 +41,32 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 - **T5** GLUE-O residual pins on `emit_rec_pin()` mains (the !rec_pin majority already suppressed — s26b census 464→252 push_rbp; remainder = data-reader mains; FB-STMT refinement path).
 - **KEEPERS (licensed, never targets):** AB activation frames (`*_act_*`) · MATCH_BEGIN statement head · FENCE1 seal · STATEMENT bracket · Icon zframe/flat_lcl_proc (FUNCTION-class) · CLASS C ambient-rbp whack (a CONSUMER of the C frame, not a creator — the 1016_eval return-to-C mechanism, s22u falsification on record).
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s23 (Sonnet 4.6) — **BOARD INSTRUMENT WAS DEAD (SCRIP_WREG DELETED). REPLACED. HANG CLASS ROOT-CAUSED: `match_end_α` CLOBBERS r10 AS SCRATCH, NO VENEER BRACKET. FENCE1 IS THE VICTIM.**
+
+**Fingerprint:** SCRIP `a50e2ee` (board script only, no `src/` bytes changed) · corpus `5da04e78` UNTOUCHED · `.github` this commit.
+
+**⛔ BOARD WAS VACUOUS.** `test_board_wreg_byset.sh` gates on `SCRIP_WREG`. Commit `855a12a` physically deleted it — survives only in two comments (`bb_match_defer.cpp:83`, `bb_glue_flat.cpp:150`). Both arms run identical bytes → `REPAIRED 0 / BROKEN 0` → reads as neutral, means the knob is disconnected. Structurally identical to the REAPED-BUILD-FAKED class.
+
+**Replacement landed:** `scripts/board_patterns_set.sh` — set-based snap/diff, s17 law preserved. SERIAL BY CONSTRUCTION: parallel misclassifies SEGV as HANG (measured: 178/179 flip SIG11→HANG at -P 8 / 10s; serial 30s is correct). Baseline snapshot at tag `head`: PASS 76 · SIG11 28 · DIFF 12 · HANG 6. Matches W-MAP3 claim exactly.
+
+**⭐⭐⭐ HANG CLASS ROOT CAUSE — IN EMITTED ASM, NOT IN FENCE1.** Minimal reproducer (6 lines, sub-second): `cmd = FENCE('a'|'ab')` · `s POS(0) *cmd 'Y' RPOS(0)`. Three hypotheses died to probes: (1) FENCE degrades to SUCCEED — ❌ manual oracles pass inline; (2) multiple deferred sites required — ❌ one site hangs; (3) FENCE1 is the culprit — ❌ FENCE1 via var without `*` is correct. **FENCE1 is the VICTIM.**
+
+**ROOT CAUSE (emitted asm `f_one.s` lines 953–971):** `n43_match_end_α` runs two backward-scan loops using **r10 as a scratch loop base pointer, with no RTCC veneer bracket**. Every other r10/r11 use in this artifact (~40 sites) is protected by `mov [rax+56],r10 / mov [rax+64],r11` + reload-from-`g_rtcc_block`. `match_end_α` is the lone outlier. The scan loop leaves r10 pointing into a live structure at a plausible code address; the pending FENCE1 cell fires `jmp r10` and re-enters the scan-loop interior — a hang, not a crash, because the destination is real.
+
+**This is exactly what the charter predicts.** GOAL-SNOBOL4-RTX.md: *"ANY RTX asm that clobbers r10 or r11 silently breaks EVERY pattern blob in flight."* WREG-0's claim gate was designed to catch this, but it sweeps sources — the clobber lives in emitted asm. An artifact-level grep would have caught it at build time.
+
+**UNCONFIRMED:** Whether the veneer bracket is safe at `match_end_α` (RTCC block written to immediately after at lines 973+, suggesting it's still live — but verify before fixing).
+
+**SECONDARY:** `f_two_nofence` (two deferred sites, no fence) returns FAIL where a match is correct — independent DIFF-class defect, unrelated to wires.
+
+**NEXT SEAT, IN ORDER:**
+1. Fix `bb_match_end` — replace r10 scratch with a non-wire register or add the veneer bracket. Rebuild + `board_patterns_set.sh snap fix` + `diff head fix`. Watch the BROKEN set, not net count. Minimum witness: `f_one.sno` flips HANG → match.
+2. Extend claim gate to artifact-level: grep every generated `.s` for r10/r11 outside the veneer bracket.
+3. `f_two_nofence` wrong answer — separate rung.
+4. s22's `181` re-placement (ARBNO × record collision) — still the top priority for the SEGV class per s22.
+
+**Full write-up:** `FINDING-2026-08-11-CLAUDE-SN46-WREG-BOARD-DEAD-MATCH-END-CLOBBERS-R10-AND-FENCE1-DEFER-HANG-MECHANISM.md`.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s22 (Opus 5) — **D-1 DELETE IS PHYSICAL AND THE `SCRIP_WREG` KILLSWITCH IS DELETED WITH IT — NO OFF ARM EXISTS. THEN W-MAP(3) LANDED: THE SITE'S β WAS ALREADY `jmp [rsp+0]` WITH A ZERO-GUARD, WAITING FOR A RESUME RECORD γ NEVER LEFT. PASS 73→76, HANG 12→6. PARTIAL, NOT A CURE — THE PER-NAME DELTA WAS NOT COMPUTED.**
 
 **Fingerprint:** SCRIP `855a12a5` (D-1) → `7c903000` (W-MAP 3) + regen ×4 twice · corpus regen commits · `.github` this commit. ⛔ **NOTHING PUSHED — credential asked in chat, session held at the ask.**
