@@ -97,6 +97,23 @@ The shim's SCANBASE fills (r8→kt−32, r14d→kt−40) fed the in-blob scanfai
 
 **UNRESOLVED BY DESIGN (named so nobody mistakes silence for a decision):** (a) MECH owns cell mechanics and ARBNO-iteration/K-conversion interaction; (b) deep-arrival (`flat_deep_arrival`) blobs — WREG wires or FRAMED license: decided by the dc_nest_bt/dc_sib_bt measurement in WREG-2, recorded either way; (c) frame_bytes consumer audit outcome.
 
+## ⭐⭐⭐ s15e CLOSE — PLAN SCRUTINY, LADDER CORRECTIONS, AND THE THREE DECISIONS ONLY LON CAN MAKE (handoff block)
+
+**CORRECTIONS TO THE LADDER AS WRITTEN, all measured this seat:**
+1. **The rung ORDER is wrong.** Measured order: **WREG-1 → WREG-4 → WREG-3 → WREG-2 → flip.** WREG-2's cut is safe only after 4 and 3 retire the readers (`scanhit`/`scanfail` ⇒ 4; `res`/β + `[rbp+32]` ⇒ 3). The ON 21/17 is the proof; renumber when convenient.
+2. **Delete WREG-1's encoder budget** — void. REX for r10/r11 already correct in BOTH media (`x86_lea_id` REX.R, `x86_jmp_reg` 0x41).
+3. **The landmine is now TWO items, not one.** RETIRED for blob-α (the claiming rung deletes the clobberer — one mechanism). STILL LIVE for the sweep: sharpest is `bb_match_end`'s sentinel walk (`mov r10,[sent]` · `mov rsp,[r10+8]` — runs at match END, wires live), then `bb_idx_get`/`bb_var` scratch. `bb_scan_any`'s `push r10`/`pop r10` is SELF-PRESERVING — needs NO edit; shrink the 285 census by that whole class before sizing the sweep.
+4. **Census law refined:** `γ_exits == blobs` is THE invariant (24==24 suite-wide). `entries` counts SITES — `rt_defer_get_pat_fn` dispatches BY NAME AT RUNTIME (manual p.86 deferred-eval semantics), so entries < blobs is legitimate. **Use `scripts/test_census_wreg_wires.sh`, never ad-hoc grep** — the instrument self-tests; two consecutive seats were convicted of unit-unchecked greps.
+
+**RISK REGISTER the flip must clear, in order:** WREG-4 (retry → statement-side ω stub; `mov rsp,[rdx+32]` dies with the carve) · WREG-3 with MECH (res/β + slot leak) · the veneer (below) · regen ×3 + BY SET both modes · m4 ONLY after the RTCC confound is resolved (3/16/0/132 vs 133/16/0/2 — any m4 number today measures RTCC, not WREG).
+
+**⛔ THE THREE DECISIONS I NEED FROM LON:**
+- **(A) THE VENEER.** Flat `g_rtcc_block` cannot survive nested `*F()` crossings — manual p.123's recursion guarantee makes this reachable, and s15b captured the mechanism as shipped instructions. Options: **(a)** stack-pair `push r10/r11 · call · pop` bracketing each RT crossing — depth-immune BY NATURE, but MUST be audited against NON-LOCAL ω exits through a crossing (a skipped pop = rsp off by 16, silently violating the drain law); **(b)** depth-keyed save (zctx-indexed cell); **(c)** interim: RTCC default-OFF for pattern blobs — safest, and it un-confounds m4 TODAY. My read: (c) now, (a) if its audit passes. **This straddles GOAL-RTCC — routing is yours.**
+- **(B) WREG-4 DESIGN INTENT:** statement-side ω stub vs in-blob thunk — the ladder text permits both readings; pick one before the recast is written.
+- **(C) DEEP-ARRIVAL VERDICT DEFERRED:** `dc_nest_bt`/`dc_sib_bt` red is CONFOUNDED until 3+4 land — do NOT let any seat read the current failure as the FRAMED-license answer.
+
+**STATE:** SCRIP `1e26e27d`+`cb9f68e2` · `.github` ×7 with this · corpus UNTOUCHED · default arm 33/5 BY SET == s12b/s13 floor · killswitch md5-byte-identical · ON 21/17 fully attributed. Push + `handoff_status.sh` verbatim in chat (credential arrived s15e).
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-10 session 15 (Claude Opus 5 — THE WIRE MECHANISM IS IN AND COSTS NO NEW ENCODER; THE ON ARM ITEMIZES ITS OWN BLOCKERS AND THEY ARE WREG-3/WREG-4; "SOLE flat_pat ENTRY" IS FALSE)
 
 **Watermark at close:** SCRIP **`1e26e27d`** (parent `565ecfa8` — a concurrent MECH seat had moved HEAD past s14's `353bafbd` before this seat opened; re-checked at open per 11-ENV) · corpus **`bea31de0`** UNTOUCHED · `.github` this commit. **⛔ PUSH: credential requested in-chat per RULES 6b; `handoff_status.sh` NOT run — it would report BLOCKED, which is already known. No terminal doneness claim is made.**
