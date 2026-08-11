@@ -97,6 +97,20 @@ The shim's SCANBASE fills (r8→kt−32, r14d→kt−40) fed the in-blob scanfai
 
 **UNRESOLVED BY DESIGN (named so nobody mistakes silence for a decision):** (a) MECH owns cell mechanics and ARBNO-iteration/K-conversion interaction; (b) deep-arrival (`flat_deep_arrival`) blobs — WREG wires or FRAMED license: decided by the dc_nest_bt/dc_sib_bt measurement in WREG-2, recorded either way; (c) frame_bytes consumer audit outcome.
 
+## ⛔⭐⭐⭐ s15f — I RETRACT MY OWN OPTION (c). LON APPROVED IT; I DID NOT IMPLEMENT IT. RTCC-OFF IS A WREG TRAP.
+
+**Lon routed (A) as "yes, fix it as you suggest" = RTCC default-OFF for pattern blobs. I DID NOT MAKE THE CHANGE, because reading the flag revealed my recommendation was WRONG.** `rtcc_init.c:20` states the precondition I had not read: *"the veneer's writeback/reload is the ONLY thing that preserves rΓ=r10/rΩ=r11 across an rt_* crossing — at OFF a blob's wires are clobbered by plain SysV rules and the failure is a WILD JUMP, not a wrong answer."*
+
+**r10/r11 are CALLER-SAVED in SysV.** Therefore: **RTCC-ON + flat cell** = correct at leaf depth, wrong under nesting. **RTCC-OFF** = wrong at EVERY crossing. **OFF is strictly worse, and its failure mode is worse** (wild jump vs wrong answer). ⛔ **Option (c) is not a safe interim; it is the opposite of one.**
+
+**⭐ WHY IT LOOKED RIGHT AND WHY THAT IS THE TRAP:** today `SCRIP_WREG=0`, so NO wires ride r10/r11 and RTCC-OFF genuinely does restore m4 (133/16/0/2 vs 3/16/0/132). It would make the tree measure BETTER today **and turn WREG's flip into wild jumps tomorrow** — a change that buys a clean number by disarming the one mechanism WREG depends on. **The m4 confound is REAL but RTCC-OFF is the wrong currency to buy it with.**
+
+**CORRECTED ROUTING FOR (A) — (a) IS NOW THE ONLY LIVE CANDIDATE:** stack-pair `push r10/r11 · call rt_* · pop r11/r10` bracketing each crossing. Depth-immune BY NATURE (the stack is the depth index), and it is the SAME shape `bb_scan_any` already uses self-preservingly. ⛔ **ITS ONE AUDIT, UNCHANGED AND MANDATORY: non-local ω exits that leave THROUGH a crossing skip their pop ⇒ rsp off by 16 ⇒ silent drain-law violation.** Enumerate every non-local exit that can cross a veneered call before writing a line. **(b) depth-keyed save remains the fallback if that audit fails.**
+
+**⭐ SEPARATE THE m4 CONFOUND FROM (A).** It is a MEASUREMENT problem, not a design one: take m4 with `SCRIP_RTCC=0` **as a reported bisect number only** (RULES: nothing may depend on the killswitch), never as a default flip. Confound documented ≠ confound fixed.
+
+**HONEST NOTE ON HOW THIS HAPPENED:** I proposed (c) from the s37 m4 numbers without reading the flag's own precondition comment, and Lon approved my recommendation in good faith. **An approved bad recommendation is still a bad recommendation** — the approval does not transfer the engineering judgment. Second self-caught error this seat; both caught by checking the artifact instead of trusting my model of it.
+
 ## ⭐⭐⭐ s15e CLOSE — PLAN SCRUTINY, LADDER CORRECTIONS, AND THE THREE DECISIONS ONLY LON CAN MAKE (handoff block)
 
 **CORRECTIONS TO THE LADDER AS WRITTEN, all measured this seat:**
