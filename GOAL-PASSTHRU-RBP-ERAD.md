@@ -41,6 +41,32 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 - **T5** GLUE-O residual pins on `emit_rec_pin()` mains (the !rec_pin majority already suppressed — s26b census 464→252 push_rbp; remainder = data-reader mains; FB-STMT refinement path).
 - **KEEPERS (licensed, never targets):** AB activation frames (`*_act_*`) · MATCH_BEGIN statement head · FENCE1 seal · STATEMENT bracket · Icon zframe/flat_lcl_proc (FUNCTION-class) · CLASS C ambient-rbp whack (a CONSUMER of the C frame, not a creator — the 1016_eval return-to-C mechanism, s22u falsification on record).
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s21 (Claude Sonnet 4.6) — **D-1 DELETE LANDED (`5abdd0ae`): ARBNO DISPATCH FIVE ARMS → TWO. RECURSION-THROUGH-ARBNO (manual p.122 canonical example) REPAIRED. NULL GUARD CONFIRMED BY MEASUREMENT. TWO REGRESSIONS ARE NEWLY VISIBLE DEBT (n32b FAILURE-EDGE NO OUTPUT; iso_nest =F) — PREVIOUSLY ROUTED AROUND, NOW ON THE FRAMELESS ARM FOR THE FIRST TIME.**
+
+**Fingerprint:** SCRIP `57e40a2f` (D-1 delete + regen ×3 committed) · corpus `5da04e78` UNTOUCHED · `.github` this commit.
+
+**What landed:** `bb_match_arbno()` dispatch collapses to `bb_match_arbno_frameless` (K0 bodies) and `bb_match_arbno_frameless_k` (kk>0 bodies). TAIL / DT / NARY-CHAIN arms removed. Carry-the-tail claim in `emit.cpp` gated dead. Deleted bodies behind unreferenced `bb_match_arbno_DELETED_ARMS()` for `git revert` safety — physical excision is next seat. Arm-naming diagnostic added to `SCRIP_ARBNO_DIAG` channel. Regen ×3 paid same session.
+
+**THE ONE BB LOCAL ARBNO HAS:** 16 bytes, two dwords — `+0` DELTA0 (entry cursor snapshot) and `+4` yield (last committed cursor). `+8` is UNUSED (that slot held the counter in the deleted NARY-CHAIN arm). No increment, no decrement, no counter. Two cursor comparisons: COMPARE 1 (`cmp r14d,[rsp+4]` / `je`) — did the body advance? COMPARE 2 (`cmp r14d,[rsp+0]` / `jne`) — back at entry? COMPARE 1 is also the null-body guard (confirmed: `ARBNO('')` and `ARBNO(LEN(0))` both terminate correctly, =F, no hang). Manual error #61 is type-only; no null-body prohibition exists in SPITBOL.
+
+**Repaired:** `min1` `'((x))'` recursion-through-ARBNO SEGV → =S · `nest` manual p.122 canonical recursive example SEGV → =S.
+
+**Two regressions (visible debt, not previously correct):**
+- `n32b` — alternation body, failure subject: no output at all (rc=0). Neither S() nor F() fires. 2-way monitor is the first move; do NOT read code.
+- `iso_nest` `ARBNO(ARBNO('ab'))` — outer/inner frontier interaction: =F instead of =S. Same instrument after n32b.
+
+**Full write-up:** `FINDING-2026-08-11-CLAUDE-SON46-ARBNO-D1-DELETE-*.md`.
+
+**⭐ SCRUTINY / CORRECTIONS FOR NEXT SEAT:**
+
+**CORRECTION 1 — THE LEGACY TAIL ARM PASSED ACCIDENTALLY.** s38's "correlation 1.000, every legacy specimen crashes" did not reproduce at HEAD (`727096a3`). N24/N28/N32 all routed TAIL and all printed =S. Do not cite s38's routing-as-defect-predictor as current truth — it was true at `565ecfa8` and false by `727096a3`. The defect axis was NARY-CHAIN + depth≥2 recursion, not routing class generally.
+
+**CORRECTION 2 — +8 IS EMPTY IN THE LIVE ARMS.** The counter slot `op_off+8` is written and read only by the deleted NARY-CHAIN/DT arms. Every `op_off + 8` reference in `bb_match_arbno.cpp` is now inside `bb_match_arbno_DELETED_ARMS()`. The live frameless pair is counter-free by design; `+8..+15` of the 16B cell are unused.
+
+**CORRECTION 3 — PHYSICAL EXCISION STILL OWED.** D-1 charter requires the deleted arms to stay behind `bb_match_arbno_DELETED_ARMS()` until the fix-forward loop proves they are not needed for `git revert`. After n32b and iso_nest are green, delete that function body plus: `arbno_rootspine()`, `arbno_fprpop()`, `arbno_lon()` killswitches (all dead), the tail/DT staging block in `emit.cpp`, and `fc_tail_arbno` / `fc_tail_ncap` / `fc_tail_dfr` / `fc_tail_fpr_rsp` extern declarations if they have no other callers.
+
+**NEXT SEAT, IN ORDER:** (1) 2-way monitor on `n32b` — first divergent event names the fix. (2) iso_nest after n32b green. (3) Physical excision commit. (4) D-3 GATE — `test_census_rbp_frames.sh`, T5 → 0, keepers unchanged, broad-336 + m4. (5) Remaining PASSTHRU-RBP-ERAD work per s20 cursor continues beneath.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s20 (Opus 5) — **s19 REPRODUCES EXACTLY IN A FRESH CONTAINER (OFF 100 / ON 74 / 26 BROKEN BY SET). THE NEW FACT: THE RESIDUAL 26 IS **TWO** CLASSES — 19 SIGSEGV + 7 HANG — SO W-MAP (3) CANNOT CLOSE IT ALONE; THE HANG CLASS BILLS TO WREG-4. AND "ANCHORED PATTERNS ARE COMPLETE UNDER THIS ARM" IS FALSIFIED BY AN 8-LINE `POS(0)` WITNESS.**
 
 **Fingerprint:** SCRIP `afed6184` **UNTOUCHED — ZERO `src/` BYTES CHANGED** · corpus `5da04e78` UNTOUCHED · `.github` this commit. Measurement + instrument seat only: no rung landed, no default flipped, no gate owed.
