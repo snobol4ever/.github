@@ -1,0 +1,12 @@
+        P = "a"
+        "b" POS(0) ARBNO(*P) RPOS(0)    :S(A1)F(B1)
+A1      OUTPUT = "T1 MATCH"          :(N1)
+B1      OUTPUT = "T1 NOMATCH"
+N1      "ab" POS(0) ARBNO(*P) RPOS(0)   :S(A2)F(B2)
+A2      OUTPUT = "T2 MATCH"          :(N2)
+B2      OUTPUT = "T2 NOMATCH"
+N2      "aaab" POS(0) ARBNO(*P) RPOS(0) :S(A3)F(B3)
+A3      OUTPUT = "T3 MATCH"          :(N3)
+B3      OUTPUT = "T3 NOMATCH"
+N3      OUTPUT = "DONE"
+END

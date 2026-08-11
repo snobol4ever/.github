@@ -42,5 +42,20 @@ The blobs still establishing rbp are the ones taking `_wire_stub`, not `_blob_wi
 4. m4 column untouched this session (m3 only). Regen ×4 paid twice, same session, both commits.
 5. `n32b` / `iso_nest` from s21 remain open; 2-way monitor first, per RULES.
 
+## ⛔⭐⭐⭐ LATE-SESSION: MY OWN `181` HYPOTHESIS IS FALSIFIED AND THE REAL ROOT CAUSE IS NAMED — THE RECORD COLLIDES WITH ARBNO'S RSP-RELATIVE CURSOR CELLS
+**The bounded-iteration probe (s20 SCRUTINY 2's instrument, NOT gdb) killed the accumulation theory in one run.** Minimal witness `/tmp/it.sno`, `P = "a"`, three `POS(0) ARBNO(*P) RPOS(0)` tests over `"b"` / `"ab"` / `"aaab"`. **sbl oracle: `T1 NOMATCH · T2 NOMATCH · T3 NOMATCH · DONE`. SCRIP m3: `T1 NOMATCH` then SIGSEGV at T2.**
+- **T1 (`"b"`) has ZERO successful blob entries** — the blob is entered, `P` fails, ω fires, NO record is ever pushed. **It passes.**
+- **T2 (`"ab"`) has EXACTLY ONE successful entry** — `P` matches `"a"`, γ fires, ONE record is pushed. **It faults.**
+⛔ **THE TRIGGER IS THE FIRST RECORD, NOT N OF THEM. "32×N drift" was wrong and is retracted; do not spend the ARBNO ω rsp-drift-per-retry probe on it.**
+
+**ROOT CAUSE, CONFIRMED IN SHIPPED INSTRUCTIONS:** `n9_match_arbno_α` = `mov dword ptr [rsp + 0], r14d` · `mov dword ptr [rsp + 4], r14d`. **ARBNO addresses its OWN cursor cells RSP-RELATIVE at fixed small offsets** (s21's cursor already recorded the layout: `+0` DELTA0, `+4` yield, 16B cell). **γ's 32B record is pushed onto that SAME spine.** After one record exists, ARBNO's `[rsp+0]` is no longer DELTA0 — **it is the record's res-landing address**, so COMPARE 1 / COMPARE 2 compare a cursor against a code pointer and control goes wild.
+⭐ **THIS IS THE FILE'S OWN SLIDING-OFFSET CLASS, NOT A NEW ONE** ("the head reads must SUBTRACT it not add it", C9 splice: "FRQ reads miss by the replacement subtree depth"). **An interior box that reads rsp-relative cannot tolerate ANYTHING pushed between its carve and its reads.**
+
+**THEREFORE THE FIX IS NOT THE RECORD'S SIZE OR LAYOUT — IT IS THE RECORD'S PLACE.** Three candidates, in order of cheapness, for the next seat (⛔ none attempted — deliberately not landed at 92% context, per the standing "no deletion/edit at end-of-context" law):
+1. **Push the record BELOW the interior frontier** so no interior box's rsp-relative window is displaced — i.e. γ carves the record where the blob's OWN cells already end, and the site's β reads it at a known offset rather than `[rsp+0]`. (Costs a site-side offset; the site is currently `jmp [rsp+0]`.)
+2. **Have ARBNO speak `op_flat_disp` / the ONE selector instead of raw `[rsp+K]`** — the same cure the file applied when `flat_pat` left `emit_jmp_pin_rbp()`. Structurally right, wider blast radius.
+3. Record in a per-activation slot carved at blob entry (NOT a flat global — s14) rather than pushed.
+⛔ **DO NOT "FIX" THIS BY SHRINKING THE RECORD.** Any non-zero push reproduces it; 8 bytes collides exactly as 32 does.
+
 ## FINGERPRINT
 SCRIP `855a12a5` (D-1) → `7c903000` (W-MAP 3) + 8 regen commits · corpus regen ×4 (both rungs) · `.github` this commit. ⛔ **NOTHING PUSHED — credential requested in chat, session held open at the ask.**
