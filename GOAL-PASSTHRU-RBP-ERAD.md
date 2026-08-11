@@ -58,7 +58,21 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 
 **⭐ INSTRUMENT LANDED:** `SCRIP/scripts/test_board_wreg_byset.sh` — BY-SET board, both arms, same binary, and it prints the **failure-mode split + HANG membership**, the column whose absence hid this finding. One arm at a time (`… off` / `… on`); both arms ≈ 10 min wall clock.
 
-**NEXT SEAT, IN ORDER:** (1) **Interior-free audit (s19 CORRECTION 4, still UNPERFORMED)** — it is a live candidate mechanism for the HANG class and is cheap; do it BEFORE designing WREG-4's stub. (2) **W-MAP (3)** against the **19 SIGSEGV** members, full runway; ⛔ `res` must not take r10/r11 as scratch — it does today and W-MAP (3) is the edit that ARMS it. (3) **WREG-4 remaining half** against the **7 HANG** members, re-deriving the anchored predicate first per the falsification above. (4) Convict ONE member of each class at an instruction before re-sequencing the ladder on the 19/7 inference — it is sound from failure mode but not yet instruction-convicted. (5) Registration deletion / 234-site sweep / regen ×3 (still owed from s17; **not** discharged here — zero emitter bytes changed, OFF arm unmoved).
+**Push fingerprint (s20 close, `handoff_status.sh` CHAT SESSION COMPLETE):** SCRIP `727096a39` · `.github` `e60b77e76` · corpus `5da04e78b` — all at origin.
+
+**⭐ PLAN SCRUTINY + CORRECTIONS (s20 close — each actionable, none speculative):**
+
+**SCRUTINY 1 — REORDER: WREG-4 BEFORE WREG-3.** Rungs as written sequence 3 before 4. The 19/7 split inverts that: the 7 HANG members are WREG-4's (retry-not-advancing), diagnosable with a bounded probe and NO emitter edit; the 19 SIGSEGV members are WREG-3's (wild transfer), requiring the W-MAP (3) emitter edit that ARMS the `res` landmine. Cheaper diagnosis first, landmine-arming edit last. **New order: interior-free audit → WREG-4 half (7 HANG) → WREG-3 W-MAP (3) (19 SIGSEGV) → flip.**
+
+**SCRUTINY 2 — INTERIOR-FREE AUDIT IS PARTIALLY DONE (§8 of the FINDING).** Next seat does NOT repeat the static census. It needs ONE runtime probe: `SCRIP_WREG=1` on `114`, `&STLIMIT=100`, watch rsp at ARBNO ω edge per retry. Drift of one carve width = convicted; zero drift = exonerated and routes the hang elsewhere.
+
+**SCRUTINY 3 — gdb IS DARK ON THE HANG CLASS; ADD A CONDITIONAL TO FF-0.** "gdb PRIMARY" holds for the 19 SIGSEGV. For the 7 HANG, gdb never reaches a fault (verified, ASLR falsified as cause). The file should say: gdb PRIMARY for crash class; bounded probe or 2-way monitor for hang/retry class. As written, a seat following FF-0 on `114` loses 15 minutes.
+
+**SCRUTINY 4 — REGEN ×3 MUST PAY IN THE SAME COMMIT AS THE FIRST EMITTER EDIT, NOT AT HANDOFF.** Every seat since s17 has noted it owed and deferred it. The next seat with a non-null `src/emitter/` or `src/templates/` edit must run `util_regen_benchmark_s_artifacts.sh` + `util_regen_feature_s_artifacts.sh` + `util_regen_demo_s_artifacts.sh` in the same session, not the handoff session. No exceptions.
+
+**SCRUTINY 5 — "IMPLEMENT FLAT PASS-THRU GLUE WITH R10/R11" IS ALREADY DONE.** `bb_glue_flat.cpp:156` = `lea r10,γ · lea r11,ω · jmp rax`. A seat oriented on that instruction should not write glue. The work is making the ON arm correct enough to flip. Record this on the first page so a fresh seat isn't misled.
+
+**NEXT SEAT, IN ORDER:** (1) **WREG-4 remaining half** — bounded probe on `114` (`&STLIMIT=100`, rsp drift at ARBNO ω per retry); if convicted, design statement-side retry-advance stub re-deriving anchored predicate from the conviction. (2) **WREG-3 / W-MAP (3)** full runway — γ pushes `{res,r10,r11}` 24→32B aligned; `res` restores pair before any blob code; β dispatch; ⛔ `res` MUST NOT use r10/r11 as scratch — it does today, arms the instant this lands. (3) **Regen ×3 in the same commit** as the first `src/` edit. (4) **Full BY-SET gate** (`scripts/test_board_wreg_byset.sh` both arms, both modes) after (1)+(2) green. (5) Registration deletion + 234-site sweep + default-ON flip.
 
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s19 (Opus 5) — **WREG-4 SLICE 1 LANDED (`3434697`): THE SCAN BLOCKS' NULL-CTX READ IS GDB-CONVICTED AND CUT, ON GOES 64→68 BY SET. ⛔ IT IS NOT THE CRASH CURE — TWO BLOB-SIDE READERS SURVIVE, AND ONE OF THEM IS THE PREDICTED LANDMINE CAUGHT AS SHIPPED INSTRUCTIONS: `res` RE-PUSHES g_zctx USING r10/r11 AS SCRATCH, SO THE RES STUB DESTROYS THE WIRES IT MUST RETURN THROUGH.**
 
