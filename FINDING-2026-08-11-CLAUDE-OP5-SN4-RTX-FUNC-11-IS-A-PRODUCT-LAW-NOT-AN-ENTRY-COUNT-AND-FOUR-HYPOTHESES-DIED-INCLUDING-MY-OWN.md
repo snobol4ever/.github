@@ -82,9 +82,21 @@ No gdb in this container; used the ladder's recorded technique (parse `NT_PRSTAT
 
 ⛔ **MECHANISM DELIBERATELY NOT NAMED.** MONITOR-FIRST is not discharged (see §7). "`rbx` is clobbered" is where the *evidence* stops; naming the clobberer without the monitor would be exactly the guess this project keeps paying for.
 
-## 7. NOT DONE / OWED
+## 6b. ⭐⭐ MONITOR RUN — AND IT IS STRUCTURALLY BLIND TO THIS DIVERGENCE CLASS
 
-- **MONITOR-FIRST NOT DISCHARGED.** The oracle is now present (`/home/claude/x64` cloned this seat, `sbl` runs, `.ref` minted) — that was the blocker s+7 recorded. The 2-way/3-way sync-step monitor was **not run**. **This is the next action** and the witness is small enough to make it cheap.
+`scripts/test_monitor_2way_spitbol_vs_run.sh` (which dispatches to the 3-way auto with `PARTICIPANTS="spl scr"`) on the witness:
+
+```
+[ctrl] PARTIAL EOF step 284: ['scr'] done, others still running
+  spl: still emitting LABEL stno=INT=46
+  scr: EOF
+```
+
+- **~283 trace events AGREE, then SCRIP EOFs.** There is **no first divergent event** — SCRIP computes *correctly* right up to the instant it dies. ⇒ **"wrong value propagates, then crashes" is EXCLUDED.**
+- ⭐ **THE DEATH POINT MOVES RUN TO RUN:** two runs of the identical binary on the identical program gave **step 284 / spl stno 46** and **step 283 / spl stno 45**. The fault is **not statement-deterministic**, which independently corroborates the wild-`rbx` reading of §6 over any fixed-statement logic error.
+- ⇒ **MONITOR-FIRST is DISCHARGED as far as this instrument can go, and its limit is now a measured fact, not an excuse.** The theorem's bracket here is `[last agreeing event, EOF]`, which localises the fault to **inside the loop** but cannot name an instruction, because a SEGV presents as EOF rather than as a divergent event. This is exactly the case ARCH §7 anticipates — *"blind to the divergence CLASS … exit 0 is then NOT exoneration"* — arriving in the crash axis. **The next instrument is a hit-counted breakpoint / single-step at the loop body, or a bisect, NOT a further monitor run.**
+
+## 7. NOT DONE / OWED
 - **No bisect run.** SCRIP was cloned full-depth here (3148 commits) so it is possible. Use a **product ≥1600** probe — it is 8/8 deterministic; anything in the 1280 band will bisect to noise.
 - m4's silent-empty-at-8×8 (§4) is unowned and needs its own rung.
 - Watermark not re-proven this seat (no code changed, so nothing to regress; stated plainly rather than implied).
