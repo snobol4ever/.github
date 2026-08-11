@@ -23,6 +23,8 @@ This file is HQ. ALPHA/OMEGA are ABSORBED (stubs remain); one seat executes top-
 
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 CONSOLIDATED (Opus 5) — **THE DEMO BOARD IS 2/15 AT HEAD, NOT 9/15. SEVEN PROGRAMS REGRESSED IN 55 COMMITS. BISECT NARROWED, NOT CLOSED.**
 
+**⛔ SUPERSEDED SAME-DAY (CONSOLIDATED-2):** the bisect IS closed (PASSTHRU: first bad `1af93e3a`) and FF-0 is closed with mechanism — blob γ/ω/res never restore rbp; the 2/15 set = the defer programs. Authority: `GOAL-PASSTHRU-RBP-ERAD.md` CONSOLIDATED-2 cursor + `FINDING-2026-08-11-…-FF0-CLOSED-BLOB-GAMMA-NEVER-RESTORES-RBP-….md`.
+
 **Fingerprint:** SCRIP `4b48dbb9` · corpus `5da04e78` · `.github` `074e9247`. Clean foreground build, `RT_OPT=-O0`, `ulimit -s unlimited`, canonical absolute paths. Oracle `/home/claude/x64/bin/sbl` present.
 
 **⛔ MEASURED, `board_sno15_ident.sh`, both modes:** **TRI-IDENTICAL 2/15** (m3 bad=13, m4 bad=13, harness-fail=0). Only `claws5-match` and `claws5-match-fence` are IDENT. **s34b recorded 9/15 at `d2328f8`** — `treebank-match`/`-fence`, `calculator-1`, and `calculator-1-match`×2 have all fallen. `treebank-match` · `json-match` · `calculator-1` = **rc=139 SIGSEGV both modes**; `calculator-1-match`/`-fence` and `calculator-2-match`/`-fence` = **DIVERGE both modes**.
