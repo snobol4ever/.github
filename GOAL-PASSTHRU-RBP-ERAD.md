@@ -41,6 +41,24 @@ Crosscheck-318 instruction baseline (STF-UNFLIP, measured then): **15,459 rbp in
 - **T5** GLUE-O residual pins on `emit_rec_pin()` mains (the !rec_pin majority already suppressed — s26b census 464→252 push_rbp; remainder = data-reader mains; FB-STMT refinement path).
 - **KEEPERS (licensed, never targets):** AB activation frames (`*_act_*`) · MATCH_BEGIN statement head · FENCE1 seal · STATEMENT bracket · Icon zframe/flat_lcl_proc (FUNCTION-class) · CLASS C ambient-rbp whack (a CONSUMER of the C frame, not a creator — the 1016_eval return-to-C mechanism, s22u falsification on record).
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s22 (Opus 5) — **D-1 DELETE IS PHYSICAL AND THE `SCRIP_WREG` KILLSWITCH IS DELETED WITH IT — NO OFF ARM EXISTS. THEN W-MAP(3) LANDED: THE SITE'S β WAS ALREADY `jmp [rsp+0]` WITH A ZERO-GUARD, WAITING FOR A RESUME RECORD γ NEVER LEFT. PASS 73→76, HANG 12→6. PARTIAL, NOT A CURE — THE PER-NAME DELTA WAS NOT COMPUTED.**
+
+**Fingerprint:** SCRIP `855a12a5` (D-1) → `7c903000` (W-MAP 3) + regen ×4 twice · corpus regen commits · `.github` this commit. ⛔ **NOTHING PUSHED — credential asked in chat, session held at the ask.**
+
+**⭐⭐⭐ WHAT IS GONE FROM THE COMPILER (Lon s22: "that code will be gone"):** α shim carve + `g_zctx` push · resume-slot store · both scan blocks + `scanhit`/`scanfail` trampolines + `_attempt` · `SCRIP_SCAN_OFF` · CLASS D `g_zctx` γ/ω exits · the `flat_pat` res stub (**the r10/r11-scratch landmine deleted before it could arm**) · `wreg_on()` and all 7 gates. `claws5-match.s`: `proc_PAT$0_α:` falls straight into the spine. Keepers untouched (MAIN · AB · FRAMED · zframe · `flat_lcl_proc` · gen-proc).
+
+**⭐⭐ THE CHEAPEST FACT OF THE SESSION:** `bb_match_defer.cpp:169` β = `x86_jmp_mem("rsp",0)`, zero-guarded, comment already saying *"a real γ-record resumes the blob as ever."* **The site never needed an edit.** γ now leaves 32B `{res,r10,r11,pad}` at the frontier; res reloads both wires (**destinations only — never scratch**) and drops 32B into β. **The wire save is per-activation ON THE SPINE — that answers s14's routing question by construction rather than by ruling.**
+
+**BOARD (by set, crosscheck/patterns 122, m3):** after D-1 — 73 PASS / 26 SEGV / 12 HANG / 11 DIFF (**reproduces s19/s20's ON arm, as it must**). After W-MAP(3) — **76 / 28 / 6 / 12**. ⛔ Net +3 and hangs halved, but programs MOVED BETWEEN CLASSES; **compute the by-name delta before billing any of it.**
+
+**⛔ TWO CORRECTIONS, BOTH ON MYSELF:** (a) my first blob-interior attribution swept `proc_LBL__*` regions in and named json/claws5/calculator counts — **void**; the census's last-label rule is the only correct attributor. (b) **PAT-BLOB census rose (demo 16→28, crosscheck 0→8) and it is an ATTRIBUTION ARTIFACT** — the record pushes `r10`/`r11`/`rax` and **never touches rbp**; defining `_res` for `flat_pat` extends the PAT$ region over `_wire_stub` code that does push rbp. **A nearest-label census cannot tell a new establishment from a moved label.**
+
+**⛔⭐ THE RESIDUAL T1 SUB-CLASS IS NAMED AND IT IS NOT WHAT WAS POINTED AT:** blobs with `g_flat_frame_floor > 0` take `_wire_stub`, never `_blob_wire`, so they never reach the pass-thru arm — `json.s proc_PAT$9_γ` = `push rbp · … · mov rbp,[rbp+440]`. Their frames are keepers-by-accident; PT-2b's retraction applies. Needs the floor's locals re-homed to the spine.
+
+**NEXT SEAT, IN ORDER:** (1) by-name delta `855a12a5`→`7c903000`. (2) The 6 HANGs — ⛔ **the unanchored scan-retry loop died with the scan blocks, so manual p.204 step 6's advance-and-retry has NO implementation anywhere; that stub is now a CORRECTNESS gap owed at the site, not an optimisation.** (3) `_wire_stub` blobs = last T1 sub-class. (4) m4 column (m3 only this session). (5) s21's `n32b` / `iso_nest` still open — 2-way monitor first.
+
+**Full write-up:** `FINDING-2026-08-11c-CLAUDE-OP5-PASSTHRU-S22-D1-DELETE-LANDED-*.md`.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-11 s21 (Claude Sonnet 4.6) — **D-1 DELETE LANDED (`5abdd0ae`): ARBNO DISPATCH FIVE ARMS → TWO. RECURSION-THROUGH-ARBNO (manual p.122 canonical example) REPAIRED. NULL GUARD CONFIRMED BY MEASUREMENT. TWO REGRESSIONS ARE NEWLY VISIBLE DEBT (n32b FAILURE-EDGE NO OUTPUT; iso_nest =F) — PREVIOUSLY ROUTED AROUND, NOW ON THE FRAMELESS ARM FOR THE FIRST TIME.**
 
 **Fingerprint:** SCRIP `57e40a2f` (D-1 delete + regen ×3 committed) · corpus `5da04e78` UNTOUCHED · `.github` this commit.
