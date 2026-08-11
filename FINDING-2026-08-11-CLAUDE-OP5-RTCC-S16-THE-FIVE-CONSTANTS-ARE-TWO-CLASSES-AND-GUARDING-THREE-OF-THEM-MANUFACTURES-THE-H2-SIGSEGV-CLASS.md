@@ -67,3 +67,57 @@ The regen script's default message labelled the commit with *my* rung. Amended t
 - **Heartbeat, one-directional (s15) — confirmed again.** No peer this session (only `/home/claude/.seat-RTCC-544`); canonical paths were unoccupied, and the two commits past the s15 cursor were ~40 min old and already on origin.
 - **Path-pinning (s15h) acted on.** 192 script references expect `/home/claude/corpus`, 34 `/home/claude/SCRIP`. Trees were placed at the canonical paths **before** running any gate, so the claim gate graded the tree actually edited. A private clone would have graded whatever sat at the canonical path — or nothing.
 - **A KILLED BUILD LEAVES 0-BYTE OBJECTS AND READS AS A BROKEN HEAD (new, s16).** A backgrounded `make` is reaped when the tool call returns; it left a **0-byte `bb_assign_global.o`**, and the next link failed with `undefined reference to bb_assign_global[abi:cxx11]()` — which looks exactly like a broken HEAD on a clean clone. `find out -name '*.o' -size 0 -delete` is the one-line cure. Diagnose a link failure on a fresh clone by checking object *sizes* before suspecting the tree.
+
+---
+
+# ADDENDUM — s16b: THE ARG-TIER RULING, TAKEN (VETOABLE), AND A GC GAP THAT BLOCKS IT
+
+Lon in-chat: *"All your choices."* Per the s13b precedent the ⛔LON rulings below are **taken by me and are VETOABLE**.
+
+## 7. RULING (vetoable): MINT RC-8, do NOT re-open RC-4
+
+s14 asked: *re-open RC-4 as `[~]` with reload carry, or mint an explicit rung for arg tier + XMM?* **Mint RC-8.** Reasons: (a) RC-4's closure was correct **for what it claimed** — it landed the writeback and the scratch-tier reload, and explicitly deferred the arg-tier reload in a comment; re-opening a correctly-closed rung to carry someone else's scope is how a ledger stops meaning anything; (b) the arg tier and XMM now carry a **prerequisite defect** (§9) that did not exist in RC-4's frame, so the work is genuinely new; (c) s14 declined to re-open another seat's closed rung and that instinct was right.
+
+**RC-8 shape (ordered — the order is the ruling):** RC-8a GC coverage (§9) — *blocking, must land first* · RC-8b decide the arg tier: claim it (add the reload) **or** stop paying for it (drop the 5 dead stores), see §8 · RC-8c XMM8–15: either stage them or **amend the charter** to say 9 GPRs, because at HEAD there is no rung behind the XMM claim at all.
+
+## 8. THE ARG TIER IS PAID FOR AND NEVER COLLECTED — 5 OF THE VENEER'S 14 INSTRUCTIONS
+
+s14's *"arg tier reload orphaned"* is right in substance but the precise fact is sharper and changes the arithmetic. **`rtcc_load_all` is not orphaned** — it has exactly two call sites, `src/driver/scrip.c:1490` (mode-4, emits `call rtcc_load_all@PLT`) and `:1651` (mode-3, direct call), and **both are the process-entry crossing**. It reads the block **once per process, before any generated code has run**. The per-crossing reload (`x86_rtcc_rl_bin`/`rl_text`, verified identical) restores only `{r8, r9, r10, r11}`.
+
+Therefore `rax rcx rdx rsi rdi` are **stored on every crossing and reloaded by nothing**: **5 of the 14 instructions per crossing are pure cost at HEAD.**
+
+**This reframes RC-6.** s13b's static instrument is `crossings_removed × 14`, whose payoff sits behind per-family RTX *eradication* (s13b: eligible set = 1 symbol of 54). But `crossings × 5` is available **with no eradication at all**, on the same noise-free static instrument. Against s11's measured crossing counts: **fibonacci 9,423,879 × 5 = 47,119,395 instructions; roman defer trio 6,600,066 × 5 = 33,000,330.** That is the same order as RC-6's headline prize, unblocked.
+
+⛔ **NOT COSTED, AND I DID NOT IMPLEMENT IT.** `x86_rtcc_wb_bin` uses the RAX store + `movabs rax, block` as its RSP-safe way to obtain a base register, so dropping the arg-tier stores is not a 5-line deletion: it needs a base-register story (RAX is caller-saved and dead before a `rt_*` call, but "dead" must be **probed**, not assumed — vararg callees read AL), and it interacts with §9. **Estimating this and building it are different rungs; I did the first only.** RC-8b is where it belongs.
+
+## 9. ⛔ NEW DEFECT — THE BLOCK IS NEVER SCANNED BY THE GC
+
+`rtcc_gc_register` calls `rt_gc_root_pin_add` **only**. In `gc_heap.c` these are not the same thing:
+- line 625 — pinned roots go to `rt_gc_pin_ptr(p)`: pins the **pointer value** `p`
+- line 626 — ranges go to `gc_cons_scan(lo,hi)`: **scans the memory**
+
+Every other block registration in the tree does **both** (`zeta_heap.c:161`, `rt_coexpr.c:74`). RTCC does only the first, so **the block's 32 slots are scanned by nothing**, and `rtcc_init.c`'s *"at any GC point all claimed-register values sit in the block; registering it is sufficient — no per-register pin needed"* is **false**: the premise holds, the conclusion does not.
+
+**LATENT at HEAD** — r8 is an integer (`&ANCHOR` value), r9 is the mmap'd GVA island, r10/r11 are code addresses; no claimed register can hold a heap DESCR. **LIVE the instant the arg tier is claimed**, because RAX:RDX carry `DESCR_t` returns: a heap object reachable only from a claimed register would be invisible to the collector. Use-after-free.
+
+⛔ **CONSEQUENCE: RC-7 MUST NOT FOLD.** Its DoD line 1 would certify a veneer that protects 3 of 17 registers and whose canonical block is outside the GC's reach. And **RC-8a blocks RC-8b**: claiming the arg tier before fixing coverage converts a latent gap into a live use-after-free.
+
+Note the composition: §8 says unclaimed slots are written for no reason; §9 says claimed slots are unscanned. Both are the same principle — **the block should contain exactly the claimed set, no more and no less** — and RC-8a/RC-8b should be designed against that sentence rather than separately.
+
+## 10. WHAT LANDED (s16b): `scripts/test_gate_rtcc_block_coverage.sh`
+
+The census as one command. Reproduces the inherited numbers **independently**: veneer 9+5 = **14** instructions/crossing (s13b), ROUND-TRIP `r8 r10 r11` = **3** (s14), plus RELOAD-ONLY `r9` (correct by H2) and WRITEBACK-ONLY `rax rcx rdx rsi rdi`.
+
+**It is SELF-ARMING, not permanently red** — a gate that is red at HEAD gets ignored or blocks commits. It WARNS while the GC gap is latent and turns **FAIL automatically** the moment an arg-tier register joins ROUND-TRIP. No future session has to remember §9; the tripwire arms itself.
+
+Positive controls: simulated arg-tier claim → GC tripwire fires `USE-AFTER-FREE`; the BOTH-MEDIUM check fired independently because the simulated claim touched TEXT only — the realistic shape of a half-claim.
+
+**Two instrument defects found and fixed BEFORE any number was trusted:** (a) v1 parsed the BINARY encoder's **comments** for register identity — grading documentation, not code, the s13b class exactly; fixed by parsing the TEXT encoders (real asm strings) and cross-checking BINARY structurally by instruction count. (b) v1 miscounted the `RTCC_GLOBAL_R9_GVA`-guarded store in both mediums, crediting `r9` as written-back when HEAD skips it, and raising a **false** BOTH-MEDIUM alarm — the s11 class. Reported because a gate's first census is exactly where the s11/s13b traps live.
+
+## 11. NEW LAWS
+
+- **KNOB ⇒ GUARD, ABI ⇒ SEAL** (§2). Guarding a constant whose partner is a hardcoded literal converts *silently ignored* into *silently half-applied*. The first yields two identical binaries — detectable as a null. The second yields a real but incoherent binary that **looks like a successful experiment**. That is strictly worse, and it inverts s12's "one-sided guard is worse than none": the correct completion is not to guard the rest, it is to classify them.
+- **A REGEN BILLS ITS DIFF TO WHOEVER RUNS IT, NOT WHOEVER CAUSED IT** (§5). Check any regen diff against your own rung's measured emission delta; if your rung is byte-neutral and the diff is not, the bytes are inherited and must be attributed by name.
+- **A COVERAGE CLAIM IS NOT A COVERAGE MECHANISM** (§9). "Registering the block is sufficient" was true of the *premise* (values do sit in the block) and false of the *mechanism* (`pin_add` never scans). When a comment asserts sufficiency, find the function that does the work and read it — sufficiency claims are where BLOCK-CANONICAL-style laws rot.
+- **PREFER A SELF-ARMING GATE TO A RED ONE** (§10). A gate that is red at HEAD is either ignored or blocks every commit. Encode the condition that makes the defect *live* and let the gate arm itself; the analysis then survives without anyone remembering it.
+- **A KILLED BACKGROUND BUILD READS AS A BROKEN HEAD** (§6). A backgrounded `make` is reaped when the tool call returns, leaving 0-byte objects; the next link failed `undefined reference to bb_assign_global[abi:cxx11]()` on a **clean clone at origin HEAD**. Check object sizes (`find out -name '*.o' -size 0`) before suspecting the tree.
