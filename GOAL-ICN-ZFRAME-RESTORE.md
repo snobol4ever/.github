@@ -1,10 +1,19 @@
 # GOAL-ICN-ZFRAME-RESTORE.md — Restore Icon to full glory on ZETA FRAMES (STACK); co-expressions stay PTHREAD
 
-## ✅ CONCURRENT WORK — COMMIT AND PUSH FREELY (Lon 2026-08-10 — SUPERSEDES the 2026-08-08 CONCURRENCY PROTOCOL, which is DELETED)
-**Any session may edit ANY file at ANY time, and push whenever it has something worth saving.** There is no routed window, no reserved file, no "not-concurrency-safe" rung, no concurrent set, and no waiting on another seat. Git merges; `git pull --rebase` before pushing and resolve conflicts normally. ⛔ **NEVER hold back a commit or a push on concurrency grounds, and never park work waiting for a window** — stranding has cost this project vastly more than merging ever has (s9/s10 lost two sessions of RTCC work; s19–s26 stranded eight sessions of MECH work and BUG-7 was re-derived from scratch). **Push early and often — mid-session, per rung — not only at session end.**
-Three things survive because they are about CORRECTNESS, not scheduling: (1) after a `git pull --rebase`, re-prove THIS file's gate/watermark — shared state can move under you; (2) push code repos before `.github`, so a FINDING never describes a tree that was not pushed; (3) `handoff_status.sh` verbatim is the only push truth. **Semantic collisions — two seats claiming one register, the r9/GVA class — are caught MECHANICALLY by `scripts/test_gate_rtcc_claimed_regs.sh`, not by scheduling. That gate is the replacement for the window, and it is why the window is no longer needed.**
+## ⚙️ CONCURRENT BY DEFAULT — AND THE REPOS MOVE UNDER YOU
 
-**CHARTER (Lon directive, 2026-08-07):** "Write up RUNGS and STEPS to accomplish restoring Icon to its full glory and using ZETA FRAMES on the STACK, and CO-EXPRESSION will remain a PTHREAD." Restore the anchor era's whole-graph ζ-frame regime for Icon graphs as code that fits the FOUR-ZETA-MODE system (GOAL-ZETA-FOUR.md) — a NEW GATED ARM, never a revert. SNOBOL4's per-BB cell regime is untouched and its invariance is a gate on every commit.
+**Many seats run this file's siblings at the same time. Edit any file, commit and push whenever a rung is buildable and green — mid-session, per rung. Never park work or decline an edit on concurrency grounds; stranding has cost this project far more than merging ever has.** Git merges; `git pull --rebase` and resolve normally.
+
+**⛔ ASSUME ORIGIN MOVED SINCE YOU LAST LOOKED.** Another seat may have landed in your exact files while you were reading them.
+- `git pull --rebase` before every push; **re-prove THIS file's gate/watermark after any rebase** — shared state moves under you and a watermark measured pre-rebase is void.
+- `git log origin/main..HEAD` at orientation AND before handoff. **A clean `git status` is NOT a clean tree** — it hides local commits a peer seat left in a shared working copy.
+- Place trees at canonical absolute paths (`/home/claude/{SCRIP,corpus,.github,x64}`) BEFORE running any gate: **many scripts grade a tree by absolute path.**
+- Prefer **one clone per seat**; two seats in one working copy silently overwrite each other's uncommitted edits, and a global gitconfig scrambles attribution.
+- Push **code repos before `.github`**, so no FINDING ever describes an unpushed tree.
+- Push needs a credential — **ask Lon in chat and wait.** Never write push status into a doc.
+- `bash scripts/handoff_status.sh` verbatim is the ONLY push truth. Not this file, not a commit message.
+
+**Semantic collisions (two seats claiming one register) are caught MECHANICALLY by the claim gates, not by scheduling.** That is why no window is needed.
 
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, added same day as carve)
 **`GOAL-ICN-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine (the SN4 ZD machinery completed for Icon — LVA locals as cells, GVA globals off-stack, suspension via pthread-stacks-or-pending-cells decided by measurement).** Lon: "We would have FRAMES on STACK and CELLS on STACK being developed simultaneously." BOTH KEPT, switch-selected (the ARCH-ICON two-backends precedent) until Lon picks a default. Rules of engagement, mirrored in both files: one graph is NEVER in both arms — the cells track's `SCRIP_ICN_CELLS=1` opt-IN suppresses `zframe_graph` at the SAME LOWER site R-ICN-A defines (its draft R-ZK-A; either side may renegotiate the selector shape WITH the other's file updated in the same commit); shared choke sites (`zd_*` one-authority lines, BLOB-GRANT block, staging choke) take ADDITIVE arms only; never edit the other track's arm; `=0`/unset identity is a completion criterion on every behavioral edit; SN4 byte-identity every commit (R-ICN-D, both tracks); `git pull --rebase` before every commit — .github now moves under THREE concurrent sessions, so expect this file itself to have changed. FR-1(f)'s bypass enumeration should treat cells-arm machinery (s211 `IR_TO`/LIT admissions, `6967f531`) as LIVE CONCURRENT WORK, not post-anchor rot. FR-7's GOAL-ICON-BB cursor rewrite must preserve that file's cells-track pointers.
@@ -40,155 +49,6 @@ Three things survive because they are about CORRECTNESS, not scheduling: (1) aft
 **NEXT SESSION STARTS HERE:** implement s16's FIX DIRECTION (key pending state by the generator's own activation; getter finds the record by `.fb == arg`). It is a **template-ABI rung, not a runtime patch** — call-site arity changes ripple through `bb_suspend.cpp` / `bcps_spine_gen_arm` / `xa_flat` epilogues + `rtx_icngen.S` veneers + `.s` regen; s141 append-only law applies to the pcall record. **Budget the whole session.** Test each of `recogn`/`cxprimes` against the pd/pb probes BEFORE billing it to this defect — `level` (s11: distinct rsp-drift-per-β), `prepro`, and `proc_lookup` (DC-stub double-execute) are explicitly NOT claimed.
 
 **⛔ ELEVATED — THE STALE-ASM-TAG CLASS IS NOW THREE-FOR-THREE, AND ONE IS STILL LIVE.** s15 fixed `DT_E` in `rtx_icncall.S`; s16 fixed `DT_S`/`DT_I` in `rtx_icnrel.S`; **`rtx_icnagg.S` and `rtx_icnsub.S` still carry `DT_DATA=100` (live `0x70`) — UNFIXED, shipping, and silently wrong by construction.** Every instance had the same shape: the RTX gate is ON by default, the asm arm mints or tests a descriptor with a pre-renumber tag, the C fallback is correct, and the optimisation silently corrupts. **The structural gap: `_Static_assert` in `rtx_init.c` cannot reach asm `#define`s, so nothing links the two spellings.** A generated single-source header (`descr.h` → `.inc`) or a build-time grep gate would have caught all three. Recommend this be raised to a RULES.md FACT RULE candidate alongside FR-6(c); s17 does not have Lon's signature to write one.
-
-## ⛔⭐ LIVE CURSOR — s15 (2026-08-09, Sonnet s15 — FR-5: two root causes fixed; watermark 243→246; SCRIP `f43989e0`)
-**NEXT RUNG = ICN-FR-5 (continuing — 7 in-scope fails remain).** Watermark at HEAD `f43989e0`: **m3 PASS=246 FAIL=17 XFAIL=30 TOTAL=293**. SN4 R-ICN-D: roman.sno md5 `e02da06b49f64c44168830cff34bba94` byte-identical with/without zframe. Repro quartet f0/f1/gen/fib ALL GREEN m3.
-
-**TWO ROOT CAUSES FIXED THIS SESSION (SCRIP `f43989e0`):**
-
-**BUG-1 FIXED — IR_CALL_VALUE drive never set g_emit.op_sval (emit.cpp).** Binary `!` (apply, `f![g]`) is lowered as `IR_CALL_VALUE` with `IR_LIT(nd).sval="apply"`. The `bb_call_value` template's `cv_is_apply()` routes to `rt_call_apply_spine_prep`/`rt_call_apply_gen_h` which correctly unpack the rhs list before calling the callee. But `g_emit.op_sval` was never set for IR_CALL_VALUE, so `cv_is_apply()` was always false and the apply path was dead. `f![g]![2]` silently failed. Fix: one line `g_emit.op_sval = IR_LIT(nd).sval` in the IR_CALL_VALUE drive case. Cured `rung36_jcon_{parse, lists, numeric}` (+3 PASS).
-
-**BUG-2 FIXED — DT_E = 11 in rtx_icncall.S (stale pre-s229 tag; live value 0x38).** RTX gate `icncall` is ON by default. The asm minted `rt_proc_value` descriptors with tag `0x0B` instead of `0x38`. `procval_name()` checks `v.v != DT_E (0x38)` and rejected every PROC_VALUE descriptor → every bare procedure reference typed as "string" → `type(g) == "string"` not "procedure". The C fallback was correct; the asm optimisation silently corrupted every proc-value. Fix: `#define DT_E 0x38` (cited descr.h line 58). The `_Static_assert` in rtx_init.c cannot reach asm `#define`s — this is the structural gap. Also updated rtx_abi.inc comment with live tag values and ⛔ warning. ⚠ rtx_icnrel.S DT_S=1/DT_I=6 and rtx_icnagg/icnsub.S DT_DATA=100 are also stale (live: DT_S=0x02, DT_I=0x03, DT_DATA=0x70) — left for their own goal sessions.
-
-**WATERMARK ANATOMY (s15; superseded by s17 — 16 FAILs = 10 die-list + 6 in-scope; distance to parity 5):** 17 FAILs = 10 die-list (out-of-scope) + **7 in-scope residual**. Distance to anchor parity: **6** (246+6=252).
-
-**7 IN-SCOPE FAILS (FR-5 remaining work queue):**
-- `rung36_jcon_recogn` — TIMEOUT (recursive suspend: `s()` calls itself inside suspend — MONITOR-FIRST gdb spin on `proc_s_α`)
-- `rung36_jcon_cxprimes` — 3L/25L: primes generator stops after 3 primes. Co-expressions + suspend shape.
-- `rung36_jcon_genqueen` — ⛔ **CORRECTED s16/s17: not "0L produces nothing" — rc=124 zero-output HANG, one-slot pending-generator clobber (pb4 shape). See s17 cursor.**
-- `rung36_jcon_level` — RUNAWAY 9M lines: `suspend E do write(&level)` infinite loop. Known s11 BUG-2 (rsp-drift per β iteration).
-- ~~`rung36_jcon_lexcmp`~~ — ✅ **FIXED s16 `4a5f8731`. s15's "pre-existing image() quoting, not a frame defect" was FALSIFIED** — it was stale `rtx_icnrel.S` tags DT_S/DT_I. Left visible as the standing caution against dismissive dispositions.
-- `rung36_jcon_prepro` — 28L/7L extra: `if s == &features` condition's else-branch fires for all features when `p` is null (preprocessor undefined-symbol interaction). MONITOR-FIRST.
-- `rung37_proc_lookup` — double-execute: fall-off-end proc called twice (DC stub β-resume). Pre-existing; verified unchanged pre/post this session. MONITOR-FIRST gdb on `proc_p_dcα`.
-
-**10 DIE-LIST FAILS (out-of-scope):** rung36_jcon_{args, endetab, fncs1, kwds, mathfunc, mindfa, scan, scan1, scan2, var} — pre-existing FZ-B/C/E jcon clusters in GOAL-ICON-BB FAIL-ZERO ladder.
-
-**⚠ STALE-LIBSCRIP_RT TRAP (s14 finding):** Running `make libscrip_rt` separately before `test_icon_all_rungs.sh` can leave a stale `.so` that causes SEGVs in real-arithmetic/records/builtins programs (rung15/17/18/19/24/26/29/31 all SEGV with wrong libscrip_rt). The suite runner rebuilds correctly; the individual `make libscrip_rt` call at session start may not. **Always verify with the full suite runner before diagnosing any new SEGV cluster.** The s13 commit itself is sound — a bisect to `96b3acd4` (s13's parent) showed the same 243/20/30 watermark; the apparent regression was entirely stale-.so artifact.
-
-**SESSION SETUP ADDENDUM:** After `make libscrip_rt`, run `timeout 30s ./scrip --run /home/claude/corpus/programs/icon/rung17_real_arith_real_add.icn < /dev/null` and verify output is `4.0` before proceeding — this is the canary for a stale runtime.
-
-## ⛔⭐ LIVE CURSOR — s13 (2026-08-08, Sonnet s13 — FR-5: r14-zero + DT_FAIL-iterate; SCRIP `a85b59cc`)
-**NEXT RUNG = ICN-FR-5 (continuing — jcon cluster + singles).** Watermark at s13 HEAD (`a85b59cc` on top of parallel `3c4f71b8`): **re-derive at next session open** (parallel session `3c4f71b8` already at PASS=242/FAIL=21/XFAIL=30; our two fixes add ≈+10 from the pre-`3c4f71b8` baseline of 235 — combined HEAD likely ≈252 or above, pending re-measurement). SN4 R-ICN-D: roman.sno md5 `9b29b397bf808c63e1ab46d2e3ac2f0b` byte-identical with/without s13 patch. Repro quartet f0/f1/gen/fib ALL GREEN m3.
-
-**TWO ROOT CAUSES FOUND AND FIXED THIS SESSION (SCRIP `a85b59cc`):**
-
-**BUG-1 FIXED — r14 uninitialized at zframe program entry (scrip.c).** `icn_zf_main_call` (m3) and the mode-4 thunk emitter both zero rsi/seed r12 but never zero r14. `bb_keyword_icon` reads `&pos` as `r14+1`, so programs read garbage `&pos` on entry (observed: 4296041 instead of 1). Fix: `xor r14d,r14d` added to both paths, gated `zframe_graph&&!icn_cells_graph`. SN4/Prolog unaffected by construction.
-
-**BUG-2 FIXED — bb_iterate hardcodes 99 for DT_FAIL (bb_iterate.cpp).** `DT_FAIL=0x68=104`. The `cmp64 rax,99` never matched, so `every c := !s do body` (string/list/table iteration with a do-body) looped infinitely after generating all elements — the exit branch was never taken. Fix: `(long)DT_FAIL`. This cured rung35_block_body_every_gen_block (now PASS), rung36_jcon_roman, queens, wordcnt, mffsol, record, sieve, and many others.
-
-**RUNG03/09/37 SUSPEND/GEN cluster:** Already PASS at HEAD from s12's `06ec302d` — no work needed. **rung35:** 8/8 PASS (was 7/8). **rung36:** 21 PASS / 24 FAIL (was 17/28 before DT_FAIL fix). XFAIL=30 matches anchor.
-
-**REMAINING in-scope failures (≤17 by pre-`3c4f71b8` count; re-derive):** rung36_jcon_{coerce(runaway),cxprimes,genqueen,level(runaway),lexcmp(quoting diff),lists,numeric(proc-lookup),parse(1-line short),prepro(wrong lines),recogn,scan,scan1,scan2,string1,subjpos(&pos/SEGV),substring,table} + rung37_{cset_ops,proc_lookup} + rung11_bang_augconcat_bang_concat. **Next priority: MONITOR-FIRST on rung36_jcon_parse (10 vs 11 lines — minimal diff, likely one missing output line from a construct).**
-
-## ⛔⭐ LIVE CURSOR — s11 (2026-08-08, Sonnet s11 — FR-5 WIP: zf_resume callee-flag fix + suspend-do-body recarve; SCRIP `77aa7119`)
-**NEXT RUNG = ICN-FR-5 (continuing — rung03_suspend_gen cluster).** Watermark: **m3 PASS≈219 FAIL≈44 XFAIL=30 TOTAL=293** (unchanged; gen.icn quartet GREEN, rung03 cluster still failing). SN4 R-ICN-D: roman.sno md5 `0e1300f5` byte-identical with/without session patch.
-
-**THREE BUGS FOUND AND PARTIALLY FIXED this session (SCRIP `77aa7119`):**
-
-**BUG-1 FIXED — zf_resume callee-flag (bb_call_proc_staged.cpp):** `zf_resume` was gated on `g_emit_cfg->icn_zframe_gen` (the **CALLER** graph's flag), which is 0 for `main()` and every non-generator caller. So even for Icon zframe generator calls, zf_resume was always false → push/jmp[rsp] spine path taken → β-resume jumped to the post-call landing instead of calling `rt_gen_get_cont`. Fix: new `zls_g_icn_zframe_gen_by_name()` (zeta_storage.c) looks up the **CALLEE's** icn_zframe_gen at emit time. MEASURED: `gen.icn` now outputs `1 2` (was `1` then hang). PL-ZD-WINDOW2-FIX preserved: Prolog graphs never set icn_zframe_gen so return 0.
-
-**BUG-2 PARTIALLY FIXED — suspend-do-body recarve (emit.h + emit.cpp + bb_suspend.cpp):** `suspend E do body` hangs after first yield. The statement's flat-plan uclaim (e.g. 160B for `upto()`) is carved at the statement head and freed at the suspend's γ-exit. On β-resume the do-body executes without the claim, then the loop-back re-enters `suspend_α` which does `add rsp,160` again — rsp drifts +160 per iteration. Fix: new `op_suspend_stmt_uclaim` field (s141 ABI law); staging twin `g_zd_suspend_uclaim` set in drive loop when `IR_SUSPEND + zframe_graph + icn_zframe_gen + g_suspend_dobody_beta`; applied at choke alongside ZD twins; `bb_suspend` β landing emits `sub rsp, op_suspend_stmt_uclaim` before jmp to do-body. `sub rsp, 160` confirmed in generated asm. rung03 still FAIL — interaction with the while loop / caller β-path still under investigation.
-
-**BUG-3 PARTIALLY FIXED — generator return (bb_return.cpp):** Generator `return e` must update `g_gen_pending_cont` to `proc_g_ω` before γ-exit, otherwise the caller's next β fires the stale prior suspend's continuation. `rt_gen_save_cont(lbl_t1 = flat_fail_p)` added.
-
-**NEXT SESSION: rung03_suspend_gen root cause.** With BUG-1 fixed, the β-resume now correctly calls `rt_gen_get_cont` → `proc_upto_β → jmp [rbp+192]`. The in-frame cont slot `[rbp+192]` holds `n6_suspend_β` (saved by `rt_gen_save_cont` in `bb_suspend`). The `sub rsp,160` at `n6_suspend_β` re-establishes the claim. The do-body executes, loops back to the while test, and the second `n6_suspend_α` fires `add rsp,160` + jmp γ. MONITOR-FIRST: use gdb spin-counter on `proc_upto_γ` to trace where the second iteration diverges. Suspects: (a) the `rt_gen_save_caller_rbp` global is not being refreshed between yields (the while loop doesn't re-save it), (b) the do-body somehow causes rsp to land wrong before the second γ, (c) the cont save in BUG-2 is still not reaching `rt_gen_get_cont` on the second call. Run `rung03_suspend_gen_compose` first (simpler shape).
-
-
-
-## ⛔⭐ LIVE CURSOR — s8 (2026-08-07, Sonnet s8 — FR-4 COMPLETE: gen_simple.icn + gen.icn GREEN both modes)
-**NEXT RUNG = ICN-FR-5 (full-suite ratchet toward anchor parity).** Watermark: **PASS=192 FAIL=11 XFAIL=0 TOTAL=225** (partial run — suite cut short by 90s wall; rung03_suspend_{gen,gen_compose,gen_filter,return} still FAIL = pre-existing work queue, not regressions; rung01_paper_to_by new failure — monitor-first). f0/f1/fib/gen_simple/gen GREEN both modes m3+m4.
-
-### FR-4 ROOT CAUSE — FULLY RESOLVED (three layers, all fixed this session s8)
-
-**Architecture:** The zframe generator's frame `[generator_rbp..entry_rsp)` is fully exposed to the caller's C-call stack after the first γ-yield (`lea rsp,[rbp+kt]` unwinds to entry_rsp). Any C call from the caller's frame can clobber generator frame slots. This rules out ALL in-frame slot storage for data that must survive across yields.
-
-**Layer 1 — missing `generator_rbp` in rax at L(3):** The γ epilogue must pass `generator_rbp` in rax to the L(3) landing (which saves it to `FRQ(act+8)` for β-resume). Without `mov r14,rbp` before rbp-restore, rax held the yield value at L(3) → garbage saved as generator_rbp → β-resume jumped through address 1 → SEGV.
-
-**Layer 2 — continuation pointer `[generator_rbp+cont_off]` clobbered:** The caller's C-calls (write() → rt_call_arr → its callees) push stack frames into `[generator_rbp..entry_rsp)`, overwriting `[generator_rbp+32]` (the continuation slot). β-resume `jmp [rax+32]` → jumped to 0 → SEGV.
-
-**Layer 3 — caller_rbp `[generator_rbp+kt-8]` and γ/ω wires clobbered:** Same mechanism clobbers the wire header slots.
-
-**Fix:** Save all generator state that must survive yields in the heap-allocated pcall record (`g_pcall[]` array) and dedicated globals — both immune to caller stack expansion:
-- `rt_gen_save_caller_rbp` / `rt_gen_get_caller_rbp` — `g_gen_pending_caller_rbp` global (set in prologue, read by γ/ω epilogues)
-- `rt_gen_save_wires` / `rt_gen_get_{gamma,omega}_wire` — wire globals (set in prologue before any yield, read by epilogues using callee-saved r15 to survive the `rt_gen_get_caller_rbp` call)
-- `rt_gen_save_cont` / `rt_gen_get_cont` — `g_gen_pending_cont` global (set by bb_suspend before each yield, read by β-resume via `rt_gen_get_cont`)
-- yield value read from `FRQ(0/8)=[generator_rbp+0/8]` (written by bb_suspend before γ, not clobbered before epilogue reads it)
-- generator_rbp saved in callee-saved `r14` to survive C calls in epilogue
-
-### FR-4 THREE-LAYER ROOT CAUSE — layers 1+2 fixed, layer 3 active
-
-**Layer 1 FIXED — Wrong β trigger**: The β arm now does `rt_gen_get_fb → generator_rbp; mov rbp,rax; mov rsp,rax; jmp [rax+cont_off]` where cont_off = zls_g_resume_by_name(callee) at emit time. The generator_rbp is saved to FRQ(act+8) at L(3) from the epilogue's rax (no stack-based call needed).
-
-**Layer 2 FIXED — Wrong rdi:rsi in γ epilogue**: xa_flat_zframe_epilogue_γ now loads `rdi=[rbp+0]; rsi=[rbp+8]` (FRQ(0/8) = yield value stored by bb_suspend) instead of stale rax:rdx. Also adds `mov rax,rbp` before rbp-restore to pass generator_rbp to L(3) in rax. L(3) stores it to FRQ(act+8) call-free.
-
-**Layer 3 ACTIVE — old_rbp header clobber**:
-Generator's prologue stores caller_rbp at `[entry_rsp - 8]` = `[rbp + kt - 8]` (the stack header). Between the first yield and the β-resume, the caller executes write() → rt_call_arr. The `call rt_call_arr` pushes its return address to `[stmt_claim_rsp - 8]` = `[entry_rsp - 8]` = **the old_rbp slot**, permanently corrupting it. When β-resume fires proc_g_ω → `mov rbp, [rbp+kt-8]` reads garbage → SEGV.
-
-**Evidence**: gen_simple.icn (single suspend) prints "1" then SEGVs. Root cause confirmed by tracing: write(1) call at stmt_claim_rsp pushes return addr to [entry_rsp-8] = old_rbp slot.
-
-**Attempts and why they failed**:
-- `sub rsp, 8` guard: rt_call_arr's return address still hits old_rbp at [entry_rsp-16]
-- `sub rsp, 16` guard: same problem, just one level deeper
-- Relocate old_rbp to [rbp+kt-32]: still only 32 bytes from entry_rsp; rt_call_arr frame (≥32 bytes on -O0) reaches it. Also broke fib (layout change propagated to non-generator γ epilogue).
-
-**CORRECT FIX (not yet implemented)**:
-Save caller_rbp while rsp is still in the FORTH stack zone (deep below entry_rsp), where C calls can't reach the header. Two-step in xa_flat_zframe_epilogue_γ:
-1. BEFORE `lea rsp,[rbp+kt]` (while rsp is safely deep in FORTH stack): call `rt_gen_get_caller_rbp()` → rax; `mov r8, rax`
-2. AFTER: `lea rsp,[rbp+kt]; mov rcx,[rbp+kt-24]; mov rbp,r8; jmp rcx`
-
-Requires storing caller_rbp somewhere safe. Options:
-- A) In the generator's prologue, call `rt_gen_save_caller_rbp(old_rbp)` which stores in a parallel array (like g_pcall_wires). The prologue runs at a safe rsp depth.
-- B) Repurpose pcall.rname (pointer field, offset 8) — currently holds proc name, but could hold caller_rbp during the generator's active span. `rt_gen_save_caller_rbp(rbp)` at prologue, `rt_gen_get_caller_rbp()` in epilogue.
-- C) Callee-saved register r15 (check if GVA uses it — see g_gva_active in emit.h). Prologue saves caller_rbp to r15; epilogue reads r15.
-
-**Recommended option B** (pcall.rname repurpose): minimal change, no struct size change, the rname field isn't needed after proc registration.
-
-### Implementation Plan for Layer 3
-
-1. In `rt.c`: add `void rt_gen_save_caller_rbp(void *rbp)` → `g_pcall[top-1].rname = (const char *)rbp`
-2. In `rt.c`: add `void *rt_gen_get_caller_rbp(void)` → `return (g_pcall_top > 0) ? (void *)g_pcall[g_pcall_top-1].rname : NULL`
-3. In `rtx_icngen.S`: add RTX wrappers (delegate to C twins)
-4. In `xa_flat.cpp`: revert old_rbp back to `[rbp+kt-8]` (restore pre-session layout for fib fix). Change epilogue γ/ω to call `rt_gen_get_caller_rbp` before `lea rsp,[rbp+kt]`. Use r8 as temporary.
-5. In `xa_flat.cpp`: in generator prologue, after `mov rbp, rsp`, call `rt_gen_save_caller_rbp([rbp+kt-8])`.
-6. Test: gen_simple.icn green, gen.icn green, fib green, full suite ≥ FR-3 watermark.
-
-### Key WIP Commits
-- `fba93a77` — FR-4 WIP (Layers 1+2 fixed, Layer 3 broken)
-- `996bcfe9` — Merge of remote ZK-4/ZD-5b work with WIP
-
-### FR-3 COMPLETE — criteria re-read and met
-ICN-FR-3 criteria: f1 AND fib green both modes (recursion proves per-activation frames) · Error 18 extinct · SN4 held.
-- **mode-3:** f0 ✅ f1 ✅ fib ✅. **mode-4 (--compile + as + gcc):** f0 ✅ f1 ✅ fib ✅. Error 18 gone from all three.
-- SN4 proven by direct byte comparison at two bases, 318/318, md5 `47ef94a6a76f53503e0c9f49bb41b26c`.
-- ICN-FR-3 rung box may be checked.
-
-### FR-4 ROOT CAUSE — FULLY DIAGNOSED (do the fix next session)
-**The `bcps_spine_gen_arm` template (`bb_call_proc_staged.cpp:534`) places NO resume landing word on the spine.**
-
-The GENP-SPINE protocol comment says `"jmp qword [rsp] (the record's landing word sits AT the frontier by LIFO balance"`. That law was derived for the per-BB FORTH-spine model where each activation allocates 16B and `[entry_rsp]` holds a placed landing word. **The zframe prologue does `sub rsp,kt` (a whole-frame allocation), not per-BB cells.** After γ-retain (the generator's `xa_flat_zframe_epilogue_γ` runs `lea rsp,[rbp+kt]`), the restored rsp equals the generator's entry rsp. `[rsp]` at that point is whatever data was at the TOP of the CALLER's spine — NOT a code pointer. So `jmp [rsp]` at the β resume site jumps to a data word → SEGV.
-
-**The fix (FR-4 work):** At the generator call site (β re-entry arm in `bcps_spine_gen_arm`), push an explicit resume landing word onto the caller's spine **before** the first call into the generator. The landing is a pointer to `L(3)_resume_entry` (the β path's actual re-entry point after `rt_gen_spine_resume_enter`). Shape:
-```
-; α call path — before rt_proc_call_open_det:
-lea  rax, L(3_landing)      ; address of the resume entry
-push rax                    ; push landing word AT [rsp] where γ-retain will leave it
-; ... rt_proc_call_open_det ...
-; γ-retain unwinds to entry_rsp, finds [rsp] = landing address; β restore: mov rsp,FRQ(act+8)+add 8 (pop the landing); jmp L(3_landing)
-```
-Alternatively — and cleaner for the zframe model — **skip `jmp [rsp]` entirely** and jump directly to L(3_landing) from the β arm, using `FRQ(act+8)` only to verify the saved-rsp invariant. The resume protocol for zframe does not need an RSP-based dispatch because rbp is pinned and depth-immune; the β re-entry can be a direct `jmp L(3)` with `mov rsp,FRQ(act+8)` still restoring the FORTH frontier before the re-entry.
-
-**Gate: zframe graphs only.** `g_emit.zframe_graph` gates every change; the cells arm and SNOBOL4/Prolog paths are byte-identical.
-
-### CROSS-TRACK: vslot override DELETED (from s5 notes)
-The param/local vslot override in `ir_drive_slot_assign` is DELETED at `fcbb75b7`. Two prior cursor claims are FALSIFIED — do not re-implement them:
-1. "ZLS vslots are FORTH-spine offsets" — FALSE. ZLS grants flat-frame offsets, correct under the pin.
-2. "anonymous producers need rbp-relative `bb_slot_register` calls" — wrong premise, and the until2/rung09 garbage is a β re-entry defect (FR-4), not a base mismatch.
-
-### HARNESS FACT
-Feed `.stdin` files + `cd` to program dir (mirrors `test_icon_all_rungs.sh:89-97`). Never run two suites concurrently.
-
-### 43 PROGRAMS TO ANCHOR PARITY (217 + 43 = 252)
-In-scope residue by failure mode: SEGV(10) HANG(13) WRONG(10) EMPTY(10) — classified in s5 cursor, all generator/resume-shaped. FR-4's work queue is the SEGV list: rung03_suspend_{gen,gen_compose,gen_filter,return} rung09_loops_{repeat_counter,until_gen} rung36_jcon_{cxprimes,genqueen,level} rung37_subscript_genproc.
 
 ## THE ANCHOR — VERIFIED FACTS (measured 2026-08-07; do not re-litigate these; DO re-derive all HEAD numbers)
 - **Anchor of record: SCRIP `8d0665c8`** — "FLATDISP-8 (s197): frame base follows the rbp pin — Icon 236→250, SNOBOL4 221/219→295/294" (2026-07-28, ON ORIGIN, message carries its own proof per the COMMIT-SELECTION LAW).
@@ -246,17 +106,11 @@ fib.icn: procedure fib(n); if n < 2 then return n else return fib(n-1) + fib(n-2
 
 ## RUNGS (stop at first `- [ ]`; every rung ends committable + watermark-proven; R-ICN-D SN4 proof on EVERY commit)
 
-- [x] **ICN-FR-0 ANCHOR VERIFIED.** ✅ 2026-08-07 — everything in THE ANCHOR block above; worktree built; suite 252/11/30; repro trio green; mechanics read off the tree.
-
-- [x] **ICN-FR-1 EXTRACT-ICN-FRAME.md (archaeology only).** ✅ s0 2026-08-07 — all 7 rows (a–g) inventoried inline during FR-2 implementation. Key findings: (a) prologue NEW-ARM; (b) emit_jmp_pin_rbp zframe_graph SUBSUMES flat_lcl_proc; (c) CLASS ZF ledgered; (d) param-landing slot-layout mismatch found (deferred FR-3); (e) ir_drive_slot_assign coverage confirmed; (f) ZD bypass via separate flag; (g) CLASS ZF direct wire-read epilogue.
-
-- [x] **ICN-FR-2 THE GRAPH-FRAME REGIME RETURNS (gated, both media).** ✅ COMPLETE s1 `bcf05d33` — f0+f1+fib GREEN m3. Icon 188/75/30 (+23 PASS from 165). SN4 R-ICN-D byte-identical. ZD exclusion for zframe graphs. dc stub: r10 arg-ptr save, [r10+0] load, flat_lbl_α text target. gamma epilogue: mov rdi,rax; mov rsi,rdx. rt_icn_zframe_args_install() new. lbl_α binary-mode define. SCRIP_ICN_ZFRAME=0 reverts.
-  (Duplicate FR-1/FR-2 spec bodies pruned s9 — merge debris from parallel doc edits; the [x] one-liners above are the record, full text in git ≤ `912a0644`.)
-
-- [x] **ICN-FR-3 WIRE EXIT VIA THE FRAME HEADER.** ✅ COMPLETE s2+s5 — `76287768` (dc-stub caller-save + alignment, 188→195) + `fcbb75b7` (vslot-override DELETE, 206→217; the two falsified claims recorded in CROSS-TRACK note). Criteria met per s8 cursor: f1 AND fib green both modes (recursion proves per-activation frames) · Error 18 extinct on the quartet · SN4 318/318 byte-identical md5 `47ef94a6`.
-
-- [x] **ICN-FR-4 GENERATORS ON-SPINE.** ✅ COMPLETE s8 — gen_simple.icn + gen.icn GREEN both modes m3+m4. Root cause: three-layer clobber bug (see LIVE CURSOR above). Fix: heap-allocated pcall globals for all generator-suspended state. rung03_suspend_gen* still FAIL (pre-existing: suspend-with-body `lbl_t0` re-loop path, not touched by this rung). rung36_gens floor not yet re-proven (FR-5 scope). SN4 held: corpus m3 PASS=287/FAIL=49, m4 PASS=273/FAIL=57 (pre-existing failures only).
-
+- [x] DONE — ICN-FR-0 ANCHOR VERIFIED
+- [x] DONE — ICN-FR-1 EXTRACT-ICN-FRAME
+- [x] DONE — ICN-FR-2 THE GRAPH-FRAME REGIME RETURNS (gated, both media) (bcf05d33)
+- [x] DONE — ICN-FR-3 WIRE EXIT VIA THE FRAME HEADER (76287768)
+- [x] DONE — ICN-FR-4 GENERATORS ON-SPINE
 - [ ] **ICN-FR-5 FULL-SUITE RATCHET TO ANCHOR PARITY.** ⬅ NEXT. Run `test_icon_all_rungs.sh`; hunt each residual MONITOR-FIRST (gdb spin-counter; never print-scatter). Target: **PASS ≥ 252 with residual FAIL ⊆ the anchor die-list above** — those 11 are pre-existing jcon defects owned by GOAL-ICON-BB's FAIL-ZERO, out of this ladder's scope. **The s9 cursor carries the classified 34-program in-scope queue (218+34=252 exact); start at rung01_paper_to_by (NEW at s8), then the SUSPEND/GEN 8.** Completion: watermark recorded in the cursor; one-line disposition per residual failure.
 
 - [ ] **ICN-FR-6 GATES + PROCESS.**

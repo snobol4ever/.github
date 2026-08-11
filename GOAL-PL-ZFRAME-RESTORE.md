@@ -1,10 +1,19 @@
 # GOAL-PL-ZFRAME-RESTORE.md — Restore Prolog to full glory on ZETA FRAMES (STACK)
 
-## ✅ CONCURRENT WORK — COMMIT AND PUSH FREELY (Lon 2026-08-10 — SUPERSEDES the 2026-08-08 CONCURRENCY PROTOCOL, which is DELETED)
-**Any session may edit ANY file at ANY time, and push whenever it has something worth saving.** There is no routed window, no reserved file, no "not-concurrency-safe" rung, no concurrent set, and no waiting on another seat. Git merges; `git pull --rebase` before pushing and resolve conflicts normally. ⛔ **NEVER hold back a commit or a push on concurrency grounds, and never park work waiting for a window** — stranding has cost this project vastly more than merging ever has (s9/s10 lost two sessions of RTCC work; s19–s26 stranded eight sessions of MECH work and BUG-7 was re-derived from scratch). **Push early and often — mid-session, per rung — not only at session end.**
-Three things survive because they are about CORRECTNESS, not scheduling: (1) after a `git pull --rebase`, re-prove THIS file's gate/watermark — shared state can move under you; (2) push code repos before `.github`, so a FINDING never describes a tree that was not pushed; (3) `handoff_status.sh` verbatim is the only push truth. **Semantic collisions — two seats claiming one register, the r9/GVA class — are caught MECHANICALLY by `scripts/test_gate_rtcc_claimed_regs.sh`, not by scheduling. That gate is the replacement for the window, and it is why the window is no longer needed.**
+## ⚙️ CONCURRENT BY DEFAULT — AND THE REPOS MOVE UNDER YOU
 
-**CHARTER (Lon directive, 2026-08-07):** Restore Prolog to where it was — `benchmarks/prolog/bench/` 22/22 both modes — using ZETA FRAMES on the STACK, as code that fits the FOUR-ZETA-MODE system (GOAL-ZETA-FOUR.md): **a NEW GATED ARM, never a revert** of the carve-kill commits. Mirror of `GOAL-ICN-ZFRAME-RESTORE.md` (read it first every session — its rungs, armor, and rulings are the template; only Prolog-specific facts live here). SNOBOL4 AND Icon byte-identity is a gate on every commit.
+**Many seats run this file's siblings at the same time. Edit any file, commit and push whenever a rung is buildable and green — mid-session, per rung. Never park work or decline an edit on concurrency grounds; stranding has cost this project far more than merging ever has.** Git merges; `git pull --rebase` and resolve normally.
+
+**⛔ ASSUME ORIGIN MOVED SINCE YOU LAST LOOKED.** Another seat may have landed in your exact files while you were reading them.
+- `git pull --rebase` before every push; **re-prove THIS file's gate/watermark after any rebase** — shared state moves under you and a watermark measured pre-rebase is void.
+- `git log origin/main..HEAD` at orientation AND before handoff. **A clean `git status` is NOT a clean tree** — it hides local commits a peer seat left in a shared working copy.
+- Place trees at canonical absolute paths (`/home/claude/{SCRIP,corpus,.github,x64}`) BEFORE running any gate: **many scripts grade a tree by absolute path.**
+- Prefer **one clone per seat**; two seats in one working copy silently overwrite each other's uncommitted edits, and a global gitconfig scrambles attribution.
+- Push **code repos before `.github`**, so no FINDING ever describes an unpushed tree.
+- Push needs a credential — **ask Lon in chat and wait.** Never write push status into a doc.
+- `bash scripts/handoff_status.sh` verbatim is the ONLY push truth. Not this file, not a commit message.
+
+**Semantic collisions (two seats claiming one register) are caught MECHANICALLY by the claim gates, not by scheduling.** That is why no window is needed.
 
 ## ⛔ CONCURRENT TWIN TRACK (Lon directive, 2026-08-07, same day)
 **`GOAL-PL-ZETA-CELLS.md` walks the OTHER embodiment SIMULTANEOUSLY: 100% per-BB ζ CELLS on the RSP FORTH spine.** Lon: same two-track shape as Icon — FRAMES on STACK and CELLS on STACK developed simultaneously, BOTH KEPT, switch-selected until Lon picks a default. Rules of engagement mirrored from the Icon pair: one graph NEVER in both arms (the cells track's opt-IN suppresses the zframe stamp at the SAME LOWER site this file's R-PL-A defines); shared choke sites (`zd_*` one-authority lines, staging choke, xa_flat arms) take ADDITIVE arms only; `=0`/unset identity is a completion criterion on every behavioral edit; `git pull --rebase` before every commit — FIVE-plus concurrent tracks now share this emitter (SN4 MECH/CLIMB, ICN ZFRAME/CELLS, PL ZFRAME/CELLS).
@@ -39,8 +48,6 @@ Three things survive because they are about CORRECTNESS, not scheduling: (1) aft
 2. Decompose the 11 failures by feature: run each, bucket by first divergence (disjunction / cut / assert / arity). `bt_minimal.pl` (`main :- color(X), write(X), nl, fail ; true.`) is the disjunction reproducer from FINDING-PL-FR4-RETRY-STACK.md.
 3. Land the FINDING's one-line change set (α-label retry via `lbl_t1`, `rt_pl_retry_push/pop` emitter arms in `bb_move_label`/`bb_indirect_goto`) — re-read its "Correct fix" section first; the runtime half already exists in rt.c.
 4. SN4+ICN byte-identity before every behavioral commit. Target 15+/22 both modes.
-
-
 
 ## ⛔⭐ LIVE CURSOR — s14 (2026-08-09, Sonnet 4.6 — ROOT CAUSE FOUND; FIX COMMITTED; NEXT = RE-DERIVE WATERMARK)
 
