@@ -50,9 +50,13 @@ The cursor's blast-radius line records *"DIVERGE both modes: calculator-1-match/
 
 ---
 
-## 4. `json` IS NOT A CRASH PROGRAM PRE-DELETE — IT IS A SLOW ONE
+## 4. `json` IS NOT A CRASH PROGRAM PRE-DELETE — IT IS A SLOW ONE, AND IT **CANNOT BE REDUCED BY TRUNCATION**
 
-At `930539c0`, `json-match` m3 **exceeds 110 s** while the sbl oracle finishes inside it (620 KB `twitter.json`). It does not SEGV there. At HEAD the cursor records rc=139. So json's HEAD crash is plausibly DEL-T1's, but its **pre-delete state was never IDENT-verified by anyone** — the board's 300 s default TMO hides the cost, and every board number that included json bought it with wall clock nobody itemised. ⛔ **Do not bank json in either direction without a timed run.** A cheaper witness than 620 KB is owed, exactly as the 327 B treebank input was minted for FF-0.
+At `930539c0`, `json-match` m3 **exceeds 110 s** while the sbl oracle finishes inside it (620 KB `twitter.json`). It does not SEGV there. At HEAD the cursor records rc=139. So json's HEAD crash is plausibly DEL-T1's, but its **pre-delete state was never IDENT-verified by anyone** — the board's 300 s default TMO hides the cost, and every board number that included json bought it with wall clock nobody itemised.
+
+⛔ **THE OBVIOUS REDUCTION DOES NOT WORK — MEASURED, SO NOBODY REPEATS IT.** `json-match.ref` is **21 bytes**: the program emits ONE end-of-run summary, not per-record output. `twitter.json` is a single pretty-printed object (15,481 lines), so **every truncation is malformed**, the top-level match fails, and BOTH engines emit ZERO bytes. A 1,500-line slice duly scores **IDENT — vacuously, empty vs empty.** ⭐ **That is the same false-pass shape this finding warns about for calc-2, and here it is armed and live: a differential harness that grades by `cmp` alone will report a reduced json witness GREEN while proving nothing.** Any json gate must assert **non-empty output** before it may score IDENT.
+
+⇒ The cheap witness json still owes is a **SYNTHESIZED well-formed small object** (a handful of complete `statuses` entries with the enclosing structure intact), **not a slice**. Until it exists, do not bank json in either direction.
 
 ---
 
