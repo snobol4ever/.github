@@ -38,6 +38,9 @@ One-line gated probe (`SCRIP_RECFB_RSP=1`): `emit_rec_pin()` stops claiming a re
 ## ⭐ THE RUNG (small, named, NOT started — deliberately not half-landed at end-of-context)
 **RECORD-PROTOCOL DE-RBP:** route the three CLASS-D record sites off `rbp` and onto the activation header via `g_zctx[1]`, the base the `res` stub ALREADY restores (`pop rax; g_zctx[1]=rax`) and that scanhit/scanfail/γ/ω ALREADY read. The idiom is in-tree verbatim (`mov rdx,[rip+g_zctx@GOTPCREL]; mov rdx,[rdx+8]; …[rdx+16]`). Then `emit_rec_pin()` drops the `heap_fb_adopt` disjunct for `flat_pat`, and `SCRIP_FB_DIVERGE` TOTAL goes to 0 on the witness — **the gate is the instrument, mechanically checkable.** Killswitch `SCRIP_RECFB_ZCTX`. BOTH MEDIA (TEXT + BINARY twin, per the FLATDISP-5c lesson). This is the ZCTX conversion s37(A)/`0970838f` began and left half-done: it converted the RESTORE side and not the READER side.
 
+## ⛔ LON RULING 3 — g_zctx IS DELETED, NOT ADOPTED
+The rung this FINDING names ("route the record sites onto g_zctx[1]") is SUPERSEDED same-day: no globals for one-shot/pass-thru glue. Wires = R10(γ)/R11(ω) live registers (LADDER WREG); suspension records carry the wires; scanfail retry rides the spine record + drain-law composition; r13–r15 callee-saved across C, bracketed only at defer-eval and FUNCTION boundaries. Full map + gates: GOAL-PASSTHRU-RBP-ERAD.md RUNG WREG-COMPLETE. The g_zctx idiom praised below is retained as EVIDENCE of the reader set to convert, not as a destination.
+
 ## METHOD (reusable)
 - JIT-slab breakpoints: plant only AFTER emission completes (first-hit on a MATCH-time rt symbol, e.g. `rt_defer_get_pat_fn`), never at registration time — the emitter overwrites earlier-planted INT3s (measured: zero hits, crash 4 bytes past the trap).
 - Slab addresses are stable across gdb runs in this container — cross-run address reuse is sound.
