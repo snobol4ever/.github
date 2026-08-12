@@ -76,7 +76,7 @@ m2 `--run` is deleted (GOAL-DE-INTERP); suite reports phantom m2 FAILs — **ign
 
 ## BB / Byrd-Box discipline
 
-**ALL temporaries and local allocation storage in BB templates must use `DESCR_t` (16-byte frame slots).** No raw int/pointer spills to the frame — every slot is a full `DESCR_t` claimed with `bb_slot_claim(16)`, addressed as `FRQ(slot)` (low 8) + `FRQ(slot+8)` (high 8). This ensures DESCR_t-clean frame layout and will support cross-language BB interfacing. Exception: SNOBOL4 pattern-match BBs use sub-16 `x86_scratch_off` for internal counters — those are a separate discipline and not touched here.
+**ALL temporaries and local allocation storage in BB templates must use `DESCR_t` (16-byte frame slots).** No raw int/pointer spills to the frame — every slot is a full `DESCR_t` granted by the emitter's staged slot authority (`drive_value_slot`; ⛔ FACT FIX 2026-08-12: `bb_slot_claim(16)` was DELETED 2026-07-02 — templates consume `_.x86_scratch_off`, never allocate), addressed as `FRQ(slot)` (low 8) + `FRQ(slot+8)` (high 8). This ensures DESCR_t-clean frame layout and will support cross-language BB interfacing. Exception: SNOBOL4 pattern-match BBs use sub-16 `x86_scratch_off` for internal counters — those are a separate discipline and not touched here.
 
 **`DESCR_t` layout:** `{DTYPE_t(4)+slen(4) | int64/ptr(8)}` — passed/returned as **rdi:rsi** (args) / **rax:rdx** (return). The high 8 bytes are INTEGER-class even when holding a `double`.
 

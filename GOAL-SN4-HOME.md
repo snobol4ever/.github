@@ -46,6 +46,12 @@ The triage was not waste — Lon's s43(1) ruling confirms it WAS the prerequisit
 5. **RBX X-2 (8 sessions unseated) · X-4 (5 sessions L-2-blocked)** — staff or park, explicitly.
 6. **Ratify or strike the STREAK BREAKER above.**
 
+## ⛔⭐⭐⭐ EXECUTION MODEL SUPERSEDED — SOLO OPERATOR (Lon in-chat, 2026-08-12 evening; overrides the FIRE-AND-FORGET block below)
+
+**Lon verbatim in substance:** *"You must now take in all the work of all the GOALS. Do not move anything physically, but you are the ONE and ONLY operator now. You are unable to work concurrently, so now you are SOLO."*
+
+⇒ **ONE live session, period. The five-seat concurrent model is TERMINATED as scheduling.** Nothing moves physically: every seat file stays exactly where it is and keeps its ladder, cursor, and laws. The solo operator walks ALL of them — orientation reads every LIVE CURSOR, then executes the highest-value unblocked rung on the whole board (at this ruling: **RBP-EARN EARN-0**, unblocked s45b). What survives from the block below because it is CORRECTNESS, not scheduling: `git pull --rebase` + re-prove after rebase (Lon may still push) · BY SET · push per rung · TOOLING FIRST (`install_system_packages.sh`, gdb liveness) · the STALENESS LAW · `UNBLOCKS:` lines (now notes-to-self across seat files). What is DEAD: the one-session-per-seat invariant, claim races, and every instruction that assumes another seat is running. The LON QUEUE's staffing items (RBX X-2/X-4) route to the solo operator by definition. The STREAK BREAKER (proposed above) matters MORE solo — there is no peer seat left to catch a stalled inheritance.
+
 ## ⛔⭐⭐⭐ EXECUTION MODEL — FIRE-AND-FORGET (s32; RULES 2026-08-10 applied to this plan: no windows, no waiting, no human scheduling. Supersedes every "solo" / "‖" / "SERIAL, one seat at a time" reading below.)
 
 **LON'S ENTIRE JOB: keep FIVE sessions alive, ONE PER SEAT FILE, re-fired with the same line whenever one ends. Nothing else — no who/what/when decisions. The files route the work.**
