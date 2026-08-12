@@ -43,6 +43,14 @@ crosscheck/patterns + probe BY SET vs P0 floors, both modes · monitor divergenc
 
 **UNBLOCKS:** LOWER L-3 (three classes separated, board + reproducers now PERSISTED rather than container-local). BOARD B-0 still owns the m4 arm — **both LOWER boards are m3-only; their m4 arms are UNMEASURED, not green.**
 
+
+### ⭐ CONCURRENT SEAT NOTE (s34) — ⛔ TWO SESSIONS WERE LIVE IN THIS FILE AT 14:31 (the s38b race; the plan's ONE INVARIANT).
+s33b landed `eb735a3f` + corpus `7045b2ea` mid-session while s34 was measuring. **VERIFIED: no work was lost** — all 8 of
+s33b's cursor lines survive above, and its FINDING (…CAPTURE-DELTA0-BLAST-RADIUS-IS-TWO-OF-NINE…) is untouched.
+The two halves are COMPLEMENTARY, not duplicate: s33b = CAPTURE, s34 = SPLICE. Both independently measured 2-of-9,
+which is the duplicated spend the invariant exists to prevent. ⛔ Lon: LOWER has two seats — retire one.
+⚠️ BOTH sessions minted a FINDING dated `2026-08-12d`; the two files differ by title and both are kept.
+
 ---
 ### s33 record (retained — L-0's floor and its instrument stand unchanged)
 
