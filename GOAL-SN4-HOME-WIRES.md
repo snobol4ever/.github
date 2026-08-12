@@ -6,8 +6,8 @@
 - [ ] **W-0 · CLAIM SWEEP, HONEST.** r10/r11 usage census across templates + emit.cpp + **RTX hand asm + raw-byte encoders** (grep is insufficient — objdump the emitted slab too). With BOARD: claim gate becomes data-driven {rbx r9 r10 r11 r12 …} + `--strict` (today: r9-only, informational — a hole MECH documented).
   - **RTX ASM HALF: ✅ DONE** (2026-08-12, Sonnet 5) — 223/223 occurrences across all 10 `.S` files hand-classified; 193 SN4-reachable, 30 confirmed-excused; 6 named idioms, no 7th. `FINDING-2026-08-12h-…`. **No further RTX census is owed.**
   - **TEMPLATE HALF: mapped** by s33/s34/s35 (FINDING-12f structural, -12g reachability, 2026-08-11d ERAD ladder). Do NOT re-derive a fourth time.
-  - ⛔ **RAW-BYTE HALF: STILL UNOPENED, AND THE GATE IS BLIND TO IT — see the s35+ RAW-BYTE BLIND SPOT block in the cursor.** This is the one part of the rung's own text ("objdump the emitted slab too") no session has done.
-  - **REMAINING TO CLOSE W-0:** the whitelist-policy decision (Lon) + the raw-byte sweep. Not another count.
+  - **RAW-BYTE HALF: ✅ DONE** (2026-08-12, Sonnet 5, continuation session) — objdump'd the ACTUAL mode-3 runtime slab (not source bytes) across 46 sealed graphs / 17 programs chosen to stress CLASS-D/DEFER/ARBNO-recursive traffic. Every r10/r11-touching instruction in ~174KB of real emitted code reduces to 14 distinct shapes, all classifying into exactly two mechanisms: CLASS-D wire glue (already licensed) or RTCC veneer (`x86_asm.h`, not yet whitelisted). No third mechanism found. One dead decode arm caught by caller-tracing: `x86_store_cursor_mirror()`/`XK_R10MIR` in `x86_asm.h` has zero live callers (the one caller that could reach it, `xa_flat.cpp:249`, deliberately routes around it — its own comment says why). `FINDING-2026-08-12j-…`. Reusable gdb-dump-and-objdump method recorded in the finding, not yet a checked-in gate.
+  - **REMAINING TO CLOSE W-0:** the whitelist-policy decision (Lon) — data is now complete on both halves; nothing left to sweep, only to decide.
 - [x] **W-1 · ZCTX SCRATCH ERADICATION — DONE s33 (`26c84e72`). PREMISE WAS STALE:** the six sequences were already gone (`0970838f`); of 5 `g_zctx` mentions FOUR were comments and one was a dead exported BSS array (`uint64_t g_zctx[66]`, 528B, ZERO code uses, no extern, no emitted reference). Deleted. ⭐ **HOME GATE line 4 side effect, MEASURED:** the last surviving `g_blob_ctx` mention lived inside that array's comment, so `g_blob_ctx` and `rt_blob_ctx_ptr` now BOTH grep to 0.
 - [ ] **W-2 · PUSH/POP GUARD UNIFICATION.** ⛔ **LINE NUMBERS CORRECTED TWICE — do not trust any cited in prose.** CURRENT (verified 2026-08-12): push `emit.cpp:2721` TEXT / `:2724` BINARY, guard `_blob_wire` (`:2717`); reload `:2688` TEXT / `:2689-90` BINARY, guard `flat_pat` (`:2687`); `_wire_stub` (`:2716`); related `op_zgpop` (`:842`).
   - **CENSUS DONE** (2026-08-12, Sonnet 5): `bb_glue_flat.cpp` + `bb_glue_framed.cpp` read in full — **they contain NO r10/r11 push/pop at all.** The code is raw string/byte literals inside `emit.cpp`. `FINDING-2026-08-12i-…`.
@@ -19,6 +19,60 @@
 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
+
+## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, continuation session) — RAW-BYTE HALF OF W-0 CLOSED
+
+**SCRIP `05e6b1ae` (UNCHANGED — read-only session, ZERO compiler bytes) · corpus re-cloned clean (first
+background clone attempt raced and left an EMPTY checkout — `git log -1` inside it showed "No commits yet";
+`ls` alone would have missed this. Flagging for any session that clones in the background: verify with
+`git log`, not `ls`.) · x64 not cloned.**
+
+**No codegen touched ⇒ RULES.md step 4 (`.s` regen ×3) DOES NOT APPLY this session.** m3 floor NOT
+re-measured; s35's by-set floor stands unless a later seat re-proves it: **157 pass · 1 xfail · 5 REGRESSION
+{D12,D13,H31,X01,X10}**.
+
+### ⭐⭐⭐ THE RAW-BYTE/BINARY-MEDIUM SWEEP IS DONE — SEE `FINDING-2026-08-12j-…` FOR FULL METHOD + RESULT
+
+The s35 cursor's top-priority open item — objdump the ACTUAL mode-3 runtime slab, not source bytes — is now
+done. Method: `break bb_seal(buf,size)` in gdb, dump `[buf,buf+size)` before the RW→RX mprotect, `objdump -D -b
+binary -m i386:x86-64` the real bytes. Run across 17 programs (CLASS-D/DEFER/ARBNO-defer/PT-inline surface,
+named in the finding) → 46 sealed graphs, ~174KB of genuine emitted code.
+
+**Result: exactly two mechanisms, no third.** Every r10/r11-touching instruction shape found (14 distinct,
+normalized) is either CLASS-D wire glue (the already-licensed `emit.cpp` occ=6) or RTCC veneer
+(writeback/reload/call-stub in `x86_asm.h`, NOT yet whitelisted but ALREADY VISIBLE to the text-grep gate as
+sweep debt — the binary form confirms it executes as the source says, it doesn't hide a new surface). The
+raw-byte blind spot the s35 cursor worried was "the highest-risk code, concentrated" turned out — empirically
+— to contain nothing the source-level census hadn't already named.
+
+**One concrete catch from the trace:** `x86_asm.h:232-234`'s `x86_store_cursor_mirror()` (emits `mov [r10],
+r14d`, unrelated to the wire pair — a match-cursor-mirror base pointer) and its `XK_R10MIR` decode arm
+(`:1426`) are **dead code — zero live callers anywhere in `src/`.** The one caller that could reach it,
+`xa_flat.cpp:249`, deliberately writes `"[r10 + 0]"` instead of `"[r10]"` specifically to AVOID this parse
+arm — its own comment says so. Cheap, zero-risk deletion available (shrinks `x86_asm.h` sweep debt by 2 for
+free, `test_gate_em_template_byte_identity.sh` should read byte-identical since nothing reachable changes) —
+left undone this session, flagged for whoever writes the whitelist entry.
+
+**W-0 IS NOW DATA-COMPLETE ON BOTH HALVES (RTX 223/223 done s34 + raw-byte done this session).** The ONLY
+thing left to close W-0 is decision (1) from the s35 cursor below — the whitelist-policy question. There is no
+more sweeping to do; re-running either census is explicitly NOT owed.
+
+### NEXT SEAT, IN ORDER
+1. **Decision needed from Lon (unchanged from s35, now with complete data both halves):** whitelist policy —
+   does "product-wide" require clearing r10/r11 regardless of reachability? This finding adds the `x86_asm.h`
+   occ breakdown (recommend occ=23 if the dead cursor-mirror pair is deleted first, else occ=25) to the s35
+   numbers (193/223 RTX SN4-reachable, 30 excused).
+2. **Optional zero-risk cleanup:** delete `x86_store_cursor_mirror()` + `XK_R10MIR` (2 occurrences, dead,
+   proof = byte-identity gate). Not blocking anything, just free debt reduction.
+3. **W-6** — re-entrant `g_rtcc_block` (leaf half already proven; witnesses `140`/`141` named) — unchanged,
+   still open, still the next mechanism-shaped rung after the decisions above are made.
+4. **W-3/W-4** — mechanism dormant but ALREADY WRITTEN (`bb_glue_pass_wires_blob`); W-4's layout must cover
+   both carry shapes named in the s35 block below.
+⛔ **Do NOT re-derive any census — RTX, templates, W-2's glue files, AND NOW THE RAW-BYTE HALF are all mapped.**
+What's missing is decisions, not data.
+⛔ **W-5 stays blocked and this seat cannot unblock it** — unchanged from s35, see that block below.
+
+---
 
 ## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5) — RTX CENSUS COMPLETE + W-2 CENSUS COMPLETE + A GATE HOLE FOUND
 
