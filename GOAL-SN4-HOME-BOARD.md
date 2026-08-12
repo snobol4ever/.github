@@ -272,3 +272,19 @@ Lon answered s41's questions (2) and (3) in-chat: **BOARD owns the demo/bench wo
 **NOT DONE:** no fix attempted, no floors re-measured (diagnostic/cross-reference rung, not a floor measurement or a code change). B-12 itself remains OPEN in the rungs list above — this cursor documents why it wasn't pursued cold this session, not that it's closed.
 
 **UNBLOCKS: RBP-EARN** — your next fix-design pass should check its result against B-12's acceptance set too, not just `earn0_*`. **UNBLOCKS: ANY BOARD SEAT** — do not re-diagnose calculator-1/2 from scratch; start from RBP-EARN's s43a root cause and s43b/s43d's falsified fix shapes.
+
+---
+
+## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, same session as above). **B-2 CORRECTED FROM \"GENUINELY UNBLOCKED\" TO BLOCKED — ITS OWN CLASSIFIER DOES NOT EXIST IN CODE YET. NOT ATTEMPTED. ZERO COMPILER BYTES.**
+
+**Checked before opening B-2** (`grep -rn frame_need_of src/` → zero hits) **against `GOAL-RBP-EARN.md`'s own EARN-1 rung text: "ONE function — `frame_need_of(IR_t*)`... NOTHING reads it yet"** and s43 ruling item (1): *"No EARN rung has been started: EARN-0 is still gated... EARN-1 has never been opened."* Also checked for any alternative/pre-existing census instrument matching B-2's `unearned == 0 && owed == 0` framing (`grep -rln "unearned\|owed" scripts/ src/`) — none exists. The one instrument PLAN.md's §THE CENSUS names (`test_census_rbp_frames.sh`) is explicitly labeled HISTORICAL in this very repo (§HISTORICAL — THE CENSUS AS A DELETION LEDGER) — it counts `mov rbp,rsp`/`push rbp` by region label, the OLD T-class-deletion framing, not the EARN `unearned`/`owed` framing B-2 asks for.
+
+**⇒ B-2 as written cannot be executed today.** `unearned`/`owed` are defined relative to `frame_need_of()`'s classification, and that function has zero lines of implementation anywhere in `src/`. A session opening B-2 expecting "everything named in the instrument map now has an honest measurement, nothing blocks starting" (the prior cursor's own words) will spend real time discovering this same gap before reaching a number — same shape as the mute-instrument class this file already tracks under B-9, except here the instrument doesn't exist at all rather than existing-but-silent.
+
+**Corrected the standing rung text (B-2, top of file) is intentionally left as-is** (RULES.md: only BOARD re-cuts census instruments, and this seat is not the one landing `frame_need_of` — that's RBP-EARN's own EARN-1 rung, its owned file, its predicate) — **but the B-1(b-iii)/s41 cursor's claim "nothing blocks starting [B-2]" is WRONG and should not be trusted.** This entry is the correction of record.
+
+**NOT DONE, DELIBERATELY:** did not write `frame_need_of` myself — it is RBP-EARN's EARN-1 rung, in RBP-EARN's owned file, gated on RBP-EARN's own EARN-0 predicate table (already built per s27, `FINDING-2026-08-11f` — 32 IR_MATCH_* kinds classified). Writing it from BOARD would cross a COLLISION PIN with intent rather than incidentally, and BOARD's charter is referee/instruments, not the EARN predicate itself.
+
+**WHAT B-2 COULD MEASURE TODAY, IF NARROWED:** the OLD `test_census_rbp_frames.sh` T-class count (PAT-BLOB/AB-ACT/PROC/MAIN establishment counts) still runs and is truthful for what it measures — just not what B-2's current text asks for. Not run this session (would need re-scoping B-2's own acceptance text first, a judgement call for whoever picks this up, not a unilateral rewrite mid-orientation).
+
+**UNBLOCKS: ANY SEAT reading B-2 as an open, ready rung** — it is not, until EARN-1 lands `frame_need_of`. **UNBLOCKS: RBP-EARN** — B-2 is now recorded as directly depending on EARN-1's landing, one more concrete reason (beyond the s43 crash-triage-streak question) EARN-1 is worth prioritizing.
