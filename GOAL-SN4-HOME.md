@@ -6,6 +6,46 @@
 
 This file is the MAP. Seats execute their own seat file (below); cursors live in seat files. All prior laws bind (RULES.md · MONITOR-FIRST · TEMPLATE-ONLY · BOTH-MEDIUM · LIVE CURSOR discipline · one clone per seat · `git config --local`, never global).
 
+## ⛔⭐⭐⭐ 2026-08-12 EVENING AUDIT — Lon-ordered in chat ("Go check those GOAL files and find out how they did. What went wrong? Fix it in the GOAL files.") — CLAUDE-FABLE5
+
+**THE MORNING BOARD, BY SEAT** (from seat cursors + git at SCRIP `42398e69` · corpus `1dd3ff15` · .github `391eca8c`; every claim verifiable at those hashes):
+
+| seat | net | receipts |
+|---|---|---|
+| **RBP-EARN** | ✅✅ BOTH EARN-0-gating compiler defects FIXED (s44 wire-save · s45b bare-`TT_VAR` seal arm); earn0 board 26→28 m3, xc/patterns 77→82 BY SET; also landed the r9/GVA `main_alpha` seed (`677e8753`) that revived BOARD's m4, and the MATCH_SPAN eax-clobber fix (`ecc111c7`). **EARN-0 hand-check UNBLOCKED — the streak is over.** | SCRIP `42398e69` `4174782e` |
+| **LOWER** | ✅ **L-3b CLOSED, l3 board 13/13 green** — non-carving splice class + ARB/BREAK ZOP double-resolution + `fc_walk_range` carve-zero; broad m3 260→261, zero regressions BY SET; s44 cleanly falsified its own s43 hypothesis. | SCRIP `7eac50a9` `b352d996` `e6def8fe` |
+| **BOARD** | ✅ m4 board ALIVE, 2→157 pass (consumed RBP's seed, exactly as B-0 predicted); MON-CAP crash-safety landed; broad-336 pinned both modes; NEW UNCLAIMED compiler bug named (duplicate `.Lbynamefn*` labels = all six m4 SKIPs). ⛔ Cursor ordering violates STALE-ORIENTATION (c): s35 sits ABOVE s37 — next BOARD seat reorders newest-first. | SCRIP `5ec6e607` `94d283c1` |
+| **MODE34** | ✅ 5a DEFINE-entry double-emission FIXED (it was silently corrupting mode 3); harness `-no-pie` bug fixed; 5b root-caused (SPAN(var) inline-arm stale FRQ offset); corrected two of its own findings in place. | SCRIP `cea77eca` `94d283c1` |
+| **WIRES** | ◐ W-7 interim guard LANDED floor-neutral; X01 blanket-widening AND W-2's premise both FALSIFIED (dead work prevented); ⛔ ended with a NEW defer crash NOT root-caused (repro minted, `witness_wreg_s39/`) and THREE investigations blocked on MON-CAP, itself blocked on `TOKEN_SEE_LON` — a credential ask that has sat in this file's questions blocks and never reached chat. | SCRIP `45ffcb23` · FINDING-12p/q/r |
+| **RBX** | ⚠ NET-ZERO on the gate-widen at full-session cost: s40b LANDED it (`73c1ac33`) WITHOUT first running the BY-SET sweep its own commit text mandated; s41 ran the sweep, found 20/122 vs the 36/122 s37 floor (58 BROKEN / 1 REPAIRED), REVERTED (`a037b637`); s41b then caught s41's own wrong next-rung too. The fork-(a) carve (`9780591d`) survives and is clean. Discipline recovered same-day; the violation was existing law (RULES Testing: "Run goal's gate before every commit"), not missing law. | FINDING-12o · .github `52d156af` `ec4ee29f` |
+
+**Net for the morning: two rungs genuinely closed (LOWER L-3b · RBP-EARN's defect pair), one board revived (m4), one regression caught-and-reverted same-day, one hunt handed off open.** That is a working board — the first one in ~17 sessions — and it worked because the s43/s44 rulings and the tooling fix (`31fd63eb`) removed the inherited blockers first.
+
+**WHAT WENT WRONG THIS MORNING (three items, distinct from the streak pattern):**
+1. **Gate-after-land (RBX s40b).** The BY-SET sweep that convicted the fix was mandated by the fix's own text and ran one session LATE. Existing law violated, not new law needed — named here so the next seat sees the conviction, not just the revert.
+2. **Questions for Lon accumulate in files, never in chat.** WIRES carries Lon-question blocks at three depths and its own s39 text says "several are re-asks — s35's went unanswered." `TOKEN_SEE_LON` blocks three investigations and was never asked for where Lon actually is. **Files RECORD; CHAT escalates.** Consolidated queue below.
+3. **Opening a new hunt at end-of-context.** s39c found a new crash and handed off "not root caused." The standing "deletion at end-of-context = broken tree" law has no analog for hunts: **do not OPEN a hunt you cannot close — mint the repro, route it, stop.** (s39c minted the repro; that half was right.)
+
+**THE 17-SESSION MALFUNCTION (Lon's ask, answered from the record — s29–s45 on RBP-EARN; the file's own count is 13 sessions of pure crash-triage, s33–s45, zero rungs closed):**
+**ONE ROOT: fresh seats trusted their inheritance and ground solo instead of forcing a 30-second escalation.** Four instances, all documented:
+- **gdb-404** — SEVEN sessions (s33–s39) each re-concluded "gdb is unavailable in this container," inherited from the previous cursor's unverified claim; the tooling fix (`31fd63eb`) landed only 2026-08-12.
+- **Missing x64 oracle** — board scripts print a full, plausible, entirely FALSE all-FAIL table without it; THREE sessions paid before LOWER s44 made the clone a mandatory numbered PLAN.md step.
+- **EARN-0 mislabeled** "no code, cheap, opens any session" while gated on two MASKING compiler defects (fixing A alone → hang, so partial progress read as failure) — seat after seat opened it and burned the runway on triage; label corrected only at s42.
+- **Escalation latency** — the s43 crater ruling cost Lon ~30 seconds and ended the streak on the spot. Nothing in the process forced that question into chat at s34, so it waited nine sessions.
+The triage was not waste — Lon's s43(1) ruling confirms it WAS the prerequisite, and it fixed two real compiler defects — but roughly ten of the seventeen sessions were spent REDISCOVERING blockers rather than working them.
+
+**CORRECTIVES (this is the MAP; seat files inherit):**
+- ⛔ **VERIFY-INHERITED-BLOCKERS (standing; conviction: gdb-404 ×7).** Any inherited claim that a tool/instrument/path is unavailable, broken, or dark is RE-TESTED with one command at orientation before it is believed, acted on, or re-recorded. A cursor that records a blocker MUST carry the verifying command beside the claim.
+- ⛔ **CHAT-ESCALATION / STREAK BREAKER (PROPOSED — Lon ratify or strike):** (a) any blocker only Lon can clear (credential, ruling, routing) and any rung blocked ≥2 consecutive sessions goes INTO CHAT as one specific, answerable question at the TOP of the session's first reply — a questions block in a goal file is a record, not an escalation; (b) a goal at two consecutive zero-rung sessions opens its next session with that question BEFORE any code or triage. Precedent: s43.
+
+**⛔ LON QUEUE — CONSOLIDATED (everything currently waiting on you, pulled up from all five seat files; answering these in chat is the highest-leverage 5 minutes on the board):**
+1. **`TOKEN_SEE_LON` credential** → unblocks MON-CAP/csnobol4 → unblocks THREE WIRES investigations.
+2. **WIRES W-2 disposition** — (a) close FALSIFIED · (b) demote to hygiene · (c) re-scope to the raw-byte TEMPLATE-ONLY cleanup at emit.cpp:2688-2724. Seat recommends closing or re-scoping; your pick.
+3. **D12/D13 routing** — ARBNO template-dispatcher defect (FINDING-12k), owned by no seat; strike it from W-2's witness line either way.
+4. **Duplicate `.Lbynamefn*` label bug** (all six m4 SKIPs) — unclaimed; MODE34's 12n suggests possibly superseded — route or confirm supersession.
+5. **RBX X-2 (8 sessions unseated) · X-4 (5 sessions L-2-blocked)** — staff or park, explicitly.
+6. **Ratify or strike the STREAK BREAKER above.**
+
 ## ⛔⭐⭐⭐ EXECUTION MODEL — FIRE-AND-FORGET (s32; RULES 2026-08-10 applied to this plan: no windows, no waiting, no human scheduling. Supersedes every "solo" / "‖" / "SERIAL, one seat at a time" reading below.)
 
 **LON'S ENTIRE JOB: keep FIVE sessions alive, ONE PER SEAT FILE, re-fired with the same line whenever one ends. Nothing else — no who/what/when decisions. The files route the work.**
