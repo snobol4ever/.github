@@ -147,7 +147,18 @@ DELETE the `sub rsp,16` carve and every `[rsp+0]`/`[rsp+4]` cursor access. Rebui
 
 **⛔ m3 IS NOT EXONERATED AND ONE PROGRAM DIVERGES THE OTHER WAY:** `benchmarks/snobol4:cap_imm_nret2` is **rc3=139, rc4=0** — m3 SEGVs where m4 is clean, and it is that corpus's entire DIVERGE.
 
-**NEXT SEAT, IN ORDER:** (1) **regen ×3, or a ruling** — emitted bytes changed for every m4 SNOBOL4 program; `RULES.md` step 4 does not list `src/driver/scrip.c`, so either the list is incomplete or this is out of scope. **NOT run.** (2) own the residual **11** (small enough to bisect per-program, MONITOR-FIRST); (3) the **BUILDFAIL 4** family, still orthogonal and unowned; (4) W-pins into a two-mode gate — now cheap to make green; (5) **EARN-2 re-cut over reading sites INCLUDING BASE-REGISTER LIVENESS** — a census over establishments *or* displacements scores this whole class clean; acceptance unchanged. (6) s29's queue beneath. **s30b obligation (i) OPEN, untouched.**
+**⛔ THREE OPEN RULINGS (Lon must decide before the next seat can proceed cleanly):**
+- **(R-1) Regen ×3 scope:** `RULES.md` step 4 lists `emit.cpp / templates/*.cpp / x86_asm.h / lower_snobol4.c / runtime sinks` as regen triggers. `src/driver/scrip.c` is not on that list, yet this session's one-line change altered emitted bytes for **every** m4 SNOBOL4 program. Either `scrip.c` belongs on the list, or this class of change is legitimately exempt. **Ruling needed; regen NOT run.**
+- **(R-2) s33 retraction vs. s34 finding:** s33 says the entire s32 m4 SEGV class was a phantom from a bad build (skipped `install_system_packages.sh`), with family H going 0-pass/31-REGRESSION → 30-pass/1-REGRESSION on a correct build. s34 shows the `main_α` gap exists **in source** at commit `52545cbf` (`grep -c rtcc_load_all` → exactly 2, none at Site A), independent of build order. Both can be true — a bad build additionally drops Site B's call — but the implication for whether s34's fix is load-bearing differs sharply. **Settle from evidence:** compile `52545cbf` correctly and check `crosscheck/patterns` against a probe in the pure-`main_α` family.
+- **(R-3) `cap_imm_nret2`:** `benchmarks/snobol4`, **rc3=139, rc4=0** — m3 SEGVs, m4 clean. First measurement ever (benchmarks were the one unmeasured corpus). MODE34-IDENTICAL violation in the *reverse* direction. Unowned.
+
+**NEXT SEAT, IN ORDER (after rulings):**
+1. **Regen ×3 if R-1 says so** — or add `scrip.c` to the step-4 trigger list.
+2. **Own the residual 11 m4-only crashes** — small enough to bisect per-program; MONITOR-FIRST; the `fence_fn_*` cluster is a hypothesis (EARN predicate, s28 RULING (3)), not a measurement.
+3. **Own the BUILDFAIL 4** (`claws5`, `expression`, `json`, `porter` — demo only, orthogonal to r9, confirmed unmoved by this repair).
+4. **W-pins into a two-mode gate** — now cheap: m4 half can pass; W5 was the last hold.
+5. **EARN-2 re-cut over reading sites including base-register liveness** — a census over establishments *or* displacements scores the r9 class clean; acceptance unchanged (`earn0_pend_alt_first_arm` must score `owed`).
+6. s29's queue beneath, unchanged. **s30b obligation (i) OPEN.**
 
 **⛔⭐⭐⭐ CONCURRENCY CASUALTY — THIS SESSION'S COMMITS WERE WIPED ONCE AND RE-APPLIED.** A peer seat rewrote `.github` history (`8ce704c3` → `1f62ed25`) and reset SCRIP to `52545cbf`, discarding my committed-but-unpushed SCRIP fix and cursor edit; `git status` showed clean and the FINDING survived only as an untracked file. **Committed is not safe — only PUSHED is.** Both repos are UNPUSHED at handoff (no credential); s33's own work was likewise unpushed on my arrival. ⭐ Two vacuous instruments of my own died to printing a denominator: a `join` over never-created inputs reported "0 regressions" from an EMPTY set, and awk's default whitespace FS on a **TSV whose fields contain spaces** reported `42/44` as `25/78`. Every count needs a total beside it (86 − 42 = 44 ✓).
 
