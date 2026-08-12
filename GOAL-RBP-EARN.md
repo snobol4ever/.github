@@ -129,7 +129,9 @@ DELETE the `sub rsp,16` carve and every `[rsp+0]`/`[rsp+4]` cursor access. Rebui
 
 **NET EFFECT ON THE LADDER:** EARN-0b closed(0) · EARN-5's owner rule confirmed(1) · EARN-4 gains its emission shape — ENTER at α **and** β, chain-as-counter(2) · EARN-6's FENCE1 row keeps its verdict with a corrected justification(3) · the hazard taxonomy is confirmed COMPLETE at two classes. **Rulings (a)/ROOTSPINE remain OPEN — Lon: "Unsure."**
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s35 (Claude Sonnet 5) — **R-2 SETTLED BY CONTROLLED A/B: THE SITE-A GAP IS REAL, NOT A BUILD ARTIFACT. REGEN ×3 RUN (3 LOCAL COMMITS). THE DEMO "BUILDFAIL 4" WAS TWO UNRELATED PROBLEMS, AND TWO OF ITS FOUR MEMBERS ARE A NEWLY-SURFACED DUPLICATE-LABEL ASSEMBLER DEFECT, NOT THE DOCUMENTED SIZE EXCLUSION.**
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s37 (Claude Sonnet 5) — **DUPLICATE-LABEL AS-FAIL MECHANISM FOUND, DELIBERATELY NOT TRACED FURTHER (context-bounded session).** `src/templates/bb_call.cpp:299,323` build the by-name-call label directly from a per-node ID: `".Lbynamefn" + std::to_string(_.nid)` (and a `zd`-prefixed sibling). If `_.nid` is not globally unique across by-name-call nodes, two distinct call sites collide at assembly time — matching `expression.sno`'s 543 collisions (a beautifier, almost certainly heavy on indirect/by-name dispatch) vs `porter.sno`'s 1 (barely uses the construct). **Not traced to the actual ID-assignment code** — that's a separate, potentially substantial dig (parser/lower/IR node allocation). Scope check done: `_.nid` is used as a label suffix in exactly 3 files (`bb_call.cpp`, `bb_call_proc_staged.cpp`, `bb_gather.cpp`, 6 sites total) — narrow, not sprawling, if this is confirmed as the mechanism. **Unconfirmed hypothesis, not a measurement** — next seat should verify via `--dump-ir` whether colliding labels share a `nid` before assuming this is the fix. **⛔ ALSO: THIS SESSION'S s36 EDIT ACCIDENTALLY DELETED s34's HEADER LINE (str_replace that didn't re-append it); CAUGHT AND REPAIRED same session — s34's header and body are both intact again, verify with `grep -c 'LIVE CURSOR' GOAL-RBP-EARN.md` if in doubt.**
+
+
 
 **Fingerprint:** SCRIP `29fd4ad8` · corpus `3621fc4f` · both built AFTER `install_system_packages.sh` (confirmed run first, both builds, no exceptions).
 
@@ -175,7 +177,7 @@ m3 bit-identical across both builds (expected — mode-3 never touches this brid
 
 **NEXT SEAT:** R-3 needs no further ownership as a standalone item — fold it into EARN-0 continuation (that file's own §8 NEXT SEAT list is the live queue: MONITOR-FIRST on `earn0_varref_cat_dropped`, the silent-wrong-answer arm, not the crash/hang arms). If picking up the crash/heap-exhaust arm specifically (`earn0_stored_capture`, and by extension `cap_imm_nret2`), the ASLR-determinism note above may shorten the loop.
 
-
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s34 (Opus 5) — **THE `main_α` BRIDGE NEVER ESTABLISHED R9. RC-5-GVA LANDED ITS MAIN-ENTRY LOAD ON `flat_α` ONLY. ONE LINE: `patterns` DIVERGE 54→11, 42 REPAIRED, 0 REGRESSIONS. THIS IS A *SOURCE* FACT AND IT DOES NOT CONFLICT WITH s33's RETRACTION.**
 
 **Fingerprint:** SCRIP `d0d9515e` (= `52545cbf` + ONE line in `src/driver/scrip.c`) · corpus `c91d1adf` · FINDING `FINDING-2026-08-12e-…-AND-S33-D1-D2-ARE-BOTH-BY-DESIGN.md`. Build order: `install_system_packages.sh` ran BEFORE both builds; the A/B differs only by the one line.
 
