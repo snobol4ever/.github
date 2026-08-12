@@ -11,7 +11,7 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
   - **(a) PRODUCT-WIDE (Lon verbatim: "R10 and R11 are product wide")** → the 30 SN4-unreachable RTX occurrences are DEBT, not licensable — ruling written into the whitelist header itself so no future entry can smuggle an unreachability justification. Debt tracked at **W-8** below.
   - **(b) delegated ("all your choice")** → executed: `x86_asm.h` licensed with pinned `occ=23`, split 9 RTCC-veneer = class (3) · 13 register-name tables = **new explicit class (5) "infrastructure"** (added to the header rather than widening (3) past its stated meaning) · 1 DC-stub scratch = temporary (3) tagged **DIES-WITH-W-5** (re-review that pin when W-5 lands).
   - **(c) recommendation accepted** → `scripts/test_gate_wreg_claim_binary.sh` BUILT and GREEN: gdb-dump-at-bb_seal + objdump per FINDING-2026-08-12j's method, 19-program set (this session's at-risk superset of the finding's 17), 27 slabs, 275 r10/r11 shape checks, every one matching the two licensed mechanisms (CLASS-D glue · RTCC veneer). `--quick` smoke mode exists. **Allowlist extension = FINDING-required event, says so in the script header.**
-  - W-0a data half was already complete (RTX 223/223 · templates · raw-byte · x86_asm.h 23/23). Text-gate whitelist now reads `pinned occ=23 OK`, zero drift. `--strict` overall remains red only on W-3's not-yet-existing glue emitters — expected, not W-0's debt.
+  - W-0a data half was already complete (RTX 223/223 · templates · raw-byte · x86_asm.h 23/23). Text-gate whitelist now reads `pinned occ=23 OK`, zero drift. `--strict` overall remains red only on W-3's glue emitters not yet having their own gate entry — note: as of s39c, `bb_glue_pass_wires_blob()` IS live (not dormant), so this is "not yet gated" rather than "not yet existing."
 - [ ] **W-8 · THE 30 SN4-UNREACHABLE RTX OCCURRENCES — PRODUCT-WIDE DEBT (minted s36c from Lon's W-0b(a) ruling).** Census + per-occurrence classification already done (`FINDING-2026-08-12h`, the 30 "excused" rows — that word is now obsolete, they are queue). Work = reassign or veneer-cover each, per the same idiom families as the 193. Not urgent for SN4 floors (unreachable by definition) but blocks the day Icon/Prolog adopt wires; sequence after W-7/W-6 unless an Icon/Prolog wire ladder opens first, in which case it jumps.
 - [x] **W-1 · ZCTX SCRATCH ERADICATION — DONE s33 (`26c84e72`).** Compressed at s36 handoff per RULES.md step 1 (was a 5-line entry); the one fact worth keeping: `g_zctx[66]` was dead exported BSS, deleted, and **HOME GATE line 4 is satisfied as a MEASURED side effect — `g_blob_ctx` and `rt_blob_ctx_ptr` both grep to 0.** Full history in `FINDING-2026-08-12b`.
 - [ ] **W-2 · PUSH/POP GUARD UNIFICATION — ⛔⭐ RECOMMEND CLOSING OR RE-SCOPING (s36). THE RUNG HAS NO WORK LEFT AND NO WITNESSES. LON DECISION OWED.** Both halves of its premise are now falsified, by two separate sessions: (1) the named asymmetry is **structurally unreachable** — `lbl_res`'s address is taken at exactly ONE site, inside the `_blob_wire` branch itself, so nothing reaches the pop arm without having executed the push (s35, `FINDING-2026-08-12i`); the guards are textually different but semantically equivalent because `flat_pat`/`flat_jmp_entry`/`_wire_stub` are per-GRAPH-emission state that cannot change between the push and the res landing within one graph (re-verified s36 against the `sm_emit_t` struct + `emit_jmp_entry_clear`). (2) its named witnesses **D12/D13 are a different bug entirely** — an ARBNO template-dispatcher defect with nothing to do with r10/r11 push/pop (s36, `FINDING-2026-08-12k`). **So: no defect, no witness, and "unify two provably-equivalent predicates" is cosmetic tidying, not a correctness rung.** Three candidate dispositions, all cheap, none mine to pick: **(a)** close it as FALSIFIED with a one-line note that the guards are equivalent-by-construction; **(b)** keep it as a pure hygiene item, explicitly demoted below W-3/W-4/W-6 and stripped of its witnesses so no future session mistakes it for a live defect; **(c)** re-scope it to the thing the census actually found worth doing — the push/pop *emission* is raw string/byte literals inside `emit.cpp` (`:2721`/`:2724`/`:2688-90`), which is a live TEMPLATE-ONLY LAW violation in spirit even if grandfathered in practice; moving it into `bb_glue_*.cpp` behind `x86()` would be a real, gate-checkable rung. ⛔ **Whichever you pick, please strike D12/D13 from this rung's witness line** — they belong to the ARBNO owner (see cursor's ROUTING QUESTION).
@@ -22,9 +22,10 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 - [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority. ⛔ **The census named TWO shapes the layout must cover, not one — see the cursor's CARRY SHAPES block.**
 - [ ] **W-5 · ⛔ THE FLIP — REQUIRES EARN-1 + EARN-3 LANDED (EARN-10 ordering).** PROC-shim deletion (PT-1..3), CLASS-D exit ceremony dies with it. The old WREG residual (19 SEGV + 7 HANG) was MISSING FRAMES, not glue defects — EXPECTED cured by EARN; measure by set, never assume. ⛔ **PREDICATE NOTE (2026-08-12): `frame_need_of` does not exist in `src/` under ANY spelling — it is a FORWARD REFERENCE to a symbol `GOAL-RBP-EARN.md` must create. This seat cannot unblock it by working harder; only the RBP seat can. Do not re-check it hopefully each session — check the EARN goal file's cursor instead.**
 - [ ] **W-6 · RTCC RE-ENTRANT PRESERVATION + DEFAULT-ON REVALIDATION.** The veneer round-trips wires on leaf crossings only; fix the re-entrant case; then RTCC default-ON must hold the P0 floors with NO `SCRIP_RTCC=0` escape (kills the m4-130 class). Belt-and-suspenders: `-Wl,-z,now` for the r11 lazy-binding clobber. **Leaf half PROVEN SAFE (s35: 172 veneered, 0 bare match-time). Scope is re-entrant ONLY. Witnesses named: probes `140`/`141`.**
-- [ ] **W-7 · ARBNO DISPATCHER SOUNDNESS — ROUTED TO THIS SEAT (Lon, s36 answers: "You own the dispatcher bug").** Witnesses: D12 (SEGV) · D13 (hang); X01 CONFIRMED RELATED s38 (same dispatcher gap, general form — see cursor). Root cause + full trace + blast radius: `FINDING-2026-08-12k-…`.
+- [ ] **W-7 · ARBNO DISPATCHER SOUNDNESS — ROUTED TO THIS SEAT (Lon, s36 answers: "You own the dispatcher bug").** Witnesses: D12 (SEGV) · D13 (hang); X01 RELATED (same dispatcher gap, different sub-class — see s39 note below). Root cause + full trace + blast radius: `FINDING-2026-08-12k-…`.
   - **⭐ INTERIM GUARD LANDED s38 (SCRIP `fc8b96b8b`, verified @`73c1ac33`-era tree + one rebase).** `op_arbno_body_defer_unsafe` (emit.h struct end + emit.cpp companion scan beside `op_arbno_body_k0` + per-node reset) ⇒ `bb_match_arbno()` declines with `x86_bomb` instead of the unsound plain-frameless fallback. **D12: SIGSEGV(139)→SIGABRT(134) named bomb. D13: hang(124)→134.** Floor-neutral, A/B-proven against a stashed baseline build (NOT assumed): probe/bb identical `159 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}`; crosscheck/patterns identical `PASS=77 FAIL=45` with a byte-identical failing-NAME set, only exit codes moved (145/165/183 139→134, 178/179 124→134). 16-passer set re-verified individually green.
   - **⛔ THE BOMB ARM MUST DEF ITS PAIR LABELS.** First version left 3–8 unresolved forward refs: the drive loop registers `β`(`PAIR(1)`, generic per-node pass emit.cpp ~2412) and `na_s`/`na_f`(`PAIR(2)`/`PAIR(3)`, `flat_drive_match_alt` ~1201) UNCONDITIONALLY before the template runs. Fixed by `x86_beta()` + `def PAIR(2)` + `def PAIR(3)` after the `ud2` (dead but resolved). **Generalizes to every n-ary template — see cursor scrutiny item 5.**
+  - **⛔ X01 UPDATE (s39a/b, FINDINGS-2026-08-12p/q): blanket-widening routes BOTH FALSIFIED.** `!op_arbno_body_k0` breaks 10 of 16 passers; `op_body_has_arbno` breaks the same 10. No staged field separates X01 from its passing nested-ARBNO siblings — all trace identically on framed/k0/sq/kk/osv/body_has_arbno/defer_unsafe. Current best-supported discriminator (oracle-verified, 9 witnesses): outer arm needs a **character-consuming co-member** alongside the nested ARBNO — `ARBNO(ARBNO(LEN(1)) 'x')` passes; bare `ARBNO(ARBNO(LEN(1)))` / null-lit / LEN(0) siblings all fail. Mechanism NOT traced (MON-CAP blocks 2-way sync-step for wrong-answer-rc-0 class). Witnesses in `corpus/probe/bb/probes_x01_witness_s39/`. **Do not retry a blanket `!k0` or `body_has_arbno` guard without re-reading FINDING-2026-08-12p first.**
   - **NOT CLOSED — this is interim only.** It converts silent corruption into a loud refusal; it flips ZERO witnesses green. Real fix = anchor-relative ARBNO cell = **W-4 layout, which this seat cannot self-serve.**
   - **DISCRIMINATOR CONFIRMED (s36b, gdb at `lower_snobol4.c:1324`):** D12 builds 3× `DEFER(sval=LIST, pat_static=0)`; D09 (a passer) builds `DEFER(sval=P, pat_static=1)`. Bare `ITEM` in the pattern expression resolves through to the `*LIST` defer at lower time, so **the fix keys on the DEFER node's own `pat_static` — no extra indirection needed.**
   - **⛔ FIX CONSTRAINT (measured, not negotiable):** the 16-passer set {D09 D10 D11 G19 G20 H21 H24 H25 N12 N17 X02 X03 X04 X05 X06 X11} rides the same plain-frameless path with `k0=0` and must stay green BY SET. A blanket DEFER exclusion breaks all 16.
@@ -33,6 +34,80 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
+
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s39d (Claude Sonnet 5) — HANDOFF · PLAN SCRUTINY + GOAL UPDATE; WATERMARK UNCHANGED; PUSH BLOCKED PENDING CREDENTIAL
+
+### What this session did (final sub-session — plan scrutiny + handoff prep; no new source edits)
+Reviewed the full RUNGS block and the six open Lon-questions from s38 against actual session evidence.
+Applied four targeted corrections to this file (additive or clarifying, nothing deleted). See below.
+
+**WATERMARK: UNCHANGED — 160 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}.**
+**SCRIP `0bbf092b` — zero source bytes changed all session.** corpus gains 2 non-graded witness dirs
+(probes_x01_witness_s39 / witness_wreg_s39). `.github` 4 commits (+ this one) all pending push.
+
+### Plan scrutiny findings
+
+**Stale/incorrect items found and corrected below:**
+
+1. **W-7 rung: X01 update needed.** The rung still says `X01 CONFIRMED RELATED s38 (same dispatcher gap,
+   general form)`. s39a/b work falsified the "widen to `!k0`" path; X01 is now characterized as a different
+   sub-class of the same gap (nested ARBNO body, not unsafe DEFER) with a clean minimal pair in
+   `corpus/probe/bb/probes_x01_witness_s39/`. The "general form" claim survives but the description needs to
+   acknowledge the blanket-widening route is closed and the actual discriminator is still to be computed.
+
+2. **W-3 rung: already corrected (s39c).** Status-correction line added. The s38/s38-vicinity `--strict`
+   note at the bottom of W-0 ("remains red only on W-3's not-yet-existing glue emitters") is now also
+   misleading — the emitter exists and is live, not "not yet existing." Noted in GATES below.
+
+3. **Questions for Lon from s38 — four are now partially answered by s39 evidence; recorded below.**
+
+4. **Prune request:** RULES.md says "Newest session state at top; prune below the last ~3." s38/s36/s36-
+   continuation cursors are now below the ~3 watermark. Recorded as a debt but NOT executed unilaterally
+   — prior sessions' cursors may still be actively referenced by other seats. Lon's call.
+
+### ⛔ QUESTIONS FOR LON (updated from s38 — four with new s39 data)
+
+1. **ROUTING (updated):** s38 asked whether this seat keeps ARBNO or returns to r10/r11. s39c data argues
+   *for* keeping it here — in under an hour looking at the seat's own charter (W-3), this session found a
+   dead killswitch + a live oracle-confirmed crash. That's evidence the seat should be looking at W-3/W-4/W-6,
+   not ARBNO. **Proposed resolution:** route X01 + ARBNO dispatcher soundness to GOAL-SN4-ZETA-MECH or
+   GOAL-SNOBOL4-BB (the template owner), and point this seat immediately at the W-3 crash (gdb hunt, no
+   MON-CAP needed) then W-6 then W-4. Either way needs a clear answer so the next session doesn't default to
+   ARBNO for a seventh time by inertia.
+
+2. **W-4 promotion:** unchanged — it blocks D12/D13 real fix, X01 real fix, most of the broken demo board,
+   AND (now) the W-3 crash's real fix if that turns out to need an anchor-relative slot. Getting larger, not
+   smaller. Recommend its own rung with a dedicated runway.
+
+3. **X01 / general `!k0` gate (updated from s39a/b):** the `!op_arbno_body_k0` blanket widening is
+   falsified — breaks 10 currently-green probes. `op_body_has_arbno` blanket is equally falsified. The
+   actual discriminator (character-consuming co-member inside the outer arm, minimal pair confirmed) is not
+   yet a staged field. Either: (a) widen W-7's `op_arbno_body_defer_unsafe` scan to add a
+   "body-span is exactly one nested ARBNO node with no character-consuming siblings" scan (new field, narrow,
+   requires measuring against more than n=1 before landing); or (b) defer X01 to whoever owns W-4/W-7 real
+   fix, since the real fix is very likely the same anchor-relative slot layout as the DEFER case.
+
+4. **W-2 disposition — now fifth re-ask (s35, s36, s37, s38, s39d).** Three options in the rung. Please
+   pick one. Every session re-reads the three options and re-declines to choose.
+
+5. **MON-CAP / `csnobol4` build:** now blocked FOUR investigations (s38, s39a, s39b for X01; s39c's W-3
+   crash is the one exception — plain gdb works). The `TOKEN_SEE_LON` credential is the sole blocker.
+   Recommend making it available at session start alongside the push credential; they're both needed every
+   session now.
+
+6. **W-3 crash (NEW — Lon input needed):** `bb_glue_pass_wires_blob()` is live and crashing on stored-
+   pattern-DEFER-with-capture. Options: (a) implement the documented `SCRIP_WREG` killswitch for real (so
+   the `SCRIP_WREG=0` revert path exists and the crash can be isolated A/B); (b) fix the crash directly via
+   gdb hunt (next session, no credential needed — gdb is in the container); (c) update the three stale
+   comments to say "no killswitch; always on" and treat as a known live bug. All three require a decision on
+   scope — this is squarely W-3's charter but RULES.md would want a directed session, not an opportunistic
+   partial fix.
+
+### Cursor-level corrections applied this sub-session (all additive)
+- W-7 rung: X01 witness note added (see below in RUNGS)
+- W-0 GATES note: W-3 glue-emitter wording corrected
+- Questions for Lon block: updated with s39 evidence (above)
+- Prune debt noted but deferred
 
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s39c (Claude Sonnet 5) — HANDOFF · W-3 STATUS CORRECTION: SCRIP_WREG KILLSWITCH IS DEAD CODE, NEW UNROOT-CAUSED CRASH FOUND IN THE SAME MECHANISM
 
