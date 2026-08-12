@@ -94,10 +94,11 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
   merits, don't pattern-match from this file's result either.
 
 ### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2)
-1. **The other 8 RTX `.S` files** (101 occ remaining: `rtx_alloc.S` 20 · `rtx_str.S` 19 ·
-   `rtx_icnvar.S` 13 · `rtx_arith.S` 9 · `rtx_plcall.S` 10 · `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8 ·
-   `rtx_icnnum.S` 11). Same hand-census treatment. Check each file's "C of record" pointer and the
-   relevant `lower_*.c` for actual callers before assuming reachability from the filename.
+1. **The other 7 RTX `.S` files** (81 occ remaining: `rtx_str.S` 19 · `rtx_icnvar.S` 13 ·
+   `rtx_arith.S` 9 · `rtx_plcall.S` 10 · `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8 · `rtx_icnnum.S` 11).
+   `rtx_alloc.S` (20 occ) is now ALSO DONE — see FINDING-2026-08-12h addendum 2. Same hand-census
+   treatment for the rest. Check each file's "C of record" pointer and the relevant `lower_*.c`
+   for actual callers before assuming reachability from the filename.
 2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
    D12/D13 flipping green.
 3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
@@ -107,6 +108,8 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
 `UNBLOCKS: WIRES W-5` on origin. Still FALSE, unchanged this session.
 
 **UNBLOCKS: nothing new** (RTX census is a sub-item of W-0, not a rung boundary by itself).
+**PROGRESS: 3 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 = 142
+of 223 total RTX occurrences classified, 81 remaining across 7 files).**
 
 ---
 

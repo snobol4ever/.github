@@ -147,3 +147,38 @@ instance of the same class of error, this time in RTX asm rather than a template
    D12/D13 flipping green.
 3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
 4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
+
+## ADDENDUM 2 (same session, continued) — `rtx_alloc.S` (20/20 done, cleanest file so far)
+
+Read `rtx_alloc.S` in full (173 lines — small file, three functions: `rt_gcheap_alloc`,
+`rt_str_alloc`, `rt_agg_alloc`). Verified 20 occurrences by script, matching the gate. No
+reachability question here at all — this is the SIL bump allocator every string/aggregate/
+workspace block in the runtime is carved from (`rt_agg_alloc` is what `rtx_icnsub.S` calls to
+mint every VCELL trap; `rt_str_alloc` backs `rtx_match.S`'s `rt_cap_open`), so it's reachable by
+construction from every language, not something to check via a lowerer grep.
+
+**Classification — ONE idiom, simplest file read so far:**
+
+| Function | Occ | Idiom | Role |
+|---|---|---|---|
+| `rt_gcheap_alloc` | 14 | GOT-global accessor (long-lived within-function) + local scalar | r10=`&g_hp_fr` loaded once, held for the whole fast-path bump sequence but NEVER across a call (function is a leaf); r11=`at`/bump cursor, local scalar, dead by `ret`. |
+| `rt_str_alloc` | 3 | same GOT-global accessor, truncated | r10 loaded, then handed off via a same-function tail-jump (`jmp .Lga_armed`), not a call. |
+| `rt_agg_alloc` | 3 | same pattern | identical shape. |
+
+Zero calls inside any of the three functions — this file is entirely leaf carve logic. That makes
+it the **lowest-risk file of the three read so far** for the WREG flip: r10/r11 here can never
+collide with a callee's use of the wires because nothing here calls anything.
+
+### NEXT SEAT, IN ORDER (supersedes the list above — 3 of 10 RTX files now done)
+
+1. **The other 7 RTX `.S` files** (81 occ remaining: `rtx_str.S` 19, `rtx_icnvar.S` 13,
+   `rtx_arith.S` 9, `rtx_plcall.S` 10, `rtx_icnagg.S` 11, `rtx_icnrel.S` 8, `rtx_icnnum.S` 11).
+   Same treatment — check reachability per file, don't assume from name or from either prior
+   file's result.
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
+
+**PROGRESS: 142 of 223 total RTX occurrences classified (3 of 10 files: rtx_match.S 89 +
+rtx_icnsub.S 33 + rtx_alloc.S 20), 81 remaining across 7 files.**
