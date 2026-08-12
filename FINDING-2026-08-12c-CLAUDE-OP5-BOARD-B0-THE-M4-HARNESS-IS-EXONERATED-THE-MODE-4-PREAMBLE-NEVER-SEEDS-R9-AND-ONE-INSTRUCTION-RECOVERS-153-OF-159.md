@@ -67,6 +67,18 @@ mov  r9, rax
 
 A01: `rc=139`, 0 bytes ⇒ `rc=0`, output `=S`, **byte-identical to `A01.ref`**. Swept across all 163 probes: **153 of the 159 failures recover.** Instrument: `SCRIP/scripts/util_board_m4_gva_seed_probe.sh` (patches only a scratch copy; re-runnable; prints the recovered set).
 
+## 4b. REFINEMENT — r9 IS VALID ONLY AFTER THE FIRST RTCC RELOAD
+
+The seed is missing, but the body also contains `mov r9, qword ptr [r11 + 48]` at every C crossing — the RTCC reload, and `rtcc_init.c` *does* seed block slot 6 with `RT_GVA_VA`. So r9 becomes correct **the first time a C crossing happens to execute**. The survivors are therefore not immune, they are lucky: their first global access follows a reload. Across earn0, the text-order proxy (first `mov r9,[r11+48]` line vs first `[r9 …]` line) predicts m4 survival in 15 of 20 — strong but not exact, and it cannot be exact, because text order is not execution order under a jump-threaded β/ω spine. **Do not use the proxy as a gate.** It is offered only as evidence for the mechanism; the seed makes r9 valid from instruction one and moots the ordering entirely.
+
+## 4c. CROSS-SEAT: THE RBP SEAT'S m4 SEGV CLASS IS **NOT** THIS DEFECT
+
+`corpus/probe/earn0` moved **16 → 20** during this session (`c91d1adf`, "4 discriminating controls for the pending × alternation m4 SEGV class"). Since that names an m4 SEGV class, it was tested against this defect. It is not the same bug: earn0 = 20 probes, **8 already passing in m4, 1 recovered by the seed (`earn0_varref_strvar_control`), 11 unaffected.** The RBP seat's class is real, independent, and theirs — **they should not wait on the r9 seed**, and the 11 are a clean subject set once the seed lands and removes the confound.
+
+## 4d. SELF-FALSIFICATION — THE FIRST earn0 NUMBER WAS WRONG
+
+The first earn0 sweep reported **0 of 12** recovered. That was an artifact of my own instrument: it anchored the patch on `xor esi, esi`, which is **not unique** (4 occurrences in a typical earn0 program), so `replace(...,1)` patched a procedure body instead of main's preamble and silently measured nothing. Re-anchored on `call gva_register@PLT` (unique, one per program) the true figure is **1 of 12** — the conclusion direction is unchanged, the number was not. The bb sweep was re-run under the corrected anchor and reproduces **153** exactly, so the headline was never affected. The instrument now fails loudly (`NOSEED`) instead of silently when the anchor is absent. Recorded because a silent-no-op patch is the same failure mode as the mute `&&` chain in §1: **an instrument that cannot fail loudly will eventually be believed when it is wrong.**
+
 ## 5. WHAT THIS MEANS FOR THE PLAN
 
 - **B-0 is discharged as diagnosis.** The rung was written as "m4 HARNESS REPAIR". The harness needs no repair. What needs repair is the m4 preamble, and that is **compiler bytes — outside BOARD's charter by construction.** Assigned, not applied.
