@@ -131,7 +131,43 @@ until (a) is landed and re-verified with the SAME positive control this FINDING 
 sets**, not just an improved count — a HEAP run that merely improves the pass count without matching the
 FORTH set exactly has not actually proven byte-safety, it has proven "different wrong answers").
 
+## ADDENDUM — why fix (a) was NOT attempted this session, and what would make it safe to attempt
+
+Attempted to locate the precise K-granting field behind the witness's `+272 result IR_LIT_STRING`
+slot before touching REG-4b, to mirror the correct carve/release protocol rather than guess at it.
+`--dump-zeta --zeta-port=heap` confirms the slot is real and well-defined (a whole-graph static table,
+`region_end=288`, port-independent — this is a planning-time/LOWER artifact, not runtime-computed) and
+confirms neither port ever emits a `sub rsp,288` to materialize that table wholesale — both rely
+entirely on per-node dynamic carve/release to back whichever offsets are live at a time, which is why
+FORTH is safe (LIFO-reused, small live footprint) and HEAP is not (nothing carves at all for this class).
+
+Where the attribution got genuinely uncertain: `bb_glue_flat_enter()` fires unconditionally at the same
+`X86H_DEF/ALPHA` dispatch point as REG-4b (confirmed by call-site grep, not assumption), and its own
+`x86_bomb` never appears anywhere in the witness's compiled output (`grep -c rt_bomb` = 0) — meaning its
+`_.op_fc_bytes > 0` guard read false for whichever node evaluated it. REG-4b's `hk` selector prefers
+`op_zls2_bytes` over `op_fc_bytes` when the former is present, so the working hypothesis was that this
+specific node's grant travels via `op_zls2_bytes`, not `op_fc_bytes` — **but a full grep of every
+`op_zls2_bytes` site in `x86_asm.h` turns up carve/release arms for `ZC_PORT_ALLOC` and `ZC_PORT_HEAP`
+only. There is no `ZC_PORT_FORTH` arm for it anywhere in this file.** That is surprising: if this
+witness's node really is `op_zls2_bytes`-granted, FORTH mode should have the identical unreserved-carve
+problem, which the corpus baseline says it does not. Two explanations are both live and neither is
+confirmed: (i) my hunk-to-slot pairing between the raw asm diff and the `--dump-zeta` table was done by
+eye and matched the wrong node — the actual `op_fc_bytes`-vs-`op_zls2_bytes` attribution for the `+272`
+slot specifically is still open; (ii) `op_zls2_bytes`'s FORTH-mode carve lives outside `x86_asm.h`
+entirely (a template-level call site, the same pattern `bb_glue_flat_enter` itself uses, rather than a
+central-hook arm) and simply hasn't been found yet.
+
+**This is exactly the point where continued source-reading stops being trustworthy and starts being
+guessing** — matching disassembly hunks to a planning-time table by eye is not the rigor this file's own
+culture demands for a TEMPLATE-ONLY/ONE-AUTHORITY-governed encoder. The correct next step is
+instrumentation, not more grepping: trace `_.op_fc_bytes`/`_.op_zls2_bytes`/`_.op_zls2_ops` at the exact
+`X86H_DEF/ALPHA` dispatch point for this witness (an env-gated diagnostic print at the REG-4b/
+`bb_glue_flat_enter` choke, matching the `SCRIP_FC_AUDIT`/`SCRIP_ALLOC_HIST` idiom already established
+in this file), across a few witnesses of both grant flavors, before writing a single line into REG-4b.
+**Fix (a) stays named and recommended; its implementation is deferred to a session that starts from a
+traced, not inferred, field attribution.**
+
 ## ZERO CODE CHANGED THIS SESSION
 
-Every measurement above is read-only (compile + diff + grep). Tree is clean. No commits beyond this
-FINDING and the cursor move.
+Every measurement above is read-only (compile + diff + grep + `--dump-zeta`). Tree is clean. No commits
+beyond this FINDING and the cursor move.
