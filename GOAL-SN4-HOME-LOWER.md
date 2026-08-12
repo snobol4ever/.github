@@ -15,7 +15,37 @@
 ## GATES (every rung)
 crosscheck/patterns + probe BY SET vs P0 floors, both modes · monitor divergence must MOVE PAST the fix · regen ×3 iff codegen touched (splice arithmetic counts) · FINDING per land mine · cursor move per handoff.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s35 (Opus 5). **L-3 ROOT CAUSE FOUND, NOT YET FIXED. NEXT RUNG: L-3 fix — un-guard the C-9 REPL-ZDEPTH correction (emit.cpp:841, currently inside `if (g_zd_arm)`).** ZERO compiler bytes, zero script bytes. FINDING-2026-08-12f.
+## ⭐ LIVE CURSOR — 2026-08-12 s36 (Opus 5). **NON-CARVING ROOT CAUSE CLOSED + CONFIRMED (raw-value instrument). CARVING CLASS (TAB/RTAB) SPLIT BACK OUT — DOES NOT SHARE THE DEFECT, s35/s41 both stand as open. NEXT RUNG: L-3 fix, non-carving sub-class ONLY.** One runtime diagnostic edit this session (`gen_runtime.c`, pre-clamp trace fields; regen NOT triggered — no emitted-`.s` change possible). Zero emitter/template bytes. FINDING-2026-08-12f + FINDING-2026-08-12g (g corrects f's TAB hedge — read g first).
+
+**⛔ CORRECTION TO MY OWN s35 CURSOR: TAB IS NOT "PLAUSIBLY THE SAME 16."** Raw (pre-clamp, post instrument-fix) values settle it: `tab_nonterm`/`rtab_nonterm`/`tab_linear3` all show **`end` CORRECT** (14, 14, 7) — if they shared the non-carving defect, `end` would read the `zeta_mark` GC pointer like the other five do, and it does not. `--dump-zeta` confirms TAB's ZLS map is identical to SPAN's (+48/+56/+72), so this is a genuinely different mechanism, not "same map, same bug." **Two independent opens, not one — do not grade a non-carving fix against TAB rows, and do not spend on TAB without minting its own same-box-count control first (none exists on the l3 board).**
+
+**NON-CARVING CLASS (`span/arb/break/rem/VACUOUS_nonterm`) — ROOT CAUSE CLOSED, doubly confirmed:**
+
+| intended | actually read (−16) | value seen (raw, pre-clamp) |
+|---|---|---|
+| ZLS +48 `head.cursor` | ZLS +32 `result` DESCR of MATCH_BEGIN | dword type tag `DT_I`=0x03 ⇒ **flat `3`, all 5 members identical** |
+| ZLS +72 `head.end` | ZLS +56 `head.zeta_mark` (GC pointer) | **`4300136`, all 5 members identical** (deterministic arena) — clamped to `slen` by `c_rt_match_replace`, which is why every earlier session read it as "end==slen" |
+
+**Board-wide split, all 12 probes, no exceptions:** start_off **64** (=ZLS+48, correct) = `len_nonterm` `len_pure` `lit_len` `pos` — the only 3 PASSes; start_off **48** = the other 8 — 8 of 8 FAIL.
+
+**MECHANISM ALREADY IN-TREE, GATED TO ONE PATH.** `emit.cpp:841`'s s35 C-9 REPL-ZDEPTH comment describes this verbatim ("short by exactly the subtree footprint … +16 for a literal replacement, +80 for `A '-' B`"), gated by `if (g_zd_arm)` (`zd_on[i]`, emit.cpp:2656). ⛔ **DO NOT HARDCODE 16** — gate witness `P8_concat_repl` kills that (in-tree comment says so explicitly); the correct term is `g_zd_wpop`. ⛔ **The l3 board is structurally vacuous on 16-vs-`g_zd_wpop`** (every probe is a single-literal replacement) — `P8_concat_repl` is mandatory before landing anything.
+
+⛔ **INSTRUMENT WAS LYING, NOW FIXED.** `SCRIP_REPL_TRACE` printed post-clamp; every earlier "`end` arrives as `slen`" reading in this goal actually meant "≥ slen," pointer included. Fixed this session (`gen_runtime.c`, pre-clamp `raw_start`/`raw_end` fields added; clamp arithmetic unchanged; board re-verified identical 3/9 post-rebuild, confirming diagnostic-only).
+
+⛔ **RULE EARNED (7th conviction, s35): on the RSP FORTH spine, never compare two `[rsp+N]` displacements from different program points without first proving rsp is unchanged between them.** Killed my own PATCTX-save-block hypothesis this way (`.s` `#` annotations are per-site labels, NOT a frame map; `--dump-zeta` is the frame map).
+
+**`l3_spl_pos` reads the fully correct slot and STILL fails** ⇒ POS/RPOS confirmed a third, independent defect.
+
+### NEXT SEAT, IN ORDER
+1. Find why the replace node declines the ZD arm for the non-carving class (`zd_on[i]`, emit.cpp:2656) — the single guard separating the 64-group from the 48-group.
+2. Land the subtree-footprint correction via `g_zd_wpop` (never a literal 16); gate on `P8_concat_repl` AND l3 board rows `{span,arb,break,rem,VACUOUS}_nonterm` AND probe/bb BY SET. **Expect `{tab,rtab}_nonterm`/`tab_linear3` to remain FAIL — not a regression, they are a different defect.**
+3. Before touching the carving class at all: mint a same-box-count PASS/FAIL control pair for TAB (e.g. two-box `LEN(n) LEN(m)` replace, no var-length primitive) — none exists yet, and TAB's raw offsets (`op_sa`=192) are not comparable to SPAN's (`op_sa`=176) without one.
+4. Only then `bal` (own row, untouched), then L-1 (Defect A) — honouring its ⛔ (fixing A alone RAISES the hang count).
+
+**UNBLOCKS:** LOWER L-3 non-carving sub-class fix-ready; carving sub-class explicitly NOT unblocked — a future seat should not inherit s35's TAB hedge as settled fact. **m3 only — this board's m4 arm is UNMEASURED, not green; BOARD B-0 still owns it.**
+
+---
+### s35 record (superseded above by s36's TAB retraction; the non-carving mechanism itself is UNCHANGED and stands)
 
 **⛔ "FIND THE WRITER" IS DISCHARGED — THERE WAS NEVER A MISSING WRITER.** `IR_MATCH_BEGIN` writes `head.cursor` (ZLS **+48**) and `IR_MATCH_END` writes `head.end` (ZLS **+72**) correctly in BOTH the passing and failing shapes. **`IR_MATCH_REPLACE`'s reach-back is aimed exactly 16 bytes LOW**, landing on:
 
