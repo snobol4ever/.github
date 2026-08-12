@@ -82,4 +82,11 @@ Extracted the raw bytes at `rip` from the core file and disassembled with `objdu
 3. Re-run `probe/rtx_func_11_{inline,include}.sno` and the 34-file `beauty_suite` (X-2's stated acceptance criterion) both modes.
 4. Sweep other `-INCLUDE`d looping constructs for the same signature before assuming this is `SNO$NAME`-specific.
 
+## 10. ADDENDUM (same session, immediately after §9) — THE DIVERGENCE IS NOT A LITERAL `-INCLUDE` BRANCH
+
+Quick, bounded check before opening a wider search: `grep -n "INCLUDE" src/emitter/emit.cpp src/lower/lower_snobol4.c` → **zero hits in either file.** Neither the lowering pass nor the emitter special-cases `-INCLUDE` at all. This means `-INCLUDE` is almost certainly handled upstream (parser/preprocessor splicing text or AST nodes before LOWER sees a unified tree), and the `0xCC0`-per-iteration divergence between the include and inline arms is **structural** — something about the resulting AST/IR shape or statement/label numbering differs between spliced-in and directly-written code — **not** a codegen path that explicitly asks "did this come from `-INCLUDE`?". Recorded so the next session doesn't re-run this exact grep expecting a hit. Next session's search should start at how `-INCLUDE` is expanded (parser stage) and compare the resulting AST/IR shape for the two arms directly (e.g. `--dump-ir` on both witnesses, diffed), rather than searching emitter/lowering source for the string `INCLUDE`.
+
+**Not continued further this session** — context budget spent; see next-session handoff.
+
 **`handoff_status.sh` is the push truth — NOT this document.**
+
