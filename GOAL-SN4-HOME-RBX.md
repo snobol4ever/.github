@@ -1,5 +1,9 @@
 # GOAL-SN4-HOME-RBX — RBX = GC heap-top; allocation + GC coverage (HOME seat; master = GOAL-SN4-HOME.md)
 
+## ⛔ TOOLING FIRST (s42) — `bash /home/claude/SCRIP/scripts/install_system_packages.sh` BEFORE ANY RUNG.
+One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** — RULES.md MONITOR-FIRST step (2) *is* a gdb breakpoint with a spin/ignore counter. ⛔ **Never hand-run `apt-get install gdb`:** it pulls Recommends `libc-dbg` against a stale container apt index and 404s on a package gdb does not need — **that trap cost RBP-EARN seven sessions (s33–s39)**, each re-concluding "no gdb in this container" and passing it on. The script does `apt-get update` first and passes `--no-install-recommends`. Runtime `rt_*` symbols live in `out/libscrip_rt.so`: use `set breakpoint pending on` — "Function not defined" is dynamic linking, not a broken gdb. **Any tool genuinely missing ⇒ ADD IT TO THAT SCRIPT in the same push; never work around it silently.** If a prior cursor in this file claims gdb is unavailable, that claim is VOID — re-test.
+
+
 **CHARTER (Lon s30):** SNOBOL4 addressing is RSP + RBP + **RBX GC-heap-top relative**. Formalize rbx as the allocation frontier (today's DESCR mint pointer), make emitted code allocate inline against it, and make the GC actually see every register-resident and arena-resident root. rbx is callee-saved — the C boundary is free, same property as rbp.
 
 ## RUNGS

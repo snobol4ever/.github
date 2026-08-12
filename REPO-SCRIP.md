@@ -4,13 +4,35 @@
 
 ## Session Start
 ```bash
-git config --global user.name "LCherryholmes"
-git config --global user.email "lcherryh@yahoo.com"
-bash /home/claude/SCRIP/scripts/install_system_packages.sh
-cd /home/claude/SCRIP && rm -f scrip && make -j4 scrip > /tmp/build.log 2>&1
+cd /home/claude/SCRIP
+git config --local user.name "LCherryholmes"          # ⛔ --local, NEVER --global (HOME law; a global
+git config --local user.email "lcherryh@yahoo.com"    #    config leaks across repos and scrambles attribution)
+bash /home/claude/SCRIP/scripts/install_system_packages.sh   # ⛔ NOT OPTIONAL — see TOOLING below
+rm -f scrip && make -j4 scrip > /tmp/build.log 2>&1
 [ -x scrip ] || { grep "error:" /tmp/build.log | head -5; exit 1; }
 make libscrip_rt
 ```
+
+## ⛔ TOOLING — RUN THE INSTALL SCRIPT, DO NOT HAND-INSTALL, DO NOT SKIP IT
+
+`scripts/install_system_packages.sh` is the ONE AUTHORITY for what this project needs on the box. It is
+idempotent and costs seconds when everything is already present. It ends by printing whether `gdb` is live.
+
+**`gdb` is mandatory tooling, not a convenience:** RULES.md MONITOR-FIRST step (2) *is* "gdb breakpoint at
+the bracketed C site with a spin/ignore counter". A session without it cannot run the prescribed hunt and
+will hand off half-localized defects instead of fixing them.
+
+⛔ **DO NOT hand-run `apt-get install gdb`.** Bare apt in a fresh container installs gdb's *Recommends*
+(`libc-dbg`) against an apt index baked at image-build time; that indexed version has usually been
+superseded and deleted from the mirror, so it 404s — on a package gdb does not need. **This exact trap
+cost GOAL-RBP-EARN seven sessions (s33–s39):** each seat hit the 404, concluded gdb was unavailable in this
+container, and recorded that as fact for the next seat to inherit. The script does `apt-get update` first
+and passes `--no-install-recommends`. If gdb is somehow still missing, say so in your cursor rather than
+working around it silently.
+
+**Breakpointing runtime symbols:** `rt_*` symbols live in `out/libscrip_rt.so`, which is not loaded when
+gdb starts, so a plain `break rt_defer_step` reports *"Function not defined"*. Use `set breakpoint pending
+on` (or break after the `.so` loads). That is normal dynamic-linking behaviour — not evidence gdb is broken.
 Build later: `git pull --rebase; rm -f scrip; make scrip`.
 
 ## scrip modes (exactly two; must be 1:1)

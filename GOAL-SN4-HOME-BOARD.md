@@ -1,5 +1,9 @@
 # GOAL-SN4-HOME-BOARD — instruments, corpus, floors, gates (HOME seat; master = GOAL-SN4-HOME.md)
 
+## ⛔ TOOLING FIRST (s42) — `bash /home/claude/SCRIP/scripts/install_system_packages.sh` BEFORE ANY RUNG.
+One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** — RULES.md MONITOR-FIRST step (2) *is* a gdb breakpoint with a spin/ignore counter. ⛔ **Never hand-run `apt-get install gdb`:** it pulls Recommends `libc-dbg` against a stale container apt index and 404s on a package gdb does not need — **that trap cost RBP-EARN seven sessions (s33–s39)**, each re-concluding "no gdb in this container" and passing it on. The script does `apt-get update` first and passes `--no-install-recommends`. Runtime `rt_*` symbols live in `out/libscrip_rt.so`: use `set breakpoint pending on` — "Function not defined" is dynamic linking, not a broken gdb. **Any tool genuinely missing ⇒ ADD IT TO THAT SCRIPT in the same push; never work around it silently.** If a prior cursor in this file claims gdb is unavailable, that claim is VOID — re-test.
+
+
 **⛔ ROUTED IN from GOAL-RBP-EARN (Lon-approved split, 2026-08-12 s40):** (1) the duplicate-label class — `.Lbynamefnzd####` (bb_call.cpp) and `.Lx####_##` (x86_asm.h, `g_m4_dense_nid` per-proc counter reset suspected) — assembler-rejected demos; a BOARD seat already filed FINDING at `314fdb57`. (2) BUILDFAIL-4 (claws5/json AS-FAIL; expression/porter duplicate-symbol). Neither touches the MATCH_DEFER boundary, so they bill HERE now. Prior analysis: GOAL-RBP-EARN s38 FIX PLAN STEP 3 (kept there verbatim until adopted) and `archive/ARCHIVE-RBP-EARN-CURSOR-HISTORY.md`.
 
 **CHARTER:** the referee. Every other seat judges BY SET against numbers published HERE. Owns: the P0 baseline, the EARN-2 census re-cut, witness/ref hygiene, gate strictness, monitor extensions, regen freshness.
