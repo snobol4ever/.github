@@ -81,3 +81,29 @@ I first convicted the **PATCTX register-save block**: the `.s` annotations show 
 5. `bal` still owns its row (wrong on both terms, and the only capture-failing member that also splices wrong).
 
 **UNBLOCKS:** LOWER L-3 (root cause CLOSED to a named guard and a named correct term; "find the writer" discharged as a non-existent target) · LOWER L-4/L-5 unaffected. **m3 only — the m4 arm of this board is UNMEASURED, not green; BOARD B-0 still owns it.**
+
+---
+
+## 8. ADDENDUM (same session, after §1–§7 were written) — PREDICTION CONFIRMED, AND THE NAMED GATE WITNESS WAS A PHANTOM
+
+**(a) `P8_concat_repl` DOES NOT EXIST.** The gate witness named in `emit.cpp:841` — the *only* recorded discriminator against a hardcoded-16 fix — is absent from `corpus/` and `SCRIP/` entirely (`find`/`grep` both empty). It has been a phantom for the whole life of that comment. **An annotation string is not an instrument** (this goal's own rule, s33b) — it is now also not a witness. A seat trusting it would have hunted, found nothing, and landed the wrong fix behind a 12/12-green board.
+
+**(b) MINTED THE REAL ONE: `corpus/probe/l3/l3_spl_span_concat.sno`** (+ oracle-baked `.ref` from `x64/bin/sbl`). Var-length pattern, **concat replacement** (`A '-' B`) — the shape the comment says has an +80 footprint, not +16.
+- oracle: `S=[XXXXXXXXXX<->YYYY]`
+- SCRIP m3: `S=[XXXXXXXXXX+efgYYYY<->]` — **FAIL**, as predicted.
+
+**(c) THE PRE-CLAMP VALUES CONFIRM §1 AND KILL "HARDCODE 16" ON EVIDENCE.** The trace now shows raw values (see (d)):
+```
+[REPL] name=S slen=18 raw_start=217825280 raw_end=0 start=18 end=18 rs="<->" rlen=3
+```
+`raw_start` is a **pointer** (0x0CFB…), not `3`; `raw_end` is `0`. §1 predicted the wrong-slot content is whatever object happens to sit there — **and it changes with the replacement subtree's footprint**: the single-literal members read the MATCH_BEGIN result-DESCR tag (`3`), the concat member reads a pointer at a *different* wrong slot. **A constant correction cannot serve both.** The term must be the planner's under-cells quantity (`g_zd_wpop`). This is now evidenced, not merely inherited from a comment.
+
+**(d) THE POST-CLAMP INSTRUMENT DEFECT (§5) IS ALREADY FIXED IN-TREE — NOT BY ME.** SCRIP `67e9383c` ("SCRIP_REPL_TRACE now captures raw (pre-clamp) start/end alongside clamped… FINDING-2026-08-12f/g") appeared in this container's working tree at 15:19 and was committed at 15:24, **local and unpushed (`ahead 1`)**, during this session and by no action of this seat. Its diagnostic is correct and its arithmetic is unchanged. **§5's first bullet should therefore be read as DISCHARGED, and its recommendation as independently corroborated** — but see §9.
+
+## 9. ⛔ THE ONE INVARIANT IS BEING VIOLATED RIGHT NOW — LOWER HAS TWO LIVE SEATS AGAIN
+
+s34 already recorded this and asked Lon to retire one before re-firing (`GOAL-SN4-HOME-LOWER.md`, CONCURRENT SEAT NOTE). **It was not resolved, and it has recurred this session:** a commit citing `FINDING-2026-08-12f/g` — a filename minted by this seat minutes earlier and never pushed — landed in this tree from outside this seat's actions. `f` is this finding; `g` is not this seat's.
+
+**No work appears lost** (this seat's `.github` commit `3e48ea0e` is intact; `67e9383c` is additive and touches a file this seat never edited), and the two halves are again COMPLEMENTARY rather than duplicated — but that is luck, not the invariant. The s34 note's own conclusion applies verbatim and now with a second data point: **HOME's ONE INVARIANT ("ONE LIVE SESSION PER SEAT FILE") is not holding for LOWER, twice in two sessions.** This is a HUMAN-SCHEDULING defect, not a git defect, and RULES 2026-08-10 explicitly cannot fix it (it abolished scheduling for *files*, not for *seats*).
+
+⛔ **Lon: this needs a decision, not another note.** Either (i) retire one LOWER session before re-firing, or (ii) accept LOWER as a two-seat surface and SPLIT the file — the natural cut is already visible and clean: **splice/`start`-`end` arithmetic (L-3/L-4)** vs **capture/alternation (L-5 + the cap_after_* rows)**, which s33b/s34 independently discovered are two different defects with no shared authority.
