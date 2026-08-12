@@ -93,12 +93,13 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
   file by name.** This likely applies to some of the remaining 8 files too; check each on its own
   merits, don't pattern-match from this file's result either.
 
-### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2) — 7 OF 10 RTX FILES DONE
-1. **The other 3 RTX `.S` files** (30 occ remaining: `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8 ·
-   `rtx_icnnum.S` 11) — filenames say Icon; CHECK, don't assume, per addenda 2/4 (icnsub/icnvar
-   turned out SN4-reachable) vs. addendum 6 (plcall turned out genuinely excused). `rtx_alloc.S`
-   (20), `rtx_str.S` (19), `rtx_icnvar.S` (13), `rtx_arith.S` (9), and `rtx_plcall.S` (10) are now
-   ALSO DONE — see FINDING-2026-08-12h addenda 2-6.
+### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2) — 8 OF 10 RTX FILES DONE
+1. **The other 2 RTX `.S` files** (19 occ remaining: `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8). Both
+   PRE-CHECKED and CONFIRMED Icon-exclusive this session (unlike icnnum, which read Icon-flavored
+   but was reachable): `rtx_icnagg.S`'s `rt_size_d` backs `TT_SIZE`, confirmed emitted only by
+   `src/parser/icon/icon_parse.c`; `rtx_icnrel.S`'s `rt_jct_relop` backs `IR_BINOP_TEST`, confirmed
+   emitted only by `lower_icon.c`. Reachability is settled; the FULL HAND-READ for classification
+   is still owed for both — do not skip it on the strength of the reachability check alone.
 2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
    D12/D13 flipping green.
 3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
@@ -112,14 +113,22 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
    is now a CONFIRMED, structurally-verified instance of "provably dead for SNOBOL4" (Prolog/
    Icon/Raku's `IR_CALL_PROC_STAGED` never reaches `lower_snobol4.c`) — a clean, fully-checked
    test case for whichever way that policy question gets decided.
+6. **⭐ REACHABILITY-CHECK METHOD NOTE, EARNED THIS SESSION:** a header's Icon-flavored measurement
+   language (corpus names, ledger rung IDs) is NOT an exclusivity claim. Only an explicit
+   statement like `rtx_icnrel.S`'s "Icon-EXCLUSIVE row: zero SNOBOL4... static call sites" — and
+   even that, independently verified — should be trusted without a separate grep of every
+   `lower_*.c` for the IR kind the callee's template actually handles. Three of five "icn"-named
+   files checked this session were SN4-reachable (icnsub, icnvar, icnnum); only `rtx_plcall.S`
+   (Prolog/Icon/Raku, explicit claim) was confirmed excused. Check every file, every time.
 
 ⛔ W-5 REQUIRES (predicate): `grep -rn "frame_need_of" /home/claude/SCRIP/src/` non-empty AND
 `UNBLOCKS: WIRES W-5` on origin. Still FALSE, unchanged this session.
 
 **UNBLOCKS: nothing new** (RTX census is a sub-item of W-0, not a rung boundary by itself).
-**PROGRESS: 7 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 +
-rtx_str.S 19 + rtx_icnvar.S 13 + rtx_arith.S 9 + rtx_plcall.S 10 = 193 of 223 total RTX
-occurrences classified, 30 remaining across 3 files).**
+**PROGRESS: 8 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 +
+rtx_str.S 19 + rtx_icnvar.S 13 + rtx_arith.S 9 + rtx_plcall.S 10 + rtx_icnnum.S 11 = 204 of 223
+total RTX occurrences classified, 19 remaining across 2 files — both pre-verified reachable-or-
+excused, hand-read still owed for classification).**
 
 ---
 

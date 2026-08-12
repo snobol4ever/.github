@@ -341,3 +341,49 @@ file is a clean example of what that licensing class would look like.
 
 **PROGRESS: 193 of 223 total RTX occurrences classified (7 of 10 files), 30 remaining across
 3 files.**
+
+## ADDENDUM 7 (same session, continued) — `rtx_icnnum.S` (11/11 done) — SUBTLER REACHABILITY TRAP
+
+Read `rtx_icnnum.S` in full (157 lines: `rt_coerce_num2_d`, its `SCAN_SIMPLE_INT` macro expanded
+twice). Verified 11 occurrences by script, matching the gate.
+
+**⭐ SNOBOL4-REACHABLE — a subtler instance of the reachability trap than addenda 2/4, worth
+recording precisely because the mechanism of error is different.** Unlike `rtx_icnrel.S` (whose
+header explicitly and correctly claims "Icon-EXCLUSIVE row: zero SNOBOL4... static call sites" —
+verified true), this file's header never makes an exclusivity claim at all; it only describes
+Icon-corpus measurements and an Icon ledger rung name. I initially read the Icon framing as
+implying exclusivity and checked anyway per standing practice: `lower_snobol4.c:181-182` emits
+`IR_COERCE_NUMERIC` directly, and `bb_coerce_numeric.cpp` — the template calling
+`rt_coerce_num2_d` — has NO language gate before the call. So this file **is SNOBOL4-reachable**.
+**The lesson: Icon-flavored measurement data in a header is not an exclusivity claim, and only an
+explicit "zero SNOBOL4 call sites" statement (independently verified, as done for `rtx_icnrel.S`
+below) should be trusted without its own lowerer check.** Three of four "icn"-named files checked
+this session turned out reachable (icnsub, icnvar, icnnum); only `rtx_plcall.S`, whose header made
+an explicit and verified exclusivity claim, was genuinely excused.
+
+**Classification — no new idiom:**
+
+| Location | Occ | Idiom | Role |
+|---|---|---|---|
+| `SCAN_SIMPLE_INT(self)` expansion | 3 | local scalar/pointer | r11=scan pointer, r10b/r10d=sign flag |
+| `SCAN_SIMPLE_INT(other)` expansion | 3 | same shape | identical roles, second operand |
+| combine/dispatch logic | 5 | local scalar (realness flag) | r10d live across ~10 instructions, dead before either exit |
+
+Zero calls crossed anywhere in the function — every path is straight-line to a `ret`, or a bare
+untouched-argument bail to C.
+
+### NEXT SEAT, IN ORDER (supersedes the list above — 8 of 10 RTX files now done)
+
+1. **The other 2 RTX `.S` files** (19 occ remaining: `rtx_icnagg.S` 11, `rtx_icnrel.S` 8). Both
+   pre-checked this session and CONFIRMED Icon-exclusive (unlike icnnum): `rtx_icnagg.S`'s
+   `rt_size_d` backs `TT_SIZE`, confirmed emitted only by `src/parser/icon/icon_parse.c`;
+   `rtx_icnrel.S`'s `rt_jct_relop` backs `IR_BINOP_TEST`, confirmed emitted only by
+   `lower_icon.c` (`lower_snobol4.c` has zero references to either). Files themselves still
+   need a full hand-read for classification — the reachability check does not substitute for it.
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
+
+**PROGRESS: 204 of 223 total RTX occurrences classified (8 of 10 files), 19 remaining across
+2 files — both pre-verified reachability, hand-read still owed.**
