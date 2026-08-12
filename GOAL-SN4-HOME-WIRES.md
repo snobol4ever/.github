@@ -11,10 +11,10 @@
     - **`x86_asm.h`: ✅** all 23 remaining occurrences traced line-by-line — 13 register-name infrastructure · 9 RTCC veneer save/reload · 1 self-documented DC-fn call-stub scratch. Per-line table + ready-to-paste whitelist entry in `FINDING-2026-08-12j-…` addendum.
   - [ ] **W-0b · POLICY — ⛔ THE ONLY THING BLOCKING W-0, AND ONLY LON CAN ANSWER IT.** (a) Does "product-wide" require clearing r10/r11 where SNOBOL4 provably cannot reach them (30/223 RTX are the only genuine licensing candidates; 193/223 are SN4-reachable and cannot be excused either way)? (b) Is `x86_asm.h` licensed as whitelist class (3)? ⚠ **NUANCE THE RECOMMENDATION DOES NOT PAPER OVER:** the whitelist header says x86_asm.h "become[s] entry (3) the moment [its internals] are actually needed by a wire spelling." The RTCC-veneer 9 clearly meet that test (s14: safe config = RTCC-ON **and** wire capture/restore). The register-name-table 13 arguably do NOT — they are needed by *every* register, not by a wire spelling, so licensing them is a small widening of class (3)'s stated meaning, not a plain application of it. Decide that explicitly rather than letting `occ=23` smuggle it through. (c) Sanction an objdump-based binary gate? — see the ⛔ INSTRUMENT GAP block in the cursor.
   - **WHEN W-0b IS ANSWERED, W-0 CLOSES IN ONE EDIT:** one line into `wreg_claim_whitelist.txt`, then `--strict`. No further measurement is owed by anyone.
-- [x] **W-1 · ZCTX SCRATCH ERADICATION — DONE s33 (`26c84e72`). PREMISE WAS STALE:** the six sequences were already gone (`0970838f`); of 5 `g_zctx` mentions FOUR were comments and one was a dead exported BSS array (`uint64_t g_zctx[66]`, 528B, ZERO code uses, no extern, no emitted reference). Deleted. ⭐ **HOME GATE line 4 side effect, MEASURED:** the last surviving `g_blob_ctx` mention lived inside that array's comment, so `g_blob_ctx` and `rt_blob_ctx_ptr` now BOTH grep to 0.
-- [ ] **W-2 · PUSH/POP GUARD UNIFICATION.** ⛔ **LINE NUMBERS CORRECTED TWICE — do not trust any cited in prose.** CURRENT (verified 2026-08-12): push `emit.cpp:2721` TEXT / `:2724` BINARY, guard `_blob_wire` (`:2717`); reload `:2688` TEXT / `:2689-90` BINARY, guard `flat_pat` (`:2687`); `_wire_stub` (`:2716`); related `op_zgpop` (`:842`).
-  - **CENSUS DONE** (2026-08-12, Sonnet 5): `bb_glue_flat.cpp` + `bb_glue_framed.cpp` read in full — **they contain NO r10/r11 push/pop at all.** The code is raw string/byte literals inside `emit.cpp`. `FINDING-2026-08-12i-…`.
-  - **THE NAMED ASYMMETRY APPEARS UNREACHABLE, NOT NARROW:** pop guard (`flat_pat`) is textually broader than push guard (`_blob_wire`), but `lbl_res`'s address is taken at exactly ONE site (`:2722`/`:2725`), inside the `_blob_wire` branch itself — so nothing can reach the pop arm without having executed the push. **Grep-traced, NOT monitor-verified.** Design call owed (see cursor).
+- [x] **W-1 · ZCTX SCRATCH ERADICATION — DONE s33 (`26c84e72`).** Compressed at s36 handoff per RULES.md step 1 (was a 5-line entry); the one fact worth keeping: `g_zctx[66]` was dead exported BSS, deleted, and **HOME GATE line 4 is satisfied as a MEASURED side effect — `g_blob_ctx` and `rt_blob_ctx_ptr` both grep to 0.** Full history in `FINDING-2026-08-12b`.
+- [ ] **W-2 · PUSH/POP GUARD UNIFICATION — ⛔⭐ RECOMMEND CLOSING OR RE-SCOPING (s36). THE RUNG HAS NO WORK LEFT AND NO WITNESSES. LON DECISION OWED.** Both halves of its premise are now falsified, by two separate sessions: (1) the named asymmetry is **structurally unreachable** — `lbl_res`'s address is taken at exactly ONE site, inside the `_blob_wire` branch itself, so nothing reaches the pop arm without having executed the push (s35, `FINDING-2026-08-12i`); the guards are textually different but semantically equivalent because `flat_pat`/`flat_jmp_entry`/`_wire_stub` are per-GRAPH-emission state that cannot change between the push and the res landing within one graph (re-verified s36 against the `sm_emit_t` struct + `emit_jmp_entry_clear`). (2) its named witnesses **D12/D13 are a different bug entirely** — an ARBNO template-dispatcher defect with nothing to do with r10/r11 push/pop (s36, `FINDING-2026-08-12k`). **So: no defect, no witness, and "unify two provably-equivalent predicates" is cosmetic tidying, not a correctness rung.** Three candidate dispositions, all cheap, none mine to pick: **(a)** close it as FALSIFIED with a one-line note that the guards are equivalent-by-construction; **(b)** keep it as a pure hygiene item, explicitly demoted below W-3/W-4/W-6 and stripped of its witnesses so no future session mistakes it for a live defect; **(c)** re-scope it to the thing the census actually found worth doing — the push/pop *emission* is raw string/byte literals inside `emit.cpp` (`:2721`/`:2724`/`:2688-90`), which is a live TEMPLATE-ONLY LAW violation in spirit even if grandfathered in practice; moving it into `bb_glue_*.cpp` behind `x86()` would be a real, gate-checkable rung. ⛔ **Whichever you pick, please strike D12/D13 from this rung's witness line** — they belong to the ARBNO owner (see cursor's ROUTING QUESTION).
+  - **Line numbers, verified s36 (do not trust any cited in older prose):** push `emit.cpp:2721` TEXT / `:2724` BINARY, guard `_blob_wire` (defined `:2720`); reload `:2690` TEXT / `:2691-93` BINARY, guard `flat_pat` (`:2690`); `_wire_stub` (`:2717`); related `op_zgpop` (`:842`).
+  - **CENSUS DONE** (s35): `bb_glue_flat.cpp` + `bb_glue_framed.cpp` read in full — **they contain NO r10/r11 push/pop at all.** `FINDING-2026-08-12i`.
 - [ ] **W-3 · WREG MECHANISM, DORMANT.** Site glue `lea r10,[rip+site_γ]` · `lea r11,[rip+site_ω]` · `jmp <first interior box>`; exits `jmp r10`/`jmp r11`. Killswitched; default emission byte-identical to HEAD. r10/r11 are caller-saved ⇒ saves are TEMPLATE-EMITTED per-activation on the spine, never an implicit choke (s18 RSP-SAFETY + the stack-arg witness). **The emitter already exists and is dormant: `bb_glue_pass_wires_blob()` in `bb_glue_flat.cpp:154-159` (r10/r11 twin of `bb_glue_pass_wires`). Start there, not from scratch.**
 - [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority. ⛔ **The census named TWO shapes the layout must cover, not one — see the cursor's CARRY SHAPES block.**
 - [ ] **W-5 · ⛔ THE FLIP — REQUIRES EARN-1 + EARN-3 LANDED (EARN-10 ordering).** PROC-shim deletion (PT-1..3), CLASS-D exit ceremony dies with it. The old WREG residual (19 SEGV + 7 HANG) was MISSING FRAMES, not glue defects — EXPECTED cured by EARN; measure by set, never assume. ⛔ **PREDICATE NOTE (2026-08-12): `frame_need_of` does not exist in `src/` under ANY spelling — it is a FORWARD REFERENCE to a symbol `GOAL-RBP-EARN.md` must create. This seat cannot unblock it by working harder; only the RBP seat can. Do not re-check it hopefully each session — check the EARN goal file's cursor instead.**
@@ -22,6 +22,116 @@
 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
+
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s36 (Claude Sonnet 5) — HANDOFF · D12 ROOT CAUSE PINNED, NO FIX LANDED, W-2 RECOMMENDED FOR CLOSURE
+
+**NEXT RUNG: W-6 (re-entrant RTCC preservation) or W-3/W-4 — NOT W-2 (falsified, see rung) and NOT W-5
+(still blocked, `frame_need_of` re-checked s36, still absent from `src/`).**
+**WATERMARK: unchanged — s35's by-set m3 floor stands, NOT re-measured this session (no code touched):
+157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}.**
+
+**SCRIP `825ab0a4` — UNCHANGED, zero compiler bytes edited this session (diagnosis + one fix attempt
+abandoned before landing). `.github` this commit. corpus `e7424687` untouched. x64 cloned for the monitor.
+RULES.md step 4 (`.s` regen ×3) NOT APPLICABLE and deliberately not run — no codegen file was touched;
+running it would have produced churn with no edit behind it.**
+
+### What this session did
+Traced **D12** (the 5-REGRESSION set's SIGSEGV) to a concrete root cause, mechanically, and then declined
+to fix it because the measurement said the obvious fix was worse than the bug. Full detail:
+`FINDING-2026-08-12k-…`. Short version:
+- `bb_match_arbno()` (`bb_match_arbno.cpp:207`, the live dispatcher) has two arms: K16 (gated on a real
+  "sequence-only" body check) and plain-frameless (**gated on nothing — it is the unconditional else**).
+  Any body failing the K16 gate lands on plain-frameless without anyone verifying that arm's own stated
+  precondition (`op_arbno_body_k0`, "the frontier never moves inside the activation"). For D12 that
+  precondition is FALSE, and the arm's `[rsp+4]` yield-cursor write then stomps the high 32 bits of a live
+  CLASS-D resume-record landing address when the nested `*LIST` suspends. gdb-confirmed: exact
+  instruction, exact before/after stack values, twice.
+- **Then the corpus said stop.** 19 probes ride that exact path with `k0=0`; **16 of them PASS today.**
+  A blanket "decline on any DEFER in the body" fix breaks 16 to fix 3. The discriminator is finer —
+  `pat_static` (lower-time, "transitively defer-free ⇒ cannot recurse") should separate D09's safe
+  `*P`(`=LEN(1)`) from D12's recursive `*LIST`-via-`ITEM`, but I did not confirm it on the actual node
+  before budget ran out. **Confirming `pat_static` on D12's ARBNO-body DEFER node is the smallest
+  concrete next move and should take minutes.**
+
+### ⛔⭐⭐ SCRUTINY OF THIS LADDER (offered, not applied — three of these need Lon)
+**The pattern worth naming: 4 of 7 rungs' premises did not survive contact with the tree.** W-1's premise
+was stale (work already done by another commit). W-2's asymmetry is unreachable AND its witnesses belong
+to another bug. W-5's predicate is a forward reference to a symbol that has never existed. W-0 is blocked
+on a decision, not on work. That is not four unrelated accidents — **this ladder was written against a
+tree that has since moved, and it is now costing roughly one session per rung just to discover that.**
+Concretely, I'd suggest:
+1. **W-2 → close or re-scope** (three options written into the rung itself; my preference is (c), the
+   TEMPLATE-ONLY-law re-scope, because it's the only one with a real gate behind it).
+2. **Add a cheap staleness convention.** Every rung that names a symbol, a line number, or a witness could
+   carry the commit hash it was verified against. Three sessions have now burned time re-deriving line
+   numbers that drifted; a `(verified @<hash>)` tag makes rot visible instead of silent. Cheap, no tooling.
+3. **The seat boundary is leaking, in both directions.** This seat has now found two defects that are
+   almost certainly not its own (s35's `dc_sib_bt` silent-wrong-answer, s36's ARBNO dispatcher) and has
+   one rung (W-5) it structurally cannot unblock. Meanwhile its own charter work (W-3/W-4/W-6) is
+   untouched across three sessions. **If the goal is r10/r11 product-wide, the seat should probably be
+   pointed at W-6 → W-3 → W-4 and told to route incidental finds out rather than trace them** — I traced
+   D12 this session because W-2 named it as a witness, and that turned out to be a false lead by
+   construction.
+
+### ⛔ QUESTIONS FOR LON (several are re-asks — s35's went unanswered)
+1. **W-0b policy** — still the only thing blocking W-0, now for a fourth session. One line into
+   `wreg_claim_whitelist.txt` once decided. (a) clear r10/r11 where SN4 can't reach? (b) is `x86_asm.h`
+   whitelist class (3) — noting the register-name-table 13 are a genuine widening, not a plain
+   application? (c) sanction an objdump-based binary gate?
+2. **W-2 disposition** — close as falsified, demote to hygiene, or re-scope to the emit.cpp raw-literal
+   removal? (Options written into the rung.)
+3. **ROUTING: who owns the ARBNO dispatcher bug?** It is a template/classifier defect
+   (`bb_match_arbno.cpp` + the `_sq`/k0 scans in `emit.cpp`), not a wires defect. Smells like
+   `GOAL-SN4-ZETA-MECH` or `GOAL-SNOBOL4-BB`. It is fully diagnosed and has a named next step — it just
+   needs an owner who isn't this seat.
+4. **RE-ASK from s35, still open: does MON-CAP exist?** And **who owns `dc_sib_bt`** (returns rc=0 and
+   prints a silently wrong answer)? This session found the same blind spot from a second angle: X01 is in
+   the 5-REGRESSION set as "wrong-output, rc=0" — a by-set floor that grades on pass/fail cannot see this
+   class at all, and **three of the five REGRESSION members are now known to be wrong-answer or
+   hang rather than crash.** Every "floor held BY SET" claim in this file is only as good as that
+   instrument.
+5. **Credential** — asked, still needed; see the BLOCKED note at the end of this handoff.
+
+### DATA EARNED THIS SESSION (recorded so nobody re-derives it)
+**The 19 probes that ride the unguarded plain-frameless arm with `op_arbno_body_k0=0`:**
+PASS (16): D09 D10 D11 G19 G20 H21 H24 H25 N12 N17 X02 X03 X04 X05 X06 X11 ·
+FAIL (3): D12 (SEGV 139) D13 (hang 124) X01 (wrong-output, rc=0).
+Reproduce: `SCRIP_ARBNO_DIAG=1 ./scrip --run <probe>` for the arm verdict + `k0=`; `diff` against `.ref`
+for truth. **Every one of the 16 passers references a NON-recursive deferred pattern (`*P` where
+`P=LEN(1)`) or no DEFER at all; D12/D13 alone reference a self-recursive one.** That asymmetry is the fix's
+discriminator and the reason a blanket fix is wrong.
+
+**Possible same-class link, still unconfirmed:** s35's escalated `dc_sib_bt` silent-wrong-answer bug is
+also a CLASS-D + recursive/deferred-pattern intersection. Live suspicion, not traced — and it is question
+4 below, still unanswered from last session.
+
+### INSTRUMENT RULES EARNED (offered for RULES.md; both cost me real time this session)
+- **Run the codebase's own diagnostic before reading its source by hand.** I misdiagnosed this bug as a
+  `zd_k()` arithmetic error and wrote it up that way; `SCRIP_ARBNO_DIAG=1` — which already existed —
+  showed in one command that `zd_k`/`k0` were correct and the dispatcher simply never consulted them. The
+  finding needed a full correction pass. Cost: ~an hour. (This is the s34 rule extended: not just "run the
+  gate script before hand-rolling a census," but "run the diagnostic before hand-reading the logic.")
+- **Never compare multi-line program output with a shell `[ "$a" == "$b" ]`.** Embedded newlines break the
+  test and it reports FAIL for everything — I briefly believed all 19 probes were failing, which would
+  have inverted the entire fix decision. Use `diff`. Cost: one wasted round, caught only because the
+  result was implausible.
+- **Before narrowing or widening any classifier, sweep the corpus for who currently rides the path you are
+  about to close.** The blast-radius number (16 passers) is what turned a "cheap conservative fix" into a
+  measured regression. It took ~5 minutes and changed the answer completely.
+
+### SESSION-SETUP NOTES (small, real, cost false starts)
+- `bb_seal` lives in `libscrip_rt.so`, **not** the `scrip` binary — `break bb_seal` before `start` does not
+  resolve (gdb's "pending on future library load" prompt reads like success). `start` first, then `break`.
+- `gdb` is not preinstalled here. `apt-get install -y --no-install-recommends gdb` works; plain
+  `apt-get install -y gdb` pulls `libc6-dbg`, which 404s at this image's snapshot and aborts the install.
+- HW watchpoints still don't work in this container (RULES.md is right); **software watchpoints on a FIXED
+  address do work fine** and were the whole trace. Watch a fixed address, never an `$rsp`-relative
+  expression — the latter silently re-evaluates as the stack moves and reports meaningless hits.
+- The mode-3 RX slab is stable across runs in this container (`0x7ffff1600000`+, one page per sealed
+  graph), so breakpoints on emitted-code addresses survive re-runs — that made the trace much cheaper than
+  expected.
+
+---
 
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, continuation session) — RAW-BYTE HALF OF W-0 CLOSED + ONE DEAD-CODE LANDING
 
@@ -292,7 +402,7 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
 ### NEXT SEAT, IN ORDER (supersedes s34's list; items 3-5 unchanged from it)
 1. **Finish `rtx_match.S` by hand** (89 occ, ~24 unscanned) — and settle the **Σ/r13 contract question** above. Highest-risk surface, SN4-reachable, not excusable by reachability.
 2. **The other 9 RTX `.S` files** (134 occ) — same treatment, same reason.
-3. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness D12/D13 flipping green.
+3. **W-2** — [⛔ FALSIFIED s36 — historical text kept for provenance only; D12/D13 are an ARBNO dispatcher bug, not a guard bug] census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness D12/D13 flipping green.
 4. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block` (per-activation spine, not flat block).
 5. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
 - **Do NOT re-derive the W-0 template census a fourth time.** Between FINDING-12f (structural), FINDING-12g (reachability), and FINDING-2026-08-11d (the ERAD ladder), the template surface is mapped. What is missing is RTX and a policy decision, not another count.
@@ -333,8 +443,8 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
    census is DONE (see the top-of-section marker above and `FINDING-2026-08-12h-…`'s final
    summary table). What's needed now is a replacement-register or preservation-mechanism decision
    per idiom, not another count.
-2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
-   D12/D13 flipping green.
+2. **W-2** — [⛔ FALSIFIED s36 — historical, provenance only] census `bb_glue_*.cpp` for asymmetric
+   push/pop; ONE predicate both media; witness D12/D13 flipping green.
 3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
 4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout. **Account for two named
    risk shapes found during the census:** the "carve/copy carry" (`rtx_str.S`'s `str_concat_d`:
@@ -395,7 +505,7 @@ Same family again, different direction: I hand-rolled a `grep -c`/`grep -o` cens
 ### NEXT SEAT, IN ORDER
 1. **RTX hand-asm census** — `rtx_match.S` (89 occ, live during a match — highest risk) + the other 9 `.S` files (134 occ). Completely unopened; `test_gate_wreg_claim.sh`'s RTX section already counts it, reading-by-hand is what's missing.
 2. **W-0 register-reassignment design call** — `bb_call_fn.cpp` + `bb_var.cpp` are fully classified (100% genuine Prolog scratch, safe to reassign) but need a replacement-register decision before editing; a quick read suggests r8/rcx/rdx may be free at those specific sites but this is NOT verified against a full liveness check. `xa_flat.cpp` lines 238–307 are the PROC-shim itself — do NOT sweep, that's W-5. Remaining `bb_scan_*` files (~44 occ) + small files (~31 occ) are class-trusted from one spot-check, not individually verified.
-3. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; fix to ONE predicate both media; witness D12/D13 flipping green.
+3. **W-2** — ⛔ SUPERSEDED s36: rung falsified (no defect, no witnesses — D12/D13 are an ARBNO bug). See the s36 cursor's rung note; disposition decision owed from Lon. Do NOT chase "D12/D13 flipping green" here.
 4. **W-6** — nested-crossing witness with probe `140`/`141`; then fix the re-entrant `g_rtcc_block` case (per-activation spine, not flat block).
 5. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
 
