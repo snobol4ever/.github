@@ -30,7 +30,75 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s37 (Claude Sonnet 4.6) — HANDOFF · DISPATCHER CODE VERIFIED IN SOURCE, FLOOR RE-MEASURED AT HEAD, NO FIX LANDED, W-7 READY TO EXECUTE
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s38 (Claude Sonnet 5) — HANDOFF · W-7 INTERIM GUARD LANDED, D12/D13 CONVERTED FROM SIGSEGV/HANG TO CLEAN BOMB, REAL FIX STILL BLOCKED ON W-4
+
+### What this session did
+Landed the interim, floor-neutral fix s37's cursor spec'd: `bb_match_arbno()` now declines with `x86_bomb(...)`
+instead of silently emitting the plain-frameless arm when the body carries an `IR_MATCH_DEFER` with
+`pat_static==0` (can transitively recurse, manual p.122's `*X` idiom — confirmed the exact SPITBOL manual
+citation this session, Ch.9 "Recursive Patterns", the canonical `ITEM = SPAN(...) | *LIST` / `ARBNO(',' ITEM)`
+list example is D12's own shape verbatim).
+
+**New field `op_arbno_body_defer_unsafe`** (emit.h, true struct end; emit.cpp, same containment scan/span as
+the pre-existing `op_arbno_body_k0`, added to the per-node reset block too). Consumed at the `bb_match_arbno()`
+dispatch site in `bb_match_arbno.cpp`.
+
+**One non-obvious complication, now fixed:** the first version of the bomb path aborted with 3-8 unresolved
+forward references. Root cause: the drive loop (`emit.cpp` ~2412 generic per-node pass + ~1201
+`flat_drive_match_alt`) pre-allocates `β`/`na_s`/`na_f` labels for EVERY `IR_MATCH_ARBNO` node UNCONDITIONALLY,
+before the template runs, because sibling boxes structurally jump to them regardless of which arm gets picked.
+Bombing out early left those dangling. Fix: the bomb path now still `def`s all three (`x86_beta()` +
+`PAIR(2)`/`PAIR(3)`) as dead-but-resolved stubs after the `ud2` — unreachable but present, so
+`bb_emit_end`'s forward-reference resolution succeeds.
+
+### Measured (A/B, stashed baseline comparison — not just "looks right")
+- **probe/bb: 159 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}** — IDENTICAL set to the pre-fix
+  baseline. D12/D13 now exit 134 (clean SIGABRT + diagnostic message) instead of 139 (SIGSEGV) / hang.
+- **16-probe pat_static=1 passer set individually re-verified green**: D09 D10 D11 G19 G20 H21 H24 H25 N12
+  N17 X02 X03 X04 X05 X06 X11 — all still exact `.ref` matches. The guard never fires for them (confirmed by
+  construction: `pat_static=1` for all of them, per the lower_snobol4.c stamp).
+- **crosscheck/patterns (122 progs), full A/B**: baseline (git stash) PASS=77 FAIL=45; my build PASS=77
+  FAIL=45 — **byte-identical failing-name set**, confirmed by diff. Only deltas are exit codes, all the same
+  direction as D12/D13: `145_pat_left_assoc_via_arbno_fence` 139→134, `165_pat_arbno_defer_var_body` 139→134,
+  `178_pat_recursive_star_list_zs2` 124→134, `179_pat_arbno_defer_recursive_list` 124→134,
+  `183_pat_arbno_defer_recursive_carry` 139→134. Zero programs newly broken, zero newly fixed — purely a
+  crash-quality improvement (silent corruption → named refusal) on programs already in the failing set.
+- **Demo corpus regen** (`util_regen_demo_s_artifacts.sh`, mandatory per RULES.md step 4 since this touched
+  `emit.cpp`/`x86_asm.h`-adjacent codegen): 12 `.s` artifacts changed in `corpus` (calculator-1/2 + variants,
+  json-match + variants, treebank-array/list/match + variants) — the recursive-grammar demo family, exactly
+  the class this guard targets. All were ALREADY in the documented 13/15-broken demo-board set (SIGSEGV);
+  calculator-1/2 now present as clean named BOMB aborts (rc=134) instead of silent segfaults. Not a floor
+  change (they were never in the 2/15 passing set) but a real diagnosability win, and every one of them is a
+  live witness that W-4's real fix has a broad, not just probe-suite, payoff once it lands.
+
+### W-7 status: NOT closed — interim only
+The checkbox stays unchecked. What's landed converts a memory-corruption bug class into an honest,
+loud, compile-time-style refusal — it does not make D12/D13/145/165/178/179/183 (or the calculator/json/
+treebank demos) pass. **The real fix is still W-4-blocked**: route the `pat_static==0` body class to an arm
+that homes the ARBNO cell at an anchor-relative (per-activation) slot rather than `[rsp+N]`. W-4 owns that
+layout decision; this seat cannot self-serve it. X01 remains unexplained by this discriminator (its body has
+no DEFER at all — nested `ARBNO(ARBNO(LEN(1)))` — confirmed a genuinely separate defect, not investigated
+further this session; still unowned).
+
+### Commits (both pushed — see FACT RULE)
+- SCRIP `1780cd1a` — the guard itself (emit.h + emit.cpp + bb_match_arbno.cpp).
+- corpus `03298563` — regenerated demo `.s` artifacts, committed by the mandated regen script.
+
+### Still open / still owed
+- **W-4 layout** — now has FIVE more named live witnesses (145,165,178,179,183) beyond D12/D13, plus at least
+  two demo drivers (calculator-1, calculator-2) that would very likely flip green once it lands (their
+  ARBNO/DEFER shape is the exact target class — not verified end-to-end this session, since the arm doesn't
+  exist yet, but worth checking first once W-4 is real).
+- **X01** — confirmed (again) not covered by the `pat_static` discriminator; still an open, unowned, separate
+  ARBNO defect (nested ARBNO, no DEFER).
+- **W-2 disposition, MON-CAP/dc_sib_bt ownership, W-0b's now-resolved status** — carried unchanged from s36/s37,
+  not touched this session; see those cursors below for full detail.
+- **W-3/W-4/W-6 (this seat's own charter work)** — still untouched. Same observation s36 made: this seat keeps
+  finding and fixing ARBNO-dispatcher-adjacent defects (routed here by Lon at s36) rather than touching its
+  own r10/r11 wire charter. Worth a check-in on whether that routing should continue past W-7's interim state,
+  now that the interim is landed and the remaining work (W-4 layout) is a different seat's decision.
+
+
 
 ### What this session did
 Orient-only + code verification pass. No source files changed. Repos cloned fresh; binary built clean at HEAD. FINDING-2026-08-12k absorbed in full including its self-correction (zd_k DEFER clause is NOT the bug; the bug is the dispatcher never consulting op_arbno_body_k0). W-7 discriminator (pat_static) already confirmed by s36b's gdb check — this session verified the *dispatch code path itself* by reading the actual source rather than trusting the finding's simplified excerpt.
