@@ -73,11 +73,9 @@ Isolated with two control programs:
 
 So: SPITBOL and SCRIP disagree by a constant +1 on the goto-target statement number of a `DEFINE(...) :(label)` line — a statement-COUNTING CONVENTION difference (which lines count as statements around DEFINE/label-only lines), not a semantic defect. Output is correct in both control programs. But the controller treats it as a hard stop, so **the monitor can never reach 5b's actual divergence**, and every future DEFINE-bearing SNOBOL4 hunt is blocked the same way.
 
-Per RULES.md ("If the monitor is ... blind to the divergence CLASS ... reinstating/extending it comes first"), the next 5b session's FIRST task is the monitor, not the pattern bug. Two options, cheapest first:
-1. **Tolerate a constant stno offset** in `scripts/monitor/monitor_sync_bin.py`'s comparison: learn the per-participant offset at the first LABEL disagreement and compare offsets thereafter; a CHANGE in the offset is the real divergence. Cheap, local, and preserves the theorem.
-2. **Reconcile the numbering** by finding which side counts the label-only line (`foo_end`) — more correct, more invasive, and arguably not worth it since the absolute numbers have no cross-engine meaning.
+**⭐ UPDATE (same session, during push/rebase):** upstream commit `5ec6e607` (MON-CAP: bare-label stno resync + torn-header crash safety, BOARD s43) already landed `MONITOR_SKIP_BARE_LABEL_STNO=1` — the exact bounded, stno-verified cure proposed in section 4 above. The mechanism matches the diagnosis: SPITBOL's bridge counts a bare label-only line as its own null statement and emits a LABEL event for it; SCRIP's bridge does not, landing directly on the next real statement instead. The upstream commit verified this is a monitor instrumentation gap, not a control-flow bug, via a minimal 2-DEFINE reproducer. With that env var set the monitor skips bare-label LABEL events and can proceed past them.
 
-I did NOT do either, because doing it properly is a rung of its own and I would rather hand it off clean than half-land it.
+**The monitor blocker for 5b is therefore GONE.** Next session: `MONITOR_SKIP_BARE_LABEL_STNO=1 PARTICIPANTS="spl scr" bash scripts/test_monitor_3way_sync_step_auto.sh /home/claude/repro_5b.sno` — and the `treebank-array` SIGSEGV hunt (which is what BOARD s43 was chasing) already has monitor artefacts in `/tmp/monitor_auto_last/` from that session's run.
 
 ## 5. Plan scrutiny — corrections folded into the goal file this session
 
