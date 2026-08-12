@@ -1,5 +1,7 @@
 <!-- GOAL-MODE34-IDENTICAL · mode-3 (--run, x86 BINARY) ≡ mode-4 (--compile, x86 TEXT), strictly 1:1 corresponding -->
 
+**⛔ ROUTED IN from GOAL-RBP-EARN (Lon-approved split, 2026-08-12 s40):** `treebank-array` m4-only SEGV (rc=139, m3 green) — a MODE34-IDENTICAL violation, not a defer-boundary item, so it bills HERE now. Repro + prior analysis: GOAL-RBP-EARN's s38 FIX PLAN STEP 2 (kept there verbatim until this file adopts it) and `archive/ARCHIVE-RBP-EARN-CURSOR-HISTORY.md`.
+
 # ▶▶▶ NEXT SESSION — START HERE (created 2026-06-25, Lon directive)
 
 **MANDATE.** SCRIP has EXACTLY TWO execution modes and they MUST be 1:1 corresponding:

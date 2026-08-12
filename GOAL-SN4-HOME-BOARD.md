@@ -1,5 +1,7 @@
 # GOAL-SN4-HOME-BOARD — instruments, corpus, floors, gates (HOME seat; master = GOAL-SN4-HOME.md)
 
+**⛔ ROUTED IN from GOAL-RBP-EARN (Lon-approved split, 2026-08-12 s40):** (1) the duplicate-label class — `.Lbynamefnzd####` (bb_call.cpp) and `.Lx####_##` (x86_asm.h, `g_m4_dense_nid` per-proc counter reset suspected) — assembler-rejected demos; a BOARD seat already filed FINDING at `314fdb57`. (2) BUILDFAIL-4 (claws5/json AS-FAIL; expression/porter duplicate-symbol). Neither touches the MATCH_DEFER boundary, so they bill HERE now. Prior analysis: GOAL-RBP-EARN s38 FIX PLAN STEP 3 (kept there verbatim until adopted) and `archive/ARCHIVE-RBP-EARN-CURSOR-HISTORY.md`.
+
 **CHARTER:** the referee. Every other seat judges BY SET against numbers published HERE. Owns: the P0 baseline, the EARN-2 census re-cut, witness/ref hygiene, gate strictness, monitor extensions, regen freshness.
 
 ⛔⭐ **CHARTER AMENDED BY LON IN-CHAT, 2026-08-12 s41 — TWO RULINGS. READ BOTH BEFORE ORIENTING; the old "ZERO compiler bytes, ever" line is REPEALED and must not be quoted from memory.**
