@@ -250,3 +250,25 @@ Lon answered s41's questions (2) and (3) in-chat: **BOARD owns the demo/bench wo
 - **⛔ NEW OBLIGATION FOR THIS SEAT:** codegen touched ⇒ RULES.md handoff step 4 `.s`-artifact regen scripts now apply to BOARD. This seat has never had to run them before.
 
 **UNBLOCKS: RBP** — you can stop treating the demo board as your blast radius; BOARD owns it, and the evidence says it is NOT your pending-capture class. **UNBLOCKS: ANY SEAT** — the three findings this seat kept publishing as "unclaimed, first push wins" now have an owner; stop routing around them.
+
+---
+
+## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5). **B-12 ORIENTATION: CROSS-SEAT LINKAGE FOUND, NOT PURSUED — RBP-EARN'S s43a–s43d THREAD AND B-12's calculator-1/2 CRASH ARE THE SAME DEFECT CLASS. NO CODE TOUCHED, ZERO COMPILER BYTES.**
+
+**What happened:** started B-12 per its own session-start instructions — read `GOAL-RBP-EARN.md` §ARBNO/§FENCE context, `lower_snobol4.c` around line 1182, and `bb_match_defer.cpp` in full (manual Ch.9 pp.121-123 — ARBNO, Recursive Patterns, FENCE(P), deferred-evaluation `*` — read first this session for exactly this purpose). Before writing any fix, checked whether RBP-EARN's file already had live work on the same surface. **It does, and it is far ahead of anything this seat would derive fresh.**
+
+**THE LINKAGE, STATED PLAINLY SO NEITHER SEAT RE-DERIVES IT:**
+1. `lower_snobol4.c:1182`'s SEQ-RESUME-GATE comment — cited in s43's own B-12 rung as calculator-1/2's root cause — explicitly excludes `IR_MATCH_DEFER` from β/resume wiring, and names the manual's OWN legitimate case (`*P` where P is itself a generator, p.122) as "ALSO broken today the same way," citing `Q = *P 'X'` with P=ARB hangs identically to `earn0_stored_varref`.
+2. RBP-EARN's s43a root-caused `earn0_stored_varref`'s hang to a specific wire-lifetime bug in `bb_match_defer.cpp` line 83 (`bb_glue_pass_wires_blob(4,5)`): r10/r11 are clobbered for the blob transfer and never restored on the `L(4)` success-fallthrough path, so a LATER failure elsewhere in the enclosing pattern jumps through this node's own stale ω.
+3. Two fix attempts already tried and FALSIFIED there (s43b: naive push/pop trades the hang for a SIGSEGV because the deferred target's own suspend-record push shadows it; a `bb_slot_claim`/FRQ frame-slot fix was designed at s43-ruling-(3) but not yet landed).
+4. Lon's own s43 ruling on this exact class: *"You're chasing a bug caused by a previous gutting causing a crater... it needs the fixes you are about to make in the future to fix them"* — i.e. EARN's own durable per-node frame-slot mechanism is the intended fix vehicle, not a standalone patch.
+
+**⇒ B-12's acceptance set (calculator-1/2 + 4 match variants, witnesses 178/179/182) and RBP-EARN's probe-ownership table (`earn0_stored_varref`, `earn0_varref_blob_hang`, `earn0_disc_arbno_star_fence_positive`) are very plausibly ONE blast radius, not two.** `lower_snobol4.c:1182` names 178/179/182 by name as the same shape it also names for `IR_MATCH_DEFER`'s exclusion — this is not a guess, it's the same comment BOARD's own s43 finding already cited.
+
+**DELIBERATE CHOICE NOT TO ATTEMPT A THIRD FIX GUESS THIS SESSION:** RBP-EARN is mid-investigation with live gdb forensics down to the instruction level; a cold B-12 attempt risks re-walking s43b's exact falsified path or landing something that looks fixed on calculator-1 but breaks RBP-EARN's own witnesses. Recording the linkage is higher-value than a guess.
+
+**RECOMMENDATION FOR WHOEVER LANDS THE `bb_match_defer` FIX (either seat):** re-run BOTH boards in the same commit — RBP-EARN's `board_earn0_set.sh` AND B-12's acceptance set (calculator-1/2 + 4 match variants + witnesses 178/179/182) — before calling it closed. A fix scoped only to one probe set risks leaving the other's witnesses unchecked, exactly the trap s39's probe-ownership table already warns about ("worth checking once a real fix lands, rather than assuming").
+
+**NOT DONE:** no fix attempted, no floors re-measured (diagnostic/cross-reference rung, not a floor measurement or a code change). B-12 itself remains OPEN in the rungs list above — this cursor documents why it wasn't pursued cold this session, not that it's closed.
+
+**UNBLOCKS: RBP-EARN** — your next fix-design pass should check its result against B-12's acceptance set too, not just `earn0_*`. **UNBLOCKS: ANY BOARD SEAT** — do not re-diagnose calculator-1/2 from scratch; start from RBP-EARN's s43a root cause and s43b/s43d's falsified fix shapes.
