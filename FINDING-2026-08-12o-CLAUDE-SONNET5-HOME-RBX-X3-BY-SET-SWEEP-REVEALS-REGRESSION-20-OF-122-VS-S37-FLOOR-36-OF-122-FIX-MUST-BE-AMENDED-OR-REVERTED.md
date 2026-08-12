@@ -95,3 +95,18 @@ measurement) says it must be proven by the same BY-SET sweep before being believ
 X-3 rung: **NOT closeable as landed.** Cursor should read "fix attempted, measured, found net-regressive
 by set — reverted or gated pending the carve half of the fix" rather than "landed." No further code
 changed by this finding; it is measurement-only, as instructed.
+
+## ⛔ ADDENDUM (same session, s41b) — the "carve half of the fix" language above is WRONG, correcting it here rather than editing the original text above
+The recommendation section above says to land s36 fork (a)'s RSP-side carve "before re-applying the
+gate-widen," implying the carve was still outstanding. **It was not.** `git log -- src/templates/bb_glue_flat.cpp`
+shows the carve landed at s37 (`9780591d`), hours before s40b/s40c's session — and s37's own commit message
+already reports the resulting floor as 36/122, identical to what this session's post-revert re-measurement
+confirms directly (36/122 PASS, re-built and re-run, not inferred). The carve was standing infrastructure
+under every session since s37, including the one that produced the regression measured above. **The 20/122
+regression is caused by the gate-widen alone, applied to an already-carved, already-36/122-floored tree** —
+not by a missing carve that the gate-widen wrongly assumed was present. The revert action taken this session
+(back to carve-present/gate-FORTH-only) is correct and restores exactly the standing s37 floor, re-verified
+by direct measurement rather than assumed. See the GOAL-SN4-HOME-RBX.md s41b cursor for the corrected next
+rung: trace one of the 58 newly-broken (not the two originally-named) witnesses before touching the gate
+again, since the two original witnesses' successful field-attribution trace (s40b) does not obviously
+generalize to the other 57 that the same gate-widen broke.
