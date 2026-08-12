@@ -33,6 +33,45 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s39b (Claude Sonnet 5) — HANDOFF · X01 DISCRIMINATOR NARROWED (7 ORACLE-VERIFIED WITNESSES), STILL NOT GDB-CONFIRMED, ZERO SCRIP EDITS
+
+### What this session did (continuation of s39a, same session)
+Built 7 hand-constructed `.sno` witnesses to test s39a's "purity" hypothesis for X01 against more than
+n=1. Cloned the public `snobol4ever/x64` oracle (no credential needed) and verified every witness against
+real SPITBOL output before touching SCRIP. Full detail: `FINDING-2026-08-12q-…`.
+
+**s39a's "purity" hypothesis is FALSIFIED too** (not just the blanket-widening ones): a literal placed
+OUTSIDE the outer ARBNO's own repeated arm does NOT rescue X01's shape, but a literal placed INSIDE that
+arm (alongside the nested ARBNO, as a real co-member of the same repeated unit) DOES. Narrower discriminator
+now supported by 7 constructed + 2 corpus witnesses: the outer arm needs a co-member that **consumes at
+least one subject character on its own turn** — a null-string literal or explicit `LEN(0)` inside the arm
+does NOT rescue it (ruled out with dedicated witnesses), so it's not "any co-member," specifically one that
+advances the subject cursor. Minimal pair found: `ARBNO(ARBNO(LEN(1)))` (fails) vs.
+`ARBNO(ARBNO(LEN(1)) 'x')` (passes) — same emitter trace (`framed=0 k0=0 sq=0 kk=16` both), opposite
+outcome. **No currently-staged field distinguishes them.** Mechanism still not diagnosed — this is
+narrowing, not a root cause, and RULES.md MONITOR-FIRST still applies (gdb/monitor tracing, not more
+black-box probing, is the prescribed next step).
+
+**Zero SCRIP source changes, same as s39a.** corpus gains a new non-graded witness directory
+(`probe/bb/probes_x01_witness_s39/`, 7 `.sno` + 7 oracle `.ref` + README) — explicitly NOT wired into
+`run_suite.sh`.
+
+**WATERMARK: unchanged, same as s39a: 160 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}.**
+
+### Why stopped here (same reasoning as s39a, restated)
+MON-CAP (csnobol4 build) requires `TOKEN_SEE_LON`, not available this session — three investigations in a
+row now blocked on the same credential (s38's diagnosis, s39a's fix attempt, s39b's narrowing). Writing a
+guard off an oracle-verified-but-mechanism-unconfirmed correlation would be a design call, and this seat has
+now spent SIX consecutive sessions on ARBNO-dispatcher territory instead of its own charter — s38's routing
+question (still unanswered) gets more urgent with each one, not less.
+
+### Still open / still owed (carried, unchanged in substance from s39a)
+- **W-3/W-4/W-6 — still untouched, six sessions running.**
+- **MON-CAP — now blocking three investigations, all in this exact class.** Strongest-yet case for
+  prioritizing it: X01W1-vs-X01W5 is a clean minimal pair, about as small as this bug class will get, ready
+  to bisect the moment gdb/monitor tooling is available.
+- **Five(+) questions for Lon from s38, still unanswered** — routing is now the most urgent one.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s39 (Claude Sonnet 5) — HANDOFF · X01 WIDENING FALSIFIED, ZERO SOURCE EDITS, WATERMARK UNCHANGED
 
 ### What this session did
