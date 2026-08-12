@@ -4,82 +4,118 @@
 
 ## RUNGS
 - [ ] **W-0 · CLAIM SWEEP, HONEST.** r10/r11 usage census across templates + emit.cpp + **RTX hand asm + raw-byte encoders** (grep is insufficient — objdump the emitted slab too). With BOARD: claim gate becomes data-driven {rbx r9 r10 r11 r12 …} + `--strict` (today: r9-only, informational — a hole MECH documented).
-- [x] **W-1 · ZCTX SCRATCH ERADICATION — DONE s33 (`26c84e72`). PREMISE WAS STALE:** the six sequences were already gone (`0970838f`); of 5 `g_zctx` mentions FOUR were comments and one was a dead exported BSS array (`uint64_t g_zctx[66]`, 528B, ZERO code uses, no extern, no emitted reference). Deleted. ⭐ **HOME GATE line 4 side effect, MEASURED:** the last surviving `g_blob_ctx` mention lived inside that array's comment, so `g_blob_ctx` and `rt_blob_ctx_ptr` now BOTH grep to 0. Original text kept below for provenance: ~~ All six ZCTX sequences use r10/r11 as scratch (s37 measured) — re-allocate BEFORE any flip; live-on-arrival landmine otherwise.~~
-- [ ] **W-2 · PUSH/POP GUARD UNIFICATION (MECH s37(B), the sole D12/D13 regression pair).** push guard `flat_jmp_entry` (emit.cpp:2373) vs pop guard `!_wire_stub && flat_jmp_entry && flat_pat` (:2806): any graph outside the intersection pushes and never pops = POP DEBT. ⛔ ONE predicate, both media — never a compensating pop on one exit (two-calculators disease). If the CLASS-O/`_wire_stub` design call is still ambiguous after the census, route both arms to Lon.
-- [ ] **W-3 · WREG MECHANISM, DORMANT.** Site glue `lea r10,[rip+site_γ]` · `lea r11,[rip+site_ω]` · `jmp <first interior box>`; exits `jmp r10`/`jmp r11`. Killswitched; default emission byte-identical to HEAD. r10/r11 are caller-saved ⇒ saves are TEMPLATE-EMITTED per-activation on the spine, never an implicit choke (s18 RSP-SAFETY + the stack-arg witness).
-- [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority.
-- [ ] **W-5 · ⛔ THE FLIP — REQUIRES EARN-1 + EARN-3 LANDED (EARN-10 ordering).** PROC-shim deletion (PT-1..3), CLASS-D exit ceremony dies with it. The old WREG residual (19 SEGV + 7 HANG) was MISSING FRAMES, not glue defects — EXPECTED cured by EARN; measure by set, never assume.
-- [ ] **W-6 · RTCC RE-ENTRANT PRESERVATION + DEFAULT-ON REVALIDATION.** The veneer round-trips wires on leaf crossings only; fix the re-entrant case; then RTCC default-ON must hold the P0 floors with NO `SCRIP_RTCC=0` escape (kills the m4-130 class). Belt-and-suspenders: `-Wl,-z,now` for the r11 lazy-binding clobber.
+  - **RTX ASM HALF: ✅ DONE** (2026-08-12, Sonnet 5) — 223/223 occurrences across all 10 `.S` files hand-classified; 193 SN4-reachable, 30 confirmed-excused; 6 named idioms, no 7th. `FINDING-2026-08-12h-…`. **No further RTX census is owed.**
+  - **TEMPLATE HALF: mapped** by s33/s34/s35 (FINDING-12f structural, -12g reachability, 2026-08-11d ERAD ladder). Do NOT re-derive a fourth time.
+  - ⛔ **RAW-BYTE HALF: STILL UNOPENED, AND THE GATE IS BLIND TO IT — see the s35+ RAW-BYTE BLIND SPOT block in the cursor.** This is the one part of the rung's own text ("objdump the emitted slab too") no session has done.
+  - **REMAINING TO CLOSE W-0:** the whitelist-policy decision (Lon) + the raw-byte sweep. Not another count.
+- [x] **W-1 · ZCTX SCRATCH ERADICATION — DONE s33 (`26c84e72`). PREMISE WAS STALE:** the six sequences were already gone (`0970838f`); of 5 `g_zctx` mentions FOUR were comments and one was a dead exported BSS array (`uint64_t g_zctx[66]`, 528B, ZERO code uses, no extern, no emitted reference). Deleted. ⭐ **HOME GATE line 4 side effect, MEASURED:** the last surviving `g_blob_ctx` mention lived inside that array's comment, so `g_blob_ctx` and `rt_blob_ctx_ptr` now BOTH grep to 0.
+- [ ] **W-2 · PUSH/POP GUARD UNIFICATION.** ⛔ **LINE NUMBERS CORRECTED TWICE — do not trust any cited in prose.** CURRENT (verified 2026-08-12): push `emit.cpp:2721` TEXT / `:2724` BINARY, guard `_blob_wire` (`:2717`); reload `:2688` TEXT / `:2689-90` BINARY, guard `flat_pat` (`:2687`); `_wire_stub` (`:2716`); related `op_zgpop` (`:842`).
+  - **CENSUS DONE** (2026-08-12, Sonnet 5): `bb_glue_flat.cpp` + `bb_glue_framed.cpp` read in full — **they contain NO r10/r11 push/pop at all.** The code is raw string/byte literals inside `emit.cpp`. `FINDING-2026-08-12i-…`.
+  - **THE NAMED ASYMMETRY APPEARS UNREACHABLE, NOT NARROW:** pop guard (`flat_pat`) is textually broader than push guard (`_blob_wire`), but `lbl_res`'s address is taken at exactly ONE site (`:2722`/`:2725`), inside the `_blob_wire` branch itself — so nothing can reach the pop arm without having executed the push. **Grep-traced, NOT monitor-verified.** Design call owed (see cursor).
+- [ ] **W-3 · WREG MECHANISM, DORMANT.** Site glue `lea r10,[rip+site_γ]` · `lea r11,[rip+site_ω]` · `jmp <first interior box>`; exits `jmp r10`/`jmp r11`. Killswitched; default emission byte-identical to HEAD. r10/r11 are caller-saved ⇒ saves are TEMPLATE-EMITTED per-activation on the spine, never an implicit choke (s18 RSP-SAFETY + the stack-arg witness). **The emitter already exists and is dormant: `bb_glue_pass_wires_blob()` in `bb_glue_flat.cpp:154-159` (r10/r11 twin of `bb_glue_pass_wires`). Start there, not from scratch.**
+- [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority. ⛔ **The census named TWO shapes the layout must cover, not one — see the cursor's CARRY SHAPES block.**
+- [ ] **W-5 · ⛔ THE FLIP — REQUIRES EARN-1 + EARN-3 LANDED (EARN-10 ordering).** PROC-shim deletion (PT-1..3), CLASS-D exit ceremony dies with it. The old WREG residual (19 SEGV + 7 HANG) was MISSING FRAMES, not glue defects — EXPECTED cured by EARN; measure by set, never assume. ⛔ **PREDICATE NOTE (2026-08-12): `frame_need_of` does not exist in `src/` under ANY spelling — it is a FORWARD REFERENCE to a symbol `GOAL-RBP-EARN.md` must create. This seat cannot unblock it by working harder; only the RBP seat can. Do not re-check it hopefully each session — check the EARN goal file's cursor instead.**
+- [ ] **W-6 · RTCC RE-ENTRANT PRESERVATION + DEFAULT-ON REVALIDATION.** The veneer round-trips wires on leaf crossings only; fix the re-entrant case; then RTCC default-ON must hold the P0 floors with NO `SCRIP_RTCC=0` escape (kills the m4-130 class). Belt-and-suspenders: `-Wl,-z,now` for the r11 lazy-binding clobber. **Leaf half PROVEN SAFE (s35: 172 veneered, 0 bare match-time). Scope is re-entrant ONLY. Witnesses named: probes `140`/`141`.**
 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s35 (Opus 5)
+## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5) — RTX CENSUS COMPLETE + W-2 CENSUS COMPLETE + A GATE HOLE FOUND
 
-**SCRIP `2913c6a4` · corpus `019795bb` · x64 not cloned — hashes are POST-REBASE onto the origins that moved mid-session; floor re-proved at these exact hashes, not inherited.** m3 floor re-proved BY SET at this HEAD: **157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10} — IDENTICAL to s33/s34.** One compiler edit + 3 mandated regen commits. **PUSH STATE at the bottom — read it before believing anything here landed.**
+**SCRIP `2913c6a4` (UNCHANGED — read-only session, ZERO compiler bytes) · corpus untouched · x64 not cloned.**
+**No codegen touched ⇒ RULES.md step 4 (`.s` regen ×3) DOES NOT APPLY this session** — stated explicitly so
+the next seat doesn't re-run it looking for skipped work. m3 floor NOT re-measured (nothing could have moved
+it); s35's by-set floor stands: **157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}**.
 
-### ⭐⭐⭐ RTX HAND-ASM CENSUS: COMPLETE (Claude Sonnet 5, same day, continuing s35 read-only) — 223/223, READ THIS FIRST
+### ⛔⭐⭐⭐ NEW AND MOST IMPORTANT — THE CLAIM GATE IS BLIND TO THE BINARY MEDIUM, IN THE WIRE CODE ITSELF
 
-**Every one of the 10 RTX `.S` files is now fully hand-classified — 223/223 occurrences, cross-
-checked against `test_gate_wreg_claim.sh` at every step.** SCRIP HEAD unchanged (`2913c6a4`,
-read-only session, zero compiler bytes touched). Full detail, per-file tables, and the reachability
-method: `FINDING-2026-08-12h-…` (8 addenda, one per file). Headline numbers:
-- **193 of 223 occurrences (86.5%) are in files CONFIRMED SNOBOL4-reachable**
-  (`rtx_match.S` 89, `rtx_icnsub.S` 33, `rtx_alloc.S` 20, `rtx_str.S` 19, `rtx_icnvar.S` 13,
-  `rtx_arith.S` 9, `rtx_icnnum.S` 11 — three of these ("icnsub"/"icnvar"/"icnnum") looked
-  Icon-only by name and were NOT).
-- **30 of 223 occurrences (13.5%) are in files CONFIRMED excused** (`rtx_plcall.S` 10,
-  `rtx_icnagg.S` 11, `rtx_icnrel.S` 8 — genuinely Prolog/Icon/Raku-exclusive, each verified via
-  its C-of-record caller's IR-node gate traced through every `lower_*.c`, not assumed from name
-  or ledger label).
-- **6 named idioms cover every occurrence, no 7th found:** momentary GOT-global accessor ·
-  GOT-indirect call/tail-call · capture-stack/hash-chain/field-scan block (loop-carried pointer
-  or scalar) · longer-lived same-function carry (carve/copy shape, worst case ~42 lines,
-  crosses exactly one call) · local scalar (branchless sign / dispatch selector / index) ·
-  explicit stack-spilled preserver across a call.
-- **The Σ/r13 open question from the original s35 cursor below is RESOLVED** (not merely
-  deferred) — see addendum 1 of the FINDING: `rt_match_ctx_restore`'s own header already states
-  the two-copy design (r13 = hot-path pin, GOT-global Σ/Σlen = C-readable mirror for slow paths
-  and cross-TU C code). No contract violation.
+`test_gate_wreg_claim.sh` matches TEXT spellings (`r10`, `[r10 + 8]`, `r10d`, …). **Every BINARY-medium
+emission of r10/r11 is a raw byte tuple and greps to ZERO.** This is not hypothetical — it is live in the
+CLASS-D blob wire path, i.e. exactly the code WREG is about. Four sites, all in `emit.cpp`, all invisible:
 
-**What this unblocks:** W-0's register-reassignment design call now has a complete idiom-by-idiom
-input for the 193 SN4-reachable occurrences (no further RTX census owed). The W-0 whitelist-policy
-question below (still open, Lon's call) now has exact numbers instead of an estimate.
-**What this does NOT do:** no code was touched; `--strict` still fails the same way (W-3's glue
-emitters don't exist yet). This is a completed map, not a smaller sweep number.
+| Line | Bytes | Decodes to | TEXT twin (which the gate DOES count) |
+|---|---|---|---|
+| `:2689` | `4C 8B 54 24 08` | `mov r10,[rsp+8]` | `:2688` |
+| `:2690` | `4C 8B 5C 24 10` | `mov r11,[rsp+16]` | `:2688` |
+| `:2724` | `41 53` / `41 52` | `push r11` / `push r10` | `:2721` |
+| `:2726` | `41 FF E2` | `jmp r10` | `:2722` |
+
+**CONSEQUENCE:** the headline "222 template/emitter + 223 RTX = 445" is a FLOOR, not a total, and the
+undercount is concentrated in the highest-risk code. The rung's own text already demanded this
+("grep is insufficient — **objdump the emitted slab too**") and no session has done it. **This is now the
+single most valuable unopened piece of W-0**, and it is cheap: `objdump -d` the emitted slab (or the
+`.s` artifacts for the TEXT side) and decode, rather than growing the regex — a regex over C source can
+never see a byte tuple that is assembled at runtime.
+⚠ Do NOT "fix" this by adding byte patterns to the gate: `0x41` and `0x4C` are REX prefixes shared with
+many other registers, so a byte-level source grep would be noise. The instrument for this half is a
+DISASSEMBLER over output, not a matcher over source.
+
+### ⭐⭐⭐ RTX HAND-ASM CENSUS: COMPLETE — 223/223, ALL 10 FILES
+
+Full per-file tables + method: `FINDING-2026-08-12h-…` (8 addenda). Headlines:
+- **193/223 (86.5%) SN4-reachable** — `rtx_match.S` 89 · `rtx_icnsub.S` 33 · `rtx_alloc.S` 20 ·
+  `rtx_str.S` 19 · `rtx_icnvar.S` 13 · `rtx_arith.S` 9 · `rtx_icnnum.S` 11.
+- **30/223 (13.5%) confirmed excused** — `rtx_plcall.S` 10 · `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8.
+- **6 idioms cover everything, no 7th:** momentary GOT accessor · GOT-indirect call/tail-call ·
+  loop-carried pointer/scalar (capture-stack, hash-chain, field-scan) · longer-lived same-function carry ·
+  local scalar (branchless sign / dispatch selector / index) · explicit stack-spilled preserver.
+- **Σ/r13 question RESOLVED** (was flagged as s35's "sharpest next question"): not a contract conflict —
+  `rt_match_ctx_restore`'s own header states the two-copy design (r13 = hot-path pin; GOT-global Σ/Σlen =
+  C-readable mirror for slow paths and cross-TU C that cannot see a register pin). Close that item.
+- ⭐ **METHOD RULE EARNED (fold into W-0's statement):** filenames, gate-ledger rung names ("RTX-N-ICN"),
+  and a header's own measurement framing were EACH shown wrong at least once. **Three of five "icn"-named
+  files were SN4-reachable.** The only trustworthy check is per-file: (1) find the symbol's caller in
+  `src/templates/`, (2) identify the IR node kind that call site is gated on, (3) grep EVERY `lower_*.c`
+  for who emits that kind, (4) check the optimizer for kind-rewrites. Cheap, mechanical, and it caught
+  three errors that a name-based read would have shipped.
+
+### ⭐⭐ W-2 CENSUS: COMPLETE — AND IT CHANGES THE RUNG'S PREMISE
+
+`FINDING-2026-08-12i-…`. Both `bb_glue_*.cpp` read in full: **they contain no r10/r11 push/pop at all** —
+the code is raw literals in `emit.cpp` (TEMPLATE-ONLY violation, pre-existing, and the whole CLASS-D/P/ZF
+exit-glue region ~`:2680-2900` is written that way, not just this pair). The named asymmetry (pop guard
+`flat_pat` broader than push guard `_blob_wire`) **traces as structurally unreachable**: `lbl_res`'s
+address is taken at exactly one site, inside the `_blob_wire` branch itself, so the pop arm cannot be
+entered without the push having run. **Grep-traced, NOT monitor-verified** — see the FINDING for exactly
+what a live check would need.
+
+### ⭐ CARRY SHAPES W-4's LAYOUT MUST COVER (named by the census; do not design against "crosses a call" alone)
+1. **Carve/copy carry** — `rtx_str.S:165-207` (`str_concat_d`): r10=buf, r11=len live from just after ONE
+   `rt_str_alloc` call through to `ret`, ~42 lines. Recurs in `rtx_match.S`'s `rt_cap_open` and
+   `rt_match_replace`. A save-at-every-call-boundary scheme clobbers this.
+2. **Explicit-frame preserver** — `rtx_plcall.S` cold growth arm: r10d spilled to `[rbp-24]` and restored
+   around `call rt_pcall_grow`, via a frame slot rather than push/pop. A push/pop-shaped scanner misses it.
+
+### ⛔⭐⭐⭐ FOR LON — FOUR DECISIONS, IN PRIORITY ORDER
+
+1. **W-0 whitelist policy (open since s35, NOW WITH EXACT NUMBERS).** Does "product-wide" require clearing
+   r10/r11 regardless of reachability? Data: 193/223 RTX occurrences are SN4-reachable and cannot be
+   excused either way; only 30/223 are genuine licensing candidates. Plus `wreg_claim_whitelist.txt`'s
+   header defines FOUR site-classes, all "code that legitimately OWNS the wires" — "unreachable for the
+   graphs this gate protects" fits none, so licensing them is a real registry-policy edit, not a checkbox.
+   **This is still the decision that unblocks the rest of W-0.**
+2. **The raw-byte/binary-medium blind spot (NEW).** Is closing it W-0's job this rung, and is an
+   objdump-based instrument sanctioned? It is the last unopened part of the rung's own charter text.
+3. **W-2's two halves.** (a) Is the reachability argument enough to close the pop-guard question, or does
+   MONITOR-FIRST require a runtime witness first? (b) Is migrating the raw-literal asm at `:2680-2900`
+   into templates in scope for W-2, or a separately-tracked TEMPLATE-ONLY debt? The rung's charter says
+   only "guard unification," so I did not assume the larger job.
+4. **s35's process flag still stands and I could not verify it is resolved:** two live sessions shared this
+   seat file on 2026-08-12 (the ONE INVARIANT break). Worth confirming how WIRES got re-fired.
+
+### NEXT SEAT, IN ORDER
+1. **Raw-byte/binary-medium sweep** (objdump the slab) — cheapest high-value item, closes W-0's last third.
+2. **W-6** — re-entrant `g_rtcc_block` (leaf half already proven; witnesses `140`/`141` named).
+3. **W-3/W-4** — mechanism is dormant but ALREADY WRITTEN (`bb_glue_pass_wires_blob`); W-4's layout must
+   cover both carry shapes above.
+4. **W-0 sweep proper** — blocked on decision (1) above, not on more data.
+⛔ **Do NOT re-derive any census.** RTX (223/223), templates (s33/34/35), and W-2's glue files are all
+mapped. What is missing is decisions and the raw-byte half.
+⛔ **W-5 stays blocked and this seat cannot unblock it** — `frame_need_of` exists nowhere in `src/` under
+any spelling; it is a forward reference `GOAL-RBP-EARN.md` must create. Check EARN's cursor, not `src/`.
 
 ---
 
-### ⭐⭐ W-2 CENSUS DONE (Claude Sonnet 5, same session, continuing) — `bb_glue_*.cpp` IS EMPTY; THE NAMED ASYMMETRY LOOKS STRUCTURALLY UNREACHABLE, DESIGN CALL OWED
-
-Read `bb_glue_flat.cpp` + `bb_glue_framed.cpp` in full (both files, per W-2's own instruction to
-census there first). **Neither file contains ANY push/pop of r10/r11** — the actual push
-(`emit.cpp:2721`, raw string `"sub rsp, 8\npush r11\npush r10\n"`) and its matching reload
-(`emit.cpp:2687-2688`, `mov r10,[rsp+8]` / `mov r11,[rsp+16]`) both live as hand-built string
-literals directly inside `emit.cpp` — a TEMPLATE-ONLY law violation in its own right, pre-existing,
-not introduced this session.
-
-**The guard asymmetry W-2 was minted to fix — pop guard (`flat_pat` alone) textually broader than
-push guard (`_blob_wire = !_wire_stub && flat_jmp_entry && flat_pat`) — traces out as
-STRUCTURALLY UNREACHABLE, not merely narrow.** `lbl_res`'s address (the resume record's landing
-word) is pushed at exactly ONE site in the whole emitter (`emit.cpp:2722`), inside the SAME
-`_blob_wire` branch as the r10/r11 push. No other site pushes or jumps to that address. So nothing
-can ever reach the broader pop guard's arm without having first executed the narrower push guard's
-branch — the textual mismatch cannot manifest as an actual POP DEBT. **This is a grep-traced
-structural argument, NOT a MONITOR-FIRST-verified one** — full detail, including exactly what a
-live check would need to confirm (whether `flat_pat=1 && _wire_stub=1` is reachable via a
-DEFINE-stub whose body itself sets `flat_pat`), in `FINDING-2026-08-12i-…`.
-
-**Two decisions for Lon, not made here:**
-1. Is the reachability argument sufficient to close the pop-guard half of W-2, or does it need
-   runtime confirmation first?
-2. Is the raw-literal-asm-in-emit.cpp pattern this uncovered (spanning the whole CLASS-D/CLASS-P/
-   CLASS-ZF exit-glue region, ~lines 2680-2900, far larger than just this one push/pop) in scope
-   for W-2 to migrate into template files, or a separately-tracked pre-existing debt?
-
-**No code touched.** SCRIP HEAD still `2913c6a4`.
-
----
 
 ### ⛔⭐⭐⭐ FOR LON — TWO THINGS NEED YOU, ONE IS A PROCESS BREAK
 
@@ -129,7 +165,7 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
 
 ---
 
-## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, continuing s35, same day) — RTX CENSUS: 2 OF 10 FILES DONE
+## LIVE CURSOR — 2026-08-12 (Sonnet 5) — ⛔ SUPERSEDED by the TOP cursor (census finished 10/10, not 2/10). Retained per STALE-ORIENTATION (c) for provenance only; its counts are STALE BY DESIGN.
 
 **SCRIP `2913c6a4` (unchanged, read-only) · corpus not touched this session.** Read-only session:
 `rtx_match.S` (89/89 occ) and `rtx_icnsub.S` (33/33 occ) fully hand-classified. FINDING pushed
