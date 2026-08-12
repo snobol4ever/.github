@@ -104,6 +104,34 @@ Three properties to carry forward:
 ## GATES (every rung)
 RC-8a coverage gate (self-arming, lands WARN→FAIL on tier claim) · probe + bench BY SET vs P0 floors · positive control on every census (a gate that cannot fail for the right reason is not a gate) · FINDING + cursor move.
 
+## ⭐ LIVE CURSOR — 2026-08-12 s40c (Sonnet 5) — **HANDOFF. X-3 FIX LANDED: `x86_fc_on()`/`x86_fc_hit()` widened to FORTH-or-HEAP. Both named crash witnesses survive. FORTH port: byte-identical. Full BY-SET sweep: NOT YET RUN — next session's first action.**
+
+**WHAT LANDED THIS SESSION (two commits in SCRIP, now pushed):**
+
+1. `951cbb3f` — `SCRIP_RBX_FIELD_TRACE=1` diagnostic at `X86H_DEF/ALPHA` (the instrument the s37/s39 cursors required before touching REG-4b). Result: `op_zls2_bytes` = 0 on every ALPHA dispatch for both named witnesses; `op_fc_bytes` is the only live grant field. The "field-attribution ambiguity" both prior sessions stopped at was resolved by measurement rather than static inference — the ambiguity does not exist in practice on these witnesses. Do not re-spend on it.
+
+2. `73c1ac33` — **The actual fix**: `x86_fc_on()` and `x86_fc_hit()` widened from `== ZC_PORT_FORTH` to `(== ZC_PORT_FORTH || == ZC_PORT_HEAP)`. This is the REG-4b central-hook sibling gap the s37 FINDING named. Root: fork(a) (`s37`, `bb_glue_flat_enter/leave`) already carved `op_fc_bytes` worth of RSP under `ZC_PORT_HEAP` identically to `CELL_STACK` — so the bytes were in the right place — but `x86_fc_hit()`'s port gate kept returning 0 under HEAP, routing every HEAP-granted read through `x86_zop_regime` to regime 3/4 (rbp/flat addressing) instead of regime 2 (the fc window rebase, `[rsp + off - op_fc_base]`). Written in the rsp cell, read through a different base. `fc_cells_on()` (LOWER-side, `zeta_storage.c:268`) already treated FORTH/HEAP as one class for planning; this closes the same seam on the emitter side. Rebase arithmetic unchanged — fork(a) put the bytes at the same rsp-relative location as FORTH, so the formula was already correct once the gate admitted HEAP.
+
+**MEASURED (mode-3, `--zeta-port=heap`, post-fix, post-pull-rebase):**
+- `041_pat_span`: **SIG11 → rc=0 DIFF** (`no digits` vs `12345`)
+- `158_pat_cap_arbno_each_iter`: **SIG11 → rc=0 DIFF** (empty vs `a/b/c`)
+- FORTH port default: **byte-identical**, proven by diff vs pre-instrument baseline, not asserted.
+
+**WHAT IS NOT YET DONE — NEXT SESSION MUST START HERE:**
+1. ⛔ **BY-SET sweep of `crosscheck/patterns` under `--zeta-port=heap`**: the acceptance criterion for X-3 slice-2 is that the HEAP pass set is a superset of — or at minimum does not regress below — the s37 floor (s37 measured `36/122 pass`). Script: `PAT_CORPUS=/home/claude/corpus/crosscheck/patterns SCRIP_ZETA_PORT=7 bash scripts/board_patterns_set.sh snap heap_s40c`. Compare against FORTH baseline. **Do this before anything else — if the fix is wrong, the measurement will show regressions and the commit must be amended or reverted before proceeding.** The witnesses surviving is necessary but not sufficient.
+2. ⛔ **`op_fc_base=520192` anomaly**: one of the three `fc_bytes=16` ALPHA dispatches in `041_pat_span` carries `fc_base=0x7f000` (page-aligned-looking, unlike siblings at 176/160). Under the new fix, this node will route to regime 2 using that base: `[rsp + off - 520192]` is almost certainly a wrong address. **This may be the cause of `041_pat_span`'s remaining DIFF output** — the crash is gone but the answer is wrong, and a bogus base would explain both. Add one more trace line (which IR kind?) before assuming benign. SUGGESTED: add `--dump-ir` alongside `SCRIP_RBX_FIELD_TRACE=1` to correlate the trace lines with IR node kinds.
+3. ⛔ **Regen**: emitted bytes change under `--zeta-port=heap`; default-port `.s` artifacts are unchanged (byte-proven). HEAP is not the committed default, so the artifact regen rule applies only if/when HEAP becomes the compiled default — not yet. Confirm this reading with RULES §4 before skipping.
+
+**OPEN RUNGS (status unchanged from s39 except X-3):**
+- **X-2**: RSP-release-imbalance on `-INCLUDE` loops. Mechanism named (LIFO violation), fix not landed, emitter site not found. Seating (RBX vs RBP/EARN) still Lon/BOARD's call.
+- **X-3 slice-2**: LANDED MECHANISTICALLY (the gate fix above). Acceptance not yet confirmed by BY-SET — do that first.
+- **X-4**: BLOCKED — `HOME-LOWER L-2` still `[ ]` unstarted (L-3/L-3b landed out of order; see s40 cursor). Re-check this predicate against the LOWER goal file directly on each session, never from `git log` prefix heuristics.
+- **X-5**: Unblocked since X-1 closed (s39). Not started.
+
+**PROCESS NOTE (standing, filed here for Lon):** `REQUIRES` predicates must be evaluated against the named artifact (the owning goal file's checkbox), never against a correlate such as commit-prefix ordering. Filed in s40 cursor; applies going forward.
+
+---
+
 ## ⭐ LIVE CURSOR — 2026-08-12 s40b (Sonnet 5) — **X-3 FIELD-ATTRIBUTION TRACED (the instrumentation the s37/s39 cursors called for before patching REG-4b). RESULT: the field is NOT ambiguous — `op_zls2_bytes` is dead at this choke; `op_fc_bytes` is the only live grant. The blocker both prior sessions stopped at does not exist as stated.**
 
 **INSTRUMENT ADDED, SCRIP `9780591d` + local (uncommitted at time of trace, committed below).** `x86_asm.h`, `X86H_DEF/X86P_ALPHA` choke, immediately before REG-4b's own `hk` selection (two lines above it, so the trace sees exactly what `hk` is about to read): env-gated `fprintf(stderr, ...)` of `x86_port_mode()`, `op_zls2_bytes`, `op_zls2_ops`, `op_fc_bytes`, `op_fc_base`, on by `SCRIP_RBX_FIELD_TRACE=1`. Inert at HEAD (getenv-gated, matches the `SCRIP_FC_AUDIT` idiom); build confirmed clean.
