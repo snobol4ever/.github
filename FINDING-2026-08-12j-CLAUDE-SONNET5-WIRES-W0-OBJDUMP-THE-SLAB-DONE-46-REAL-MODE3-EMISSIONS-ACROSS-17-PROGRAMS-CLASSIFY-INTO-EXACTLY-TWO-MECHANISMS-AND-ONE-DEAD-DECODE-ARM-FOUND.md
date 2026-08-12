@@ -119,20 +119,83 @@ per dump. This is the general instrument the s35 cursor called for; it is not ye
 so it can run `--strict`) is a design decision, not a data one — flagged for Lon alongside the whitelist
 question rather than assumed.
 
+
+## ADDENDUM (same session, continuation) — `x86_asm.h` FULLY CLASSIFIED, 23/23 OCCURRENCES, READY FOR THE WHITELIST DECISION
+
+The optional cleanup this finding flagged is now **landed** (SCRIP `825ab0a4`): `x86_store_cursor_mirror()`
+and its `XK_R10MIR` decode arm deleted (zero live callers — the one caller that could reach it,
+`xa_flat.cpp:249`, already routed around it by its own comment). Proof of safety: `test_gate_em_template_byte_
+identity.sh` PASS=4/4 before and after · the same 17-program mode-3 runtime set (this finding's sample)
+byte-for-byte identical stdout+rc before/after · `test_smoke_compile_hello_all_langs.sh` PASS=6/6 · all three
+RULES.md-mandated `.s` regen scripts (benchmark/feature/demo) report zero artifact drift (one pre-existing
+EMIT-FAIL on `coverage_sno_nodes.s` and one pre-existing SKIP on `json.s`, both confirmed to reproduce with
+the edit absent — not caused by this change).
+
+This shrinks `x86_asm.h`'s honest sweep-debt count from 25 occ/17 lines to **23 occ/15 lines**. Every one of
+those 23 is now traced to a real source line and classified, closing out the "x86_asm.h internals" half of
+W-0's remaining decision:
+
+| Real line(s) | Occurrences | Content | Class |
+|---|---|---|---|
+| 46-47 | 4 (`r10d`,`r10`,`r11d`,`r11`) | register-name string → number decoder | (3) name infrastructure |
+| 57 | 2 (`r10b`,`r11b`) | same decoder, byte-width forms | (3) name infrastructure |
+| 318 | 1 (`r11`, inside a `static_assert` message string) | ABI-drift self-check comment-string, not code | (3) infrastructure (diagnostic text) |
+| 368 | 1 (`r10`) | RTCC writeback: `mov [rax+56],r10` | RTCC veneer (save half) |
+| 369 | 1 (`r11`) | RTCC writeback: `mov [rax+64],r11` | RTCC veneer (save half) |
+| 377 | 1 (`r11`) | RTCC reload: `mov r11,[rip+g_rtcc_block]` — block-base load | RTCC veneer (reload half) |
+| 378 | 1 (`r11`) | RTCC reload: `mov r8,[r11+40]` — r11 as block base | RTCC veneer (reload half) |
+| 379 | 1 (`r11`) | RTCC reload: `mov r9,[r11+48]` — r11 as block base | RTCC veneer (reload half) |
+| 380 | 2 (`r10`,`r11`) | RTCC reload: `mov r10,[r11+56]` — r11 base, r10 destination | RTCC veneer (reload half) |
+| 381 | 2 (`r11`,`r11`) | RTCC reload: `mov r11,[r11+64]` — r11 as both block base and restored value | RTCC veneer (reload half) |
+| 769 | 1 (`r11`) | DC-fn call stub: `movabs r11,&slot; call [r11]` — r11 used as a scratch indirect-call pointer, comment states "r11 is caller-saved and dead at every site" | RTCC-adjacent scratch, already self-documented as safe |
+| 1385 | 2 (`r10`,`r11`) | 64-bit register name table (decode/encode infra) | (3) name infrastructure |
+| 1386 | 2 (`r10d`,`r11d`) | 32-bit register name table | (3) name infrastructure |
+| 1387 | 2 (`r10b`,`r11b`) | 8-bit register name table | (3) name infrastructure |
+
+Sum check: 4+2+1+1+1+1+1+1+2+2+1+2+2+2 = **23**, matches the gate's own count exactly.
+
+**23/23 accounted for. Zero unclassified. Zero ambiguous.** Three categories:
+- **Register-name infrastructure** (13 occ: lines 46-47, 57, 318, 1385-1387) — string tables and decoders that
+  must spell every GPR name, including r10/r11, to do their job. These can never be "cleared" by any wire
+  reachability argument because they are not wire USES at all — they are the encoder's own vocabulary. This is
+  class (3) from the whitelist header ("x86_asm.h internals — the encoders themselves; they name every
+  register by construction") applied literally.
+- **RTCC veneer** (9 occ: lines 368-369, 377-381) — the writeback/reload machinery that IS the mechanism
+  making it safe to cross into C with the wire pair live. This is the thing WIRES' own charter cites as owned
+  "HERE per the s14 arbitration: safe config = RTCC-ON and wire capture/restore, neither alone." Licensing
+  this is not scope creep — it is licensing the seat's own named mechanism.
+- **DC-fn call stub** (1 occ: line 769) — a single self-documented scratch use of r11 as an indirect-call
+  pointer, distinct from the veneer proper, with the caller's own comment already asserting the safety
+  argument ("r11 is caller-saved and dead at every site"). Small enough to fold into either bucket at the
+  reviewer's discretion, or list as its own line-item — flagged separately here so nothing gets silently
+  absorbed into the larger RTCC justification without its own read.
+
+**Recommendation for the whitelist entry** (not written to `wreg_claim_whitelist.txt` this session — a
+licensing act belongs to the explicit decision, not a data-gathering pass):
+```
+x86_asm.h   3   occ=23   OP5-sN-WIRES   register-name infrastructure (13 occ: decode/encode tables,
+                                         diagnostic assert text) + RTCC veneer save/reload (9 occ: the
+                                         s14-arbitrated wire-preservation mechanism itself, WIRES' own
+                                         charter) + DC-fn call-stub scratch (1 occ, self-documented safe).
+                                         Every occurrence traced to real line + content, table in
+                                         FINDING-2026-08-12j addendum. Zero ambiguous, zero ordinary-scratch
+                                         uses found.
+```
+This is a one-line edit, `occ=23`, once approved.
+
 ## NEXT SEAT
 
-1. **Decision needed (Lon):** write the `x86_asm.h` whitelist line. This finding supplies the occ breakdown;
-   recommend `occ=23` (25 raw − 2 for the now-identified dead `x86_store_cursor_mirror`/`XK_R10MIR` pair, IF
-   that pair is deleted first) or `occ=25` (if left in place and licensed as dead-but-present). Either is a
-   one-line edit once decided.
-2. **Optional, cheap, zero-risk:** delete `x86_store_cursor_mirror()` (x86_asm.h:232-234) and its `XK_R10MIR`
-   decode arm (enum entry + line 1426's `if`). Zero callers exist; `test_gate_em_template_byte_identity.sh`
-   should read byte-identical before/after since nothing reachable changes. Shrinks sweep debt by 2 for free.
-3. **If a permanent objdump gate is wanted:** turn the gdb-dump-and-scan pattern above into
+1. **Decision needed (Lon):** write the `x86_asm.h` whitelist line — data is now 100% complete for this call
+   (the per-line table above). Every one of the 23 remaining occurrences is either register-name
+   infrastructure or the RTCC veneer WIRES' own charter already owns; recommended entry text is above, ready
+   to paste into `wreg_claim_whitelist.txt` once approved.
+2. **If a permanent objdump gate is wanted:** turn the gdb-dump-and-scan pattern into
    `scripts/test_gate_wreg_claim_binary.sh`, run over a fixed program set (suggest the 17 named here, or the
    full `probe/bb/` D-family), asserting the same "every occurrence classifies as CLASS-D or RTCC-veneer"
    property this finding establishes by hand. This is new-instrument work, not sweep work — flagged, not done,
    pending the whitelist-policy decision it depends on.
-4. **W-0's remaining open item after this:** the whitelist-policy decision from s35 (does "product-wide" mean
+3. **W-0's remaining open item after this:** the whitelist-policy decision from s35 (does "product-wide" mean
    clearing Prolog off r10/r11 even where SNOBOL4 provably cannot reach it) is untouched by this session and
-   still the actual blocker for `--strict` ever going green.
+   still the actual blocker for `--strict` ever going green. RTX (223/223) + template raw-byte (46 slabs) +
+   x86_asm.h (23/23 classified) are ALL data-complete now — this is purely a policy call away from `--strict`
+   going green product-wide.
