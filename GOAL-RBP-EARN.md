@@ -129,6 +129,42 @@ DELETE the `sub rsp,16` carve and every `[rsp+0]`/`[rsp+4]` cursor access. Rebui
 
 **NET EFFECT ON THE LADDER:** EARN-0b closed(0) · EARN-5's owner rule confirmed(1) · EARN-4 gains its emission shape — ENTER at α **and** β, chain-as-counter(2) · EARN-6's FENCE1 row keeps its verdict with a corrected justification(3) · the hazard taxonomy is confirmed COMPLETE at two classes. **Rulings (a)/ROOTSPINE remain OPEN — Lon: "Unsure."**
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s35 (Claude Sonnet 5) — **R-2 SETTLED BY CONTROLLED A/B: THE SITE-A GAP IS REAL, NOT A BUILD ARTIFACT. REGEN ×3 RUN (3 LOCAL COMMITS). THE DEMO "BUILDFAIL 4" WAS TWO UNRELATED PROBLEMS, AND TWO OF ITS FOUR MEMBERS ARE A NEWLY-SURFACED DUPLICATE-LABEL ASSEMBLER DEFECT, NOT THE DOCUMENTED SIZE EXCLUSION.**
+
+**Fingerprint:** SCRIP `29fd4ad8` · corpus `3621fc4f` · both built AFTER `install_system_packages.sh` (confirmed run first, both builds, no exceptions).
+
+**R-2, METHOD:** isolated `git worktree` at `52545cbf` (pre-fix, confirmed `grep -c rtcc_load_all` = 2) alongside HEAD (post-fix, = 3), both built with the identical correct order, both run against the identical `crosscheck/patterns` corpus with the identical unmodified `test_census_m3_m4_divergence.sh`. Only variable: presence of the Site-A call.
+
+| | AGREE | m4 SEGV | m4 HANG | PURE m4-only crash | m3 SEGV/HANG |
+|---|---|---|---|---|---|
+| HEAD (3 sites) | 111 | 39 | 5 | 10 | 28/6 |
+| `52545cbf` (2 sites) | 68 | 82 | 4 | 52 | 28/6 |
+
+m3 bit-identical across both builds (expected — mode-3 never touches this bridge; a clean internal-consistency check that nothing else drifted). The delta reproduces s34's own "(before)" parenthetical numbers exactly. **⇒ s33's retraction does not apply here: with build order fully controlled, removing Site A alone reproduces the entire pre/post gap. The defect was real.**
+
+**R-1 RULED YES, WITH EVIDENCE, NOT JUST PRINCIPLE:** `scrip.c` is not on RULES.md step 4's list, nor on any of the three regen scripts' own header lists (`emit_bb.c emit_core.c templates/*.cpp x86_asm.h lower_snobol4.c` — same gap in both places, so this isn't a doc typo, it's a real hole). But `scrip.c` directly calls `emit_textf()` at this exact site — it IS an emission site, filed under `driver/` only by directory convention. Ran all three in RULES.md order:
+- `util_regen_benchmark_s_artifacts.sh` → corpus `af268e4d`, **23 files, 684+/661-** — genuinely stale, not a no-op.
+- `util_regen_feature_s_artifacts.sh` → SCRIP `29fd4ad8`, ~40 files changed. One pre-existing `EMIT-FAIL` (`coverage/coverage_sno_nodes.s`, untouched by design) — not new, not investigated further this session.
+- `util_regen_demo_s_artifacts.sh` → corpus `3621fc4f`, **20 files, 2336+/2316-**.
+⛔ **PROPOSAL, NOT YET RULED:** add `src/driver/scrip.c` to the regen-trigger list in RULES.md step 4 and in the three scripts' own header comments. Lon should confirm before this is treated as settled policy.
+
+**⭐⭐⭐ THE DEMO "BUILDFAIL 4" NAME WAS HIDING TWO DIFFERENT THINGS.** `util_regen_demo_s_artifacts.sh`'s own `DEMOS` list comment records a 2026-07-26 Lon ruling: `expression`/`porter` are deliberately **excluded from the regen set on SIZE alone** (~36k/~37k lines each) — the comment states outright they "both compile clean and assemble clean." Tested directly this session at HEAD:
+- `claws5`, `json` — still `AS-FAIL` (assembler-rejected). Matches s34's "orthogonal to r9, unmoved." Not investigated further.
+- `expression` (needs CWD-relative include resolution — no `-I` flag exists in `scrip`'s CLI; must run with cwd = `beauty_suite/`) — compiles to **346,857 lines** of `.s`, then **AS-FAIL: 543 duplicate-symbol errors**, pattern `.Lbynamefnzd####' is already defined`.
+- `porter` — compiles to **93,370 lines**, then **AS-FAIL: 1 duplicate-symbol error**, `.Lx3548_40' is already defined`.
+⇒ **The 2026-07-26 comment is now FALSE for both programs.** Most likely explanation, not yet verified: exclusion from the regen set also excluded them from routine re-verification, and a label-uniqueness regression landed sometime in the ~2.5 weeks since, unnoticed. Two distinct label-naming schemes (`.Lx####_##` vs `.Lbynamefnzd####`) both colliding suggests a shared root mechanism (counter reuse / insufficient hash entropy at scale) rather than two independent bugs — **hypothesis, not measured; MONITOR-FIRST before pursuing.** Not yet bisected to a commit. Unowned.
+
+**`treebank-array` CONFIRMED STILL SEGV (rc=139) post-fix, this session, fresh binary.** Matches s34's "demo's true m4 SEGV is treebank-array alone" — the r9 fix does not touch it; it remains open and separate from the Site-A class.
+
+**NEXT SEAT, IN ORDER:**
+1. **R-3** (`cap_imm_nret2`, benchmarks, rc3=139/rc4=0) still open — its `.s` changed 125 lines in this session's regen; worth a fresh look before assuming s34's characterization still holds.
+2. **The duplicate-label AS-FAIL class** (`expression`, `porter`) — real, reproducible, unowned. Needs MONITOR-FIRST treatment, not code-reading first.
+3. **`treebank-array` SEGV** — still open, still separate from Site-A.
+4. s34's original items 2 (residual-11 `crosscheck/patterns` bisection) and 4 (W-pins two-mode gate) — unchanged, still queued.
+5. Confirm the scrip.c-on-trigger-list proposal above with Lon before treating it as binding.
+
+**⛔ NOT PUSHED — holding per explicit session instruction to ask for credential at session end, not mid-session.** Three local commits outstanding across SCRIP (1) and corpus (2), plus this `.github` edit.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s34 (Opus 5) — **THE `main_α` BRIDGE NEVER ESTABLISHED R9. RC-5-GVA LANDED ITS MAIN-ENTRY LOAD ON `flat_α` ONLY. ONE LINE: `patterns` DIVERGE 54→11, 42 REPAIRED, 0 REGRESSIONS. THIS IS A *SOURCE* FACT AND IT DOES NOT CONFLICT WITH s33's RETRACTION.**
 
 **Fingerprint:** SCRIP `d0d9515e` (= `52545cbf` + ONE line in `src/driver/scrip.c`) · corpus `c91d1adf` · FINDING `FINDING-2026-08-12e-…-AND-S33-D1-D2-ARE-BOTH-BY-DESIGN.md`. Build order: `install_system_packages.sh` ran BEFORE both builds; the A/B differs only by the one line.
