@@ -70,15 +70,19 @@ and SPAN's read of it**, none of which `_.op_sa` (computed once via `bb_slot_get
 slot number) is adjusted for.
 
 **Measured directly with gdb on the compiled `t1.bin`:**
-- Right after `rt_coerce_str_d` writes `ws`'s coerced-string DESCR: address `0x7fffffffea30`,
-  contents `{v=0x2, slen=0x1, ptr→0x40128e}` — `x/s` at that pointer prints `" "`. **Correct.**
+- Right after `rt_coerce_str_d` writes `ws`'s coerced-string DESCR: DESCR starts at `0x7fffffffea30`
+  (`{v=0x2, slen=0x1}` packed there), pointer field at `+8` = `0x7fffffffea38`, `x/s` at that pointer
+  prints `" "`. **Correct.**
 - At the SPAN loop's `mov r8, [rsp+184]` / `mov r9d, [rsp+180]`: `rsp` has since dropped by exactly
   64 bytes (`0x7fffffffe980` → `0x7fffffffe940`, matching the three `sub rsp` instructions above), so
-  `[rsp+184]` resolves to `0x7fffffffe9f8` — **56 bytes short of the actual DESCR at `0x7fffffffea30`**.
-  The bytes read there are stack garbage (`0x4210f8108b1b1f8c` / `0x4210efea1b591f8c` — not a valid
-  `{v,slen,ptr}` triple by construction). The inner membership loop compares subject bytes against
-  this garbage "needle," never matches, and SPAN reports 0 characters — a clean, silent failure on
-  every input, independent of subject or charset content.
+  `[rsp+184]` resolves to `0x7fffffffe9f8` — **exactly 64 bytes short of the pointer field at
+  `0x7fffffffea38`** (not 56 — an earlier draft of this finding compared against the DESCR's start
+  address rather than its pointer field, 8 bytes in; corrected here, and the exact match to the
+  accumulated frame growth is a stronger confirmation of the mechanism, not a weaker one). The bytes
+  read there are stack garbage (`0x4210f8108b1b1f8c` / `0x4210efea1b591f8c` — not a valid `{v,slen,ptr}`
+  triple by construction). The inner membership loop compares subject bytes against this garbage
+  "needle," never matches, and SPAN reports 0 characters — a clean, silent failure on every input,
+  independent of subject or charset content.
 
 This is the exact class of defect this codebase's own commentary elsewhere warns about by name
 (`emit.cpp`'s C-9 REPL-ZDEPTH note: *"With zdepth=0 all frame reads were short by exactly the subtree
