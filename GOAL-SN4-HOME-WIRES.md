@@ -21,7 +21,10 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 - [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority. ⛔ **The census named TWO shapes the layout must cover, not one — see the cursor's CARRY SHAPES block.**
 - [ ] **W-5 · ⛔ THE FLIP — REQUIRES EARN-1 + EARN-3 LANDED (EARN-10 ordering).** PROC-shim deletion (PT-1..3), CLASS-D exit ceremony dies with it. The old WREG residual (19 SEGV + 7 HANG) was MISSING FRAMES, not glue defects — EXPECTED cured by EARN; measure by set, never assume. ⛔ **PREDICATE NOTE (2026-08-12): `frame_need_of` does not exist in `src/` under ANY spelling — it is a FORWARD REFERENCE to a symbol `GOAL-RBP-EARN.md` must create. This seat cannot unblock it by working harder; only the RBP seat can. Do not re-check it hopefully each session — check the EARN goal file's cursor instead.**
 - [ ] **W-6 · RTCC RE-ENTRANT PRESERVATION + DEFAULT-ON REVALIDATION.** The veneer round-trips wires on leaf crossings only; fix the re-entrant case; then RTCC default-ON must hold the P0 floors with NO `SCRIP_RTCC=0` escape (kills the m4-130 class). Belt-and-suspenders: `-Wl,-z,now` for the r11 lazy-binding clobber. **Leaf half PROVEN SAFE (s35: 172 veneered, 0 bare match-time). Scope is re-entrant ONLY. Witnesses named: probes `140`/`141`.**
-- [ ] **W-7 · ARBNO DISPATCHER SOUNDNESS — ROUTED TO THIS SEAT (Lon, s36 answers: "You own the dispatcher bug").** Witnesses: D12 (SEGV) · D13 (hang); X01 possibly-related, NOT confirmed (nested `ARBNO(ARBNO(LEN(1)))`, no DEFER — may be a sibling defect). Root cause + full trace + blast radius: `FINDING-2026-08-12k-…`.
+- [ ] **W-7 · ARBNO DISPATCHER SOUNDNESS — ROUTED TO THIS SEAT (Lon, s36 answers: "You own the dispatcher bug").** Witnesses: D12 (SEGV) · D13 (hang); X01 CONFIRMED RELATED s38 (same dispatcher gap, general form — see cursor). Root cause + full trace + blast radius: `FINDING-2026-08-12k-…`.
+  - **⭐ INTERIM GUARD LANDED s38 (SCRIP `fc8b96b8b`, verified @`73c1ac33`-era tree + one rebase).** `op_arbno_body_defer_unsafe` (emit.h struct end + emit.cpp companion scan beside `op_arbno_body_k0` + per-node reset) ⇒ `bb_match_arbno()` declines with `x86_bomb` instead of the unsound plain-frameless fallback. **D12: SIGSEGV(139)→SIGABRT(134) named bomb. D13: hang(124)→134.** Floor-neutral, A/B-proven against a stashed baseline build (NOT assumed): probe/bb identical `159 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}`; crosscheck/patterns identical `PASS=77 FAIL=45` with a byte-identical failing-NAME set, only exit codes moved (145/165/183 139→134, 178/179 124→134). 16-passer set re-verified individually green.
+  - **⛔ THE BOMB ARM MUST DEF ITS PAIR LABELS.** First version left 3–8 unresolved forward refs: the drive loop registers `β`(`PAIR(1)`, generic per-node pass emit.cpp ~2412) and `na_s`/`na_f`(`PAIR(2)`/`PAIR(3)`, `flat_drive_match_alt` ~1201) UNCONDITIONALLY before the template runs. Fixed by `x86_beta()` + `def PAIR(2)` + `def PAIR(3)` after the `ud2` (dead but resolved). **Generalizes to every n-ary template — see cursor scrutiny item 5.**
+  - **NOT CLOSED — this is interim only.** It converts silent corruption into a loud refusal; it flips ZERO witnesses green. Real fix = anchor-relative ARBNO cell = **W-4 layout, which this seat cannot self-serve.**
   - **DISCRIMINATOR CONFIRMED (s36b, gdb at `lower_snobol4.c:1324`):** D12 builds 3× `DEFER(sval=LIST, pat_static=0)`; D09 (a passer) builds `DEFER(sval=P, pat_static=1)`. Bare `ITEM` in the pattern expression resolves through to the `*LIST` defer at lower time, so **the fix keys on the DEFER node's own `pat_static` — no extra indirection needed.**
   - **⛔ FIX CONSTRAINT (measured, not negotiable):** the 16-passer set {D09 D10 D11 G19 G20 H21 H24 H25 N12 N17 X02 X03 X04 X05 X06 X11} rides the same plain-frameless path with `k0=0` and must stay green BY SET. A blanket DEFER exclusion breaks all 16.
   - **⛔ FIX SHAPE, honestly stated:** neither existing arm is sound for a `pat_static=0` body — K16's re-homed static offsets assume no unmodeled suspend, plain-frameless assumes zero frontier motion. The correct home for the ARBNO cell in that class is an **anchor-relative slot** (FR/rbp per-activation, or the W-4 arena slot — one more reason W-4's layout decision is load-bearing). Interim option: decline with `x86_bomb` for `pat_static=0`-bearing bodies only — converts silent stack corruption into a loud compile-time refusal, flips 0 witnesses green, breaks 0 passers; a floor-neutral honesty patch, not a fix.
@@ -80,7 +83,7 @@ layout decision; this seat cannot self-serve it. X01 remains unexplained by this
 no DEFER at all — nested `ARBNO(ARBNO(LEN(1)))` — confirmed a genuinely separate defect, not investigated
 further this session; still unowned).
 
-### Commits (both pushed — see FACT RULE)
+### Commits (push status deliberately NOT recorded here — `handoff_status.sh` is the only push truth, RULES STALE-ORIENTATION (a))
 - SCRIP `1780cd1a` — the guard itself (emit.h + emit.cpp + bb_match_arbno.cpp).
 - corpus `03298563` — regenerated demo `.s` artifacts, committed by the mandated regen script.
 
@@ -91,7 +94,7 @@ further this session; still unowned).
   exist yet, but worth checking first once W-4 is real).
 - **X01 — ROOT CAUSE FOUND this session (read-only, no fix landed, no code touched — see below).**
 
-### ⭐ X01 INVESTIGATION (this session, while blocked on push credential — diagnosis only, zero source edits)
+### ⭐ X01 INVESTIGATION (this session — DIAGNOSIS ONLY, zero source edits)
 `POS(0) ARBNO(ARBNO(LEN(1))) RPOS(0)` on `'abc'` should succeed (=S) per SPITBOL semantics; SCRIP prints =F.
 Not a crash — silent wrong answer, rc=0. `SCRIP_ARBNO_DIAG=1` shows BOTH the outer and inner ARBNO taking the
 `FRAMELESS` arm: outer is `framed=0 k0=0 sq=0` (declines K16 correctly — `sq=0` because its body contains a
@@ -115,8 +118,9 @@ ARBNO's own net-zero LIFO discipline on ITS success path happens to often restor
 expects — the corruption is in the OUTER's DELTA0/yield-cursor bookkeeping (logic), not necessarily a stray
 memory write, which is consistent with rc=0 + wrong output rather than a fault.
 
-**Not fixed — deliberately, this session.** (1) I'm blocked on the push credential and did not want to stack
-a second unreviewed source change on top of the unpushed W-7 commit. (2) The right general fix is almost
+**Not fixed — deliberately, this session.** (1) Landing a second, wider dispatcher change in the same session
+as W-7's narrow one would have made the two indistinguishable in any later bisect — the guard and the general
+gate must be separately attributable. (2) The right general fix is almost
 certainly the SAME W-4 arena-layout work the DEFER case needs (route any `k0=0` body — DEFER OR nested-ARBNO
 OR any other K!=0 member — to an anchor-relative arm), which argues for generalizing
 `op_arbno_body_defer_unsafe` into something like `op_arbno_body_frontier_unsafe` (`!op_arbno_body_k0` in the
@@ -133,6 +137,61 @@ to the general `!op_arbno_body_k0` case (a one-line change at the `bb_match_arbn
 already exists), which would also catch X01 with the same bomb mechanism, OR treat it as a separate rung if
 the general case needs different W-4 layout decisions than the DEFER-specific one. Either way this is a W-4
 design question, not a mechanical fix this seat should make without that decision.
+
+## ⛔⭐⭐⭐ SCRUTINY OF THIS LADDER — s38 (offered; three items need LON, and one of them is structural)
+
+**s36 said "4 of 7 rungs' premises did not survive contact with the tree." s38's data says the deeper problem
+is the SEAT BOUNDARY, and it has now cost three consecutive sessions of charter work.**
+
+1. **⛔ THIS SEAT HAS NOT TOUCHED ITS OWN CHARTER IN FOUR SESSIONS.** W-3 (WREG mechanism), W-4 (arena wire-pair
+   slot), W-6 (RTCC re-entrant) are the r10/r11 charter — the reason the seat exists. s35 did census, s36
+   diagnosed an ARBNO bug, s37 verified that diagnosis, s38 fixed it and found a second ARBNO bug. **All four
+   sessions were spent on ARBNO, which is not this seat's subject matter.** It got here honestly: W-2 named
+   D12/D13 as witnesses (falsely — s36 proved they belong to ARBNO), and Lon's s36 answer then routed the
+   dispatcher bug here explicitly. But the routing was made when the bug looked like one defect; s38 shows it
+   is a defect CLASS whose real fix is W-4 layout work. **RECOMMENDATION: route ARBNO dispatcher soundness
+   (W-7 residue + X01 + the general `!k0` gate) to the seat that owns the ARBNO templates — GOAL-SN4-ZETA-MECH
+   or GOAL-SNOBOL4-BB — and point this seat at W-6 → W-3 → W-4.** If instead you want this seat to keep ARBNO,
+   say so explicitly and I'd suggest renaming the seat, because "WIRES" no longer describes what it does.
+
+2. **⛔ W-4 IS ON THE CRITICAL PATH FOR TWO SEATS AND IS UNSTARTED.** W-4 (arena wire-pair slot layout) is
+   listed here as a wires rung, but it is now ALSO the blocker for every ARBNO `k0=0` fix (W-7 real fix, X01,
+   the 145/165/178/179/183 witnesses, calculator-1/2 + json + treebank demos). That is a lot of the demo board
+   — the plan's own "most legible progress meter", currently 2/15 — sitting behind ONE unstarted layout
+   decision. **It is the highest-leverage unstarted item I can see in this file and probably deserves to be
+   its own rung with a full runway rather than the 4th item on a seat that keeps getting pulled elsewhere.**
+
+3. **W-5's predicate is still a forward reference** (`frame_need_of` absent from `src/` — re-verified s38 by
+   grep, unchanged since s36). Not re-checked hopefully; recording the re-verification only.
+
+4. **STALENESS TAGS — s36's suggestion (2) is worth adopting and this session is evidence.** s37 and s38 both
+   re-derived the same `bb_match_arbno.cpp` line numbers because prose cited them untagged. Every rung naming
+   a symbol/line/witness should carry `(verified @<hash>)`. Cheap, no tooling, makes rot visible.
+
+5. **⚠ A METHOD NOTE WORTH GENERALIZING (earned the hard way this session).** The W-7 guard's first version
+   compiled clean and bombed correctly — and produced 3–8 UNRESOLVED FORWARD REFERENCES, because the drive
+   loop pre-registers `β`/`na_s`/`na_f` for every `IR_MATCH_ARBNO` BEFORE the template runs, so a template arm
+   that returns early without `def`-ing them breaks label resolution graph-wide. **Any future rung that adds a
+   declining/bombing arm to ANY n-ary template (ALTERNATE, FENCE1, SCAN_*, DISJUNCTION — they all go through
+   `flat_drive_match_alt`) will hit this identically.** The rule: a bomb arm must still define every pair label
+   its normal arm defines. Worth stating once in ARCH or GOAL-TEMPLATE-REVAMP-RULES rather than rediscovering.
+
+### ⛔ QUESTIONS FOR LON (s38)
+1. **ROUTING (the big one, item 1 above): does this seat keep ARBNO, or go back to r10/r11?** Four sessions
+   of evidence say the current arrangement starves the charter. Either answer is workable; the ambiguity is
+   what costs.
+2. **W-4: promote to its own rung with a runway?** It now gates two seats and most of the broken demo board.
+3. **X01 / the general `!op_arbno_body_k0` gate: widen W-7's guard, or separate rung?** One-line change if
+   widened (field exists); the design question is whether the general case wants a different W-4 layout than
+   the DEFER case. Not mine to decide unilaterally.
+4. **W-2 disposition — FOURTH re-ask** (s35, s36, s37, s38). Three options written into the rung since s36.
+5. **MON-CAP / `csnobol4` build — RE-ASK, and it is now blocking, not theoretical.** The 2-way sync-step
+   monitor is DARK in this container (`FAIL csnobol4 not built: /home/claude/csnobol4/snobol4`), so X01 — a
+   wrong-answer-rc-0 defect, exactly the class RULES.md says the monitor exists to catch — was diagnosed by
+   source reading instead of the prescribed mechanical hunt. **Three of the five REGRESSION members are
+   wrong-answer or hang rather than crash. Every "floor held BY SET" claim in this file is only as good as an
+   instrument that cannot see that class.** Recommend a MON-RE rung: get `csnobol4` building in the container
+   and add it to `install_system_packages.sh` (the same one-authority pattern that fixed the gdb trap).
 - **W-2 disposition, MON-CAP/dc_sib_bt ownership, W-0b's now-resolved status** — carried unchanged from s36/s37,
   not touched this session; see those cursors below for full detail.
 - **W-3/W-4/W-6 (this seat's own charter work)** — still untouched. Same observation s36 made: this seat keeps
