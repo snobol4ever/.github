@@ -153,3 +153,14 @@ The first re-score wrote `m4=$(prog | head -1); rc=$?`. **`$?` after a pipeline 
 - **`GOAL-MODE34-IDENTICAL` is failing at 54/122 on the patterns corpus.** Not asserted before because nothing measured it per-program.
 - ⛔ **EVERY m3-ONLY GREEN PUBLISHED SINCE THE HARNESS BROKE IS PROVISIONAL.** Stated in the main finding as a caution; it is now a measured 43% divergence rate.
 - **Still ZERO compiler bytes.** The repair is not scoped and must not be scoped from the minimal reproducer.
+
+## SECOND CORPUS — `programs/snobol4/demo` (24 programs, same instrument, same HEAD)
+
+```
+TOTAL=24  AGREE=17  DIVERGE=7
+  m3: SEGV=2 HANG=0
+  m4: SEGV=4 HANG=0 BUILDFAIL=4
+  PURE m4 CRASH CLASS (m3 rc=0, m4 SEGV) = 3
+```
+
+**Divergence 7/24 (29%) vs 54/122 (43%) on patterns — demo is healthier, and the difference is informative: demo is not pattern-saturated.** ⭐ **NEW CLASS, ABSENT FROM PATTERNS: `BUILDFAIL=4`** — four programs where `--compile` + `gcc` does not produce a binary at all (patterns: 0). **That is a distinct defect family from the SEGV class and is unbilled.** `benchmarks/snobol4` (23 programs) remains **UNMEASURED** — the blast radius is two corpora of three.
