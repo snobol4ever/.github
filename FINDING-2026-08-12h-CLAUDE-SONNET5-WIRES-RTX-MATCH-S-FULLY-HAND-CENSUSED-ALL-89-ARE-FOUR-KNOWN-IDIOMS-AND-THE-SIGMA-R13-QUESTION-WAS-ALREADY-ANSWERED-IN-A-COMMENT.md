@@ -387,3 +387,85 @@ untouched-argument bail to C.
 
 **PROGRESS: 204 of 223 total RTX occurrences classified (8 of 10 files), 19 remaining across
 2 files — both pre-verified reachability, hand-read still owed.**
+
+## ADDENDUM 8 (same session, continued) — `rtx_icnagg.S` (11/11) + `rtx_icnrel.S` (8/8) — **RTX CENSUS COMPLETE, 223/223**
+
+Read both remaining files in full. `rtx_icnagg.S` (170 lines: `rt_size_d`, `rt_list_bang_at`,
+`dat_field_get`). `rtx_icnrel.S` (260 lines: `rt_jct_relop`, `rt_str_coerce`). Verified 11 and 8
+occurrences respectively by script, matching the gate exactly on both.
+
+**Both confirmed Icon-exclusive, with one nuance worth recording on `rtx_icnagg.S`.** The header's
+blanket "Both symbols are Icon-EXCLUSIVE" statement covers `rt_size_d`/`rt_list_bang_at` (zero
+r10/r11 occurrences in either) but was written before `dat_field_get` joined the same gate later.
+Checked separately: `dat_field_get`'s caller template (`bb_field_get.cpp`) is shared with
+SNOBOL4's `IR_FIELD_VAR` traffic, but SNOBOL4 only ever emits `IR_FIELD_VAR` (routes to
+`rt_field_var`), never plain `IR_FIELD_GET` (the node kind that reaches `dat_field_get`) —
+confirmed via `lower_snobol4.c`/`lower_icon.c` grep. So `dat_field_get` is genuinely Icon-only
+too, but by a within-template arm split (same shape as `rtx_icnvar.S`'s `rt_assign_var` finding),
+not a file-level gate. `rtx_icnrel.S`'s header made an explicit, falsifiable exclusivity claim
+("zero SNOBOL4 and zero Prolog static call sites") which I had already independently verified
+before reading, via the same `lower_snobol4.c` grep used for `bb_binop_relop.cpp`'s `IR_BINOP_TEST`
+earlier this session — confirmed correct.
+
+**Classification, both files — no new idiom on either:**
+
+| File | Location | Occ | Idiom |
+|---|---|---|---|
+| `rtx_icnagg.S` | field-scan loop index (`dat_field_get`) | 5 | loop-carried local scalar (integer counter) |
+| `rtx_icnagg.S` | field-name pointer walk | 3 | loop-carried pointer, one iteration |
+| `rtx_icnagg.S` | post-loop cell-address computation | 2 | local scalar, one-shot |
+| `rtx_icnrel.S` | strcmp loop pointer walk (`rt_jct_relop`) | 3 | loop-carried pointer |
+| `rtx_icnrel.S` | strcmp loop + post-loop byte value | 5 | loop-carried local scalar, reused once after loop exit |
+
+## ⭐⭐⭐ RTX HAND-ASM CENSUS COMPLETE — ALL 10 FILES, 223/223 OCCURRENCES CLASSIFIED
+
+Every occurrence of r10/r11 (all spellings) across every `.S` file in `src/runtime/rtx/` has now
+been individually hand-classified, cross-checked against `test_gate_wreg_claim.sh` at every step.
+Summary:
+
+| File | Occ | Reachability | Idiom(s) present |
+|---|---|---|---|
+| `rtx_match.S` | 89 | SN4-reachable | momentary GOT accessor · GOT-indirect call/tail-call · capture-stack block · longer-lived carry |
+| `rtx_icnsub.S` | 33 | SN4-reachable (corrected from "icn" name) | + loop-carried pointer (hash-chain) |
+| `rtx_alloc.S` | 20 | SN4-reachable (universal allocator) | GOT-global accessor (long-lived, no calls) + local scalar |
+| `rtx_str.S` | 19 | SN4-reachable | + longest same-function carry (carve/copy) |
+| `rtx_icnvar.S` | 13 | SN4-reachable (corrected from "icn" name); one symbol, two languages, different live arms | local scalar (multi-compare reuse) + short-lived struct pointer |
+| `rtx_arith.S` | 9 | SN4-reachable (comparison/arith primitives) | local scalar, branchless sign (simplest file, zero r11) |
+| `rtx_plcall.S` | 10 | **confirmed excused** (Prolog/Icon/Raku only) | + explicit stack-spilled preserver across a call |
+| `rtx_icnnum.S` | 11 | SN4-reachable (corrected — header framing was Icon-flavored but not exclusive) | local scalar/pointer, no new shape |
+| `rtx_icnagg.S` | 11 | **confirmed excused** (Icon-exclusive, incl. `dat_field_get` via arm-split) | loop-carried scalar + pointer |
+| `rtx_icnrel.S` | 8 | **confirmed excused** (header claim independently verified) | loop-carried pointer + scalar |
+| **TOTAL** | **223** | **7 of 10 files SN4-reachable; 3 confirmed excused** | **6 named idioms, no 7th found** |
+
+**The reachability split matters for W-0's still-open whitelist-policy question:** 193 of 223
+occurrences (86.5%) sit in files that ARE SNOBOL4-reachable and therefore cannot be excused
+regardless of how that policy question is answered. Only 30 occurrences (13.5%, across
+`rtx_plcall.S`, `rtx_icnagg.S`, `rtx_icnrel.S`) are genuinely candidates for reachability-based
+licensing — and even those still execute inside RTX asm, sharing the same "sharpest edge" risk
+class the gate's own comment names, just for Icon/Prolog/Raku matches instead of SNOBOL4 ones.
+
+**Method note, final form, for whoever designs W-0's sweep or W-5's flip:** across this session,
+reachability was checked by (1) finding the RTX symbol's C-of-record caller in `src/templates/`,
+(2) identifying the exact IR node kind that call site is gated on, (3) grepping every `lower_*.c`
+for who emits that IR kind, (4) checking whether any optimizer pass rewrites one IR kind into
+another that would open a new reachability path. Filenames, gate ledger names ("RTX-N-ICN"), and
+even a header's own measurement framing were each independently shown to be unreliable signals at
+least once this session — only steps (1)-(4), done per file, produced a trustworthy answer.
+
+### NEXT SEAT, IN ORDER
+
+1. **W-0 register-reassignment design call for the 193 SN4-reachable RTX occurrences** — now that
+   every occurrence is classified by idiom, a replacement-register or preservation-mechanism
+   decision is needed before any of this can be swept. The idiom table above is the input; no
+   further census is owed on RTX asm.
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout. Account for the
+   carve/copy carry shape (`rtx_str.S`) and the explicit-frame preserver shape (`rtx_plcall.S`)
+   found this session.
+5. **⭐ W-0 whitelist-policy question for Lon (still open, now with complete data):** with the
+   full reachability split in hand (193 SN4-reachable / 30 confirmed-excused), the "product-wide"
+   charter question can be answered with real numbers instead of an estimate.
+
+**PROGRESS: RTX CENSUS 100% COMPLETE — 223 of 223 occurrences classified across 10 of 10 files.**

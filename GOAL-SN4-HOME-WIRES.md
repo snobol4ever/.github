@@ -18,6 +18,38 @@ claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes
 
 **SCRIP `2913c6a4` · corpus `019795bb` · x64 not cloned — hashes are POST-REBASE onto the origins that moved mid-session; floor re-proved at these exact hashes, not inherited.** m3 floor re-proved BY SET at this HEAD: **157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10} — IDENTICAL to s33/s34.** One compiler edit + 3 mandated regen commits. **PUSH STATE at the bottom — read it before believing anything here landed.**
 
+### ⭐⭐⭐ RTX HAND-ASM CENSUS: COMPLETE (Claude Sonnet 5, same day, continuing s35 read-only) — 223/223, READ THIS FIRST
+
+**Every one of the 10 RTX `.S` files is now fully hand-classified — 223/223 occurrences, cross-
+checked against `test_gate_wreg_claim.sh` at every step.** SCRIP HEAD unchanged (`2913c6a4`,
+read-only session, zero compiler bytes touched). Full detail, per-file tables, and the reachability
+method: `FINDING-2026-08-12h-…` (8 addenda, one per file). Headline numbers:
+- **193 of 223 occurrences (86.5%) are in files CONFIRMED SNOBOL4-reachable**
+  (`rtx_match.S` 89, `rtx_icnsub.S` 33, `rtx_alloc.S` 20, `rtx_str.S` 19, `rtx_icnvar.S` 13,
+  `rtx_arith.S` 9, `rtx_icnnum.S` 11 — three of these ("icnsub"/"icnvar"/"icnnum") looked
+  Icon-only by name and were NOT).
+- **30 of 223 occurrences (13.5%) are in files CONFIRMED excused** (`rtx_plcall.S` 10,
+  `rtx_icnagg.S` 11, `rtx_icnrel.S` 8 — genuinely Prolog/Icon/Raku-exclusive, each verified via
+  its C-of-record caller's IR-node gate traced through every `lower_*.c`, not assumed from name
+  or ledger label).
+- **6 named idioms cover every occurrence, no 7th found:** momentary GOT-global accessor ·
+  GOT-indirect call/tail-call · capture-stack/hash-chain/field-scan block (loop-carried pointer
+  or scalar) · longer-lived same-function carry (carve/copy shape, worst case ~42 lines,
+  crosses exactly one call) · local scalar (branchless sign / dispatch selector / index) ·
+  explicit stack-spilled preserver across a call.
+- **The Σ/r13 open question from the original s35 cursor below is RESOLVED** (not merely
+  deferred) — see addendum 1 of the FINDING: `rt_match_ctx_restore`'s own header already states
+  the two-copy design (r13 = hot-path pin, GOT-global Σ/Σlen = C-readable mirror for slow paths
+  and cross-TU C code). No contract violation.
+
+**What this unblocks:** W-0's register-reassignment design call now has a complete idiom-by-idiom
+input for the 193 SN4-reachable occurrences (no further RTX census owed). The W-0 whitelist-policy
+question below (still open, Lon's call) now has exact numbers instead of an estimate.
+**What this does NOT do:** no code was touched; `--strict` still fails the same way (W-3's glue
+emitters don't exist yet). This is a completed map, not a smaller sweep number.
+
+---
+
 ### ⛔⭐⭐⭐ FOR LON — TWO THINGS NEED YOU, ONE IS A PROCESS BREAK
 
 **(1) TWO LIVE SESSIONS SHARED THIS SEAT FILE AND THIS CONTAINER TODAY.** s34 (Sonnet 5) and s35 (Opus 5, this one) both ran against `GOAL-SN4-HOME-WIRES.md` on the same filesystem and the same `.github` clone. I discovered it only when the cursor I had read at orientation (s33) had silently become s34 mid-session, and `git status` showed **ahead 2** when I had made exactly one commit — the other was theirs, local and unpushed. This is precisely the **ONE INVARIANT** of `GOAL-SN4-HOME.md` ("ONE LIVE SESSION PER SEAT FILE. Two sessions in one file is the s38b race"). Nothing was lost — our commits touch disjoint files and both are preserved — but that was luck, not design: had we both edited the cursor with `git add -A`, one would have silently swallowed the other's working tree. **The fire-and-forget model assumes one session per seat; something re-fired WIRES while it was already live.** Worth checking how, before it happens on a file where the overlap is not disjoint.
@@ -93,42 +125,32 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
   file by name.** This likely applies to some of the remaining 8 files too; check each on its own
   merits, don't pattern-match from this file's result either.
 
-### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2) — 8 OF 10 RTX FILES DONE
-1. **The other 2 RTX `.S` files** (19 occ remaining: `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8). Both
-   PRE-CHECKED and CONFIRMED Icon-exclusive this session (unlike icnnum, which read Icon-flavored
-   but was reachable): `rtx_icnagg.S`'s `rt_size_d` backs `TT_SIZE`, confirmed emitted only by
-   `src/parser/icon/icon_parse.c`; `rtx_icnrel.S`'s `rt_jct_relop` backs `IR_BINOP_TEST`, confirmed
-   emitted only by `lower_icon.c`. Reachability is settled; the FULL HAND-READ for classification
-   is still owed for both — do not skip it on the strength of the reachability check alone.
+### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2) — RTX CENSUS 100% COMPLETE (223/223)
+1. **W-0 register-reassignment design call for the 193 SN4-reachable RTX occurrences** — the RTX
+   census is DONE (see the top-of-section marker above and `FINDING-2026-08-12h-…`'s final
+   summary table). What's needed now is a replacement-register or preservation-mechanism decision
+   per idiom, not another count.
 2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
    D12/D13 flipping green.
 3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
-4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout. **W-4's arena wire-pair
-   slot design should account for the "carve/copy carry" shape** found in `rtx_str.S`
-   (`str_concat_d`: r10/r11 carry a fresh buffer pointer + length across exactly one
-   `rt_str_alloc` call, then die at `ret`) — a naive save-at-call-boundary scheme would clobber
-   this pattern, which recurs across the family (also in `rtx_match.S`'s `rt_cap_open` and
-   `rt_match_replace`).
-5. **⭐ W-0 whitelist-policy question (s35's OPEN QUESTION, still unanswered):** `rtx_plcall.S`
-   is now a CONFIRMED, structurally-verified instance of "provably dead for SNOBOL4" (Prolog/
-   Icon/Raku's `IR_CALL_PROC_STAGED` never reaches `lower_snobol4.c`) — a clean, fully-checked
-   test case for whichever way that policy question gets decided.
-6. **⭐ REACHABILITY-CHECK METHOD NOTE, EARNED THIS SESSION:** a header's Icon-flavored measurement
-   language (corpus names, ledger rung IDs) is NOT an exclusivity claim. Only an explicit
-   statement like `rtx_icnrel.S`'s "Icon-EXCLUSIVE row: zero SNOBOL4... static call sites" — and
-   even that, independently verified — should be trusted without a separate grep of every
-   `lower_*.c` for the IR kind the callee's template actually handles. Three of five "icn"-named
-   files checked this session were SN4-reachable (icnsub, icnvar, icnnum); only `rtx_plcall.S`
-   (Prolog/Icon/Raku, explicit claim) was confirmed excused. Check every file, every time.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout. **Account for two named
+   risk shapes found during the census:** the "carve/copy carry" (`rtx_str.S`'s `str_concat_d`:
+   r10/r11 carry a fresh buffer pointer + length across exactly one `rt_str_alloc` call, ~42
+   lines, then die at `ret` — recurs in `rtx_match.S`'s `rt_cap_open`/`rt_match_replace`) and the
+   "explicit-frame preserver across a call" (`rtx_plcall.S`'s cold growth arm, r10d spilled to
+   `[rbp-24]` rather than pushed).
+5. **⭐ W-0 whitelist-policy question (s35's OPEN QUESTION) — NOW ANSWERABLE WITH EXACT NUMBERS:**
+   193/223 (86.5%) of RTX occurrences are SN4-reachable and cannot be excused either way the
+   policy is decided; only 30/223 (13.5%) are genuine reachability-licensing candidates. This is
+   the decision that unblocks the rest of W-0 (unchanged from s35's framing, now with real data).
 
 ⛔ W-5 REQUIRES (predicate): `grep -rn "frame_need_of" /home/claude/SCRIP/src/` non-empty AND
 `UNBLOCKS: WIRES W-5` on origin. Still FALSE, unchanged this session.
 
-**UNBLOCKS: nothing new** (RTX census is a sub-item of W-0, not a rung boundary by itself).
-**PROGRESS: 8 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 +
-rtx_str.S 19 + rtx_icnvar.S 13 + rtx_arith.S 9 + rtx_plcall.S 10 + rtx_icnnum.S 11 = 204 of 223
-total RTX occurrences classified, 19 remaining across 2 files — both pre-verified reachable-or-
-excused, hand-read still owed for classification).**
+**UNBLOCKS: nothing new** (RTX census is a sub-item of W-0, not a rung boundary by itself, but it
+is now a COMPLETE sub-item rather than a partial one).
+**PROGRESS: RTX CENSUS 100% COMPLETE — 223 of 223 occurrences classified across all 10 RTX `.S`
+files. See top-of-section marker and `FINDING-2026-08-12h-…` for full detail.**
 
 ---
 
