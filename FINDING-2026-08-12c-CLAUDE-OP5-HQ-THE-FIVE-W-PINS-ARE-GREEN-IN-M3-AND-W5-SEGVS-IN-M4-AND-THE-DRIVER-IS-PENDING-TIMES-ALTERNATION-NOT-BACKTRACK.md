@@ -112,3 +112,44 @@ cd /home/claude/SCRIP
 gcc -no-pie /tmp/p.s -Lout -lscrip_rt -lm -Wl,-rpath,$PWD/out -o /tmp/p.prog
 /tmp/p.prog   # rc=139
 ```
+
+---
+
+# ⛔⭐⭐⭐ ADDENDUM (same session) — I MEASURED THE BLAST RADIUS AND IT FALSIFIED MY OWN §2 GENERALIZATION
+
+§2 named `.` × alternation as **the** driver. That is correct **for the four minimal witnesses** and **must not be carried to the corpus.** Census over `crosscheck/patterns`, 122 programs, both modes, HEAD `fc5b0754`:
+
+```
+TOTAL=122  AGREE=68  DIVERGE=54
+  m3: SEGV=28  HANG=6
+  m4: SEGV=82  HANG=4  BUILDFAIL=0
+  PURE m4 CRASH CLASS (m3 rc=0, m4 SEGV) = 52
+```
+
+**Alternation does not predict the m4 SEGV.** Contingency over the same 122 (approximate — a few rows carry embedded tabs in captured output and mis-split; direction is unambiguous, exact cells are not):
+
+| | has `\|` | no `\|` |
+|---|---|---|
+| m4 SEGV | 45 | 32 |
+| m4 non-SEGV | 32 | 13 |
+
+⇒ ⛔ **THE CORPUS-WIDE m4 CRASH CLASS IS MUCH BROADER THAN THE SHAPE §2 ISOLATED.** §2's controlled quartet stands as a *minimal reproducer* — `ctlA`/`ctlD` are green in m4 and `ctlB`/`ctlC` SEGV, and that discrimination is real. It is **not** an explanation of the 82. **Do not use §2 to scope the repair.**
+
+**Hand-verified, not loop-trusted** (canonical recipe, by hand, outside the census): `052_pat_arbno` m4 rc=139 / m3 rc=0 `aaa`; `100_pat_fence_two_alts_first` m4 rc=139 / m3 rc=0. The toolchain is not the defect — the smoke test, `ctlA`, `ctlD`, and W1–W4 all build and run green in m4 with the identical recipe.
+
+## ⛔ MY INSTRUMENT LIED TO ME FIRST — THE PIPE TRAP (sixth conviction of the vacuous-control class in this file)
+
+The first re-score wrote `m4=$(prog | head -1); rc=$?`. **`$?` after a pipeline is the status of `head`, which is always 0.** It reported **`m4 SEGV=0`** over a corpus whose true count is **82**, and I was one step from publishing an all-clear. Caught only because it contradicted the earlier unpiped run. A second inline probe silently ran under `dash`, where `[ "$x" == "y" ]` is invalid, and returned an all-zero contingency table — also void, also discarded.
+
+⇒ **Two of my three instruments this session were vacuous, in two different ways, and neither announced itself.** Both failure modes are now documented in the shipped script's header.
+
+## NEW INSTRUMENT (SCRIP)
+
+`scripts/test_census_m3_m4_divergence.sh` — per-program m3-vs-m4 census, TSV out, PURE-m4-crash-class counted separately, pipe trap documented in-header. Self-tested on `probe/earn0` (20 probes → 8 pure m4 crashes). **Instrument, not a gate — BOARD sets floors.**
+
+## WHAT THIS DOES TO THE BOARD
+
+- **BOARD B-0 is no longer a hygiene item. It is the top of the board.** The harness that returns EMPTY in m4 has been concealing **52 programs that pass in m3 and SIGSEGV in m4** in one corpus alone.
+- **`GOAL-MODE34-IDENTICAL` is failing at 54/122 on the patterns corpus.** Not asserted before because nothing measured it per-program.
+- ⛔ **EVERY m3-ONLY GREEN PUBLISHED SINCE THE HARNESS BROKE IS PROVISIONAL.** Stated in the main finding as a caution; it is now a measured 43% divergence rate.
+- **Still ZERO compiler bytes.** The repair is not scoped and must not be scoped from the minimal reproducer.
