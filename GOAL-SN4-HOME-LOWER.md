@@ -16,37 +16,47 @@
 ## GATES (every rung)
 crosscheck/patterns + probe BY SET vs P0 floors, both modes · monitor divergence must MOVE PAST the fix · regen ×3 iff codegen touched (splice arithmetic counts) · FINDING per land mine · cursor move per handoff.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s37 (Opus 5). **⛔ L-3b's STEP-1 PREMISE IS FALSIFIED: THE REPLACE NODE DOES *NOT* DECLINE THE ZD ARM, AND THE C-9 `op_zdepth` FIX IS WIRED TO A CONSUMER THAT DOES NOT EXIST.** Three displacement variants tested and all three FAIL — the defect is NOT a displacement at all. Board re-measured at HEAD: **3 PASS / 10 FAIL, identical BY SET to s36's floor** (no regression, no gain). **ZERO emitted-byte change this session** (diff audited line-by-line + board re-run + `x86("mov",…)` args character-identical). FINDING-2026-08-12h. **NEXT RUNG: L-3b STEP-0′ — see "WHAT THE NEXT SEAT MUST DO FIRST" below; do NOT resume displacement arithmetic.**
+## ⭐ LIVE CURSOR — 2026-08-12 s37 (Opus 5). **NEXT RUNG: L-3b STEP-0′.** Board: **3 PASS / 10 FAIL** (`len_nonterm` · `len_pure` · `lit_len`). ZERO emitted-byte change s37. FINDING-2026-08-12h.
 
-### ⛔⭐⭐⭐ FOUR INHERITED CLAIMS FALSIFIED THIS SESSION — DO NOT RE-SPEND ON THEM
+**TWO-SEATS ALARM — RESOLVED (Lon, 2026-08-12 s37).** One LOWER seat, no split. Do not re-raise.
 
-1. **"Find why the replace node declines the ZD arm" (L-3b step 1, s35+s36 NEXT-SEAT item #1) — VACUOUS. IT DOES NOT DECLINE.** Measured `SCRIP_ZD_DIAG=1` on `l3_spl_span_nonterm`: the whole `h=4` run admits, `IR_MATCH_REPLACE` at `i=12` arms with `zout=48`, **no DECLINE line at all**. `zd_wl_kind` returns 1 unconditionally for SN4 — emit.cpp:1909 short-circuits (`if (!(icn_cells_graph || pl_cells_graph)) return 1;`), so the entire per-kind whitelist below it is **Icon/Prolog-only and structurally unreachable from SNOBOL4**. There is no guard to find. The 64-group/48-group split has a different cause.
-2. **The C-9 `op_zdepth` correction (emit.cpp:841) CANNOT REACH `bb_match_replace`.** The template reads `FR`/`FRQ` → `x86_zop()` (x86_asm.h:1021), and **`op_zdepth` appears nowhere in `x86_zop`**. It is read only by `x86_ztos`/`ZTOS` — a different accessor family this template never calls. Three sessions of cursor text describe `FRQ` as `[rsp+off+op_zdepth]`; **that is false at HEAD.** The template's only live lever is `op_zpat`.
-3. **`op_zpat` IS NOT THIS CLASS'S FIELD.** Its own `emit.h:627` authorship comment scopes it to *"PATTERN-INTERIOR match primitives (**TAB/RTAB/POS/RPOS**)"* — i.e. the **carving** class s36 correctly split out. Its backward-scan predicate (`op >= IR_MATCH && op <= IR_MATCH_VALUE`) is **broader than its documented intent** and incidentally sums SPAN's K=16, which is why it reads nonzero for non-carving witnesses. `zpat=16` on a SPAN witness is a **formula artifact, not evidence**.
-4. **"`fc_head_fp` is dead code" — MY OWN ERROR, RECORDED SO IT IS NOT REPEATED.** I concluded this from a 2-file grep. A full-tree grep finds the live registrar at **`src/lower/lower_snobol4.c:1828`** (`fc_head_register(head, fp_stmt)`). `fc_head_fp` returns real values (**16** for SPAN, **0** for pure-LEN) and is genuinely load-bearing. ⛔ **Grep the whole tree before declaring anything dead.**
+### ⛔ FOUR INHERITED CLAIMS FALSIFIED s37 — DO NOT RE-SPEND
+1. **Replace node does NOT decline the ZD arm.** `SCRIP_ZD_DIAG=1`: run `h=4` admits fully, `IR_MATCH_REPLACE` at `i=12` arms, no DECLINE. `zd_wl_kind` returns 1 unconditionally for SN4 (emit.cpp:1909 universal-arm short-circuit; per-kind whitelist is Icon/Prolog-only).
+2. **`op_zdepth` cannot reach `bb_match_replace`.** `FR`/`FRQ` → `x86_zop()` (x86_asm.h:1021); `op_zdepth` absent there. Read only by `x86_ztos`/`ZTOS`, a family this template never calls.
+3. **`op_zpat` belongs to the carving class (TAB/RTAB/POS/RPOS).** emit.h:627 says so explicitly. `zpat=16` on a SPAN witness is a formula artifact.
+4. **`fc_head_fp` is NOT dead code.** My 2-file grep missed `src/lower/lower_snobol4.c:1828` (`fc_head_register(head, fp_stmt)`). Returns 16 (SPAN) / 0 (pure-LEN). ⛔ **Grep the whole tree before declaring anything dead.**
 
-### ⭐ THE MEASUREMENT THAT MATTERS (five new instruments, all env-gated, all landed inert)
-`SCRIP_ZPAT_DIAG` · `SCRIP_REPL_ADDR_DIAG` · `SCRIP_MEND_ADDR_DIAG` · `SCRIP_EDRIVE_END_DIAG` · `SCRIP_FCDISP_DIAG`. Writer and reader, same run, same coordinate system:
+### THE MEASUREMENT (five instruments, env-gated, inert at HEAD)
+`SCRIP_ZPAT_DIAG` · `SCRIP_REPL_ADDR_DIAG` · `SCRIP_MEND_ADDR_DIAG` · `SCRIP_EDRIVE_END_DIAG` · `SCRIP_FCDISP_DIAG`.
 
-| witness | `op_fc_disp` (=`fc_head_fp`) | WRITER stores at | READER loads at | delta |
+| witness | `fc_head_fp` | WRITER stores | READER loads | delta |
 |---|---|---|---|---|
-| `len_pure` (**PASS**) | 0 | `rsp+80` / `rsp+104` | `rsp+48` / `rsp+72` | **32** |
-| `span_nonterm` (FAIL) | 16 | `rsp+96` / `rsp+120` | `rsp+32` / `rsp+56` | **64** |
+| `len_pure` (**PASS**) | 0 | `rsp+80` / `rsp+104` | `rsp+48` / `rsp+72` | 32 |
+| `span_nonterm` (FAIL) | 16 | `rsp+96` / `rsp+120` | `rsp+32` / `rsp+56` | 64 |
 
-Writer formula (bb_match_end.cpp, `rfc()`+`ZC_FRAME_RSP` arm, **confirmed live**: `rfc=1 zc_frame=2` both witnesses) = `[rsp + op_off + op_fc_disp + 32]`. The reader has **neither** term.
+Writer arm (confirmed live, `rfc=1 zc_frame=2`): `[rsp + op_off + op_fc_disp + 32]`. Reader has neither term. **`len_pure` reads 32 below the writer and PASSES** — RSP differs between write and read. Matching N is the wrong target. Three variants (`-op_zpat`, `+op_zfc+32`, `+op_zfc`) → `raw_start` = 3, 0, 18; correct is 10. **Displacement family is exhausted. Reader reads a cell nobody wrote the cursor into.**
 
-⛔ **THE PASSING ROW IS THE KEY AND IT KILLS THE WHOLE DISPLACEMENT FAMILY.** `len_pure` reads **32 bytes below where the writer wrote** and is *correct*. So RSP is **not** equal at the two program points, and "make the reader's N match the writer's N" is the **wrong target**. Three variants tested, all FAIL, each with a *distinct* wrong `start`: `-op_zpat`(HEAD) → `start=3`; `+op_zfc+32` → `start=0`; `+op_zfc` → `start=18`(slen). Correct is `start=10`. **A quantity that lands 3, 0, and 18 while never landing 10 is not a displacement that needs tuning — the reader is reading a cell nobody wrote the cursor into.** This is s34's *"find the writer, not an offset"* instinct, re-earned the hard way after s35 prematurely discharged it.
+`op_zfc`/`g_zd_zfc` already staged at the `g_zd_zpat` choke — surviving the per-node reset. Wire a consumer when the write-side is understood; do not re-derive the plumbing.
 
-### ⛔⭐ WHAT THE NEXT SEAT MUST DO FIRST — L-3b STEP-0′ (ordering is the whole point)
-1. **PROVE THE RSP DELTA, DO NOT ASSUME IT.** Everything above is emit-time constants. Nobody has measured **actual runtime RSP** at `MATCH_END`'s store vs `MATCH_REPLACE`'s load. Until that delta is a measured number, every offset comparison in this goal file (mine included) is two coordinate systems in a trench coat — the 7th conviction, which I re-committed in a new form. ⛔ **No gdb in the container** (`gdb: not found`, s37) — so the instrument must be an emitted `mov rax,rsp` + call to a trace helper at both sites, or `SCRIP_REPL_TRACE`-style runtime capture. Build that first; it is the missing instrument, and it is cheap.
-2. **THEN ask whether the writer ever stores the true cursor at all.** `raw_start` has now been observed as 3, 0, and 18 across three read addresses — consistent with *no* nearby cell holding 10. Instrument `MATCH_END`'s **value** (the `eax` it stores, from `RDD("rsp", op_fc_disp)`), not just its address.
-3. **Only then consider arithmetic.** And if a fix needs a carrier surviving the per-node reset, `op_zfc`/`g_zd_zfc` is **already staged and printed** at the `g_zd_zpat` choke (emit.cpp) — wire a consumer, do not re-derive the plumbing. It is deliberately a **separate field from `op_zpat`**, so the carving class stays uncoupled per s36's ruling.
+### NEXT RUNG — L-3b STEP-0′
+1. **Measure actual runtime RSP at MATCH_END's store AND at MATCH_REPLACE's load.** ⛔ No gdb in container. Extend `SCRIP_REPL_TRACE` to capture rsp at load time; add equivalent capture at MATCH_END's write site. One cheap build.
+2. **Instrument MATCH_END's stored value** — the `eax` from `RDD("rsp", op_fc_disp)`. Establish whether cursor=10 appears anywhere near the read address.
+3. Only then consider arithmetic.
 
-**HOW TO RUN THE BOARD** (the `[` builtin mis-parses the bracketed output — cost me a false all-FAIL read): use `[ "$g" = "$w" ]`, never `==`, and `tr '\n' '|'` before printing.
+### HOW TO RUN THE BOARD
+```bash
+for f in corpus/probe/l3/*.sno; do
+  n=$(basename "$f" .sno); g=$(./scrip --run "$f" </dev/null 2>&1); w=$(/home/claude/x64/bin/sbl -b "$f" 2>&1)
+  if [ "$g" = "$w" ]; then printf "PASS  %s\n" "$n"; else printf "FAIL  %s\n" "$n"; fi
+done
+```
+Use `=` not `==`; `[` mis-parses the bracketed output with `==`. `tr '\n' '|'` before printing for inline display.
 
-⛔ **`x86("comment", …)` IS A GUARANTEED EMPTY STRING** (x86_asm.h:1590, SN4-ASM-CRIT/s173 — *"BB emissions are COMMENT-FREE"*). A diagnostic written that way is **silently inert, not broken**. Use `fprintf(stderr,…)`. Cost me a build cycle.
-
-⛔ **`FR`/`FRQ`/`x86_zop` return a shared static rotating buffer** (`static char b[16][48]`). Capture into a `std::string` **immediately**; re-deriving the same expression later in a chain can read an aliased slot.
+### LAND MINES
+- `x86("comment", …)` → always empty string (x86_asm.h:1590). Use `fprintf(stderr,…)`.
+- `FR`/`FRQ`/`x86_zop` → shared static rotating buffer `b[16][48]`. Capture to `std::string` immediately.
+- `--dump-zeta` is a different coordinate system from the template's `op_off` arithmetic. Do not compare without proving the base.
+- Two `case IR_MATCH_END:` exist (~984 walk_bb_node_inner, ~1326 emit_drive). Sequential, not rival: emit_drive → DRIVE_FILL → walk_bb_node → walk_bb_node_inner → template.
 
 ### s36 record (retained — the raw-value instrument and the TAB split both stand; its NEXT-SEAT item #1 is superseded above)
 
@@ -69,13 +79,9 @@ Writer formula (bb_match_end.cpp, `rfc()`+`ZC_FRAME_RSP` arm, **confirmed live**
 
 **`l3_spl_pos` reads the fully correct slot and STILL fails** ⇒ POS/RPOS confirmed a third, independent defect.
 
-### NEXT SEAT, IN ORDER
-1. Find why the replace node declines the ZD arm for the non-carving class (`zd_on[i]`, emit.cpp:2656) — the single guard separating the 64-group from the 48-group.
-2. Land the subtree-footprint correction via `g_zd_wpop` (never a literal 16); gate on `P8_concat_repl` AND l3 board rows `{span,arb,break,rem,VACUOUS}_nonterm` AND probe/bb BY SET. **Expect `{tab,rtab}_nonterm`/`tab_linear3` to remain FAIL — not a regression, they are a different defect.**
-3. Before touching the carving class at all: mint a same-box-count PASS/FAIL control pair for TAB (e.g. two-box `LEN(n) LEN(m)` replace, no var-length primitive) — none exists yet, and TAB's raw offsets (`op_sa`=192) are not comparable to SPAN's (`op_sa`=176) without one.
-4. Only then `bal` (own row, untouched), then L-1 (Defect A) — honouring its ⛔ (fixing A alone RAISES the hang count).
+*(NEXT SEAT list superseded by s37 LIVE CURSOR above.)*
 
-**UNBLOCKS:** LOWER L-3 non-carving sub-class fix-ready; carving sub-class explicitly NOT unblocked — a future seat should not inherit s35's TAB hedge as settled fact. **m3 only — this board's m4 arm is UNMEASURED, not green; BOARD B-0 still owns it.**
+**UNBLOCKS:** LOWER L-3 non-carving sub-class fix-ready; carving sub-class NOT unblocked. m3 only — m4 UNMEASURED; BOARD B-0 still owns it.
 
 ---
 ### s35 record (superseded above by s36's TAB retraction; the non-carving mechanism itself is UNCHANGED and stands)
@@ -188,6 +194,6 @@ Both sit immediately after a **variable-length predecessor** (BAL; a var-length 
 
 **UNBLOCKS:** LOWER L-3 (measured radius + 6 clean controls + signed pair) · LOWER L-4 (smaller 061 witness) · BOARD B-0 still owns the m4 arm — **this board is m3-only; its m4 arm is UNMEASURED, not green.** Full detail: `FINDING-2026-08-12d-…-BLAST-RADIUS-IS-TWO-OF-NINE-…`.
 
-### ⛔⭐⭐⭐ TWO-SEATS ALARM (s35) — THE ONE INVARIANT FAILED AGAIN, SECOND SESSION RUNNING
+### ~~TWO-SEATS ALARM (s35)~~ — RESOLVED s37 (Lon: one seat, no split)
 s34 recorded two live LOWER sessions and asked Lon to retire one before re-firing. **It was not resolved and it recurred:** SCRIP `67e9383c` (local, unpushed, `ahead 1`) landed in s35's tree citing `FINDING-2026-08-12f/g` — `f` was minted by s35 minutes earlier and **never pushed**, so it was read from a shared tree, and `g` is not s35's. No work appears lost and the halves are again COMPLEMENTARY (s35 = root cause + witness; the other = the trace instrument) — **but that is luck, not the invariant.**
-⛔ **Lon: this needs a DECISION, not a third note.** Either (i) retire one LOWER session before re-firing, or (ii) accept LOWER as two seats and **SPLIT THIS FILE** along the cut s33b/s34 already discovered independently: **splice / `start`-`end` arithmetic (L-3, L-3b, L-4)** vs **capture / alternation (L-5 + the `cap_after_*` rows)** — s34 proved these are two defects with no shared authority, which is exactly what makes the split safe. HOME's ONE INVARIANT is a human-scheduling rule and RULES 2026-08-10 cannot fix it: that rule abolished scheduling for *files*, not for *seats*.
+Resolved by Lon's decision (2026-08-12 s37): one seat, no split. History preserved above.
