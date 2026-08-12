@@ -1,5 +1,7 @@
 <!-- GOAL-MODE34-IDENTICAL · mode-3 (--run, x86 BINARY) ≡ mode-4 (--compile, x86 TEXT), strictly 1:1 corresponding -->
 
+**LIVE CURSOR (Claude Sonnet, 2026-08-12):** M34-1 (a/b/c) verified ALREADY COMPLETE this session — grep-confirmed zero live-code `mode-1`/`mode-2`/`mode_interp` outside attic, PLAN.md/REPO-SCRIP.md/ARCH-SCRIP.md/SCRIP/README.md all clean, `src/attic` does not exist (already physically deleted). Checklist was stale; deleted below per RULES.md handoff step 1. **Next open step: M34-2 (close D1 — SNOBOL4 mode-3 GVA parity).** Build verified green (`make scrip` + `make libscrip_rt`, tri-probe smoke test m3==m4 on trivial program) before this cursor was written.
+
 **⛔ ROUTED IN from GOAL-RBP-EARN (Lon-approved split, 2026-08-12 s40):** `treebank-array` m4-only SEGV (rc=139, m3 green) — a MODE34-IDENTICAL violation, not a defer-boundary item, so it bills HERE now. Repro + prior analysis: GOAL-RBP-EARN's s38 FIX PLAN STEP 2 (kept there verbatim until this file adopts it) and `archive/ARCHIVE-RBP-EARN-CURSOR-HISTORY.md`.
 
 # ▶▶▶ NEXT SESSION — START HERE (created 2026-06-25, Lon directive)
@@ -50,11 +52,6 @@ The 191 IDENTICAL prove the shared-template design works where both arms exist; 
 ### M34-0-archived — (original measurement step, superseded by the run above)
 - [ ] **M34-0a — `scripts/test_mode34_parity.sh`.** For each program in a corpus, run `--run` (mode 3) AND `--compile`→`as`→`gcc`→run (mode 4); capture both stdouts + exit status. Classify each program: `IDENTICAL` (3==4==ref), `DIFFER` (3≠4), `M3-MISS` (mode-3 soft-fall/empty while mode-4 produces output), `M4-MISS`, `BOTH-FAIL`. Emit a TSV census + summary counts. `timeout 8s` smoke / `timeout 30s` corpus. NO source change.
 - [ ] **M34-0b — run the census over the SNOBOL4 crosscheck + benchmark + feature corpora.** Commit the TSV as `docs/MODE34-PARITY-CENSUS-<date>.tsv`. This is the ground-truth divergence list every later step closes against. Record the headline counts in this goal file's watermark.
-
-### M34-1 — Purge mode-1/mode-2 from authoritative surfaces
-- [ ] **M34-1a — live code (one site).** `src/runtime/runtime_eval.c:139` BOMB string says "(mode-1 era)" — reword to drop the dead-mode reference while keeping the message meaning ("AST-walk evaluator deleted; nothing interprets tree_t at runtime"). Grep-confirm zero live-code `mode-1`/`mode-2`/`--run`/`IR_interp`/`mode_interp` outside `src/attic/`.
-- [ ] **M34-1b — authoritative docs.** Update the mode tables/prose in `PLAN.md` (architecture paragraph "mode-2 INTERP (`interp/IR_interp.c`…)"), `REPO-SCRIP.md` (the `scrip modes` table lists `--run` mode 2 — remove the row), `ARCH-SCRIP.md`, `SCRIP/README.md`, and the driver help/comments to describe ONLY modes 3 and 4. Do NOT touch HANDOFF-*/SESSION-* archival records.
-- [ ] **M34-1c — dead interpreter files.** Inventory `src/attic/driver/interp_*.{c,h}` and `src/attic/interp/`. If the Makefile does not compile them (confirm), either physically delete (preferred, per the user's directive) or leave with a one-line "DEAD — mode-2 excised" banner. Gate: `make scrip` clean after; no symbol regressions.
 
 ### M34-2 — Close D1: SNOBOL4 mode-3 GVA parity (the highest-value single fix)
 - [ ] **M34-2a — mirror the Prolog/Icon mode-3 GVA setup into the SNOBOL4 `--run` block.** In `src/driver/scrip.c` SNOBOL4 mode-3 path: run `gva_collect_reset()` + `gva_collect_graph(sbbg)`; if `n_gva>0`, `GC_MALLOC` the cells arena + names array, `gva_register(...)`, `g_gva_active=1`, and enter via `m3_enter_with_rbx(fn, rt_frame(), 0, gva_arena)` instead of `fn(rt_frame(),0)`. Mirror exactly the Prolog block (~3306–3315) — same arena lifetime, same rbx contract (`bb_regs.h`: `rbx=GVA base`).
