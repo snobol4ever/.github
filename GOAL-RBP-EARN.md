@@ -1,4 +1,6 @@
-# ⛔⭐⭐⭐ GOAL-PASSTHRU-RBP-ERAD — FLAT PASS-THRU everywhere it should be; RBP frames counted by census, deleted by rung
+# ⛔⭐⭐⭐ GOAL-RBP-EARN — RBP FRAMES BY NEED (EARN PREDICATE); frame iff byte-distance from RSP is not a compile-time constant at some reading site
+
+**⛔ DIRECTION CHANGE (Lon ruling s29): NO MORE ERAD. We are doing the OPPOSITE — EARN: every construct that needs a frame gets one, IFF it needs one, derived from the predicate. PT / DEL-T ladders below are HISTORICAL RECORD ONLY and will never be executed. The active work is LADDER RBP-EARN. This file will not be renamed; history is kept for the design rationale in the old ladders.**
 
 ## ⚙️ CONCURRENT BY DEFAULT — AND THE REPOS MOVE UNDER YOU
 
@@ -558,6 +560,8 @@ Before spending a seat on it: (1) confirm Lon’s directive that the 26 programs
 
 **NEXT SEAT, IN ORDER — FULL RUNWAY REQUIRED (the fix loop is the cost center; a half-landed interior conversion at end-of-context is a broken tree by construction):** (1) MONITOR-FIRST on the 327-byte `treebank-match` witness — `test_monitor_2way_spitbol_vs_run.sh`, first divergent event. (2) Convict the interior reader still using a blob-local base (candidates: capture/recursion families, `op_flat_disp` in blob context = the PT-4 PREREQ proper). (3) Convert it to the FORTH spine — rsp-relative, no pin. (4) Re-run the board; target is 9/15 restored WITHOUT restoring any frame, then past it. ⛔ **`SCRIP_PAT_INLINE=0` is NOT a revert path for this** — the killswitch never covered a deletion.
 
+## ⛔ ARCHIVED — LADDER FF (SUPERSEDED — see above)
+
 ## ⛔⭐⭐⭐ LADDER FF — DEL-T1 FIX-FORWARD (Lon 2026-08-11: "RESTORE NOTHING — proper RSP/RBP FORTH-style stack, no extra RBP frames"). THIS IS THE SESSION GOAL.
 
 **STATE AT OPEN (measured, HEAD `4b48dbb9`):** the delete `1af93e3a` is correct and STAYS. Its own comment at `emit.cpp:2363` is the D-2 manifest. **Most of D-2 already landed:** scanfail retry whack RE-BASED to ctx (`mov rsp,[rdx+32]`, :2741 — reclaims residue exactly as `mov rsp,rbp` did, without naming rbp) · β res-stub PASS-THRU arm live (:2757 — record[+8] = CELL BASE, not rbp; refills `g_zctx`). **The remaining debt is the manifest's last class: interior `[rbp+N]` value-region readers** — rbp is now the INVOKER's (adopted MATCH_BEGIN), so any blob-interior template still reading a blob-local rbp base reads the wrong frame; and the rsp-arm alternative drifts per dynamic carve (s221 LEA-DRIFT law) unless the depth term accounts for pattern-interior ζ carves — the exact class CLIMB C-9 just fixed for replace via `op_zpat` (SUBTRACTED). **Witness: `treebank-match.sno < treebank.input` (327 B) rc=139 both modes; blast radius 13/15 board.**
@@ -577,6 +581,8 @@ Before spending a seat on it: (1) confirm Lon’s directive that the 26 programs
 
 ⛔ **Full-runway seats only for FF-1/FF-2** — the fix loop is the cost center; a half-landed interior conversion at end-of-context is a broken tree by construction. FF-0 is cheap and can open any session.
 
+## ⛔ ARCHIVED — LADDER PT (SUPERSEDED — see above)
+
 ## ⛔⭐⭐⭐ LADDER PT — incremental sequence to FLAT PASS-THRU (every rung: killswitch + BY SET gates m3+m4 on the probe suite + xc318 + watermark floors ≥ current + regen ×3 when lower/emitter touched + corpus witnesses with SPITBOL refs)
 
 - [x] DONE — PT-0 (d8bd4ba8)
@@ -588,6 +594,8 @@ Before spending a seat on it: (1) confirm Lon’s directive that the 26 programs
 - [ ] **PT-6 · PHYSICAL DELETION + RATCHET SEAL** — BLOB-GRANT arm, CLASS D exit spellings, kt region math deleted (label and code same slice); final census: **T-class establishments → 0, keepers unchanged**; the ratchet becomes a standing gate.
 - [ ] **PT-7 · g_zctx DELETE — LON'S MECHANISM (s11 in-chat, supersedes the wait-for-full-M-1b form): "storing what you needed as BB locals to the BB_DEFER BB box. There are no GLOBALS needed."**  Two-part conversion, then delete: **(a) SITE STATE → BB_DEFER LOCALS** — linkage {γ, ω, base, scanflag, δ0} become the defer box's OWN locals in the LICENSED statement frame (per-activation + depth-immune by the license; allocated by the normal layout pass, so no aliasing by construction; templates touched ⇒ ARCH-ICON + TEMPLATE-RULES read first, NON-NEGOTIABLE).  **(b) INVARIANT INTERIOR REFS → INLINE** (the s8 enclosure-inlining rung executed): a shared blob's reference to an invariant target folds into the blob body, so NO code inside shared blobs ever needs to find caller state — the circularity (shared code cannot know a caller's slot offset) is dissolved by removing the interior defer, not by answering it.  Then `g_zctx` + every push/pop DELETED, one isolated commit.  **EXIT GATE:** `grep -r g_zctx src/` == 0 · probe+xc BY SET ≥ **32/5 · 82/40** floors BOTH modes · census zero globals AND zero T-class frames.  **RESIDUE:** true recursion only (`dc_recur` class — shared code re-entering itself; manual p.123's stack) stays with MECH M-1b, now the WHOLE of its scope here.  Full-runway seat required — the fix loop is the cost center.
 - [ ] **PT-7-ORIG-BRIDGE-FORM (superseded by LON'S MECHANISM above; kept as design record): g_zctx DELETE (Lon commitment, s11-Fable in-chat: "Is this global going to be removed in the future when other things are fixed?" — YES, and this rung is the binding form)** — `g_zctx` is a BRIDGE, not architecture: it exists ONLY because interior depth is not yet restored by construction, so re-entering code cannot find its own carve.  **GATE-IN:** M-1b / interior K-conversion complete — every match-family box's fail/exit path restores entry rsp (the FORTH drain law), `op_flat_disp` valid inside blob context.  **CONVERSION:** every g_zctx consumer (α/β push, γ/ω pop, scanhit/scanfail reads) becomes rsp + emit-time constant; the CLASS-D record's [+8] payload becomes {res,pad} exactly as PT-4's spec already writes; then DELETE the symbol and every push/pop emission, label and code same slice, ONE isolated commit (`git revert` = undo).  **EXIT GATE:** `grep -r g_zctx src/` == 0 · probe+xc BY SET ≥ the `9eb9b4f3` floors (**32/5 · 82/40**) in BOTH modes · census: zero globals AND zero T-class frames — the first state of the product with neither.  Expected side effect: `dc_recur` flips green under the same discipline.
+
+## ⛔ ARCHIVED — LADDER WREG (SUPERSEDED — see above)
 
 ## ⛔⭐⭐⭐ LADDER WREG — TWO GLOBAL WIRE REGISTERS (rΓ=r10 · rΩ=r11) as dynamic γ/ω for PASS-THRU + ONE-SHOT glue (Lon design s12 in-chat: "TWO GLOBAL REGISTERS as dynamic OMEGA and GAMMA… Is this a Eureka moment!!!" · pick confirmed: "R10 and R11. Perfect. DO the full design.") — SUPERSEDES the NEXT ordering below: WREG-0 first
 
@@ -721,7 +729,11 @@ The shim's SCANBASE fills (r8→kt−32, r14d→kt−40) fed the in-blob scanfai
 
 **⛔ ENVIRONMENT — A CONCURRENT SEAT COMMITTED INTO THIS WORKING COPY MID-SESSION.** `.github` reflog: clone `37e0273c` 22:44:04 → commit `47946ebb` **23:12:25** → commit `9b18fe4d` **23:14:29**, none of them this seat's. s13 and s13b ran in this same container and checkout; an orientation completed at 22:44 was two commits stale by 23:14 and the goal file grew **366 → 400 lines underneath a finished read**. 11-ENV's shared-container warning is CURRENT, not historical — **re-check HEAD before trusting an orientation, not only at open.** `--compile` writes asm to **stdout** (redirect it; s8's ENV-TRAP (b) is about the binary, this is about the text).
 
-## LADDER DEL-T5 — DELETE-FIRST eradication (Lon-directed, s8 close): pick ONE class, DELETE the emitter, fix forward
+## ⛔ ARCHIVED — LADDER DEL-T5 (SUPERSEDED by LADDER RBP-EARN, Lon ruling s29: no more ERAD)
+
+**The DEL-T / PT / FF / WREG ladders below are HISTORICAL RECORD. They will never be executed. The direction reversed: instead of deleting frames and fixing forward, every construct earns its frame IFF the EARN predicate says so. Read for design rationale only.**
+
+~~LADDER DEL-T5 — DELETE-FIRST eradication (Lon-directed, s8 close): pick ONE class, DELETE the emitter, fix forward~~
 **Charter (Lon, s8):** "Pick one and delete it. Then go fix the code." This ladder INVERTS suppress-first BY OWNER DIRECTION, for T5 only. ⛔ Revert path is `git revert` of the D-1 commit — the killswitch does NOT cover deletions, so D-1 must be ONE isolated commit touching nothing else.
 **WHY T5 and not T1/T2 (binding):** T1/T2 blob frames are the LIVE landing path for PT-2b hostile names and for `128` — deleting them un-repairs 9 oracle-green programs and orphans the 10th. T5 (`emit_rec_pin()` mains) is the narrowest surface: one emitter, remainder characterized as data-reader mains, prior art s26b 464→252, instrument `test_census_rbp_frames.sh` already counts it.
 - [ ] **D-0 MONITOR-FIRST** — census baseline at HEAD; MANIFEST of every corpus program still emitting a rec_pin frame (expect: data-reader mains); commit manifest + stdin fixtures + sbl oracle refs. No code.
