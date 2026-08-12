@@ -47,9 +47,9 @@ crosscheck/patterns + probe BY SET vs P0 floors, both modes · monitor divergenc
 ### ⭐ CONCURRENT SEAT NOTE (s34) — ⛔ TWO SESSIONS WERE LIVE IN THIS FILE AT 14:31 (the s38b race; the plan's ONE INVARIANT).
 s33b landed `eb735a3f` + corpus `7045b2ea` mid-session while s34 was measuring. **VERIFIED: no work was lost** — all 8 of
 s33b's cursor lines survive above, and its FINDING (…CAPTURE-DELTA0-BLAST-RADIUS-IS-TWO-OF-NINE…) is untouched.
-The two halves are COMPLEMENTARY, not duplicate: s33b = CAPTURE, s34 = SPLICE. Both independently measured 2-of-9,
-which is the duplicated spend the invariant exists to prevent. ⛔ Lon: LOWER has two seats — retire one.
-⚠️ BOTH sessions minted a FINDING dated `2026-08-12d`; the two files differ by title and both are kept.
+The two halves are COMPLEMENTARY: s33b = CAPTURE (ARB/BAL, implicit-alternative class), s34 = SPLICE (non-carving class, constant `(3,slen)`). Both independently measured 2-of-9 blast radius — duplicated spend, which is exactly what the invariant prevents.
+⛔ **Lon: LOWER has two live seats. Retire one before re-firing.** The surviving seat owns the full rung sequence above.
+⚠️ Both sessions minted a file named `FINDING-2026-08-12d`; the two differ by title and both are kept — the CAPTURE finding is `…BLAST-RADIUS-IS-TWO-OF-NINE…`, the SPLICE finding is `…THE-SPLICE-START-IS-A-CONSTANT…`.
 
 ---
 ### s33 record (retained — L-0's floor and its instrument stand unchanged)
