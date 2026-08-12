@@ -297,3 +297,47 @@ instruction lifetime, no pointers, no globals, no calls anywhere near a wire reg
 
 **PROGRESS: 183 of 223 total RTX occurrences classified (6 of 10 files), 40 remaining across
 4 files.**
+
+## ADDENDUM 6 (same session, continued) — `rtx_plcall.S` (10/10 done) — FIRST GENUINELY EXCUSED FILE
+
+Read `rtx_plcall.S` in full (202 lines, single function `rt_proc_call_open_det`). Verified 10
+occurrences by script, matching the gate.
+
+**⭐ This is the first file in the census where the "Icon/Prolog name means not-SN4-reachable"
+assumption actually HOLDS — confirmed structurally, not assumed from the name, precisely because
+the two prior corrections (addenda 2 and 4) showed that assumption fails elsewhere.** Checked via
+the same method as those corrections: `rt_proc_call_open_det` backs `IR_CALL_PROC_STAGED`, and a
+grep of every lowerer confirms that IR kind is emitted ONLY by `lower_prolog.c`, `lower_icon.c`,
+and `lower_raku.c` — `lower_snobol4.c` and `lower_pascal.c` have zero references. Also checked
+`src/optimizer/proc_collect.c`, the one place `IR_CALL` and `IR_CALL_PROC_STAGED` appear together
+in non-lowerer code, to rule out a rewrite path from one to the other — it only reads both kinds
+uniformly for name-collection bookkeeping, never converts one into the other. So this file is
+confirmed dead for SNOBOL4 by construction, not by filename.
+
+**Classification:**
+
+| Location | Occ | Idiom | Role |
+|---|---|---|---|
+| `wn` (want-name) extraction/store | 2 | longer-lived local scalar | carried ~26 lines within the function, never across a call in the fast path |
+| wire-array offset computation | 6 | local scalar arithmetic chain | `top` scaled by 40 to an array offset, used once, dead |
+| cold-arm frame spill around `call rt_pcall_grow` | 2 | **explicit stack-spilled preserver across a call** | r10d pushed to `[rbp-24]`/restored via an explicit frame rather than push/pop, in the rare growth arm only — a new micro-variant of the "preserver" idiom, using a frame slot instead of the stack pointer directly |
+
+**Note for the still-open W-0 whitelist-policy question (s35's "OPEN QUESTION"):** this file is
+now a clean, fully-verified test case for whichever way that question gets decided — it is
+provably dead for SNOBOL4 (not merely presumed), so if the policy ultimately requires "product-
+wide" to mean physically clearing every register mention regardless of reachability, this file's
+10 occurrences are unambiguous work items; if reachability-gated licensing is acceptable, this
+file is a clean example of what that licensing class would look like.
+
+### NEXT SEAT, IN ORDER (supersedes the list above — 7 of 10 RTX files now done)
+
+1. **The other 3 RTX `.S` files** (30 occ remaining: `rtx_icnagg.S` 11, `rtx_icnrel.S` 8,
+   `rtx_icnnum.S` 11). Filenames say Icon — CHECK per-file, don't pattern-match from either
+   direction (icnsub/icnvar were reachable; plcall was not).
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
+
+**PROGRESS: 193 of 223 total RTX occurrences classified (7 of 10 files), 30 remaining across
+3 files.**

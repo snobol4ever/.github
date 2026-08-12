@@ -93,12 +93,12 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
   file by name.** This likely applies to some of the remaining 8 files too; check each on its own
   merits, don't pattern-match from this file's result either.
 
-### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2) — 6 OF 10 RTX FILES DONE
-1. **The other 4 RTX `.S` files** (40 occ remaining: `rtx_plcall.S` 10 · `rtx_icnagg.S` 11 ·
-   `rtx_icnrel.S` 8 · `rtx_icnnum.S` 11). `rtx_alloc.S` (20), `rtx_str.S` (19), `rtx_icnvar.S`
-   (13), and `rtx_arith.S` (9) are now ALSO DONE — see FINDING-2026-08-12h addenda 2-5.
-   Same hand-census treatment for the rest. Check each file's "C of record" pointer and the
-   relevant `lower_*.c` for actual callers before assuming reachability from the filename.
+### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2) — 7 OF 10 RTX FILES DONE
+1. **The other 3 RTX `.S` files** (30 occ remaining: `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8 ·
+   `rtx_icnnum.S` 11) — filenames say Icon; CHECK, don't assume, per addenda 2/4 (icnsub/icnvar
+   turned out SN4-reachable) vs. addendum 6 (plcall turned out genuinely excused). `rtx_alloc.S`
+   (20), `rtx_str.S` (19), `rtx_icnvar.S` (13), `rtx_arith.S` (9), and `rtx_plcall.S` (10) are now
+   ALSO DONE — see FINDING-2026-08-12h addenda 2-6.
 2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
    D12/D13 flipping green.
 3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
@@ -108,14 +108,18 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
    `rt_str_alloc` call, then die at `ret`) — a naive save-at-call-boundary scheme would clobber
    this pattern, which recurs across the family (also in `rtx_match.S`'s `rt_cap_open` and
    `rt_match_replace`).
+5. **⭐ W-0 whitelist-policy question (s35's OPEN QUESTION, still unanswered):** `rtx_plcall.S`
+   is now a CONFIRMED, structurally-verified instance of "provably dead for SNOBOL4" (Prolog/
+   Icon/Raku's `IR_CALL_PROC_STAGED` never reaches `lower_snobol4.c`) — a clean, fully-checked
+   test case for whichever way that policy question gets decided.
 
 ⛔ W-5 REQUIRES (predicate): `grep -rn "frame_need_of" /home/claude/SCRIP/src/` non-empty AND
 `UNBLOCKS: WIRES W-5` on origin. Still FALSE, unchanged this session.
 
 **UNBLOCKS: nothing new** (RTX census is a sub-item of W-0, not a rung boundary by itself).
-**PROGRESS: 6 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 +
-rtx_str.S 19 + rtx_icnvar.S 13 + rtx_arith.S 9 = 183 of 223 total RTX occurrences classified,
-40 remaining across 4 files).**
+**PROGRESS: 7 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 +
+rtx_str.S 19 + rtx_icnvar.S 13 + rtx_arith.S 9 + rtx_plcall.S 10 = 193 of 223 total RTX
+occurrences classified, 30 remaining across 3 files).**
 
 ---
 
