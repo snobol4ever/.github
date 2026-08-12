@@ -401,6 +401,30 @@ Look at what this file is now carrying without clear ownership: the residual-11 
 5. s34's items 2 and 4 (residual-11 bisection; W-pins two-mode gate) — unchanged. **Residual-11's EARN attribution is still an unmeasured hypothesis; MONITOR-FIRST before billing it here.**
 6. s29's queue beneath, unchanged. **s30b obligation (i) still OPEN.**
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s35 (Claude Sonnet 5) — **R-2 CLOSED (677e8753 CONFIRMED ON main, NO REVERT). MATCH_SPAN's ZD ARM (346d1d6f, LANDED ONE DAY PRIOR) HAD TWO INDEPENDENT BUGS — eax CLOBBERED BY ITS OWN CALL, AND SUBJECT-EXHAUSTION WRONGLY ROUTED TO FAIL — FOUND VIA MONITOR-FIRST ON 063_pat_fence_fn_optional, FIXED, ZERO REGRESSIONS, BUT 063 ITSELF IS STILL BROKEN BY A SEPARATE BUG.**
+
+**Fingerprint:** SCRIP `af207c9e` (+ regen `3be69bce`) · corpus `edc0986b` (+ regen `fc7bdefd`) · FINDING `FINDING-2026-08-12i-CLAUDE-SONNET5-RBP-EARN-MATCH-SPAN-ZD-ARM-EAX-CLOBBER-AND-EXHAUSTION-EXIT.md`. Full detail in the FINDING; summary below.
+
+**ORIENTATION FIRST, NOT THE CURSOR TEXT.** Re-verified s34's three open rulings against the actual tree rather than trusting the cursor. **R-2 is settled**: `677e8753` (the `main_α` R9/GVA fix) is on `main`, unreverted (`git log --oneline 677e8753..HEAD -- src/driver/scrip.c` empty at the time), and BOARD independently hardened an instrument around it (`5a4a13f9`, `8729da2f`). R-1 (regen-trigger scope for `scrip.c`) and R-3 (`cap_imm_nret2` m3-only SEGV) remain OPEN, untouched this session.
+
+**NEW INSTRUMENT:** `scripts/board_patterns_2mode.sh` — no prior script did a combined m3+m4 `.ref` census over `crosscheck/patterns` in one pass. Measured at HEAD before touching anything: **74/122 AGREE, 46 both-fail, 2 m4-only-fail, 0 m3-only-fail** — unchanged by this session's fix (see below).
+
+**MONITOR-FIRST TRAIL:** picked `063_pat_fence_fn_optional` (small, on-goal: FENCE+capture) → `spl`/`scr` sync-step monitor (bridge pre-applied in cloned `x64`, worked immediately) → pinpointed `N` capturing `''` instead of `'123'` at `FENCE(SPAN(digits)|'') . N` → killswitches `SCRIP_FENCE_WHACK=0`/`SCRIP_U2=0`/`SCRIP_U2_FENCE=0` all INERT, **exonerating the RBP-frame/FENCE1 machinery** for this witness → stripped FENCE+alternation, bug reproduced with bare `SPAN(digits) . N` → IR dump showed the static-vs-dynamic-argument fork (`MATCH_SPAN []` zero-operand literal arm vs `MATCH_SPAN [16]` one-operand ZD arm) → temporary debug shim on `rt_sg_member` (fully reverted, verified via `nm`+`git diff` before commit) showed the ZD arm's needle ptr/len alternating correct/corrupted on every OTHER call, perfectly periodic.
+
+**ROOT CAUSE, TWO BUGS, ONE ARM** (`bb_match_span.cpp`, `_.op_zres && _.op_sa >= 0`, landed `346d1d6f` 2026-08-11 — ONE DAY before this session, never previously exercised): (1) the loop held its scan position in `eax` across `call rt_sg_member`; the RTCC veneer's post-call reload restores only `{r8,r9,r10,r11}` (RC-4 "arg tier reload deferred", by design) so `eax` came back holding the call's OWN boolean return value, and `add eax,1; jmp L(0)` on that corrupted value destroyed position tracking after the first match — `rsi`/`edx` (needle ptr/len) held live across the call had identical zero protection. (2) reaching end-of-subject while every char matched so far routed to `omega` (FAIL) instead of `L(1)` (commit) — an all-member subject could never successfully SPAN to completion. Bug 2 was masked by bug 1 until fixed.
+
+**FIX:** position moves to `FR(_.x86_scratch_off)` (memory, call-safe) across the loop; `rsi`/`edx` reloaded from the ζ-cell every iteration; `jge L(1)` not `jge omega` on exhaustion. `+18/-5`, isolated to one arm.
+
+**MEASURED: crosscheck/patterns 74/46/2/0 UNCHANGED, before and after — zero regressions, zero whole-program repairs in this corpus.** The 7 patterns programs using `SPAN(var)` (`063-066`, `126`, `153`, `179`) all carry ADDITIONAL separate bugs still open. Two new oracle-baked witnesses: `probe/earn0/earn0_span_var_arg_hang.sno` (was rc=124, now `999`) and `earn0_span_var_arg_2char_wronganswer.sno` (was silent wrong `no digits`, now `99`). Regen ×3 run (benchmark: no change; feature: `wordcount.s` updated, auto-committed `3be69bce`; demo: same file, auto-committed `fc7bdefd`; `claws5`/`json` skip as assembler-rejected — matches s34's pre-existing BUILDFAIL note, unmoved, orthogonal).
+
+**⛔ THIS IS NOT AN RBP/EARN FRAME BUG.** Killswitches for the frame machinery were inert on the originating witness. Filed under this goal because found via its own MONITOR-FIRST process on a FENCE witness, not because the fix belongs to the earning layer.
+
+**NEXT SEAT, IN ORDER:**
+1. **`063_pat_fence_fn_optional` IS STILL BROKEN** post-fix (m3 empty output, m4 SIG11) — a separate, now-unmasked bug. Re-run the monitor fresh; the divergence is likely now past the SPAN capture, in FENCE/alternation wiring itself. Natural next MONITOR-FIRST target.
+2. The other 6 `SPAN(var)` patterns programs (`064-066`, `126`, `153`, `179`) unexamined past this fix.
+3. R-1 / R-3 from s34 still open, untouched.
+4. **BOTH REPOS COMMITTED BUT UNPUSHED — CREDENTIAL NEEDED.**
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s34 (Opus 5) — **THE `main_α` BRIDGE NEVER ESTABLISHED R9. RC-5-GVA LANDED ITS MAIN-ENTRY LOAD ON `flat_α` ONLY. ONE LINE: `patterns` DIVERGE 54→11, 42 REPAIRED, 0 REGRESSIONS. THIS IS A *SOURCE* FACT AND IT DOES NOT CONFLICT WITH s33's RETRACTION.**
 
 **Fingerprint:** SCRIP `d0d9515e` (= `52545cbf` + ONE line in `src/driver/scrip.c`) · corpus `c91d1adf` · FINDING `FINDING-2026-08-12e-…-AND-S33-D1-D2-ARE-BOTH-BY-DESIGN.md`. Build order: `install_system_packages.sh` ran BEFORE both builds; the A/B differs only by the one line.
