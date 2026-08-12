@@ -89,8 +89,50 @@ further this session; still unowned).
   two demo drivers (calculator-1, calculator-2) that would very likely flip green once it lands (their
   ARBNO/DEFER shape is the exact target class — not verified end-to-end this session, since the arm doesn't
   exist yet, but worth checking first once W-4 is real).
-- **X01** — confirmed (again) not covered by the `pat_static` discriminator; still an open, unowned, separate
-  ARBNO defect (nested ARBNO, no DEFER).
+- **X01 — ROOT CAUSE FOUND this session (read-only, no fix landed, no code touched — see below).**
+
+### ⭐ X01 INVESTIGATION (this session, while blocked on push credential — diagnosis only, zero source edits)
+`POS(0) ARBNO(ARBNO(LEN(1))) RPOS(0)` on `'abc'` should succeed (=S) per SPITBOL semantics; SCRIP prints =F.
+Not a crash — silent wrong answer, rc=0. `SCRIP_ARBNO_DIAG=1` shows BOTH the outer and inner ARBNO taking the
+`FRAMELESS` arm: outer is `framed=0 k0=0 sq=0` (declines K16 correctly — `sq=0` because its body contains a
+nested `IR_MATCH_ARBNO`, one of the K16 prelude's own container-kind exclusions), inner is `framed=1 k0=1
+sq=1` (pure `LEN(1)` body, legitimately k0-safe).
+
+**The root cause is a DISPATCHER GAP, the same SHAPE as W-7's, but broader than the DEFER special case:**
+`bb_match_arbno_frameless()`'s own design comment (line 92 of `bb_match_arbno.cpp`) states its soundness
+precondition explicitly — *"Gated to the nested-K0 class (op_arbno_framed && op_arbno_body_k0): the frontier
+never moves inside the activation, so the cell is [rsp+0]/[rsp+4] from EVERY site."* But `bb_match_arbno()`'s
+dispatch (the function W-7 edited) calls `bb_match_arbno_frameless()` as the UNCONDITIONAL fallback — it
+never actually checks `op_arbno_body_k0` before falling through. Confirmed via `zd_k()` (emit.cpp ~2005):
+`IR_MATCH_ARBNO` is NOT in the K=0 exemption list, so `zd_k(nested ARBNO) == 16`, which is exactly why the
+outer's containment scan correctly computes `k0=0` for a nested-ARBNO body — the mechanism is proven, just
+not enforced at the dispatch site.
+
+**This is the general form; W-7's `op_arbno_body_defer_unsafe` is ONE instance of it** (DEFER is one specific
+K!=0 body member that can violate the frontier-static assumption; a nested ARBNO, which is unconditionally
+K=16, is another). X01 is presumably surviving as wrong-answer rather than SIGSEGV/hang because the inner
+ARBNO's own net-zero LIFO discipline on ITS success path happens to often restore rsp to the depth the outer
+expects — the corruption is in the OUTER's DELTA0/yield-cursor bookkeeping (logic), not necessarily a stray
+memory write, which is consistent with rc=0 + wrong output rather than a fault.
+
+**Not fixed — deliberately, this session.** (1) I'm blocked on the push credential and did not want to stack
+a second unreviewed source change on top of the unpushed W-7 commit. (2) The right general fix is almost
+certainly the SAME W-4 arena-layout work the DEFER case needs (route any `k0=0` body — DEFER OR nested-ARBNO
+OR any other K!=0 member — to an anchor-relative arm), which argues for generalizing
+`op_arbno_body_defer_unsafe` into something like `op_arbno_body_frontier_unsafe` (`!op_arbno_body_k0` in the
+general case, W-4-gated) rather than shipping a second narrow bomb-guard. That's a design call for whoever
+picks up W-4, not a unilateral call from this seat mid-investigation. (3) Per RULES.md MONITOR-FIRST, the
+2-way sync-step monitor (`test_monitor_2way_sync_step_bin.sh`) is DARK for this probe — `csnobol4` isn't
+built in this container (`FAIL csnobol4 not built: /home/claude/csnobol4/snobol4`) — so this diagnosis is
+static/gdb-adjacent reasoning from the templates + emit.cpp source and the diag trace, not a monitor-traced
+bisection. Recommend MON-RE (reinstating the csnobol4 build) before anyone tries to land a fix here, per the
+same standing law s35/s36 already flagged for the `dc_sib_bt` blind spot.
+
+**Suggested next step for whoever owns this:** widen the dispatcher gate from `op_arbno_body_defer_unsafe`
+to the general `!op_arbno_body_k0` case (a one-line change at the `bb_match_arbno()` ternary — the field
+already exists), which would also catch X01 with the same bomb mechanism, OR treat it as a separate rung if
+the general case needs different W-4 layout decisions than the DEFER-specific one. Either way this is a W-4
+design question, not a mechanical fix this seat should make without that decision.
 - **W-2 disposition, MON-CAP/dc_sib_bt ownership, W-0b's now-resolved status** — carried unchanged from s36/s37,
   not touched this session; see those cursors below for full detail.
 - **W-3/W-4/W-6 (this seat's own charter work)** — still untouched. Same observation s36 made: this seat keeps
