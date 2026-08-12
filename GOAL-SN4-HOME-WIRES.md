@@ -14,7 +14,59 @@
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s34 (Sonnet 5)
+## ⭐ LIVE CURSOR — 2026-08-12 s35 (Opus 5)
+
+**SCRIP `aaa11bda` · corpus `9f27e84d` · x64 not cloned.** m3 floor re-proved BY SET at this HEAD: **157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10} — IDENTICAL to s33/s34.** One compiler edit + 3 mandated regen commits. **PUSH STATE at the bottom — read it before believing anything here landed.**
+
+### ⛔⭐⭐⭐ FOR LON — TWO THINGS NEED YOU, ONE IS A PROCESS BREAK
+
+**(1) TWO LIVE SESSIONS SHARED THIS SEAT FILE AND THIS CONTAINER TODAY.** s34 (Sonnet 5) and s35 (Opus 5, this one) both ran against `GOAL-SN4-HOME-WIRES.md` on the same filesystem and the same `.github` clone. I discovered it only when the cursor I had read at orientation (s33) had silently become s34 mid-session, and `git status` showed **ahead 2** when I had made exactly one commit — the other was theirs, local and unpushed. This is precisely the **ONE INVARIANT** of `GOAL-SN4-HOME.md` ("ONE LIVE SESSION PER SEAT FILE. Two sessions in one file is the s38b race"). Nothing was lost — our commits touch disjoint files and both are preserved — but that was luck, not design: had we both edited the cursor with `git add -A`, one would have silently swallowed the other's working tree. **The fire-and-forget model assumes one session per seat; something re-fired WIRES while it was already live.** Worth checking how, before it happens on a file where the overlap is not disjoint.
+
+**(2) A WHITELIST-POLICY QUESTION I DELIBERATELY DID NOT DECIDE.** See "OPEN QUESTION" below — does `product-wide` mean physically clearing Prolog off r10/r11 even where SNOBOL4 provably cannot reach it? That's a charter question, not a data question.
+
+### ⛔⭐⭐⭐ THE W-0 PREMISE WAS STALE IN A WAY NEITHER PRIOR READ CAUGHT
+
+**The SNOBOL4 path was ALREADY swept of r10/r11 before W-0 opened.** Commits `89ff6994` ("R10/R11-ERAD slice 1: delete scratch use of the reserved wire pair from the SNOBOL4 path") and `b5a288bd` ("slice 2 + CORRECTION ON MYSELF: slice 1's ZERO-RESIDUE claim was FALSE"), recorded in `FINDING-2026-08-11d-…-R10R11-ERAD-SNOBOL4-PATH-COMPLETE-…`. The sweep moved the SN4 path to **r8**. **Neither the s33 cursor nor s34's FINDING-12f cites this ladder** — both treated the 226/222 number as undifferentiated SNOBOL4 debt. It is not.
+
+Two independent 2026-08-12 reads converge on the same correction from different angles; fold BOTH into any future W-0 statement:
+- **FINDING-12f (s34, Sonnet 5)** — STRUCTURAL axis: scratch vs. preserver. `bb_call_fn.cpp` 93/93 by hand = 100% genuine scratch; `xa_flat.cpp` splits in two; `bb_scan_*` are preservers.
+- **FINDING-12g (s35, Opus 5, this session)** — REACHABILITY axis: can a SNOBOL4 program reach these sites at all? **Almost none of them.** `bb_call_fn.cpp`'s 93 and `xa_flat.cpp`'s bulk sit behind `dop_direct_fp` (table is 100% Prolog `$`-builtins), `pl_cells_graph`, or `zframe_graph`. Verified at the source of truth, not from comments: `zframe_graph = 1` is stamped by exactly four lowerers — `lower_icon.c:1423`, `lower_prolog.c:1395`, `lower_pascal.c:831`, `lower_raku.c:1051`. **`lower_snobol4.c` has ZERO mentions of it**; `IR_alloc` calloc-zeroes the field.
+- ⛔ **A STALE CODE COMMENT TO DISTRUST:** `bb_call_proc_staged.cpp:673` claims "zframe_graph=0 for all SN4/Prolog/Raku/Pascal" — **false since PL-FR-2 gave Prolog the wholesale stamp.** `emit.cpp:1903` is the correct account. STALE-ORIENTATION, living in a code comment where no cursor discipline reaches it.
+
+**CONSEQUENCE — the gate's 222 headline is NOT 222 units of SNOBOL4 risk.** The real remaining risk is the two surfaces reachability cannot excuse: **`x86_asm.h`** (shared encoder, every language) and **RTX hand-asm** (223 occ, not graph-gated at all). Prioritize those; the template count is mostly Prolog bookkeeping that cannot execute beside a live SN4 wire.
+
+### WHAT LANDED (compiler)
+- **`e019c651` — `bb_var.cpp` PL-ZK-5B dual-write drops r10/r11 entirely.** rax/rdx already hold `ZRES(0)`/`ZRES(8)` from the two lines directly above; nothing between there and `x86_gamma()`/`x86_beta_trampoline()` reads either (both verified as bare jmp/label emitters with no register-content dependency). The r10/r11 hop was a redundant reload, not a register need. Gate: **226→222 occ, 25→24 files**; site is GONE from the sweep list, not whitelisted. Build clean, smoke-tested, m3 floor identical by set.
+- ⛔ **TENSION I AM FLAGGING RATHER THAN BURYING:** s34's NEXT item 2 said `bb_var.cpp` needs a replacement-register design call from Lon before editing. I edited it anyway, on the reasoning that their caution targets *choosing a replacement register* (a policy decision needing one consistent answer across many sites) whereas this fix **eliminates the need for one** — no register was claimed. I believe that distinction holds; Lon should overrule me if it doesn't. **I did NOT extend the move** to `bb_call_fn.cpp` (93 occ) or `xa_flat.cpp`'s dc-stub, where a genuine register-choice decision IS involved. Those sit exactly where s34 left them.
+- **`bb_lit_scalar.cpp` — SAME SHAPE, DELIBERATELY NOT TOUCHED.** Its `ls_dual(w)` is a SHARED "ONE AUTHORITY" helper across multiple literal sites, and at `IR_LIT_INTEGER` the w=0 source is a compile-time immediate never in a register — the "already live in rax/rdx" shortcut does NOT generalize. Auditing every call site is the prerequisite. Dead-for-SN4 either way, so no urgency.
+
+### ⛔ THE `.s` ARTIFACTS WERE STALE — AND MY REGEN COMMITS ARE MISLABELED
+RULES.md step 4 forces regen when `src/templates/*.cpp` is touched, so I ran all three in order. They committed **large diffs that are NOT mine**: `129e72f3` (benchmarks, 23 files), plus feature + demo commits, all labeled with my rung. The content is other seats' unregenerated drift — the r10/r11→**r8** ERAD sweep above, plus a new `call rtcc_load_all@PLT` (RBP-EARN s34 / RC-5-GVA). **My edit is Prolog-gated and contributes ZERO bytes to any SNOBOL4 `.s`.** Two takeaways: (a) prior codegen landings skipped step 4, so the artifacts drifted; (b) whoever regenerates next inherits the mislabel — the commit message names a rung that did not cause the diff. Not corrupt, just misattributed; worth a note when reading `git log` on corpus.
+
+### RTX `rtx_match.S` — OPENED (s34's #1), PARTIAL CLASSIFICATION, NOT FINISHED
+Confirmed **SNOBOL4-reachable** and therefore NOT excusable by reachability: the file header states its own purpose as *"C deleted from the SNOBOL4-reachable runtime"*, and it is called from `bb_scan_match.cpp`, `bb_var_global.cpp`, `bb_call.cpp`, `bb_idx_get.cpp`. 89 occ; ~65 lines scanned in one pass, **not** all read by hand. Four distinct idioms, do not sweep as one unit:
+1. **Momentary GOT-global accessors** (`g_cap_gen`, `rt_g_want_name`): `mov r10,[rip+X@GOTPCREL]` → one deref → done. Same shape as the Prolog scratch, but SN4-reachable.
+2. **GOT-indirect call/tail-call** (`NV_GET_fn` :1027-8, `dtp_fn_of` :1035-6): ordinary `call r10`/`jmp r10` idiom, 2 instructions.
+3. **Capture-stack block** (~:195-291, the SAVE-box push/pop the header documents): r11 does real address arithmetic (`&g_dfx[top]`, stride 24) and is live across several field accesses, with two genuine push/pop preservers embedded mid-block.
+4. **Longer-lived carry**: r11 holds `varname` from `pop` :1128 through `mov rdi,r11` :1164.
+- ⛔ **UNRESOLVED, WORTH A LOOK:** lines 296-314 / 390-393 / 536-539 / 1136-1143 reach **Σ (subject) and Σlen through GOT-indirect globals** (`mov r10,[rip+Σ@GOTPCREL]; mov r10,[r10]`) — but `GOAL-SN4-HOME.md`'s register contract names **R13** as Σ's home. Either these are slow/leaf paths legitimately falling back to a global copy while the hot inlined path keeps Σ in r13, or the contract and the shipping code disagree. **Cannot be settled by grep** — needs function boundaries + r13 liveness at those sites. Next session's sharpest question.
+
+### OPEN QUESTION FOR LON — WHITELIST POLICY (deliberately NOT decided here)
+Does **"product-wide"** (charter line 1) require physically clearing Prolog off r10/r11 *regardless of reachability*, or is provably-dead-for-SNOBOL4 sufficient to license a site? Pressure toward the former: `xa_flat.cpp` already names `rt_pl_dc_leave_γ` / `rt_pl_dc_leave_ω` — **Prolog has its own γ/ω continuation convention already using r11**, so the two may need to converge rather than coexist. Pressure toward the latter: those 118 occurrences cannot execute beside a live SN4 wire, so sweeping them buys no SN4 correctness today. ⛔ **`wreg_claim_whitelist.txt`'s header defines exactly FOUR site-classes, all describing code that legitimately OWNS the wires — "unreachable for the graphs this gate protects" fits none of them.** Adding a 5th class is a real edit to shared registry policy, so I left the whitelist untouched rather than force the answer in. **This is the decision that unblocks the rest of W-0.**
+
+### NEXT SEAT, IN ORDER (supersedes s34's list; items 3-5 unchanged from it)
+1. **Finish `rtx_match.S` by hand** (89 occ, ~24 unscanned) — and settle the **Σ/r13 contract question** above. Highest-risk surface, SN4-reachable, not excusable by reachability.
+2. **The other 9 RTX `.S` files** (134 occ) — same treatment, same reason.
+3. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness D12/D13 flipping green.
+4. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block` (per-activation spine, not flat block).
+5. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
+- **Do NOT re-derive the W-0 template census a fourth time.** Between FINDING-12f (structural), FINDING-12g (reachability), and FINDING-2026-08-11d (the ERAD ladder), the template surface is mapped. What is missing is RTX and a policy decision, not another count.
+
+**UNBLOCKS: nothing new** (W-5 predicate still FALSE: `frame_need_of` grep still empty, re-checked s35).
+
+---
+
+## LIVE CURSOR — 2026-08-12 s34 (Sonnet 5) — superseded by s35 above, retained per STALE-ORIENTATION (c)
 
 **SCRIP `51934a9f` · corpus `14dc06bd` — read-only session, zero compiler bytes, zero code touched. FINDING pushed; this cursor move is the handoff artifact.**
 
