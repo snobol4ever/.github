@@ -8,14 +8,43 @@
 - [x] **L-0 · WITNESS FLOOR — LANDED s33.** Board adopted and MECHANISED as `SCRIP/scripts/board_earn0_set.sh` (m3/m4/both; `REPEAT=n` reports a row whose verdict is not constant as **FLAKY**, never as whichever arm came up first — `earn0_stored_capture` is the known member and a single-shot board misleads by design). All four controls PASS at HEAD. Floor table in the LIVE CURSOR; re-RUN the script, never transcribe it (STALENESS LAW).
 - [ ] **L-1 · DEFECT A — PRODUCER ELISION (LOWER, convicted by knob `SCRIP_PAT_INLINE=0`).** Why is a use inside a stored composite not an inlining site, and why is the producer elided before that is known? Fix in LOWER. ⛔ **FIXING A ALONE LOOKS LIKE A REGRESSION** — silent rc=0 passes become rc=124 hangs as the mask comes off (measured s29 §2b). Judge BY SET against the FINDING table; EXPECT the hang count to RISE; a seat that reverts on that signal reverts a correct fix. `SCRIP_PAT_INLINE=0` stays a diagnostic discriminator ONLY.
 - [ ] **L-2 · DEFECT B — THE CONSUMER HANG A WAS MASKING.** Mint the default-arm witness FIRST (unreachable today until A lands); then MONITOR-FIRST; the s29 bounded probes say match-time, inside one statement, plausibly unbounded allocation (`[ZHP] heap exhausted` sibling arm — plausible, NOT established; cross-check with HOME-RBX X-4).
-- [ ] **L-3 · C-9 RESIDUALS (from CLIMB s41, mechanism named, fix incomplete).** The `start` term needs its own displacement (relative advance PRECEDING the carve overshoots: `LEN(2) TAB(6) LEN(1)` start 2 want 0); POS/RPOS never pick up the unanchored scan anchor (`op_zpat`=0 for them, still splice `[0,1)`). `op_zpat` precedent: one authority, SUBTRACTED, never folded into `op_zdepth` (double-add class). Then re-measure `test_case` (splice customer, expect clear).
+- [~] **L-3 · C-9 RESIDUALS — CHARACTERISED s34 (FINDING-2026-08-12d), NOT FIXED (from CLIMB s41, mechanism named, fix incomplete).** ⛔ **s41's "the `start` term needs its own displacement" is TRUE ONLY FOR `TAB`/`RTAB`** (Series T, slope +1: `LEN(k) TAB(6) LEN(1)` arrives start=k, want 0). For `ARB`/`SPAN`/`BREAK`/`REM` the splice receives `start`=**constant 3** and `end`=**`slen`** — Series S is FLAT, so no displacement of any sign or slope can fix it; find the WRITER. POS/RPOS never pick up the unanchored scan anchor (`op_zpat`=0 for them, still splice `[0,1)`). `bal` is wrong on BOTH terms (+1/+1) and is its own row. `LEN`/literals are genuinely clean (verified non-terminal). `op_zpat` precedent: one authority, SUBTRACTED, never folded into `op_zdepth` (double-add class). Then re-measure `test_case` (splice customer, expect clear).
 - [ ] **L-4 · 061 — VARIABLE-ARG PATTERN-PRIMITIVE CLASS.** The dynamic arm reads a cell the arg never landed in (whole class, not POS-specific). MONITOR bracket exists per s39b — read that cursor first, do not re-spend.
 - [ ] **L-5 · `test_string` SECOND COMPONENT.** Capture also wrong (`r=[   hello]`) — NOT the splice signature; alternation-arm / post-SPAN cursor suspect, unconvicted. Own witness, own conviction.
 
 ## GATES (every rung)
 crosscheck/patterns + probe BY SET vs P0 floors, both modes · monitor divergence must MOVE PAST the fix · regen ×3 iff codegen touched (splice arithmetic counts) · FINDING per land mine · cursor move per handoff.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s33 (Opus 5). **L-0 LANDED. NEXT RUNG: L-3** (see §WHY L-3 FIRST). ZERO compiler bytes this session.
+## ⭐ LIVE CURSOR — 2026-08-12 s34 (Opus 5). **L-3 CHARACTERISED, NOT FIXED. NEXT RUNG: L-3 continued — locate the non-carving writer.** ZERO compiler bytes, zero script bytes. FINDING-2026-08-12d.
+
+**L-3 is THREE classes, not the two s41 recorded, and the third is not a displacement.** Measured at the `SCRIP_REPL_TRACE=1` C boundary (already committed in `gen_runtime.c` — no rebuild, no gdb):
+
+| class | members | `start` arriving | `end` arriving |
+|---|---|---|---|
+| fixed-length | `LEN(n)`, literals | **CORRECT** ✅ | **CORRECT** ✅ |
+| carving | `TAB` `RTAB` | cursor **at the carve site** (Series T: slope exactly +1) | **CORRECT** (s41's `op_zpat` genuinely works) |
+| **non-carving var-length** | `ARB` `SPAN` `BREAK` `REM` | **constant `3`** | **`slen`** |
+| zero-width | `POS` `RPOS` | `0` | `1` (s41's collapse, reproduced) |
+
+⛔ **NO DISPLACEMENT CAN FIX THE THIRD CLASS.** Series S (`LEN(k) SPAN('ef') 'g'`, k=0..3) has `want start` 5→4→3→2 and `arrived start` **3,3,3,3** — flat. A displacement of any sign or slope must move when want moves. `(3, slen)` is a read of cells nobody wrote for this shape, the same disease as POS/RPOS's `(0,1)`: **find the writer, not an offset.** Anti-pattern §2 applies with force — three of my hypotheses died here (FINDING §4).
+
+**⭐ NEW BOARD — `corpus/probe/l3/` (12 probes, oracle-baked refs), run with the EXISTING generic runner:**
+`EARN0=/home/claude/corpus/probe/l3 REPEAT=2 bash scripts/board_earn0_set.sh m3` → **m3 @ `900060c7`: 3 PASS / 9 FAIL-silent.** The 3 PASS are the fixed-length controls. Landed in `probe/l3/`, deliberately **NOT** `probe/bb/` (red rows register as REGRESSION there — s41 left its set in `/tmp` for that reason and **it was lost**, which is why this ground was re-walked).
+
+**⛔ THE VACUOUS-`end` TRAP (new anti-vacuity rule, sixth conviction in this goal):** *a splice witness whose match reaches the end of the subject cannot discriminate `end` from `slen`.* Every splice probe must leave characters to the RIGHT of the match. This is a **second, independent tell** from FINDING-2026-08-12 §3's "success-expecting witness" — that one does not fire here, which is why the rule as written did not catch it. `l3_spl_VACUOUS_terminal_trap.sno` is retained as the documented member.
+
+**⛔ CORRECTION — s33's ORDERING RATIONALE IS FALSIFIED (the rung order survives; the reason does not).** s33 put L-3 first because `cap_after_bal`/`cap_after_varlen` were "L-3's named mechanism verbatim." **Capture and splice are two defects:** BREAK/SPAN/REM/TAB/RTAB **capture correctly** and **splice incorrectly** — one shared `start` authority cannot produce that split. Fixing the splice will NOT clear those two rows; they are L-5-adjacent, owner still open. Also: `earn0_cap_after_varlen.sno`'s stated 9-template blast radius is **over-broad by seven** — only ARB and BAL fail capture (BREAKX and ARBNO PASS, killing the retry-extension hypothesis). The `[n, p+n)` capture formula gained a third witness by advance prediction (`'abcdefg' ? ARB . R 'g'` binds null) and **survives**.
+
+### NEXT SEAT, IN ORDER
+1. **Locate the writer feeding the non-carving class** — the prize, and separable from everything else on this board.
+2. `TAB`/`RTAB` `start` IS a genuine displacement (Series T) — the one component s41's framing describes correctly.
+3. `bal` is its own row: wrong on **both** `start` (+1) and `end` (+1), and the only capture-failing member that also splices wrong. Own witness before folding it anywhere.
+4. Only then L-1 (Defect A), honouring its ⛔ (fixing A alone RAISES the hang count).
+
+**UNBLOCKS:** LOWER L-3 (three classes separated, board + reproducers now PERSISTED rather than container-local). BOARD B-0 still owns the m4 arm — **both LOWER boards are m3-only; their m4 arms are UNMEASURED, not green.**
+
+---
+### s33 record (retained — L-0's floor and its instrument stand unchanged)
 
 **Seat opened without BOARD's P0 floors** — BOARD's cursor is still UNOPENED, and RULES 2026-08-10 forbids parking on that. L-0 needs no BOARD number: it is this seat's OWN open-state, measured at this seat's HEAD, which is what the STALENESS LAW says a per-rung control must always be.
 
