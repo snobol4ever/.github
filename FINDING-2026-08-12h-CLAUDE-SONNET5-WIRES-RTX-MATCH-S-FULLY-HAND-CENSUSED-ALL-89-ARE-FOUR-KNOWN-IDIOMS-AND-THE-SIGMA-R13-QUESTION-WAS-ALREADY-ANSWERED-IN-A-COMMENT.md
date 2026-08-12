@@ -263,3 +263,37 @@ build a per-language reachability map of this file rather than a whole-function 
 
 **PROGRESS: 174 of 223 total RTX occurrences classified (5 of 10 files), 49 remaining across
 5 files.**
+
+## ADDENDUM 5 (same session, continued) — `rtx_arith.S` (9/9 done) — SIMPLEST FILE YET, ZERO r11
+
+Read `rtx_arith.S` in full (260 lines: `rt_cmp_d`, `rt_add`, `rt_sub`, `rt_mul`). Verified 9
+occurrences by script, matching the gate. `rt_cmp_d` backs SNOBOL4 comparison functions (LT/GT/
+EQ/etc.) and is confirmed the #1 hottest C runtime call across every stable benchmark per the
+file's own header — no reachability question. `rt_add`/`rt_sub`/`rt_mul` have ZERO r10/r11
+occurrences — their DT_I/DT_R fast paths use only rax/rdx/rsi/rcx and xmm registers.
+
+**Classification — one idiom, three repetitions, no new shape:**
+
+| Location | Occ | Idiom | Role |
+|---|---|---|---|
+| DT_I compare result | 2 | local scalar, branchless sign | r10b=`setl` flag, consumed by `sub r9b,r10b` next instruction |
+| string-family combined tag test | 3 | local scalar | r10d=`a.v\|b.v`, tested once, dead |
+| string-compare result | 2 | same branchless-sign pattern | r10b=`setb` flag, consumed immediately |
+| real-compare result | 2 | same branchless-sign pattern | r10b=`seta` flag, consumed immediately |
+
+**Zero r11 occurrences in this entire file** — everything is r10/r10b/r10d. Every use has a 1-2
+instruction lifetime, no pointers, no globals, no calls anywhere near a wire register. Along with
+`rtx_alloc.S`, this is one of the two lowest-risk files for the WREG flip.
+
+### NEXT SEAT, IN ORDER (supersedes the list above — 6 of 10 RTX files now done)
+
+1. **The other 4 RTX `.S` files** (40 occ remaining: `rtx_plcall.S` 10, `rtx_icnagg.S` 11,
+   `rtx_icnrel.S` 8, `rtx_icnnum.S` 11). Same treatment.
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout (account for the
+   carve/copy carry shape from addendum 3).
+
+**PROGRESS: 183 of 223 total RTX occurrences classified (6 of 10 files), 40 remaining across
+4 files.**
