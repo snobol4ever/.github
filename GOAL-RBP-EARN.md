@@ -129,63 +129,63 @@ DELETE the `sub rsp,16` carve and every `[rsp+0]`/`[rsp+4]` cursor access. Rebui
 
 **NET EFFECT ON THE LADDER:** EARN-0b closed(0) · EARN-5's owner rule confirmed(1) · EARN-4 gains its emission shape — ENTER at α **and** β, chain-as-counter(2) · EARN-6's FENCE1 row keeps its verdict with a corrected justification(3) · the hazard taxonomy is confirmed COMPLETE at two classes. **Rulings (a)/ROOTSPINE remain OPEN — Lon: "Unsure."**
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s37 (Claude Sonnet 5) — **DUPLICATE-LABEL AS-FAIL IS TWO SEPARATE GENERATORS, NOT ONE — CORRECTED WITHIN THIS SAME ENTRY AFTER AN INITIAL OVERREACH (context-bounded session, deliberately not traced to completion).**
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s35–s37 CONSOLIDATED (Claude Sonnet 5) — **ALL THREE OF s34's OPEN RULINGS ARE CLOSED: R-2 SETTLED BY CONTROLLED A/B (THE SITE-A GAP IS REAL, NOT A BUILD ARTIFACT), R-1 RULED YES AND REGEN ×3 RUN, R-3 IS NOT A NEW DEFECT BUT AN INSTANCE OF THE TRACKED EARN-0 STORED-PATTERN CLASS. ⭐⭐⭐ AND A STRUCTURAL CONCERN ABOUT THIS GOAL FILE ITSELF — SEE §7, IT NEEDS A LON RULING.**
 
-⛔ **SELF-CORRECTION, SAME SESSION:** this entry originally claimed one mechanism explained both `expression.sno` and `porter.sno`'s AS-FAILs. **That was wrong** — verified by checking porter's actual error string against the found generator, and it does not match. Left the error in place only long enough to catch it; corrected before anyone could build on it.
+**Fingerprint:** SCRIP `29fd4ad8` · corpus `3621fc4f` · `.github` this commit. Both builds ran AFTER `install_system_packages.sh` (verified, no exceptions). ⛔ **UNPUSHED AT WRITE TIME** — 7 commits (SCRIP 1, corpus 2, `.github` 4); credential requested in-chat per RULES 6b. `handoff_status.sh` is the only push truth — do not trust this line.
 
-**TWO DISTINCT LABEL GENERATORS, BOTH POTENTIALLY NON-UNIQUE, NOT YET PROVEN EITHER WAY:**
-- **`expression.sno`'s 543 collisions** (`.Lbynamefnzd####`): `src/templates/bb_call.cpp:299,323` build the label from a per-node ID — `".Lbynamefn" + std::to_string(_.nid)`. By-name/indirect call sites (matching `expression.sno` being a beautifier, plausibly dispatch-heavy). Used as a label suffix in exactly 3 files total (`bb_call.cpp`, `bb_call_proc_staged.cpp`, `bb_gather.cpp`, 6 sites) — narrow if confirmed.
-- **`porter.sno`'s 1 collision** (`.Lx3548_40`): a SEPARATE generator, `x86_internal_name()` in `src/templates/x86_asm.h:736` — `".Lx" + _.x86_uid + "_" + n`. `x86_uid` is minted by `x86_begin()` (`x86_asm.h:851`) from a shared global counter `g_flat_node_id`, TEXT-medium only. **A concrete, untraced lead:** `src/driver/scrip.c:1334` resets `g_flat_node_id = 0` once, correctly scoped BEFORE the per-procedure emission loop (not inside it) — looks right at a glance. But the very next line sets `g_m4_dense_nid = 1`, a flag whose name suggests per-procedure/local "dense" renumbering, which would reintroduce exactly this class of collision if it remaps IDs to a compact per-procedure range. **Not traced further — did not read what `g_m4_dense_nid` actually gates.**
+### 1. R-2 SETTLED — THE SITE-A GAP IS REAL, INDEPENDENT OF BUILD ORDER
+Isolated `git worktree` at `52545cbf` (pre-fix, `grep -c rtcc_load_all` = 2) vs HEAD (post-fix, = 3), **both built after `install_system_packages.sh`**, identical corpus, identical unmodified census script. Only variable: the Site-A call.
 
-**Neither mechanism confirmed as the actual root cause** — both are grep-level findings (label construction + a suggestively-named flag), not measurements. Next seat: verify via `--dump-ir` or a `grep -rn g_m4_dense_nid` whether either hypothesis holds before assuming a fix.
-
-**⛔ ALSO: THIS SESSION'S s36 EDIT ACCIDENTALLY DELETED s34's HEADER LINE (str_replace that didn't re-append it); CAUGHT AND REPAIRED same session — verify with `grep -c 'LIVE CURSOR' GOAL-RBP-EARN.md` if in doubt.**
-
-
-
-**Fingerprint:** SCRIP `29fd4ad8` · corpus `3621fc4f` · both built AFTER `install_system_packages.sh` (confirmed run first, both builds, no exceptions).
-
-**R-2, METHOD:** isolated `git worktree` at `52545cbf` (pre-fix, confirmed `grep -c rtcc_load_all` = 2) alongside HEAD (post-fix, = 3), both built with the identical correct order, both run against the identical `crosscheck/patterns` corpus with the identical unmodified `test_census_m3_m4_divergence.sh`. Only variable: presence of the Site-A call.
-
-| | AGREE | m4 SEGV | m4 HANG | PURE m4-only crash | m3 SEGV/HANG |
+| | AGREE | m4 SEGV | m4 HANG | PURE m4-only | m3 SEGV/HANG |
 |---|---|---|---|---|---|
 | HEAD (3 sites) | 111 | 39 | 5 | 10 | 28/6 |
 | `52545cbf` (2 sites) | 68 | 82 | 4 | 52 | 28/6 |
 
-m3 bit-identical across both builds (expected — mode-3 never touches this bridge; a clean internal-consistency check that nothing else drifted). The delta reproduces s34's own "(before)" parenthetical numbers exactly. **⇒ s33's retraction does not apply here: with build order fully controlled, removing Site A alone reproduces the entire pre/post gap. The defect was real.**
+m3 bit-identical across both (mode-3 never touches this bridge — an internal consistency check that nothing else drifted). Reproduces s34's own "(before)" numbers exactly. ⇒ **s33's retraction does not apply to Site A; removing that one call reproduces the entire gap. s34's fix is load-bearing.**
 
-**R-1 RULED YES, WITH EVIDENCE, NOT JUST PRINCIPLE:** `scrip.c` is not on RULES.md step 4's list, nor on any of the three regen scripts' own header lists (`emit_bb.c emit_core.c templates/*.cpp x86_asm.h lower_snobol4.c` — same gap in both places, so this isn't a doc typo, it's a real hole). But `scrip.c` directly calls `emit_textf()` at this exact site — it IS an emission site, filed under `driver/` only by directory convention. Ran all three in RULES.md order:
-- `util_regen_benchmark_s_artifacts.sh` → corpus `af268e4d`, **23 files, 684+/661-** — genuinely stale, not a no-op.
-- `util_regen_feature_s_artifacts.sh` → SCRIP `29fd4ad8`, ~40 files changed. One pre-existing `EMIT-FAIL` (`coverage/coverage_sno_nodes.s`, untouched by design) — not new, not investigated further this session.
-- `util_regen_demo_s_artifacts.sh` → corpus `3621fc4f`, **20 files, 2336+/2316-**.
-⛔ **PROPOSAL, NOT YET RULED:** add `src/driver/scrip.c` to the regen-trigger list in RULES.md step 4 and in the three scripts' own header comments. Lon should confirm before this is treated as settled policy.
+### 2. R-1 RULED YES (WITH EVIDENCE) — AND THE TRIGGER LIST HAS A STRUCTURAL HOLE
+`src/driver/scrip.c` calls `emit_textf()` directly — it **is** an emission site, filed under `driver/` by directory convention only. One line there moved emitted bytes for every m4 SNOBOL4 program. Ran all three regens in RULES order: benchmark → corpus `af268e4d` (**23 files, 684+/661−**, genuinely stale); feature → SCRIP `29fd4ad8` (~40 files; one pre-existing `EMIT-FAIL` on `coverage/coverage_sno_nodes.s`, untouched by design, not new); demo → corpus `3621fc4f` (**20 files, 2336+/2316−**).
 
-**⭐⭐⭐ THE DEMO "BUILDFAIL 4" NAME WAS HIDING TWO DIFFERENT THINGS.** `util_regen_demo_s_artifacts.sh`'s own `DEMOS` list comment records a 2026-07-26 Lon ruling: `expression`/`porter` are deliberately **excluded from the regen set on SIZE alone** (~36k/~37k lines each) — the comment states outright they "both compile clean and assemble clean." Tested directly this session at HEAD:
-- `claws5`, `json` — still `AS-FAIL` (assembler-rejected). Matches s34's "orthogonal to r9, unmoved." Not investigated further.
-- `expression` (needs CWD-relative include resolution — no `-I` flag exists in `scrip`'s CLI; must run with cwd = `beauty_suite/`) — compiles to **346,857 lines** of `.s`, then **AS-FAIL: 543 duplicate-symbol errors**, pattern `.Lbynamefnzd####' is already defined`.
-- `porter` — compiles to **93,370 lines**, then **AS-FAIL: 1 duplicate-symbol error**, `.Lx3548_40' is already defined`.
-⇒ **The 2026-07-26 comment is now FALSE for both programs.** Most likely explanation, not yet verified: exclusion from the regen set also excluded them from routine re-verification, and a label-uniqueness regression landed sometime in the ~2.5 weeks since, unnoticed. Two distinct label-naming schemes (`.Lx####_##` vs `.Lbynamefnzd####`) both colliding suggests a shared root mechanism (counter reuse / insufficient hash entropy at scale) rather than two independent bugs — **hypothesis, not measured; MONITOR-FIRST before pursuing.** Not yet bisected to a commit. Unowned.
+⛔ **PROPOSAL NEEDING A LON RULING:** add `src/driver/scrip.c` to the trigger list. **And note the list lives in FOUR places that must be hand-synced** — `RULES.md` step 4 plus each of the three regen scripts' header comments — and **all four are currently missing `scrip.c` identically.** That duplication is itself the defect vector; one source of truth would be better than four copies.
 
-**`treebank-array` CONFIRMED STILL SEGV (rc=139) post-fix, this session, fresh binary.** Matches s34's "demo's true m4 SEGV is treebank-array alone" — the r9 fix does not touch it; it remains open and separate from the Site-A class.
+### 3. R-3 CLOSED — IT IS NOT A NEW DEFECT
+`cap_imm_nret2.sno` is `PAT1 = LEN(3) $ *STORE() 'X'` then `S PAT1` — a STORED pattern containing `$` capture. `probe/earn0/earn0_stored_capture.sno` is `Q = POS(0) LEN(1) $ V LEN(2) RPOS(0)` then `'abc' Q` — same shape, and its own file already records the identical symptom ("varies… 0/134/139"). **Isolated both arms to single-shot zero-loop reproducers: both crash on the FIRST match.** ⇒ corrects the standing assumption (s34's and mine) that this was iteration-dependent or specific to the `*STORE()` deferred arm. Neither is true. **Fold into EARN-0; it needs no standalone ownership.** ⛔ EARN-0 itself NOT advanced here — that thread is mid-bisection (stage-bisected to LOWER, `SCRIP_PAT_INLINE` implicated) and was deliberately not reopened.
 
-**NEXT SEAT, IN ORDER:**
-1. **R-3** (`cap_imm_nret2`, benchmarks, rc3=139/rc4=0) still open — its `.s` changed 125 lines in this session's regen; worth a fresh look before assuming s34's characterization still holds.
-2. **The duplicate-label AS-FAIL class** (`expression`, `porter`) — real, reproducible, unowned. Needs MONITOR-FIRST treatment, not code-reading first.
-3. **`treebank-array` SEGV** — still open, still separate from Site-A.
-4. s34's original items 2 (residual-11 `crosscheck/patterns` bisection) and 4 (W-pins two-mode gate) — unchanged, still queued.
-5. Confirm the scrip.c-on-trigger-list proposal above with Lon before treating it as binding.
+### 4. NEW, UNOWNED: THE DEMO "BUILDFAIL 4" IS TWO UNRELATED PROBLEMS
+- `claws5`, `json` — still AS-FAIL. Matches s34. Untouched.
+- `expression`, `porter` — **were never r9 victims.** They are excluded from the demo regen set on SIZE grounds (Lon, 2026-07-26), whose comment states they "compile clean and assemble clean." **That is now FALSE:** `expression` → 346,857-line `.s`, **543 duplicate-symbol errors** (`.Lbynamefnzd####`); `porter` → 93,370-line `.s`, **1** (`.Lx3548_40`). Note `expression` needs cwd = `beauty_suite/` for include resolution — `scrip` has **no `-I` flag**.
+- **TWO SEPARATE GENERATORS, both grep-level leads, NEITHER CONFIRMED:** (a) `bb_call.cpp:299,323` builds `".Lbynamefn" + _.nid` — used as a label suffix in exactly 3 files / 6 sites, narrow if real. (b) `x86_asm.h:736` `x86_internal_name()` builds `".Lx" + _.x86_uid + "_" + n`; `x86_uid` comes from global `g_flat_node_id` via `x86_begin()`. `scrip.c:1334` resets that counter once, correctly scoped *before* the per-proc loop — but the adjacent `g_m4_dense_nid = 1` (line 1335) is suggestively named for per-proc renumbering and **was not traced.** Next seat: `grep -rn g_m4_dense_nid` first; verify a hypothesis before assuming a fix.
+- `treebank-array` — **confirmed still m4 SEGV post-fix** (fresh binary, this session). Unmoved, separate from Site-A, unowned.
 
-**⛔ NOT PUSHED — holding per explicit session instruction to ask for credential at session end, not mid-session.** Three local commits outstanding across SCRIP (1) and corpus (2), plus this `.github` edit.
+### 5. ⭐⭐⭐ METHODOLOGY — A SIXTH CONVICTION, AND IT IS THE *MIRROR* OF THE FIVE
+This file convicts the vacuous-control class 5×: *"a control whose two arms predict the same output is not a control."* **I hit the inverse and nearly published it: two arms producing DIFFERENT symptoms are not necessarily two defects.** ARM A (plain `$ V`) showed heap-exhaustion abort; ARM B (`$ *STORE()`) showed SEGV; I read that as two mechanisms. **ASLR was the confound.** Under `setarch $(uname -m) -R` both are flatly `rc=139`, 5/5 and 5/5, with **identical crash register state** — `rbp` sane, `r9`/`r10`/`r11` sane, `rsp` = exactly `0x7fff00000000` (`0x7FFF << 32`, too structured to be organic drift; the write site was NOT traced).
+⇒ **OPERATIONAL RULE, offered for adoption:** *before billing two symptoms to two causes, remove environmental nondeterminism and re-measure.* `setarch -R` is one cheap command and it collapsed a false 2-defect split into 1.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s36 (Claude Sonnet 5) — **R-3 CLOSED, NOT AS A NEW DEFECT: `cap_imm_nret2` IS AN INSTANCE OF THE ALREADY-TRACKED EARN-0 "STORED PATTERN + $ CAPTURE" CLASS (`earn0_stored_capture`, s27/s29). ONE NEW TOOL: DISABLING ASLR MAKES THE "VARIES: 0/134/139" NONDETERMINISM FULLY DETERMINISTIC.**
+**⭐ INSTRUMENT STABILITY, MEASURED (not assumed):** `test_census_m3_m4_divergence.sh` run twice under identical conditions is **byte-identical** (122/122 rows). ⇒ the crosscheck corpus is NOT sampling the nondeterminism, so s34's numbers and §1's are sound. **But the `probe/earn0` witnesses ARE nondeterministic** (their own files say so). ⇒ **census = trust a single run; probe witness = do not.** Use `setarch -R` or N runs there.
 
-**Did not re-investigate EARN-0 itself — that thread (FINDING-2026-08-11f, FINDING-2026-08-12, its s29 continuation) is already mid-bisection (stage-bisected to LOWER, implicates a pattern-inliner via `SCRIP_PAT_INLINE`) and is NOT reopened or advanced here.** This entry only closes the R-3 question ("what is `cap_imm_nret2`'s m3 SEGV") by connecting it to that existing work.
+### 6. ⛔ TWO SELF-INFLICTED ERRORS, BOTH CAUGHT AND REPAIRED THIS SESSION
+1. **My s36 edit deleted s34's header line** (a `str_replace` that didn't re-append it), orphaning s34's body while `git status` stayed clean. Caught on a structure check before the next edit; repaired. **These headers are 300+ chars of bold/emoji and are fragile under `str_replace` — verify after every cursor edit with `grep -c '^## ⛔⭐⭐⭐ LIVE CURSOR\|^## ⭐⭐⭐ LIVE CURSOR'` (HEADERS ONLY = **22** at this commit; a bare `grep -c 'LIVE CURSOR'` returns 23 because this very sentence is a body mention — anchor the pattern or the canary lies to you).**
+2. **My first s37 entry conflated `expression` and `porter` under one generator.** Falsified by checking porter's actual error string. Corrected in place — see §4, they are two.
 
-**THE CONNECTION:** `cap_imm_nret2.sno` does `PAT1 = LEN(3) $ *STORE() 'X'` then later `S PAT1` — a STORED pattern (assigned to a variable, referenced later) containing `$` immediate-assignment. `probe/earn0/earn0_stored_capture.sno` does `Q = POS(0) LEN(1) $ V LEN(2) RPOS(0)` then `'abc' Q` — the identical shape. Its own file already records the identical symptom: "varies… rc 0/134/139… FAIL." **Isolated both arms of `cap_imm_nret2` (the plain-variable target and the `*STORE()`-deferred target) down to single-shot, zero-loop, minimal reproducers — both crash on the FIRST match, not after volume.** This corrects the standing assumption (mine and s34's) that the benchmark's rc3=139 was iteration-dependent or specific to the deferred-call arm; neither is true. It is the stored-pattern-`$`-capture class, full stop, present even in the plainest possible arm.
+### 7. ⛔⭐⭐⭐ SCRUTINY OF THE PLAN — THIS FILE HAS DRIFTED INTO BEING A DEFECT LEDGER, AND IT NEEDS A LON RULING
+**The EARN ladder itself has barely moved in five sessions.** EARN-0 is partially discharged and blocked; EARN-1 not started; EARN-2 not opened. Meanwhile s33–s37 are almost entirely **crash triage**, and the biggest measured win of this whole stretch — §1's 42 repaired programs — **had nothing to do with the EARN predicate.** It was a missing register load on an entry bridge.
 
-**⭐ ONE NEW, POTENTIALLY USEFUL TOOL FOR WHOEVER CONTINUES EARN-0:** `setarch $(uname -m) -R` (disables ASLR) turned every tested minimal reproducer's nondeterministic `0/134/139` into a flat, 100%-reproducible `rc=139` (5/5 and 5/5 across two structurally different one-line programs). The crash register state is identical across both: `rbp` sane (real stack address), `r9`/`r10`/`r11` (GVA base + wire registers) all sane, but `rsp` = the exact value `0x7fff00000000` (`= 0x7FFF << 32`) both times — too structured to be organic drift, consistent with a specific wrong constant or mis-shifted value landing in RSP rather than gradual corruption. **Not diagnosed further than this** — did not single-step to the write site. Given EARN-0's own file flags gdb as "dark on the hang class" specifically because of nondeterminism, ASLR-off may be worth trying there too, though the hang witness (`earn0_stored_varref`, deterministic rc=124 per that file) and the crash witness (`earn0_stored_capture`, nondeterministic) may not share a trigger — unconfirmed.
+Look at what this file is now carrying without clear ownership: the residual-11 (attributed to "the EARN predicate firing" but explicitly flagged as *a hypothesis from a name cluster, not a measurement*), the BUILDFAIL-4, `treebank-array`, `cap_imm_nret2`, the duplicate-label class, R-3's stored-pattern bug. The file already applies the right discipline in one place — of EARN-0's stored-pattern defect it says *"⛔ NOT ADOPTED BY GOAL-RBP-EARN. Root-causing it does not bill it here."* — **but that discipline is not being applied consistently to anything else.**
 
-**NEXT SEAT:** R-3 needs no further ownership as a standalone item — fold it into EARN-0 continuation (that file's own §8 NEXT SEAT list is the live queue: MONITOR-FIRST on `earn0_varref_cat_dropped`, the silent-wrong-answer arm, not the crash/hang arms). If picking up the crash/heap-exhaust arm specifically (`earn0_stored_capture`, and by extension `cap_imm_nret2`), the ASLR-determinism note above may shorten the loop.
+⇒ **The cost is real and compounding:** each new seat spends its budget on triage while believing it is advancing EARN, and the file grows (952 lines, **22 cursor entries** where `RULES.md` STALE-ORIENTATION (c) says *prune below the last ~3*). Orientation alone is now expensive — it consumed a large fraction of this session's budget before any work started.
+
+**LON: ONE OF THESE, PLEASE —**
+- **(a)** Split the defect ledger out (`GOAL-SN4-CRASH-TRIAGE.md` or route each item to its owning goal), leaving this file for the EARN ladder proper; **or**
+- **(b)** Accept that crash-triage IS the prerequisite — the tree cannot be measured for frame-need while it SEGVs — and **re-title the ladder to say so**, so seats stop mis-reading their own progress.
+- **Either way: prune this file.** 19 of 22 cursor entries are below the retention line RULES already sets.
+
+### 8. NEXT SEAT, IN ORDER
+1. **Rulings first:** §2 (`scrip.c` on the trigger list, and the four-copy sync problem) and §7 (this file's scope). Both are cheap to decide and both compound if left open.
+2. **EARN-0 continuation** — the real queue is that file's own §8: MONITOR-FIRST on `earn0_varref_cat_dropped`, **the silent-wrong-answer arm, not the loud crash/hang arms.** `setarch -R` (§5) may shorten the crash arm if taken.
+3. **Duplicate-label class** (§4) — start at `grep -rn g_m4_dense_nid`, verify before fixing.
+4. **`treebank-array`** m4 SEGV — unowned, unmoved.
+5. s34's items 2 and 4 (residual-11 bisection; W-pins two-mode gate) — unchanged. **Residual-11's EARN attribution is still an unmeasured hypothesis; MONITOR-FIRST before billing it here.**
+6. s29's queue beneath, unchanged. **s30b obligation (i) still OPEN.**
 
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s34 (Opus 5) — **THE `main_α` BRIDGE NEVER ESTABLISHED R9. RC-5-GVA LANDED ITS MAIN-ENTRY LOAD ON `flat_α` ONLY. ONE LINE: `patterns` DIVERGE 54→11, 42 REPAIRED, 0 REGRESSIONS. THIS IS A *SOURCE* FACT AND IT DOES NOT CONFLICT WITH s33's RETRACTION.**
 
