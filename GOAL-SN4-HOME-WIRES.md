@@ -93,23 +93,28 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
   file by name.** This likely applies to some of the remaining 8 files too; check each on its own
   merits, don't pattern-match from this file's result either.
 
-### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2)
-1. **The other 7 RTX `.S` files** (81 occ remaining: `rtx_str.S` 19 · `rtx_icnvar.S` 13 ·
-   `rtx_arith.S` 9 · `rtx_plcall.S` 10 · `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8 · `rtx_icnnum.S` 11).
-   `rtx_alloc.S` (20 occ) is now ALSO DONE — see FINDING-2026-08-12h addendum 2. Same hand-census
-   treatment for the rest. Check each file's "C of record" pointer and the relevant `lower_*.c`
-   for actual callers before assuming reachability from the filename.
+### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2) — 4 OF 10 RTX FILES DONE
+1. **The other 6 RTX `.S` files** (62 occ remaining: `rtx_icnvar.S` 13 · `rtx_arith.S` 9 ·
+   `rtx_plcall.S` 10 · `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8 · `rtx_icnnum.S` 11). `rtx_alloc.S`
+   (20 occ) and `rtx_str.S` (19 occ) are now ALSO DONE — see FINDING-2026-08-12h addenda 2/3.
+   Same hand-census treatment for the rest. Check each file's "C of record" pointer and the
+   relevant `lower_*.c` for actual callers before assuming reachability from the filename.
 2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
    D12/D13 flipping green.
 3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
-4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout. **W-4's arena wire-pair
+   slot design should account for the "carve/copy carry" shape** found in `rtx_str.S`
+   (`str_concat_d`: r10/r11 carry a fresh buffer pointer + length across exactly one
+   `rt_str_alloc` call, then die at `ret`) — a naive save-at-call-boundary scheme would clobber
+   this pattern, which recurs across the family (also in `rtx_match.S`'s `rt_cap_open` and
+   `rt_match_replace`).
 
 ⛔ W-5 REQUIRES (predicate): `grep -rn "frame_need_of" /home/claude/SCRIP/src/` non-empty AND
 `UNBLOCKS: WIRES W-5` on origin. Still FALSE, unchanged this session.
 
 **UNBLOCKS: nothing new** (RTX census is a sub-item of W-0, not a rung boundary by itself).
-**PROGRESS: 3 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 = 142
-of 223 total RTX occurrences classified, 81 remaining across 7 files).**
+**PROGRESS: 4 of 10 RTX `.S` files done (rtx_match.S 89 + rtx_icnsub.S 33 + rtx_alloc.S 20 +
+rtx_str.S 19 = 161 of 223 total RTX occurrences classified, 62 remaining across 6 files).**
 
 ---
 

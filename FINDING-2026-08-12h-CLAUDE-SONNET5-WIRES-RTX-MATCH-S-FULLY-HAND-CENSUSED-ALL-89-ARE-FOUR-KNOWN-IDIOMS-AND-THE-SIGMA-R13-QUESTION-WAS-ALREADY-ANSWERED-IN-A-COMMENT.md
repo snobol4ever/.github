@@ -182,3 +182,45 @@ collide with a callee's use of the wires because nothing here calls anything.
 
 **PROGRESS: 142 of 223 total RTX occurrences classified (3 of 10 files: rtx_match.S 89 +
 rtx_icnsub.S 33 + rtx_alloc.S 20), 81 remaining across 7 files.**
+
+## ADDENDUM 3 (same session, continued) — `rtx_str.S` (19/19 done) — LONGEST SAME-FUNCTION CARRY FOUND
+
+Read `rtx_str.S` in full (324 lines: `str_concat_d`, its `RTX_MEMCPY` macro, `VARVAL_fn`). Verified
+19 occurrences by script, matching the gate exactly. No reachability question — `str_concat_d`
+backs ordinary SNOBOL4 string concatenation (`A B`), manual Ch.3 p.21-22 (cited in the file's own
+header, including the type-preserving null-identity rule: `(20-17) ''` returns the INTEGER 3, not
+a string — confirmed against the same manual section read during orientation).
+
+**Gate-counting note, not a discrepancy:** `RTX_MEMCPY` is invoked twice (lines 175, 179) but its
+6 r11 occurrences are counted ONCE by the gate, since it operates on source text before macro
+expansion. Correct per the gate's stated scope; worth recording so a future `objdump`-vs-gate diff
+isn't misread as drift.
+
+**Classification:**
+
+| Location | Occ | Idiom | Role |
+|---|---|---|---|
+| `RTX_MEMCPY` macro (8/4/1-byte branches) | 6 | local scalar, copy-primitive half-pair | 2-instruction lifetime, textually once, expands 2x at assembly |
+| SXT-token check | 3 | hidden-global accessor + local scalar | momentary |
+| **carve/copy sequence (lines 165-207)** | 7 | **⭐ longest same-function carry found so far** | r10=`buf`, r11=`len(al+bl)`, live from just after the ONE `rt_str_alloc` call through to `ret` (~42 lines) — but crossing exactly one call, and that callee (verified in the `rtx_alloc.S` addendum) never touches r10/r11 in a way that would clobber a caller's value across it. |
+| SXT re-arm tail | 3 | same carry, tail read-back | same `buf`/`len` |
+
+**Risk note for W-4/W-5:** this carve/copy shape (alloc call → carry ptr+len across the copy →
+return) recurs across the family — also in `rtx_match.S`'s `rt_cap_open` and `rt_match_replace`.
+Any WREG wire-preservation design that assumes r10/r11 are free to reuse immediately after a call
+returns will break this pattern; it needs to be named explicitly as a shape the arena slot or
+template save/restore must cover, not just treated as "crosses a call" in the abstract. Folded
+into the goal file's W-3/W-4 next-seat note.
+
+### NEXT SEAT, IN ORDER (supersedes the list above — 4 of 10 RTX files now done)
+
+1. **The other 6 RTX `.S` files** (62 occ remaining: `rtx_icnvar.S` 13, `rtx_arith.S` 9,
+   `rtx_plcall.S` 10, `rtx_icnagg.S` 11, `rtx_icnrel.S` 8, `rtx_icnnum.S` 11). Same treatment.
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout (account for the
+   carve/copy carry shape above).
+
+**PROGRESS: 161 of 223 total RTX occurrences classified (4 of 10 files), 62 remaining across
+6 files.**
