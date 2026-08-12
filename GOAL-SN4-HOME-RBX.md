@@ -100,7 +100,30 @@ Three properties to carry forward:
 ## GATES (every rung)
 RC-8a coverage gate (self-arming, lands WARN→FAIL on tier claim) · probe + bench BY SET vs P0 floors · positive control on every census (a gate that cannot fail for the right reason is not a gate) · FINDING + cursor move.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s37 (Sonnet 5) — RECONCILIATION of two concurrent same-seat sessions (s35/s36, both starting from s34, s38b-class near-miss — see s36's own CONCURRENT-SESSION NOTE below; no file-write collision occurred, both pushed cleanly, this entry merges the substance per RULES "if two seats touch one file, merge it"). **X-0 CLOSED · X-1 CLOSED · X-2 unchanged from s34** (still open, seating still Lon/BOARD's call — untouched by either s35 or s36).
+## ⭐ LIVE CURSOR — 2026-08-12 s38 (Sonnet 5) — first REAL CODE landed on X-3 this session (SCRIP `044f80f0`). **X-0 CLOSED · X-1 CLOSED · X-2 unchanged from s34** (untouched).
+
+**X-3 fork (a), HALF LANDED, MEASURED, NOT SUFFICIENT.** `bb_glue_flat_enter`/`_leave` now carve RSP
+under `ZC_STORAGE_CELL_HEAP` identically to `CELL_STACK`, replacing the deliberate `x86_bomb()` a prior
+session put there. FINDING: `FINDING-2026-08-12m-…md`. **Proven zero regression** (probe/bb m3+m4
+identical-by-set to s35's baseline; `.s` byte-diff clean on the default FORTH port). **Proven
+insufficient** (this is the important, honest result, not a footnote): full BY-SET re-measurement of
+patterns/gc/capture under HEAP shows the **pass set is completely unchanged** (36/122, 13/15, 6/9, `diff`
+clean against pre-fix snapshots) — only one witness's failure *mode* moved (`158_pat_cap_arbno_each_iter`
+SIG11→DIFF; crash eliminated, still wrong). `041_pat_span` (s35's witness) is **unchanged, still SIG11**
+— confirming `FINDING-2026-08-12k`'s own fork description: this landed only the `bb_glue_flat_enter` half
+of fork (a); the REG-4b central-hook path (`x86_asm.h:2320-2333`) is the sibling gap the fork explicitly
+named and this session did not attempt. **NEXT RUNG: read REG-4b in full, add its RSP-carve counterpart
+under the same TEMPLATE-ONLY/BOTH-MEDIUM discipline, re-run the same three BY-SET measurements —
+acceptance is the pass SET actually growing this time, not just a failure-mode shift.** Do not consider
+fork (a) closed until that lands and is BY-SET verified; do not start fork (b) before fork (a) is closed
+(per `FINDING-2026-08-12k`'s own ordering).
+
+⛔ **PUSH STATUS: NOT YET PUSHED.** Commits sit local, rebased clean on origin, credential requested
+in-chat and not yet supplied (RULES 6b) — this is not a handoff claim, this cursor entry is committed
+locally same as everything else this session. Own-HEAD floors stand at the s35 baseline throughout;
+nothing in this cursor has been re-measured against a moving floor without saying so.
+
+### PRIOR — 2026-08-12 s37 (Sonnet 5) — RECONCILIATION of two concurrent same-seat sessions (s35/s36, both starting from s34, s38b-class near-miss — see s36's own CONCURRENT-SESSION NOTE below; no file-write collision occurred, both pushed cleanly, this entry merges the substance per RULES "if two seats touch one file, merge it"). **X-0 CLOSED · X-1 CLOSED · X-2 unchanged from s34** (still open, seating still Lon/BOARD's call — untouched by either s35 or s36).
 
 **X-3: MECHANISM IS s36's, NOT s35's — self-correction, not a tie.** Both sessions independently opened
 X-3 and reproduced the same HEAP-port residence gap from the same starting cursor. s35 (`FINDING-2026-08-12j`)
