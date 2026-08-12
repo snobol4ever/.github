@@ -14,4 +14,4 @@
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
-## ⭐ LIVE CURSOR — UNOPENED (minted s30). ⛔ W-5 is phase-gated on the RBP seat; W-0..W-4 are P1-concurrent.
+## ⭐ LIVE CURSOR — UNOPENED (minted s30; s32 fire-and-forget). W-0..W-4 runnable NOW. ⛔ W-5 REQUIRES (predicate — CHECK, never wait): `grep -rn "frame_need_of" /home/claude/SCRIP/src/` non-empty AND an EARN-3 anchor landing on origin (RBP cursor line `UNBLOCKS: WIRES W-5`); FALSE ⇒ skip to W-6's RTCC half or pull from the master POOL.

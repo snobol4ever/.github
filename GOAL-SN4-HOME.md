@@ -4,7 +4,35 @@
 
 **THE EMISSION KEY (Lon, same session, verbatim in substance):** *"A BB will EITHER access its operand's RESULT and its own LOCALS via RBP, OR via RSP."* Per-BB binary, decided at plan time by `frame_need_of` (EARN-1), emitted only by `x86_alpha`/`x86_omega` (s29 ruling: RBP is never glue work). The reading-edge sharpening keeps ALT/CAT on the RSP side even with `*P` operands.
 
-This file is the MAP. Seats execute their own seat file (below); cursors live in seat files; this file's phase table moves only at phase boundaries. All prior laws bind (RULES.md · MONITOR-FIRST · TEMPLATE-ONLY · BOTH-MEDIUM · LIVE CURSOR discipline · one clone per seat · `git config --local`, never global).
+This file is the MAP. Seats execute their own seat file (below); cursors live in seat files. All prior laws bind (RULES.md · MONITOR-FIRST · TEMPLATE-ONLY · BOTH-MEDIUM · LIVE CURSOR discipline · one clone per seat · `git config --local`, never global).
+
+## ⛔⭐⭐⭐ EXECUTION MODEL — FIRE-AND-FORGET (s32; RULES 2026-08-10 applied to this plan: no windows, no waiting, no human scheduling. Supersedes every "solo" / "‖" / "SERIAL, one seat at a time" reading below.)
+
+**LON'S ENTIRE JOB: keep FIVE sessions alive, ONE PER SEAT FILE, re-fired with the same line whenever one ends. Nothing else — no who/what/when decisions. The files route the work.**
+
+| fire with (verbatim) | file the session owns |
+|---|---|
+| `here we go — RBP seat, GOAL-RBP-EARN.md` | `GOAL-RBP-EARN.md` |
+| `here we go — BOARD seat, GOAL-SN4-HOME-BOARD.md` | `GOAL-SN4-HOME-BOARD.md` |
+| `here we go — LOWER seat, GOAL-SN4-HOME-LOWER.md` | `GOAL-SN4-HOME-LOWER.md` |
+| `here we go — WIRES seat, GOAL-SN4-HOME-WIRES.md` | `GOAL-SN4-HOME-WIRES.md` |
+| `here we go — RBX seat, GOAL-SN4-HOME-RBX.md` | `GOAL-SN4-HOME-RBX.md` |
+
+**THE ONE INVARIANT (the only scheduling rule in the plan): ONE LIVE SESSION PER SEAT FILE.** Two sessions in one file is the s38b race. Everything else is git.
+
+**SELF-GATING PROTOCOL — every session, at orientation and before every rung:**
+1. `git pull --rebase` every repo; read YOUR file's LIVE CURSOR and any `UNBLOCKS:` lines pushed since.
+2. Walk YOUR rungs top-down. A rung carrying a ⛔ REQUIRES line: evaluate its predicate against the repo (one command, stated on the rung). TRUE ⇒ run it. FALSE ⇒ **skip DOWN — never wait, never park** (RULES). If the missing prerequisite is UNCLAIMED anywhere, doing it yourself IS your next rung — first push wins, the duplicate seat pulls and consumes (the s38b concurrent-repair pattern).
+3. Own ladder exhausted, or every remaining rung predicate-false ⇒ **pull the top unclaimed POOL item** (below); claim it with a cursor line in the same push.
+4. Every handoff cursor ends with **`UNBLOCKS: <seat> <rung>`** naming what your landing opened.
+5. **Floors:** judge BY SET vs BOARD's published floors once they exist; until then, measure YOUR OWN open-state and judge against that (the standing watermark practice — self-baseline, don't wait). ⛔ Never quote an m4 number without the 30-second liveness check (`run_suite.sh MODE=compile` on one probe returns non-empty); dark ⇒ m3-only, say so — and B-0 is fair game to claim.
+
+## THE POOL (unclaimed work for any seat whose ladder is exhausted or blocked; disjoint surfaces by construction; claim = cursor line, first push wins)
+1. **DEFER-LATCH** — `g_star_peek` → per-site resolution (`pattern_match.c` only; witnesses `140`/`141`, RED m3 rc=139 / PASS m4 — two-sided for free). Authority: GOAL-SNOBOL4-RTX row + s31 ledger.
+2. **LADDER KW** — GOAL-SNOBOL4-BB KW-0..6 (acceptance = xc318 keywords-12 green both modes).
+3. **CLIMB C-10 / C-11** — GOAL-SN4-ZETA-CLIMB (C-11 doubles as the EARN reentrancy stress suite).
+4. **LADDER AB** — GOAL-SNOBOL4-BB AB-3..6. ⛔ REQUIRES (predicate): EARN-11 sole-writer landed AND EARN-7's completion greps green in the tree you arm.
+5. **BOARD B-8 / B-7(iv)** — RTX instrument debts · witness promotions · BREAKX mint (if BOARD's session is deep in B-0..B-4).
 
 ## REGISTER CONTRACT OF RECORD (the HOME state)
 
@@ -42,7 +70,7 @@ This file is the MAP. Seats execute their own seat file (below); cursors live in
 | **BEAUTY** | `programs/snobol4/demo/beauty/beauty.sno` (Milestone-1 flagship) + `programs/snobol4/beauty_suite/` + `smoke/beauty_compiled.sno` | `test_gate_sn7_beauty_self_host.sh` · `test_monitor_beauty_smoke.sh` · `test_gate_em_beauty_subsystems_mode4.sh` · `test_interp_broad_corpus_and_beauty.sh` | ⛔ **17/17 drivers SIGSEGV at HEAD (FUNC-11, one include)** ⇒ **RBX X-2's ACCEPTANCE**; the flagship byte-identity is **P4's seal (HOME GATE line 6)** |
 | **lib/** | `case.sno` · `string.sno` · `math.sno` · `stack.sno` | exercised via demo/xc customers | LOWER L-3 (`test_case` is a splice customer) · L-5 (`test_string`) |
 
-## PHASES (‖ = concurrent seats; serialization points are DELIBERATE)
+## PHASES — DEPENDENCY MAP ONLY (s32: NOT a schedule; the only gates are rung-level ⛔ REQUIRES predicates; the "solo"/"‖"/"SERIAL" wording below is legacy shape, non-binding — see EXECUTION MODEL)
 
 - **P0 — BASELINE (BOARD seat, solo, opens immediately):** m4 harness repair → floors re-proved BOTH modes at ONE hash → EARN-2 census re-cut to UNEARNED/OWED (⛔ standing law: BEFORE any frame-moving rung; also settles 557-vs-263) → discriminating refs (the 10 unclearable + polarity siblings) → claim gate data+strict. **Output = the floors every later seat judges BY SET against.**
 - **P1 — ‖ FOUR SEATS (disjoint file surfaces):** **RBP** (GOAL-RBP-EARN): MONITOR-FIRST on `earn0_disc_arbno_star_fence_positive` → EARN-1 dormant → EARN-3 anchor → EARN-4 ARBNO-from-scratch (discharges ruling (c) by execution; witnesses N22–N33 + arb1 T1/T2 + 151) ‖ **LOWER** (HOME-LOWER): Defect A → B → C-9 residuals → 061 ‖ **WIRES** (HOME-WIRES): claim sweep incl. asm → ZCTX r10/r11 scratch eradication → guard unification → WREG mechanism DORMANT ‖ **RBX** (HOME-RBX): contract → RC-8a → FUNC-11 allocation instrumentation → fix.
@@ -82,5 +110,5 @@ Legacy goals (SNOBOL4-BB · SNOBOL4-RTX · RTCC · ZETA-MECH · ZETA-CLIMB) rema
 - **BB demo-board bisect** (`d2328f81..942ef1b1`, predicate `/home/claude/bisect_tb.sh`, witness treebank-match rc=139): **HELD AS FALLBACK** — P2's prediction is EARN restores the FF-0 defer members; if the 15-board does not recover, the bisect is the instrument, not a re-derivation.
 - **Milestone-2** (stage2 self-host): explicitly **OUT OF HOME SCOPE** — GATE 6 re-proves Milestone-1 only.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s31 (Fable 5, CONSOLIDATED audit — ZERO compiler bytes, no gates run, no watermark moved)
+## ⭐ LIVE CURSOR — 2026-08-12 s32 (Fable 5 — EXECUTION MODEL landed: fire-and-forget, five sessions one-per-seat-file, self-gating REQUIRES predicates + THE POOL; no human scheduling exists in this plan. The s31 audit facts below stand unchanged. ZERO compiler bytes.)
 P0 STILL UNOPENED; first seat BOARD (B-0 m4 harness repair first). **s31 = the consolidation audit** (`FINDING-2026-08-12b-CLAUDE-FABLE5-SN4-HOME-CONSOLIDATION-AUDIT-…md`): the EARN scheme VERIFIED as frame-pointer-on-demand (alloca/VLA discipline) + side arena — sound, taxonomy total, conditional on (i) reads-based census incl. glue reads, (ii) the closed re-entry edge inventory (new GATE line 7), (iii) GC coverage (X-1). Ledger above minted; register contract completed (R13/R14/R15 rows; REGISTER-LAYOUT.md's r12=ζ row bannered STALE); RC-8b/8c → RBX X-5; defer-latch → P1; KW + C-10/C-11 → P3.5; three obligations attached to EARN rungs (RBP-EARN s31 cursor). Fingerprints at s30 mint stand: SCRIP `fc5b0754` · corpus `5c17de98`+witnesses · x64 `5035571`. Ruling ledger unchanged: (a) RULED s30/s30b (arena stands) · (b) OPEN, zero-cost · (c) discharged by EARN-4 execution when P1-RBP runs it · (d) decidable at P3.

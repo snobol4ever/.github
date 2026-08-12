@@ -136,6 +136,11 @@ DELETE the `sub rsp,16` carve and every `[rsp+0]`/`[rsp+4]` cursor access. Rebui
 - **EARN-3 (anchor) gains a deliverable: THE CLOSED RE-ENTRY EDGE INVENTORY** — every RBP/R12 restore edge enumerated and INDIVIDUALLY witnessed: backtrack β per choice class (arena pin W5: verify, never assume) · ω unwind · FENCE whack · scanfail · ABORT drain · unanchored retry bump · **NRETURN · direct Goto `:<C>`/CODE() · SETEXIT** (Ch.9/19 non-local transfers, previously unnamed in any seat file). Now HOME GATE line 7. One missed edge = the FF-0 class.
 - **EARN-0b addendum (one measurement):** Σ(r13)/Δ(r15) restore across a NESTED match — the LIFO check verified rsp/rbp only; re-run `161_pat_defer_fn_nested_match` watching r13/r15 (δ=r14 rides the choice record by design).
 
+**⛔ s32 — REQUIRES PREDICATES (fire-and-forget; CHECK, never wait; false ⇒ skip down, or do the prerequisite yourself if unclaimed — first push wins):**
+- **EARN-4 · EARN-7 · EARN-11 REQUIRE the EARN-2 re-cut landed.** Predicate: `bash /home/claude/SCRIP/scripts/test_census_rbp_frames.sh` output carries `UNEARNED`/`OWED` columns (legacy frame-count output = FALSE). EARN-2 is duplicated at BOARD B-2 by design.
+- **EARN-11 additionally REQUIRES EARN-7's completion greps green** in the same tree it arms.
+- **The W-5 flip lives in WIRES' file with its own predicate** — this seat's job is to LAND EARN-1 + EARN-3 and push `UNBLOCKS: WIRES W-5`.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s30 (Fable 5, CONSOLIDATED — all parallel sessions stopped; ONE seat owns RBP-EARN + SNOBOL4-BB + SNOBOL4-RTX + RTCC + ZETA-MECH + ZETA-CLIMB) — **RULING (a) TAKEN: PENDINGS GO ON THE SPINE ("let's attempt SPINE and avoid HEAP at all costs" — Lon in-chat, verbatim). (b)/(c)/(d) EXPLICITLY LEFT OPEN. PENDING LIFETIME SEMANTICS ORACLE-PINNED (5 witnesses, refs baked). THE WHACK×PENDING COLLISION IS NAMED — AND HEAD DODGES IT TODAY BY KEEPING DCAP PENDS OFF THE SPINE (r12 mmap island), WHICH IS EXACTLY THE ARM RULING (a) RETIRES.**
 
 **Fingerprint:** SCRIP `fc5b0754` UNTOUCHED — ZERO src bytes, matches s29's fingerprint (no seat moved it) · corpus `5c17de98` + 5 new witnesses `probe/earn0/earn0_pend_*` (oracle-baked refs; ⛔ SCRIP behaviour on them UNMEASURED — no build this session) · `.github` this commit · x64 `5035571` cloned, sbl smoke-tested.
