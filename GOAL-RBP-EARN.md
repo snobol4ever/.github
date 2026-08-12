@@ -129,7 +129,219 @@ DELETE the `sub rsp,16` carve and every `[rsp+0]`/`[rsp+4]` cursor access. Rebui
 
 **NET EFFECT ON THE LADDER:** EARN-0b closed(0) · EARN-5's owner rule confirmed(1) · EARN-4 gains its emission shape — ENTER at α **and** β, chain-as-counter(2) · EARN-6's FENCE1 row keeps its verdict with a corrected justification(3) · the hazard taxonomy is confirmed COMPLETE at two classes. **Rulings (a)/ROOTSPINE remain OPEN — Lon: "Unsure."**
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-12 s35–s37 CONSOLIDATED (Claude Sonnet 5) — **ALL THREE OF s34's OPEN RULINGS ARE CLOSED: R-2 SETTLED BY CONTROLLED A/B (THE SITE-A GAP IS REAL, NOT A BUILD ARTIFACT), R-1 RULED YES AND REGEN ×3 RUN, R-3 IS NOT A NEW DEFECT BUT AN INSTANCE OF THE TRACKED EARN-0 STORED-PATTERN CLASS. ⭐⭐⭐ AND A STRUCTURAL CONCERN ABOUT THIS GOAL FILE ITSELF — SEE §7, IT NEEDS A LON RULING.**
+## ⛔⭐⭐⭐ FIX PLAN — s38 (Claude Sonnet 5, 2026-08-12) — STABILIZE THE FLOOR BEFORE TOUCHING THE EARN LADDER
+
+**The problem in one sentence:** the EARN ladder cannot be honestly measured while the tree crashes on the very constructs the predicate must evaluate. Every seat arriving here spends its budget on crash triage rather than EARN, and leaves believing it made no progress. **This block turns that into a sequential fix plan with a done condition for each step.**
+
+---
+
+### STEP 0 — FIX THE STORED-PATTERN LOWERER DEFECT (BLOCKER FOR EARN-0)
+
+**What:** `P = LEN(1)` then `Q = P LEN(2)` then `'abc' Q` crashes or hangs. The assignment to `P` is never emitted into IR when the later use is via a stored-pattern blob path. Already convicted: it is in `lower_snobol4.c`, `SCRIP_PAT_INLINE` is the knob, the optimizer is exonerated.
+
+**Exact steps:**
+```bash
+# 1. Reproduce the conviction
+SCRIP_PAT_INLINE=0 ./scrip --dump-ir /home/claude/corpus/probe/earn0/earn0_stored_varref.sno 2>&1 | grep "ASSIGN var"
+# expect: present (1 line). Without the flag: absent (0 lines). That is the defect.
+
+# 2. Find the decision site
+grep -n "pat_inline\|PAT_INLINE\|pat_static\|SNO.MKPAT" src/lower/lower_snobol4.c | head -20
+# The line that elides the ASSIGN when the consumer is a blob-path use is the one to fix.
+
+# 3. Fix: the ASSIGN must be emitted regardless of how the RHS variable is consumed downstream.
+#    Lower does not yet know whether the consumer will be a blob or a BINOP — that is decided
+#    by the later statement, not the current one. The elision is premature.
+
+# 4. Gate: run the earn0 probe suite
+for f in /home/claude/corpus/probe/earn0/earn0_stored_*.sno \
+          /home/claude/corpus/probe/earn0/earn0_varref_*.sno; do
+  expected=$(cat "${f%.sno}.ref" 2>/dev/null)
+  got=$(timeout 10 ./scrip --run "$f" < /dev/null 2>/dev/null)
+  [ "$expected" = "$got" ] && echo "PASS $(basename $f)" || echo "FAIL $(basename $f)"
+done
+
+# 5. Done condition: every earn0_stored_* and earn0_varref_* probe exits 0 with oracle-matching output.
+#    setarch $(uname -m) -R before each run to eliminate ASLR nondeterminism during testing.
+```
+
+**Files to touch:** `src/lower/lower_snobol4.c` only. If the fix requires touching `src/optimizer/`, re-examine — the optimizer is already exonerated, any optimizer-side fix is treating a symptom.
+
+---
+
+### STEP 1 — OWN THE RESIDUAL-11 m4-ONLY CRASHES IN crosscheck/patterns
+
+**What:** 11 programs in `crosscheck/patterns` exit m4 SEGV while m3 is 0 — a MODE34-IDENTICAL violation. Named cluster: `063/064/065/066_pat_fence_fn_*`, `156_pat_cap_alt_abandon_pop`, `157_pat_cap_arb_alt_keep`, `141_pat_eval_double_fn_arbno`, `121_pat_calc_op_dispatch`, `064_replace_multi_arm`, `154_pat_construction_time_hoist`, + `treebank-array`. The hypothesis (s34) is that `*FN` inside a FENCE makes P's growth non-constant — the EARN predicate firing. **That is a name-cluster hypothesis, not a measurement.**
+
+**Exact steps:**
+```bash
+# 1. Get the current list with fresh eyes
+bash scripts/test_census_m3_m4_divergence.sh \
+  /home/claude/corpus/crosscheck/patterns /tmp/residual11.tsv
+awk -F'\t' '$3=="<SEGV>" && $4==0 {print $1}' /tmp/residual11.tsv
+
+# 2. Pick the simplest failing program (shortest source, fewest constructs).
+#    Diff its mode-3 vs mode-4 emitted assembly to find the first structural difference:
+PROG=<chosen>
+./scrip --compile /home/claude/corpus/crosscheck/patterns/$PROG.sno > /tmp/m4_$PROG.s
+# mode-3 has no .s artifact — use --dump-ir as a proxy, or instrument with SCRIP_BLOB_MAP=1
+# Compare the blob layout in m3 (binary) vs m4 (text) for the first differing construct.
+
+# 3. MONITOR-FIRST: run the 2-way sync-step monitor against SPITBOL for the chosen program.
+bash scripts/test_monitor_2way_sync_step_bin.sh \
+  /home/claude/corpus/crosscheck/patterns/$PROG.sno
+# First divergent trace event names the construct. The bug lives between that event
+# and the previous agreeing one. That is the ONLY valid entry point — no code reading first.
+
+# 4. Done condition: census returns PURE m4-only crash class = 0.
+#    Run census twice back-to-back and diff — the instrument is byte-stable (measured s35).
+```
+
+**Do not assume the fence_fn_* hypothesis is correct.** Verify from the monitor trace before opening any template.
+
+---
+
+### STEP 2 — FIX treebank-array m4 SEGV
+
+**What:** `corpus/programs/snobol4/demo/treebank-array.sno` exits m4 SEGV, m3 clean. Unmoved since at least s32. Separate from the r9/Site-A class (confirmed this session: the main_α fix did not touch it).
+
+**Exact steps:**
+```bash
+# 1. Confirm it is still broken at current HEAD
+setarch $(uname -m) -R \
+  ./scrip --compile /home/claude/corpus/programs/snobol4/demo/treebank-array.sno \
+  > /tmp/ta.s 2>/dev/null
+gcc -no-pie /tmp/ta.s -Lout -lscrip_rt -lm -Wl,-rpath,$(pwd)/out -o /tmp/ta.prog
+setarch $(uname -m) -R timeout 15 /tmp/ta.prog < /dev/null; echo "rc=$?"
+# expect: rc=139
+
+# 2. Diff its .s against the m3 blob layout via SCRIP_BLOB_MAP=1 --run
+SCRIP_BLOB_MAP=1 setarch $(uname -m) -R \
+  ./scrip --run /home/claude/corpus/programs/snobol4/demo/treebank-array.sno \
+  < /dev/null > /dev/null 2>/tmp/ta_blobmap.txt
+cat /tmp/ta_blobmap.txt | head -30
+
+# 3. Nearest passing sibling: treebank-list runs clean in both modes.
+#    diff the two programs' --dump-ir output to find the construct class that differs.
+diff <(./scrip --dump-ir /home/claude/corpus/programs/snobol4/demo/treebank-list.sno 2>&1) \
+     <(./scrip --dump-ir /home/claude/corpus/programs/snobol4/demo/treebank-array.sno 2>&1) \
+  | head -40
+
+# 4. MONITOR-FIRST: 2-way sync-step monitor on treebank-array.
+bash scripts/test_monitor_2way_sync_step_bin.sh \
+  /home/claude/corpus/programs/snobol4/demo/treebank-array.sno
+
+# 5. Done condition: treebank-array exits 0, output matches .ref, both modes.
+```
+
+---
+
+### STEP 3 — FIX THE DUPLICATE-LABEL AS-FAIL (porter.sno's .Lx generator)
+
+**What:** `porter.sno` compiles to 93,370 lines of `.s` then fails assembly with 1 duplicate symbol (`.Lx3548_40`). The generator is `x86_internal_name()` in `x86_asm.h:736` — `".Lx" + _.x86_uid + "_" + n`. The expression-sno `.Lbynamefn` bug is **separate** and already owned by the BOARD seat (FINDING-2026-08-12h). Do not conflate them.
+
+**Exact steps:**
+```bash
+# 1. Confirm porter's collision is the .Lx family, not .Lbynamefn
+grep "already defined" /tmp/porter.aserr | head -5
+# expect: .Lx#### lines, not .Lbynamefn lines
+
+# 2. Find where g_m4_dense_nid interacts with g_flat_node_id
+grep -rn "g_m4_dense_nid" src/ --include=*.c --include=*.cpp --include=*.h
+# This flag is set to 1 at scrip.c:1335 immediately after g_flat_node_id=0.
+# Read what it gates — if it remaps UIDs to a per-procedure compact range,
+# two procedures with the same local node count will produce the same .Lx labels.
+
+# 3. Hypothesis to test: does x86_begin() in TEXT mode branch on g_m4_dense_nid?
+grep -n "dense_nid\|x86_begin" src/templates/x86_asm.h | head -20
+
+# 4. If g_m4_dense_nid causes per-proc counter reset: fix by making x86_uid
+#    draw from a global monotone counter in TEXT mode regardless of dense_nid.
+#    The fix should be in x86_asm.h's x86_begin() or in whatever code g_m4_dense_nid gates.
+
+# 5. Gate: porter.sno compiles and assembles without error.
+cd /home/claude/corpus/programs/snobol4/demo
+timeout 60 /home/claude/SCRIP/scrip --compile porter.sno > /tmp/porter2.s 2>/dev/null
+gcc -c /tmp/porter2.s -o /tmp/porter2.o 2>/tmp/porter2.aserr \
+  && echo "PASS: assembles clean" \
+  || { echo "FAIL: $(wc -l < /tmp/porter2.aserr) errors"; head -5 /tmp/porter2.aserr; }
+
+# 6. Done condition: zero assembler errors on porter.sno and expression.sno (with cwd=beauty_suite/).
+#    Re-run demo regen afterward (util_regen_demo_s_artifacts.sh) and commit updated .s files.
+```
+
+**Note on expression.sno:** it has no `-I` flag in scrip's CLI — include resolution is CWD-relative. Compile as:
+```bash
+cd /home/claude/corpus/programs/snobol4/beauty_suite
+/home/claude/SCRIP/scrip --compile \
+  /home/claude/corpus/programs/snobol4/demo/expression.sno > /tmp/expression.s
+```
+Once porter's generator is fixed, retest expression — if it shares the same counter, one fix may close both.
+
+---
+
+### STEP 4 — ADD scrip.c TO THE REGEN TRIGGER LIST (4 PLACES)
+
+**What:** `src/driver/scrip.c` calls `emit_textf()` directly and a one-line change there moves emitted bytes for every m4 SNOBOL4 program. The trigger list is currently missing it in all four places it appears.
+
+**Exact steps:**
+```bash
+# Edit these four locations to add "src/driver/scrip.c" to the trigger list:
+# 1. RULES.md step 4 line (currently: "emit.cpp, emit.h, src/templates/*.cpp, x86_asm.h, lower_snobol4.c")
+# 2. scripts/util_regen_benchmark_s_artifacts.sh header comment
+# 3. scripts/util_regen_feature_s_artifacts.sh header comment
+# 4. scripts/util_regen_demo_s_artifacts.sh header comment
+# No code changes — documentation only. Commit all four together.
+```
+
+**Longer-term:** four hand-synced copies of the same list is itself a defect vector. Consider a single `REGEN_TRIGGERS` variable sourced by all three scripts, with RULES.md pointing at it.
+
+---
+
+### STEP 5 — PRUNE THIS FILE AND RULE ON ITS SCOPE
+
+**What:** 952 lines, 22 cursor entries where RULES says prune below the last ~3. Orientation cost is compounding — it consumed a significant fraction of the last two sessions before any work started.
+
+**Exact steps:**
+```bash
+# 1. Prune: keep s35-s37 consolidated (this session's entry, line 132),
+#    s34 (the r9 fix, still live context), and s33 (the build-order retraction,
+#    needed to interpret s34). Archive everything below s33 into a comment or delete.
+#    Target: <400 lines total, <=3 cursor entries visible.
+
+# 2. Rule on scope (Lon): is crash-triage an explicit prerequisite spelled out here,
+#    or does each crash item belong to its owning goal (SNOBOL4-BB, EARN, etc.)?
+#    The file currently carries items it explicitly says "NOT ADOPTED BY GOAL-RBP-EARN"
+#    for (EARN-0 stored-pattern) but then carries without that disclaimer for others
+#    (residual-11, treebank-array, cap_imm_nret2). Consistency ruling needed.
+```
+
+---
+
+### DONE CONDITION FOR THE WHOLE PLAN
+
+```bash
+# Run this after Steps 0-3 are complete. All lines should read PASS or AGREE:
+bash scripts/test_census_m3_m4_divergence.sh \
+  /home/claude/corpus/crosscheck/patterns /tmp/final_check.tsv
+grep "DIVERGE=0\|PURE m4 CRASH CLASS = 0" /tmp/final_check.tsv || \
+  awk -F'\t' '$3!==$4' /tmp/final_check.tsv
+
+# And the earn0 probe suite:
+for f in /home/claude/corpus/probe/earn0/earn0_stored_*.sno \
+          /home/claude/corpus/probe/earn0/earn0_varref_*.sno; do
+  setarch $(uname -m) -R timeout 10 /home/claude/SCRIP/scrip --run "$f" < /dev/null \
+    > /tmp/got.txt 2>/dev/null
+  diff -q "${f%.sno}.ref" /tmp/got.txt > /dev/null \
+    && echo "PASS $(basename $f)" || echo "FAIL $(basename $f)"
+done
+
+# When both of the above are clean, EARN-0's predicate table can be hand-checked
+# against a compiler that doesn't silently mangle what you're measuring.
+# That is the entry condition for EARN-1.
+```
+
+
 
 **Fingerprint:** SCRIP `29fd4ad8` · corpus `3621fc4f` · `.github` this commit. Both builds ran AFTER `install_system_packages.sh` (verified, no exceptions). ⛔ **PUSH STATE AT WRITE TIME:** rebased onto moved origin (`.github` was 17 behind, SCRIP 7, corpus 4). **SCRIP and corpus rebased to ahead=0 — my regen commits were absorbed as identical (see §2); nothing to push there.** `.github` has 5 commits pending, credential requested in-chat per RULES 6b. `handoff_status.sh` is the only push truth — do not trust this line.
 
