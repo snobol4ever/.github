@@ -291,6 +291,28 @@ Lon answered s41's questions (2) and (3) in-chat: **BOARD owns the demo/bench wo
 
 ---
 
+## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, same session). **STALE .s ARTIFACTS REGENERATED (demo + benchmark) AGAINST FRESH HEAD `f16775ff`; T-CLASS CENSUS RE-RUN AND CONFIRMED UNCHANGED BY THE DEFINE-DOUBLE-EMISSION FIX. Compiler bytes: none written by this seat — regen only, both scripts self-committing.**
+
+**Why:** `git pull --rebase` picked up `cea77eca` (GOAL-MODE34-IDENTICAL 5a: fix DEFINE-entry double-emission in `emit.cpp`, landed 22:21 UTC) — but the demo `.s` artifacts in corpus were last regenerated at 18:12 UTC (`b80af33c`), i.e. **stale relative to HEAD** at the moment `test_census_rbp_frames.sh` was about to be run for the (narrowed, T-class-only) B-2 substitute. Running a census against stale artifacts is exactly B-9's mute-instrument class one level up — the script would report a confident, wrong-vintage number. Regenerated before measuring, per RULES.md handoff step 4 (now binding on this seat, s41b ruling).
+
+**What ran:** `util_regen_demo_s_artifacts.sh` (corpus `a7b26994`) — 6 files updated (`roman calculator-1 calculator-2 treebank-list treebank-array json-match-fence`), consistent with a DEFINE-related emission fix touching NRETURN/function-heavy programs; `claws5.s`/`json.s` SKIP (assembler-rejected — the pre-existing, already-tracked `.Lbynamefn*` duplicate-label class, unrelated to this fix, left untouched per the script's graceful-skip contract). `util_regen_benchmark_s_artifacts.sh` (corpus `a48fee8e`) — 8 files updated, `fibonacci.s` shrank ~800 lines — real bytes changed, not a no-op regen.
+
+**Census re-run at fresh HEAD, IDENTICAL to the pre-regen (stale) numbers:**
+```
+programs/snobol4/demo:      MAIN est=29 push=19 · PAT-BLOB est=28 push=26 · PROC est=8 push=2  · TOTAL est=65  push=47
+benchmarks/snobol4:         MAIN est=9  push=7                                                  · TOTAL est=9   push=7
+crosscheck/patterns:        MAIN est=110 push=109 · PAT-BLOB est=8 push=8                        · TOTAL est=118 push=117
+```
+(`crosscheck/patterns` NOT regenerated this session — out of scope for both regen scripts per their own file lists; these three numbers are at whatever vintage that directory was already at, flagged so nobody reads all three columns as equally fresh.)
+
+**Reading:** the DEFINE-double-emission fix changed emitted bytes substantially (confirmed above) but did NOT change frame-establishment counts — consistent with it being a correctness/duplication fix, not a frame-policy change. This is the OLD T-class framing (PAT-BLOB/AB-ACT/PROC/MAIN by region), **not** EARN-2's `unearned`/`owed` — recorded per the prior cursor's own "what B-2 could measure today, if narrowed" offer, now actually run rather than left as an offer.
+
+**NOT DONE:** crosscheck/patterns regen (separate script, separate cadence, not touched — its numbers above are carried over unverified-fresh); no attempt to re-scope B-2's acceptance text to match this T-class framing (a judgement call for Lon or RBP-EARN, not a unilateral rewrite); EARN-1/`frame_need_of` still does not exist — this entry does not change that blocker.
+
+**UNBLOCKS: ANY SEAT** — demo + benchmark `.s` artifacts are now current with `emit.cpp` HEAD; a seat diffing against these won't be comparing against a stale DEFINE-emission-bug vintage. **UNBLOCKS: whoever eventually re-scopes B-2** — a real, fresh T-class baseline now exists to compare against once `frame_need_of` lands, if the re-scoped acceptance text ends up wanting one.
+
+---
+
 ## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, same session). **B-7(i)/(ii) LANDED — json-match-fence.sno IS A REAL FENCE VARIANT, NO LONGER BYTE-IDENTICAL TO json-match.sno.** corpus `d2375f36`. Compiler bytes: none (corpus source fix only).
 
 **What landed:** `json-match.sno`/`json-match-fence.sno` were byte-identical (md5 `58bfbf96…`, B-7(i)) — the "-fence" file never actually differed. Fixed by mirroring `json.sno` (the WORK member)'s own precedent exactly: its `jobject`/`jarray` rows end `'}' (epsilon . *eobj()) FENCE` / `']' (epsilon . *earr()) FENCE` (lines ~243/246) — `json-match.sno` dropped those bare `FENCE`s along with the semantic actions they sat next to, even though FENCE has nothing to do with the stripped side effects (manual Ch.9 p.125, FENCE(P) reference entry: "alternatives within the fenced pattern are not examined when the scanner is backing up"). Added `FENCE` after `jobject`'s `'}'` and `jarray`'s `']'` in `json-match-fence.sno` only — `json-match.sno` untouched, so the pair is now a genuine minimal-diff sibling (same shape as the working `claws5-match`/`claws5-match-fence` pair, checked first for precedent). Also fixed B-7(ii)'s header defects for this one file: input filename corrected to `twitter.json` (what the `.ref` was actually built from — confirmed by byte count, 631514 matches both `wc -c twitter.json` and the `.ref`'s `matched bytes=` line) instead of `citm_catalog.json`, and the invalid `-CASE 0` CLI-flag claim removed (it's a manual Ch.14 p.172 control statement, confirmed by testing: `sbl -b -CASE 0 ...` → `Illegal option`).
