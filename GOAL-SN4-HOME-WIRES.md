@@ -19,13 +19,24 @@
 - [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority. ⛔ **The census named TWO shapes the layout must cover, not one — see the cursor's CARRY SHAPES block.**
 - [ ] **W-5 · ⛔ THE FLIP — REQUIRES EARN-1 + EARN-3 LANDED (EARN-10 ordering).** PROC-shim deletion (PT-1..3), CLASS-D exit ceremony dies with it. The old WREG residual (19 SEGV + 7 HANG) was MISSING FRAMES, not glue defects — EXPECTED cured by EARN; measure by set, never assume. ⛔ **PREDICATE NOTE (2026-08-12): `frame_need_of` does not exist in `src/` under ANY spelling — it is a FORWARD REFERENCE to a symbol `GOAL-RBP-EARN.md` must create. This seat cannot unblock it by working harder; only the RBP seat can. Do not re-check it hopefully each session — check the EARN goal file's cursor instead.**
 - [ ] **W-6 · RTCC RE-ENTRANT PRESERVATION + DEFAULT-ON REVALIDATION.** The veneer round-trips wires on leaf crossings only; fix the re-entrant case; then RTCC default-ON must hold the P0 floors with NO `SCRIP_RTCC=0` escape (kills the m4-130 class). Belt-and-suspenders: `-Wl,-z,now` for the r11 lazy-binding clobber. **Leaf half PROVEN SAFE (s35: 172 veneered, 0 bare match-time). Scope is re-entrant ONLY. Witnesses named: probes `140`/`141`.**
+- [ ] **W-7 · ARBNO DISPATCHER SOUNDNESS — ROUTED TO THIS SEAT (Lon, s36 answers: "You own the dispatcher bug").** Witnesses: D12 (SEGV) · D13 (hang); X01 possibly-related, NOT confirmed (nested `ARBNO(ARBNO(LEN(1)))`, no DEFER — may be a sibling defect). Root cause + full trace + blast radius: `FINDING-2026-08-12k-…`.
+  - **DISCRIMINATOR CONFIRMED (s36b, gdb at `lower_snobol4.c:1324`):** D12 builds 3× `DEFER(sval=LIST, pat_static=0)`; D09 (a passer) builds `DEFER(sval=P, pat_static=1)`. Bare `ITEM` in the pattern expression resolves through to the `*LIST` defer at lower time, so **the fix keys on the DEFER node's own `pat_static` — no extra indirection needed.**
+  - **⛔ FIX CONSTRAINT (measured, not negotiable):** the 16-passer set {D09 D10 D11 G19 G20 H21 H24 H25 N12 N17 X02 X03 X04 X05 X06 X11} rides the same plain-frameless path with `k0=0` and must stay green BY SET. A blanket DEFER exclusion breaks all 16.
+  - **⛔ FIX SHAPE, honestly stated:** neither existing arm is sound for a `pat_static=0` body — K16's re-homed static offsets assume no unmodeled suspend, plain-frameless assumes zero frontier motion. The correct home for the ARBNO cell in that class is an **anchor-relative slot** (FR/rbp per-activation, or the W-4 arena slot — one more reason W-4's layout decision is load-bearing). Interim option: decline with `x86_bomb` for `pat_static=0`-bearing bodies only — converts silent stack corruption into a loud compile-time refusal, flips 0 witnesses green, breaks 0 passers; a floor-neutral honesty patch, not a fix.
+  - Reproduce: `SCRIP_ARBNO_DIAG=1 ./scrip --run <probe>` (arm verdict + k0) · gdb `start; break lower_snobol4.c:1324` + `printf`-commands for pat_static per node · `diff` vs `.ref` (never shell `[ ]` on multi-line output).
 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s36 (Claude Sonnet 5) — HANDOFF · D12 ROOT CAUSE PINNED, NO FIX LANDED, W-2 RECOMMENDED FOR CLOSURE
 
-**NEXT RUNG: W-6 (re-entrant RTCC preservation) or W-3/W-4 — NOT W-2 (falsified, see rung) and NOT W-5
+### ⭐ s36b ADDENDUM — LON ANSWERED (same day, post-handoff); DISCRIMINATOR CONFIRMED
+- **Q4 ANSWERED: THIS SEAT OWNS THE ARBNO DISPATCHER BUG** → minted as **W-7** (see RUNGS; full constraint set + confirmed discriminator recorded there). The 5-minute `pat_static` check is DONE: D12's DEFERs read `pat_static=0` ×3, D09's reads `1` — the fix's key exists exactly where predicted. Binary rebuilt at `9780591d` (a parallel session's `bb_glue_flat.cpp` landing) before measuring.
+- **Q5 ANSWERED-UNKNOWN:** MON-CAP existence and `dc_sib_bt` ownership — Lon does not know. Both remain open product-wide; the wrong-answer-rc-0 blind spot stands unowned. Carried, not closed.
+- **Q2 (W-0b) still open** — decision structure re-explained to Lon in-chat with recommendations; awaiting his (a)/(b)/(c) calls. Nothing here changed.
+- **NEXT RUNG for this seat is now W-7** (owned, discriminator confirmed, constraint set measured), then W-6. W-0b remains Lon-only; W-5 still blocked.
+
+**NEXT RUNG: W-7 (owned, ready) → W-6 — NOT W-2 (falsified, see rung) and NOT W-5
 (still blocked, `frame_need_of` re-checked s36, still absent from `src/`).**
 **WATERMARK: unchanged — s35's by-set m3 floor stands, NOT re-measured this session (no code touched):
 157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}.**
