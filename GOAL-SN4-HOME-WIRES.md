@@ -33,6 +33,56 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s39c (Claude Sonnet 5) — HANDOFF · W-3 STATUS CORRECTION: SCRIP_WREG KILLSWITCH IS DEAD CODE, NEW UNROOT-CAUSED CRASH FOUND IN THE SAME MECHANISM
+
+### What this session did (continuation of s39a/s39b, same session, finally touched the actual charter)
+With push and MON-CAP both credential-blocked, spent remaining budget checking this seat's own W-3 charter
+instead of more ARBNO. Found the rung's own status line is WRONG. Full detail: `FINDING-2026-08-12r-…`.
+
+**`bb_glue_pass_wires_blob()` is NOT dormant** — it has exactly one caller, `bb_match_defer.cpp:83`, called
+UNCONDITIONALLY (no `IF(...)` guard). Every DEFER-pattern blob entry in the compiler has been emitting
+r10/r11 wire glue, not the rcx/rdx fallback, at HEAD, right now. **`SCRIP_WREG`, the killswitch three
+separate comments (and the goal file's own W-3 line: "Killswitched; default emission byte-identical to
+HEAD") claim exists, is not implemented anywhere** — `grep -i WREG src/` finds only the comments; no
+`getenv("SCRIP_WREG")` call exists. Empirically confirmed: `SCRIP_WREG=0` vs. unset produces byte-identical
+compiled output. **This rung's status needs correcting before anyone reasons about it as "safe dormant
+code."**
+
+**While confirming this empirically, found a new, oracle-verified SIGSEGV** in exactly this mechanism:
+`corpus/probe/bb/witness_wreg_s39/W01_stored_pattern_defer_len_capture.sno` — `P = LEN(*N) . X` (pattern
+stored in a variable, deferred LEN, WITH capture) then `S ? P` crashes (exit 139); oracle says `=S`. Needs
+BOTH the stored-pattern-variable indirection AND the capture — inlined or capture-free variants both pass;
+not covered by existing D07/D08/D09 DEFER probes. gdb backtrace shows the fault PC 5 bytes past r10's value
+and a suspiciously corrupted rsp — consistent with, but not proven to be, a wire-glue defect. **NOT
+root-caused** — no source-level single-step trace done, only a post-mortem address backtrace.
+
+**Zero SCRIP source changes.** corpus gains one new non-graded witness (`witness_wreg_s39/`, not wired into
+`run_suite.sh`).
+
+**WATERMARK: unchanged, same as s39a/b: 160 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}** (this new
+crash is a fresh construction, not a suite member, so it does not move the count).
+
+### Why stopped here rather than fixing it
+This crash, unlike X01, doesn't need MON-CAP (it's a straightforward SIGSEGV, plain gdb suffices) — the
+real blocker is budget: a proper source-level hunt (breakpoint at the C++ template site, single-step
+through JIT'd bytes without symbols) is slow and this session's budget mostly went to the X01 witness
+construction earlier. More importantly, **this is a status-correcting discovery Lon should see before
+anyone lands a fix or relies on "W-3 is dormant"** — surfacing it cleanly seemed like better use of the
+remaining session than a rushed, possibly-wrong patch attempt on a newly-found bug in the seat's own
+charter mechanism.
+
+### Still open / still owed
+- **W-3's real status is now: LIVE, UNCONTROLLED, CRASHING on at least one construction** — not "dormant,
+  killswitched, safe." Recommend fixing the documentation/killswitch mismatch (Finding recommendation (a))
+  regardless of whether the crash gets root-caused this cycle.
+- **The new crash needs a real gdb hunt** — next session with budget for it should start there; no
+  credential dependency, unlike everything else this seat has hit today.
+- **W-4/W-6 — still completely untouched, six sessions running.**
+- **Routing question (s38) — even more relevant now**: if this seat keeps finding real charter bugs the
+  moment it looks at its own rungs (this session: one dead killswitch + one new crash, in under an hour of
+  investigation), that's an argument FOR keeping it here, not against — worth flagging to Lon alongside the
+  original routing question rather than assuming the s38 framing still holds unmodified.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s39b (Claude Sonnet 5) — HANDOFF · X01 DISCRIMINATOR NARROWED (7 ORACLE-VERIFIED WITNESSES), STILL NOT GDB-CONFIRMED, ZERO SCRIP EDITS
 
 ### What this session did (continuation of s39a, same session)
