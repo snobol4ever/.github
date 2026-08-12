@@ -102,21 +102,26 @@ RC-8a coverage gate (self-arming, lands WARN→FAIL on tier claim) · probe + be
 
 ## ⭐ LIVE CURSOR — 2026-08-12 s38 (Sonnet 5) — first REAL CODE landed on X-3 this session (SCRIP `044f80f0`). **X-0 CLOSED · X-1 CLOSED · X-2 unchanged from s34** (untouched).
 
-**X-3 fork (a), HALF LANDED, MEASURED, NOT SUFFICIENT.** `bb_glue_flat_enter`/`_leave` now carve RSP
-under `ZC_STORAGE_CELL_HEAP` identically to `CELL_STACK`, replacing the deliberate `x86_bomb()` a prior
-session put there. FINDING: `FINDING-2026-08-12m-…md`. **Proven zero regression** (probe/bb m3+m4
-identical-by-set to s35's baseline; `.s` byte-diff clean on the default FORTH port). **Proven
-insufficient** (this is the important, honest result, not a footnote): full BY-SET re-measurement of
-patterns/gc/capture under HEAP shows the **pass set is completely unchanged** (36/122, 13/15, 6/9, `diff`
-clean against pre-fix snapshots) — only one witness's failure *mode* moved (`158_pat_cap_arbno_each_iter`
-SIG11→DIFF; crash eliminated, still wrong). `041_pat_span` (s35's witness) is **unchanged, still SIG11**
-— confirming `FINDING-2026-08-12k`'s own fork description: this landed only the `bb_glue_flat_enter` half
-of fork (a); the REG-4b central-hook path (`x86_asm.h:2320-2333`) is the sibling gap the fork explicitly
-named and this session did not attempt. **NEXT RUNG: read REG-4b in full, add its RSP-carve counterpart
-under the same TEMPLATE-ONLY/BOTH-MEDIUM discipline, re-run the same three BY-SET measurements —
-acceptance is the pass SET actually growing this time, not just a failure-mode shift.** Do not consider
-fork (a) closed until that lands and is BY-SET verified; do not start fork (b) before fork (a) is closed
-(per `FINDING-2026-08-12k`'s own ordering).
+**NEXT RUNG, SHARPENED (cross-validated against a concurrent addendum, `FINDING-2026-08-12k`'s own
+ADDENDUM section, same file this cursor cites): do NOT guess-patch REG-4b.** That session independently
+attempted to attribute the witness's grant field (`op_fc_bytes` vs `op_zls2_bytes`) by reading
+`--dump-zeta` output and matching it to disassembly hunks by eye, and found the attribution **genuinely
+ambiguous from static reading alone** — `op_zls2_bytes` has carve arms in `x86_asm.h` for
+`ZC_PORT_ALLOC`/`ZC_PORT_HEAP` but **no `ZC_PORT_FORTH` arm anywhere in the file**, which is surprising
+enough (FORTH doesn't have this problem, so either the attribution is wrong or FORTH's arm lives
+elsewhere) that they explicitly declined to patch and called for instrumentation instead. This
+independently confirms my own empirical result from the other direction: `grep -c rt_bomb` on
+`041_pat_span`'s compiled output is 0, meaning `bb_glue_flat_enter`'s `op_fc_bytes` guard read false for
+the relevant node — consistent with the crash routing through the `op_zls2_bytes`/REG-4b arm instead,
+exactly as their addendum reasons. **Both sessions independently stopped at the same boundary for the
+same reason; that convergence is itself evidence the boundary is real, not timidity.** NEXT RUNG is
+therefore: add an env-gated diagnostic trace of `_.op_fc_bytes`/`_.op_zls2_bytes`/`_.op_zls2_ops` at the
+`X86H_DEF/ALPHA` dispatch choke (matching the `SCRIP_FC_AUDIT`/`SCRIP_ALLOC_HIST` idiom already
+established in this file), run it across both `041_pat_span` and `158_pat_cap_arbno_each_iter`, get a
+TRACED (not inferred) field attribution, **then** write the REG-4b carve counterpart, **then** re-run the
+same three BY-SET measurements. Do not skip the instrumentation step even though the fix shape (b)
+already seems obvious from a distance — that is exactly the failure mode both sessions independently
+avoided this time.
 
 ⛔ **PUSH STATUS: NOT YET PUSHED.** Commits sit local, rebased clean on origin, credential requested
 in-chat and not yet supplied (RULES 6b) — this is not a handoff claim, this cursor entry is committed
