@@ -30,6 +30,46 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s37 (Claude Sonnet 4.6) — HANDOFF · DISPATCHER CODE VERIFIED IN SOURCE, FLOOR RE-MEASURED AT HEAD, NO FIX LANDED, W-7 READY TO EXECUTE
+
+### What this session did
+Orient-only + code verification pass. No source files changed. Repos cloned fresh; binary built clean at HEAD. FINDING-2026-08-12k absorbed in full including its self-correction (zd_k DEFER clause is NOT the bug; the bug is the dispatcher never consulting op_arbno_body_k0). W-7 discriminator (pat_static) already confirmed by s36b's gdb check — this session verified the *dispatch code path itself* by reading the actual source rather than trusting the finding's simplified excerpt.
+
+### Floor re-measured at HEAD (`SCRIP=7eac50a9`, `corpus=799133cc`, `.github=cd466e3d` pre-pull)
+`bash corpus/probe/bb/run_suite.sh` → **159 pass · 1 xfail · 0 XPASS · 5 REGRESSION {D12, D13, H31, X01, X10}**. Regression set IDENTICAL to s36. Count moved 157→159 (LOWER's L-3b landing picked up 2 unrelated probes; nothing WIRES owns moved). This is the new watermark — the s36 "157" figure is stale.
+
+### `bb_match_arbno()` dispatcher — source verified
+`src/templates/bb_match_arbno.cpp` lines 207–222 (commit `5abdd0ae` "D-1 DELETE"):
+```
+return _.op_arbno_body_kk > 0
+         ? bb_match_arbno_frameless_k()      // K16: requires _sq (no DEFER/ALTERNATE/…)
+     : _.op_off < 0
+         ? x86_alpha() + x86_bomb(...)
+     : (_.op_sa < 0 || _.op_sb <= 0)
+         ? x86_alpha() + x86_bomb(...)
+         : bb_match_arbno_frameless();       // ← UNCONDITIONAL fallback, no k0 check
+```
+Confirmed: `op_arbno_body_k0` IS computed (emit.cpp:958, inside the `_chain` prelude) but feeds only into `bb_match_arbno_DELETED_ARMS()` — confirmed zero external callers by grep. The live entry never consults it. The finding's description is accurate; its simplified snippet matches the real code.
+
+### K16 prelude `_sq` exclusion list — confirmed at emit.cpp:955
+Nodes that set `_sq=0` and therefore decline K16, falling through to plain-frameless: `IR_MATCH_ALTERNATE`, `IR_MATCH_ARBNO`, `IR_MATCH_FENCE1`, **`IR_MATCH_DEFER`**, `IR_MATCH_VALUE`, `IR_CALL`, `IR_CALL_VALUE`, `IR_DISJUNCTION`, `IR_MATCH_ABORT`. D12's body (`',' ITEM` where ITEM contains `*LIST` → IR_MATCH_DEFER) sets `_sq=0`, `op_arbno_body_kk` stays 0, falls through. This is the exact mechanism.
+
+### D12 reproduced live
+`SCRIP_ARBNO_DIAG=1 ./scrip --run corpus/probe/bb/probes/D12.sno` → `[ARBNO-K16] framed=0 k0=0 sq=0 kk=16 osv=1 mb=-1 me=10 route=legacy` then `[ARBNO-ARM] FRAMELESS` then `Segmentation fault` (exit 139). Matches finding exactly. Note: the diagnostic prints `kk=16` reflecting the prelude's own scan before it declines; `route=legacy` means K16 was NOT selected; arm=FRAMELESS is the unconditional fallback. No contradiction.
+
+### W-7 fix — where things stand, honestly
+Two options, in order of increasing ambition:
+- **Interim (floor-neutral, do-it-now):** In `bb_match_arbno()`, before the unconditional `bb_match_arbno_frameless()` call, check whether any node in the body span is `IR_MATCH_DEFER` with `pat_static==0` — if so, emit `x86_bomb("IR_MATCH_ARBNO: body contains suspend-capable DEFER — anchor-relative slot not yet implemented (W-4)")`. Flips 0 witnesses green, breaks 0 of the 16-passer set, converts silent stack corruption to a loud compile-time error. Honest, reversible, does not require W-4.
+- **Real fix (requires W-4 layout decision):** Route the `pat_static==0` body class to an arm that homes the ARBNO cell at an rbp-relative (per-activation anchor) offset rather than `[rsp+N]`. W-4 owns the layout; this arm cannot be written soundly without it. The DELETED_ARMS's DT arm is a partial precedent (see the `FR(off+4)` per-activation cell it uses) but it's not a drop-in — the recursion-safe shape is different.
+
+**Recommended next move for W-7:** land the interim x86_bomb guard first (safe, ~10 lines in `bb_match_arbno()`), re-run suite to confirm 16-passer set stays green and D12/D13 get a clean compile-time error instead of SIGSEGV/hang. Then open W-4 layout design. The body-node scan already exists inline in the K16 prelude (emit.cpp:955's `_sq` loop) — a compact version of it is the model for the bomb guard's own check.
+
+### Still open / still owed
+- **W-2 disposition (Lon):** three options written in the rung note; D12/D13 struck from its witness line (they are W-7's). No action taken this session.
+- **MON-CAP / `dc_sib_bt`:** still unknown, still unowned.
+- **W-5 predicate:** `frame_need_of` still grepping empty. Still FALSE. Still skip.
+- **X01 / X10 relation to W-7:** X01 is `ARBNO(ARBNO(LEN(1)))` — no DEFER in the body, so the `pat_static` discriminator would NOT catch it. Possibly a sibling defect (nested ARBNO rather than recursive DEFER). Not traced this session; X10 is `TIMEOUT` on PAIRS negative-control probe. Both remain unowned.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s36 (Claude Sonnet 5) — HANDOFF · D12 ROOT CAUSE PINNED, NO FIX LANDED, W-2 RECOMMENDED FOR CLOSURE
 
 ### ⭐ s36b ADDENDUM — LON ANSWERED (same day, post-handoff); DISCRIMINATOR CONFIRMED
@@ -503,7 +543,7 @@ files. See top-of-section marker and `FINDING-2026-08-12h-…` for full detail.*
 Any program naming a user variable SIGSEGVs in mode 4. Root cause: **r9 (GVA base) is only established by a veneer RELOAD; the prologue's first three crossings are bare.** Slot is correctly seeded (`g_rtcc_block[6]=0x70001000`); nothing hands it to the register. Candidate repair: emit `mov r9,[g_rtcc_block+48]` in the m4 prologue AFTER `core_lib_init`. ⛔ Do NOT add r9 to the veneer writeback — that overwrites the constant seed with garbage on the first crossing. Falsified: `-Wl,-z,now`, `SCRIP_RTCC=0/1`, stale `.so` — do not re-spend. Full chain: `FINDING-2026-08-12e-…`.
 
 ### m3 BY-SET FLOOR (measured s33, before and after W-1, identical)
-`corpus/probe/bb/run_suite.sh` (NOTE: this is `corpus/probe/bb/`, NOT `SCRIP/scripts/` — the master's instrument map path is wrong): **157 pass · 1 xfail · 5 REGRESSION {D12, D13, H31, X01, X10} — NOT BASELINED (`XFAIL.run` = `fence_probe` only).** Any seat will see these 5; hold by SET, never count.
+`corpus/probe/bb/run_suite.sh` (NOTE: this is `corpus/probe/bb/`, NOT `SCRIP/scripts/` — the master's instrument map path is wrong): **159 pass · 1 xfail · 5 REGRESSION {D12, D13, H31, X01, X10} — NOT BASELINED (`XFAIL.run` = `fence_probe` only).** ⭐ Updated s37 (was 157 at s36; LOWER's L-3b added 2 unrelated probes). Any seat will see these 5; hold by SET, never count.
 
 ### NAMED PREDICTIONS FOR THE FLIP (record here, do NOT fix before W-5 opens)
 - **Scan-family asymmetry:** 26 `push r10` / 0 `push r11` across 10 `bb_scan_*.cpp` files. Every one protects γ and abandons ω the moment r11 becomes a wire. Witness at W-5.
