@@ -3,11 +3,14 @@
 **CHARTER:** rΓ=r10 · rΩ=r11 product-wide (Lon s12 verbatim: *"remove the stupid PROC shim around patterns and use proper PASS-THRU glue using R10 and R11"*), exactly TWO glue kinds (ONE-SHOT · PASS-THRU; FRAMED IS NOT A GLUE KIND — s29), RBP never written by glue. **Mechanism authority = LADDER WREG + LADDER PT inside `GOAL-RBP-EARN.md` (absorbed by reference, corrections here supersede).** RTCC's wire half (veneer preservation) is owned HERE per the s14 arbitration: safe config = RTCC-ON **and** wire capture/restore, neither alone.
 
 ## RUNGS
-- [ ] **W-0 · CLAIM SWEEP, HONEST.** r10/r11 usage census across templates + emit.cpp + **RTX hand asm + raw-byte encoders** (grep is insufficient — objdump the emitted slab too). With BOARD: claim gate becomes data-driven {rbx r9 r10 r11 r12 …} + `--strict` (today: r9-only, informational — a hole MECH documented).
-  - **RTX ASM HALF: ✅ DONE** (2026-08-12, Sonnet 5) — 223/223 occurrences across all 10 `.S` files hand-classified; 193 SN4-reachable, 30 confirmed-excused; 6 named idioms, no 7th. `FINDING-2026-08-12h-…`. **No further RTX census is owed.**
-  - **TEMPLATE HALF: mapped** by s33/s34/s35 (FINDING-12f structural, -12g reachability, 2026-08-11d ERAD ladder). Do NOT re-derive a fourth time.
-  - **RAW-BYTE HALF: ✅ DONE** (2026-08-12, Sonnet 5, continuation session) — objdump'd the ACTUAL mode-3 runtime slab (not source bytes) across 46 sealed graphs / 17 programs chosen to stress CLASS-D/DEFER/ARBNO-recursive traffic. Every r10/r11-touching instruction in ~174KB of real emitted code reduces to 14 distinct shapes, all classifying into exactly two mechanisms: CLASS-D wire glue (already licensed) or RTCC veneer (`x86_asm.h`, not yet whitelisted). No third mechanism found. One dead decode arm caught by caller-tracing: `x86_store_cursor_mirror()`/`XK_R10MIR` in `x86_asm.h` has zero live callers (the one caller that could reach it, `xa_flat.cpp:249`, deliberately routes around it — its own comment says why). `FINDING-2026-08-12j-…`. Reusable gdb-dump-and-objdump method recorded in the finding, not yet a checked-in gate.
-  - **REMAINING TO CLOSE W-0:** the whitelist-policy decision (Lon) — data is now complete on both halves; nothing left to sweep, only to decide.
+- [ ] **W-0 · CLAIM SWEEP, HONEST — SPLIT INTO W-0a (DATA) / W-0b (POLICY) 2026-08-12, because the rung as written hides the fact that NO WORK IS AVAILABLE ON IT.** Three sessions in a row re-read a census because the rung's single checkbox made "blocked on a decision" look like "unfinished sweeping." It is not. Read W-0b and skip down if it is still unanswered.
+  - **W-0a · DATA — ✅ COMPLETE, ALL THREE SURFACES. NOTHING LEFT TO COUNT. DO NOT RE-DERIVE.**
+    - **RTX ASM: ✅** 223/223 hand-classified across 10 `.S` files; 193 SN4-reachable, 30 excused; 6 idioms, no 7th. `FINDING-2026-08-12h-…`.
+    - **TEMPLATES: ✅** mapped s33/s34/s35 (FINDING-12f structural, -12g reachability, 2026-08-11d ERAD ladder).
+    - **RAW-BYTE / BINARY MEDIUM: ✅** (2026-08-12, Sonnet 5) — objdump'd the ACTUAL mode-3 runtime slab via `gdb break bb_seal` + dump-before-mprotect: 46 sealed graphs / 17 CLASS-D+DEFER+ARBNO-recursive programs / ~174KB real emitted code. 14 distinct instruction shapes, ALL classifying as CLASS-D wire glue or RTCC veneer. **No third mechanism.** `FINDING-2026-08-12j-…`.
+    - **`x86_asm.h`: ✅** all 23 remaining occurrences traced line-by-line — 13 register-name infrastructure · 9 RTCC veneer save/reload · 1 self-documented DC-fn call-stub scratch. Per-line table + ready-to-paste whitelist entry in `FINDING-2026-08-12j-…` addendum.
+  - [ ] **W-0b · POLICY — ⛔ THE ONLY THING BLOCKING W-0, AND ONLY LON CAN ANSWER IT.** (a) Does "product-wide" require clearing r10/r11 where SNOBOL4 provably cannot reach them (30/223 RTX are the only genuine licensing candidates; 193/223 are SN4-reachable and cannot be excused either way)? (b) Is `x86_asm.h` licensed as whitelist class (3)? ⚠ **NUANCE THE RECOMMENDATION DOES NOT PAPER OVER:** the whitelist header says x86_asm.h "become[s] entry (3) the moment [its internals] are actually needed by a wire spelling." The RTCC-veneer 9 clearly meet that test (s14: safe config = RTCC-ON **and** wire capture/restore). The register-name-table 13 arguably do NOT — they are needed by *every* register, not by a wire spelling, so licensing them is a small widening of class (3)'s stated meaning, not a plain application of it. Decide that explicitly rather than letting `occ=23` smuggle it through. (c) Sanction an objdump-based binary gate? — see the ⛔ INSTRUMENT GAP block in the cursor.
+  - **WHEN W-0b IS ANSWERED, W-0 CLOSES IN ONE EDIT:** one line into `wreg_claim_whitelist.txt`, then `--strict`. No further measurement is owed by anyone.
 - [x] **W-1 · ZCTX SCRATCH ERADICATION — DONE s33 (`26c84e72`). PREMISE WAS STALE:** the six sequences were already gone (`0970838f`); of 5 `g_zctx` mentions FOUR were comments and one was a dead exported BSS array (`uint64_t g_zctx[66]`, 528B, ZERO code uses, no extern, no emitted reference). Deleted. ⭐ **HOME GATE line 4 side effect, MEASURED:** the last surviving `g_blob_ctx` mention lived inside that array's comment, so `g_blob_ctx` and `rt_blob_ctx_ptr` now BOTH grep to 0.
 - [ ] **W-2 · PUSH/POP GUARD UNIFICATION.** ⛔ **LINE NUMBERS CORRECTED TWICE — do not trust any cited in prose.** CURRENT (verified 2026-08-12): push `emit.cpp:2721` TEXT / `:2724` BINARY, guard `_blob_wire` (`:2717`); reload `:2688` TEXT / `:2689-90` BINARY, guard `flat_pat` (`:2687`); `_wire_stub` (`:2716`); related `op_zgpop` (`:842`).
   - **CENSUS DONE** (2026-08-12, Sonnet 5): `bb_glue_flat.cpp` + `bb_glue_framed.cpp` read in full — **they contain NO r10/r11 push/pop at all.** The code is raw string/byte literals inside `emit.cpp`. `FINDING-2026-08-12i-…`.
@@ -68,23 +71,88 @@ that decision.
 thing left to close W-0 is decision (1) from the s35 cursor below — the whitelist-policy question. There is no
 more sweeping to do; re-running either census is explicitly NOT owed.
 
+### ⛔⭐⭐⭐ FOR LON — THE MOST IMPORTANT THING I SAW ALL SESSION IS **NOT** IN THIS SEAT'S LADDER
+
+**`dc_sib_bt.sno` returns rc=0 and prints the WRONG ANSWER, silently.** m3 output is `=S / X= / Y=C / Z=CD`;
+oracle `.ref` is `=S / X=AB / Y=C / Z=ABCD`. Exit code 0. No crash, no diagnostic, no stderr. I hit this
+incidentally while picking a CLASS-D witness and did **not** chase it (out of W-0's scope, and MONITOR-FIRST
+says the monitor owns it, not me reading code).
+
+**Why I am escalating it rather than filing it quietly:** this is the exact class HOME GATE line 5 already
+names as a known blind spot — *"Monitor sees the classes it has been dark on: stdout-only divergence
+(MON-CAP)"* — and the s33 BOARD conviction (`FINDING-2026-08-12c`) proved a dead mode can look alive for two
+days because failing probes still print non-empty output. **A by-set floor that grades on pass/fail cannot see
+this defect at all.** Every seat's "floor held BY SET" claim, including the ones in this file, is only as
+honest as the instrument's ability to notice a wrong-but-exit-0 answer. If `dc_sib_bt` is silently wrong at
+HEAD and the boards still read green, then the boards are measuring less than everyone believes.
+
+Concretely, three things I cannot decide from this seat:
+1. **Is `dc_sib_bt` a known member of the 5-REGRESSION set {D12,D13,H31,X01,X10}, or a SIXTH nobody has
+   counted?** I could not tell from this file — the set is named by probe ID, `dc_*` are named witnesses. If
+   it is uncounted, the floor number is wrong, not just imprecise.
+2. **Who owns it?** It smells like RBP/EARN's CLASS-D territory (capture/backtrack losing `X`'s and `Z`'s
+   spans looks like a pending-cell restore defect, not a register-scope defect) — but that is a guess from the
+   output shape, which is exactly the kind of guess MONITOR-FIRST forbids acting on.
+3. **Does MON-CAP exist yet?** HOME GATE line 5 lists it as owed. If it does not, this defect class is
+   invisible product-wide and MON-CAP outranks several rungs currently ahead of it.
+
+I would rather hand you one loud honest anomaly than a tidy report that steps over it.
+
+### ⛔⭐⭐ INSTRUMENT GAP THAT SURVIVES THIS SESSION'S WORK (and why "W-0 data-complete" is not "W-0 safe")
+
+I closed the *census*. I did **not** close the *instrument*. `test_gate_wreg_claim.sh` is still a text-regex
+over source, and my finding demonstrates by construction that a raw-byte emission (`ef_b4(0x4C, 0x8B, …)`)
+greps to zero. **So `--strict` can go green while binary-medium r10/r11 code drifts underneath it.** Today
+that is fine — I verified the binary surface by hand and it is clean — but the verification is a *snapshot*,
+not a *ratchet*, and the whole point of the pinned-`occ=` mechanism elsewhere in this gate is that snapshots
+rot. Two honest options, both cheap, neither mine to choose:
+- **(A)** Build `scripts/test_gate_wreg_claim_binary.sh` from the gdb-dump-and-objdump method in the finding
+  (fixed program set → dump slabs → disassemble → assert every r10/r11 instruction matches an allowlisted
+  shape). ~an hour of work; makes the guarantee permanent.
+- **(B)** Accept the snapshot, and write into the whitelist header that the binary medium is verified by
+  FINDING-2026-08-12j at hash `825ab0a4` and must be re-verified by hand whenever the CLASS-D exit region
+  (`emit.cpp` ~2680-2900) or the RTCC veneer encoders change. Free, but it is a promise a human has to keep.
+⚠ Do **not** solve this by adding byte patterns to the existing regex: `0x41`/`0x4C` are REX prefixes shared
+with many registers, so a byte-level source grep is pure noise. The instrument for the binary half is a
+disassembler over OUTPUT, never a matcher over SOURCE.
+
+### SECONDARY OBSERVATIONS (smaller, recorded so they are not re-discovered)
+
+- **The gate counts a diagnostic string as a register use.** `x86_asm.h:318`'s occurrence lives inside a
+  `static_assert` *message*, not in emitted code. One of 23 — harmless to the total, but if `--strict` ever
+  reads 1 and someone hunts it, this is where it will be. Comment-stripping does not strip string literals.
+- **SESSION-SETUP HAZARD, cost me two false starts:** a backgrounded `git clone` that has not finished leaves
+  a directory that `ls` shows as *present* and `git status` reports as *"No commits yet"* on an empty branch.
+  Both `SCRIP` and `corpus` came up empty this way and I nearly worked against a phantom tree. **Verify clones
+  with `git log -1`, never `ls`** — and prefer foreground clones. Worth a line in RULES.md session-setup if
+  other seats are hitting it.
+- **Method note that earned its keep:** my own 23-occurrence classification table was WRONG TWICE (summed to
+  22, then 21) before a mechanical `awk | uniq -c` per-line recount fixed it. The sum-check caught what
+  careful reading did not. Any future per-occurrence table in this seat should carry an explicit arithmetic
+  check line — cheap, and it converts a silent miscount into a visible one.
+- **W-5's unblock may be further out than this file implies.** I checked `.github` HEAD this session: the RBP
+  seat's newest commit is an *s38 FIX PLAN for floor stabilization*, not EARN-1. `frame_need_of` still exists
+  nowhere in `src/`. Do not schedule around W-5 landing soon.
+
+
 ### NEXT SEAT, IN ORDER
-1. **Decision needed from Lon (unchanged from s35, now with complete data both halves AND the dead-code
-   deletion already landed):** whitelist policy — does "product-wide" require clearing r10/r11 regardless of
-   reachability? `x86_asm.h`'s honest occ count is now **23** (post-deletion, `825ab0a4`) — recommend licensing
-   it as class (3) "encoder internals" per the whitelist's own header, since every remaining occurrence is
-   either the RTCC veneer's own machinery or register-name infrastructure (decode tables, name-to-number maps)
-   that must spell every register including r10/r11 by construction. Combine with the s35 RTX numbers
-   (193/223 SN4-reachable, 30 excused) for the full product-wide picture.
-2. ~~Optional zero-risk cleanup: delete `x86_store_cursor_mirror()` + `XK_R10MIR`~~ **DONE this session
-   (`825ab0a4`).**
-3. **W-6** — re-entrant `g_rtcc_block` (leaf half already proven; witnesses `140`/`141` named) — unchanged,
-   still open, still the next mechanism-shaped rung after the decisions above are made.
-4. **W-3/W-4** — mechanism dormant but ALREADY WRITTEN (`bb_glue_pass_wires_blob`); W-4's layout must cover
-   both carry shapes named in the s35 block below.
-⛔ **Do NOT re-derive any census — RTX, templates, W-2's glue files, AND NOW THE RAW-BYTE HALF are all mapped.**
-What's missing is decisions, not data.
-⛔ **W-5 stays blocked and this seat cannot unblock it** — unchanged from s35, see that block below.
+
+1. **⛔ FIRST, IF IT IS STILL UNANSWERED: W-0b (Lon's decision).** Nothing else in this ladder is cheaper, and
+   until it is answered W-0 cannot close no matter how much work anyone does. If it IS answered, closing W-0
+   is one whitelist line + `--strict`, ~10 minutes.
+2. **Route the `dc_sib_bt` silent-wrong-answer** (see the FOR LON block above) to whoever owns MON-CAP / the
+   floor instruments — BOARD by the seat table. Do not chase it from this seat; do not let it sit unrouted.
+3. **W-6** — re-entrant `g_rtcc_block`. Leaf half PROVEN SAFE (s35: 172 veneered, 0 bare match-time), scope is
+   re-entrant ONLY, witnesses named (`140`/`141`). **This is the largest genuinely-available piece of
+   mechanism work in this seat** and it does not depend on W-0b or on the RBP seat. If you are a fresh seat
+   with a full runway and W-0b is unanswered, start here, not at the top.
+4. **W-3/W-4** — mechanism dormant but ALREADY WRITTEN (`bb_glue_pass_wires_blob` in `bb_glue_flat.cpp:154-159`);
+   W-4's layout must cover BOTH carry shapes named in the s35 CARRY SHAPES block below, not just "crosses a call."
+⛔ **Do NOT re-derive any census — RTX (223/223), templates, W-2's glue files, the raw-byte/binary medium
+(46 slabs), and `x86_asm.h` (23/23) are ALL mapped.** What is missing is decisions, not data.
+⛔ **W-5 stays blocked and this seat cannot unblock it** — `frame_need_of` is a forward reference the RBP seat
+must create; re-checked this session, still absent from `src/` under every spelling. Check EARN's cursor, not
+`src/`, and see the W-5 note in SECONDARY OBSERVATIONS above.
 
 ---
 
