@@ -66,6 +66,50 @@ Does **"product-wide"** (charter line 1) require physically clearing Prolog off 
 
 ---
 
+## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, continuing s35, same day) — RTX CENSUS: 2 OF 10 FILES DONE
+
+**SCRIP `2913c6a4` (unchanged, read-only) · corpus not touched this session.** Read-only session:
+`rtx_match.S` (89/89 occ) and `rtx_icnsub.S` (33/33 occ) fully hand-classified. FINDING pushed
+(see `FINDING-2026-08-12h-…` for full detail); this cursor move is the handoff artifact.
+
+### WHAT LANDED
+- **`rtx_match.S` FINISHED** — item 1 above is DONE. All 89 occurrences map to s34's four known
+  idioms (momentary GOT accessor · GOT-indirect call/tail-call · capture-stack block · longer-lived
+  carry), no fifth idiom found. **The Σ/r13 open question is RESOLVED, not just deferred**: it was
+  already answered in `rt_match_ctx_restore`'s own header comment (lines 378-381) — r13 is the hot
+  inlined-path pin, the GOT-global Σ/Σlen pair is a deliberate C-readable mirror for slow paths and
+  cross-TU C code that cannot see a register pin at all. Not a contract violation, nothing to
+  arbitrate.
+- **`rtx_icnsub.S` FINISHED** (first file of item 2's list of 9, though numbered separately since
+  it's Icon-named but SN4-reachable — see below). 33/33 occurrences classified. One NEW idiom found:
+  a **loop-carried pointer** (hash-chain walk, r10=link/r11=key cursor) — live across loop
+  iterations but never across a `call`, structurally lower-risk than the capture-stack shape.
+- **⭐ REACHABILITY CORRECTION (second instance of the FINDING-12g pattern, this time in RTX asm):**
+  `rt_subscript_var` (`rtx_icnsub.S`) is **SNOBOL4-reachable** despite its Icon-flavored name and
+  the header's own "RELEASED to ICON-RTX" ledger note — confirmed via `lower_snobol4.c:376,779`
+  emitting `IR_SUBSCRIPT` for ordinary SNOBOL4 `X[i]` subscripting, and the file's own RTX-28
+  comment says outright "arrays, which are SNOBOL4's." **Filenames and gate-ledger allocation
+  language are not reachability proxies — check the lowerer call graph before excusing any RTX
+  file by name.** This likely applies to some of the remaining 8 files too; check each on its own
+  merits, don't pattern-match from this file's result either.
+
+### NEXT SEAT, IN ORDER (supersedes the s35 list above for items 1-2)
+1. **The other 8 RTX `.S` files** (101 occ remaining: `rtx_alloc.S` 20 · `rtx_str.S` 19 ·
+   `rtx_icnvar.S` 13 · `rtx_arith.S` 9 · `rtx_plcall.S` 10 · `rtx_icnagg.S` 11 · `rtx_icnrel.S` 8 ·
+   `rtx_icnnum.S` 11). Same hand-census treatment. Check each file's "C of record" pointer and the
+   relevant `lower_*.c` for actual callers before assuming reachability from the filename.
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout.
+
+⛔ W-5 REQUIRES (predicate): `grep -rn "frame_need_of" /home/claude/SCRIP/src/` non-empty AND
+`UNBLOCKS: WIRES W-5` on origin. Still FALSE, unchanged this session.
+
+**UNBLOCKS: nothing new** (RTX census is a sub-item of W-0, not a rung boundary by itself).
+
+---
+
 ## LIVE CURSOR — 2026-08-12 s34 (Sonnet 5) — superseded by s35 above, retained per STALE-ORIENTATION (c)
 
 **SCRIP `51934a9f` · corpus `14dc06bd` — read-only session, zero compiler bytes, zero code touched. FINDING pushed; this cursor move is the handoff artifact.**
