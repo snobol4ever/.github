@@ -256,3 +256,74 @@ Both sit immediately after a **variable-length predecessor** (BAL; a var-length 
 ### ~~TWO-SEATS ALARM (s35)~~ — RESOLVED s37 (Lon: one seat, no split)
 s34 recorded two live LOWER sessions and asked Lon to retire one before re-firing. **It was not resolved and it recurred:** SCRIP `67e9383c` (local, unpushed, `ahead 1`) landed in s35's tree citing `FINDING-2026-08-12f/g` — `f` was minted by s35 minutes earlier and **never pushed**, so it was read from a shared tree, and `g` is not s35's. No work appears lost and the halves are again COMPLEMENTARY (s35 = root cause + witness; the other = the trace instrument) — **but that is luck, not the invariant.**
 Resolved by Lon's decision (2026-08-12 s37): one seat, no split. History preserved above.
+
+---
+## ⭐ LIVE CURSOR — 2026-08-12 s41 (Claude Sonnet 4.6). **L-3b ARB/BREAK: ROOT CAUSE FULLY CONFIRMED, FIX NOT YET LANDED.** SCRIP at `7eac50a9` (s39's push confirmed on origin — the "push blocked" note in s39 was stale; fresh clone shows `7eac50a9` already at `origin/main`). l3 board re-proved at session start: **8 PASS / 6 FAIL** (matches s39 exactly, floor re-established by running, not transcribed). Context consumed: ~78% at handoff.
+
+### s41 record — root cause fully diagnosed, three fix attempts reverted, clean handoff
+
+**THE ROOT CAUSE OF ARB/BREAK's `start=wrong` is now COMPLETELY UNDERSTOOD, measured, and confirmed:**
+
+`MATCH_END`'s read of `RDD("rsp", op_fc_disp)` (the instruction `mov eax, dword ptr [rsp + 16]` in the emitted `.s`) is architecturally wrong — the cell it reads is NOT a stable "match start cursor" slot. It is the **last-carved match-primitive's own `fc_geom` scratch cell, offset+0**, whose contents are defined by that primitive's own template — not by any start-cursor convention:
+
+- **SPAN** (PASS, accidentally): its chain-mode arm never writes its own `scratch+0` (`[rsp+20]` only) — so `start_δ`'s value (the unanchored retry cursor, which IS the correct match-start by construction of the retry loop) happens to survive untouched underneath. ACCIDENTAL correctness.
+- **ARB** (FAIL, `start=2`): `bb_match_arb.cpp` explicitly zeros `FR(x86_scratch_off+0)` then increments it as an extension counter. That counter reaches 2 in `arb_nonterm` (ARB extends twice before `'g'` matches). MATCH_END reads `2`, not `10`.
+- **BREAK** (FAIL, `start=11`): `bb_match_break.cpp`'s success arm stores `r14d` (the post-`ANY('+')` cursor = 11) into `FR(x86_scratch_off+0)` as its own internal bookkeeping. MATCH_END reads `11`, not `10`.
+
+**Confirmed by runtime instrumentation** (`SCRIP_REPL_TRACE=1`): `arb_nonterm` → `raw_start=2 raw_end=14`; `break_nonterm` → `raw_start=11 raw_end=14`; `span_nonterm` → `raw_start=10 raw_end=14`. End is correct in all three. A temporary `SCRIP_MEND_RUNTIME_DIAG` probe (built, used, reverted before handoff) confirmed the value sitting at `[rsp+op_fc_disp]` at that exact point is literally the extension counter / scan-offset, not any cursor.
+
+**The correct source of the start cursor IS `start_δ`**, which is: (1) initialized to 0 by MATCH_BEGIN, (2) incremented by the unanchored retry loop until `ANY('+')` succeeds, (3) copied into `r14d` right at the top of `L(0)` (`mov r14d, FR(_.op_off)`) — the exact moment before `x86_gamma()` jumps into the pattern body. At this point `r14d` = 10 for these witnesses. `start_δ` lives at `FR(_.op_off)` / `[rsp+0]` inside MATCH_BEGIN's own 32-byte `hfc` frame.
+
+**The fix must do two things:**
+1. **Write** `r14d`'s value (= `start_δ`, = correct match-start) into a stable cell at MATCH_BEGIN's `L(0)` — one that CANNOT be clobbered by any match-primitive's `fc_geom` scratch cell.
+2. **Read** that stable cell in MATCH_END (and nowhere else — MATCH_REPLACE already reads from what MATCH_END stores into the post-restore RSP-relative slot, so fixing MATCH_END fixes MATCH_REPLACE automatically).
+
+**The stable cell: `op_off+8` inside MATCH_BEGIN's own 32-byte hfc frame.** This slot is confirmed free:
+- `op_off+0` = `start_δ`, `op_off+16` = `rsp_mark` — both documented and used.
+- `op_off+8` = explicitly vacated by W-1c.3 (the patstk slot-save was deleted); this file's own comment at line 71 AND `bb_match_end.cpp:97` both name it as vacated.
+- NEVER touched by any `fc_geom` grant (all primitive carves allocate ABOVE this 32-byte frame; the 32B carve is MATCH_BEGIN's own `x86_zclaim(32)`, which completes before any primitive runs).
+
+**The addressing problem that defeated three fix attempts this session:**
+
+`FR(op_off+8)` uses `x86_frame_off`, which adds `op_zdepth` — a **per-node-local** term ("the bytes THIS box carved on RSP", per `emit.h`). MATCH_BEGIN's `op_zdepth` and MATCH_END's `op_zdepth` are different. So `FR(op_off+8)` resolves to DIFFERENT absolute addresses at MATCH_BEGIN's write site vs MATCH_END's read site. This was verified empirically: with `FR(op_off+8)` used at both sites, emitted `.s` showed both targeting `[rsp+8]` symbolically, but RSP differs by the primitive's `fc_geom` carve (16B for SPAN/ARB/BREAK) between the two points → wrong absolute address → `raw_start=0` for ALL witnesses (worse than before).
+
+**The correct addressing scheme for the write side:** At MATCH_BEGIN's `L(0)` write site, MATCH_BEGIN's own 32-byte carve is the ONLY carve open — RSP sits exactly at MATCH_BEGIN's own frame base. So `[rsp+8]` at that point IS `op_off+8` with zero further compensation needed. Use **raw `RDD("rsp", 8)`** (or `RSD(8)` if that helper exists), not `FR`.
+
+**The correct addressing scheme for the read side:** At MATCH_END, `op_fc_disp` (computed by `fc_walk_range` / `fc_head_register` as the explicit sum of all `fc_geom` K-values for primitives in the pattern range) correctly tracks the accumulated carve depth — this is already proven by the fact that `end`'s stash (`RDD("rsp", op_off+op_fc_disp+32)`) is correct for all witnesses. The read should be `RDD("rsp", op_fc_disp + 8)` — i.e., the SAME `op_fc_disp` compensation as the existing correct code, but displaced by 8 into the frame (the new `match_start` slot) rather than by `op_off+32` (the old clobbered `start_δ`-aliasing slot).
+
+**Pseudo-code for the two-line fix:**
+
+In `bb_match_begin.cpp`, immediately after `+ x86("note", "start_δ") + x86("mov", "r14d", stfh() ? HKD() : FR(_.op_off))` and before `+ x86_gamma()`:
+
+```cpp
++ x86("note", "match_start") + x86("mov", RDD("rsp", 8), "r14d")
+```
+
+In `bb_match_end.cpp`, replace the old `x86("mov", "eax", RDD("rsp", (int)_.op_fc_disp))` with:
+
+```cpp
+x86("mov", "eax", RDD("rsp", (int)(_.op_fc_disp + 8)))
+```
+
+(Only the `rfc()` arm, only the `ZC_FRAME_RSP` path — `op_dval != 0.0` gate, same as before. The `stfh()` legacy arm's read `x86("mov", stfh() ? HKD() : FR(_.op_off), "eax")` may need its own HKS() twin for `+8` on the negative-rbp side, OR may be safely left as-is if `stfh()` graphs never reach the op_dval branch — verify before touching.)
+
+**WARNING: `RDD("rsp", 8)` at MATCH_BEGIN's write site is only correct on the `hfc()` arm** (the FORTH-spine + FC-window arm that allocates the 32-byte frame). The `stfh()` arm uses a different frame entirely. Gate the new write on `!stfh()` (or equivalently `hfc()`), same as how `rsp_mark`'s write is gated, and handle `stfh()` separately if needed.
+
+### Instrumentation that confirmed the root cause (reverted before handoff, rebuild to verify board is clean)
+
+- `SCRIP_REPL_TRACE=1` (already wired in `gen_runtime.c`) → exact `raw_start`/`raw_end` per call. Use this.
+- `SCRIP_MEND_RUNTIME_DIAG` probe: a temporary `mend_rt_diag(long)` extern + call sequence inserted at the `RDD("rsp", op_fc_disp)` read site to print the value at that exact instruction. Built, confirmed 2/11/10 for ARB/BREAK/SPAN respectively, then reverted. Do not re-add; the root cause is fully understood.
+
+### NEXT RUNG (what the next seat should do immediately)
+
+1. **Re-prove the l3 board floor** (`EARN0=/home/claude/corpus/probe/l3 bash scripts/board_earn0_set.sh m3`) — confirm 8/13 before touching anything.
+2. **Land the two-line fix** as described above. Key: `RDD("rsp", 8)` at MATCH_BEGIN write-side (raw, pre-primitive-carve RSP); `RDD("rsp", (int)(_.op_fc_disp + 8))` at MATCH_END read-side.
+3. **Rebuild and run the l3 board** — expect `arb_nonterm` and `break_nonterm` to flip to PASS. Expect no regression on SPAN/LEN/REM/LIT_LEN controls.
+4. **Run `SCRIP_REPL_TRACE=1`** on `arb_nonterm` and `break_nonterm` — confirm `raw_start=10` for both.
+5. **Run the broad SNOBOL4 corpus** (both modes, both directions, diff FAIL sets — not just counts) per GATES.
+6. **Commit and push** (credential: supplied by Lon at session start — ask if not provided).
+
+### Context / register usage note
+
+`r9` was used as the staging register for the match_start value in the attempted (reverted) MATCH_END fix. Check what `r9` holds at MATCH_END's α before committing to it — may need a different callee-save register if `r9` is live with something else at that point in the graph. Alternatively, read directly into `eax` (clobbering the old `mov eax, RDD(...)`) and immediately store into the stash slot, with no staging register needed.
+
