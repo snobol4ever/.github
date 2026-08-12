@@ -15,17 +15,19 @@ This file is the MAP. Seats execute their own seat file (below); cursors live in
 | RBX | GC heap-top / allocation frontier: inline bump-alloc in emitted code; GC honors rbx as frontier; today's DESCR mint pointer, formalized | `GOAL-SN4-HOME-RBX.md` |
 | R12 | capture-pending arena TOP (mmap'd, STACK discipline — Lon s30b: *"Capture pending are in their own MMAP'd R12-topped arena"*); restored at backtrack re-entry (oracle pin W5); GC-visible | RBP-EARN s30b + EARN-5 (ONE AUTHORITY vs ζ-cell arm) |
 | R10 / R11 | rΓ / rΩ wires, BOTH glue kinds, one product-wide convention; per-activation template-emitted saves; preserved or veneered at every C crossing | `GOAL-SN4-HOME-WIRES.md` (absorbs LADDER WREG + PT) |
+| R13 / R14 / R15 | Σ subject base / δ cursor / Δ subject length-end — the match-state file ("match state collapses to four registers plus the frame", FINDING 08-02d); δ restore rides the choice record by design; ⛔ Σ/Δ save-restore across a NESTED match is an EARN-0b crossing row — verify on `161_pat_defer_fn_nested_match` watching r13/r15 (the LIFO check verified rsp/rbp only) | `x86_asm.h` literals + GOAL-SNOBOL4-BB FACT RULE; full 16-row map = HOME-RBX X-0 deliverable (s31) |
 | R9 | GVA base (RTCC LIVE claim) | GOAL-RTCC |
-| R8 + arg tier (rax rcx rdx rsi rdi) | RTCC slots; arg tier: claim it or stop paying for it (RC-8b) | GOAL-RTCC RC-8, GC gap owned by HOME-RBX X-1 |
+| R8 + arg tier (rax rcx rdx rsi rdi) | RTCC slots; arg tier: claim it or stop paying for it (RC-8b) | **HOME-RBX X-5 (RC-8b/8c ADOPTED s31, gated on X-1)**; GC gap = HOME-RBX X-1; GOAL-RTCC stays law+history |
 
 ## HOME GATE — Definition of DONE (every line measurable; "100%" means THIS)
 
 1. probe suite · crosscheck/patterns · xc318 · broad-336 · demo board (honest denominator — fence-dupe fixed) · bench-22: **oracle-green BY SET, BOTH modes, m3 ≡ m4 outputs byte-identical**; xfail only where oracle-blessed (p.123 stack-overflow class, `-s` remedy).
 2. EARN-2 census: **`unearned == 0 && owed == 0`**; emitted frame count == classifier output exactly.
 3. Gates strict: claim gate DATA-DRIVEN over {rbx r9 r10 r11 r12 + tiers}; **zero r10/r11 scratch anywhere incl. RTX hand asm**; RC-8a GC coverage green; TEMPLATE-ONLY + BOTH-MEDIUM greps == 0.
-4. Deletions complete: BLOB-GRANT pins · CLASS-D `{res,rbp}` records + res stubs + ω absolute unwind + scanfail whack · legacy ARBNO arm · every dead killswitch.
+4. Deletions complete: BLOB-GRANT pins · CLASS-D `{res,rbp}` records + res stubs + ω absolute unwind + scanfail whack · legacy ARBNO arm · every dead killswitch · **`g_blob_ctx`/`rt_blob_ctx_ptr` grep == 0** (largely discharged by `0970838f` g_zctx per-activation base stack — the gate VERIFIES, never assumes).
 5. Monitor sees the classes it has been dark on: stdout-only divergence (MON-CAP) + table-element-assign VALUE events. `handoff_status.sh` prints COMPLETE.
 6. **BEAUTY:** the `beauty_suite` drivers green BOTH modes AND `demo/beauty/beauty.sno` byte-identical to oracle — **Milestone-1's md5 `abfd19a7a834484a96e824851caee159` re-proved at HOME** (any delta must be Lon-blessed as an oracle-behaviour change).
+7. **RE-ENTRY EDGE INVENTORY CLOSED (s31):** every RBP/R12 restore edge enumerated and INDIVIDUALLY witnessed — backtrack β per choice class (arena pin W5: verify, never assume) · ω unwind · FENCE whack · scanfail · ABORT drain · unanchored retry bump · **NRETURN · direct Goto `:<C>` into CODE() blocks · SETEXIT traps** (manual Ch.9/19 non-local transfers — named in no seat file before s31). One missed edge = the FF-0 class. Deliverable rides EARN-3 (see GOAL-RBP-EARN s31 cursor).
 
 ## INSTRUMENT MAP (scanned 2026-08-12 s30 at corpus `5c17de98` — every suite, its runner, who consumes it)
 
@@ -62,11 +64,23 @@ Legacy goals (SNOBOL4-BB · SNOBOL4-RTX · RTCC · ZETA-MECH · ZETA-CLIMB) rema
 
 ## COLLISION PINS (named in advance — this is why the partition works)
 
-- **`emit.cpp` frame arms:** RBP seat lands EARN-1/3/4 there; WIRES must NOT cut those arms before P3/EARN-11 — the s12 "highest collision surface" note is now an ORDERING LAW.
+- **`emit.cpp` frame arms:** RBP seat lands EARN-1/3/4 there; WIRES must NOT cut those arms before P3/EARN-11 — the s12 "highest collision surface" note is now an ORDERING LAW. **s31 extension:** the pin covers the ZCTX sequences and the push/pop guard pair (emit.cpp:2373/2806) — W-1/W-2 edits sit adjacent to the α/ω authority EARN-11 later claims. Under the CONSOLIDATED seat this is internal sequencing; on any re-fan-out it is a named pin.
 - **Arena record layout (+16B wire-pair slot, WREG-3):** WIRES OWNS the layout; RBP/EARN-5 CONSUMES. One authority — the CAP-SYM lesson.
 - **`x86_asm.h`:** encoder ADDS only (TEMPLATE-ONLY law); any seat may add, none may reshape.
 - **RTCC veneer ↔ wires:** safe config = RTCC-ON **AND** wire capture/restore — neither alone (s14 arbitration). WIRES owns the pair.
 - **Floors/census:** ONLY BOARD re-cuts instruments; every other seat consumes and cites.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s30 (Fable 5, minted with the plan)
-P0 UNOPENED. First seat: BOARD. Fingerprints at mint: SCRIP `fc5b0754` · corpus `5c17de98`+witnesses · x64 `5035571`. Ruling ledger: (a) RULED s30/s30b (arena stands) · (b) OPEN, zero-cost · (c) discharged by EARN-4 execution when P1-RBP runs it · (d) decidable at P3.
+## ADOPTED / PARKED LEDGER — s31 CONSOLIDATION AUDIT (legacy work the seat files did not carry, now assigned or explicitly parked; audit FINDING-2026-08-12b)
+
+- **LADDER KW** (GOAL-SNOBOL4-BB KW-0..6, keywords native): **ADOPTED, P3.5** (after EARN-11/EARN-7, before P4 seal). Acceptance = the xc318 keywords-12 dir green both modes — HOME GATE 1's implied requirement made explicit. Authority stays the BB file. KW-5's native `&STLIMIT`/`&STCOUNT` also feeds the monitor (BOARD-adjacent).
+- **DEFER LATCH** (`g_star_peek` → per-site resolution; GOAL-SNOBOL4-RTX row): **ADOPTED, P1-concurrent** — `pattern_match.c` only, zero collision with any seat surface. Witnesses `140_pat_eval_double_fn_trick`/`141_pat_eval_double_fn_arbno` (RED m3 rc=139 / m4 PASS — a two-sided gate for free) promoted to the named-witness layer (BOARD B-7(iv)). Manual-proven structurally wrong (Ch.7 p.86 + Ch.9 pp.122–3: deferred eval RE-ENTERS deferred eval; a one-entry name-keyed latch is guaranteed clobbered). Same single-cell disease as `g_blob_ctx`/`g_rtcc_block`.
+- **MECH S-LADDER** (M-SLEN S0–S5 incl. S4 register-only MATCH_BEGIN α): **RIDES EARN-6** (RBP seat) — S4 is EARN-6's implementation arm, never orphaned. Authority GOAL-SN4-ZETA-MECH.
+- **CLIMB C-10 / C-11** (data+keywords witnesses; EVAL/CODE/EXEC summit incl. the 1016/1019/161 gatekeep class): **ADOPTED, P3.5.** C-11 doubles as the EARN REENTRANCY STRESS SUITE — EVAL/CODE re-entry is exactly what earned frames + the R12 arena must survive. Authority GOAL-SN4-ZETA-CLIMB.
+- **RTCC residue:** RC-8b/8c **ADOPTED at HOME-RBX X-5** (gated on X-1); RC-5 anchor re-open + RC-7 fold **PARKED** in GOAL-RTCC pending Lon + X-1.
+- **RTX perf ladders** (RTX-4/6/9/10/12): **PARKED BY DESIGN** — correctness first; HOME GATE 3 already pulls the RTX hand-asm surface into W-0/W-1. RTX instrument debts adopted at **BOARD B-8**.
+- **LADDER PB: CLOSED pre-consolidation** (all rungs `[x]`, BB cursor 07e "LADDER PB CLOSED") — PLAN.md's row is stale by design; do NOT reopen. Its `131` residual (`pat_static=0` 528B UCLAIM class) flows to EARN-7/M-3 deletion.
+- **BB demo-board bisect** (`d2328f81..942ef1b1`, predicate `/home/claude/bisect_tb.sh`, witness treebank-match rc=139): **HELD AS FALLBACK** — P2's prediction is EARN restores the FF-0 defer members; if the 15-board does not recover, the bisect is the instrument, not a re-derivation.
+- **Milestone-2** (stage2 self-host): explicitly **OUT OF HOME SCOPE** — GATE 6 re-proves Milestone-1 only.
+
+## ⭐ LIVE CURSOR — 2026-08-12 s31 (Fable 5, CONSOLIDATED audit — ZERO compiler bytes, no gates run, no watermark moved)
+P0 STILL UNOPENED; first seat BOARD (B-0 m4 harness repair first). **s31 = the consolidation audit** (`FINDING-2026-08-12b-CLAUDE-FABLE5-SN4-HOME-CONSOLIDATION-AUDIT-…md`): the EARN scheme VERIFIED as frame-pointer-on-demand (alloca/VLA discipline) + side arena — sound, taxonomy total, conditional on (i) reads-based census incl. glue reads, (ii) the closed re-entry edge inventory (new GATE line 7), (iii) GC coverage (X-1). Ledger above minted; register contract completed (R13/R14/R15 rows; REGISTER-LAYOUT.md's r12=ζ row bannered STALE); RC-8b/8c → RBX X-5; defer-latch → P1; KW + C-10/C-11 → P3.5; three obligations attached to EARN rungs (RBP-EARN s31 cursor). Fingerprints at s30 mint stand: SCRIP `fc5b0754` · corpus `5c17de98`+witnesses · x64 `5035571`. Ruling ledger unchanged: (a) RULED s30/s30b (arena stands) · (b) OPEN, zero-cost · (c) discharged by EARN-4 execution when P1-RBP runs it · (d) decidable at P3.
