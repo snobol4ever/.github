@@ -20,16 +20,20 @@
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
-## ⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, continuation session) — RAW-BYTE HALF OF W-0 CLOSED
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5, continuation session) — RAW-BYTE HALF OF W-0 CLOSED + ONE DEAD-CODE LANDING
 
-**SCRIP `05e6b1ae` (UNCHANGED — read-only session, ZERO compiler bytes) · corpus re-cloned clean (first
-background clone attempt raced and left an EMPTY checkout — `git log -1` inside it showed "No commits yet";
-`ls` alone would have missed this. Flagging for any session that clones in the background: verify with
-`git log`, not `ls`.) · x64 not cloned.**
+**SCRIP `825ab0a4` (one commit ahead of the session-start `05e6b1ae` — the dead cursor-mirror deletion below;
+the raw-byte sweep itself touched ZERO compiler bytes, read-only) · corpus untouched, clean (first background
+clone attempt raced and left an EMPTY checkout — `git log -1` inside it showed "No commits yet"; `ls` alone
+would have missed this. Flagging for any session that clones in the background: verify with `git log`, not
+`ls`.) · x64 not cloned.**
 
-**No codegen touched ⇒ RULES.md step 4 (`.s` regen ×3) DOES NOT APPLY this session.** m3 floor NOT
-re-measured; s35's by-set floor stands unless a later seat re-proves it: **157 pass · 1 xfail · 5 REGRESSION
-{D12,D13,H31,X01,X10}**.
+**RULES.md step 4 (`.s` regen ×3) WAS RUN** (the second landing touched `x86_asm.h`): benchmark/feature/demo
+regen scripts all report "same"/"no changes" — zero artifact bytes moved, confirming the deletion is
+runtime-invisible as predicted. Two PRE-EXISTING unrelated gaps noted in passing (`coverage_sno_nodes.s`
+EMIT-FAIL, `json.s` SKIP) — both reproduce identically with the edit absent, not caused by this session.
+m3 floor NOT re-measured beyond the 17-program targeted re-run (identical before/after); s35's by-set floor
+stands unless a later seat re-proves it: **157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10}**.
 
 ### ⭐⭐⭐ THE RAW-BYTE/BINARY-MEDIUM SWEEP IS DONE — SEE `FINDING-2026-08-12j-…` FOR FULL METHOD + RESULT
 
@@ -45,25 +49,35 @@ sweep debt — the binary form confirms it executes as the source says, it doesn
 raw-byte blind spot the s35 cursor worried was "the highest-risk code, concentrated" turned out — empirically
 — to contain nothing the source-level census hadn't already named.
 
-**One concrete catch from the trace:** `x86_asm.h:232-234`'s `x86_store_cursor_mirror()` (emits `mov [r10],
-r14d`, unrelated to the wire pair — a match-cursor-mirror base pointer) and its `XK_R10MIR` decode arm
-(`:1426`) are **dead code — zero live callers anywhere in `src/`.** The one caller that could reach it,
-`xa_flat.cpp:249`, deliberately writes `"[r10 + 0]"` instead of `"[r10]"` specifically to AVOID this parse
-arm — its own comment says so. Cheap, zero-risk deletion available (shrinks `x86_asm.h` sweep debt by 2 for
-free, `test_gate_em_template_byte_identity.sh` should read byte-identical since nothing reachable changes) —
-left undone this session, flagged for whoever writes the whitelist entry.
+**One concrete catch from the trace, ✅ NOW LANDED (`825ab0a4`):** `x86_asm.h:232-234`'s
+`x86_store_cursor_mirror()` (emitted `mov [r10], r14d`, unrelated to the wire pair — a match-cursor-mirror
+base pointer) and its `XK_R10MIR` decode arm (`:1426`) were **dead code — zero live callers anywhere in
+`src/`.** The one caller that could reach it, `xa_flat.cpp:249`, deliberately writes `"[r10 + 0]"` instead of
+`"[r10]"` specifically to AVOID this parse arm — its own comment says so. Deleted this session (4-site edit:
+function, enum entry, decode arm, dispatch arm). Proof: `test_gate_em_template_byte_identity.sh` PASS=4 FAIL=0
+before AND after · the same 17-program mode-3 sweep re-run byte-for-byte identical stdout+rc before/after ·
+`test_smoke_compile_hello_all_langs.sh` PASS=6 FAIL=0 · all three RULES.md-mandated `.s` regen scripts run
+(benchmark/feature/demo) — every artifact reads "same"/"no changes" (one PRE-EXISTING unrelated EMIT-FAIL on
+`coverage_sno_nodes.s` and one PRE-EXISTING unrelated SKIP on `json.s`, both reproduced identically with the
+edit reverted, so neither is caused by this change). `wreg_claim` gate: `x86_asm.h` 25 occ/17 lines →
+**23 occ/15 lines.** This was independent of the whitelist-policy decision (deleting dead code doesn't need
+a licensing call) — the remaining 23 occurrences (RTCC veneer + register-name infrastructure) still await
+that decision.
 
 **W-0 IS NOW DATA-COMPLETE ON BOTH HALVES (RTX 223/223 done s34 + raw-byte done this session).** The ONLY
 thing left to close W-0 is decision (1) from the s35 cursor below — the whitelist-policy question. There is no
 more sweeping to do; re-running either census is explicitly NOT owed.
 
 ### NEXT SEAT, IN ORDER
-1. **Decision needed from Lon (unchanged from s35, now with complete data both halves):** whitelist policy —
-   does "product-wide" require clearing r10/r11 regardless of reachability? This finding adds the `x86_asm.h`
-   occ breakdown (recommend occ=23 if the dead cursor-mirror pair is deleted first, else occ=25) to the s35
-   numbers (193/223 RTX SN4-reachable, 30 excused).
-2. **Optional zero-risk cleanup:** delete `x86_store_cursor_mirror()` + `XK_R10MIR` (2 occurrences, dead,
-   proof = byte-identity gate). Not blocking anything, just free debt reduction.
+1. **Decision needed from Lon (unchanged from s35, now with complete data both halves AND the dead-code
+   deletion already landed):** whitelist policy — does "product-wide" require clearing r10/r11 regardless of
+   reachability? `x86_asm.h`'s honest occ count is now **23** (post-deletion, `825ab0a4`) — recommend licensing
+   it as class (3) "encoder internals" per the whitelist's own header, since every remaining occurrence is
+   either the RTCC veneer's own machinery or register-name infrastructure (decode tables, name-to-number maps)
+   that must spell every register including r10/r11 by construction. Combine with the s35 RTX numbers
+   (193/223 SN4-reachable, 30 excused) for the full product-wide picture.
+2. ~~Optional zero-risk cleanup: delete `x86_store_cursor_mirror()` + `XK_R10MIR`~~ **DONE this session
+   (`825ab0a4`).**
 3. **W-6** — re-entrant `g_rtcc_block` (leaf half already proven; witnesses `140`/`141` named) — unchanged,
    still open, still the next mechanism-shaped rung after the decisions above are made.
 4. **W-3/W-4** — mechanism dormant but ALREADY WRITTEN (`bb_glue_pass_wires_blob`); W-4's layout must cover
