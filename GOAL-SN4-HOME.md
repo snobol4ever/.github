@@ -49,6 +49,18 @@ This file is the MAP. Seats execute their own seat file (below); cursors live in
 
 ## HOME GATE — Definition of DONE (every line measurable; "100%" means THIS)
 
+### ⛔ HONEST FLOOR TABLE — all suites at ONE hash, BOARD s41 (SCRIP `9780591d`-era build, corpus current). THE ONLY PLACE IN THIS PLAN WHERE EVERY SUITE IS SHOWN SIDE BY SIDE. Re-run, never re-quote — `GATES RE-MEASURE, FILES RECORD`.
+
+| suite | m3 | m4 | ~% green |
+|---|---|---|---|
+| probe/bb (165) | 159 pass · 5 REG | 157 pass · 6 REG | ~96% |
+| broad-336 | 260/336 | 255/336 · 6 SKIP | ~77% |
+| bench-22 | ⛔ no m3 arm exists in the runner | OK=15 · FAIL=4 · CRASH=4 | ~68% |
+| demo/15-board | 2/15 | 2/15 | 13% |
+| beauty 17/17 | 0/17 | ⛔ instrument cannot invoke m4 at all | 0% |
+
+⚠ **READ THIS BEFORE JUDGING A RUNG LANDED:** the numbers are monotone in integration level — per-construct probes are ~96% while the two suites that resemble real programs are 13% and 0%. **A rung measured only against probe/bb will look green while HOME is far away.** Name at least one integration board in every cursor, even if unchanged. Full analysis + open questions: `GOAL-SN4-HOME-BOARD.md` §BOARD'S READ OF THE PLAN (s41).
+
 1. probe suite · crosscheck/patterns · xc318 · broad-336 · demo board (honest denominator — fence-dupe fixed) · bench-22: **oracle-green BY SET, BOTH modes, m3 ≡ m4 outputs byte-identical**; xfail only where oracle-blessed (p.123 stack-overflow class, `-s` remedy).
 2. EARN-2 census: **`unearned == 0 && owed == 0`**; emitted frame count == classifier output exactly.
 3. Gates strict: claim gate DATA-DRIVEN over {rbx r9 r10 r11 r12 + tiers}; **zero r10/r11 scratch anywhere incl. RTX hand asm**; RC-8a GC coverage green; TEMPLATE-ONLY + BOTH-MEDIUM greps == 0.

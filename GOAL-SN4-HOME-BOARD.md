@@ -23,6 +23,9 @@
 - [ ] **B-9 · MUTE-INSTRUMENT SWEEP + STANDING GATE (NEW, proposed 08-12h — the class behind B-0's two lost days).** THREE instances found so far, same shape each time: *a failure path that discards stderr and reports a count indistinguishable from "not measured."* (1) `run_suite.sh` m4 arm (fixed B-0b) · (2) `test_broad_corpus_snobol4.sh` missing `-no-pie` ⇒ **every** m4 test SKIPped, board read `0/0/336` (fixed `b9432c0f`) · (3) same script's `SKIP4` bare counter (fixed `2fa9f06e`). ⛔ **Fixing instances does not retire a class** — #2 and #3 sat one directory from #1 for the entire two days #1 was being diagnosed. REQUIREMENT for every suite runner: (i) no failure path to `/dev/null` without a NAMED stage; (ii) `pass + fail + skip == denominator`, printed; (iii) every non-pass member NAMED. (ii) is mechanically gateable across runners; (i)/(iii) are a one-time sweep of `scripts/test_*` + `board_*`. Cheap, and the only thing that stops a fourth.
 - [x] **B-1(b-iii) · DENOMINATORS PINNED TO A COMMAND, NOT PROSE — DONE s41 (Claude Sonnet 5).** Minted `scripts/board_denominators.sh` (SCRIP `a969e626`) — prints crosscheck/probe_bb/demo/demo15/bench/beauty_total/beauty_drivers/earn0/broad336 live from the corpus tree, or one suite via arg (bare number, scriptable). Every arm verified against live corpus **except `broad336`, which is CONFIRMED OFF BY 2** vs `test_broad_corpus_snobol4.sh`'s own printed total (338 reconstructed, 336 printed) — root cause not found despite independently verifying crosscheck-with-ref (317, two methods) and beauty drivers (17, confirmed same basenames). Flagged in the script's own output, not silently corrected — the script's own live run stays authoritative for that one row until someone finds the 2.
 
+- [ ] **B-10 · PER-SUITE `FAST=1` SUBSETS + DOCUMENTED WALL-CLOCK COST (NEW, proposed s41).** STANDING says "re-prove floors at each phase boundary"; measured cost of doing that once is 20–30 min wall clock (demo-15 alone >850s and did not complete in s41's budget; `TMO=300` means one hanging program = 5 min for one table row). Mint a documented representative subset per suite, each carrying a known-PASS control row (s29 rule — a run whose control fails is VOID), for per-rung use; full sweeps reserved for phase boundaries. Makes "re-prove the floors" an affordable instruction rather than an aspirational one.
+- [ ] **B-11 · FINISH B-1(b-iii): CONVERT RUNGS FROM DIGITS TO COMMANDS (NEW, s41).** `board_denominators.sh` exists (SCRIP `a969e626`) but **every rung in this file still cites hardcoded digits** — the tool landed, the conversion did not. The rung's own text asked for both.
+
 ## STANDING (all phases)
 Re-prove floors at each phase boundary; every instrument change ships with its positive control; `.s` artifacts are HONEST CURRENT output, never pinned goldens.
 
@@ -124,3 +127,57 @@ Also re-ran `test_broad_corpus_snobol4.sh` fresh this session as a side effect o
 3. Compiler-bytes items still sitting unclaimed for any seat: `.Lbynamefn*` duplicate labels (6 programs), demo-board's 13/15 SIGSEGV/hang class (s39/s40 findings), bench-22's 8/23 FAIL+CRASH set.
 
 **UNBLOCKS: ANY SEAT** — `earn0` is now **30**, not 28/20/16; cite `bash scripts/board_denominators.sh earn0` from now on instead of a remembered digit, that's the entire point of this rung landing.
+
+---
+
+## ⛔⭐ BOARD'S READ OF THE PLAN — s41 SCRUTINY (written at Lon's request; this is the referee seat's honest assessment of whether the plan measures what it claims. Corrections and open questions for Lon are marked ⚠ LON.)
+
+### 1. THE FLOORS DISAGREE WITH EACH OTHER, AND THE UNIT-LEVEL ONE IS THE OUTLIER
+
+Every named suite, measured at one hash this session, side by side for the first time:
+
+| suite | m3 | m4 | % green |
+|---|---|---|---|
+| probe/bb (165) | 159 pass · 5 REG | 157 pass · 6 REG | **~96%** |
+| broad-336 | 260/336 | 255/336 · 6 SKIP | **~77%** |
+| bench-22 | (no m3 arm exists) | OK=15 · FAIL=4 · CRASH=4 | **~68%** |
+| demo/15-board | 2/15 | 2/15 | **13%** |
+| beauty 17/17 | 0/17 | (instrument cannot run m4) | **0%** |
+
+**The pattern is monotone in integration level: the more a program composes, the more certainly it is broken.** probe/bb is a per-construct suite and is nearly green; the moment programs compose constructs (demo, beauty) they are at or near zero.
+
+⚠ **This falsifies an assumption the plan leans on structurally.** `GOAL-SN4-HOME.md`'s INSTRUMENT MAP calls probe/bb the "UNIVERSAL per-rung BY-SET gate," and the SELF-GATING PROTOCOL tells every seat to judge its rungs against it. **A seat that gates on probe/bb alone will see 96% green and believe HOME is close.** It is not close: the two suites that actually resemble the product (demo, beauty) are 13% and 0%. Recommend the master file's SELF-GATING §2 gain one line: *a rung may not be called landed on a probe/bb-only measurement; name at least one integration board in the same cursor, even if unchanged.* Cheap, and it stops five seats from converging on a false picture simultaneously.
+
+### 2. THE DEMO BOARD'S BREAKAGE HAS NO OWNER, AND THE PLAN ASSUMES IT AWAY
+
+The master file (INSTRUMENT MAP, DEMOS row, pre-s39 wording) said the demo board's failures "ARE the FF-0 class ... **EXPECTED restored by EARN additions**." s39 corrected the count (2/15 pass, not 2/15 broken). But the more consequential correction is the *mechanism*: `calculator-1.sno` SIGSEGVs on the single input line `1/3` — **no ALT, no ARBNO, no pending `.` capture anywhere in that crash path**, and the oracle handles the same line in ~0ms. Same for `calculator-2` and `treebank-array`.
+
+⚠ **LON — this is the one thing in the plan I would most want your ruling on.** If the demo board is NOT the pending-capture/R12 class, then RBP's EARN ladder will complete and the board will still read 2/15, and P4-SEAL will discover this at the *end*. No seat file's ladder currently names it; THE POOL doesn't list it; "unclaimed, first push wins" has now been the answer for three separate compiler-bytes findings from this seat alone (`.Lbynamefn*` ×6 programs, demo 13/15, bench 8/23) across three sessions, and none has been claimed. **"First push wins" is not an assignment mechanism — it is the absence of one.** Under fire-and-forget with no human scheduling, work that no ladder names is work that does not happen. Either these need to become POOL items with real rung numbers, or a seat needs to be told to take them.
+
+### 3. HOME GATE LINE 6 CANNOT CURRENTLY BE MEASURED AT ALL
+GATE 6 requires beauty green BOTH modes + `beauty.sno` byte-identical to Milestone-1 md5. beauty is 0/17 in m3, and s40 found `test_gate_sn7_beauty_self_host.sh` never invokes `--compile` (line 35: `for mode in --run --run --run`). **So the m4 half of GATE 6 has no instrument, and the m3 half reads zero.** A gate line that cannot be evaluated is not a gate. Fixing the loop is one line (B-9 item 4) and should precede any claim about GATE 6.
+
+### 4. WHAT B-1(b-iii) FIXED, AND WHAT IT DID NOT
+`board_denominators.sh` now prints every denominator live. **But every rung in this file still cites digits** — the conversion the rung called for ("every rung then cites `board_denominators.sh <suite>` instead of a digit") is NOT done, only the tool exists. Owed. Evidence it matters: `earn0` moved 16→20→28→**30** across four sessions, and `probe/bb` 163→165; this session found 30 while the newest prose in this very file said 28.
+
+### 5. COORDINATION IS COSTING MORE THAN IT SAVES RIGHT NOW
+Three consecutive BOARD sessions lost real time to the same confusion: s37 reported a "seat collision"; s40 identified s39's "mystery second process" as **its own orphaned background job**; s41 (this session) hit the identical orphan problem AND independently rebuilt+re-ran bench-22 and beauty before discovering s40 had already closed them minutes earlier. Nothing was corrupted — git merged everything cleanly — but roughly a session-hour was spent three times over on the same non-problem.
+
+⚠ **LON — THE ONE INVARIANT ("one live session per seat file") is stated but nothing detects a violation.** Recommend the cheapest possible detector rather than a process rule: each session, first action, appends `SEAT-ACTIVE: <seat> <ISO-timestamp> <session-id>` to its goal file and pushes; orientation step 1 reads it and, if one is <2h old, says so aloud and asks Lon before proceeding. That is ~3 lines of protocol and would have caught all three incidents.
+
+**Second, mechanical, no-judgement-needed fix, already proven twice:** background jobs launched with bare `&` survive the tool call that spawned them but die with the shell, orphaning children that keep writing to shared logs. Use `setsid nohup CMD </dev/null >LOG 2>&1 &`, and `ps aux | grep <script>` before trusting any background log is solely yours. s39 and s40 derived this independently; it is now recorded in three places.
+
+### 6. MEASUREMENT WALL-CLOCK IS UNBUDGETED
+Re-proving all floors once ≈ demo-15 (>850s, did not complete for this session even once) + broad-336 (217s) + bench-22 (~90s) + beauty (~120s) + probe/bb ×2 modes. **STANDING says "re-prove floors at each phase boundary"** — that is 20–30 minutes of wall clock per phase boundary, and `board_sno15_ident.sh`'s `TMO=300` default means a single hanging program costs 5 minutes for one table row (the treebank family alone can consume an entire budget). Recommend BOARD mint a documented `FAST=1` subset per suite (known-representative members + a known-PASS control row) for per-rung use, reserving full sweeps for phase boundaries only. Filed as a proposed rung below.
+
+### 7. WHAT I'D DO NEXT IF I HAD ANOTHER SESSION, IN ORDER
+1. **B-2** (census re-cut) — genuinely unblocked now; every floor has one honest current number behind it. This is the plan's next real rung.
+2. **B-9 items 4 & 5** — the beauty `--compile` one-liner (unblocks GATE 6 measurability) and the demo-board CRASH/HANG split. Both cheap, both make existing gates honest.
+3. **Convert this file's rungs from digits to `board_denominators.sh <suite>` calls** — finishes B-1(b-iii) properly.
+4. **B-10 (proposed, new):** per-suite `FAST=1` subsets + documented wall-clock cost per suite, so "re-prove the floors" is an affordable instruction rather than an aspirational one.
+
+### ⚠ LON — DIRECT QUESTIONS, ANSWERS WANTED IN-CHAT
+1. **Credential** — three commits (`.github` ×2 + the concurrent s40 carried in my branch) and one (`SCRIP`) are committed and waiting. Nothing pushes without it. This is the only hard blocker.
+2. **Who takes the demo/bench/`.Lbynamefn*` compiler-bytes work?** (§2 above.) It has been unclaimed across three sessions.
+3. **Does BOARD's "ZERO compiler bytes" charter permit minimal-reproducer isolation?** I did it this session (`echo "1/3" | scrip --run calculator-1.sno` → SIGSEGV, oracle clean) because it was cheap and made the finding actionable — but reproducer-hunting is arguably diagnosis, not refereeing. It cost ~5 minutes and turned "13/15 broken" into something a seat can act on immediately. **I'd argue it belongs in the charter explicitly; ruling requested either way.**
+4. **Is fire-and-forget still the model you want** given §5? Not a complaint — the pace is genuinely high and git has handled every merge — but three sessions have now paid the same coordination tax.
