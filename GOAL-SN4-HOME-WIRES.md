@@ -16,7 +16,7 @@ claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes
 
 ## ⭐ LIVE CURSOR — 2026-08-12 s35 (Opus 5)
 
-**SCRIP `aaa11bda` · corpus `9f27e84d` · x64 not cloned.** m3 floor re-proved BY SET at this HEAD: **157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10} — IDENTICAL to s33/s34.** One compiler edit + 3 mandated regen commits. **PUSH STATE at the bottom — read it before believing anything here landed.**
+**SCRIP `2913c6a4` · corpus `019795bb` · x64 not cloned — hashes are POST-REBASE onto the origins that moved mid-session; floor re-proved at these exact hashes, not inherited.** m3 floor re-proved BY SET at this HEAD: **157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10} — IDENTICAL to s33/s34.** One compiler edit + 3 mandated regen commits. **PUSH STATE at the bottom — read it before believing anything here landed.**
 
 ### ⛔⭐⭐⭐ FOR LON — TWO THINGS NEED YOU, ONE IS A PROCESS BREAK
 
