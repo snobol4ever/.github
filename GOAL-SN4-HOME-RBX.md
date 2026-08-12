@@ -100,19 +100,41 @@ Three properties to carry forward:
 ## GATES (every rung)
 RC-8a coverage gate (self-arming, lands WARN→FAIL on tier claim) · probe + bench BY SET vs P0 floors · positive control on every census (a gate that cannot fail for the right reason is not a gate) · FINDING + cursor move.
 
-## ⭐ LIVE CURSOR — 2026-08-12 s33 (Opus 5). **X-0 CLOSED · X-1 CLOSED** (SCRIP `9ecb75a9`). FINDING: `FINDING-2026-08-12d-CLAUDE-OP5-HOME-RBX-X1-…md`.
+## ⭐ LIVE CURSOR — 2026-08-12 s33 (Opus 5). **X-0 CLOSED · X-1 CLOSED** (SCRIP `9ecb75a9`→`51934a9f` post-rebase). FINDING: `FINDING-2026-08-12d-CLAUDE-OP5-HOME-RBX-X1-…md`.
 
 **WATERMARK (m3, BY SET, own-HEAD control — BOARD P0 floors do not exist yet):** `crosscheck/patterns` 76/46 **identical by set** HEAD vs X-1 · `crosscheck/gc` 15/15 · `crosscheck/capture` 8/1 (`061_capture_in_arbno`, pre-existing). Emitted `.s` **byte-identical** (`cmp`) ⇒ no codegen touched ⇒ RULES step-4 regen not triggered, proved not asserted. Gate `scripts/test_gate_rc8a_gc_coverage.sh` **GREEN**, every assertion positive-controlled by `SCRIP_GC_UNROOT={cas,rtcc}`.
 
-**NEXT RUNG: X-2 (FUNC-11)** — no ⛔ REQUIRES, opens immediately, and it now carries a MANUAL-LEVEL ARGUMENT rather than a fourth black-box sweep: SPITBOL v3.7 Ch.19 note 7 — a variable block for a user-created name (label, function, or variable) is allocated and **never reclaimed**; the manual steers associative data to TABLE for exactly this reason. So the runtime-created-variable population is **unbounded and monotone by the language definition**, and any FIXED include-scoped capacity is wrong *by construction* — unfixable by raising a constant, which is why three threshold constants were falsified. **The fix must GROW the structure.** Instrument per the STANDING INSTRUCTION: counter in the runtime allocation path (not a sweep) → convict → fix. Witnesses (verified present): `probe/rtx_func_11_{inline,include}.sno` + `probe/rtx11_dynvar_{inline,include}.sno`, refs baked, two-sided. ACCEPTANCE: `programs/snobol4/beauty_suite/` (**34 files**) green both modes.
+### ⛔⭐⭐⭐ CROSS-SEAT INTELLIGENCE — READ BEFORE X-2 OR X-5 (s33 other seats)
 
-**THEN X-5** — **its gate RC-8a is now GREEN, so X-5 is UNBLOCKED.** Note the raised stakes recorded in § B: the callee-saved tier is 6-of-6 subscribed, so the RTCC arg tier is the *only* remaining register supply product-wide. ⛔ Before dropping any veneer instruction, run the RTCC s16c instrument (walk the 12 `x86("rtcc_wb")` sites, identify the call each brackets) — do NOT re-derive the false zero from `x86_rtcc_call` greps.
+**From RBP seat (FINDING-2026-08-12e):** The `main_α` bridge never established R9. `flat_α` gets `rtcc_load_all`; `main_α` (~scrip.c:1278-1290) does not. Every program through `main_α` emits `[r9+…]` GVA refs with r9 never loaded → first GVA-slotted write faults m4. ONE LINE FIX in `scrip.c`. Effect: `patterns` m4 SEGV 82→11 (42 repaired, 0 regressions). ⛔ **Build order is load-bearing: `install_system_packages.sh` BEFORE any build** — a scrip built before it omits `call rtcc_load_all@PLT` and manufactures phantom m4 SEGVs. The r9 fix may already be on origin; `git pull --rebase` and verify `git log --oneline SCRIP -3` before building.
 
-**X-3** (P2) is a **PORT PROMOTION, not a build** (§ A) — and it does **NOT** owe the `pz` cost my X-0 §D charged it; see § D's correction, `pz` was already dead at HEAD via RTCC's unconditional pin, measured `pz=0` on every collection.
+**From WIRES seat (s33 cursor):** `g_blob_ctx`/`rt_blob_ctx_ptr` now grep to 0 (W-1, `26c84e72`). WIRES m3 floor: probe/bb suite 157 pass · 1 xfail · 5 REGRESSION {D12,D13,H31,X01,X10} by set — pre-existing, hold BY SET. WIRES INSTRUMENT RULE (offer for RULES.md): an instrument reports a class only after one member has been confirmed by hand; three scanner bugs in one session all caught this way.
 
-**FILED OUTWARD (unchanged + new):**
-- ⛔ **HAZARD-1 → BOARD + WIRES:** `xa_flat.cpp:520,526` clobbers **rbx** as a scratch save slot (Icon ICN-FR-2 zframe ω) — § F violation on a shared emitter, and proof the claim gate does not yet cover rbx.
-- ⛔ **NEW → BOARD:** all 15 `crosscheck/gc` programs trigger **ZERO natural collections**; collections appear only under `SCRIP_GC_STRESS` (instrument proved live at 2432 collections). The GC suite does not exercise the GC — every "gc" pass in a phase floor is currently a statement about allocation.
-- **→ RBP / LOWER:** `ARB . A` capture diverges from oracle at HEAD (`hello/` vs `/hello `) and a capture loop SIGSEGVs where the oracle prints `2290`; both reproduce with this diff stashed.
+**Impact on X-2:** FUNC-11 (`rtx_func_11_include.sno`) is an m4 SIGSEGV class. The r9 fix may cure some as a side effect. **Verify which programs flip before and after the r9 fix before instrumenting the allocation path** — do not instrument a class the r9 fix already repaired.
 
-**UNBLOCKS: RBX X-5** (RC-8a green). X-2, X-3 unaffected and open.
+### NEXT RUNG: X-2 (FUNC-11) — SHARPENED
+
+No ⛔ REQUIRES; opens immediately.
+
+**MANUAL-LEVEL ARGUMENT (do not re-sweep).** SPITBOL v3.7 Ch.19 note 7: a variable block for a user-created name is allocated and **never reclaimed** ("this space is never reclaimed once it has been allocated"). Runtime-created-variable population is **unbounded and monotone by the language definition** — a fixed include-scoped capacity is wrong by construction, not merely undersized. The fix must GROW the structure; three falsified threshold constants prove raising the constant does not work.
+
+**INSTRUMENT FIRST.** Counter in the runtime allocation path — `NV_SET_fn` / `rt_nv_set_by_name` call sites where a name never seen before creates a variable block, distinguishing STATIC (compile-time) from RUNTIME (DEFINE/CODE path) creation. Show the counter grows unboundedly on the witness before proposing a fix.
+
+**Witnesses (verified at corpus `14dc06bd`):** `probe/rtx_func_11_{inline,include}.sno` + `probe/rtx11_dynvar_{inline,include}.sno`, refs baked, two-sided. ACCEPTANCE: `programs/snobol4/beauty_suite/` **34 files** green both modes. ⛔ Re-measure after the r9 fix lands — the m4 acceptance number may shift.
+
+### X-5 (post-X-1, gate now green)
+
+⛔ Before touching it: the r9 one-line fix changes the m4 surface for the arg tier. Do the RTCC s16c instrument **on a correctly-built binary after the r9 fix.** On RC-8c (XMM8–15): AMEND the charter to 9 GPRs and explicitly park XMM — no rung has verified the XMM claim at all. Amendment belongs on GOAL-RTCC.
+
+### X-3 (P2, after X-2 acceptance)
+
+Port promotion, not a build (§ A). Does NOT owe the `pz` cost (§ D corrected — `pz` was already dead at HEAD, measured `pz=0` on every collection). Two costs X-3 DOES owe: pin/range monotone growth per refill; and false retention from integers in ZH refill blocks that look like heap addresses. Measure both on a long-running program before promoting HEAP as the default port.
+
+### FILED OUTWARD
+
+- ⛔ **HAZARD-1 → BOARD + WIRES:** `xa_flat.cpp:520,526` clobbers rbx as a scratch save slot (Icon ICN-FR-2 zframe ω) — claim gate does not yet cover rbx.
+- ⛔ **→ BOARD:** all 15 `crosscheck/gc` programs trigger ZERO natural collections (instrument live: 2432 under stress). The GC suite does not exercise the GC.
+- **→ RBP / LOWER:** `ARB . A` capture diverges from oracle at HEAD; a capture loop SIGSEGVs where oracle prints 2290; both pre-existing.
+- ⛔ **→ BOARD (from WIRES):** WIRES instrument rule — offer for RULES.md.
+
+**UNBLOCKS: RBX X-5** (RC-8a green). X-2, X-3 open.
