@@ -33,6 +33,52 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
 ## GATES (every rung)
 claim gate `--strict` green · probe + crosscheck BY SET vs P0 floors both modes, RTCC ON and OFF until W-6 seals · killswitch md5 discipline · FINDING + cursor move.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s39 (Claude Sonnet 5) — HANDOFF · X01 WIDENING FALSIFIED, ZERO SOURCE EDITS, WATERMARK UNCHANGED
+
+### What this session did
+Picked up s38's own "suggested next step" for X01 — widen W-7's guard from `op_arbno_body_defer_unsafe` to
+the general `!op_arbno_body_k0` case — and **falsified it** before landing any code. Full detail:
+`FINDING-2026-08-12p-…`. Short version: `k0=0` (and the more targeted `op_body_has_arbno`, which looked
+like a better-fitting existing field) are BOTH `1`/set for 10 of the 16-probe pat_static=1 passer set
+(G19 G20 H24 H25 X02 X03 X04 X05 X06 X11 — all genuinely contain nested ARBNO in their body, same as X01).
+A blanket guard on either field breaks 10 currently-green probes to fix 1. **X01 is trace-identical to its
+passing siblings on every field the emitter currently stages** (framed/k0/sq/kk/osv/body_has_arbno/
+defer_unsafe all match X02's shape exactly) — there is no existing discriminator, narrow or wide, that
+separates it. The actual distinguishing property (hypothesized, NOT validated beyond n=1): X01's outer body
+span is PURELY the nested ARBNO, no bracketing K=0 members, unlike X02/X04/X06/G19 which wrap the inner
+ARBNO in literal delimiters. No second positive witness exists in the suite to test this against.
+
+**Zero source files changed.** One temporary diagnostic `fprintf` was added to `bb_match_arbno()` to
+confirm `op_body_has_arbno`'s staged values, then reverted; `git diff` against SCRIP HEAD is empty,
+confirmed after rebuild. Nothing to commit, nothing to push.
+
+**WATERMARK: unchanged — re-measured, identical to s38: 160 pass · 1 xfail · 5 REGRESSION
+{D12,D13,H31,X01,X10}.** (s38's own note: count is 159→160 from unrelated LOWER work, not this seat.)
+
+**SCRIP `0bbf092b` — UNCHANGED. corpus `7814057e` — UNCHANGED (no regen ran; no codegen file touched).
+.github this commit (the FINDING + this cursor move only).**
+
+### Why this seat stopped rather than landing a narrower purity-check guard
+A new scan field ("is the body span EXACTLY one IR_MATCH_ARBNO node, nothing else") is a plausible next
+guard, parallel in shape to W-7's DEFER scan — but (1) it's unvalidated against more than one positive
+witness and the 2-way sync-step monitor that RULES.md prescribes for exactly this wrong-answer-rc-0 class
+is dark in this container (`csnobol4` not built, same MON-CAP gap s38 already flagged); (2) X01's real fix
+is very likely the same W-4 layout work as W-7's real fix, so a second guard is doubly-interim; (3) this
+would be a FIFTH consecutive session of this seat working ARBNO-dispatcher territory instead of its own
+r10/r11 charter (W-3/W-4/W-6, still untouched) — s38's own scrutiny item 1 asked Lon to rule on whether that
+routing should continue, and it's still unanswered. Landing another guard unilaterally pre-empts that
+decision rather than waiting the one turn for it.
+
+### Still open / still owed (unchanged from s38, carried)
+- **W-3/W-4/W-6 — this seat's actual charter — still untouched, now FIVE sessions running.**
+- **W-4 layout** — still the real blocker for W-7's DEFER case, X01, and 145/165/178/179/183 + demo board.
+- **Five questions for Lon from s38, none answered yet** — routing (item 1, now more urgent), W-4 promotion,
+  X01/general-guard scope (this session adds data: the "general `!k0` guard" half of Q3 is now answered —
+  NO, falsified, see above — but "separate rung, narrower guard" is still open), W-2 disposition, MON-CAP.
+- **MON-CAP / `csnobol4` build** — now blocked TWO investigations in a row (s38's diagnosis, this session's
+  attempted fix). Recommend prioritizing this the next time a code-writing (not just diagnostic) session
+  picks up X01 or any other wrong-answer-class probe.
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s38 (Claude Sonnet 5) — HANDOFF · W-7 INTERIM GUARD LANDED, D12/D13 CONVERTED FROM SIGSEGV/HANG TO CLEAN BOMB, REAL FIX STILL BLOCKED ON W-4
 
 ### What this session did
