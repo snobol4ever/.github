@@ -1,5 +1,54 @@
 # GOAL-SN4-HOME-WIRES — r10/r11 wires, two glue kinds, shim deletion (HOME seat; master = GOAL-SN4-HOME.md)
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 (Claude Sonnet 5) — W-3 CRASH ROOT-CAUSED (not fixed): DEFER blob's own
+## rsp-relative result cell collides with the outer graph's fixed `zls2_mark` slot at `[rbp-56]`; TWO prior
+## hypotheses (r10/r11 clobber, stfh() split-predicate) empirically RULED OUT. PUSH BLOCKED PENDING CREDENTIAL.
+
+### What this session did
+Continued s39c's W-3 crash from "diagnosis-in-progress" to a confirmed root cause. Full gdb hunt per
+RULES.md MONITOR-FIRST (breakpoint + spin, then single-step through the JIT'd blob with no debug symbols).
+Full detail: `FINDING-2026-08-12s-…md`.
+
+**Root cause:** `n0_match_assign_save_α` (the `IR_MATCH_ASSIGN_SAVE`/capture box, `bb_match_capture.cpp`,
+`ZRESD(0)` own-result-cell store) writes to `[rsp+64]` inside the DEFER-invoked stored-pattern blob
+(`proc_PAT$0`, jmp-entered via the WREG glue). At the moment of that write, `rsp+64` and the OUTER graph's
+`zls2_mark` slot at `[rbp-56]` are the SAME address — confirmed arithmetically (`$rsp=0x7fffffff9ac0` at the
+write, `0x7fffffff9ac0+0x40 == 0x7fffffff9b38-56`), not just by watchpoint coincidence. `zls2_mark` is later
+read back by `n27_match_end`'s `x86_zls2_release_to_call` (`mov rsp, [rbp-56]`) expecting the rsp value
+MATCH_BEGIN α stored there — instead it gets whatever the blob's own local cell (and, on subsequent hits,
+unrelated runtime C-call locals like `NV_GET_fn`/`_var_init`) last wrote. `mov garbage, rsp` then
+`push %r14` faults.
+
+**Two hypotheses this session ruled out first (recorded so nobody re-checks them):** (1) r10/r11 wire-register
+clobber — watched continuously across the whole crash window, registers never change after their initial
+`lea`. (2) `stfh()` split-predicate drift between `bb_match_begin.cpp`/`bb_match_end.cpp` (the exact class
+their own comments warn about) — env-gated diagnostic confirmed byte-identical macro text AND identical
+runtime values at all 16 BEGIN / 5 END call sites this compile. Diagnostic was temporary, fully reverted,
+tree diffs clean against pre-session HEAD.
+
+**Scoping caveat (important, in the finding in full):** the collision mechanism depends on relative stack
+depth at blob-entry time, not on which registers carry γ/ω — so this is **very likely NOT WREG-specific**,
+though that is not proven (no rcx/rdx twin exists at this call site to A/B against; `SCRIP_WREG` killswitch
+is dead code per `FINDING-2026-08-12r`). Whether the fix is W-3's charter (blob-entry depth accounting) or
+W-4's (fold `zls2_mark` into the arena wire-pair-slot layout — this finding argues (b) is the durable fix,
+since an arena slot is depth-immune the same way register wires are) is a scope decision, not concluded here.
+
+**NOT DONE:** no fix landed (frame/depth-accounting machinery, oversteps a root-cause session per the
+same reasoning s39c used — see finding's "why stopped" section). No watermark move (160 pass · 1 xfail · 5
+REGRESSION unchanged — this crash is outside that suite). SCRIP tree: zero net changes, confirmed via
+`git diff --stat` empty. Push still blocked pending credential (same as every session since s38).
+
+### ⛔ QUESTIONS FOR LON (new, on top of the s39d block below which still stands)
+7. **W-3 vs W-4 scope for the fix:** this finding argues the durable fix is folding `zls2_mark` into W-4's
+   arena layout rather than patching W-3's blob-entry depth accounting in place. That makes W-4's layout a
+   dependency for W-3's real fix (on top of it already gating W-7's ARBNO real fix). Worth deciding whether
+   W-4 gets promoted/dedicated runway now, given it now blocks THREE rungs' real fixes (D12/D13, X01, W-3).
+8. **Silent-corruption sweep:** this witness happens to land the collision exactly on the crashing
+   `zls2_mark` cell. Other DEFER/capture body shapes could collide with a DIFFERENT outer-graph slot (the
+   anchored-capture δ region, the PATCTX quartet) without crashing — producing a silently wrong answer
+   instead of a loud SIGSEGV. Recommend this as a follow-up sweep once any fix lands, not before (a fix
+   changes the depth arithmetic the sweep would need to re-target).
+
 ## ⛔ TOOLING FIRST (s42) — `bash /home/claude/SCRIP/scripts/install_system_packages.sh` BEFORE ANY RUNG.
 One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** — RULES.md MONITOR-FIRST step (2) *is* a gdb breakpoint with a spin/ignore counter. ⛔ **Never hand-run `apt-get install gdb`:** it pulls Recommends `libc-dbg` against a stale container apt index and 404s on a package gdb does not need — **that trap cost RBP-EARN seven sessions (s33–s39)**, each re-concluding "no gdb in this container" and passing it on. The script does `apt-get update` first and passes `--no-install-recommends`. Runtime `rt_*` symbols live in `out/libscrip_rt.so`: use `set breakpoint pending on` — "Function not defined" is dynamic linking, not a broken gdb. **Any tool genuinely missing ⇒ ADD IT TO THAT SCRIPT in the same push; never work around it silently.** If a prior cursor in this file claims gdb is unavailable, that claim is VOID — re-test.
 
@@ -19,7 +68,8 @@ One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** 
   - **CENSUS DONE** (s35): `bb_glue_flat.cpp` + `bb_glue_framed.cpp` read in full — **they contain NO r10/r11 push/pop at all.** `FINDING-2026-08-12i`.
 - [ ] **W-3 · WREG MECHANISM, DORMANT.** Site glue `lea r10,[rip+site_γ]` · `lea r11,[rip+site_ω]` · `jmp <first interior box>`; exits `jmp r10`/`jmp r11`. Killswitched; default emission byte-identical to HEAD. r10/r11 are caller-saved ⇒ saves are TEMPLATE-EMITTED per-activation on the spine, never an implicit choke (s18 RSP-SAFETY + the stack-arg witness). **The emitter already exists and is dormant: `bb_glue_pass_wires_blob()` in `bb_glue_flat.cpp:154-159` (r10/r11 twin of `bb_glue_pass_wires`). Start there, not from scratch.**
   - **⛔ STATUS CORRECTION (s39c, FINDING-2026-08-12r): the two claims above are FALSE as the tree stands.** `bb_glue_pass_wires_blob()` is NOT dormant — it has one live, unconditional caller (`bb_match_defer.cpp:83`, no `IF(...)` guard) — and `SCRIP_WREG`, the claimed killswitch, does not exist anywhere in `src/` (grep + empirical `SCRIP_WREG=0` A/B, byte-identical either way). r10/r11 wire glue has been the ONLY reachable spelling at the DEFER blob-entry site, unconditionally, since whenever this landed (not dated this session). A previously-unrecorded, oracle-confirmed SIGSEGV exists in this exact mechanism (`corpus/probe/bb/witness_wreg_s39/W01_stored_pattern_defer_len_capture.sno`), not yet root-caused. Read the finding before treating this rung as "safe to leave alone" or "not yet started" — it is neither.
-- [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority. ⛔ **The census named TWO shapes the layout must cover, not one — see the cursor's CARRY SHAPES block.**
+  - **⭐ ROOT-CAUSED, NOT FIXED (FINDING-2026-08-12s):** the crash is the DEFER blob's own `IR_MATCH_ASSIGN_SAVE` result-cell write (`[rsp+64]`, ZD-1 raw marker) landing on the SAME address as the outer graph's `zls2_mark` slot (`[rbp-56]`, fixed offset) — confirmed by address arithmetic at the fault, not inference. Two prior hypotheses (r10/r11 clobber, `stfh()` split-predicate) empirically ruled out. Likely NOT WREG-specific (depends on blob-entry stack depth, not register choice) but not proven either way — no rcx/rdx twin exists at this site to A/B. Fix argued to belong at W-4 (fold `zls2_mark` into the arena layout, depth-immune) rather than patched in place at W-3 — Lon's call, see cursor Q7.
+- [ ] **W-4 · ARENA WIRE-PAIR SLOT (+16B) — THIS SEAT OWNS THE LAYOUT.** Blob-interior pending records capture {r10,r11} at push, restore at β, or it is `g_blob_ctx`'s single-cell defect in register clothing (the LAW). RBP/EARN-5 consumes this layout — one authority. ⛔ **The census named TWO shapes the layout must cover, not one — see the cursor's CARRY SHAPES block.** ⭐ **POSSIBLE THIRD SHAPE (FINDING-2026-08-12s): `zls2_mark` (currently a fixed `[rbp-56]` cell, `HKM()`) may belong in this layout too** — root-caused as the W-3 crash's actual collision target (a jmp-entered DEFER blob's own rsp-relative local cell can land on this fixed offset). Folding it into the arena makes it depth-immune the same way the register wires already are; NOT YET DECIDED as in-scope for this rung — see cursor Q7.
 - [ ] **W-5 · ⛔ THE FLIP — REQUIRES EARN-1 + EARN-3 LANDED (EARN-10 ordering).** PROC-shim deletion (PT-1..3), CLASS-D exit ceremony dies with it. The old WREG residual (19 SEGV + 7 HANG) was MISSING FRAMES, not glue defects — EXPECTED cured by EARN; measure by set, never assume. ⛔ **PREDICATE NOTE (2026-08-12): `frame_need_of` does not exist in `src/` under ANY spelling — it is a FORWARD REFERENCE to a symbol `GOAL-RBP-EARN.md` must create. This seat cannot unblock it by working harder; only the RBP seat can. Do not re-check it hopefully each session — check the EARN goal file's cursor instead.**
 - [ ] **W-6 · RTCC RE-ENTRANT PRESERVATION + DEFAULT-ON REVALIDATION.** The veneer round-trips wires on leaf crossings only; fix the re-entrant case; then RTCC default-ON must hold the P0 floors with NO `SCRIP_RTCC=0` escape (kills the m4-130 class). Belt-and-suspenders: `-Wl,-z,now` for the r11 lazy-binding clobber. **Leaf half PROVEN SAFE (s35: 172 veneered, 0 bare match-time). Scope is re-entrant ONLY. Witnesses named: probes `140`/`141`.**
 - [ ] **W-7 · ARBNO DISPATCHER SOUNDNESS — ROUTED TO THIS SEAT (Lon, s36 answers: "You own the dispatcher bug").** Witnesses: D12 (SEGV) · D13 (hang); X01 RELATED (same dispatcher gap, different sub-class — see s39 note below). Root cause + full trace + blast radius: `FINDING-2026-08-12k-…`.
