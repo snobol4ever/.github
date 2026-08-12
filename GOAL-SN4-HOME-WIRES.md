@@ -50,6 +50,37 @@ emitters don't exist yet). This is a completed map, not a smaller sweep number.
 
 ---
 
+### ⭐⭐ W-2 CENSUS DONE (Claude Sonnet 5, same session, continuing) — `bb_glue_*.cpp` IS EMPTY; THE NAMED ASYMMETRY LOOKS STRUCTURALLY UNREACHABLE, DESIGN CALL OWED
+
+Read `bb_glue_flat.cpp` + `bb_glue_framed.cpp` in full (both files, per W-2's own instruction to
+census there first). **Neither file contains ANY push/pop of r10/r11** — the actual push
+(`emit.cpp:2721`, raw string `"sub rsp, 8\npush r11\npush r10\n"`) and its matching reload
+(`emit.cpp:2687-2688`, `mov r10,[rsp+8]` / `mov r11,[rsp+16]`) both live as hand-built string
+literals directly inside `emit.cpp` — a TEMPLATE-ONLY law violation in its own right, pre-existing,
+not introduced this session.
+
+**The guard asymmetry W-2 was minted to fix — pop guard (`flat_pat` alone) textually broader than
+push guard (`_blob_wire = !_wire_stub && flat_jmp_entry && flat_pat`) — traces out as
+STRUCTURALLY UNREACHABLE, not merely narrow.** `lbl_res`'s address (the resume record's landing
+word) is pushed at exactly ONE site in the whole emitter (`emit.cpp:2722`), inside the SAME
+`_blob_wire` branch as the r10/r11 push. No other site pushes or jumps to that address. So nothing
+can ever reach the broader pop guard's arm without having first executed the narrower push guard's
+branch — the textual mismatch cannot manifest as an actual POP DEBT. **This is a grep-traced
+structural argument, NOT a MONITOR-FIRST-verified one** — full detail, including exactly what a
+live check would need to confirm (whether `flat_pat=1 && _wire_stub=1` is reachable via a
+DEFINE-stub whose body itself sets `flat_pat`), in `FINDING-2026-08-12i-…`.
+
+**Two decisions for Lon, not made here:**
+1. Is the reachability argument sufficient to close the pop-guard half of W-2, or does it need
+   runtime confirmation first?
+2. Is the raw-literal-asm-in-emit.cpp pattern this uncovered (spanning the whole CLASS-D/CLASS-P/
+   CLASS-ZF exit-glue region, ~lines 2680-2900, far larger than just this one push/pop) in scope
+   for W-2 to migrate into template files, or a separately-tracked pre-existing debt?
+
+**No code touched.** SCRIP HEAD still `2913c6a4`.
+
+---
+
 ### ⛔⭐⭐⭐ FOR LON — TWO THINGS NEED YOU, ONE IS A PROCESS BREAK
 
 **(1) TWO LIVE SESSIONS SHARED THIS SEAT FILE AND THIS CONTAINER TODAY.** s34 (Sonnet 5) and s35 (Opus 5, this one) both ran against `GOAL-SN4-HOME-WIRES.md` on the same filesystem and the same `.github` clone. I discovered it only when the cursor I had read at orientation (s33) had silently become s34 mid-session, and `git status` showed **ahead 2** when I had made exactly one commit — the other was theirs, local and unpushed. This is precisely the **ONE INVARIANT** of `GOAL-SN4-HOME.md` ("ONE LIVE SESSION PER SEAT FILE. Two sessions in one file is the s38b race"). Nothing was lost — our commits touch disjoint files and both are preserved — but that was luck, not design: had we both edited the cursor with `git add -A`, one would have silently swallowed the other's working tree. **The fire-and-forget model assumes one session per seat; something re-fired WIRES while it was already live.** Worth checking how, before it happens on a file where the overlap is not disjoint.
