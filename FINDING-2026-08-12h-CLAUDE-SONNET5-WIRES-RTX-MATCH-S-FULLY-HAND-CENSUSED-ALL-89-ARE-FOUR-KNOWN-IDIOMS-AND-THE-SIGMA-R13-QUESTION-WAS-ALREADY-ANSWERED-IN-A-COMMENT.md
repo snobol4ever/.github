@@ -224,3 +224,42 @@ into the goal file's W-3/W-4 next-seat note.
 
 **PROGRESS: 161 of 223 total RTX occurrences classified (4 of 10 files), 62 remaining across
 6 files.**
+
+## ADDENDUM 4 (same session, continued) — `rtx_icnvar.S` (13/13 done) — ONE SYMBOL, TWO LANGUAGES, DIFFERENT LIVE ARMS
+
+Read `rtx_icnvar.S` in full (178 lines, single function `rt_assign_var`). Verified 13 occurrences
+by script, matching the gate. No reachability question despite the "icnvar" name and the file's
+own "RTX-1-ICN" rung label: `bb_assign_var.cpp` — the SNOBOL4 assignment template for ordinary
+`X = expr` statements — calls this exact symbol, confirmed via `grep -rln rt_assign_var
+src/templates/`.
+
+**Classification — no new idiom, all three prior buckets:**
+
+| Location | Occ | Idiom | Role |
+|---|---|---|---|
+| GC safepoint check | 2 | momentary GOT-global accessor (`g_gc_pending`) | one deref, dead |
+| var-descriptor slen dispatch | 6 | local scalar, reused across 3 compares | r11=`var.slen`, extracted once, tested three times (1/0/2) to pick the arm, dead after |
+| `.Lav_nametrap` VCELL cellp store | 5 | short-lived struct-field pointer | r10=`vc->cellp`, loaded/tested/stored-through twice, dead by `ret` |
+
+**Worth recording, not a risk finding but a reachability nuance:** the file's own comments say
+Icon's traffic (measured s209b) exclusively drives the `.Lav_nametrap` arm (subscript-lvalue
+assignment via VCELL). But since SNOBOL4 shares this same symbol through `bb_assign_var.cpp` for
+plain `X = val` on a named global, SNOBOL4 traffic would drive `.Lav_named` instead — a DIFFERENT
+arm of the same function. **One shared symbol, two languages, two different live arms.** Neither
+arm's r10/r11 usage crosses a call (the two arms that DO call out — `.Lav_named`→`NV_SET_fn`,
+`.Lav_sxt`→`rt_sxt_break` — use zero r10/r11, only argument/return registers and explicit
+push/pop), so this doesn't change the risk picture, but it's a data point for anyone trying to
+build a per-language reachability map of this file rather than a whole-function yes/no.
+
+### NEXT SEAT, IN ORDER (supersedes the list above — 5 of 10 RTX files now done)
+
+1. **The other 5 RTX `.S` files** (49 occ remaining: `rtx_arith.S` 9, `rtx_plcall.S` 10,
+   `rtx_icnagg.S` 11, `rtx_icnrel.S` 8, `rtx_icnnum.S` 11). Same treatment.
+2. **W-2** — census `bb_glue_*.cpp` for asymmetric push/pop; ONE predicate both media; witness
+   D12/D13 flipping green.
+3. **W-6** — nested-crossing witness with probe `140`/`141`; then fix re-entrant `g_rtcc_block`.
+4. **W-3/W-4** — WREG mechanism (dormant, killswitched) + arena layout (account for the
+   carve/copy carry shape from addendum 3).
+
+**PROGRESS: 174 of 223 total RTX occurrences classified (5 of 10 files), 49 remaining across
+5 files.**
