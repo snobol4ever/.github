@@ -19,6 +19,7 @@
 
 Lon names a goal. You:
 1. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude/.github` (public; `git push` needs a credential)
+1b. ⛔ **CLONE THE ORACLE TOO — `git clone https://github.com/snobol4ever/x64 /home/claude/x64`.** Not optional and not only for "oracle profiles": **every SNOBOL4/Snocone board script diffs against `x64/bin/sbl`, and with it absent they print a full, plausible, entirely FALSE all-FAIL table** (the s33 "non-empty is not alive" false-signal class). Predicted s40, measured s43, hit again s44 — three sessions. A seat told "clone .github, corpus and SCRIP" gets no oracle unless this step is followed.
 2. Read `PLAN.md`; find the goal in the table.
 3. Read `RULES.md` in full.
 4. PARSER-* or Snocone → read `SNOBOL4-SNOCONE-PRIMER.md` first.
