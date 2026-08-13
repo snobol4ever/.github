@@ -1,5 +1,7 @@
 # GOAL-SN4-HOME-BOARD — instruments, corpus, floors, gates (HOME seat; master = GOAL-SN4-HOME.md)
 
+**⚙️ EXECUTION MODE (Lon ruling 2026-08-12 late; authority + full session protocol in GOAL-SN4-HOME.md §EXECUTION MODE SELECT): CONCURRENT fire-and-forget is the DEFAULT — one live session per seat file, commit/push freely, git merges, claim gates catch collisions. Lon may override any session to SOLO in-chat, one operator walking every seat. BOTH modes, every session: TOOLING FIRST · VERIFY-INHERITED-BLOCKERS · CHAT-ESCALATION/STREAK-BREAKER · GATE-BEFORE-LAND · never fire a fresh seat against unpushed cursors.**
+
 ## ⛔⭐⭐⭐ LON RULING — 2026-08-12 s44 (in-chat) — **B-12 OWNERSHIP: BOARD OWNS IT SOLELY. NO PARALLEL PURSUIT FROM RBP-EARN OR ANY OTHER SEAT.**
 
 s44 scrutiny item (2) asked who owns `bb_match_defer.cpp` now that three seats converge on it. Lon's answer, verbatim: *"(2) You own it."*
