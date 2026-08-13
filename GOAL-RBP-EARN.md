@@ -1,5 +1,8 @@
 # ⛔⭐⭐⭐ GOAL-RBP-EARN — ADDING RBP AT ALL THE RIGHT SPOTS
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-13 s51 (Claude Sonnet 4.6, SOLO) — **RBP ERADICATION COMPLETE (SCRIP `a50037ae`). Every reference to rbp removed from source and comments product-wide (879 refs → 1 line: `x86_main_prologue()` — THE ONLY TWO, main alone keeps the C-ABI pair). x86_frame_off is the SLIDING-RSP AUTHORITY: `off + op_zdepth` when knowable, -1 when dynamic. Known crater: SNOBOL4 m3 157/317, m4 81/317; patterns board 26/122; Icon 1/293; benchmarks 0/all — all consistent with the removed frame-base carrier. hello.sno green both modes. NO PLAN WAS MADE THIS SESSION — Lon planned, Claude executed. NEXT: Lon to supply the next directive.**
+
+
 **⚙️ EXECUTION MODE (Lon ruling 2026-08-12 late; authority + full session protocol in GOAL-SN4-HOME.md §EXECUTION MODE SELECT): CONCURRENT fire-and-forget is the DEFAULT — one live session per seat file, commit/push freely, git merges, claim gates catch collisions. Lon may override any session to SOLO in-chat, one operator walking every seat. BOTH modes, every session: TOOLING FIRST · VERIFY-INHERITED-BLOCKERS · CHAT-ESCALATION/STREAK-BREAKER · GATE-BEFORE-LAND · never fire a fresh seat against unpushed cursors.**
 
 ## ⛔⭐⭐⭐ LON RULINGS — 2026-08-12 s43 (in-chat) — **CRATER READING CONFIRMED FOR THE DEFER DEFECTS · THE "NOT LIFO" CLAIM IS RETRACTED BY ITS OWN AUTHOR · bb_slot_claim RESOLVED: LIVE AS `drive_value_slot`**
