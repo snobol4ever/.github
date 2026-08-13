@@ -1,14 +1,8 @@
 <!-- GOAL-MODE34-IDENTICAL · mode-3 (--run, x86 BINARY) ≡ mode-4 (--compile, x86 TEXT), strictly 1:1 corresponding -->
 
-**LIVE CURSOR (Claude Sonnet 5, 2026-08-12d):** **D1/M34-2 CLOSED** (measured — see CONFIRMED DIVERGENCES). **5b ROOT-CAUSED, not yet fixed** — full detail `FINDING-2026-08-12p`, read it before touching SPAN (it also carries an in-session retraction of two false leads; the retraction is deliberate, read past it).
+**LIVE CURSOR (Claude Sonnet 4.6, 2026-08-13):** **5b FIXED** (SCRIP `3ed6dc90`). **BugB (`var=subj?pat`) FIXED** (same commit). Both oracle-verified, both modes. Corpus: IDENTICAL 254→263, DIFFER 16→14, M3-MISS 46→39, zero regressions (set-diff verified). Full detail: `FINDING-2026-08-13-CLAUDE-SN4-MODE34-5b-SPAN-VAR-INLINE-ARM-FIX-AND-VAR-ASSIGN-MATCH-BUGB.md`.
 
-5b in one line: `SPAN(var)` never matches in mode-3. Its INLINE guts arm (`bb_match_span.cpp`, `sp_gi()`) reads the charset operand via the legacy depth-blind `FRQ`/`FR` accessor while running 64B deep inside `MATCH_BEGIN`(32)+`MATCH_ASSIGN_SAVE`(16)+own(16) frame growth — gdb-measured, the read lands exactly 64B short of the operand's pointer field and pulls stack garbage, so the `|''` alternative always fires and `REM` takes the whole subject. A THIRD SPAN path, distinct from the ZD arm `FINDING-2026-08-12i` fixed (that fix IS in HEAD). `POS`/`REM`/`.`/alternation all exonerated by probe.
-
-**Fix model:** `LEN(*var)`'s deferred arm (`rt_pat_prim_int`, fetch BY NAME at match time, never touches `op_sa`/`FRQ`) is verified working — follow it, don't reach for `zls_off`/`op_zres` blind.
-
-**Separate, unrelated to 5b, parallelizable:** `var = subject ? pattern` (match-expression as assignment RHS) hits a deliberate `x86_bomb` "unhandled" stub in `bb_assign_{global,var,local}.cpp` — operand-slot resolution for that RHS shape was never wired, for ANY pattern. Side item: its bomb message prints garbage bytes (bad pointer into `x86_bomb`), costing the next reader the diagnostic.
-
-**Order:** (1) fix SPAN dynamic arm per LEN's model · (2) re-run `/home/claude/repro_5b.sno`, expect pass with no other change · (3) wire `var=subject?pattern` slot · (4) crosscheck BOTH modes before any doneness claim.
+**Still open:** M34-3 (DCR-2 both-medium) · M34-4 (driver unify) · M34-5c (LOUD-IN-M4/SILENT-IN-M3 sweep) · 175_pat_bal_generator_retry BAL-generator bug (pre-existing, nondeterministic at HEAD, not this session's work).
 
 ---
 
