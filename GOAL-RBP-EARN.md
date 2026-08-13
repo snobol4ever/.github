@@ -393,3 +393,32 @@ The shim's SCANBASE fills (r8→kt−32, r14d→kt−40) fed the in-blob scanfai
 **Relationship:** supersedes PT-4's spine linkage CELL for the wire half (registers replace the cell); dissolves PT-4's depth problem for exits; makes PT-7's `g_zctx` DELETE reachable (these blobs are its remaining consumers); the DEL-T1 re-delete rides WREG-2; WREG-3 is M-1b's shape and `dc_recur` is expected to flip green under it.
 
 **UNRESOLVED BY DESIGN (named so nobody mistakes silence for a decision):** (a) MECH owns cell mechanics and ARBNO-iteration/K-conversion interaction; (b) deep-arrival (`flat_deep_arrival`) blobs — WREG wires or FRAMED license: decided by the dc_nest_bt/dc_sib_bt measurement in WREG-2, recorded either way; (c) frame_bytes consumer audit outcome.
+
+---
+## s55 cursor — GLOBALS ERADICATED + FUNCTION LINKAGE = BLOB INTERFACE + DEFINE-FOLD ONE-SHOT (2026-08-13)
+
+**Rulings (Lon, in-chat, binding):**
+1. "Complete DEFINE function constant folding to FUNCTION linkage. No register RBP is allowed."
+2. "Remove g_pcall* regardless of who uses them. We do not do that here."
+3. "Quit trying to return from the function. We are not trying to return. You will need RBP for that. That comes later. You are just getting the going in part, not the coming out part."
+4. "Can you not use R10 and R11 for success and fail return address for FUNCTION linkage? Just like any BB BLOB interface."
+
+**FACT RULE landed (.github c8c4bee7 + f3ad7364):** NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION — banner at top of all 44 active goal files + RULES.md FACT RULES section. Amendment: THE ASK ITSELF MUST BE A BANNER (name, type, owning file, purpose, why registers/stack cannot carry it); a quiet or inline ask does not count.
+
+**ERADICATED from rt.c (SCRIP f3565287):** `rt_pcall_t` + 4 baked-offset asserts; `g_pcall`/`_top`/`_cap`/`_wires`/`g_flat_ret_snapbuf`/`rt_flat_wires_t`; `rt_pcall_grow`; RTX-4 test accessor battery; `c_rt_flat_wire_adopt`/`_isle`/`c_rt_flat_ret_snap`; `rt_proc_epilogue_body`; all 3 record-push blocks; `RT_AB_ANCHOR` init. Deleted: `rtx_call.S`, `rtx_plcall.S`, `rtx_call_test.c`; family gates stripped from `rtx_init.c`. Unprefixed `.S` symbols re-provided as thin C aliases. `open_slim` now returns fn (rax channel); dead `c_rt_proc_open_fn` crossings deleted. Epilogue/lexprep/frame_prep leaves are inert stubs pending the stack-resident record.
+
+**FUNCTION LINKAGE = BLOB INTERFACE (SCRIP 433dc27e):** Sites set r10/r11 directly via `bb_glue_pass_wires_blob`: staged slim site + both CALL2BB arms + `bb_call_value`. Role-3 `IR_SAVE_RESTORE` emits NOTHING — adopt hop deleted, wires arrive seated. rcx/rdx remain chain contract (EVAL/CODE only). Both CALL2BB arms also on the rax channel; dead `rt_proc_open_fn` crossings deleted.
+
+**DEFINE-FOLD ONE-SHOT (SCRIP f3565287):** fold arm = `lea rax,[rip+proc_LBL__<n>_α]` + `jmp rax`. `rt_chain_enter` + 512-byte reserve deleted from fold arm. Default ON (`SCRIP_DEFINE_FOLD=0` reverts). `bb_glue_wire_exit` = bare `jmp r10/r11`, rsp NOT restored — entry only per ruling 3.
+
+**WITNESSES:** going-in probe `DEFINE('SHOW(X)') ; SHOW('HI') ; body: OUTPUT=X :(END)` → "HI" m3+m4, oracle-identical, 0 `rt_chain_enter`/`rt_goto_transfer` in emitted TEXT, 0 adopt movs, site-set `lea r10/r11`. Pattern witness oracle-identical. Expected-broken: RETURN-crossing programs (rc=139).
+
+**OWED (next seat):**
+- Stack-resident record = the coming-out side (RBP-era, Lon ruling 3 — this is THE next rung)
+- fold BINARY slice-2: sealed-cell resolution (on transfer arm today, one-shot fold TEXT-only)
+- `g_pl_zf_target_pcall_top`: pre-existing PL global; currently assigned 0; not in kill set — death sentence and migration owed
+- Icon FR-4 generator resume: stack-resident carrier (`c_rt_gen_get_fb` → 0 today)
+- PL-FR-4 intercept: stack-resident carrier (`rt_jmp_frame_lexprep`/`_lexprep2`/`rt_frame_prep` all inert)
+- Dormant AB/`RT_AB_ANCHOR` sweep (`SCRIP_AB=0` default, opt-in only)
+
+**COMMITS this seat (both pushed):** .github c8c4bee7, f3ad7364, this cursor. SCRIP f3565287, 433dc27e.
