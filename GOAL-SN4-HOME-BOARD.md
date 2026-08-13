@@ -73,6 +73,18 @@ Re-prove floors at each phase boundary; every instrument change ships with its p
 
 ---
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-13 s49 (Claude Sonnet 5) — **B-12: CROSS-SEAT DESIGN MATCH FOUND — GOAL-RBP-EARN's EARN-4 (ARBNO one-frame-at-α, cell at [rbp+K]) IS THE "anchor-relative ARBNO cell" W-7's guard is waiting for. NOT IMPLEMENTED — flagged for coordination, not landed solo. ⛔ PUSH STILL BLOCKED ON CREDENTIAL. ⚠ MANUAL PDF UNAVAILABLE THIS SESSION — Ch.9 pp.121-123 re-read still owed before implementation.**
+
+**NEXT RUNG FOR THIS SEAT:** Same as s46 — B-12 implementation — but do not open `bb_match_arbno.cpp`/`emit.cpp` solo without first: (1) getting manual Ch.9 pp.121-123 actually read (blocked this session, PDF not available), (2) checking `GOAL-RBP-EARN.md`'s live cursor for an in-flight claim on EARN-4/ARBNO (its cursor as of this session, s48, is on EARN-1/EARN-2 census work, not ARBNO — but re-check, don't trust this line), (3) deciding in-chat whether BOARD or RBP-EARN implements EARN-4, since it now serves both seats' rungs. Full writeup: `FINDING-2026-08-13-CLAUDE-SONNET5-BOARD-B12-THE-W-7-GUARDS-ANCHOR-RELATIVE-ARBNO-CELL-IS-ALREADY-DESIGNED-IN-GOAL-RBP-EARN-SAME-MECHANISM-DIFFERENT-MOTIVE.md`.
+
+### WHAT WAS DONE
+Continued s46's B-12 investigation by reading `bb_match_defer.cpp` in full, `lower_snobol4.c`'s `sno_seq_nary`/SEQ-RESUME-GATE in context, and the full W-7 guard + both frameless ARBNO arms in `bb_match_arbno.cpp` (code-level only — no manual access this session). Cross-referenced against `GOAL-RBP-EARN.md`'s EARN DESIGN OF RECORD (read per B-12's own "check RBP-EARN's ARBNO/FENCE rows" prescription) and found the two seats' designs are the same mechanism: RBP-EARN's EARN-4 (one frame at α, ARBNO's delta/yield cell at fixed `[rbp+K]`, β reads through the live frame) is verbatim what W-7's own comment says B-12 needs. Documented as a FINDING rather than implemented, per the standing rule not to open the plan's highest-collision surface without manual grounding and a coordination check — both explicitly required by this rung's own text and unmet this session.
+
+### NOT DONE / HONEST GAPS
+No code touched — this is purely a documentation/cross-reference pass. Manual Ch.9 pp.121-123 not read (PDF unavailable). Did not verify whether EARN-4's design, as specified, mechanically also solves the recursive-self-reference aliasing case (only the offset case is EARN-4's own proven gate) — flagged as an open question in the FINDING, not resolved. Did not check RBP-EARN's `bb_match_arbno.cpp` claim state beyond reading its s48 cursor text (no live/dynamic lock-check tool run). B-12's actual implementation is therefore exactly as far along as s46 left it — this session's contribution is the cross-seat design pointer, not progress on the rung itself.
+
+---
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-12 s46 (Claude Sonnet 5) — **B-12 INVESTIGATION (session-start reading complete, root cause traced to code level, NOT YET FIXED) · 178/179/182 WITNESS STATUS CORRECTED · ⛔ PUSH STILL BLOCKED ON CREDENTIAL.**
 
 **NEXT RUNG FOR THIS SEAT:** B-12 itself, continuing from here — the investigation below identifies the exact missing piece (an anchor-relative ARBNO yield-cursor cell, replacing the current fixed-offset `[rsp+4]`-style scheme that the frameless arm uses) but does not implement it. This touches `bb_match_arbno.cpp` + likely `emit.cpp`'s ARBNO slot-staging + possibly `x86_asm.h` — the plan's highest-collision surface, shared with RBP-EARN's own ARBNO/FENCE rows. **Read `GOAL-RBP-EARN.md`'s current cursor before touching `bb_match_arbno.cpp` — check for an in-flight claim before starting** (per SELF-GATING step 2: first push wins, but check first).
