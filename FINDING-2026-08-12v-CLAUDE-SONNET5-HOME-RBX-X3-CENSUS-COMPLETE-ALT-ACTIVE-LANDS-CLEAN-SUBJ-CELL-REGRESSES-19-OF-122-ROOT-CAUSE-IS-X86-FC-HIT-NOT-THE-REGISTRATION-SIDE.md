@@ -70,3 +70,19 @@ FORTH baseline measured **84/122** this session vs the **77/122** this file had 
 ## RUNGS update
 
 X-3 is unchanged (`[ ]`, still blocked on Lon's OPEN ASK #2 ruling) — this finding narrows *why* rather than closing it. The `fc_alt_active` half of the matched set is done; it was never its own rung line, just a census byproduct.
+
+---
+
+## ⛔ POST-WRITEUP CORRECTIONS (same session, before push — recorded rather than silently edited above)
+
+**1. "Byte-identical" was an overclaim.** The BY-SET sweeps measure SET-IDENTICAL pass/fail, not emitted bytes. The commit message has been amended to say so explicitly. Byte-identity for `fc_alt_active` is UNVERIFIED. Offer to RULES.md: *a BY-SET sweep licenses "set-identical", never "byte-identical" — they are different claims and only one of them was measured.*
+
+**2. The `.s` A/B that was supposed to verify #1 was CONFOUNDED, and the confound is the real headline.** Method: build `HEAD~1` in a worktree, compare `--compile` output. Result: 8/8 programs differed on BOTH ports, including FORTH where the change is provably inert (`fc_cells_active()` and `port==FORTH` are the same predicate under FORTH). Controls run: same-binary-twice = deterministic (so not nondeterminism); `make clean` full rebuild = same result (so not staleness). The actual diff was the RTCC arg-tier writeback stores — code this change cannot touch.
+
+**Explanation, found in the reflog:** another seat was committing into the SAME clone. `HEAD~1` was not "my change minus one"; it was that seat's `RTCC RC-8b` landing. Every "byte difference" measured was their trim.
+
+**3. This seat clobbered that seat's commit message.** Their `pull --rebase` moved HEAD; a `git commit --amend` intended for this seat's own commit rewrote theirs instead. Detected, original message recovered verbatim from reflog and restored as `9a85b10f`. Their hash moved from `04a1a577` — unavoidable after an amend, and a history rewrite in a clone another seat is actively using. **If that seat holds a reference to `04a1a577`, it is stale and must be re-derived.**
+
+**4. Both seats independently did the whole RC-8b analysis in one session.** This seat's independent derivation (12 `x86("rtcc_wb")` sites catalogued with their bracketed calls; arg-tier slots 0/8/16/24/32 proven read by nothing codebase-wide — `rtcc_load_scratch()`, `keywords.c`'s ANCHOR companion write, and all three inline-asm reload sites in `rt.c`/`runtime_eval.c` touch only offsets 40+; `x86_rtcc_call()` has zero callers) reached the identical conclusion and the identical instruction count. Independent corroboration is worth something — but the duplication is a partition failure, and it is escalated as OPEN ASK #0 in `GOAL-SN4-HOME-RBX.md`.
+
+**Standing lesson, offered for RULES.md:** *an instrument that spans two builds assumes the tree belongs to you. In a shared clone that assumption is false and fails SILENTLY — it produced a plausible, reproducible, clean-rebuild-surviving wrong answer. Read `git reflog` at orientation and before any history rewrite.*
