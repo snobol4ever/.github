@@ -74,6 +74,8 @@ Re-prove floors at each phase boundary; every instrument change ships with its p
 
 ---
 
+**⛔ ADDENDUM, same session (Lon delegated the implementation call): checked the anchor-drain risk before writing code — it's not hypothetical. `bb_match_end.cpp:22` names ARBNO explicitly, by measurement, colliding with MATCH_END's HEAD-PIN rbp restore: X10 (one of this session's own 5 regressions) IS that collision, live, today. Still did not write code — the risk got more concrete, not less. Full addendum in the FINDING file. X10 and B-12 may be the same rung.**
+
 ## ⭐⭐⭐ LIVE CURSOR — 2026-08-13 s50 (Claude Sonnet 5, SOLO) — **B-12: MANUAL READ (finally unblocked), THE ACTUAL BLOCKER FOUND AND VERIFIED AT SOURCE — NOT RBP-EARN COORDINATION, EARN-3 DOES NOT EXIST YET. NO CODE LANDED, DELIBERATELY. ⚠ RECOMMEND THIS GOES TO LON BEFORE A THIRD SOLO ATTEMPT.**
 
 **NEXT RUNG FOR THIS SEAT:** not B-12 directly — the α/ω frame-establish/release primitive first (see FINDING below), as its own rung, ideally with explicit sign-off given the product-wide blast radius. If picking this back up without that conversation: read the FINDING in full before touching `bb_match_arbno.cpp`, `x86_asm.h`, or `emit.cpp`'s `frame_need_of` — this session already ruled out the two most tempting shortcuts (reviving ROOTSPINE; assuming EARN-1's dormant verdict is wired to anything).
