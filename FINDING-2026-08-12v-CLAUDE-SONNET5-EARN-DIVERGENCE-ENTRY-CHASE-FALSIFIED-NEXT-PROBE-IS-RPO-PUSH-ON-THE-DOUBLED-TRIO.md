@@ -103,6 +103,35 @@ What's now established, cumulative with s48/s49:
 Zero impact on EARN-2's OWED/UNEARNED (m4-exclusive). Real mode-3 codegen bug, not GOAL-RBP-EARN's own
 — same routing judgment as before. Not chased to a fix this session.
 
+## (5) Addendum, same session: `roman.sno`'s divergence checked — same mechanism, not a different one
+
+s48's finding characterized `roman.sno` as showing a "larger, non-doubling divergence touching
+pattern-family ops including one classified kind (ASSIGN_COND)," distinct from `func_call`'s clean
+doubling — flagged there as unconfirmed ("not re-checked this session"). Built a minimal repro mirroring
+`roman.sno`'s shape (`DEFINE('ROMAN(N)T') ... RPOS(1) LEN(1) . T ... BREAK(',') . T ... REPLACE(ROMAN(N),
+...) ...` called from a small `LOOP`, at `/tmp/roman_repro.sno`):
+
+```
+m4: 11 [EARN] lines
+m3: 14 [EARN] lines -- the first 11 BYTE-IDENTICAL to m4, then the SAME LAST 3 lines (op=76,76,78 --
+    LOOP's own IR_COERCE_NUMERIC/COERCE_NUMERIC/CMP_TEST) appended a second time
+```
+
+**This is the identical `func_call` mechanism**, not a different one: ROMAN's own pattern-matching body
+(the first 8 `[EARN]` lines, covering the `RPOS`/`LEN`/`BREAK`/capture ops) is emitted once in both
+modes — untouched. Only the calling `LOOP`'s own tail duplicates, exactly as it does for the
+pattern-free `func_call` repro. Two readings possible, not distinguished by this check: (a) s48's
+original characterization was of the FULL 100k-iteration `roman.sno` (not run here — too slow for a
+quick check, and unnecessary to reproduce the mechanism), which may have additional structure (deeper
+recursion, more capture sites) that surfaces a genuinely different, second divergence on top of this
+one; or (b) the "ASSIGN_COND touching" description was itself an artifact of a differently-shaped probe
+and the mechanism really is uniform across all 11 files. **Recommend whoever picks up the `RPO_PUSH`
+probe in (4) verify against the FULL `roman.sno` (or at least a repro with a real recursive call, which
+this minimal version — `ROMAN('17')` called twice, no actual recursion since '17' is 2 digits and only
+recurses once — does not exercise) before assuming one fix closes all 11 files.** Not chased further
+this session — bounded, cheap check as flagged, and it returned a useful negative result (same
+mechanism) rather than the still-open root cause.
+
 ## State at handoff
 
 SCRIP: tree clean, HEAD `5547de99` == `origin/main` (already fully synced — the s49 cursor's "not
