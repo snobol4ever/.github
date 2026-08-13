@@ -132,18 +132,71 @@ recurses once — does not exercise) before assuming one fix closes all 11 files
 this session — bounded, cheap check as flagged, and it returned a useful negative result (same
 mechanism) rather than the still-open root cause.
 
+## (6) Same session, continued: attempted a fix, it was empirically WRONG, reverted before commit
+
+Followed through on (4)'s own recommended probe. Dumped INC's own full `proc_flat` node collection via
+gdb (break at the post-pass-2 `alloca` line, conditioned on `prefix`, printing every `nodes[i]` — op,
+pointer, `γ`, `ω`): **n=43** — INC's own 7-node body (`[0..6]`, ending at `[6]` = `IR_SAVE_RESTORE`,
+confirmed role=1/RETURN via `nd->ival`, matching `zd_sr_role`) followed immediately by **36 more nodes
+that are structurally almost the entire rest of `main`'s program** — `DEFINE`'s own tail statement,
+`R=0`, `N=0`, the full `LOOP` statement (including the doubled `IR_COERCE_NUMERIC`×2/`IR_CMP_TEST`
+trio), `R=INC(R)`, `DONE`, and two trailing `IR_GOTO`s. This is a **much larger over-collection than
+just "LOOP doubles"** — INC's own dedicated walk structurally collects almost everything after it in
+program order, but only the LOOP-tail's `[EARN]`-visible portion happens to matter for the observable
+symptom (m4's SN4-M34-5a group-root guard independently prevents the *visible* consequence — duplicate
+`.s` labels — by a narrower, different mechanism than whatever is happening at collection time here).
+
+**Hypothesis formed:** `RPO_PUSH_SUCCS`'s FIRST line pushes `(c)->γ.node` UNCONDITIONALLY for every
+node, no op-guard (`emit.cpp:2284`). Node `[6]`, the `IR_SAVE_RESTORE` RETURN-floater, has a live,
+non-null `γ.node`. Reasoned: RETURN/FRETURN floaters terminate a proc's control flow via their own
+generated jump at runtime, never a structural fall-through — so chasing this edge during a walk rooted
+at a DIFFERENT proc's own entry looked like exactly the mechanism, and a natural fix by analogy to how
+`IR_SUCCEED`/`IR_FAIL` are already excluded from further walking in `RPO_DRAIN`.
+
+**Implemented, in one line + a long comment:** skip pushing `γ.node` when `(c)->op == IR_SAVE_RESTORE
+&& (zd_sr_role(c) == 1 || zd_sr_role(c) == 2)`. Built clean.
+
+**Tested empirically before trusting it — and it changed NOTHING.** Both repros still showed the exact
+same doubling (`func_call`-shape: still 6 `[EARN]` lines; `roman`-shape: still 14). Re-ran the gdb node
+dump: **still n=43, unchanged.** Chased node `[6]`'s own `γ.node` directly: it resolves to `IR_SUCCEED`
+with BOTH `γ.node` and `ω.node` null — **already a dead end that `RPO_DRAIN` skips on its own** (the
+existing `c->op == IR_SUCCEED || c->op == IR_FAIL` continue, a few lines below `RPO_PUSH_SUCCS`). Node
+`[6]`'s `γ` was never the live path at all — pushing it and then immediately discarding it on drain is a
+no-op either way. **The hypothesis is FALSIFIED by direct measurement, not just by re-reading code.**
+`IR_SAVE_RESTORE`'s `ω.node` isn't pushed by any existing rule either (checked — not in either op-list
+at emit.cpp:2293/2294), so neither of node `[6]`'s own edges explains nodes `[7..42]`.
+
+**Reverted immediately** (`git checkout -- src/emitter/emit.cpp`) rather than commit code that doesn't
+do what it claims — empirically verified against the repro before trusting it, exactly per this project's
+own MONITOR-FIRST law ("the hunt is mechanical," not a plausible-looking patch shipped on reasoning
+alone). Tree confirmed clean, rebuild green.
+
+**Where this actually leaves the search:** nodes `[7..42]` are NOT reached via node `[6]`'s own edges.
+They must enter the walk through some OTHER node's edge — either earlier in `[0..5]` (INC's own N+1
+computation: `STATEMENT_BEGIN`/`VAR`/`LIT_INTEGER`/`BINOP`/`ASSIGN`/`STATEMENT_END`, none of which
+obviously reach outside INC's own body on inspection, but none individually verified by measurement the
+way node `[6]` now has been) or through the `SN4-M34-5a` group-root pull-in guard (`emit.cpp:2325`ish)
+that s49 believed was inert for this program (`zls_group_mark_anchor` zero callers) but which **this
+session did not independently re-verify** — worth a direct check (print `_gc` at that guard, don't trust
+the prior session's claim secondhand) before ruling it out a second time. That guard remains the single
+most concrete named candidate left unmeasured.
+
 ## State at handoff
 
-SCRIP: tree clean, HEAD `5547de99` == `origin/main` (already fully synced — the s49 cursor's "not
-pushed, holding for credential" note was stale by the time this session started; `git fetch` + `git log
-origin/main..HEAD` confirmed empty, nothing owed). This session's only edit (`emit.cpp`'s `[EARN]`
-print, temporary) was reverted before this write-up; `git status`/`git diff` both empty, rebuild green.
-**Nothing new committed this session except this finding + the goal-file cursor update below** — no
-code changes, since none landed.
+SCRIP: tree clean. Started the session at `5547de99` == `origin/main` (s49's "not pushed" cursor note
+was stale — already synced, nothing owed). **Mid-session, origin advanced to `3ed6dc90`** (a concurrent
+seat's unrelated `MODE34-5b`/`SPAN(var)` landing) — caught via `git fetch` before this write-up,
+fast-forwarded cleanly (`git pull --rebase`, no conflicts, since this session's own edit had already
+been reverted), rebuilt green. Re-confirmed the bug still reproduces at the new HEAD (unrelated commit,
+as expected — still 6 `[EARN]` lines / doubled, same as at `5547de99`). Repo now at `3ed6dc90` ==
+`origin/main`, clean. **No code changes landed this session** — the one fix attempt (5) was reverted
+after empirical testing showed it didn't work; only this finding + the goal-file cursor move are new.
 
-**Next, no strong pull recorded:** (a) the `RPO_PUSH` instrumentation probe described in (4) — likely
-the fastest remaining path to a real root-cause; (b) EARN-4 (ARBNO from scratch) remains open and
-likely still the highest-leverage EARN rung, gated on a session assessed as full-runway at the start,
-per the goal file's own law; (c) `roman`'s non-doubling pattern-bearing divergence (s48 finding 3b)
-was never re-checked against whether it shares this mechanism or is unrelated — worth a quick check
-before assuming one fix covers all 11 files.
+**Next, no strong pull recorded:** (a) directly re-verify the `SN4-M34-5a` group-root guard's `_gc`
+value for this program (print it, don't trust a prior session's secondhand claim a third time) — now
+the single most concrete unmeasured candidate; (b) if that's also inert, fall back to (4)'s original
+`RPO_PUSH` instrumentation across ALL of `[0..5]`'s edges, not just `[6]`'s; (c) EARN-4 (ARBNO from
+scratch) remains open and likely still the highest-leverage EARN rung, gated on a session assessed as
+full-runway at the start, per the goal file's own law; (d) `roman`'s divergence was checked this session
+(part 5 above) and shares `func_call`'s mechanism, not a distinct one, though only against a minimal
+non-recursive repro — the full 100k-iteration benchmark file was not re-verified.
