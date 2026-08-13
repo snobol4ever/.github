@@ -488,4 +488,11 @@ Stale recording guards: `proc_fb_buf/proc_zstatic_buf = 0` for LBL__ rows; `emit
 - proc_startup fold into rt_define_site: the LBL__ proc_table row still feeds legacy defer/name-lookup paths; proc_startup's `.rodata` string use and the registration path that reads it want rationalization in the same slice as m3 unification
 - RETURN/FRETURN coming-out side (s58 freeze = THE next major rung, RBP-era, Lon ruling s55-3)
 
-**COMMITS:** SCRIP 396d62c7. Artifact regens: benchmark + feature + demo .s updated (regen scripts run with rung "s62 statement-order"). .github cursor (this block).
+**COMMITS:** SCRIP 396d62c7 (bare-chain + statement-order), 3c678355 (fixups: ARG/LOCAL registration name strip, fb-backfill, balias bounds guard, proc_names strdup safety). Artifact regens: benchmark + feature + demo .s updated (regen scripts run with rung "s62 statement-order"). .github cursor (this block).
+
+**s62 fixups (3c678355):**
+- Registration name strip: LBL__ rows bake `.Lstartup_pname` under the entry-label name (strip `LBL__` prefix) so `ARG(.jlab,1)` looks up `"jlab"` and finds main's frame geometry → 1017_arg_local PASS confirmed.
+- FB-backfill: after main emits, copy `g_last_flat_frame_bytes` into LBL__ rows' `proc_fb_buf` slots (via `s2->proc_table` directly, not `proc_names_buf` which emission-time arena activity can corrupt on multi-function programs). Ensures `rt_proc_set_frame_bytes` fires for LBL__ rows.
+- Balias bounds guard: `if (bbg->n_balias >= _na) break` in the body-alias build inner loop — prevents out-of-bounds heap write that corrupted `proc_names_buf` on multi-function programs (test_string segfault fixed).
+- `proc_names_buf[n] = strdup(pname)` + matching free loop — safety copy so name pointers survive any arena resets between proc loop and post-main backfill.
+
