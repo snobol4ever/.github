@@ -1,5 +1,11 @@
 # GOAL-PARSER-PURE-SYNTAX-TREE.md — Six Frontends, One Pure tree_t
 
+## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
+
+**██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
+**ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+
+
 **Repo:** SCRIP + corpus + .github
 **Status:** ✅ Phase 1 C COMPLETE all six languages (AUDIT-2 2026-05-19).
 Phase 2 SCRIP mirror sessions ready to launch.

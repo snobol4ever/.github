@@ -1,5 +1,11 @@
 # GOAL-SN4-HOME-LOWER — front-half correctness: LOWER + splice (HOME seat; master = GOAL-SN4-HOME.md)
 
+## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
+
+**██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
+**ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+
+
 ## ⛔ TOOLING FIRST — `bash /home/claude/SCRIP/scripts/install_system_packages.sh` BEFORE ANY RUNG
 One authority, idempotent, prints whether `gdb` is live. **`gdb` is MANDATORY** (MONITOR-FIRST step 2 *is* a gdb breakpoint with a spin/ignore counter). ⛔ **Never hand-run `apt-get install gdb`** — bare apt pulls Recommends `libc-dbg` against a stale index and 404s on a package gdb doesn't need; **that trap cost RBP-EARN seven sessions (s33–s39)**, each re-concluding "no gdb in this container." The script does `apt-get update` first and passes `--no-install-recommends`. A prior cursor claiming gdb is unavailable is VOID — re-test.
 

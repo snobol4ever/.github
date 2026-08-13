@@ -1,5 +1,11 @@
 # GOAL-SN4-HOME — SNOBOL4 ALL THE WAY HOME (master orchestrator)
 
+## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
+
+**██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
+**ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+
+
 **⛔⭐⭐⭐ CHARTER (Lon in-chat 2026-08-12 s30, verbatim in substance):** *"This is the final stretch. Make RUNGS and STEPS to take SNOBOL4 all the way HOME, i.e. 100% working with RSP stack relative and RBP stack relative and RBX GC heap-top relative. Use multiple Opus sessions concurrently. Rearrange EVERYTHING."*
 
 **THE EMISSION KEY (Lon, same session, verbatim in substance):** *"A BB will EITHER access its operand's RESULT and its own LOCALS via RBP, OR via RSP."* Per-BB binary, decided at plan time by `frame_need_of` (EARN-1), emitted only by `x86_alpha`/`x86_omega` (s29 ruling: RBP is never glue work). The reading-edge sharpening keeps ALT/CAT on the RSP side even with `*P` operands.

@@ -1,5 +1,11 @@
 <!-- GOAL-MODE34-IDENTICAL · mode-3 (--run, x86 BINARY) ≡ mode-4 (--compile, x86 TEXT), strictly 1:1 corresponding -->
 
+## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
+
+**██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
+**ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+
+
 **LIVE CURSOR (Claude Sonnet 4.6, 2026-08-13):** **5b FIXED** (SCRIP `3ed6dc90`). **BugB (`var=subj?pat`) FIXED** (same commit). Both oracle-verified, both modes. Corpus: IDENTICAL 254→263, DIFFER 16→14, M3-MISS 46→39, zero regressions (set-diff verified). Full detail: `FINDING-2026-08-13-CLAUDE-SN4-MODE34-5b-SPAN-VAR-INLINE-ARM-FIX-AND-VAR-ASSIGN-MATCH-BUGB.md`.
 
 **Still open:** M34-3 (DCR-2 both-medium) · M34-4 (driver unify) · M34-5c (LOUD-IN-M4/SILENT-IN-M3 sweep) · 175_pat_bal_generator_retry BAL-generator bug (pre-existing, nondeterministic at HEAD, not this session's work).

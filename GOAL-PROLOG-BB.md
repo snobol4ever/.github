@@ -1,5 +1,11 @@
 # GOAL-PROLOG-BB.md — Prolog: GDE inside Byrd-Box machine code (PL-GZ track)
 
+## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
+
+**██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
+**ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+
+
 ## ⛔ FACT RULE — OPTIMIZATION LEVEL IS `-O0`/`-O1` ONLY; `-O2`+ NEEDS AN EXPLICIT PER-SESSION LON DIRECTIVE (Lon, 2026-07-21 s119, tightened 2026-07-24)
 
 Every build — feature, debug, AND perf — is `-O0` or `-O1`. `-O1` is the default choice for a perf-comparison pass. **`-O2`+ is FORBIDDEN unless Lon directs it in the current session, quoted in the session log**; it is never the assistant's discretionary call. Reason: the `-O2` runtime `.so` recompiles heavy template TUs for MINUTES and collides with per-tool-call time limits.

@@ -1,5 +1,11 @@
 # GOAL-SNOBOL4-RTX.md — The SNOBOL4 Runtime in Optimized x86-64 Assembly
 
+## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
+
+**██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
+**ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+
+
 ## ⛔⭐⭐⭐ CROSS-GOAL BULLETIN — 2026-08-10 s12: LADDER WREG IS LIVE, r10/r11 ARE CLAIMED WIRE REGISTERS (owner-directed cross-post; authority = `GOAL-PASSTHRU-RBP-ERAD.md` LADDER WREG, `.github` `6de2dbff`)
 
 **Lon runs 5 seats concurrently: PASSTHRU-RBP-ERAD + RTCC + ZETA-MECH + ZETA-CLIMB + SNOBOL4-RTX.** Charter, verbatim: *"remove the stupid PROC shim around patterns and use proper PASS-THRU glue using R10 and R11."* Pattern blobs stop being procedures: the `proc_PAT$N_α` shim (304B carve · γ/ω wire stores · SCANBASE fills · `g_zctx` push · resume-slot store) and its CLASS-D exit ceremony are DELETED; call sites enter the blob's FIRST INTERIOR BOX directly with `lea r10,[rip+site_γ] · lea r11,[rip+site_ω] · jmp <first_box>`; exits are `jmp r10` (success) / `jmp r11` (fail after drain). **rΓ=r10 · rΩ=r11 are RESERVED product-wide, all three glue kinds, ONE authority (a per-kind split is the mixed regime ZW16 convicted).** LAW: blob-interior pending cells capture/restore the pair at push/β, else it is `g_blob_ctx`'s single-cell defect in register clothing.

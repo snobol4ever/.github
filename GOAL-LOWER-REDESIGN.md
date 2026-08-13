@@ -1,5 +1,11 @@
 # GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (IR_t / IR_t)
 
+## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
+
+**██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
+**ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+
+
 > ## 🔔 CROSS-SESSION NOTE (2026-06-08, Opus 4.8 — LOWER REGENERATION: per-level forked switches) 🔔
 > **`git pull --rebase` first.** Lon clarified the target lowering shape this session. The 2026-05-31
 > `lower2.c` note below is **stale on one point**: `src/lower/lower2.c` and `prove_lower2.c` are **no
