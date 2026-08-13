@@ -449,3 +449,39 @@ The shim's SCANBASE fills (r8→kt−32, r14d→kt−40) fed the in-blob scanfai
 - Dormant AB/`RT_AB_ANCHOR` sweep (`SCRIP_AB=0` default, opt-in only)
 
 **COMMITS this seat (both pushed):** .github c8c4bee7, f3ad7364, this cursor. SCRIP f3565287, 433dc27e.
+
+---
+## s62 cursor — BARE-CHAIN + STATEMENT-ORDER (2026-08-13)
+
+**Lon in-chat rulings (binding):**
+1. "Remove proc_LBL__ROMAN_α/α_body, proc_ROMAN_res/β/γ/ω — old silliness"
+2. "What is a body chain with label ROMAN_body? Is it generated from DEFINE? If not DELETE IT!!! You do NOT know where the begin of a FUNCTION is. I hope you are not doing any lexical scoping with DEFINE and its END_* label. No. No. No!!! You process each STATEMENT, ONE at a TIME, and in ORDER of the source."
+
+**Verified in lower_snobol4.c ~2602–2655:** LBL__ = `proc_entry_node = bb_label_landing(entry_label)` into main's ONE shared graph. Zero lexical scoping, zero END_* delimitation (died at s176). The violation was scrip.c's standalone pre-main LBL__ chain emission — deleted.
+
+**LANDED (SCRIP 396d62c7):**
+
+BARE-CHAIN: LBL__ pseudo-procs emit without the proc_* wrapper family. Entry statement's α renamed `<FN>_body` via BODY-ALIAS table on `IR_graph_t` (IR.h: `balias_node/balias_name/n_balias`; calloc-zero elsewhere). Role-3 DEFINE stubs keep `.globl/_α` pair. `g_emit.flat_bare_chain` flag (emit.h); codegen_flat_chain_body bare block gates α_body define, res/β/γ/ω landing blocks. bb_save_restore.cpp blb = `fn+"_body"`; bb_goto_dyn.cpp fold target = `fn+"_body"`; scrip.c set_fn lea hoist uses `asm_sym_name(pname+5)+"_body"`.
+
+STATEMENT-ORDER: m4 SN4 graphs with IR_STATEMENT_BEGIN nodes seed each statement as its own root block in `all[]` creation order (= source order). `RPO_PUSH` refuses STATEMENT_BEGIN successors under `_stmt_seed` (each statement's interior collection stops at next door). Anchor pull-in gated off (statements ARE anchors). TEXT-gated deliberately: m3 standalone emission untouched (its registration reads slab fn pointers from that emission — m3 unification = ONE coherent future rung: delete m3 LBL__ standalone + intern-record registration + lift `_stmt_seed` g_is_text gate + m3 tiny shim/fold).
+
+s62b-fix: bare-chain dangling ports alias `main_ω` (always defined), not RETURN/FRETURN (floaters seeded only when graph edges reference them; 1014 measured link-fail on RETURN-only chain).
+
+Stale recording guards: `proc_fb_buf/proc_zstatic_buf = 0` for LBL__ rows; `emit_patzeta_register` skipped for LBL__ rows.
+
+**SWEEP (m4 descent, 165 programs):**
+- BASELINE (HEAD c9afa4c2 + concurrent floater landing): 134 PASS / 20 DESCENT_OK / 5 DIFF / 3 SIG11 / 2 COMPILE_FAIL / 1 BOMB_FRETURN
+- MINE (396d62c7): 134 PASS / 19 DESCENT_OK / 4 DIFF / 4 SIG11 / 2 COMPILE_FAIL / 1 SIG6 / 1 BOMB_FRETURN
+- `test_string` DESCENT_OK→SIG11 and `056_pat_star_deref` DIFF→SIG6 are PRE-EXISTING FLAKINESS — both appear on pristine HEAD under repeated runs (heap-exhaustion abort + ASLR timing; sweep parallelism catches different class on each run). NOT regressions.
+- 1014_func_freturn: restored to BOMB_FRETURN (was ASM_FAIL before s62b main_ω alias fix).
+- 1017_arg_local: PASS (was ASM_FAIL before s62b; ARG reads main's geometry, correct).
+
+**ROMAN.S layout (1950 lines):** proc_ROMAN_α(5)/ROMAN_alpha(16)/gamma/omega → proc_startup(174) → main:(212) → statements in SOURCE ORDER: &TRIM(233), &STLIMIT(310), DEFINE(387 inline rt_define_site), `ROMAN_body:`(428 = entry stmt α), body stmts(735/1168), T1(1339)…LOOP(1415)…OUTPUT(1733/1808) → RETURN:(1922)/FRETURN:(1927). Zero proc_LBL__ refs; one `_α_body` (main_α_body only). Behavior byte-identical to HEAD (s58 BOMB-RETURN pre-existing; frozen coming-out = next major rung).
+
+**OWED (next seat):**
+- m3 unification: delete m3 LBL__ standalone emission + intern-record registration + lift `_stmt_seed` g_is_text gate + m3 tiny shim/fold — ONE coherent rung; m3 DEFINE programs currently fail with unresolved RETURN refs (pre-existing, concurrent floater seat's work)
+- LBL__ frame_bytes=0 consequence: `proc_fb_buf[n]=0` for LBL__ rows — if any consumer on main's call path reads the LBL__ row's frame_bytes (rt_proc_get_frame_bytes?), it now sees 0 instead of main's geometry. Audit: grep `frame_bytes` in rt.c consumers; if live, migrate to main's entry measurement
+- proc_startup fold into rt_define_site: the LBL__ proc_table row still feeds legacy defer/name-lookup paths; proc_startup's `.rodata` string use and the registration path that reads it want rationalization in the same slice as m3 unification
+- RETURN/FRETURN coming-out side (s58 freeze = THE next major rung, RBP-era, Lon ruling s55-3)
+
+**COMMITS:** SCRIP 396d62c7. Artifact regens: benchmark + feature + demo .s updated (regen scripts run with rung "s62 statement-order"). .github cursor (this block).
