@@ -102,3 +102,34 @@ own `RETURN`/`FRETURN`, most likely) and re-run the full 11-file list to confirm
 this mechanism (the finding only traced `func_call`'s shape; `roman`'s non-doubling pattern-bearing
 divergence from s48 may be a different or related mechanism — not re-checked this session); (c) EARN-4
 (ARBNO from scratch) is likely the highest-leverage next EARN rung now that EARN-3 is blocked on it.
+
+## (2) Same session, immediate follow-up: both of (1)'s named candidate mechanisms checked and FALSIFIED
+
+Picked up (a) directly rather than leaving it for a future seat, since both candidates were cheap to
+check with the same technique already in hand.
+
+**(a) `IR_RETURN`'s own γ-edge:** added a temporary env-gated print (`SCRIP_RETURN_DIAG=1`) inside
+`RPO_PUSH_SUCCS` (the node-collection macro), firing whenever `c->op == IR_RETURN && c->γ.node` is
+non-null. **Zero output in either mode.** `INC`'s `RETURN` node's `.γ.node` is never populated for
+this program. Ruled out — not the mechanism.
+
+**(b) `IR_BINOP`'s ω-edge (emit.cpp:2296), the arm that pushes `(c)->ω.node` for
+BINOP/UNOP/coerce/CMP_TEST kinds:** added a similar temporary print. **Also not the mechanism.**
+The trace shows `INC`'s own standalone `"proc_flat"` walk pushes exactly ONE such omega edge (its
+own `N + 1` BINOP) — and the `IR_COERCE_NUMERIC`/`IR_CMP_TEST` pushes belonging to `LOOP`'s `LT(...)`
+appear ONLY inside main's own `"pat_flat"` walk, in BOTH m3 and m4, with an IDENTICAL shape between
+modes. This omega-push mechanism is not where m3 and m4 diverge — both walk it the same way.
+
+**Net: the doubling is real and re-confirmed** (gdb backtrace still shows the same two call sites,
+scrip.c:1603 and scrip.c:1634, reaching the identical `nid`), **but its exact mechanism inside
+`codegen_flat_chain_body`/`RPO_PUSH_SUCCS` remains unisolated** after two targeted, falsified
+hypotheses. Recommended next move for whoever picks this up: instrument
+`emit_chain_mark_entry_emitted`/`emit_chain_entry_already_emitted` directly to see if some caller
+beyond the one group-root site (already ruled out in part 1) exists; check `codegen_flat_chain_body`'s
+"pass 2: generator ω tails" loop (emit.cpp:2331, keyed on `ir_is_generator_kind`, unconditional) for
+a possible misfire on a non-generator kind in this graph shape; or skip static reading entirely and
+bisect the repro program statement-by-statement until the doubling disappears — likely cheaper than a
+third hypothesis-and-check round.
+
+Both temporary diagnostics were reverted before this write-up (`git status`/`git diff` empty, clean
+rebuild verified). No new commits this session; state unchanged from part (1)'s handoff above.
