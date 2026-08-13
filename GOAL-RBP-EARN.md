@@ -488,7 +488,15 @@ Stale recording guards: `proc_fb_buf/proc_zstatic_buf = 0` for LBL__ rows; `emit
 - proc_startup fold into rt_define_site: the LBL__ proc_table row still feeds legacy defer/name-lookup paths; proc_startup's `.rodata` string use and the registration path that reads it want rationalization in the same slice as m3 unification
 - RETURN/FRETURN coming-out side (s58 freeze = THE next major rung, RBP-era, Lon ruling s55-3)
 
-**COMMITS:** SCRIP 396d62c7 (bare-chain + statement-order), 3c678355 (fixups: ARG/LOCAL registration name strip, fb-backfill, balias bounds guard, proc_names strdup safety). Artifact regens: benchmark + feature + demo .s updated (regen scripts run with rung "s62 statement-order"). .github cursor (this block).
+**COMMITS:** SCRIP 396d62c7 (bare-chain + statement-order), 3c678355 (fixups: fb-backfill, balias bounds guard, proc_names strdup safety — NOTE: LBL__ name-strip in this commit was **reverted** by 11501e31 because it diverged from the sbl oracle on 1017_arg_local), 11501e31 (revert; sweep byte-equal to baseline 134/20), fdc9ab82 (null-transfer fix: see below). Artifact regens: benchmark + feature + demo .s updated (regen scripts run with rung "s62 statement-order"). .github cursor (this block).
+
+**fdc9ab82 — null-transfer fix (s55 oversight, measured 1010/claws5/treebank SIGSEGV rip=0x0):**
+s55 "GLOBALS-GONE" gutted `c_rt_proc_open_fn` to `return (void*)0` ("fn now rides the OPEN return itself"). The slim and det arms were migrated to the rax channel; the **classic dyn** and **two generator** arms were not. They still emitted `call rt_proc_open_fn` (now always NULL) immediately before `bb_glue_pass_wires` → `jmp rax` → `jmp 0`. The `test rax,rax; je` guard sat *before* the clobber so never fired. Fixed by replacing the dead crossing with `rt_proc_fn(name)` (pure accessor, no new global). Four sites in `bb_call_proc_staged.cpp`; the fifth (line 634) is the `!= ZC_FRAME_RSP` dead arm, left alone. Sweep after fix: **134 PASS / 21 DESCENT_OK** (+1 vs baseline: 1010_func_recursion repaired; claws5+treebank absorbed into PASS).
+
+**Sweep history (m4 descent, 165 programs):**
+- Baseline HEAD c9afa4c2: 134 PASS / 20 DESCENT_OK / 5 DIFF / 3 SIG11 / 2 COMPILE_FAIL / 1 BOMB_FRETURN
+- After fdc9ab82: 134 PASS / 21 DESCENT_OK / 4 DIFF / 2 SIG11 / 2 COMPILE_FAIL / 1 SIG6 / 1 BOMB_FRETURN
+- Net: +1 DESCENT_OK (1010), +2 PASS (claws5, treebank), −3 SIG11, −1 DIFF (056 alternates DIFF/SIG6 run-to-run = pre-existing heap flakiness in the `*PAT` path)
 
 **s62 fixups (3c678355):**
 - Registration name strip: LBL__ rows bake `.Lstartup_pname` under the entry-label name (strip `LBL__` prefix) so `ARG(.jlab,1)` looks up `"jlab"` and finds main's frame geometry → 1017_arg_local PASS confirmed.
