@@ -200,3 +200,29 @@ scratch) remains open and likely still the highest-leverage EARN rung, gated on 
 full-runway at the start, per the goal file's own law; (d) `roman`'s divergence was checked this session
 (part 5 above) and shares `func_call`'s mechanism, not a distinct one, though only against a minimal
 non-recursive repro — the full 100k-iteration benchmark file was not re-verified.
+
+---
+
+# ⭐ RESOLVED, same session (s50) — SCRIP `7b8f4cdd`
+
+Everything above records the search; this records the answer. **The `SN4-M34-5a` group-root guard WAS
+the mechanism** — the site parts (4) and (6) both named as "the next concrete unmeasured candidate,"
+and the site s48/s49 ruled out on an unverified premise.
+
+**Measured at the guard** (`break emit.cpp:2325 if prefix=="proc_flat"`), which is all it ever took:
+
+```
+INC's own walk:  n_before=7   g_is_text=0  entry==g->entry: FALSE   zls_g_group_count: 4   <- pull-in RUNS anyway
+main's own walk: n_before=35  g_is_text=0  entry==g->entry: TRUE    zls_g_group_count: 4
+m4, same guard:  n=7          g_is_text=1  entry_eq=0                                      <- pull-in SKIPPED
+```
+
+`_gc == 4`, not 0. The four anchors are all `op=28` (`IR_GOTO`) — **main's** LOOP/DONE label landings,
+none of them INC's; only anchor[0] is marked already-emitted, so 1/2/3 pull main's whole chain into
+INC's collection (7 → 43). The `!g_is_text ||` disjunct is what lets binary through a test text mode
+correctly fails. Fix, gates, and the second (opposite-direction) m4 under-collection repair it also
+produced are recorded in the s50 LIVE CURSOR in `GOAL-RBP-EARN.md` and in `7b8f4cdd`'s commit message.
+
+**The lesson worth more than the fix:** three sessions were spent because one session inferred a value
+from a caller grep instead of printing it. New FACT RULE proposed in the goal file — *a "this path is
+inert" claim is only admissible with a printed value beside it.*
