@@ -4,6 +4,7 @@
 
 **██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
 **ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+**⛔ THE ASK ITSELF MUST BE A BANNER: any session requesting this permission MUST display the request in-chat as a large unmissable ⛔ banner — the proposed global's name, type, owning file, purpose, and why registers/the stack cannot carry it — so Lon cannot miss the ask.  A quiet or inline ask does not count as asking. (Lon 2026-08-13 s55, in-chat.)**
 
 
 **LAST SESSION:** s211 — **ICN-PROC-FRAME PARTIAL LAND: flat_lcl_proc flag, BLOB-GRANT arm, wire-exit fix, rt_lcl_proc_args_install, ZD-2h-ICN, bb_to ZD arm scaffold. SCRIP `ef4841f1` on origin.** Build clean. Watermark unchanged PASS=1 FAIL=262 XFAIL=30. `f("hello")` still fails — gamma/omega exit reads rt_flat_ret_snap (pcall wire array) instead of frame header [rbp+kt-24/-16]. Next rung: fix wire exit for flat_lcl_proc to read frame header directly.

@@ -4,6 +4,7 @@
 
 **██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
 **ENFORCEMENT: every diff is checked for new file-scope definitions; a commit adding one without a cited in-chat grant in its message is REJECTED on sight. Precedent: the g_pcall / g_pcall_wires / RT_AB_ANCHOR eradication (s55) — that entire class is what this rule forbids recreating.**
+**⛔ THE ASK ITSELF MUST BE A BANNER: any session requesting this permission MUST display the request in-chat as a large unmissable ⛔ banner — the proposed global's name, type, owning file, purpose, and why registers/the stack cannot carry it — so Lon cannot miss the ask.  A quiet or inline ask does not count as asking. (Lon 2026-08-13 s55, in-chat.)**
 
 
 **LIVE CURSOR (Claude Sonnet 4.6, 2026-08-13):** **5b FIXED** (SCRIP `3ed6dc90`). **BugB (`var=subj?pat`) FIXED** (same commit). Both oracle-verified, both modes. Corpus: IDENTICAL 254→263, DIFFER 16→14, M3-MISS 46→39, zero regressions (set-diff verified). Full detail: `FINDING-2026-08-13-CLAUDE-SN4-MODE34-5b-SPAN-VAR-INLINE-ARM-FIX-AND-VAR-ASSIGN-MATCH-BUGB.md`.
