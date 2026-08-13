@@ -1,0 +1,33 @@
+# FINDING 2026-08-13d — SN4 RBP-EARN s59 (Claude Fable 5) — CASE COMPLIANCE + ONE-AUTHORITY TINY GATE + THE COMPILE-TIME SPOT SET IS EMPTY
+
+**Directive (Lon, in-chat):** run the whole SNOBOL4 suite in the NO-RETURN / NO-WHACK regime (bombs at RETURN/FRETURN/NRETURN send clear aborts; those aborts are KNOWN and discarded), chase down every remaining bug, and categorize the SPOTs where static addressing fails from UNKNOWN stack depth. Clarified model: α = `sub rsp,K` / ω = exact-inverse `add rsp,K` (compile-time K, LIFO by construction) run everywhere; a compile-time-KNOWN release whacks; an UNKNOWN release emits NOTHING — junk sits harmlessly and the stack only grows until a RETURN POINT; the only whack that REQUIRES true LIFO restore is FUNCTION exit, which is exactly where the bombs live.
+
+**Board: 107 → 135 PASS · hunt set 45 → 9 · known-abort ledger 13 → 21 (20 DESCENT_OK + 1 BOMB_FRETURN, all oracle-prefix) · 0 BOMB_RETURN_BAD throughout · 0 regressions across four rungs.** SCRIP commits: `b567eafe` (case tests) · `dab2a090` (PROTOTYPE + 4 test fixes) · sweep fix commit · `638c2bcd` (one-authority gate) + feature-artifact regen commit.
+
+## Rungs landed
+1. **CASE COMPLIANCE (b567eafe).** Lon ruling: SCRIP is case-sensitive; tests comply. 35 lowercase-authored rung tests (rungs 2/3/4/8/9/10/11): reserved/builtin names uppercased OUTSIDE string literals only (script tokenizes quotes; comments, data literals, and user names untouched; `&keyword` always folds). 107→131. My first instinct (implement SPITBOL folding — manual p.23, sbl-verified `define('f(x)')`+`F(5)` unify and `$'xyz'` folds) was reverted on the ruling; the fold experiment's transition table is what proved exactly which failures were case-caused.
+2. **PROTOTYPE CANONICALIZATION + 4 RESIDUALS (dab2a090).** sbl-proven: PROTOTYPE of a pure-numeric prototype returns the INTEGER (ARRAY(3), ARRAY('3'), ARRAY('5') → int; '2,3' and lo:hi stay strings; DIFFER is type-sensitive — `<3>` printed while DIFFER said different). Fixed by_name_dispatch PROTOTYPE arm + the two wrong string expectations in 1110. 210: BAL is PROTECTED in sbl (ERROR 042) — the test was never oracle-passable; user var renamed TBAL. 1115/1116: sbl keeps DATA prototype strings VERBATIM while folding source refs (lowercase-proto data tests can never pass the oracle) and sbl has NO VALUE() function (ERROR 022) — protos+user names uppercased, VALUE→`$'B'`. All four now IDENTICAL both engines. 131→135.
+3. **SWEEP INCLUDE RESOLUTION.** The 4 library COMPILE_FAILs were a HARNESS gap: the oracle fails identically (ERROR 285) without an include root. sbl resolves `-include` CWD-relative (SNOLIB is LOAD-only per manual p.7122 — measured, it does NOT serve -include); scrip already honors `SNO_LIB` (colon list, driver :584). Sweep now runs the oracle from /home/claude/corpus and scrip with SNO_LIB. library×4 → DESCENT_OK.
+4. **ONE-AUTHORITY TINY GATE (638c2bcd).** 1010 linked `jmp <fn>_alpha` sites against a shim the role-4 box had DECLINED — the site gate was `rt_define_tiny_ok` while the shim gate was `bb_scc_probe`+nf-bounds, and they disagreed WITHIN one program (3 sites slim to n19_save_restore_α, 2 sites tiny to undefined fact_alpha; facto took a third path, proc_facto_γ). New `bb_tiny_shim_ok(fname,nargs)` = the shim's exact chain (SCRIP_NO_TINY + rt_define_tiny_ok + bb_scc_probe(fn,0) + nf∈[0,29]∧nf≤np), consulted by all 4 site arms in bb_call_proc_staged.cpp AND the shim gate in bb_save_restore.cpp — a dangling `<fn>_alpha` is now structurally impossible. 1010 ASM_FAIL → SIG11 (truthful reclass: the slim path it now uniformly takes crashes on OPSYN-alias + alternate-entry, beyond the landed subset).
+
+## THE SPOT CENSUS — compile-time set is EMPTY at head
+Swept every compiling program's emitted .s for the dyn-offset sentinel: **0 of ~160 programs carry `[rsp + -1]`**. Not vacuous: s53 hard-set `x86_rsp_slide_known()==1` (RSP-ONLY-EVERYWHERE) — the sentinel class was eliminated as a SPELLING, and per that ruling classes whose depth truly diverges across a dynamic edge "fail HONESTLY at run time and go on the failure list". So at this head the SPOT list is the RUNTIME-honest failures, and the suite contains exactly ONE:
+- **⭐ SPOT #1 — `*P` deferred star-deref (056_pat_star_deref):** oscillates SIG6 / DIFF / SIG11 across otherwise-identical builds — address-sensitive junk read, the textbook unknown-depth signature. Construct: deferred `*X` evaluation (manual p.122's sole recursion form; deliberately excluded from PAT-INLINE). This is the ARBNO(*P) class Lon named. Do not patch ad hoc; it is demand-evidence for the anchor mechanism.
+- **RETURN-POINT itself:** every DESCENT_OK/BOMB_FRETURN program (21) terminates at the FUNCTION exit — the one required-LIFO whack, by design not yet built.
+
+## Residue (9), categorized
+| Class | Programs | Verdict |
+|---|---|---|
+| SPOT: star-deref | 056_pat_star_deref (SIG6/11 oscillating) | catalog, feed the anchor design |
+| DEFINE-exit slim path | 1010 (SIG11; OPSYN alias + `.fact2_entry` alternate entry) | coming-out-side rung's customer |
+| DUP-LABEL `.Lbynamefnzd<n>` | 1017_arg_local, claws5 (ASM_FAIL) | L-id minting collision — mechanical fix, next seat |
+| Compiler SEGV | 1016_eval (EVAL×DEFINE×splice, rc=139) | s58's exact queue coordinate, unopened |
+| Mid-design BB | coverage_sno_nodes (COMPILE_FAIL) | expected per s58 |
+| Multi-file infra | linker/net×2 + polyglot_tri (DIFF) | separate harness question |
+
+## Oracle semantics banked this session (all measured, not inferred)
+sbl folds names everywhere a string becomes a name (source, DEFINE protos, runtime `$`), EXCEPT DATA prototypes (verbatim — ERROR 022 on folded field refs); BAL is protected (ERROR 042); VALUE() does not exist (ERROR 022); PROTOTYPE returns the prototype OBJECT with numeric canonicalization to INTEGER; SNOLIB serves LOAD only, -include is CWD-relative; sbl `-I` is an illegal option in this x64 build; sbl's `-f` would disable folding if oracle/scrip case parity is ever wanted.
+
+## Process convictions (mine, this session)
+1. **Empty==empty is not agreement.** My library "IDENTICAL ×4" verification was vacuous — scrip's rc came from a `| head` pipeline once, and in the loop BOTH engines failed silently so S=""=O="". The s33 "non-empty is not alive" class in mirror form. A comparison is only admissible with a non-empty witness beside it.
+2. **A blanket word-substitution over tests is an edit, not a refactor.** Two of my own uppercase subs broke correspondences the tests depended on (`bal`↔BAL; `LSON(B) = a` leaving lowercase `a`) — both gdb'd back to me. Audit the diff for value-position residue before trusting a sweep.
