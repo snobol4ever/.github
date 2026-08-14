@@ -61,3 +61,49 @@ Per-site attribution: re-run the census with the walk's bail kind printed beside
 303 split into *defer-caused* / *ALT-caused* / *ARBNO-caused* / other. That converts an upper bound into a
 work queue, and it is a diagnostic print inside `sno_cap_fc`, not a codegen change — byte-inert, gateable
 by the existing `DIAG=1 == DIAG=0` md5 check.
+
+---
+
+## ADDENDUM (same session) — THE 41 NARROWED TO 15, AND THE DENIER SET IS NAMED
+
+The 41 above were flagged as **co-occurrence**. They can be narrowed toward attribution **without any
+compiler change**, using only the emitted `.s`, because `fc_walk_range`'s whitelist denies on
+`default:` — so the deniers present in a program are exactly its **non-admitted kinds**.
+
+Admitted by the walk: `LIT LEN ANY NOTANY POS RPOS ATP ASSIGN_{SAVE,COND,IMM} GOTO`, the `fc_geom` set
+`SPAN TAB RTAB BREAK BREAKX BAL REM ARB`, and a **granted** `ALTERNATE`.
+
+**Step 1 — exclude the two other known deniers.** Of the 41, **15** contain **no ARBNO and no ALTERNATE**.
+
+```
+probe/bb/probes/D05.sno        probe/dc_nest_bt.sno       probe/mv_valheld_cap.sno
+probe/bb/probes/D06.sno        probe/dc_sib_bt.sno        probe/os1_runtime_k.sno
+probe/w_cap_ay.sno             probe/w_cap_group.sno      probe/w_cap_novowel.sno
+probe/w_cap_stored.sno         probe/mrbp/mrbp_result_value.sno
+                               probe/mrbp/mrbp_result_capture.sno   (+3 more)
+```
+
+⭐ The two witnesses banked by `FINDING-2026-08-13j` appear in this list on their own merits — a
+**self-consistency check on the classifier**, not an input to it.
+
+**Step 2 — enumerate every non-admitted kind actually present across those 15.** Result:
+
+> **`defer` and `value` — nothing else.**
+
+⇒ **THE DENIER SET FOR THESE 15 IS EXACTLY `{IR_MATCH_DEFER, IR_MATCH_VALUE}`.** This is no longer
+co-occurrence: within this subset there is no other kind that *can* reach `default:`.
+
+## ⭐ WHAT THIS CHANGES FOR THE RULING
+
+`IR_MATCH_VALUE` is `IR_MATCH_DEFER`'s sibling — same template family (`bb_match_value.cpp` is
+structurally `bb_match_defer` with the name-based acquisition replaced by an operand-slot read), and
+**both share the property that makes the whitelist fix unsound: no compile-time extent.** Both are also
+already in `emit_graph_has_deep_arrival`'s list.
+
+⇒ **Any eligibility answer must cover BOTH kinds, not DEFER alone.** A fix that admits only DEFER would
+leave the `value` half of this subset still binding null, and would look green on whichever witness
+happened to use `$` rather than a pattern-valued operand.
+
+⛔ STILL NOT CLAIMED: that all 15 produce wrong output. Only the two banked witnesses have been run
+against the oracle. The other 13 are a **candidate queue with a named cause**, which is what a work
+queue should be — not a defect count.
