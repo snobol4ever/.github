@@ -211,3 +211,51 @@ CALL 1 · FUNC_ACTIVATE 1 · MATCH_ALTERNATE 1 · MAKE_LIST 1. The law to encode
 `frame_need_of`: a cell needs a frame iff its byte distance to RSP is not a compile-time constant at some
 reading site — so the row is *carves AND its carve is not released on every exit edge*, which is a property of
 the template, not of the operand tree. ⛔ Gate it the same way: md5 blast radius, never a single board run.
+
+---
+
+# ⭐⭐⭐ s68 PART 2 — THE LEAK ITSELF IS ROOT-CAUSED: THE statement_end GOTO ARM HAS NO WHACK
+
+This is the OWED item carried since s63 ("statement_end goto-arm whack", re-listed unchanged by s65 and s67).
+It is now MEASURED, with the exact emitted-code discriminator and the exact gate line.
+
+## THE MEASUREMENT (gdb, `test_sno_stmt_frame_1.sno`, SCRIP_FN_RBP=2)
+    ADD3_alpha (= n2_save_restore_α)  rsp = 0x7fffffffe920
+    RETURN                            rsp = 0x7fffffffe8a0     => 128 BYTES ABANDONED
+    top of stack at RETURN            = 0x0000000000000003
+    crash                             = 0x0000000000000003 in ?? ()
+**The program jumps to its own literal `3` from `ADD3 = N + 3`.** 128 = 64 (ADD3_alpha carve) + 16
+(push r11/r10) + 48 (the body statement's three 16B node carves: var 16 + lit 16 + binop 16).
+Per-node trace: ADD3_body e8d0 -> n13_var_α e8d0 -> n14_lit_integer_α e8c0 -> n15_binop_α e8b0 -> RETURN e8a0.
+⛔ Breakpoints on `n14_lit_integer_β` and `n12_statement_begin_β` NEVER FIRED — the release chain is not
+merely wrong, it is NEVER ENTERED.
+
+## THE DISCRIMINATOR — PASSING SIBLING vs FAILING PROBE, SAME NODE KIND
+    PASS  (top level, ordinary goto):  n3_statement_end_α:   add rsp, 16;  jmp n4_statement_begin_α
+    LEAK  (RETURN arm inside DEFINE):  n17_statement_end_α:                jmp RETURN
+One node kind, two arms; the RETURN arm emits NO release at all.
+
+## THE GATE LINE
+`src/templates/x86_asm.h:2362`
+    if (site == X86H_JMP && port == X86P_GAMMA && _.op_zgpop > 0) s += x86_add("rsp", (long)_.op_zgpop);
+The whack is conditioned on **`port == X86P_GAMMA`**. The statement's ordinary success wire is a GAMMA jmp, so
+it whacks. The `:(RETURN)` transfer is a GOTO arm on a different port, so the hook declines and the carve is
+abandoned. bb_statement.cpp's own comment says the design intends "the release rides that jmp's X86H_JMP hook
+arm" — it rides only the gamma spelling of it.
+
+## ⛔ CORRECTION TO s67's CAUSAL STORY (the 7/7 correlation is right, the mechanism is inverted)
+s67: *"AN UN-WHACKED STATEMENT/MATCH LEAK IS CLEANED IFF IT RUNS INSIDE A FUNCTION ACTIVATION ... at top level
+nothing ever restores, and THAT is the 'not ALL' where a whack is really necessary."*
+**FALSIFIED BY MEASUREMENT.** Top-level statements do NOT drift. Control `corpus/probe/earn0/s68_goto_control.sno`
+(a 200,000-iteration top-level `:S(LOOP)` goto loop) is oracle-identical AND rsp is BIT-IDENTICAL across
+iterations 1-5 (`0x7fffffffe990` every time) — the ordinary goto arm whacks correctly.
+⇒ `DEFINE` presence does not mark "where the bracket can clean a leak"; it marks **WHERE THE LEAKING EDGE
+EXISTS AT ALL**, because `:(RETURN)` is the arm that skips the whack, and it can only occur inside a DEFINE.
+Same 7-of-7 correlation, opposite mechanism, and they predict differently — s67's predicts top-level drift
+(false), this one predicts drift only where a RETURN/goto arm bypasses the release (measured true).
+
+## NEXT RUNG — WIDEN THE WHACK PORT, ONE AUTHORITY
+Make the goto/RETURN arm carry the same `op_zgpop` release as the gamma arm at x86_asm.h:2362. ⛔ It must be
+ONE spelling (s22k law) and must not double-fire where a gamma release already ran. Witness = stmt_frame_1
+under `SCRIP_FN_RBP=2` (must exit 0, print 12); control = `s68_goto_control.sno` (must stay byte-identical);
+gate = md5 blast radius over the 222-program set, NOT a board run (noise floor ~5).
