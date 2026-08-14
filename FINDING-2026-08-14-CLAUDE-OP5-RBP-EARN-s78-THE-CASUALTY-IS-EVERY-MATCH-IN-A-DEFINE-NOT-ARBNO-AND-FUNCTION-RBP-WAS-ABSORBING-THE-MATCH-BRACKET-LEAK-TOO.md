@@ -42,3 +42,29 @@ s77(12) said FUNCTION RBP "is currently ABSORBING the statement leak BY DESIGN."
 ## 5. Reproducers (in this file, not banked as corpus witnesses — cheap to re-cut)
 
 `v_a` / `v_b` / `v_c` above; 6 lines each, DEFINE + one match + `:(RETURN)`. `v_b` is the minimal crash and needs no ARBNO at all.
+
+---
+
+# ⛔⛔⛔ SELF-CORRECTION, SAME SESSION, BEFORE ANYONE INHERITED IT — SECTION 3's ROOT CAUSE IS **FALSIFIED**
+
+I wrote §3 ("the 64 is never released") from an `add rsp`/`sub rsp` grep, then checked the actual control flow and it is **WRONG**. Recording the falsification rather than leaving a confident wrong answer banked, because a guess re-read later as a measurement is this goal file's most expensive recurring disease (s71/s75).
+
+**WHAT THE ASM ACTUALLY SHOWS** (`m1b.s`, the minimal `v_b` crash, lines 271-279):
+```
+n20_match_end_α:  mov r8, r12
+.Lx57_9:          sub r8, 24
+                  mov rax, [r8+0]
+                  test rax, rax ; jne .Lx57_9      <- scan back to the tag-0 sentinel
+                  mov rsp, [r8+8]                  <- WHACKS TO THE BANKED cas_rsp_mark
+                  push r14 / push r15 / push r13 / sub rsp,8
+```
+⇒ **MATCH_END DOES restore rsp from the mark on the success path.** The in-bracket 64B IS collapsed, and `emit.cpp:2181`'s `zdh_match` premise is **CORRECT, not stale**. §3's claim that the bracket restore never fires is false, and the §4 instruction "DO NOT restore full `_wzdepth`" happens to remain good advice but NOT for the reason §3 gave.
+
+**WHAT SURVIVES §3 UNCHANGED (still measured, still true):**
+- the MATCH ∩ DEFINE bisect (§1) — ARBNO and capture both non-load-bearing, DEFINE is the discriminator;
+- both killswitch acquittals (§2) — ARBNO ζ-FRAME and mrbp are exonerated;
+- the mark machinery is present and banked (`cas_rsp_mark` written at match_begin, read by the af arm, the β arm, and match_end).
+
+**THE OPEN QUESTION, NARROWED AND HANDED OVER HONESTLY:** after the mark whack, match_end pushes **32 bytes** (`r14`,`r15`,`r13`,pad-8 — the saved scanner registers) and the statement's terminal emits **`add rsp,16`**. Whether that 16-vs-32 is the defect, or those 32 are legitimately consumed by a pop I did not trace, **I DID NOT DETERMINE** — I ran out of session. It is a 16-byte question in a 32-byte epilogue, one function, one witness (`v_b`, 6 lines, no ARBNO needed).
+
+⛔ **NEXT SEAT: start at `n20_match_end_α`'s epilogue and the `zd_k`/gpop billing of MATCH_END, with the monitor — NOT at emit.cpp:2181, which this correction exonerates.**
