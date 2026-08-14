@@ -4,6 +4,8 @@
 
 > ⛔ **RETIREMENT NOTICE (r10 / BBREG_DATA is OUT).** The consolidated **per-BLOB DATA-block pointer in `r10`** described throughout this document is **RETIRED**. The live flat boxes address **RW box-locals at `[r12+off]`** (the ζ frame, established by the glob preamble `push r12; mov r12, rdi`) and **RO box-constants at `[rip+disp]`** (sealed adjacent, RIP-relative). There is no data-block register and no `lea r10,[rip+Δ]` preamble. Everything below that loads `r10`, addresses `[r10+N]`, or `push`/`pop`s `r10` for a DATA block is **superseded history retained for reference only** — see **R10-OUT** in `GOAL-SNOBOL4-BB.md` for the eliminating ladder. (This is in addition to the earlier SM-era supersession already noted: r12 is the ζ RW frame, NOT an SM value-stack TOS.)
 
+> ⛔⛔ **CORRECTED 2026-08-14 (Claude Sonnet 5, RBP-EARN seat): r10 IS NOT FREE — this file previously left that implied (the TL;DR table below still listed it as "per-BLOB DATA-block ptr ... fork TBD," directly contradicting the retirement notice above it, and neither line said what r10 is used for NOW.** Grep-verified against current `src/templates/*.cpp` (22 files reference `"r10"`): r10 is the **LIVE γ-WIRE register for function linkage** — `bb_func_activate.cpp` loads it as the return continuation (comment: "γ wire") and `RETURN`/`NRETURN` jump through it (`jmp r10`); `bb_glue_flat.cpp` selects between `r10`(γ)/`r11`(ω) for continuation targets; it is also used as ordinary caller-saved scratch in several templates (`bb_call_fn.cpp`, `bb_lit_scalar.cpp`'s PL-ZK-5B dual-write, `bb_call_proc_staged.cpp`'s open-return parking). **Do not treat r10 (or r11) as available for a new dedicated role — e.g. a STANDING-frame pointer register, considered and rejected in `GOAL-RBP-EARN.md`'s s80 cursor for exactly this reason — without a full register census, not an assumption from this file's stale table.**
+
 ⛔⛔ **SUPERSEDED FOR BB-NATIVE EMISSION (2026-05-31, Lon-ratified).** The
 register roles below describe the **SMX-4-era SM-blob** convention (r12 =
 SM value-stack TOS; r13/r14/r15 = free). SMX-4 deleted the SM engine, so
@@ -26,7 +28,7 @@ was wrong, not the convention itself:
 | **r14** | δ — CURSOR |
 | **r15** | Δ — subject LENGTH/END (folds retired Ω/Σlen) |
 | **r12** | ζ — BB-local RW FRAME base (`[r12+off]`); **NOT** a value stack |
-| **r10** | per-BLOB DATA-block ptr (flat); broker current-node ptr (brokered) — fork TBD |
+| **r10** | ⛔ NOT the DATA-block ptr (that role is retired, see banner above) — **live role is the γ-WIRE** (function-linkage return continuation; `r11` is its ω counterpart), plus ordinary caller-saved scratch in several templates. NOT free for a new dedicated role without a full census. |
 | **rbx** | DESCR BASE POINTER — dual-width: 8-byte DESCR (32-bit) / 16-byte DESCR (64-bit) (Lon 2026-05-31) |
 | **rbp** | variable NAME/HASH-table base (RESERVED) — GET/SET are C calls for now; inlining is a future optimization (Lon 2026-05-31) |
 
