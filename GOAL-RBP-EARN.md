@@ -7,7 +7,29 @@
 **⛔ THE ASK ITSELF MUST BE A BANNER: any session requesting this permission MUST display the request in-chat as a large unmissable ⛔ banner — the proposed global's name, type, owning file, purpose, and why registers/the stack cannot carry it — so Lon cannot miss the ask.  A quiet or inline ask does not count as asking. (Lon 2026-08-13 s55, in-chat.)**
 
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-15 s85 (Claude Sonnet 4.6, RBP-EARN seat) — **THREE ZETAS STEP 1 LANDED: ζ-STANDING (emit_match_rbp live) + ζ-FRAME for *P DEFER (emit_defer_rbp). ARBNO SLOT-REGISTRATION IS THE NEXT RUNG. PRE-EXISTING CAPTURE-FRAME BACKTRACK DEFECT NEWLY DOCUMENTED.** SCRIP `2388ba6a` + corpus `871383f4`.
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-15 s86 (Claude Sonnet 4.6, RBP-EARN seat) — **THREE ZETAS s86/s87 LANDED: ARBNO-FRAME slot registry + unified CAPTURE slot registry. TWO BOMBS CLEARED (W-7 / K0-DEFER-companion). CAPTURE crossover collision FIXED. BB probe gate 140/25-pre-existing (zero new regressions). PAT\$N stored-pattern-blob class (the common named-pattern case) still declines — next rung.** SCRIP `64cf0a7c` + corpus `253e1f86`.
+
+⭐⭐⭐ **(1) ARCHITECTURE EXTENDED (s86/s87).** The MATCH_BEGIN ζ-STANDING frame now reserves extra bytes at the BOTTOM of its fixed layout (`[rbp-64]` and below), sized by a compile-time count of frame-slot candidates in the match's own g_emit_cfg scope: one slot per DEFER-unsafe ARBNO (`arbno_frame_candidate()`), one slot per CAPTURE-SAVE with `frame_need_of()==1` — interleaved in TEXTUAL ORDER so the two classes share ONE slot numbering space and can NEVER collide. The retry `lea rsp,[rbp-K]` reset widens by the same amount so every slot survives every retry and self-releases with `mov rsp,rbp; pop rbp` at match end.
+
+⭐⭐⭐ **(2) WHAT LANDED.** `arbno_frame_slot()` / `capture_frame_slot()` / `frame_slot_scan()` / `emit_match_begin_frame_extra()` added to emit.cpp; `op_arbno_frame_off` and `op_cap_frame_off` staged at the IR_MATCH_ARBNO / IR_MATCH_ASSIGN_{SAVE,COND,IMM} drive cases. `bb_match_arbno_frame()` (new static function) replaces the two bombs with a frameless-arm-identical Δ0/yield cell at `[rbp+op_arbno_frame_off]`. `bb_match_capture.cpp` SAVE/COND/IMM `op_frame_need` arms rewritten to `RDD("rbp", _.op_cap_frame_off)` reads/writes with no push/pop of their own; old transient-frame arm preserved as fallback behind `op_cap_frame_off == -1` (fires only when `emit_match_rbp()==0`).
+
+⭐⭐⭐ **(3) ROOT-CAUSE FOUND AND FIXED: CAPTURE crossover (probe D11).** Raw asm inspection of D11 (`ARBNO(*P)` with `P` an ALTERNATION, wrapped in `$ OUTPUT`): CAPTURE's SAVE was doing `push rbp; mov rbp,rsp`, then ARBNO's alpha wrote its cell at `[rbp-64]` — but `rbp` here was CAPTURE's *tiny transient* frame (8 bytes), not STANDING's. CAPTURE's IMM then did `mov rsp,rbp; pop rbp` — tearing CAPTURE's frame out from under ARBNO BEFORE ARBNO's own retries were done, corrupting the yield-cursor on backtrack. The unified `frame_slot_scan()` eliminates both push/pop sites; verified D11 matches oracle (blank/Blue/BlueBird/=S, 3/3 deterministic runs).
+
+⛔ **(4) PAT\$N STORED-PATTERN-BLOB CLASS: still bombing, correctly scoped.** When a DEFER-unsafe ARBNO (or hazardous CAPTURE) lives inside a separately-emitted PAT\$N proc blob (the common `PAT = 'A' ARBNO(*X) ...` named-pattern form), there is NO `IR_MATCH_BEGIN` node in that blob's own `g_emit_cfg` — `frame_slot_scan()` returns `mb=-1` and declines, falling back to the honest bomb. This is the correct boundary: the jmp-entry wire that enters the blob leaves rbp unchanged (the physical fact that makes the slot mechanism sound), but discovering WHICH specific frame and WHICH slot offset was reserved requires cross-graph knowledge (a footprint registry keyed by pattern name, similar to `emit_patzeta_lookup`). That is the next rung's scope.
+
+⛔ **(5) BB PROBE GATE: 140 pass · 1 xfail · 0 XPASS · 25 regression.** All 25 regressions are PRE-EXISTING at clean HEAD (confirmed by byte-identical diff of full probe-name regression lists between clean HEAD and s86 scrip, two consecutive runs). Zero new regressions introduced. Meaningful XPASS: probes that previously bombed at clean HEAD and now pass include D11 and several others in the inline-pattern class (specific set not enumerated here — full BB run shows it).
+
+**HANDOFF STATUS (verbatim, `bash SCRIP/scripts/handoff_status.sh`):**
+
+```
+=== CHAT SESSION STATUS — checking 4 repo(s) (auto-discovered under /home/claude); ground truth from git ===
+  .github [main]         OK         local=<after_push>  origin=<after_push>
+  SCRIP [main]           OK         local=64cf0a7cd origin=64cf0a7cd
+  corpus [main]          OK         local=253e1f863 origin=253e1f863
+  x64 [main]             OK         local=5035571b1 origin=5035571b1
+------------------------------------------------------------
+HANDOFF COMPLETE
+```
 
 ⭐⭐⭐ **(1) ARCHITECTURE CONFIRMED (Lon in-chat, this session).** Exactly TWO operator-BBs push their own RBP activation frame: `IR_MATCH_BEGIN` (ζ-STANDING, the root, one per match) and `IR_MATCH_DEFER` (`*P`, ζ-FRAME, one per deferred pattern call, chained above STANDING). ALL other BB kinds are ζ-SPINE (RSP, alpha-allocate/omega-self-free/whack-free) by default. When a spine-only BB needs a cell that must survive a DEFER call moving the frontier, it does NOT push its own frame — it registers a slot in the nearest live activation frame via `op_frame_need`/`frame_need_of()`. ARBNO and CAPTURE are the two confirmed customers of that registration path. `emit_arbno_rbp()` stays **permanently 0** — ARBNO never pushes RBP. CAPTURE's existing transient push/pop-own-rbp (s81/s83, `bb_match_capture.cpp`) is NOT reclassified — it owns its own transient frame for the SAVE-to-reader lifetime correctly and independently of DEFER's frame.
 
