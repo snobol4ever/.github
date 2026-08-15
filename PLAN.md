@@ -41,6 +41,7 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step (stale by design — trust the goal file's LIVE CURSOR) |
 |------|------|------|
+| **⛔⭐⭐⭐⭐ MILESTONE 1 — BEAUTY SELF-HOST** ⬅ PIVOT (Lon 2026-08-15 s91): re-earn M1 on the native engine; scorecard + META SCORE instrument | `GOAL-MILESTONE-1-BEAUTY.md` | Instrument landed (`scripts/scorecard_snobol4.sh`); baseline META ≈30; one cross-mode root cause named; m3-unify branch `s91-m3-unify` one crossing short. |
 | **⛔⭐⭐⭐ SN4 HOME** ⬅ CONSOLIDATED MASTER (Lon 2026-08-12 s30): SNOBOL4 100% on RSP+RBP+RBX; five concurrent seats | `GOAL-SN4-HOME.md` | P0 (BOARD) unopened. Seats: `GOAL-RBP-EARN.md` (RBP) · `GOAL-SN4-HOME-{LOWER,WIRES,RBX,BOARD}.md`. SN4-scope items of SNOBOL4-BB/RTX/RTCC/ZETA-MECH/ZETA-CLIMB are absorbed; those files stay law+history. |
 | **IR REDUCE / NO-MANGLE** ⬅ GROUND ZERO #5 | `GOAL-IR-IMMUTABLE-EMIT.md` | Emitter reads IR, never mutates; collapse 224 opcodes toward JCON-33; per-BB self-allocation (ZB-PORTS → ZB-ACT) per the file's CURRENT-PRIORITY banner. |
 | **SNOBOL4 BB** ⬅ **TOP PRIORITY (Lon 2026-08-07): LADDER PB — 5-STAGE STATEMENT EXECUTION (PATREF deletion + STITCH BBs; roman witness).** | `GOAL-SNOBOL4-BB.md` | LADDER W (wholesale α-alloc/ω-free, RBP frames at the framed constructs) continues beneath PB. ALPHA/OMEGA absorbed. |

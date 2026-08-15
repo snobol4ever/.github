@@ -7,6 +7,8 @@
 **⛔ THE ASK ITSELF MUST BE A BANNER: any session requesting this permission MUST display the request in-chat as a large unmissable ⛔ banner — the proposed global's name, type, owning file, purpose, and why registers/the stack cannot carry it — so Lon cannot miss the ask.  A quiet or inline ask does not count as asking. (Lon 2026-08-13 s55, in-chat.)**
 
 
+## ⛔ NOTE — 2026-08-15 s91 (Claude Fable 5): this seat was PIVOTED by Lon to `GOAL-MILESTONE-1-BEAUTY.md` (scorecard + META SCORE + Milestone 1). The scorecard MEASURED s90's (1)-(3) "RETURN/FRETURN/NRETURN gap" as THE m3 blocker of the entire beauty family (16/17 beauty_suite drivers COMPILE_FAIL with it) — it is being fixed there as the s62-owed m3 unification (branch `s91-m3-unify`), not here. RBP-EARN cursor otherwise unchanged; H10 (s89 (2)-(3)) still open.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-15 s90 (Claude Sonnet 5, RBP-EARN seat) — **s89's "NRETURN gap" IS BIGGER THAN NAMED: THE SAME MECHANISM BREAKS `:(RETURN)` AND `:(FRETURN)` TOO, CONFIRMED ON A FRESH INDEPENDENT CLONE, ROOT-CAUSED TO A THIRD SEPARATE SUBSYSTEM (the emission walker's reachability model, not lowering's IR shape nor the emitter's frame code). NOT FIXED — genuinely out of this rung's scope, flagged precisely instead of guessed at.**
 
 ⭐⭐⭐ **(1) MINIMAL REPRO, ISOLATED TO SIX LINES, CONFIRMED ON A FRESH `git clone` (not this checkout's own history — ruled out self-inflicted contamination from this session's repeated bisect checkouts):**
