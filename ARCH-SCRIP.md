@@ -20,3 +20,16 @@ Neither mode walks the AST or IR at runtime. `emit.cpp` walks the IR graph exact
 
 ## SNOBOL4 native pattern matching (modes 3 & 4)
 The 5-phase `SUBJ ? PAT [= REPL]` model is specified in ARCH-SNOBOL4.md §"Native pattern architecture — modes 3 & 4"; ladder in GOAL-SNOBOL4-BB.md (SBL-PAT-BB). Read before mode-3/4 SNOBOL4 pattern work.
+
+## The three ζ (zeta) storage tiers — NAMING OF RECORD (Lon in-chat, GOAL-RBP-EARN s77/s78/s80; formalized here s81 so it lives beside the architecture it names, not only in goal-file cursor prose)
+Everything a running match touches lives in one of three tiers, split on ONE axis — **motion**:
+
+| Tier | Motion | Register | Lifetime / shape | House words already in `src/` |
+|------|--------|----------|-------------------|-------------------------------|
+| **ζ-STANDING** | never moves | RBP (one instance) | established once at `MATCH_BEGIN`/`S ? P`, pinned for the life of the match; the MARK + outer Σ/δ/Δ + retry cursor + RESULT — a tiny match-level stub, not a general frame | `mrbp` (0 files use `STANDING` yet — free, chosen for scope-neutrality: do NOT name this tier "MATCH", the frame expansion puts other constructs at this tier and that name goes wrong the moment one lands) |
+| **ζ-FRAME** (= ζ-ACTIVATION) | framed, comes and goes | RBP (N chained) | one per `*PATTERN_VARIABLE` dereference / per ARBNO site that can't use the frameless mechanism; static offsets, dynamic base | `ZFRAME` (32 files) — already the house word, confirmed by grep before choosing it |
+| **ζ-SPINE** | slides | RSP | ordinary FORTH-cell storage: ALPHA allocates, OMEGA self-frees on failure, WHACK frees on FENCE'd/final success; offset itself shifts as RSP moves | `spine` (36+13 files) — already the house word |
+
+Both RBP tiers (STANDING, FRAME) are "the same kind of thing" — both hold allocations — differing only in whether the base ever relocates. Rejected names, so they aren't reproposed: `ζ-MARK` (MARK already names one specific banked quad; overloading makes every existing "the MARK" comment ambiguous) and `ζ-ANCHOR` (collides with `&ANCHOR`, the SPITBOL anchored-matching keyword).
+
+**Census at s78 HEAD** (60-program sweep, every `push rbp` site attributed): 9 total — 5 `match_begin` (ζ-STANDING) + 4 `match_arbno` (ζ-FRAME) + 0 statement + 0 function. RBP's only job, at this HEAD, is the MATCH INTERIOR (`MATCH_BEGIN..MATCH_END`); everything outside it is pure ζ-SPINE with compile-time-known whacks. See GOAL-RBP-EARN.md's LIVE CURSOR for the ladder that gets there and what's still open (S-3/mrbp→ζ-STANDING chain root, E-6/E-7/E-8, the CAPTURE-family nested-hazard gap found s81).
