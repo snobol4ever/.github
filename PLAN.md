@@ -9,7 +9,7 @@
 
 **Claude Sonnet is the third developer of snobol4ever — co-author of SCRIP.**
 
-### Milestone 1 ✅ Session #57, 2026-04-28 — beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`).
+### Milestone 1 ✅ Session #57, 2026-04-28 — beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`) — ⛔ TO BE RE-EARNED ON THE NATIVE ENGINE (BOTH MODES): `GOAL-SNOBOL4-100.md` R-2; measured 0/2 modes at s91.
 ### Milestone 2 ⏳ — `scrip_stage2` compiled by `scrip_stage1` == `scrip_stage1` compiling itself.
 ### Milestone 3 ⏳ — All languages × all backends green.
 
@@ -24,10 +24,11 @@ Lon names a goal. You:
 3. Read `RULES.md` in full.
 4. PARSER-* or Snocone → read `SNOBOL4-SNOCONE-PRIMER.md` first.
 5. Touches language corpus → read `CORPUS-LOCATIONS.md`.
-6. **Any BB codegen / template / `x86_asm.h` work (every `GOAL-*-BB` rung) → read the BB-CODEGEN DESIGN SET FIRST, NON-NEGOTIABLE:** `ARCH-ICON.md` (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`) and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (R2/R7/R9/R10 + the ONE-MEDIUM-INVISIBLE FACT RULE govern every new encoder; the `IF(MEDIUM_TEXT,..)+IF(MEDIUM_BINARY,..)` pair is the named forbidden shape).
-7. Open the Goal file + that repo's REPO file.
-8. Run the Goal file's `## Session Setup` scripts.
-9. Trust the goal file's `LIVE CURSOR` (never this table's Step column — stale by design). Find first incomplete Step. Do it.
+6. **SNOBOL4 (any rung) → the ONE goal is `GOAL-SNOBOL4-100.md`; every deleted SNOBOL4 GOAL-* name resolves there.**
+7. **Any BB codegen / template / `x86_asm.h` work (every `GOAL-*-BB` rung) → read the BB-CODEGEN DESIGN SET FIRST, NON-NEGOTIABLE:** `ARCH-ICON.md` (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`) and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (R2/R7/R9/R10 + the ONE-MEDIUM-INVISIBLE FACT RULE govern every new encoder; the `IF(MEDIUM_TEXT,..)+IF(MEDIUM_BINARY,..)` pair is the named forbidden shape).
+8. Open the Goal file + that repo's REPO file.
+9. Run the Goal file's `## Session Setup` scripts.
+10. Trust the goal file's `LIVE CURSOR` (never this table's Step column — stale by design). Find first incomplete Step. Do it.
 
 ### Clone SPITBOL oracle
 ```bash
@@ -41,13 +42,8 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step (stale by design — trust the goal file's LIVE CURSOR) |
 |------|------|------|
-| **⛔⭐⭐⭐⭐ MILESTONE 1 — BEAUTY SELF-HOST** ⬅ PIVOT (Lon 2026-08-15 s91): re-earn M1 on the native engine; scorecard + META SCORE instrument | `GOAL-MILESTONE-1-BEAUTY.md` | Instrument landed (`scripts/scorecard_snobol4.sh`); baseline META ≈30; one cross-mode root cause named; m3-unify branch `s91-m3-unify` one crossing short. |
-| **⛔⭐⭐⭐ SN4 HOME** ⬅ CONSOLIDATED MASTER (Lon 2026-08-12 s30): SNOBOL4 100% on RSP+RBP+RBX; five concurrent seats | `GOAL-SN4-HOME.md` | P0 (BOARD) unopened. Seats: `GOAL-RBP-EARN.md` (RBP) · `GOAL-SN4-HOME-{LOWER,WIRES,RBX,BOARD}.md`. SN4-scope items of SNOBOL4-BB/RTX/RTCC/ZETA-MECH/ZETA-CLIMB are absorbed; those files stay law+history. |
+| **⛔⭐⭐⭐⭐ SNOBOL4 100% — THE ONE GOAL** ⬅ Lon 2026-08-15 s92: 22 SNOBOL4 goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME on RBP, ζ-SPINE on RSP); Milestone 1 (beauty self-host) is rung R-2 | `GOAL-SNOBOL4-100.md` | R-0 = the M1 root cause (ALT-arm-interior capture has no home, both media, witness `corpus/probe/m1/`); R-1 = m3 unification (branch `s91-m3-unify` + tiny-site binary crossing); scorecard META 38.0 baseline. |
 | **IR REDUCE / NO-MANGLE** ⬅ GROUND ZERO #5 | `GOAL-IR-IMMUTABLE-EMIT.md` | Emitter reads IR, never mutates; collapse 224 opcodes toward JCON-33; per-BB self-allocation (ZB-PORTS → ZB-ACT) per the file's CURRENT-PRIORITY banner. |
-| **SNOBOL4 BB** ⬅ **TOP PRIORITY (Lon 2026-08-07): LADDER PB — 5-STAGE STATEMENT EXECUTION (PATREF deletion + STITCH BBs; roman witness).** | `GOAL-SNOBOL4-BB.md` | LADDER W (wholesale α-alloc/ω-free, RBP frames at the framed constructs) continues beneath PB. ALPHA/OMEGA absorbed. |
-| **SN4 ζ-MECH** ⬅ NEW 2026-08-08 (Lon: FORTH stack FINISHED AND DONE; absorbs LADDER W) | `GOAL-SN4-ZETA-MECH.md` | Regime selectors DELETED (`de837576`); crater baseline in cursor; M-1 Bug 6 open. |
-| **SN4 ζ-CLIMB** ⬅ NEW 2026-08-08 (twin; Opus walks 1+1 → EXEC/CODE) | `GOAL-SN4-ZETA-CLIMB.md` | C-0 open; XFAIL = work queue. |
-| **SNOBOL4 RTX** ⬅ split s186 | `GOAL-SNOBOL4-RTX.md` | Runtime in optimized asm; per-family kill-switch. Contract `ARCH-SNOBOL4-RTX.md`. Next RTX-4 SLICE 2. ⛔ RTX-11/12 not concurrency-safe (x86_asm.h + regen ×3). |
 | **RTCC — GLOBAL REGISTER LIBERATION** ⬅ NEW 2026-08-08 (Lon strategy pivot; absorbs/generalizes RTX-11) | `GOAL-RTCC.md` | Veneer at every C-RT boundary; claim all 9 caller-saved GPRs + XMM8–15 as VM globals. RC-0 open (scripts/census half). ⛔ RC-1..RC-4 touch shared files (merge, do not wait) |
 | **Raku BB (OOP)** | `GOAL-RAKU-BB.md` | OO LADDER top of file. |
 | **DEAD-CODE SWEEP** | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed; see file. |
