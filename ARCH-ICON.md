@@ -11,7 +11,7 @@ Icon is goal-directed: every expression Succeeds (γ, may resume for more) or Fa
 
 ## Variable model (Lon 2026-06-03) — two backends, switch-selected, BOTH kept
 - OLD per-procedure frame slots (`g_bb_varslot`, `[r12+off]` historically) — fast, per-graph namespace.
-- NEW shared NV dictionary (`NV_GET_fn`/`NV_SET_fn`, same hash dict as SNOBOL4/Snocone/Rebus) — one cross-language global namespace. Only the GLOBAL arm of IR_VAR/IR_ASSIGN reroutes; locals stay frame slots. Kept side-by-side for A/B perf + standalone-Icon compilation. Ladder: `GOAL-ICN-GLOBAL-NV.md`.
+- NEW shared NV dictionary (`NV_GET_fn`/`NV_SET_fn`, same hash dict as SNOBOL4/Snocone/Rebus) — one cross-language global namespace. Only the GLOBAL arm of IR_VAR/IR_ASSIGN reroutes; locals stay frame slots. Kept side-by-side for A/B perf + standalone-Icon compilation. Ladder: `GOAL-ICON-100.md` (GVA superseded NV for native globals; NV remains the reflective/cross-language binding).
 
 ## ⛔ REGISTER CONTRACT (CORRECTED 2026-07-18; verified vs live x86_asm.h + zeta_choices.h)
 - ζ frame selection = `ZC_FRAME` build constant, default `ZC_FRAME_RSP` (s65 R12-ERAD). `x86_zr()` = **RSP** (FORTH-style port cells + carve discipline, shared with C stack).

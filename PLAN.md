@@ -25,6 +25,7 @@ Lon names a goal. You:
 4. PARSER-* or Snocone → read `SNOBOL4-SNOCONE-PRIMER.md` first.
 5. Touches language corpus → read `CORPUS-LOCATIONS.md`.
 6. **SNOBOL4 (any rung) → the ONE goal is `GOAL-SNOBOL4-100.md`; every deleted SNOBOL4 GOAL-* name resolves there.**
+6b. **Icon (any rung) → the ONE goal is `GOAL-ICON-100.md`; every deleted Icon GOAL-* name resolves there.**
 7. **Any BB codegen / template / `x86_asm.h` work (every `GOAL-*-BB` rung) → read the BB-CODEGEN DESIGN SET FIRST, NON-NEGOTIABLE:** `ARCH-ICON.md` (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`) and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (R2/R7/R9/R10 + the ONE-MEDIUM-INVISIBLE FACT RULE govern every new encoder; the `IF(MEDIUM_TEXT,..)+IF(MEDIUM_BINARY,..)` pair is the named forbidden shape).
 8. Open the Goal file + that repo's REPO file.
 9. Run the Goal file's `## Session Setup` scripts.
@@ -51,10 +52,7 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **SRC REORG** | `GOAL-SRC-REORG.md` | Open GMR-8(b). |
 | **RUNTIME RENAME / REORG** | `GOAL-RUNTIME-RENAME.md` / `GOAL-RUNTIME-REORG.md` | LI-CORE (Lon decision) / per-file CS subsystems. |
 | **SCRIP RENAME** | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename. |
-| **Icon BB (Ground Zero)** | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. |
-| **ICN-GVA-M3** | `GOAL-ICN-GVA-M3.md` | Icon globals `[rbx+k*16]` mode-3; M3-ARENA-1..4. |
-| **ICN ZFRAME RESTORE** ⬅ concurrent w/ ZETA-CELLS (2026-08-07) | `GOAL-ICN-ZFRAME-RESTORE.md` | FRAMES on stack; anchor `8d0665c8` parity; ICN-FR-1 open. |
-| **ICN ZETA CELLS** ⬅ NEW 2026-08-07, concurrent w/ ZFRAME-RESTORE | `GOAL-ICN-ZETA-CELLS.md` | 100% per-BB ζ cells on RSP FORTH spine; LVA+GVA; ZK-0 open. |
+| **⛔⭐⭐⭐ ICON 100% — THE ONE ICON GOAL** ⬅ Lon 2026-08-15 s229: 15 Icon goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME on RBP, ζ-SPINE on RSP) | `GOAL-ICON-100.md` | R-0 = resurrect the default arm (fresh triple watermark at `07d6eae7`: default 1/262/30 · CELLS=1 235/28/30 · ZFRAME=0 78/185/30; bisect `8487d499..07d6eae7`, predicate proven at both ends). |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See file. |
 | **Pascal BB** | `GOAL-PASCAL-BB.md` | 7th frontend (P4 subset); toolchain in `corpus/programs/pascal/`. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
