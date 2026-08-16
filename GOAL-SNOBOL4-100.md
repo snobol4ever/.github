@@ -136,6 +136,22 @@ ER HALF IS RESTORED, GATED AND BYTE-INERT. THE RESIDUAL UNDERNEATH IT IS NO LONG
 
 ⛔ **STILL OWED BY LON, BOTH STILL BLOCKING R-2, UNTOUCHED FOR THREE SEATS:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair; (ii) **the oracle md5** — live `sbl` gives `9cddff25…` (622 lines), NOT the `abfd19a7…` pinned in DoD 2; **Milestone 1 cannot be declared either way until this is ruled.** ⛔ Also owed from s112: the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
 
+## LIVE CURSOR (superseded) — 2026-08-16 s114a (Claude Sonnet 4.6) — **DEFINE CODEGEN REBUILT: NATURAL ENTRY LABELS, INLINE SHIM AT THE STATEMENT, NO STARTUP HOIST, IR_SAVE_RESTORE ROLE-3 DELETED, IR_FUNC_ACTIVATE → IR_DEFINE.** SCRIP `b1abecc2`, corpus `d5218e03`.
+
+Four Lon in-chat orders landed in one commit (`b1abecc2`):
+
+1. **Natural entry labels** — `LBL__ROMAN` → `n13_statement_begin_α`. Balias rename skipped for DEFINE-linked rows. `dentry_node`/`dentry_entry`/`dentry_name` parallel arrays on `IR_graph_t` (s62 balias-precedent shape) pair each bind box with its body-entry statement node; name filled at label-alloc time, deposited into `g_emit.lbl_t0` by the bind dispatch. rt_define_site fn lea targets the natural port label.
+
+2. **Shim inline at the statement** — role 5 in `bb_save_restore` = role-4 emitted inline by the bind dispatch right after `rt_define_site`, skip-wrapped (`jmp .Lx_245` over; entered only by name at `<FN>_α`), body transfer = `lbl_t0`. m4 TEXT only; m3 stub-blob world byte-identical (s58/s62 owed-m3 class, recorded).
+
+3. **No startup registration** — kind-1 stub blob no longer emits pre-main at all (`:934` skip); startup hoist for DEFINE-linked `LBL__` rows skipped; non-DEFINE `LBL__` rows (computed-goto registry) keep the hoist verbatim.
+
+4. **IR_SAVE_RESTORE role-3 deleted; IR renamed** — wire-adopt box (empty since s54/s55: verified comment + `x86_alpha()` + `x86_gamma()` only) removed from kind-1 stub build; stubs enter at their `IR_GOTO_DEFERRED`; `proc_role3_kind` reads that shape as kind 1; all four inline entry-shape predicates widened. `EXPR$`/`PAT$` thunks (kind 2) keep role-3 as discriminator. `IR_FUNC_ACTIVATE` → `IR_DEFINE`; labels → `n<uid>_define_α`.
+
+**GATES:** roman m3+m4 `MDCCLXXVI`; functions 083–090 + rung10 101x both media green; `1010_func_recursion` SIG11 **PROVEN PRE-EXISTING** (stash-rebuild of committed s113: rc=139 there too). **BONUS:** `ev_fn_literal` m4 now prints `3` oracle-equal (was DEFECT-C SIG11) — shim in main's chain means DEFINE body runs with a real frame. m3 DEFECT-C twin still crashes. Scorecard META 67.9, all failure classes paired m3/m4, no new splits. REGENS ×3 ran.
+
+**⛔ OWED:** EXPR$/PAT$ thunks still carry a do-nothing role-3 entry box (kind-discriminator only); if Lon orders removal the discriminator must move. Dormant `:204` fold still spells `FN__`. `1010_func_recursion` pre-existing, uncharacterized.
+
 ## LIVE CURSOR (superseded) — 2026-08-16 s113 (Claude Opus 5) — **EVAL WORKS AT THE ROOT FOR THE FIRST TIME. TWO DEFECTS FIXED, BOTH GATED, ZERO REGRESSIONS, +3 PROGRAMS BOTH MODES. THE REMAINING BEAUTY BLOCKER IS MINTED, BISECTED AND ROUTED.** SCRIP `2fda853c`+`efd2537b`, corpus `aca66aa3`+`34fc2c79`.
 
 **⛔⛔ CORRECTING s112 — `ev_min_arith` IS NOT ONE DEFECT AND IS NOT A CLEAN INSTRUMENT.** s112 banked EVAL as a single root defect ("wild jump, omega_driver signature") and routed the next seat at run-time-compiled-unit sealing. `EVAL('1 + 2')` **conflates THREE defects**, which is precisely why it measured regime-, arm- and mode-independent under every call-arm knob — those knobs were never going to move it. Decomposing along the manual's three EVAL argument forms (Ch.18) separated them **in one experiment set, before any code was read** (RULES.md: cheapest discriminating experiment first):
