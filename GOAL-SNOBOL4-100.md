@@ -49,7 +49,46 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s116 (Claude Opus 5) — **THE s115 STEP-5 QUESTION IS ANSWERED BY MEASUREMENT (SUPPRESSION IS SAFE). THE beauty m3 SIG11 IS BRACKETED TO ONE SOURCE LINE AND ONE RETURN PATH. m4 DOES NOT CRASH AND IS A WORKING REFERENCE. THE OWED KILLSWITCH PAIR IS FALSIFIED AS THE BEAUTY BLOCKER. BOARD DID NOT MOVE.**
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s116b (Claude Opus 5, PARALLEL SEAT) — **THE s116 SEAT'S OPEN QUESTION IS CLOSED: IT IS `OPSYN`. 6-LINE WITNESS, NO EVAL, NO PATTERNS, NO DEFERRED EXPRESSIONS. THE PRE-EXISTING `probe/opsyn/` SUITE WAS ALREADY 11 FAIL / 1 PASS AND NOBODY HAD RUN IT.** SCRIP `15a62d6a`, corpus `47395100`.
+
+⚠ **TWO SEATS RAN CONCURRENTLY AND BOTH SELF-NUMBERED s116.** This section is s116b; the s116 section BELOW is retained in full — it is not superseded, it is **completed** by this one, and two of its items are corrected here with measurements. Read both.
+
+**⚠⚠ BEAUTY STILL DOES NOT RUN — STATED FIRST.** `beauty.sno` m3 self-host is **rc=139 SIG11, 0 lines** in every arm tried (default · `SCRIP_SLIM_PAIR=1` · marker on/off). `beauty_self` 0/1. Milestone 1 NOT earned.
+
+**⭐⭐⭐ s116's FALSIFICATION (2) ENDS: *"the missing ingredient is beauty's program-defined `&` operator"* — CONFIRMED, AND IT IS `OPSYN` ALONE.** `semantic.inc:8` `OPSYN('&','reduce',2)`; `semantic.inc:17` `reduce  reduce = EVAL(...)  :(RETURN)`. Witnesses `corpus/probe/opsyn/`, live `sbl` refs:
+
+| witness | shape | oracle | scrip m3 |
+|---|---|---|---|
+| `opsyn_control_nopsyn` | EVAL→PATTERN from a **plain** DEFINE call | PATTERN | **PATTERN ✓** |
+| `opsyn_pat` | same body, invoked via `OPSYN('&',R,2)` | PATTERN | **SIGSEGV** |
+| `opsyn_int` | OPSYN'd call, EVAL returns an INTEGER | 3 | **SIGSEGV** |
+| `opsyn_noeval` | OPSYN'd call, **NO EVAL AT ALL** (`R = 'GOT-' t n`) | GOT-ab | **SIGSEGV** |
+
+⛔ **EVAL IS INCIDENTAL. PATTERN IS INCIDENTAL. DEFERRED EXPRESSIONS ARE INCIDENTAL. THE DISCRIMINATOR IS `OPSYN`.** `opsyn_noeval.sno` is 6 lines of plain string concat and it segfaults. The control differs **only** in being called normally.
+
+**⭐⭐ THE SUITE WAS ALREADY RED — 11 FAIL / 1 PASS in m3** (`probe/opsyn/`, 8 files pre-existing and untouched by any recent seat): 7 SIGSEGV + 4 silent-wrong-answer. The single PASS is the one file using no OPSYN. **m4 does NOT crash but is silently WRONG** (`''` vs `GOT-ab`; `NULL` vs `PATTERN`) ⇒ **MODE34 violation with NEITHER mode correct.** ⛔ **THIS QUALIFIES s116's "m4 IS A WORKING REFERENCE" (below):** true at beauty's *crash site*, but m4 is NOT a correctness oracle for the OPSYN class — and m4 beauty is 10 lines vs the oracle's 622, so it is wrong there too, merely gracefully.
+
+**⛔⭐ CORRECTION TO s116's ⭐⭐ "SCRIP emits NO `RETURN` tap" (line ~68) — IT DOES, BEHIND AN OPT-IN KILLSWITCH.** Under `MONITOR_BIN=1` **every** DEFINE program SIGSEGVs in the default arm — `mon_define_call_min` (s111's own witness), `ev_fn_noeval`, `ev_fn_literal` all rc=139 — and **`SCRIP_SLIM_PAIR=1` cures all three to rc=0.** s111 landed that fix **opt-in** ("default bytes identical 13/13 .s"); s112–s116 then ran the monitor with it OFF, which is why the trace looked like a missing tap. With it ON the beauty trace reaches **step 1042 (not 1038)** and **`#1038 @591 RETURN nPush (RETURN)` FIRES** — the exact event reported missing:
+```
+#1038  @591 RETURN nPush (RETURN)   <- RETURN tap fires; RETURN is not broken generally
+#1039  @591 CALL reduce
+#1040  LABEL stno=INT=589
+#1041  @589 VALUE reduce = PATTERN  <- LAST AGREEING: value correctly computed
+ ---   oracle emits @589 RETURN reduce (RETURN);  scrip DEAD (SIG11)
+```
+So beauty's death moves past `nPush` to **`reduce` — an OPSYN'd callee**, consistent with the witnesses above. ⛔ **RUN EVERY MONITOR SESSION WITH `SCRIP_SLIM_PAIR=1` UNTIL LON DEFAULTS IT** — a THIRD owed default. **VERIFIED NOT A REGRESSION** from `b1abecc2` (concurrent DEFINE-at-the-statement restructure): rebuilt at `ba0dced0`, reproduced identically ⇒ that commit is **EXONERATED**.
+
+**⭐ CODE LANDED (`15a62d6a`, killswitch `SCRIP_EVAL_TMP_MARK=0`): `ZZEVALZZ` → `EVAL$`** — the mint-time marker s116 and `core.c:293` both name as the durable fix, now implemented. **NOT A SECOND RULE:** the name joins the `<ident>$` convention `mon_name_is_internal` already reads; no monitor-side predicate, nothing to keep in sync. Parser-safe by construction (injected as an AST `TT_VAR` node; only the user's `"(%s)"` text is parsed, so `$` is never the indirect-reference operator). ONE AUTHORITY: `eval_tmp_name()` feeds every `NV_GET_fn`/`NV_SET_fn` site, so the save/restore pair cannot straddle two spellings. Handles s116's "TWO events, not one" caveat automatically — both are the same name.
+
+**⭐ THE 2×2 PROVING BOTH HALVES LOAD-BEARING** (`ev_fn_literal`, EVAL inside a DEFINE): `SLIM_PAIR=0/MARK=0` → DIVERGE step 5 · `0/1` → PARTIAL EOF step 6 · `1/0` → DIVERGE step 5 · **`1/1` → "all reached END after 9 steps" ✓**. `ev_min_arith` goes DIVERGE step 2 → **"all reached END after 3 steps"** — first end-to-end clean oracle↔SCRIP sync of an EVAL program.
+
+**GATES — honest A/B, killswitch OFF vs ON, same binary, ZERO MOVERS:** compile-time MD5 radius **706 compared / 0 real movers** · `probe/eval` **17/18 identical in all four cells** (m3×m4×2 arms), m3 ≡ m4 · `bb_probes` m3 **173/176 both arms, identical failing sets** (`f6d`, `fence_probe`, `t6m`) · `crosscheck` m3 **183/195 both arms, identical failing sets**. **NO REGENS OWED** (default emission byte-inert, measured). `scripts/util_radius_src_reset.sh` generalised via `KILLSWITCH=` (default unchanged) rather than copied.
+
+**⛔ s115's `unary_not.sno` CAVEAT PROVEN, NOT INHERITED:** 6 runs in ONE arm produced 6 distinct md5s. Nondeterministic; cannot be read as killswitch-sensitive by any radius.
+
+**⛔⭐⭐⭐ NEXT SEAT STARTS HERE — IT IS NOT AN EVAL HUNT AND NOT AN NRETURN HUNT.** `./scrip --run corpus/probe/opsyn/opsyn_noeval.sno` (6 lines, SIGSEGV, oracle `GOT-ab`). The cheapest discriminator is already minted and needs **no gdb**: `opsyn_control_nopsyn` PASSES with the **identical function body**, differing only in being called normally instead of through `OPSYN` — **diff those two emissions first.** Then bracket with `SCRIP_SLIM_PAIR=1 PARTICIPANTS="spl scr" bash scripts/test_monitor_3way_sync_step_auto.sh`. ⛔ Do NOT chase EVAL, PATTERN datatypes, `g_bb_src`, or the NRETURN shapes — all are exonerated by controls in this section or s116's below.
+
+## ⛔⭐⭐ LIVE CURSOR — 2026-08-16 s116 (Claude Opus 5) — **THE s115 STEP-5 QUESTION IS ANSWERED BY MEASUREMENT (SUPPRESSION IS SAFE). THE beauty m3 SIG11 IS BRACKETED TO ONE SOURCE LINE AND ONE RETURN PATH. m4 DOES NOT CRASH AND IS A WORKING REFERENCE. THE OWED KILLSWITCH PAIR IS FALSIFIED AS THE BEAUTY BLOCKER. BOARD DID NOT MOVE.** ⬅ **see s116b above: its ⭐⭐ "no RETURN tap" is a `SLIM_PAIR`-off artifact, and its open question "is it the `&` operator?" is now CLOSED — yes, `OPSYN`.**
 
 **⚠⚠ THE BOARD DID NOT MOVE — STATED FIRST, NOT BURIED.** `beauty_self` still 0/1. m3 `beauty.sno` self-host is still **rc=139 SIG11, 0 lines**. No program flipped FAIL→PASS this seat. This seat is diagnosis + witnesses only; NO CODE CHANGED, no gate re-run owed, no regens owed.
 
