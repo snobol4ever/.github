@@ -49,7 +49,40 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s118 (Claude Sonnet 4.6) — **REGENS OWED BY s116 LANDED. SCRIPT BUG FOUND AND FIXED: `util_regen_demo_s_artifacts.sh` printed "Committed." after the commit had FAILED (no corpus local identity; staged 21 artifacts, committed zero). SCRIP `fd8ffbf9`, corpus `4872fc27`.**
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s118 (Claude Opus 5) — **THE BY-NAME ARG RUNG IS CLOSED AND DEFAULTED ON (opsyn 1→14). AND THE M1 BLOCKER IS NOT A COMPILER BUG: THE CHECKED-IN `beauty.sno` DID NOT COMPILE UNDER THE ORACLE ITSELF — s117b's ANOMALY IS NOW A NAMED, FIXED SYNTAX DEFECT, PLUS A SECOND CAUSE ROUTED.** SCRIP `e75c464f`+`08207111`, corpus `2ac65db8`. ⛔ ALL THREE COMMITS ARE **LOCAL AND UNPUSHED** — credential asked in-chat s118.
+
+**⭐⭐⭐ RUNG 1 OF s117's NEXT-SEAT LIST IS CLOSED — ARGS NOW ARRIVE ON THE BY-NAME PATH.** `rt_tiny_record_enter` published a **THREE-quad record AT `[rsp+16]`**, but the emitted TINY site (re-measured from `probe/opsyn/a_reg_only.s`) uses a **FIVE-quad record `{nargs, γ, ω, argbytes, argbase}` in STATIC memory**, with the **args occupying `[rsp+16 .. 16+16n)` in REVERSE order**. The shim was writing its record ON TOP OF THE ARG BLOCK and publishing `nargs=0` ⇒ every by-name call bound all formals null (`GOT-` vs `GOT-ab`).
+
+**⛔ TWO MEASUREMENTS THAT CORRECTED THE INHERITED PLAN — do not re-derive:**
+1. The callee computes formal *i* at **`caller_rsp + argbytes − 16*i` and NEVER ADDS `argbase`** (`lea r8,[rsp+own]; mov rdi,[rcx+24]; add rdi,r8`). So the arg block is **PINNED at `[rsp+16)`** and cannot be relocated — the record must move ABOVE it. This is exactly why s117's warning held: widening the hardcoded `0` alone makes the callee read the record's own γ/ω quads as args.
+2. **`rbp` occurs ZERO times in the measured emission**, and is not in the VM register contract (rbx/r9/r10/r11/r12/r13/r14/r15 are) — so it anchors the now-VARIABLE frame (`56+16n`) for the landings. Alignment: entry rsp≡8, +8 rbp ⇒ ≡0, +40 five pushes ⇒ ≡8, −(56+16n) ⇒ ≡0 at the jmp.
+Args ride the existing `g_call_args` channel — **NO NEW GLOBAL**. The pre-s118 comment at `rt_call_proc_descr` claimed the count already rode in while the shim hardcoded `0` and the entry point took no count parameter: **code and comment disagreeing — this file's own spelled-twice hazard, caught by reading the asm instead of the comment.**
+
+**GATES (honest A/B, `.so` swapped, never the driver):** bb_probes+crosscheck **384 rows, before vs after at default: ZERO MOVERS**; same 384 rows **default vs `SCRIP_BYNAME_ALPHA=1`: ZERO MOVERS**; `probe/opsyn` **1 PASS/11 FAIL (s116b) → 14 PASS/5 FAIL, and 10 SIGSEGV → 0**; emitted `.s` **byte-identical on 4 sampled programs ⇒ NO REGENS OWED (measured, not assumed)**. The 5 residual opsyn failures fail **identically in both arms** = the pre-existing **R-8 grammar class** (unary OPSYN does not lower; `%`/`#` hard-wired to arithmetic in `snobol4.y`), not a regression.
+
+**⭐ `SCRIP_BYNAME_ALPHA` NOW DEFAULTS ON** (`08207111`) — **Lon in-chat grant s118, verbatim: *"All your choices. I'm with you on this."*** s117 kept it off only because args were broken; that reason is gone. Killswitch INVERTED not deleted (`=0` restores pre-s118); no memoised state added. Re-gated at the new default: **384 rows, ZERO MOVERS.** ⛔ This closes ONE of the owed-defaults list; `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` and `SCRIP_SLIM_PAIR` are **still owed by Lon**.
+
+**⛔⛔⭐⭐⭐ MILESTONE 1: THE FILE ITSELF WAS THE BLOCKER. `sbl -bf beauty.sno < beauty.sno` WAS rc=139 BECAUSE THE ORACLE COULD NOT PARSE IT:**
+```
+beauty.sno(162,37) : ERROR 226 -- syntax error: missing right paren
+```
+Line 162 ends `FENCE(`; line 163 (`nPush()`) had **NO `+` in column 1**, so SPITBOL ended the statement at the open paren. **Exactly five such lines — 163, 188, 201, 207, 220 — the set s117b suspected.** s117 re-checked-in beautify(old) per the fixed-point ruling, **but that output is not valid SNOBOL4**, so NO compiler could have self-hosted it and no md5 question was ever going to be the real issue. **REPAIRED (corpus `2ac65db8`; the marker REPLACES a space, column width unchanged) — the oracle now runs it to completion, rc=0, 622 lines.**
+
+**⭐⭐ A REAL, ORACLE-WITNESSED `Gen` DEFECT FOUND AND FIXED (necessary, NOT sufficient).** `Gen` prepends the marker ONLY when the buffer is empty (`$'$B' = IDENT($'$B') $'$X' ind str`); a flush leaves `REM` in the buffer, so a line completed by a **LATER** `Gen` call went out through the first-line path (`$outNm = outline`) with **neither marker nor indent**. New `Gen20` re-marks a non-empty remainder; the continuation indent is recomputed against `$'$C'` so marker+indent holds constant column width (the same off-by-one was latent in the existing `Gen10` arm). Witness `demo/beauty/gen_cont_split.sno` + oracle `.ref`. **GATE: beauty_suite A/B with and without the Gen change — IDENTICAL, 16/15 of 17, 91.2 both arms.**
+
+**⛔⛔ STATED PLAINLY — THIS DOES NOT EARN M1, AND THE SECOND CAUSE IS NAMED BUT NOT CHASED (END-OF-CONTEXT LAW).** With `Gen` fixed, `beautify(repaired)` **STILL drops those same five markers**. The dropped lines come out at **FULL indent width with NO marker**, which by `Gen`'s own arithmetic (`ind = LEN($'#L' − SIZE($'$X'))`) means **`$'$X'` IS NULL when the buffer restarts at those points.** `$'$X'` is nulled ONLY by `GenSetCont()` — and `pp_Comment`/`pp_Control` (`beauty.sno:314,318`) both call it **with no argument**, which also nulls `$'$C'`. **NEXT SEAT STARTS HERE: instrument `$'$X'`/`$'$C'` around the five sites, or bisect by giving `pp_Comment`/`pp_Control` an explicit marker.** The whole loop is cheap and closeable: fix → `sbl -bf beauty.sno < beauty.sno` → output must PARSE and equal the input; iterate to the fixed point, re-check-in, regen `beauty_suite` refs.
+
+**⭐ NEW RED WITNESS, UNRELATED, MINTED NOT CHASED — a SCRIP↔oracle divergence in three lines.** On `gen_cont_split.sno` SCRIP m3 gets **every marker right but emits NO INDENT** (`AAA` vs the oracle's `    AAA`). So `indent GT($'#L',0) LEN($'#L' − SIZE($'$X')) . ind` **binds `ind` NULL under SCRIP and to spaces under `sbl`** — a `LEN(<expr>) . var` capture against a variable subject behind a `GT()` conditional. Tiny, oracle-anchored, red, and it directly affects beauty's output fidelity.
+
+**⛔⭐⭐ MON-CAP — THE MONITOR IS BLIND TO THE BY-NAME CLASS; DO NOT TRUST ITS TRACE HERE.** `PARTICIPANTS="spl scr"` on `opsyn_noeval` reports a clean-looking **DIVERGE at step 4** (`spl` = `@3 CALL R`, `scr` = `LABEL stno=INT=6`) with `** Error 22 Undefined function called`. **That is an ARTIFACT: `MONITOR_BIN=1` ALONE converts this failure into Error 22** (isolated by knob-at-a-time A/B — `SLIM_PAIR` and `SCRIP_TRACE` are innocent), so the real defect cannot manifest under instrumentation and exit-0-under-monitor is NOT exoneration. Suspected same root as rung 2 below (the tiny-record path skips `rt_proc_call_prologue`, the only thing that resolves name cells). **This rung was closed by the sanctioned fallback instead: cheapest discriminating experiment + asm diff of the passing sibling.**
+
+**⛔ STILL OPEN FROM s117, UNTOUCHED THIS SEAT:** (2) `f6d`/`t6m`/`fence_probe` (`*DIFFER(X)` EXPR$ thunks, `Error 22`) — still RC1/RC1 in every arm measured here; they need the name-cell staging, not the entry fix. (3) `rt_call_proc_direct` still carries the generic-entry-thunk hazard VERBATIM — suspected twin, still no witness. **STILL OWED BY LON:** the `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` and `SCRIP_SLIM_PAIR` defaults; s112's monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+
+**Setup traps re-hit this seat (Nth session running):** process substitution `<(...)` fails under `sh` — pipe to files; and `join -j2` puts the KEY FIRST, so the second file's columns shift by one — an uncorrected join reported "384 movers of 384 rows" before the offsets were fixed. Watermark: bb_probes 185/188 · crosscheck 192/195 · beauty_suite 16/17 m3, 15/17 m4.
+
+ — **THE SEVEN-SEAT md5 QUESTION IS DISSOLVED, NOT ANSWERED: SELF-HOST = FIXED POINT. beauty.sno RE-CHECKED-IN AS ITS OWN OUTPUT (corpus `eda18934`). ONE ANOMALY RECORDED FOR THE NEXT SEAT.**
+
+## LIVE CURSOR (superseded) — 2026-08-16 s118 (Claude Sonnet 4.6) — **REGENS OWED BY s116 LANDED. SCRIPT BUG FOUND AND FIXED: `util_regen_demo_s_artifacts.sh` printed "Committed." after the commit had FAILED (no corpus local identity; staged 21 artifacts, committed zero). SCRIP `fd8ffbf9`, corpus `4872fc27`.**
 
 **THIS SEAT DID:** orientation + three mandatory regens (benchmark/feature/demo) after s116's DEFINE fold (`6aacdf8d`) + main/main_init reorder (`bfca479c`) + rule-line-per-DEFINE (`77e28917`). Drift was measured before running — `fibonacci.s` showed exactly the predicted radius (proc_startup→main_init rename; main hoisted first; one added `#---` per DEFINE) and nothing else. Feature regen idempotency proven (second run: "No changes"). One pre-existing EMIT-FAIL (`coverage_sno_nodes`) confirmed as initial-commit gap, not a regression.
 
@@ -65,7 +98,7 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 **⛔ `SCRIP_BYNAME_ALPHA` IS STILL DEFAULT OFF.** The s117 fix is gated; before committing to default-on, verify 0-arg and name-cell cases (items 2 and 3 above) are clean.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s117b (same seat, Lon ruling in-chat) — **THE SEVEN-SEAT md5 QUESTION IS DISSOLVED, NOT ANSWERED: SELF-HOST = FIXED POINT. beauty.sno RE-CHECKED-IN AS ITS OWN OUTPUT (corpus `eda18934`). ONE ANOMALY RECORDED FOR THE NEXT SEAT.**
+## LIVE CURSOR (superseded) — 2026-08-16 s117b (same seat, Lon ruling in-chat) — **THE SEVEN-SEAT md5 QUESTION IS DISSOLVED, NOT ANSWERED: SELF-HOST = FIXED POINT. beauty.sno RE-CHECKED-IN AS ITS OWN OUTPUT (corpus `eda18934`). ONE ANOMALY RECORDED FOR THE NEXT SEAT.**
 
 **THE RULING (Lon, verbatim in substance):** *"beauty self hosts — if the output is not exactly equal to the beauty.sno input then the FILE is WRONG and needs to be checked in again."* Every md5 pin was a category error: the checked-in file is its own oracle. DoD 2 and PLAN.md Milestone 1 rewritten to the fixed-point law.
 
@@ -75,7 +108,7 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 **⛔ STILL OWED BY LON:** (i) the `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` default; s112's monitor-only rsi-clobber at `bb_func_activate.cpp:335`. The oracle-md5 item is CLOSED by this ruling.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s117 (Claude Opus 5) — **THE s116b OPSYN VERDICT IS OVERTURNED BY MEASUREMENT: IT IS NOT OPSYN. THE DEFECT IS THE BY-NAME CALL PATH INTO ANY EMITTED DEFINE BODY, AND IT IS A SPELLED-TWICE INSTANCE OF A BUG s104/s108 ALREADY FIXED ONCE. beauty m3 NO LONGER SIGSEGVs AND m3 md5 == m4 md5.** SCRIP `627cbfa1`.
+## LIVE CURSOR (superseded) — 2026-08-16 s117 (Claude Opus 5) — **THE s116b OPSYN VERDICT IS OVERTURNED BY MEASUREMENT: IT IS NOT OPSYN. THE DEFECT IS THE BY-NAME CALL PATH INTO ANY EMITTED DEFINE BODY, AND IT IS A SPELLED-TWICE INSTANCE OF A BUG s104/s108 ALREADY FIXED ONCE. beauty m3 NO LONGER SIGSEGVs AND m3 md5 == m4 md5.** SCRIP `627cbfa1`.
 
 **⛔ CORRECTION TO s116b — "THE DISCRIMINATOR IS `OPSYN`" IS FALSE.** OPSYN name resolution is CORRECT: under gdb, `_usercall_hook("&")` resolves `FUNC_ENTRY_fn('&') -> "R"` and re-dispatches exactly as designed. The first call with `"&"` returns FAIL cleanly; the SIGSEGV is in the SECOND call, `rt_call_named_proc("R", args, 2)`. **An OPSYN'd operator is merely the most common route to a broken by-name path — it is not the defect.** Predicted and confirmed: `APPLY('R','a','b')` (no OPSYN anywhere) hits the same path and was ALSO wrong (`GOT-` vs `GOT-ab`) before this rung.
 
@@ -111,7 +144,7 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 **⭐ NEW, UNRELATED, MINTED NOT CHASED:** unary `OPSYN` (`i=1`) does not lower AT ALL — `OPSYN('!','U',1)` dies in `lower_snobol4` with *"binary operator with missing operand"*. Manual Ch.8 p.116 blesses the construct (`OPSYN('!','UCASE',1)` is the manual's own example). Witness `/tmp` only; needs minting into `probe/opsyn/`.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s116b (Claude Opus 5, PARALLEL SEAT) — **THE s116 SEAT'S OPEN QUESTION IS CLOSED: IT IS `OPSYN`. 6-LINE WITNESS, NO EVAL, NO PATTERNS, NO DEFERRED EXPRESSIONS. THE PRE-EXISTING `probe/opsyn/` SUITE WAS ALREADY 11 FAIL / 1 PASS AND NOBODY HAD RUN IT.** SCRIP `15a62d6a`, corpus `47395100`.
+## LIVE CURSOR (superseded) — 2026-08-16 s116b (Claude Opus 5, PARALLEL SEAT) — **THE s116 SEAT'S OPEN QUESTION IS CLOSED: IT IS `OPSYN`. 6-LINE WITNESS, NO EVAL, NO PATTERNS, NO DEFERRED EXPRESSIONS. THE PRE-EXISTING `probe/opsyn/` SUITE WAS ALREADY 11 FAIL / 1 PASS AND NOBODY HAD RUN IT.** SCRIP `15a62d6a`, corpus `47395100`.
 
 ⚠ **TWO SEATS RAN CONCURRENTLY AND BOTH SELF-NUMBERED s116.** This section is s116b; the s116 section BELOW is retained in full — it is not superseded, it is **completed** by this one, and two of its items are corrected here with measurements. Read both.
 
