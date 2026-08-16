@@ -183,3 +183,50 @@ The `af`→ω-under-seal correction is, and it is smaller.
 - The container went intermittently unresponsive mid-session (commands failing, then `echo` working,
   then failing again) and recovered with the build intact. Re-`stat` the binary after any such gap
   before trusting a verdict.
+
+---
+
+## 9. ⭐⭐⭐ THE FIX SHAPE IS PROVEN BY HAND-PATCH — **+6 / −0** (s123, after rebase onto SCRIP `90f31a5d`, rebuilt 22:41:16)
+
+Before touching the emitter, the fix was validated the cheap way: emit with `SCRIP_DEFER_RESUME=1`,
+then `nop` out the `jne n<K>_match_defer_β` on the line following every `n<J>_match_arbno_af:` label
+(so `af` falls through to its already-emitted `jmp <blob>_ω`), assemble, link, run. Script kept at
+`/tmp/m1work/patch_af.sh`; it is four lines of awk and trivially re-derivable.
+
+**Result — every single one green:**
+
+| witness | before (knob=1) | after af→ω |
+|---|---|---|
+| `119_pat_arbno_of_fence_via_var_via_outer` | rc=139 | **PASS** |
+| `129_pat_arbno_star_var_fence_with_alts` | rc=139 | **PASS** |
+| `148_pat_arbno_star_var_fence_short` | rc=139 | **PASS** |
+| `149_pat_arbno_star_var_fence_outer_pre_match` | rc=139 | **PASS** |
+| `139_pat_calc_paren_deep` | PASS | **PASS** (held) |
+| `143_pat_regex_quantified_class` | PASS | **PASS** (held) |
+| `probe/arbnostore` whole suite | 8/9 | **8/9 held** (sole RED `arbno_defer_altarg_red` = R-4(a), as predicted) |
+
+So the knob's crosscheck arithmetic goes from **+2/−4** to **+6/−0**, and `SCRIP_DEFER_RESUME`
+becomes defaultable. **This is the rung.**
+
+## 10. WHERE IT LANDS IN THE EMITTER (located, not guessed)
+
+`src/templates/bb_match_arbno.cpp`, function **`bb_match_arbno_frame()`** (~:130-148) — the
+ARBNO-FRAME arm, confirmed by asm diff to be the arm these witnesses emit (NOT the `_TAIL`
+element-scheme arm at ~:163, which is a different template):
+
+```c
+         + x86("def", PAIR(3))                       /* the af port                       */
+         + x86("mov", "eax", RDD("rbp", off + 0))    /* start cursor from the frame slot   */
+         + x86("cmp", "r14d", "eax")
+         + x86("jne", PAIR(1))                       /* ⛔ THIS EDGE — back out an instance */
+         + x86_omega();
+```
+
+`PAIR(1)` is the body element's β; `PAIR(0)` its α; `PAIR(2)` is `as`. The `jne PAIR(1)` is the
+over-pop edge. Gate its removal on the same killswitch as the β route (they are one mechanism),
+so the default arm stays byte-identical and the ON arm gets all six.
+
+⛔ Note the hand-patch removed the edge **unconditionally** and still held 8/9 + 6/6 — so the
+sealed-vs-unsealed gate discussed in §6 may not be needed at all for correctness here. Do not
+assume it is; measure the wider suites (patterns, bb_probes, demos) before choosing between
+"gate on seal" and "gate on the knob only".
