@@ -49,6 +49,22 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s118 (Claude Sonnet 4.6) — **REGENS OWED BY s116 LANDED. SCRIPT BUG FOUND AND FIXED: `util_regen_demo_s_artifacts.sh` printed "Committed." after the commit had FAILED (no corpus local identity; staged 21 artifacts, committed zero). SCRIP `fd8ffbf9`, corpus `4872fc27`.**
+
+**THIS SEAT DID:** orientation + three mandatory regens (benchmark/feature/demo) after s116's DEFINE fold (`6aacdf8d`) + main/main_init reorder (`bfca479c`) + rule-line-per-DEFINE (`77e28917`). Drift was measured before running — `fibonacci.s` showed exactly the predicted radius (proc_startup→main_init rename; main hoisted first; one added `#---` per DEFINE) and nothing else. Feature regen idempotency proven (second run: "No changes"). One pre-existing EMIT-FAIL (`coverage_sno_nodes`) confirmed as initial-commit gap, not a regression.
+
+**SCRIPT FIX (`fd8ffbf9` SCRIP):** `util_regen_demo_s_artifacts.sh` used plain `git commit` (no `-c user.name=...`), which silently fails in corpus (no local identity configured). Mirrored the benchmark sibling exactly: `-c user.name/email` inline + exit-1 on commit failure. This is the s47 false-signal class living in a handoff-critical script.
+
+**DEMO BASELINE (m3 vs oracle, 21 programs, timing stripped):** 21 PASS / 3 DIFF / 0 CRASH. Non-pass: `claws5`, `expression`, `treebank-list`. Not scorecard-equivalent (m3-only, no mode-4 run).
+
+**NEXT SEAT OPEN RUNGS (from s117/s117b — unchanged by this seat):**
+1. **beauty.sno ANOMALY:** `sbl -bf` on the NEW fixed-point file exits rc=139 SIGSEGV after compile banner. Suspect: continuation lines after `FENCE(` split emitted WITHOUT `+` in col 1 in beauty's `Gen`, OR manual p.123 stack-overflow XFAIL class, OR `-f` free-form subtlety. Rung: characterize the rc=139, then either fix beauty's Gen (and re-check-in) or get p.123 XFAIL blessed. `beauty_suite` driver refs may be stale against the new file — regen owed.
+2. **ARGS on the by-name path:** `rt_tiny_record_enter` implements zero-arg only. 2-arg contract documented in cursor below (5-quad record, args reversed on stack above result cell). Do NOT just widen `$0` to `nargs` — measured to SIGSEGV the working 0-arg cases.
+3. **`f6d`/`t6m`/`fence_probe` (`*DIFFER(X)` EXPR$ thunks, Error 22):** tiny-record path skips `rt_proc_call_prologue` which is the only thing that resolves name cells.
+4. **Owed by Lon:** `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` default ruling; s112's monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+
+**⛔ `SCRIP_BYNAME_ALPHA` IS STILL DEFAULT OFF.** The s117 fix is gated; before committing to default-on, verify 0-arg and name-cell cases (items 2 and 3 above) are clean.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s117b (same seat, Lon ruling in-chat) — **THE SEVEN-SEAT md5 QUESTION IS DISSOLVED, NOT ANSWERED: SELF-HOST = FIXED POINT. beauty.sno RE-CHECKED-IN AS ITS OWN OUTPUT (corpus `eda18934`). ONE ANOMALY RECORDED FOR THE NEXT SEAT.**
 
 **THE RULING (Lon, verbatim in substance):** *"beauty self hosts — if the output is not exactly equal to the beauty.sno input then the FILE is WRONG and needs to be checked in again."* Every md5 pin was a category error: the checked-in file is its own oracle. DoD 2 and PLAN.md Milestone 1 rewritten to the fixed-point law.
