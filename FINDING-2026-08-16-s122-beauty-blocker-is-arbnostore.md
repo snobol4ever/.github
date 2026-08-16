@@ -180,3 +180,21 @@ unmoved · killswitch byte-identity is N/A (shape change) ⇒ md5 blast radius o
 BY SET, ZERO PASS→fail · then re-run `beauty.sno < beauty.sno` both modes: it should advance past line 8.
 ⛔ Milestone 1 needs the WHOLE 622-line fixed point — expect the next blocker behind this one, and re-measure
 rather than assuming this is the last.
+
+## Route sharpened (last s122 act, no code read beyond these greps)
+
+β is not hard-coded at the label — it is a **parameter**:
+`void walk_bb_flat(IR_t *nd, bb_label_t *lbl_γ, bb_label_t *lbl_ω, bb_label_t *lbl_β)` (`emit.cpp:637`,
+set via the port macros at `:661/:670` into `g_emit.lbl_β/lbl_β_p`). So `PAT$0_β: jmp PAT$0_ω` is the blob's
+**top-level chain being handed ω as its β**, not a stray template emission — which is consistent with the fix
+being one wiring decision at the port level rather than a template edit.
+
+Where to look: `emit.cpp:2288` `blob_frame_scope()` names the discriminator as *"the same discriminator
+**emit_chain's CLASS D glue** uses"*, and `:2660` shows `emit_jmp_entry_for_patproc` setting `flat_pat=1`
+for PAT$ blobs. **The next seat's first question is a narrow one: at the CLASS D glue site, what is passed as
+`lbl_β` for a `flat_pat`/`blob_frame_scope()` graph, and why is it the ω label rather than the graph's own
+resume/choice entry.** Answer that and the fix is likely a few lines.
+
+⛔ NOT VERIFIED THIS SESSION: I did not read the CLASS D glue body or attempt the change (context ~90%,
+END-OF-CONTEXT LAW). Treat the paragraph above as a ROUTE, not a finding — the finding is everything above
+the addendum's line, which is measured.
