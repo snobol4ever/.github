@@ -49,7 +49,23 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s114 (Claude Opus 5) — **DEFECT C's DATA FACE IS CLOSED: THE CLASS-C PRODUCER HALF IS RESTORED, GATED AND BYTE-INERT. THE RESIDUAL UNDERNEATH IT IS NO LONGER A WILD JUMP — IT IS A ONE-CELL OFFSET, WITNESSED THREE WAYS, AND m4 ALREADY PASSES IT.** SCRIP `57972743`, corpus `b69f86ee`.
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s114b (Claude Sonnet 4.6) — **RESIDUAL RE-CHARACTERISED: NOT A ONE-CELL OFFSET. THE DEFECT IS A ZD RUN SPLIT AT `h=2` THAT RELEASES THE BINOP OPERAND'S SPINE CELL. m4 PASSES AND IS THE WORKING REFERENCE. FOUR FALSIFICATIONS BANKED. BOARD DID NOT MOVE.**
+
+**⚠ THE BOARD DID NOT MOVE — STATED FIRST.** `beauty_self` 0/1, beauty m3 still SIG11. No program flipped FAIL→PASS this seat.
+
+**⭐ RESIDUAL IS MISFILED IN s114.** Filed as "ONE-CELL OFFSET." `SCRIP_ZD_DIAG=1` on `probe/eval/ev_pad_alias_0.sno` (FAIL) vs `ev_pad_alias_1.sno` (PASS) names it mechanically. FAILING arm: run splits after `i=1` releasing that node (`gpop=16`), then `run h=2 len=4 DECLINED at i=3 (opnd op=3)` — `op=3` = `IR_BINOP`, declined because the split freed its operand. PASSING arm: one run `h=0 len=6`, all armed. **The defect is the run boundary at `h=2`. Everything else — four declined nodes, flat-FRQ reads, wrong value — is consequence.** Do not chase the BINOP, do not "fix" the declined path.
+
+**⭐ m4 PASSES — MODE34 VIOLATION AND WORKING REFERENCE.** Both media JIT through the identical `eval_build_chain`. m3 emits flat frame reads at `[rsp+0x20/0x28/0x30/0x38]` + runtime callouts; m4 emits fused inline arithmetic (`cvtsi2sd`/`addsd`, FORTH spine). Same n=6 graph, same flags (`jmp=1 pat=0 gen=0 region=64`). Diff the m4 `.s` against the m3 JIT to see exactly what the correct emission looks like — that is the cheapest discriminator and was not attempted this seat.
+
+**⭐ TRIGGER PINNED BY ELIMINATION. CARRIER NOT YET NAMED.** Adding one semantically inert line ahead of the call flips arming 2/6 → 6/6 and output 2 → 3. Instrument: `ev_pad_alias_{0,1}.sno` (minted, committed, oracle refs alongside). Three candidates tested and killed: (1) source-line attribution — comment lines shift every stno and change nothing; (2) global registry — `x = x` (no new global) flips it; (3) `fc_tables_reset` widening — A/B on same binary: **INERT**, reverted. The trigger is the **IR node population of the previously-lowered graph**, consistent with the address-aliasing class `fc_tables_reset`'s header documents. `eval_build_chain` ends in `IR_free_dyn`; fresh chain `IR_t` land on freed addresses. Carrier is one pointer-keyed table consulted by `zd_plan` run-formation that survives `IR_free_dyn`. Not yet named; falsifications above narrow the search.
+
+**⛔ FOUR FALSIFICATIONS — DO NOT REDO:** (1) `fc_tables_reset` widening (14 tables unreset, but INERT on A/B — reverted); (2) `g_chain_entry_key[65536]` (never reset, but gates anchor pull-in not arming); (3) source-line attribution (comment lines kill it); (4) global registry (`x = x` kills it).
+
+**ALSO STANDING:** Dead killswitch `emit.cpp:2759` — `SCRIP_GLUE_SYM` read into `_gsym`, discarded by `(void)_gsym`. GLUE-SYM never fires. R-7 customer.
+
+**NEXT SEAT STARTS HERE:** Run `SCRIP_ZD_DIAG=1 scrip --run probe/eval/ev_pad_alias_0.sno` (FAIL: split at h=2, DECLINED opnd) vs arm 1 (PASS: one run). The run-formation loop that sets `hi` and fills `run[]` (above `emit.cpp:2457`) is the unread region — read it fresh, do not inherit this seat's guesses. `SCRIP_ZD_GAP=1` sits beside the decline print and may already report the boundary. Then diff the m4 JIT chain disassembly against m3's. SCRIP `57972743` (local-only, provenance unresolved — see NOTE-2026-08-16-s114-EVAL-RUN-SPLIT-CENSUS.md) + corpus `b69f86ee` + .github `50f4d630` are committed and pushed.
+
+ER HALF IS RESTORED, GATED AND BYTE-INERT. THE RESIDUAL UNDERNEATH IT IS NO LONGER A WILD JUMP — IT IS A ONE-CELL OFFSET, WITNESSED THREE WAYS, AND m4 ALREADY PASSES IT.** SCRIP `57972743`, corpus `b69f86ee`.
 
 **⚠⚠ THE BOARD DID NOT MOVE — STATED FIRST, NOT BURIED.** `probe/eval` m3 is **11/13 in BOTH killswitch arms**. bb_probes/crosscheck/feature_test are UNCHANGED at their s113 watermarks. This seat closed a real architectural hole and converted an unanalyzable SIG11 into a deterministic wrong answer; it did not flip a program. Anyone reading the gate table alone would wrongly infer a no-op session — the value is the residual's new shape, below.
 
