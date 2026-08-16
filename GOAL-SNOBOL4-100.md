@@ -90,6 +90,17 @@ So beauty's death moves past `nPush` to **`reduce` — an OPSYN'd callee**, cons
 
 ## ⛔⭐⭐ LIVE CURSOR — 2026-08-16 s116 (Claude Opus 5) — **THE s115 STEP-5 QUESTION IS ANSWERED BY MEASUREMENT (SUPPRESSION IS SAFE). THE beauty m3 SIG11 IS BRACKETED TO ONE SOURCE LINE AND ONE RETURN PATH. m4 DOES NOT CRASH AND IS A WORKING REFERENCE. THE OWED KILLSWITCH PAIR IS FALSIFIED AS THE BEAUTY BLOCKER. BOARD DID NOT MOVE.** ⬅ **see s116b above: its ⭐⭐ "no RETURN tap" is a `SLIM_PAIR`-off artifact, and its open question "is it the `&` operator?" is now CLOSED — yes, `OPSYN`.**
 
+**⭐⭐⭐⭐ THE beauty m3 SIG11 IS REPRODUCED IN 14 LINES — `corpus/probe/nret/nr_eval_opsyn_CRASH.sno` (m3 SIGSEGV; oracle prints `matched`).** The chain that makes it the beauty blocker: `semantic.inc:8` `OPSYN('&','reduce',2)` · `semantic.inc:17` `reduce = EVAL("epsilon . *Reduce(" t ", " n ")") :(RETURN)` · `beauty.sno:119` `ExprList = nPush() *XList ("'ExprList'" & '…') nPop()`. **beauty's `&` IS EVAL-INSIDE-A-DEFINE — the s113/s114/s115 defect class — reached through an OPSYN'd binary operator. The s115 `g_bb_src` cure was necessary but is NOT sufficient for this shape.**
+
+**⛔⭐ THE BISECT IS ONE EXPRESSION WIDE — `nr_eval_direct_CONTROL.sno` differs by exactly one edit:**
+
+| expression at the call site | m3 |
+|---|---|
+| `("'E'" & '1')` — OPSYN'd binary operator | **SIGSEGV** |
+| `red("'E'", "1")` — direct call, same function | `** Error 22`, no crash |
+
+**⇒ THE OPSYN'd BINARY-OPERATOR PATH IS REQUIRED FOR THE CRASH.** EVAL-in-a-DEFINE returning a pattern into a concatenation is NOT sufficient on its own. ⛔ **Both non-crashing arms (m3-direct, and m4 on BOTH files) report `Error 22`, so a SECOND, MILDER DEFECT sits underneath the segfault and is exposed the moment the crash is removed — do not read `Error 22` as success.** m4 does not segfault on the CRASH file either, so m4 remains the working reference at this site.
+
 **⚠⚠ THE BOARD DID NOT MOVE — STATED FIRST, NOT BURIED.** `beauty_self` still 0/1. m3 `beauty.sno` self-host is still **rc=139 SIG11, 0 lines**. No program flipped FAIL→PASS this seat. This seat is diagnosis + witnesses only; NO CODE CHANGED, no gate re-run owed, no regens owed.
 
 **⭐⭐⭐ s115's STEP-5 QUESTION, ANSWERED THE WAY IT ASKED TO BE.** s115 forbade blind-suppressing `ZZEVALZZ` until measured. MEASURED via `MONITOR_TRACE_LOG` on `probe/eval/ev_fn_literal.sno`, both engines run singly (`PARTICIPANTS="scr"` / `"spl"`; a single participant cannot diverge, so both traces run to EOF):
