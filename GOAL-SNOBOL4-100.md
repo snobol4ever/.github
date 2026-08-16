@@ -49,7 +49,48 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s114b (Claude Sonnet 4.6) — **RESIDUAL RE-CHARACTERISED: NOT A ONE-CELL OFFSET. THE DEFECT IS A ZD RUN SPLIT AT `h=2` THAT RELEASES THE BINOP OPERAND'S SPINE CELL. m4 PASSES AND IS THE WORKING REFERENCE. FOUR FALSIFICATIONS BANKED. BOARD DID NOT MOVE.**
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s115 (Claude Opus 5) — **THE s114 CARRIER IS NAMED AND CURED: `g_bb_src`. SIX EVAL WITNESSES FLIP FAIL→PASS, ZERO REGRESSIONS, 1171-PROGRAM RADIUS CLEAN. MON-CAP LANDED: THE MONITOR CAN SEE EVAL PROGRAMS FOR THE FIRST TIME. BEAUTY DID NOT MOVE.** SCRIP `a4271a2f` + `0764f236`.
+
+**⚠⚠ THE BOARD DID NOT MOVE ON BEAUTY — STATED FIRST, NOT BURIED.** `beauty.sno` self-host is still **rc=139 SIG11, 0 lines, in BOTH killswitch arms**. Oracle `sbl -bf beauty.sno < beauty.sno` = 622 lines rc=0 md5 `9cddff2534472b822438801d8db58a99`. `beauty_self` 0/1 unchanged. This seat cured a CLASS and opened the monitor; it did not earn Milestone 1.
+
+**⭐⭐⭐ THE CARRIER, NAMED AT LAST: `g_bb_src` (`src/lower/lower_common.c:250`).** s114 predicted *"one pointer-keyed table consulted by `zd_plan` run-formation that survives `IR_free_dyn`"* and could not find it. `bb_src_of` is a linear scan over **raw `IR_t *` identity**, fed by MAIN lowering, **never reset**. `eval_build_chain` ends in `IR_free_dyn`, so a runtime chain's fresh `malloc`'d nodes land on dead main-graph addresses and inherit their statement-head annotations. `zd_plan`'s run walk **breaks on any non-NULL `bb_src_of`** (emit.cpp:2365 head test, :2372 continuation), so a stale hit SPLITS the chain run — first run's `gpop` releases the spine cell a later node's operand needs, second run declines `opnd`, declined nodes fall to flat FRQ reads. **Everything s114 catalogued — the wrong value, the flat reads, the four declined nodes — is consequence.**
+
+**SMOKING GUN** (`SCRIP_SRC_DIAG=1`, killswitch off): chain node 2 reports `[SRC] hit nd=0x5917a10 i=0/4 src=        DEFINE('F(x)')` — **main-program text for a node in the EVAL chain.**
+
+**⭐ WHY THE s114 FALSIFICATIONS ALL MEASURED INERT.** They were correct AND they were testing the wrong axis: the trigger is **allocator addresses**, so anything that does not move `malloc` cannot move the bug. Falsification (3) source-line attribution missed it because **comment lines shift `stno` but produce no IR nodes**. `g_bb_src` was NOT among the four — the s114 census named only `g_chain_entry_key`.
+
+**⭐ THE FIX IS s67's, VERBATIM.** This is the exact disease `fc_tables_reset` was written for; `g_bb_src` is the **sibling that sweep left behind** (its own comment describes the mechanism and lists which tables it covers — `g_bb_src` is not one). `bb_src_reset()` truncates the count at the three runtime-compile entries. **ZERO NEW STATE** — no epoch field, no parallel array, no new file-scope variable (an epoch design was drafted and WITHDRAWN under NO-NEW-GLOBALS). Killswitch `SCRIP_SRC_RESET=0`.
+
+| witness | oracle | OFF | ON |
+|---|---|---|---|
+| `ev_pad_alias_0` | 3 | 2 | **3** |
+| `ev_fn_literal` | 3 | 2 | **3** |
+| `ev_fn_sum_1_2` | 3 | 2 | **3** |
+| `ev_fn_sum_1_5` | 6 | 5 | **6** |
+| `ev_fn_sum_10_20` | 30 | 20 | **30** |
+| `ev_fn_var` · `ev_min_arith` | 3 | 3 | 3 (unchanged) |
+
+**GATES — honest A/B, killswitch OFF vs ON, same binary:** **MD5 blast radius 1171 programs across SNOBOL4/Icon/Prolog — 0 movers** · `bb_probes` **185/185 both modes** (s109–s114 watermark held EXACTLY) · `crosscheck` **192/192** · `feature_test` **155/155**. Icon never calls `bb_src_reset` (entries are SNOBOL4 EVAL/CODE/pattern-tree only) and shows 465 compared / 0 differing — **the s203 ZW-1 shared-codegen trap cleared by measurement, not assertion**. **NO REGENS OWED** (default emission byte-inert). New instrument: `scripts/util_radius_src_reset.sh` (cross-language by construction — `bb_src_of` is read by every language's run walk).
+
+**⭐⭐ MON-CAP LANDED — THE MONITOR CAN GRADE EVAL PROGRAMS FOR THE FIRST TIME (`0764f236`, killswitch `SCRIP_MON_CHAIN_STNO=1`).** `eval_build_chain` stamped its synthesized statement `:stno 1`, so the tap fired `LABEL stno=INT=1` — an event the oracle never emits. Every EVAL-bearing program diverged at the chain's first statement **whether or not it was correct** (s114: `ev_fn_literal` reported the identical step-5 divergence before AND after a real fix). Same disease as the MON-RE GOTO-tap note at emit.cpp:1189, one node class over. **ONE AUTHORITY, NOT A SECOND RULE:** the tap staging at emit.cpp:1202 already reads `op_stno > 0`, so the synthesized statement only had to **stop claiming to be source statement 1**. No monitor-side filter, nothing to keep in sync. Byte-inert by construction (tap gated on `MONITOR_BIN`; `eval_build_chain` never runs during `--compile`).
+
+**MEASURED, `PARTICIPANTS="spl scr"` on `probe/eval/ev_fn_literal.sno` — the spurious LABEL is GONE and the monitor now reaches a REAL event with both engines agreeing on the VALUE:**
+```
+step 4   spl LABEL stno=INT=4       scr LABEL stno=INT=4        AGREE
+step 5   spl @4 VALUE F = INT=3     scr @4 VALUE ZZEVALZZ = INT=3
+```
+
+**⛔⭐⭐⭐ NEXT SEAT STARTS HERE — STEP 5, AND IT IS ONE MONITOR RUN, NOT A gdb DESCENT.** `EVAL_TMP` is `"ZZEVALZZ"` (`runtime_eval.c:29`) — a compiler-minted name carrying **no `$`**, so s112's `mon_name_is_internal` (identifier-head + `'$'`) cannot see it. This is exactly the **s112 class (c) residual** whose own in-code note says *"the durable fix is a mint-time marker on compiler names."* ⛔ **DO NOT blind-suppress `ZZEVALZZ` first.** Confirm SCRIP subsequently emits its own `VALUE F` event: if it does, suppression aligns the traces; **if it does not, suppression LOSES the `F` event and desyncs differently** — the exact trap s112 recorded when it filtered only one of the two VALUE fire-points and beauty's divergence did not move one step. Then re-run the monitor on beauty (it reached step ~1038 at s112/s113) and read the first divergence past the EVAL sites, which are now honest.
+
+**⛔ 2-WAY WRAPPER IS DARK IN THIS CONTAINER — USE THE 3-WAY DIRECTLY.** `scripts/test_monitor_2way_sync_step_bin.sh` hardcodes `PARTICIPANTS="csn spl"` and dies with `FAIL csnobol4 not built: /home/claude/csnobol4/snobol4`. The oracle-vs-SCRIP pairing is `PARTICIPANTS="spl scr" bash scripts/test_monitor_3way_sync_step_auto.sh <file>`. A seat that reads the 2-way failure as "the monitor is dark" will inherit a false blocker (the gdb-404 class, 7 sessions).
+
+**ALSO MINTED s115, NOT FOLDED IN:** `programs/snobol4/parser/unary_not.sno` emits a **NONDETERMINISTIC `.S0` string literal** — `"j8\001"` vs `"\312;\003"` across runs, **in BOTH killswitch arms**, so pre-existing and orthogonal. Looks like a truncated pointer reaching a string emitter. It is the single "MOVED" line in any radius run over that corpus and must be excluded by hand, not read as a mover.
+
+**ALSO STANDING (inherited, untouched):** dead killswitch `emit.cpp:2759` — `SCRIP_GLUE_SYM` read into `_gsym`, discarded by `(void)_gsym`; GLUE-SYM never fires (R-7 customer). `EVAL("'ab' 'cd'")` is a SCRIP parse error while the oracle accepts it (`parse_expr_pat_from_str` front-end gap).
+
+⛔ **STILL OWED BY LON, BOTH STILL BLOCKING R-2, NOW FOUR SEATS:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair; (ii) **the oracle md5** — live `sbl` gives `9cddff25…` (622 lines), NOT the `abfd19a7…` pinned in DoD 2; **Milestone 1 cannot be declared either way until this is ruled.** ⛔ Also owed from s112: the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+
+## LIVE CURSOR (superseded) — 2026-08-16 s114b (Claude Sonnet 4.6) — **RESIDUAL RE-CHARACTERISED: NOT A ONE-CELL OFFSET. THE DEFECT IS A ZD RUN SPLIT AT `h=2` THAT RELEASES THE BINOP OPERAND'S SPINE CELL. m4 PASSES AND IS THE WORKING REFERENCE. FOUR FALSIFICATIONS BANKED. BOARD DID NOT MOVE.**
 
 **⚠ THE BOARD DID NOT MOVE — STATED FIRST.** `beauty_self` 0/1, beauty m3 still SIG11. No program flipped FAIL→PASS this seat.
 
