@@ -57,7 +57,7 @@ next-node-slot overrun family.
 - The milestone compiler BUILDS CLEAN at `4757bbcd` (`apt-get install -y libgc-dev; rm -f scrip; make -j4
   scrip` → rc=0). Era run modes: `--ir-run` / `--sm-run` / `--jit-run` (see that tree's
   `scripts/test_gate_sn7_beauty_self_host.sh`). Self-host command: `.github/archive/MILESTONE-SN4X86-SELFHOST.md`.
-  **NOT RUN this session (Lon paused it)** — success pin = output md5 `abfd19a7a834484a96e824851caee159`.
+  **NOT RUN this session (Lon paused it)** — success pin = output md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`.
 
 **THE .S PAYLOAD (the layout to bring forward):**
 - `one4all@4757bbcd:artifacts/asm/beauty_prog.s` — **70,840 lines**, NASM three-column. Register census:
@@ -134,7 +134,7 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
   stays green; acceptance = arbno fixtures + queens solution-4 + the SCAN-SCRATCH family.
 - [ ] **ZB-5 UNPAUSE SN4-PAT ARBNO** on ζ-blocks — iteration stack carved from the ζ allocator, cap removed.
 - [ ] **ZB-6 (opt) MILESTONE CERTIFY** — one4all@`4757bbcd` self-host run, md5
-  `abfd19a7a834484a96e824851caee159`.
+  `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`.
 
 ### ZB-ACT — EMITTED-CODE-SIDE ACTIVATION ζ (Lon PIVOT, 2026-07-05): DELINEATE ζ FOR PROCEDURES + CO-EXPRESSIONS; CHEAT FIRST WITH PER-BB SELF-ALLOCATION
 

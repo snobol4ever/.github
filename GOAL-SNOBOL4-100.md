@@ -21,7 +21,7 @@
 
 ## ⛔ DEFINITION OF DONE — "100%" MEANS THIS AND NOTHING LESS
 1. **`scripts/scorecard_snobol4.sh` META SCORE = 100.0** — every SNOBOL4 program in corpus/ + SCRIP/test (13 suites, 1396 programs) PASS in **BOTH** modes (m3 `--run` BINARY, m4 `--compile`→`gcc -no-pie`), stdout byte-equal to the live x64 `sbl` oracle (or its pinned `.ref`), m3 ≡ m4; XFAIL only where oracle-blessed (manual p.123 stack-overflow class).
-2. **MILESTONE 1 RE-EARNED:** `cd corpus/demo/beauty; sbl -bf beauty.sno < beauty.sno` (622 lines) reproduced by SCRIP in both modes, **md5 `abfd19a7a834484a96e824851caee159`** (any delta must be Lon-blessed as an oracle-behaviour change); the 17 `beauty_suite` drivers green both modes.
+2. **MILESTONE 1 RE-EARNED — SELF-HOST = FIXED POINT (Lon ruling 2026-08-16 s117, in-chat):** beauty is a beautifier; the checked-in `corpus/programs/snobol4/demo/beauty/beauty.sno` is ITS OWN ORACLE — already beautiful, so beautifying it must be the identity. SCRIP output in BOTH modes on `beauty.sno < beauty.sno` must be **byte-identical to the beauty.sno INPUT FILE**. **NO md5 IS EVER PINNED** — every historical pin (`abfd19a7…`, `9cddff25…`) is VOID; if the live oracle output ever differs from the file, THE FILE IS WRONG and is re-checked-in as the beautified output (done s117, corpus `eda18934`). The 17 `beauty_suite` drivers green both modes.
 3. Gates strict and green: TEMPLATE-ONLY + BOTH-MEDIUM greps == 0 · claim gate over {rbx r9 r10 r11 r12 + tiers} · zero r10/r11 scratch (incl. RTX hand asm) · `handoff_status.sh` COMPLETE.
 4. Deletions complete: every dead killswitch/arm named in R-7 gone; `grep -c getenv\("SCRIP_ src/` reads only the sanctioned diagnostics list kept in R-7.
 5. Re-entry edge inventory closed (R-5): every RBP/R12 restore edge witnessed — backtrack β per choice class · ω unwind · FENCE whack · scanfail · ABORT drain · unanchored retry bump · NRETURN · direct Goto `:<C>` into CODE() · SETEXIT.
@@ -48,6 +48,16 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 ---
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
+
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s117b (same seat, Lon ruling in-chat) — **THE SEVEN-SEAT md5 QUESTION IS DISSOLVED, NOT ANSWERED: SELF-HOST = FIXED POINT. beauty.sno RE-CHECKED-IN AS ITS OWN OUTPUT (corpus `eda18934`). ONE ANOMALY RECORDED FOR THE NEXT SEAT.**
+
+**THE RULING (Lon, verbatim in substance):** *"beauty self hosts — if the output is not exactly equal to the beauty.sno input then the FILE is WRONG and needs to be checked in again."* Every md5 pin was a category error: the checked-in file is its own oracle. DoD 2 and PLAN.md Milestone 1 rewritten to the fixed-point law.
+
+**MEASURED THIS SEAT:** the old file (627 lines) had hand-edit drift — mixed name-column widths, misaligned gotos, `;* nn` inline comments — and `sbl -bf` on it produced a 622-line output differing in ~30 hunks, ALL formatting. Per the ruling that output is now the file. stderr was empty; the earlier `2>&1` captures were NOT the cause.
+
+**⛔⚠ ANOMALY — VERIFY BEFORE TRUSTING THE FIXED POINT:** live `sbl -bf` on the NEW file exits **rc=139 SIGSEGV** after a compile banner, so beautify(beautify(old)) could not be confirmed = identity. Suspect, from the diff: continuation lines after a `FENCE(` split emitted WITHOUT `+` in column 1 (the `nPush()` / `*Target` / `*Comment` first-alternand lines). Either a latent beauty `Gen` bug at these widths, the manual p.123 stack-overflow XFAIL class, or an `-f` free-form subtlety. NEXT SEAT RUNG: characterize the rc=139, then either fix beauty's Gen (and re-check-in) or get the p.123 XFAIL blessed. `beauty_suite` driver refs may be stale against the new file — regen owed.
+
+**⛔ STILL OWED BY LON:** (i) the `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` default; s112's monitor-only rsi-clobber at `bb_func_activate.cpp:335`. The oracle-md5 item is CLOSED by this ruling.
 
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s117 (Claude Opus 5) — **THE s116b OPSYN VERDICT IS OVERTURNED BY MEASUREMENT: IT IS NOT OPSYN. THE DEFECT IS THE BY-NAME CALL PATH INTO ANY EMITTED DEFINE BODY, AND IT IS A SPELLED-TWICE INSTANCE OF A BUG s104/s108 ALREADY FIXED ONCE. beauty m3 NO LONGER SIGSEGVs AND m3 md5 == m4 md5.** SCRIP `627cbfa1`.
 
@@ -81,7 +91,7 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 2. **`f6d` / `t6m` / `fence_probe` (`*DIFFER(X)` EXPR$ thunks, `Error 22`).** These are why `<ident>$` is excluded above: the tiny-record path skips `rt_proc_call_prologue`, **the only thing that resolves name cells** (rt.c:1698 says so outright), and emitted callers stage those themselves where a C by-name caller has not. The `$` gate cured `1016_eval` but not these two — they need the cell staging, not the entry fix.
 3. `rt_call_proc_direct` carries the SAME generic-entry-thunk hazard and was left VERBATIM — no witness this seat reached it. Suspected twin, not a claim.
 
-**⛔ STILL OWED BY LON, NOW SEVEN SEATS — (ii) THE ORACLE md5.** Reconfirmed a THIRD time this seat from the live binary: `sbl -bf beauty.sno < beauty.sno` = **622 lines, md5 `9cddff2534472b822438801d8db58a99`**, NOT the `abfd19a7…` pinned in DoD 2. **Milestone 1 cannot be declared either way until this is ruled.** Also still owed: (i) the `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` default (falsified as the beauty blocker at s116, still owed for other reasons); and from s112 the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+**⛔ RULED s117b, SEE CURSOR ABOVE — THE md5 QUESTION IS VOID (SELF-HOST = FIXED POINT).** Historical text follows: (ii) THE ORACLE md5. Reconfirmed a THIRD time this seat from the live binary: `sbl -bf beauty.sno < beauty.sno` = **622 lines, md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`**, NOT the `abfd19a7…` pinned in DoD 2. **Milestone 1 cannot be declared either way until this is ruled.** Also still owed: (i) the `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` default (falsified as the beauty blocker at s116, still owed for other reasons); and from s112 the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
 
 **⭐ NEW, UNRELATED, MINTED NOT CHASED:** unary `OPSYN` (`i=1`) does not lower AT ALL — `OPSYN('!','U',1)` dies in `lower_snobol4` with *"binary operator with missing operand"*. Manual Ch.8 p.116 blesses the construct (`OPSYN('!','UCASE',1)` is the manual's own example). Witness `/tmp` only; needs minting into `probe/opsyn/`.
 
@@ -171,7 +181,7 @@ So beauty's death moves past `nPush` to **`reduce` — an OPSYN'd callee**, cons
 
 | | rc | lines | md5 |
 |---|---|---|---|
-| oracle `sbl -bf beauty.sno < beauty.sno` | 0 | **622** | `9cddff2534472b822438801d8db58a99` |
+| oracle `sbl -bf beauty.sno < beauty.sno` | 0 | **622** | `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]` |
 | m3 `--run` | **139 SIG11** | 0 | — |
 | m4 `--compile`+`gcc -no-pie` | **0** | 10 | `1c75f97d1907f92f4c0a8a3ef49eb9ee` |
 
@@ -183,11 +193,11 @@ m4 reproduces the 7-line header correctly, survives the `nPush` site that kills 
 
 **⛔ TRAPS RECORDED SO THE NEXT SEAT DOES NOT PAY THEM:** (a) the monitor's `*.go`/`*.ready` artefacts are **FIFOs** — `cat`/`head` on them BLOCKS FOREVER; read only `ctrl.out` and `MONITOR_TRACE_LOG` output. (b) `MONITOR_TRACE_LOG=/path/x.log` writes to `x.log.<participant>.log`, not `x.log`. (c) A SINGLE participant (`PARTICIPANTS="scr"`) cannot diverge and therefore runs to EOF — that is how you get a FULL trace; the 2-way run truncates at first divergence. (d) `scrip --compile` writes asm to STDOUT; link recipe is `compile_mode4()` in `scripts/test_snobol4_pat_rung_suite.sh`. (e) beauty lives at `corpus/programs/snobol4/demo/beauty/`, NOT `corpus/demo/beauty/` (PLAN/DoD spell the latter).
 
-⛔ **STILL OWED BY LON, NOW FIVE SEATS:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair — **note this seat falsified it as the beauty blocker**; (ii) **the oracle md5** — INDEPENDENTLY RECONFIRMED this seat from the live binary: `9cddff2534472b822438801d8db58a99`, 622 lines, NOT the `abfd19a7…` pinned in DoD 2. **Milestone 1 cannot be declared either way until this is ruled.** ⛔ Also still owed from s112: the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+⛔ **STILL OWED BY LON, NOW FIVE SEATS:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair — **note this seat falsified it as the beauty blocker**; (ii) **the oracle md5** — INDEPENDENTLY RECONFIRMED this seat from the live binary: `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`, 622 lines, NOT the `abfd19a7…` pinned in DoD 2. **Milestone 1 cannot be declared either way until this is ruled.** ⛔ Also still owed from s112: the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
 
 ## LIVE CURSOR (superseded) — 2026-08-16 s115 (Claude Opus 5) — **THE s114 CARRIER IS NAMED AND CURED: `g_bb_src`. SIX EVAL WITNESSES FLIP FAIL→PASS, ZERO REGRESSIONS, 1171-PROGRAM RADIUS CLEAN. MON-CAP LANDED: THE MONITOR CAN SEE EVAL PROGRAMS FOR THE FIRST TIME. BEAUTY DID NOT MOVE.** SCRIP `a4271a2f` + `0764f236`.
 
-**⚠⚠ THE BOARD DID NOT MOVE ON BEAUTY — STATED FIRST, NOT BURIED.** `beauty.sno` self-host is still **rc=139 SIG11, 0 lines, in BOTH killswitch arms**. Oracle `sbl -bf beauty.sno < beauty.sno` = 622 lines rc=0 md5 `9cddff2534472b822438801d8db58a99`. `beauty_self` 0/1 unchanged. This seat cured a CLASS and opened the monitor; it did not earn Milestone 1.
+**⚠⚠ THE BOARD DID NOT MOVE ON BEAUTY — STATED FIRST, NOT BURIED.** `beauty.sno` self-host is still **rc=139 SIG11, 0 lines, in BOTH killswitch arms**. Oracle `sbl -bf beauty.sno < beauty.sno` = 622 lines rc=0 md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`. `beauty_self` 0/1 unchanged. This seat cured a CLASS and opened the monitor; it did not earn Milestone 1.
 
 **⭐⭐⭐ THE CARRIER, NAMED AT LAST: `g_bb_src` (`src/lower/lower_common.c:250`).** s114 predicted *"one pointer-keyed table consulted by `zd_plan` run-formation that survives `IR_free_dyn`"* and could not find it. `bb_src_of` is a linear scan over **raw `IR_t *` identity**, fed by MAIN lowering, **never reset**. `eval_build_chain` ends in `IR_free_dyn`, so a runtime chain's fresh `malloc`'d nodes land on dead main-graph addresses and inherit their statement-head annotations. `zd_plan`'s run walk **breaks on any non-NULL `bb_src_of`** (emit.cpp:2365 head test, :2372 continuation), so a stale hit SPLITS the chain run — first run's `gpop` releases the spine cell a later node's operand needs, second run declines `opnd`, declined nodes fall to flat FRQ reads. **Everything s114 catalogued — the wrong value, the flat reads, the four declined nodes — is consequence.**
 
@@ -268,7 +278,7 @@ ER HALF IS RESTORED, GATED AND BYTE-INERT. THE RESIDUAL UNDERNEATH IT IS NO LONG
 
 **ALSO MINTED s114, NOT FOLDED IN:** `EVAL("'ab' 'cd'")` (concatenation of two string literals) is a SCRIP **parse error** while the oracle accepts it — a `parse_expr_pat_from_str` front-end gap, unrelated to the frame. **DEAD KILLSWITCH FOUND (R-7 customer):** `emit.cpp:2762` reads `SCRIP_GLUE_SYM` into `_gsym` and then discards it with `(void)_gsym` — the GLUE-SYM enter never fires regardless of the env var, so the s206 opt-in has been vacuous since it was written.
 
-**BEAUTY SELF-HOST STATE (unchanged this seat):** oracle `sbl -bf beauty.sno < beauty.sno` = 622 lines rc=0 md5 `9cddff2534472b822438801d8db58a99`. SCRIP m3 SIG11. ⛔ **THE ORACLE NEEDS `-bf`, NOT `-b`.**
+**BEAUTY SELF-HOST STATE (unchanged this seat):** oracle `sbl -bf beauty.sno < beauty.sno` = 622 lines rc=0 md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`. SCRIP m3 SIG11. ⛔ **THE ORACLE NEEDS `-bf`, NOT `-b`.**
 
 ⛔ **STILL OWED BY LON, BOTH STILL BLOCKING R-2, UNTOUCHED FOR THREE SEATS:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair; (ii) **the oracle md5** — live `sbl` gives `9cddff25…` (622 lines), NOT the `abfd19a7…` pinned in DoD 2; **Milestone 1 cannot be declared either way until this is ruled.** ⛔ Also owed from s112: the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
 
@@ -318,7 +328,7 @@ Four Lon in-chat orders landed in one commit (`b1abecc2`):
 
 **⭐ THE FIX FOR C — RESTORE THE PRODUCER HALF, AND THE REFERENCE EMBODIMENT IS ALREADY LIVE.** Emit `sub rsp, flat_frame_bytes` + the 32B `{γ,ω}` wire header at α for `flat_jmp_entry` chains and the matching release at γ/ω. emit.cpp's `flat_lcl_proc` arm (~`:2741` TEXT / `:2746` BINARY) does exactly this today — header at `[kt-24]`/`[kt-16]`/`[kt-8]`. Doing so likely lets `rt_chain_enter_v` retire back into plain `rt_chain_enter` (the chain would jump home through its own wire instead of returning), collapsing A and C into one correct mechanism. ⛔ **SHARED CODEGEN — PAT$ blobs and Icon graphs ride the same arming.** Full ladder required before any default flip: MD5 blast radius, `bb_probes` 185/188 watermark, **and Icon's own watermark** (`GOAL-ICON-100.md`); land behind a killswitch and A/B it. Do not flip a shared default on one board — that is the named s203 ZW-1 lesson.
 
-**BEAUTY SELF-HOST STATE:** oracle `sbl -bf beauty.sno < beauty.sno` = **622 lines rc=0** md5 `9cddff2534472b822438801d8db58a99`. SCRIP m3 SIG11. Monitor reaches **step 1038**, PARTIAL EOF (scr died), spl still emitting `@591 RETURN nPush`. ⛔ **THE ORACLE NEEDS `-bf`, NOT `-b`** — with `-b` the oracle ITSELF exits 139 after 59 lines, which will read as an oracle-is-dead false signal.
+**BEAUTY SELF-HOST STATE:** oracle `sbl -bf beauty.sno < beauty.sno` = **622 lines rc=0** md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`. SCRIP m3 SIG11. Monitor reaches **step 1038**, PARTIAL EOF (scr died), spl still emitting `@591 RETURN nPush`. ⛔ **THE ORACLE NEEDS `-bf`, NOT `-b`** — with `-b` the oracle ITSELF exits 139 after 59 lines, which will read as an oracle-is-dead false signal.
 
 **ALSO MINTED s113, NOT FOLDED IN (never grade two changes in one measurement):** `DATATYPE(CODE(...))` returns `STRING`, oracle `CODE` (pre-existing — identical in the `SCRIP_EVAL_RET=0` arm) · `:< C >` with spaces fails to parse while `:<C>` parses and transfers correctly · `ev_beauty_shape` now gets `DT=PATTERN` right and stops one line short of `OK`.
 

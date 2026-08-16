@@ -290,7 +290,7 @@ Full landing details are in commit history. Listed here only as a checkpoint.
     Note that `snoBrackets` is NOT a parser pattern — only a runtime
     variable; no collision there.
 
-    **New oracle md5:** `9cddff2534472b822438801d8db58a99`, 622 lines
+    **New oracle md5:** `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`, 622 lines
     (down from 646 — shorter identifiers fit on single lines without
     `+` continuation wraps). Empty stderr, no Parse Error in output
     (the only "Parse Error" string in the new output is the literal
@@ -350,9 +350,9 @@ architecture. That file is the single source of truth for Snocone.
   PASS=42 SKIP=3, smoke_unified_broker PASS=49.
 - Crosscheck floors: snobol4 PASS=6, snocone PASS=8.
 - Oracle: `corpus/programs/snobol4/demo/beauty/beauty.sno` (md5
-  `9cddff2534472b822438801d8db58a99`, 622 lines, post-SB-6.E.7-M
+  `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`, 622 lines, post-SB-6.E.7-M
   rebaseline 2026-05-02 #16). Pre-SB-6.E.7-M baseline was md5
-  `abfd19a7a834484a96e824851caee159`, 646 lines — that md5 remains
+  `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`, 646 lines — that md5 remains
   the historical Milestone 1 proof bytes (PLAN.md), and other goal
   files (GOAL-NET-BEAUTY-SELF, GOAL-SCRIP-BOOTSTRAP, GOAL-LANG-SNOBOL4)
   still reference the old md5 in their gate spec; those goals will
@@ -390,7 +390,7 @@ This is the permanent home.
   Snocone code (yet — that would be a future BEAUTIFY-extended).
 
 The BEAUTIFY self-host gate produces output matching the BEAUTY md5
-`9cddff2534472b822438801d8db58a99` (post-SB-6.E.7-M, 622 lines)
+`9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]` (post-SB-6.E.7-M, 622 lines)
 because both pretty-print the same SNOBOL4 source. This auto-cross-checks
 the Snocone implementation against the SNOBOL4 implementation.
 
@@ -671,7 +671,7 @@ onto runtime variable `SorF`. Renamed `.SorF` → `.sf` first
 (4 occurrences total), then stripped the sno prefix from everything
 else.
 
-**New oracle md5:** `9cddff2534472b822438801d8db58a99`, 622 lines
+**New oracle md5:** `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]`, 622 lines
 (down from 646 — shorter identifiers fit on single lines without
 `+` continuation wraps). The Invariants section and Naming
 distinction in this goal file are updated to the new md5; PLAN.md

@@ -90,7 +90,7 @@ overhead).
 ### M2 — The 4/28 chunk model (one4all@`4757bbcd` — the beauty self-host milestone)
 
 The asm backend's storage model at the moment the project's biggest milestone passed (beauty.sno
-byte-identical to SPITBOL, md5 `abfd19a7a834484a96e824851caee159`). Fully re-verified from the one4all
+byte-identical to SPITBOL, md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`). Fully re-verified from the one4all
 clone 2026-07-05 (ZB-1) and again this session:
 
 * **Two-tier registers:** rbp = SM statement frame for expression temporaries (10,036 uses in

@@ -125,7 +125,7 @@ not-yet-running rewrite.
 
 ## ⛔ Beauty self-host (Milestone 1 — sacred)
 
-`beauty.sno` self-host md5 `abfd19a7a834484a96e824851caee159` must
+`beauty.sno` self-host md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]` must
 remain green throughout Phase 2. SCRIP-side changes do not threaten it
 directly (beauty.sno goes through the C frontend); but if a Phase 2
 session is tempted to alter `lower.c` or any C code to make a SCRIP
@@ -274,7 +274,7 @@ Each session reads:
 
 Phase 1 C parsers are clean (AUDIT-2 verified). Each `tree_t` shape in
 the C parser is the target for the SCRIP rewrite. Beauty self-host md5
-`abfd19a7a834484a96e824851caee159` must remain green throughout
+`abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]` must remain green throughout
 (but Phase 2 changes touch only `corpus/SCRIP/parser_*.sc`, not the C
 path beauty uses — so the risk is low and bounded).
 

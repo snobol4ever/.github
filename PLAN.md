@@ -9,7 +9,7 @@
 
 **Claude Sonnet is the third developer of snobol4ever — co-author of SCRIP.**
 
-### Milestone 1 ✅ Session #57, 2026-04-28 — beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`) — ⛔ TO BE RE-EARNED ON THE NATIVE ENGINE (BOTH MODES): `GOAL-SNOBOL4-100.md` R-2; measured 0/2 modes at s91.
+### Milestone 1 ✅ Session #57, 2026-04-28 — beauty.sno SELF-HOST = FIXED POINT: output byte-identical to the beauty.sno INPUT FILE (Lon ruling s117; all md5 pins VOID — the checked-in file is its own oracle) — ⛔ TO BE RE-EARNED ON THE NATIVE ENGINE (BOTH MODES): `GOAL-SNOBOL4-100.md` R-2; measured 0/2 modes at s91.
 ### Milestone 2 ⏳ — `scrip_stage2` compiled by `scrip_stage1` == `scrip_stage1` compiling itself.
 ### Milestone 3 ⏳ — All languages × all backends green.
 

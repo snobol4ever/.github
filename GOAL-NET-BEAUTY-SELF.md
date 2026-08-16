@@ -3056,7 +3056,7 @@ Graft cache landed (snobol4dotnet `12bd3fa`).
      → 6 PM_REDO (cursor advances 0→6) + 1 PM_EXIT (cur=11);
      `s ? 'zzz'` against `'hello'` → 6 PM_REDO + 1 PM_FAIL (cur=5).
    - **Beauty self-host oracle: exit 0, 646 stdout lines, 0 stderr,
-     md5 `abfd19a7a834484a96e824851caee159`** — matches Milestone 1
+     md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`** — matches Milestone 1
      baseline byte-identical.
 
 4. **Ran two-runtime offline trace comparison.**  Beauty self-host
@@ -3113,7 +3113,7 @@ Graft cache landed (snobol4dotnet `12bd3fa`).
      to pre-patch baseline (the 14 are pre-existing Csnobol4
      test crashes; cache adds zero new failures).
    - SPITBOL beauty self-host oracle: byte-identical to Milestone 1
-     baseline (md5 `abfd19a7a834484a96e824851caee159`).
+     baseline (md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`).
 
 ### Commits
 
@@ -3290,7 +3290,7 @@ it in one window with no diagnostic detours:
    ```
    cd /home/claude/corpus/programs/snobol4/demo/beauty
    /home/claude/x64/bin/sbl -bf beauty.sno < beauty.sno > /tmp/spl.out
-   md5sum /tmp/spl.out  # MUST equal abfd19a7a834484a96e824851caee159
+   md5sum /tmp/spl.out  # MUST equal abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]
    ```
    If md5 differs, the `pmcll` insertion has corrupted SPITBOL
    semantics — revert and rethink placement.
@@ -3340,7 +3340,7 @@ it in one window with no diagnostic detours:
 - **HEADs unchanged from session #78:** snobol4dotnet `12bd3fa`, x64
   `dd66e14`, SCRIP `f95817cd`, corpus and `.github` from clones.
 - **Beauty self-host gate unchanged:** exit 0, 47 stderr lines, Parse
-  Error at line 48.  SPITBOL oracle md5 `abfd19a7a834484a96e824851caee159`
+  Error at line 48.  SPITBOL oracle md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`
   (Milestone 1 invariant intact).
 - **Goal-file edits this session:** this narrative only.
 
@@ -3694,7 +3694,7 @@ or `Pattern.Subsequent` propagates.
 - Beauty self-host: confirmed unchanged at 47 stderr lines
   with restored baseline.
 - SPITBOL oracle: confirmed Milestone 1 invariant byte-identical
-  (md5 `abfd19a7a834484a96e824851caee159`) at session start.
+  (md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`) at session start.
 
 ### Recommended next-session execution plan
 
@@ -4256,7 +4256,7 @@ restore-points all converging on the same CVA1 SPAN cluster.
   - All five repos clean. No `.orig` files. No diagnostic patches.
   - HEADs unchanged from session #83.
   - Beauty self-host gate unchanged: exit 0, 47 stderr lines, Parse
-    Error at line 48. SPITBOL oracle md5 `abfd19a7a834484a96e824851caee159`
+    Error at line 48. SPITBOL oracle md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`
     (Milestone 1 invariant intact).
   - Goal-file edits this session: this narrative only.
 
@@ -4279,9 +4279,9 @@ restore-points all converging on the same CVA1 SPAN cluster.
 ### Session #84 addendum — Milestone 1 SPITBOL md5 invariant note
 
 Final handoff verification noted that SPITBOL on the current corpus
-HEAD (`4d4dea39`) produces md5 `9cddff2534472b822438801d8db58a99` (622
+HEAD (`4d4dea39`) produces md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]` (622
 stdout lines), differing from the recorded Milestone 1 invariant
-`abfd19a7a834484a96e824851caee159` (646 lines).
+`abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]` (646 lines).
 
 This is **not** a regression caused by this session.  Corpus commit
 `5cc1baa` ("SB-6.E.7-M: strip sno prefix from beauty.sno", May 2
@@ -4333,7 +4333,7 @@ Test gates clean:
   - Beauty self-host: exit 0, 47 stderr lines, ~2.7s wall clock
     (was 30s+ timing out before graft cache; ~2.1s with graft
     cache alone; this fix is on top of graft cache).
-  - SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99` unchanged.
+  - SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]` unchanged.
 
 ### Diagnostic C# function tracing — the user's strategy applied
 
@@ -4722,7 +4722,7 @@ makes Subsequent computation trivial (next sibling).
   - snobol4dotnet HEAD: `80c828a` unchanged.
   - All five repos clean.  No `.orig` files, no diagnostic patches.
   - Beauty self-host gate unchanged: 47 stderr lines.
-  - SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99` unchanged.
+  - SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]` unchanged.
   - Goal-file edits this session: this narrative only.
 
 ### Status updates
@@ -4928,7 +4928,7 @@ Adding to the existing list (sessions #67–#86):
 - corpus HEAD: `4d4dea39` unchanged.
 - All repos clean. No `.orig` files. No diagnostic patches.
 - Beauty self-host gate: exit 0, 47 stderr lines, Parse Error at line 48.
-- SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99` (the new
+- SPITBOL oracle md5 `9cddff2534472b822438801d8db58a99 [VOID s117: SELF-HOST = FIXED POINT — no md5 is ever pinned]` (the new
   post-corpus-rename Milestone 1 invariant per session #84's addendum).
 - Goal-file edits this session: this narrative only.
 

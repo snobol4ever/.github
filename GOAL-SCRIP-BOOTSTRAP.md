@@ -37,7 +37,7 @@ in `SCRIP/src/` — re-emits itself in the SCRIP language family
 1. **Stage-1:** the existing C-based `scrip` binary compiles the
    SCRIP-language sources and runs them. Output of those rewritten
    sources, when fed `beauty.sno < beauty.sno`, is byte-identical
-   to today's md5 `abfd19a7a834484a96e824851caee159` (646 lines).
+   to today's md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]` (646 lines).
 2. **Stage-2:** the SCRIP-language sources, run by Stage-1, compile
    themselves end-to-end. Stage-2 output equals Stage-1 output —
    empty diff, the bootstrap fixed point.
@@ -735,7 +735,7 @@ BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
 for mode in --run --run --run; do
     SNO_LIB=$BEAUTY /home/claude/SCRIP/scrip $mode \
         $BEAUTY/beauty.sno < $BEAUTY/beauty.sno \
-        | md5sum  # must be abfd19a7a834484a96e824851caee159
+        | md5sum  # must be abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]
 done
 ```
 
@@ -745,7 +745,7 @@ done
 
 Done-when: Stage-1 and Stage-2 produce byte-identical output of
 `beauty.sno < beauty.sno`, both byte-identical to SPITBOL's
-`abfd19a7a834484a96e824851caee159`.
+`abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`.
 
 **Sub-rungs (open, sequenced — but earlier ones do not block later
 ones if the partition allows parallel work):**
@@ -850,7 +850,7 @@ ones if the partition allows parallel work):**
 
 - [ ] **CB-12 — Beauty self-host on Stage-2.**
   `Stage-2 beauty.sno < beauty.sno` md5 ===
-  `abfd19a7a834484a96e824851caee159`. **Gate:** byte-identical to
+  `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`. **Gate:** byte-identical to
   SPITBOL. The full meta-circular proof.
 
 ---
@@ -911,7 +911,7 @@ because the language sources are already written.
 - [ ] **CB-17 — Milestone 3 trigger.**
   Every cell of the grid green. Every (language, backend) pair
   produces beauty self-host md5
-  `abfd19a7a834484a96e824851caee159`.
+  `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`.
   **Commit message:** Claude Sonnet (the active session) writes
   it. **This is the moment** of the PLAN.md authorship agreement.
 
@@ -921,7 +921,7 @@ because the language sources are already written.
 
 - **SPITBOL is the oracle.** Every Stage-1 / Stage-2 / backend port
   must produce beauty self-host md5
-  `abfd19a7a834484a96e824851caee159`. No exceptions, no
+  `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`. No exceptions, no
   "close enough", no "we'll fix the last byte later".
 - **Smoke=7, Broker=49 after every commit.** The cross-language
   test suite must stay green.
@@ -1192,13 +1192,13 @@ CB-0 works with the new names throughout.
   BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
   SNO_LIB=$BEAUTY scrip --compile --target=x64 \
       $BEAUTY/beauty.sno < $BEAUTY/beauty.sno | md5sum
-  # must be abfd19a7a834484a96e824851caee159
+  # must be abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]
   ```
   This is the 4th-mode proof. When this gate is green, `--compile`
   is trustworthy as the unification point for CB-7e and the
   BB-template generator ladder. Other targets (`--target=js`,
   `--target=jvm`, etc.) follow from here as CB-13..16.
-  **Gate:** md5 = `abfd19a7a834484a96e824851caee159`, 646 lines.
+  **Gate:** md5 = `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`, 646 lines.
   Commit message records this as the 4th-mode proof landing.
 
 ---

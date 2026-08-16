@@ -42,7 +42,7 @@ exploration so it isn't lost between sessions.
   vs language-first) per their workflow.
 - All gate scripts (`test_smoke_snobol4.sh` PASS=7,
   `test_smoke_unified_broker.sh` PASS=49, beauty self-host md5
-  `abfd19a7a834484a96e824851caee159`) still pass after the moves.
+  `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`) still pass after the moves.
 - REPO-corpus.md is updated to reflect the new layout as authority.
 
 ---

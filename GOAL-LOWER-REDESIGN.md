@@ -818,7 +818,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 2. **Clearest SM↔BB boundary.** One entry (`SM_EXEC_GEN`), one exit (match
    success/failure returned to SM). This is the two-as-one theory in its simplest form.
 
-3. **Best oracle.** beauty.sno — Milestone 1 locked at md5 `abfd19a7a834484a96e824851caee159`.
+3. **Best oracle.** beauty.sno — Milestone 1 locked at md5 `abfd19a7a834484a96e824851caee159 [VOID s117: SELF-HOST = FIXED POINT — beauty.sno is its own oracle, no md5 is ever pinned; see GOAL-SNOBOL4-100.md DoD 2]`.
    If beauty passes byte-identical after replacing ad-hoc BB with IR_t, the
    design is validated on a real 646-line program with ARB, SPAN, alternation, ARBNO.
 
