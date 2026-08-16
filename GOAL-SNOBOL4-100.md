@@ -49,7 +49,37 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s113 (Claude Opus 5) — **EVAL WORKS AT THE ROOT FOR THE FIRST TIME. TWO DEFECTS FIXED, BOTH GATED, ZERO REGRESSIONS, +3 PROGRAMS BOTH MODES. THE REMAINING BEAUTY BLOCKER IS MINTED, BISECTED AND ROUTED.** SCRIP `2fda853c`+`efd2537b`, corpus `aca66aa3`+`34fc2c79`.
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s114 (Claude Opus 5) — **DEFECT C's DATA FACE IS CLOSED: THE CLASS-C PRODUCER HALF IS RESTORED, GATED AND BYTE-INERT. THE RESIDUAL UNDERNEATH IT IS NO LONGER A WILD JUMP — IT IS A ONE-CELL OFFSET, WITNESSED THREE WAYS, AND m4 ALREADY PASSES IT.** SCRIP `57972743`, corpus `b69f86ee`.
+
+**⚠⚠ THE BOARD DID NOT MOVE — STATED FIRST, NOT BURIED.** `probe/eval` m3 is **11/13 in BOTH killswitch arms**. bb_probes/crosscheck/feature_test are UNCHANGED at their s113 watermarks. This seat closed a real architectural hole and converted an unanalyzable SIG11 into a deterministic wrong answer; it did not flip a program. Anyone reading the gate table alone would wrongly infer a no-op session — the value is the residual's new shape, below.
+
+**⭐ WHAT LANDED (`57972743`, killswitch `SCRIP_CHAIN_FRAME=0`).** CARVE-KILL (`ef9a7d2c`/`1ba33ea6`) deleted `xa_flat_prologue` and **the consumer half survived**. `emit_jmp_entry_arm_region` arms chains `flat_jmp_entry=1` and publishes `flat_frame_bytes` — the layout every DECLINED node's `FRQ([rsp+off])` read addresses — while the prologue dispatch carried **NO ARM for them at all**. ONE AUTHORITY now spells both halves together in `xa_flat.cpp`: `xa_flat_class_c()` (admission) · `xa_flat_chain_prologue()` (`sub rsp,kt` + header `[kt-24]=γ [kt-16]=ω [kt-8]=___`) · `xa_flat_chain_epilogue()` (the release at γ AND ω). BOTH-MEDIUM through `x86()` only, zero raw bytes. **NARROWED BY MEASUREMENT:** `flat_pat` (BLOB-GRANT carves at α_body), `flat_lcl_proc`, `zframe_graph`, `flat_stmt_frame` and DEFINE stubs (`g_flat_frame_floor > 0`, CLASS P) are each EXCLUDED because each already has a producer — widening is a separate rung that must re-prove the Icon watermark.
+
+**⭐ THE MEASUREMENT THAT CORRECTS s113's FRAMING.** `SCRIP_LP_DIAG=1`: `ev_fn_literal` **armed=2 of 6**, `ev_fn_var` **armed=6 of 6**, every other flag identical (`jmp=1 pat=0 gen=0 region=64`, kt=112). s113 inferred "literal-vs-variable is a proxy for ZD-armed vs declined"; that is now MEASURED against a live control. The passing sibling survives only because it addresses no frame at all.
+
+**⛔⭐ TWO PLACEMENT FACTS EARNED WITH GDB — RECORDED IN-CODE, DO NOT RE-DERIVE.** (1) The carve must land **AFTER the chain's two-jmp entry dispatch**, not at the zframe/`flat_lcl_proc` dispatch: there it sits at **offset 0** (`SCRIP_CHAIN_DIAG=1` prints `pos=0`) ahead of `jmp α_body`/`jmp ω`, so any `fn+5` ω entry lands mid-instruction — this regressed `ev_fn_var` PASS→SIG11. (2) **rbp is NOT pinned and the release is EXPLICIT**, because `bb_glue_outer_whack()` is **FALSE** for these graphs: the gdb-measured exit is `add $0x0,%rsp; mov eax,DT; ret` with **no whack** to reclaim a carve. Omitting (2) leaked the carve and the `ret` popped 112 bytes too deep. Carve and release are ONE fact under ONE killswitch precisely so they cannot drift the way the GLUE-SYM enter/whack pair did.
+
+**GATES — honest A/B, killswitch OFF vs ON, same binary:** bb_probes `185/185 → 185/185` both modes (s109/s112/s113 watermark held EXACTLY) · crosscheck `192/192` · feature_test `155/155` · **MD5 blast radius 0 differing over 60 programs** — byte-inert on ALL static emission, fires only for runtime-compiled chains. m3 ≡ m4 on every `probe/eval` witness tested. **NO REGENS OWED** (default emission byte-inert).
+
+**⛔⭐⭐⭐ NEXT SEAT STARTS HERE — AND THE CHEAPEST EXPERIMENT IS NOT ANOTHER gdb DESCENT.** Witnesses `corpus/probe/eval/ev_fn_sum_{1_2,1_5,10_20}.sno`, live `sbl` refs:
+
+| probe | oracle | scrip m3 | scrip m4 |
+|---|---|---|---|
+| `EVAL('1 + 2')` in a DEFINE | 3 | **2** | 3 |
+| `EVAL('1 + 5')` in a DEFINE | 6 | **5** | 6 |
+| `EVAL('10 + 20')` in a DEFINE | 30 | **20** | 30 |
+
+**THE CHAIN RETURNS THE SECOND OPERAND, NEVER THE SUM** — three literal pairs, one signature: a one-cell (16B) displacement in the declined nodes' FRQ reads inside the CLASS-C frame (the ADD's right-operand cell read where its result cell belongs). **m4 PASSES ALL THREE IN BOTH KILLSWITCH ARMS**, so this is ALSO a **GOAL-MODE34-IDENTICAL violation and m4 is a WORKING REFERENCE** — diff the same chain's m3 vs m4 asm before opening any gdb hunt. ⛔ **DO NOT RE-DERIVE:** chain emission state is IDENTICAL between the passing top-level `EVAL` (`ev_min_arith`) and the failing in-DEFINE shape (`SCRIP_CHAIN_DIAG=1`, both `pos=0 kt=112 jmp=1 pat=0`) — the divergence is at RUN time in the read offsets, not at emission.
+
+**⛔ MONITOR BLIND-SPOT, NAMED (matters for R-2 and for every EVAL-bearing program).** `eval_build_chain` stamps its synthesized statement `:stno 1`, so the monitor reports `LABEL stno=INT=1` when the CHAIN executes — an event SPITBOL never emits. **Every EVAL-bearing program therefore "diverges" at the chain's first statement regardless of correctness**, and `ev_fn_literal` reports the identical step-5 divergence both before and after a real fix. This is a MON-CAP rung (RULES.md: a monitor blind to the divergence CLASS must be extended first) and it stands between the monitor and beauty's EVAL sites.
+
+**ALSO MINTED s114, NOT FOLDED IN:** `EVAL("'ab' 'cd'")` (concatenation of two string literals) is a SCRIP **parse error** while the oracle accepts it — a `parse_expr_pat_from_str` front-end gap, unrelated to the frame. **DEAD KILLSWITCH FOUND (R-7 customer):** `emit.cpp:2762` reads `SCRIP_GLUE_SYM` into `_gsym` and then discards it with `(void)_gsym` — the GLUE-SYM enter never fires regardless of the env var, so the s206 opt-in has been vacuous since it was written.
+
+**BEAUTY SELF-HOST STATE (unchanged this seat):** oracle `sbl -bf beauty.sno < beauty.sno` = 622 lines rc=0 md5 `9cddff2534472b822438801d8db58a99`. SCRIP m3 SIG11. ⛔ **THE ORACLE NEEDS `-bf`, NOT `-b`.**
+
+⛔ **STILL OWED BY LON, BOTH STILL BLOCKING R-2, UNTOUCHED FOR THREE SEATS:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair; (ii) **the oracle md5** — live `sbl` gives `9cddff25…` (622 lines), NOT the `abfd19a7…` pinned in DoD 2; **Milestone 1 cannot be declared either way until this is ruled.** ⛔ Also owed from s112: the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+
+## LIVE CURSOR (superseded) — 2026-08-16 s113 (Claude Opus 5) — **EVAL WORKS AT THE ROOT FOR THE FIRST TIME. TWO DEFECTS FIXED, BOTH GATED, ZERO REGRESSIONS, +3 PROGRAMS BOTH MODES. THE REMAINING BEAUTY BLOCKER IS MINTED, BISECTED AND ROUTED.** SCRIP `2fda853c`+`efd2537b`, corpus `aca66aa3`+`34fc2c79`.
 
 **⛔⛔ CORRECTING s112 — `ev_min_arith` IS NOT ONE DEFECT AND IS NOT A CLEAN INSTRUMENT.** s112 banked EVAL as a single root defect ("wild jump, omega_driver signature") and routed the next seat at run-time-compiled-unit sealing. `EVAL('1 + 2')` **conflates THREE defects**, which is precisely why it measured regime-, arm- and mode-independent under every call-arm knob — those knobs were never going to move it. Decomposing along the manual's three EVAL argument forms (Ch.18) separated them **in one experiment set, before any code was read** (RULES.md: cheapest discriminating experiment first):
 
