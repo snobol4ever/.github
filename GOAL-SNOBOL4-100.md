@@ -49,7 +49,41 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s112 (Claude Opus 5) — **THE MONITOR NOW SYNCS 1040 STEPS OF THE BEAUTY SELF-HOST (was 48), AND THE FIRST NON-MONITOR DIVERGENCE IS NAMED, BISECTED AND ROUTED: `EVAL` IS BROKEN AT THE ROOT.** SCRIP `1b5f8849`+`2a56523e`, corpus `9e5b4708`+`0227c646`.
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s113 (Claude Opus 5) — **EVAL WORKS AT THE ROOT FOR THE FIRST TIME. TWO DEFECTS FIXED, BOTH GATED, ZERO REGRESSIONS, +3 PROGRAMS BOTH MODES. THE REMAINING BEAUTY BLOCKER IS MINTED, BISECTED AND ROUTED.** SCRIP `2fda853c`+`efd2537b`, corpus `aca66aa3`+`34fc2c79`.
+
+**⛔⛔ CORRECTING s112 — `ev_min_arith` IS NOT ONE DEFECT AND IS NOT A CLEAN INSTRUMENT.** s112 banked EVAL as a single root defect ("wild jump, omega_driver signature") and routed the next seat at run-time-compiled-unit sealing. `EVAL('1 + 2')` **conflates THREE defects**, which is precisely why it measured regime-, arm- and mode-independent under every call-arm knob — those knobs were never going to move it. Decomposing along the manual's three EVAL argument forms (Ch.18) separated them **in one experiment set, before any code was read** (RULES.md: cheapest discriminating experiment first):
+
+| shape | verdict |
+|---|---|
+| `EVAL(19)` · `EVAL('19')` numeric passthrough | never broken |
+| `*(1)` · `*(1 + 2)` · `*(1 + N)` leading INT literal | **DEFECT B — FIXED `2fda853c`** |
+| `EVAL('N')` · `EVAL('1 + 2')` run-time string compile | **DEFECT A — FIXED `efd2537b`** |
+| `EVAL('<literal>')` INSIDE a DEFINE'd function | **DEFECT C — OPEN, the beauty blocker** |
+
+**⭐ DEFECT B — A COMPILE-TIME EMITTER SIGSEGV, NOT A WILD JUMP (`2fda853c`, killswitch `SCRIP_SR3_FIX=0`).** `emit.cpp:1200`'s IR_SAVE_RESTORE role-3 shim read `IR_LIT(nd->γ.node).sval` with **no kind discriminator**. `IR_LIT` is a UNION — `sval` aliases `ival` — so an `IR_LIT_INTEGER` γ passes the non-null guard and `strncmp` dereferences the integer. gdb at the hit: `op_ival=3`, γ `op=36=IR_LIT_INTEGER`, `ival=1`, `sval=0x1`, SIGSEGV in libc with `walk_bb_node_inner` at frame #1. The shim's own comment names the one kind it wants, so `IR_GOTO_DEFERRED` is the whole allowlist; this is the identical disease the `IR_FUNC_ACTIVATE` ROLE DISCRIMINATOR comment documents nine lines above it. Fact spelled ONCE in `sr3_gamma_label()`.
+
+**⭐ DEFECT A — THE CHAIN HAD NO WAY HOME (`efd2537b`, killswitch `SCRIP_EVAL_RET=0`).** **CARVE-KILL (`ef9a7d2c`/`1ba33ea6`) deleted `xa_flat_prologue` — the PRODUCER half of the jmp-entry protocol — and the CONSUMER half survived.** The only surviving site that stores the {γ,ω} wire header is emit.cpp's `flat_lcl_proc` arm (~`:2741`). A chain armed `flat_jmp_entry=1`/`flat_lcl_proc=0` — exactly what `emit_jmp_entry_for_chain` produces — gets NO prologue, NO wire header, GLUE-O suppressed by its own `flat_jmp_entry` conjunct, and an epilogue that **`ret`s**. MEASURED at `emit_chain`: `flat_jmp_entry=1 flat_frame_bytes=112`, yet the emitted chain is `jmp α · jmp ω · α: sub rsp,16 ×3 … add rsp,48 · mov eax,2 · RET` — no `sub rsp,112`, no `mov [rsp+kt-24],rcx`. `rt_chain_enter` enters with `jmp *rax` pushing **no return address**, so that `ret` pops the stub's saved `%r15`. **That is the entire "omega_driver signature" the s103/s110/s112 arc kept re-encountering.** ⭐ **WHY ONLY EVAL BROKE — THE LOAD-BEARING OBSERVATION:** `code()` and `eval_build_chain` use **identical** bracketing; CODE fragments and LBL__ pseudo-procs end at `:(END)` and **run to termination**, so they never take the jump back and the missing way home is invisible to them. EVAL is the ONE citizen that must hand a value back. FIX = `rt_chain_enter_v`, a value-returning twin used only by the EVAL path; the terminating citizens keep `rt_chain_enter` byte-for-byte, so Lon's s59 ruling stands where it applies. ⚠ `sub $8 + push`, **not** a bare 6th push — the chain assumes `rsp ≡ 0 (mod 16)` at entry and a 6th push alone SEGVs in libc's SSE printf path (s59, `rsp=...be8`; recorded, not re-derived). **ZERO generated-code bytes move.**
+
+**GATES — honest A/B, both s113 killswitches OFF vs ON, same binary:** bb_probes `185/185 → 185/185` (s109/s112 watermark HELD) · crosscheck `190/190 → **192/192**` · feature_test `154/154 → **155/155**` · META `97.6 → **98.1**`. **ZERO REGRESSIONS, +3 both modes.** MD5 radius: probe/bb 188 compared 0 differing; crosscheck 316 compared 0 differing **1 CURED** (`1016_eval`, the program the EXIT-CLASS LEDGER names as the EVAL/CODE customer — SIG11 → PASS, m3≡m4, oracle byte-equal). **NO REGENS OWED** (default emission byte-inert over 504 programs). New instrument: `scripts/util_radius_sr3_fix.sh` (counts cured emitter crashes separately from radius movers — they are customers, not movers).
+
+**⛔⭐⭐⭐ NEXT SEAT STARTS HERE — DEFECT C, AND THE DISCRIMINATOR IS LITERAL-vs-VARIABLE.** Witnesses in `corpus/probe/eval/`, all with live `sbl` refs:
+
+| probe | shape | verdict |
+|---|---|---|
+| `ev_fn_literal.sno` | `F(x)` body `F = EVAL('1 + 2')` — **literal** arg | **SIG11** |
+| `ev_fn_var.sno` | `G()` body `G = EVAL(s)` — **variable** arg | PASS |
+| `ev_fn_beauty_shape.sno` | `R(t,n)` body `R = EVAL("epsilon . *Q(" t ", " n ")")` | PASS |
+| `ev_fn_noeval.sno` | same function shape, no EVAL | PASS |
+
+⛔ **IT IS NOT ARITY** — `ev_fn_var` is a ZERO-argument function and passes while `ev_fn_literal` takes one and dies. ⛔ **IT IS NOT THE PATTERN/CAPTURE/DEFERRED-CALL COMPOSITION** — `ev_fn_beauty_shape` is `semantic.inc:17` verbatim in substance and **PASSES**. The one moving part is whether EVAL's argument is a COMPILE-TIME STRING LITERAL or a runtime value, inside a program-defined function body. Crash is the same wild-jump class but frame #1 is `0x0`, not s112's `0x41ad68` — a different instance. **HYPOTHESIS, EXPLICITLY UNTESTED, DO NOT INHERIT AS FACT:** a constant argument may let the lowerer/optimizer fold or pre-mint the chain at COMPILE time, re-entering the emitter while the enclosing proc's graph is the emit context. **MEASURE IT FIRST — one observation kills or confirms it: breakpoint `eval_build_chain` on `ev_fn_literal` and see whether it fires during COMPILATION or during RUN.**
+
+**BEAUTY SELF-HOST STATE:** oracle `sbl -bf beauty.sno < beauty.sno` = **622 lines rc=0** md5 `9cddff2534472b822438801d8db58a99`. SCRIP m3 SIG11. Monitor reaches **step 1038**, PARTIAL EOF (scr died), spl still emitting `@591 RETURN nPush`. ⛔ **THE ORACLE NEEDS `-bf`, NOT `-b`** — with `-b` the oracle ITSELF exits 139 after 59 lines, which will read as an oracle-is-dead false signal.
+
+**ALSO MINTED s113, NOT FOLDED IN (never grade two changes in one measurement):** `DATATYPE(CODE(...))` returns `STRING`, oracle `CODE` (pre-existing — identical in the `SCRIP_EVAL_RET=0` arm) · `:< C >` with spaces fails to parse while `:<C>` parses and transfers correctly · `ev_beauty_shape` now gets `DT=PATTERN` right and stops one line short of `OK`.
+
+⛔ **STILL OWED FROM s112, UNTOUCHED THIS SEAT:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair — still blocking R-2. (ii) the monitor-only rsi-clobber at `bb_func_activate.cpp:335` (`mov rsi,[rsi+AB_OFF_RES0]` clobbers rsi before reading RES1). ⛔ **PUSH: SCRIP `2fda853c`+`efd2537b`, corpus `aca66aa3`+`34fc2c79` COMMITTED LOCALLY; credential asked in chat at session end (s113 asking now).**
+
+## LIVE CURSOR (superseded) — 2026-08-16 s112 (Claude Opus 5) — **THE MONITOR NOW SYNCS 1040 STEPS OF THE BEAUTY SELF-HOST (was 48), AND THE FIRST NON-MONITOR DIVERGENCE IS NAMED, BISECTED AND ROUTED: `EVAL` IS BROKEN AT THE ROOT.** SCRIP `1b5f8849`+`2a56523e`, corpus `9e5b4708`+`0227c646`.
 
 **⛔⛔ CORRECTING s111 — DO NOT INHERIT ITS FRAMING OF THE STEP-7 DEFECT.** s111 read it as "the GVA-off arm never reaches the AB activation tap" and routed the next seat at `bb_func_activate.cpp:335`. **FALSIFIED BY ONE EXPERIMENT, run before any code was read** (RULES.md: cheapest discriminating experiment first). Decomposing the regime shows the defect is **the NON-SLIM ARM ITSELF, in every regime** — GVA-off merely forces sites onto it:
 | regime | arm | result |
