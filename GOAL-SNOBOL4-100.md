@@ -49,7 +49,57 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s115 (Claude Opus 5) — **THE s114 CARRIER IS NAMED AND CURED: `g_bb_src`. SIX EVAL WITNESSES FLIP FAIL→PASS, ZERO REGRESSIONS, 1171-PROGRAM RADIUS CLEAN. MON-CAP LANDED: THE MONITOR CAN SEE EVAL PROGRAMS FOR THE FIRST TIME. BEAUTY DID NOT MOVE.** SCRIP `a4271a2f` + `0764f236`.
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s116 (Claude Opus 5) — **THE s115 STEP-5 QUESTION IS ANSWERED BY MEASUREMENT (SUPPRESSION IS SAFE). THE beauty m3 SIG11 IS BRACKETED TO ONE SOURCE LINE AND ONE RETURN PATH. m4 DOES NOT CRASH AND IS A WORKING REFERENCE. THE OWED KILLSWITCH PAIR IS FALSIFIED AS THE BEAUTY BLOCKER. BOARD DID NOT MOVE.**
+
+**⚠⚠ THE BOARD DID NOT MOVE — STATED FIRST, NOT BURIED.** `beauty_self` still 0/1. m3 `beauty.sno` self-host is still **rc=139 SIG11, 0 lines**. No program flipped FAIL→PASS this seat. This seat is diagnosis + witnesses only; NO CODE CHANGED, no gate re-run owed, no regens owed.
+
+**⭐⭐⭐ s115's STEP-5 QUESTION, ANSWERED THE WAY IT ASKED TO BE.** s115 forbade blind-suppressing `ZZEVALZZ` until measured. MEASURED via `MONITOR_TRACE_LOG` on `probe/eval/ev_fn_literal.sno`, both engines run singly (`PARTICIPANTS="scr"` / `"spl"`; a single participant cannot diverge, so both traces run to EOF):
+
+| step | spl (oracle) | scr |
+|---|---|---|
+| 1–4 | agree | agree |
+| **5** | `@4 VALUE F = INT=3` | `@4 VALUE ZZEVALZZ = INT=3` |
+| 6 | `@4 RETURN F (RETURN)` | `@4 VALUE ZZEVALZZ = STRING(0)=''` |
+| 7 | `LABEL stno=INT=3` | `@4 VALUE F = INT=3` ✅ |
+| 8–9 | `LABEL stno=INT=5` · `@5 END` | *(EOF at 7)* |
+
+**SCRIP DOES subsequently emit its own `VALUE F = INT=3`. The s112 trap does NOT apply — suppression aligns the traces and loses nothing.** ⛔ NOTE FOR THE IMPLEMENTER: there are **TWO** `ZZEVALZZ` events (the result AND a `STRING(0)=''` reset), not one; a filter that drops only the first still desyncs. Durable fix remains s112's mint-time marker on compiler names (`EVAL_TMP`/`"ZZEVALZZ"`, `runtime_eval.c:29`, carries no `$` so `mon_name_is_internal` cannot see it).
+
+**⭐⭐ NEW, WIDER MONITOR GAP — NOT EVAL-SPECIFIC, MEASURED ON A PASSING NON-EVAL FUNCTION.** Witness `corpus/probe/nret/mon_fn_plain.sno` (plain `DEFINE('G(x)')`, `G = 7`, both engines print `7`): scr trace ENDS at `#5 VALUE G = INT=7`; spl continues to `#10`. **SCRIP emits NO `RETURN` tap, NO post-return `LABEL`s (goto-only and bare-label statements), and NO `END` event.** This is wider than the documented `MONITOR_SKIP_BARE_LABEL_STNO` class and means the monitor is partly blind after EVERY function return — relevant to any beauty hunt, since beauty is function-dense. MON-CAP successor rung.
+
+**⭐⭐⭐ beauty m3 SIG11 BRACKETED TO ONE LINE.** `PARTICIPANTS="spl scr"` on beauty (stdin = itself) reports `PARTIAL EOF step 1038: ['scr'] done` — scr dies, spl runs on. Full scr trace (1037 events) ends:
+```
+#1033 @707 VALUE > = PATTERN      #1034 LABEL stno=INT=709
+#1035 @709 CALL nPush             #1036 LABEL stno=INT=591
+#1037 @591 VALUE nPush = PATTERN  [SIGSEGV]
+```
+**stno→line offset is CONSTANT (+590), verified over seven consecutive events** (`@702..@707` = `beauty.sno:112..117`, the six `$'(' $'[' $'<' $')' $']' $'>'` pattern assignments). ⛔ **The `build_stno_map.py` map does NOT match runtime numbering (it resolves 591→`XDump.inc:18`); do not trust it — use the +590 fingerprint.** Resolved:
+- callee `@591` = `semantic.inc:20` — `nPush  nPush = epsilon . *PushCounter()  :(RETURN)`; `PushCounter = .dummy :(NRETURN)` (`counter.inc:17`) — textbook manual NRETURN name-return-for-side-effect.
+- caller `@709` = **`beauty.sno:119`**, a CONTINUATION-LINE multi-term concatenation:
+  `ExprList = nPush() *XList ("'ExprList'" & '*(GT(nTop(), 1) nTop())') nPop()`
+- **`nPush()` RETURNED SUCCESSFULLY** (its VALUE event fired). The crash is in RETURNING INTO THE MIDDLE OF THAT CONCATENATION, not in the callee.
+
+**⭐⭐ THE RETURN PATH, FROM gdb (`SCRIP_NO_SEGV_HANDLER=1`).** Wild jump: `rip=0x7ffff7ffd000` (`_rtld_global`, a loader DATA page — not code), frame #1 null. **`r15` holds EXACTLY the faulting `rip`** (R15 = Δ per the register contract, NOT a call target). Chain resolved by `info symbol`: `_usercall_hook+1709` → `rt_call_named_proc+238` → `rt_proc_enter`; `+238` is precisely the instruction after `call rt_proc_enter`. r10/r11 = `rt_proc_enter+86`/`+106` = the γ/ω wires, exactly as the contract requires. **`rt_proc_enter` sets r10/r11 to its γ/ω landings then `jmp *%rax`; BOTH landings begin `pop %r15; pop %r14; pop %r13; pop %r12; pop %rbx`** — so **r15 (Δ) is RESTORED FROM THE STACK on every wire return**. A wrong stack depth on return through γ/ω pops garbage into Δ. Corroborating: stack holds `0x00000002f7ffd000` — low dword matches the bad pointer with a stray `2` in the high dword, the truncated-pointer signature s115 also saw in `unary_not.sno`.
+
+**⭐⭐⭐ m4 DOES NOT CRASH — MODE34-IDENTICAL VIOLATION AND A WORKING REFERENCE AT THE CRASH SITE.**
+
+| | rc | lines | md5 |
+|---|---|---|---|
+| oracle `sbl -bf beauty.sno < beauty.sno` | 0 | **622** | `9cddff2534472b822438801d8db58a99` |
+| m3 `--run` | **139 SIG11** | 0 | — |
+| m4 `--compile`+`gcc -no-pie` | **0** | 10 | `1c75f97d1907f92f4c0a8a3ef49eb9ee` |
+
+m4 reproduces the 7-line header correctly, survives the `nPush` site that kills m3, and fails GRACEFULLY at `beauty.sno:616` — `Src POS(0) *Parse *Space RPOS(0) :F(mainErr1)` → prints `Parse Error`. Same construct family in both modes (deferred eval of pattern variables built by NRETURN counter functions), but only m3 corrupts the return path. **⛔ NEXT SEAT: DIFF THE m3 JIT vs m4 `.s` AT `beauty.sno:119` BEFORE ANY FURTHER gdb DESCENT** — this is the same cheapest-discriminator that cracked the s113–s115 EVAL class, and it was not attempted here for want of context.
+
+**⛔ FALSIFICATIONS BANKED — DO NOT REDO:** (1) **`SCRIP_NRET_CAP=1`, `SCRIP_DYN_ALPHA=1`, and BOTH TOGETHER: beauty m3 stays rc=139 / 0 lines.** Lon's owed default (i) is NOT the beauty blocker — it may still be owed for other reasons, but it does not gate R-2 through this crash. (2) Three minimal deferred-NRETURN repros ALL PASS in m3 and oracle — `nr_defer_min` (call as whole RHS), `nr_defer_recur` (+ alternation/self-reference), `nr_defer_concat` (+ multi-term concatenation `nP() *XList nPop()`). The plain, recursive, and multi-term concatenation shapes are EXONERATED; **the missing ingredient is beauty's program-defined `&` operator and/or the string-embedded deferred expression `'*(GT(nTop(), 1) nTop())'`** — that is where the next repro attempt goes.
+
+**WITNESSES MINTED (`corpus/probe/nret/`, each with a live `sbl` `.ref`):** `mon_fn_plain.sno` (monitor RETURN/END gap) · `nr_defer_min.sno` · `nr_defer_recur.sno` · `nr_defer_concat.sno` (three PASSING controls that bound the repro search).
+
+**⛔ TRAPS RECORDED SO THE NEXT SEAT DOES NOT PAY THEM:** (a) the monitor's `*.go`/`*.ready` artefacts are **FIFOs** — `cat`/`head` on them BLOCKS FOREVER; read only `ctrl.out` and `MONITOR_TRACE_LOG` output. (b) `MONITOR_TRACE_LOG=/path/x.log` writes to `x.log.<participant>.log`, not `x.log`. (c) A SINGLE participant (`PARTICIPANTS="scr"`) cannot diverge and therefore runs to EOF — that is how you get a FULL trace; the 2-way run truncates at first divergence. (d) `scrip --compile` writes asm to STDOUT; link recipe is `compile_mode4()` in `scripts/test_snobol4_pat_rung_suite.sh`. (e) beauty lives at `corpus/programs/snobol4/demo/beauty/`, NOT `corpus/demo/beauty/` (PLAN/DoD spell the latter).
+
+⛔ **STILL OWED BY LON, NOW FIVE SEATS:** (i) default the `SCRIP_NRET_CAP=1`+`SCRIP_DYN_ALPHA=1` pair — **note this seat falsified it as the beauty blocker**; (ii) **the oracle md5** — INDEPENDENTLY RECONFIRMED this seat from the live binary: `9cddff2534472b822438801d8db58a99`, 622 lines, NOT the `abfd19a7…` pinned in DoD 2. **Milestone 1 cannot be declared either way until this is ruled.** ⛔ Also still owed from s112: the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+
+## LIVE CURSOR (superseded) — 2026-08-16 s115 (Claude Opus 5) — **THE s114 CARRIER IS NAMED AND CURED: `g_bb_src`. SIX EVAL WITNESSES FLIP FAIL→PASS, ZERO REGRESSIONS, 1171-PROGRAM RADIUS CLEAN. MON-CAP LANDED: THE MONITOR CAN SEE EVAL PROGRAMS FOR THE FIRST TIME. BEAUTY DID NOT MOVE.** SCRIP `a4271a2f` + `0764f236`.
 
 **⚠⚠ THE BOARD DID NOT MOVE ON BEAUTY — STATED FIRST, NOT BURIED.** `beauty.sno` self-host is still **rc=139 SIG11, 0 lines, in BOTH killswitch arms**. Oracle `sbl -bf beauty.sno < beauty.sno` = 622 lines rc=0 md5 `9cddff2534472b822438801d8db58a99`. `beauty_self` 0/1 unchanged. This seat cured a CLASS and opened the monitor; it did not earn Milestone 1.
 
