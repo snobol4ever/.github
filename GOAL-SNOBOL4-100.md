@@ -47,6 +47,8 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ---
 
+## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-15 s111 (Claude Opus 5) — **THE MONITOR BLOCKER IS CLOSED. THE 2-WAY IPC SYNC-STEP MONITOR NOW SYNCS THROUGH A DEFINE AND REPORTS A REAL FIRST DIVERGENCE.** SCRIP `5ee5e112` + `33f40528`.
 
 **⭐ WHAT LANDED (two commits, both gated, m4 TEXT byte-identical throughout):**
