@@ -26,6 +26,7 @@ Lon names a goal. You:
 5. Touches language corpus → read `CORPUS-LOCATIONS.md`.
 6. **SNOBOL4 (any rung) → the ONE goal is `GOAL-SNOBOL4-100.md`; every deleted SNOBOL4 GOAL-* name resolves there.**
 6b. **Icon (any rung) → the ONE goal is `GOAL-ICON-100.md`; every deleted Icon GOAL-* name resolves there.**
+6c. **Prolog (any rung) → the ONE goal is `GOAL-PROLOG-100.md`; every deleted Prolog GOAL-* name resolves there.**
 7. **Any BB codegen / template / `x86_asm.h` work (every `GOAL-*-BB` rung) → read the BB-CODEGEN DESIGN SET FIRST, NON-NEGOTIABLE:** `ARCH-ICON.md` (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`) and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (R2/R7/R9/R10 + the ONE-MEDIUM-INVISIBLE FACT RULE govern every new encoder; the `IF(MEDIUM_TEXT,..)+IF(MEDIUM_BINARY,..)` pair is the named forbidden shape).
 8. Open the Goal file + that repo's REPO file.
 9. Run the Goal file's `## Session Setup` scripts.
@@ -53,10 +54,10 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **RUNTIME RENAME / REORG** | `GOAL-RUNTIME-RENAME.md` / `GOAL-RUNTIME-REORG.md` | LI-CORE (Lon decision) / per-file CS subsystems. |
 | **SCRIP RENAME** | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename. |
 | **⛔⭐⭐⭐ ICON 100% — THE ONE ICON GOAL** ⬅ Lon 2026-08-15 s229: 15 Icon goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME on RBP, ζ-SPINE on RSP) | `GOAL-ICON-100.md` | R-0 = resurrect the default arm (fresh triple watermark at `07d6eae7`: default 1/262/30 · CELLS=1 235/28/30 · ZFRAME=0 78/185/30; bisect `8487d499..07d6eae7`, predicate proven at both ends). |
-| **Prolog BB** | `GOAL-PROLOG-BB.md` | See file. |
+| **⛔⭐⭐⭐ PROLOG 100% — THE ONE PROLOG GOAL** ⬅ Lon 2026-08-16 s165: 10 Prolog goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME, ζ-SPINE on RSP) | `GOAL-PROLOG-100.md` | R-0h harness honesty then R-0 reconquest (s165 live watermark: smoke 3/5 · rung 113/109 of 164 · bench-22 green=8); R-1 = ZK-5B per its restart protocol. |
 | **Pascal BB** | `GOAL-PASCAL-BB.md` | 7th frontend (P4 subset); toolchain in `corpus/programs/pascal/`. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
-| **PST Parent / SNOBOL4 / Snocone / Raku / Prolog** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` + `GOAL-PST-*.md` | See files. |
+| **PST Parent / Snocone / Raku** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` + `GOAL-PST-*.md` | See files. (SNOBOL4 PST → `GOAL-SNOBOL4-100.md`; Prolog PST → `GOAL-PROLOG-100.md`.) |
 | **TEMPLATES X86 / JVM / .NET / JS / WASM** | `GOAL-TEMPLATES-*.md` | Per-backend; per-language state in `GOAL-*-BB.md`. |
 | **IR REDESIGN** | `GOAL-IR-REDESIGN.md` | IRD-0 open. |
 | **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed. |
