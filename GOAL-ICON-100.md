@@ -52,6 +52,34 @@ bash scripts/test_icon_all_rungs.sh 2>/dev/null | tail -1   # fresh watermark FI
 
 ---
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-15 s231 (Claude Sonnet 4.6) — **BENCHMARKS RUNNING vs Arizona Icon 9.5.25a; pos(0) STALE-Δ ISOLATED; WITNESSES MINTED IN corpus/probe/icn/; NEXT: Z-4 δ ESTABLISHMENT**
+- **SCRIP commits this session:** none (all bench-args + =s fixes landed by concurrent seat; my independent convergence confirmed and verified). **corpus commit:** `77ae69b1` — two Z-4 witnesses under `probe/icn/`.
+- **WATERMARK at `ccb7e7b9`, clean tree, pinned:** Icon m3 **235/28/30** · canary rc=0 ×3 arms · SN4+Prolog invariant held.
+- **MICRO-BENCHMARKS vs Arizona Icon — ALL 7 byte-identical (first correctness-gated perf numbers):**
+
+| Benchmark | iconx | SCRIP m4 | Speedup |
+|---|---|---|---|
+| bench_icnint_loop | 154ms | 22ms | **7.00x** |
+| bench_icnstr_concat_dispatch | 157ms | 65ms | **2.42x** |
+| bench_icnstr_concat_table | 362ms | 234ms | **1.55x** |
+| bench_icnsub_list_dispatch | 275ms | 178ms | **1.54x** |
+| bench_icnsub_table_miss_dispatch | 193ms | 192ms | 1.01x |
+| bench_icnstr_concat_int_dispatch | 241ms | 366ms | **0.66x** |
+| bench_icnsub_table_miss_semantics | 8ms | 14ms | 0.57x |
+
+Geometric mean ~1.5x. Integer arithmetic 7x — strongest evidence for the "ten times faster" thesis. ⚠️ **Regression:** plain str concat 2.42x, str concat WITH integer coercion 0.66x — inverted by the BINOP_CONCAT coercion path (Z-5(b) material). Harness: `/home/claude/microbench.sh` (timing only on byte-identical output).
+- **⛔ THE HEADLINE 8 STILL 0/8 — and why.** The chain: `main(args)` was null (fixed `c7338c61`) → `options()` now gets args → `=s` sugar set cursor to end (fixed `90618b21`) → `not pos(0)` NOW WRONG because **Δ (subject length) is stale** after a prior scan block. `pos(0)` means "at end" → non-positive conversion needs Δ → stale/zero Δ makes end = 1 → `not pos(0)` at position 1 succeeds wrongly → options() takes the else branch → `put(flist,x)` gets operands from wrong slots → "Error 5 Undefined function." Every headline benchmark parses `-` options.
+- **⭐ ISOLATED: pos(0) STALE-Δ DEFECT — the remaining root cause for 7/8 benchmarks.**
+  ```
+  ORACLE:  B &pos=1 pos(1)=Y pos(0)=N pos(5)=N
+  SCRIP:   B &pos=1 pos(1)=Y pos(0)=Y pos(5)=N   ← pos(0) only
+  ```
+  `&pos`, `pos(1)`, `pos(5)` all correct. Only `pos(0)`. Triggers after a prior scan block runs `=s`. Witnesses: `corpus/probe/icn/witness_icn_pos0_stale_delta.icn` + `witness_icn_options_dash_branch.icn` (both oracle-verified at `ccb7e7b9`).
+  - **FALSIFIED (do not retry):** missing get/put builtins · missing `;` after `local` decl · `not` broken · `pos()` broken generally · scan-state leakage between blocks · 90618b21 `=s` cursor fix covering pos(0) — it fixes cursor (pos=2 ✓) but NOT Δ.
+- **⛔ NEXT RUNG (Z-4):** ONE both-medium Σ/δ/Δ establishment site at scan entry per `ir_a_Scan` ScanSwap topology. Read `refs/icon-master/src/runtime/fscan.r` (`cvpos`/`k_pos`) and `ir_a_Scan` in irgen.icn first. Witness in `corpus/probe/icn/` confirms the predicate at both ends. Do NOT touch xa_flat's shared prologue. Gate: scan green + witness IDENTICAL.
+- **CONCURRENCY NOTE:** Shared tree moved twice under me mid-session (cc626b89→c7338c61→90618b21→ccb7e7b9). My main(args) diagnosis was independently converged by the concurrent seat. Mitigation: isolated pinned clones for all measurements (LAW 4). Suggest adding "MEASURE PINNED" as a one-liner to the hygiene laws.
+- OWED: push credential (Lon supplied; push pending in this handoff) · Z-4 δ establishment · Z-3 unchanged.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-15 s231 (Claude Opus 5) — **BENCH-1 OPENED: TWO ROOT CAUSES FOUND AND FIXED. THE BENCHMARK OUTPUT-EMPTY CLASS IS NOT ONE DEFECT, IT IS A CHAIN.**
 - **SCRIP commits this session:** `c7338c61` main(args) bind · `90618b21` cursor-mover carve compensation. ⛔ NOTHING PUSHED — credential ask STILL OPEN, now covering 5 SCRIP commits (`8303fb8f` `f9beec6d` `b1fc1ac4` + these two) and 1 `.github`.
 - **WATERMARK at `90618b21`, clean tree, pinned:** Icon m3 **235/28/30** (held across BOTH commits — these fixes live in the benchmark corpus, not the rung suite) · canary rc=0 ×3 arms · Prolog honest FAIL=0 · SN4 broad_corpus **310/24** invariant (R-ICN-D proven on both commits, and A/B'd under killswitch on the first).
