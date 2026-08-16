@@ -49,6 +49,42 @@ timeout 8 /home/claude/x64/bin/sbl -b corpus/probe/m1/m1_alt_arm2_cap.sno   # or
 
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s117 (Claude Opus 5) — **THE s116b OPSYN VERDICT IS OVERTURNED BY MEASUREMENT: IT IS NOT OPSYN. THE DEFECT IS THE BY-NAME CALL PATH INTO ANY EMITTED DEFINE BODY, AND IT IS A SPELLED-TWICE INSTANCE OF A BUG s104/s108 ALREADY FIXED ONCE. beauty m3 NO LONGER SIGSEGVs AND m3 md5 == m4 md5.** SCRIP `627cbfa1`.
+
+**⛔ CORRECTION TO s116b — "THE DISCRIMINATOR IS `OPSYN`" IS FALSE.** OPSYN name resolution is CORRECT: under gdb, `_usercall_hook("&")` resolves `FUNC_ENTRY_fn('&') -> "R"` and re-dispatches exactly as designed. The first call with `"&"` returns FAIL cleanly; the SIGSEGV is in the SECOND call, `rt_call_named_proc("R", args, 2)`. **An OPSYN'd operator is merely the most common route to a broken by-name path — it is not the defect.** Predicted and confirmed: `APPLY('R','a','b')` (no OPSYN anywhere) hits the same path and was ALSO wrong (`GOT-` vs `GOT-ab`) before this rung.
+
+**⭐⭐⭐ ROOT CAUSE — SPELLED-TWICE DISEASE, THE FILE'S OWN NAMED HAZARD.** `rt_call_named_proc` entered an emitted body via `rt_proc_enter((void *)p->fn)`. `p->fn` from `rt_define_site` is the **GENERIC ENTRY THUNK**, which does not speak the wire protocol the emitted body exits by ⇒ the wire jmp lands wild at `rip=_rtld_global`. rt.c:875 has NAMED this exact hazard since s104 (*"wrong protocol for emitted bodies — rip=5 crash class, APPLY('F') repro"*) and s104/s108 cured it with the sealed `alpha$<FN>` target + `rt_tiny_record_enter` — **in the sibling `rt_call_proc_descr` ONLY.** Two other by-name paths kept the old spelling for thirteen sessions.
+
+**⭐⭐ THE WITNESS LADDER (each one cheap, no gdb needed for the first four):**
+
+| probe | shape | m3 before |
+|---|---|---|
+| `ctl_call2` (minted) | identical 2-arg body, called normally | **PASS** — arity/body/concat exonerated |
+| `a_reg_only` (minted) | `OPSYN` DECLARED, callee called normally | **PASS** — registration exonerated |
+| `b_noargs` (minted) | infix dispatch, callee IGNORES its args | **SIGSEGV** — args exonerated, dispatch alone kills |
+| `c_trace` (minted) | infix dispatch, `OUTPUT` INSIDE the body | prints `IN-BODY`, **THEN** dies ⇒ **the crash is on RETURN, not entry** |
+| asm diff `a` vs `b` | wire/BB protocol + sig block vs `call rt_call_arr` | two entirely different call mechanisms |
+
+**⭐ LANDED (`627cbfa1`, killswitch `SCRIP_BYNAME_ALPHA=1`, DEFAULT OFF).** `rt_call_named_proc`'s dyn arm now mirrors `rt_call_proc_descr` verbatim — sealed alpha$ target entered via `rt_tiny_record_enter` BEFORE any C open/prologue, since that face owns its own bookkeeping. Compiler-internal `<ident>$` names are EXCLUDED (see the open rung below for why).
+
+**GATES — honest A/B, same binary, `SCRIP_BYNAME_ALPHA` OFF vs ON:**
+- scorecard `bb_probes`+`crosscheck`, **384 rows: IDENTICAL in both arms, META 98.4, ZERO movers.**
+- `probe/opsyn/` 12 programs: **OFF 1 PASS / 7 SIGSEGV → ON 3 PASS / 0 SIGSEGV.**
+- **`beauty.sno` m3 self-host: OFF rc=139 SIG11 / 1 line → ON rc=0 / 10 lines.**
+- **`beauty` m3 md5 == m4 md5 == `1c75f97d1907f92f4c0a8a3ef49eb9ee` ⇒ the s116 MODE34 VIOLATION AT beauty IS CLOSED.** Both modes now stop identically at `beauty.sno:616` `Parse Error`.
+- Emitted `.s` **byte-identical** to pre-change ⇒ **NO REGENS OWED** (measured, not assumed).
+
+**⛔⛔ TRAP THIS SEAT PAID — DO NOT REPEAT: `SCRIP_DYN_ALPHA=0` IS NOT A CLEAN "OFF" ARM.** It also disables s108's pre-existing dyn-alpha, which independently flips `f6d`/`t6m`/`fence_probe` green. Using it as the OFF arm produced a CONVINCING BUT FALSE 4-program regression against this rung. Those three are the **pre-existing s116 failing set** and fail at default with or without this rung. Always A/B on `SCRIP_BYNAME_ALPHA`.
+
+**⛔⭐⭐⭐ NEXT SEAT STARTS HERE — TWO NAMED, BOUNDED RUNGS.**
+1. **ARGS DO NOT ARRIVE ON THE BY-NAME PATH** (`opsyn_noeval` → `GOT-`, oracle `GOT-ab`; same for `APPLY`). CAUSE IS KNOWN AND THE CONTRACT IS WRITTEN DOWN: `rt_tiny_record_enter` implements the **zero-arg** case only — it allocates 48B (16B result cell + a 3-quad record) and hardcodes `movq $0, 16(%rsp)`. The emitted 2-arg site (read from `a_reg_only.s`) shows the real contract is a **5-quad record `{nargs, γ, ω, argbytes, argbase=16}` with the args on the STACK ABOVE the result cell in REVERSE order** (last arg nearest, at `[rsp+16]`). Required layout at the jmp: `[rsp+0..15]` result cell · `[rsp+16 .. 16+16n)` args reversed · record above them, `rcx = &record`, total `64+16n` to keep the 16B alignment the shim documents. ⛔ Do NOT just widen the `$0` to `nargs` — MEASURED, that alone turns the working 0-arg cases into SIGSEGV, because the callee then reads args from stack that was never allocated.
+2. **`f6d` / `t6m` / `fence_probe` (`*DIFFER(X)` EXPR$ thunks, `Error 22`).** These are why `<ident>$` is excluded above: the tiny-record path skips `rt_proc_call_prologue`, **the only thing that resolves name cells** (rt.c:1698 says so outright), and emitted callers stage those themselves where a C by-name caller has not. The `$` gate cured `1016_eval` but not these two — they need the cell staging, not the entry fix.
+3. `rt_call_proc_direct` carries the SAME generic-entry-thunk hazard and was left VERBATIM — no witness this seat reached it. Suspected twin, not a claim.
+
+**⛔ STILL OWED BY LON, NOW SEVEN SEATS — (ii) THE ORACLE md5.** Reconfirmed a THIRD time this seat from the live binary: `sbl -bf beauty.sno < beauty.sno` = **622 lines, md5 `9cddff2534472b822438801d8db58a99`**, NOT the `abfd19a7…` pinned in DoD 2. **Milestone 1 cannot be declared either way until this is ruled.** Also still owed: (i) the `SCRIP_NRET_CAP`/`SCRIP_DYN_ALPHA` default (falsified as the beauty blocker at s116, still owed for other reasons); and from s112 the monitor-only rsi-clobber at `bb_func_activate.cpp:335`.
+
+**⭐ NEW, UNRELATED, MINTED NOT CHASED:** unary `OPSYN` (`i=1`) does not lower AT ALL — `OPSYN('!','U',1)` dies in `lower_snobol4` with *"binary operator with missing operand"*. Manual Ch.8 p.116 blesses the construct (`OPSYN('!','UCASE',1)` is the manual's own example). Witness `/tmp` only; needs minting into `probe/opsyn/`.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-16 s116b (Claude Opus 5, PARALLEL SEAT) — **THE s116 SEAT'S OPEN QUESTION IS CLOSED: IT IS `OPSYN`. 6-LINE WITNESS, NO EVAL, NO PATTERNS, NO DEFERRED EXPRESSIONS. THE PRE-EXISTING `probe/opsyn/` SUITE WAS ALREADY 11 FAIL / 1 PASS AND NOBODY HAD RUN IT.** SCRIP `15a62d6a`, corpus `47395100`.
 
 ⚠ **TWO SEATS RAN CONCURRENTLY AND BOTH SELF-NUMBERED s116.** This section is s116b; the s116 section BELOW is retained in full — it is not superseded, it is **completed** by this one, and two of its items are corrected here with measurements. Read both.
