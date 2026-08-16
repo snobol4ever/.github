@@ -117,3 +117,66 @@ having a named residual, with `arbno_defer_stored_red` as its gate and `beauty.s
 counter at the ARBNO element-match site inside the stored blob, and answer one question: on the first
 iteration, why does the deferred element's match report failure. Compare against `arbno_lit_stored_green`,
 whose only difference is that the element is a literal; an instruction identical in both is exonerated.
+
+---
+
+# ⭐⭐⭐ ADDENDUM — ROOT CAUSE FOUND WITHOUT gdb: **THE STORED-PATTERN BLOB'S β PORT IS A DEAD END**
+
+The prescribed cheapest-discriminating-experiment (RULES: "a diff of their emitted asm") answered it outright.
+Minimal pair, differing only in literal-vs-deferred element:
+
+- `arbno_lit_stored_green.sno` — `C = ARBNO('a')` → **no blob at all.** The pattern is folded INLINE into `main`,
+  ARBNO on ζ-SPINE (`n6_match_arbno_α: sub rsp,16`, slots `[rsp+0]/[rsp+4]`). 229 lines of asm. PASSES.
+- `arbno_defer_stored_red.sno` — `C = ARBNO(*D)` → the deferred element forces a **separately-compiled blob**
+  `FN__PAT$0`, ARBNO on the blob's own RBP activation (`[rbp-32]/[rbp-28]`). 461 lines. FAILS.
+
+**So the literal case is green because it never becomes a blob.** The green sibling exonerates nothing in the
+blob path — it does not exercise it. That is why this class survived every inline ARBNO gate.
+
+## The emitted blob, four ports (`grep -n 'PAT\$0' /tmp/r.s`)
+
+```
+FN__PAT$0 / PAT$0_α_body:  push rbp; mov rbp,rsp; sub rsp,40
+                           mov [rbp-8],r10   ; γ wire saved
+                           mov [rbp-16],r11  ; ω wire saved
+n0_match_arbno_α:          mov [rbp-32],r14d ; start cursor
+                           mov [rbp-28],r14d;  jmp PAT$0_γ    ← NULL MATCH taken, go forward
+n0_match_arbno_β:          jmp n1_match_defer_α               ← THE RETRY EDGE. never reached.
+n0_match_arbno_af:         ... jmp PAT$0_ω                    ← interior exhaustion routes to ω ITSELF
+PAT$0_res:                 mov r10,[rsp+8]; mov r11,[rsp+16]; mov rbp,[rsp+24]; add rsp,32
+PAT$0_β:                   jmp PAT$0_ω                        ← ⛔ DEAD END
+PAT$0_γ:                   ... push rbp; push r11; push r10; lea rax,[rip+PAT$0_res]; push rax
+                           mov rbp,[rbp+0];  jmp r10
+PAT$0_ω:                   mov rsp,rbp; pop rbp;  jmp r11
+```
+
+**The suspension machinery is already 90% built and correct.** γ pushes a genuine resume address
+(`PAT$0_res`) so the caller *can* re-enter the blob, and `PAT$0_res` correctly restores r10/r11/rbp and
+unwinds the 32-byte suspension record. Then it **falls through into `PAT$0_β`, which unconditionally
+`jmp PAT$0_ω`** — reports total failure — while the ARBNO's own retry edge `n0_match_arbno_β` sits three
+instructions away, unreachable. **The blob can be resumed; it just refuses to retry when it is.**
+
+This explains every row of the ladder exactly:
+- `Src=''` → the null match already satisfies `RPOS(0)`, no backtrack is ever requested → **MATCH** ✔
+- `Src='a'` → outer `RPOS(0)` fails, backtracks into the blob, hits `PAT$0_β` → ω → **NOMATCH** ✔ (and this
+  is why it fails at ONE element, with no retry required — it is not a backtracking-depth bug)
+- literal element → never a blob → **PASS** ✔
+
+## The fix shape (small, and safe by the blob's own construction)
+
+`PAT$0_β` must route to the blob graph's interior last-choice-point (here `n0_match_arbno_β`), not to ω.
+⭐ **ω remains correct as the exhaustion answer and needs no guard**, because the interior already routes its
+own exhaustion out: `n0_match_arbno_af … jmp PAT$0_ω`. So β→interior cannot leak a hung match; a blob whose
+interior has no choice point still reaches ω on its own.
+
+**Start here:** `src/emitter/emit.cpp:2288` `blob_frame_scope()` — the file's own comment calls it *"R-4(b)
+THE ONE AUTHORITY for 'this graph is a stored-pattern PAT$ blob activation'"* (used at `:2277`). The β-port
+emission for blob-scope graphs is what stubs to ω. **ONE AUTHORITY law applies — fix it at the port
+emission, do not special-case ARBNO**; `ARB`, `ARBNO(D)` and `defer_star_arb` are all RED for this one reason,
+and all four should go green together.
+
+**Gate for the fix:** `probe/arbnostore/` 8/8 (4 RED → GREEN, 4 GREEN unmoved) · `probe/dv/` and `probe/mrbp/`
+unmoved · killswitch byte-identity is N/A (shape change) ⇒ md5 blast radius over crosscheck+patterns+probe,
+BY SET, ZERO PASS→fail · then re-run `beauty.sno < beauty.sno` both modes: it should advance past line 8.
+⛔ Milestone 1 needs the WHOLE 622-line fixed point — expect the next blocker behind this one, and re-measure
+rather than assuming this is the last.

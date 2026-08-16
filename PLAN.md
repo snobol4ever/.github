@@ -34,7 +34,7 @@ Lon names a goal. You:
 ### Clone SPITBOL oracle
 ```bash
 git clone https://github.com/snobol4ever/x64 /home/claude/x64
-/home/claude/x64/bin/sbl -b file.sno
+/home/claude/x64/bin/sbl -b file.sno   # ⛔ beauty.sno needs -bf; plain -b SIGSEGVs rc=139 (s122)
 ```
 
 ---

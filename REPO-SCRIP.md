@@ -54,7 +54,7 @@ Build later: `git pull --rebase; rm -f scrip; make scrip`.
 | `src/runtime/` | rt/, core/, builtins/ |
 
 ## Oracle
-SPITBOL x64: `git clone https://github.com/snobol4ever/x64 /home/claude/x64`; `/home/claude/x64/bin/sbl -b file.sno`.
+SPITBOL x64: `git clone https://github.com/snobol4ever/x64 /home/claude/x64`; `/home/claude/x64/bin/sbl -b file.sno` (⛔ beauty.sno needs `-bf`; plain `-b` SIGSEGVs rc=139 after 34 lines — s122).
 
 ## Tools by backend
 x86: nasm · JVM: default-jdk + jasmin.jar · .NET: mono-complete · WASM: wabt.

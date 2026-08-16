@@ -58,7 +58,7 @@ The phrase "handoff complete" (or any terminal doneness claim) MUST NOT be spoke
 5. `git add -A && git commit` each touched repo. 6. `git pull --rebase && git push` — code repos first, `.github` last. (You should already have pushed most of this mid-session.) **6b. ⛔ CREDENTIAL (Lon 2026-08-09): push needs a credential ⇒ ASK LON IN-CHAT AND WAIT — he supplies it EVERY session when asked.** Ending the session unpushed without having asked, or writing "push pending" into any doc or commit message (STALE-ORIENTATION a), is a protocol violation. Conviction: s19–s26 stranded eight sessions of MECH work and BUG-7 was re-derived from scratch. 7. Run `handoff_status.sh`, paste verbatim; done IFF it prints HANDOFF COMPLETE.
 
 ## Oracles
-SPITBOL x64: `git clone https://github.com/snobol4ever/x64 /home/claude/x64`; invoke `/home/claude/x64/bin/sbl -b file.sno`.
+SPITBOL x64: `git clone https://github.com/snobol4ever/x64 /home/claude/x64`; invoke `/home/claude/x64/bin/sbl -b file.sno` (⛔ beauty.sno needs `-bf`; plain `-b` SIGSEGVs rc=139 after 34 lines — s122).
 
 ## Testing
 - Run goal's gate before every commit. No broken commits.
