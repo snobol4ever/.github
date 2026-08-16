@@ -39,11 +39,44 @@ handled correctly today. What breaks is STATE RETAINED ACROSS γ.** This is a sh
 "generators are dynamic", and it is independently falsifiable — if a pure-D1 rung ever fails, or a
 conversion fixes D2/D3 without touching D1, this claim is the thing that predicted it.
 
-⛔ **CONSEQUENCE FOR THE PLAN:** this is positive evidence for **Z-3's off-spine activation** over any
-addressing/compensation patch, and it agrees from an independent direction with s234b's finding that a
-cumulative-depth patch cannot work (depth is not path-invariant at merge points). A patch that only
-fixes *addressing* leaves D2/D3 retention untouched, which is exactly what s233's release-only
-experiment and s234's "correct base but keep the carve" experiment each falsified from opposite sides.
+### ⭐⭐⭐ FIRST TEST OF THIS CLAIM — s235's SCAN FIX, RE-DERIVED INDEPENDENTLY (s236)
+
+The claim above was written at `860a9e43` **before** s235's Z-3/Z-4 fix landed, so the fix is a genuine
+out-of-sample test of it. Re-derived on this seat's own clean clone at SCRIP `4fc01bee` / corpus
+`6288c09c` (tree clean, `pgrep scrip`==0, canary rc=0 ×3): **Icon m3 239/24/30**, matching s235's
+reported number exactly, **zero new failures** (`comm` against the pinned 28-fail set).
+
+| | at `860a9e43` | at `4fc01bee` | verdict |
+|---|---|---|---|
+| pure-D1 (alt·case·every·while·until·repeat·if) | 39 PASS / 0 FAIL | **40 PASS / 0 FAIL** | ✅ **CONFIRMED** — still zero, and the one contaminating grep hit (`rung37_scan_alt`, D3) is now a PASS |
+| D2/D3 | all 16 failures | 4 fixed, 13 remain ¹ | ✅ locus confirmed — every fix landed on a D3 row |
+
+**The 4 programs fixed:** `rung36_jcon_wordcnt` · `rung37_scan_alt` (both D3-scan, as predicted) —
+**plus `rung36_jcon_meander` and `rung36_jcon_mffsol`.**
+
+⭐ **LEDGER CORRECTION FALLING OUT OF THIS:** `meander` was recorded as **Z-3 (D2 suspend)** and `mffsol`
+as **Z-5**, but both were in fact **scan-blocked** and fell to a D3 fix. **The recorded 10/6/12
+decomposition over-attributed to Z-3 and Z-5.** True remaining decomposition at `4fc01bee` is
+**9 D2-suspend / 4 D3-scan (`jcon_scan`, `scan1`, `scan2`, `subjpos`) / 11 Z-5** = 24.
+
+### ⛔ AND WHERE THIS FILE'S FIRST DRAFT WAS WRONG — RECORDED, NOT QUIETLY EDITED
+
+The **locus** claim (D2/D3, never D1) survived. The **remedy** framing it inherited from the goal file —
+"the retained cell must move OFF the spine into a ζ-ACTIVATION FRAME" — is **FALSIFIED for the scan
+family.** s235's fix was a **DELETION**: `bb_scan_tab.cpp` already addresses its cell as `FRQ(op_off+16)`,
+an ordinary flat frame quad **the allocator already grants**, so the `sub rsp,16` was a *second
+allocation of a slot that already existed off-spine*. There was never anything to compensate, and
+nothing needed moving. ⛔ **Read that as a warning about this whole family of diagnoses:** three
+sessions reasoned about how to correctly *compensate* or *relocate* a carve that should simply not have
+been emitted. Check for double-allocation before designing a relocation.
+
+⛔ **THE D2 SET IS UNTOUCHED — 9 suspend programs remain and they are the real test of the
+activation-frame thesis.** Nothing above licenses assuming they are also a double-allocation; s234's
+hand-patch evidence (γ destroys the suspended frame; caller handshake disagrees three ways) is
+independent and still stands.
+
+¹ 16 − 4 fixed = 12 D2/D3, plus `mffsol` was a Z-5 row that the D3 fix also cured; the 13 counts the
+D2/D3 rows still failing.
 
 ---
 
