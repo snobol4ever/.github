@@ -124,15 +124,42 @@ Composed, clobarm goes **4/5**, m3+m4.
   The pre-fix bracket was minted **before any code was touched**.
 - **beauty self-host 10/622, ON == OFF byte-identical — NEUTRAL, no regression.**
 
-## 7. ⛔ AN UNRELATED DEFECT FOUND AND BANKED, NOT CHASED (END-OF-CONTEXT LAW)
+## 7. ⛔ AN UNRELATED DEFECT FOUND, ROOT-CAUSED IN ONE SHOT, AND ROUTED (NOT FIXED)
 
-**`corpus/programs/snobol4/parser/unary_not.sno` compiles NONDETERMINISTICALLY.** Three consecutive
-`--compile` runs of the *same* binary produce three different md5s, on the baseline compiler as well as
-the new one. This is stronger than s119's *"build-to-build nondeterminism"* — it is **run-to-run, same
-binary**. It is the entire noise floor of the 962-program md5 instrument, so **any future killswitch
-byte-identity claim over this corpus must either exclude it or measure the null against itself**, exactly
-as this rung did. Cheapest next step: diff two runs of its emitted `.s` and look for a baked pointer,
-address, or hash-order artefact. Not opened here.
+**`corpus/programs/snobol4/parser/unary_not.sno` (`x = ~BREAK(nl)`, 2 lines) emits UNINITIALIZED MEMORY
+AS A STRING CONSTANT.** Three consecutive `--compile` runs of the *same* binary give three different md5s,
+on the baseline compiler as well as the new one — **run-to-run, same binary**, stronger than s119's
+"build-to-build nondeterminism".
+
+**The diff is exactly two lines, and it is the whole story.** The program emits exactly ONE string
+constant, and that constant's *content* is garbage that changes per run:
+
+```
+104c104
+< .S0:                    .string          "G)\001"
+> .S0:                    .string          "2 \002"
+```
+
+`.S0` is consumed at `n5_assign_α: lea rdi, [rip + .S0]` — it is the **assign target's variable name**,
+which for `x = ~BREAK(nl)` must be the string `"x"`. Three bytes of uninitialized heap are being emitted
+where a variable name belongs. A program of this shape that reached its assign would store into a
+**randomly-named variable**.
+
+**WHY IT HAS STAYED INVISIBLE — and why it is md5 noise rather than a red row today:** the live `sbl`
+oracle *also* fails this program (`ERROR 069 — break argument is not a string or expression`, `nl` being
+undefined), and SCRIP reproduces that error faithfully, so the erroring BREAK fires before the assign is
+ever executed. The defect is therefore **latent at runtime and visible only in the emitted text**.
+
+⛔ **THE INSTRUMENT CONSEQUENCE, WHICH BINDS EVERY FUTURE SEAT:** this one program is the **entire noise
+floor** of the 962-program md5 blast-radius instrument over `crosscheck + programs/snobol4 + probe`. Any
+future killswitch byte-identity claim over this corpus must either exclude it or **measure the null
+against itself**, exactly as §6 did — otherwise a clean rung reports one phantom mover and an unclean one
+hides inside the same slot.
+
+**NOT FIXED HERE (END-OF-CONTEXT LAW):** the repro is minted, the mechanism is named, the consumer site is
+named. Next seat: find who fills the assign-name string for the `~` unary arm in `lower_snobol4.c` /
+the strtab constructor and give it the initialized name; gate on this file's `.s` becoming stable across
+three runs, then re-measure the noise floor to **zero**.
 
 ## 8. WHAT IS NOT DONE
 
