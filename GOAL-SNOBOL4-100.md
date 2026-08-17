@@ -50,7 +50,29 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
-## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s139 (Claude Sonnet 4.6) — **THE CHECKER WAS BLIND TO 52% OF BEAUTY'S ζ TRAFFIC (CHOICE), NOW UNBLINDED. DEFER β MUST RESTORE-THEN-RESUME. BEAUTY UNMOVED (10/622). RESIDUE: β CANNOT TRUST AMBIENT RBP.** SCRIP `0887f44c`. All rungs DEFAULT-INERT.
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s140 (Claude Sonnet 5) — **TWO STATIC/AMBIENT SHAPES FALSIFIED FOR THE DEFER β FIX. THE RIGHT SHAPE IS ALREADY NAMED IN THIS CODEBASE: U-2, THE RECORD-FIELD TIER (ZREFS's own comment, x86_asm.h:1197). ABLATION NET MINTED AND LIVE. NO TEMPLATE CHANGE SURVIVES THIS SESSION — TREE IS BYTE-IDENTICAL TO s139 HEAD.** SCRIP `0887f44c` (unchanged). corpus `f8a40d63` (ablation table, NOT YET PUSHED). See FINDING-2026-08-17-s140.
+
+### ⭐⭐⭐⭐⭐ WHAT LANDED — s140
+- **ABLATION TABLE MINTED:** s139 sec.2's 5-witness table now lives at `corpus/probe/m1/{m1_defer_ALT,m1_defer_SPAN,m1_defer_LEN0,m1_inline_ALT,m1_nodefer_ALT}.{sno,ref}`, oracle-verified, reproduces s139's verdicts exactly on HEAD. This net caught a real regression on its FIRST use (next bullet) before it went near beauty.
+- **HYPOTHESIS 1 FALSIFIED (static offset):** widened the γ records to 24B with `rbp` as a 3rd quad, read at β via a baked `RDQ("rsp",16)`. Default-off byte-identical; `SCRIP_DEFER_CARVE_RBP=1` SEGVs ALL 5 witnesses, including the 3 standing-greens. Cause: β is reached from call sites at genuinely different, dynamically-varying stack depths (confirmed: two defer nodes in one program baked `[rsp+16]` vs `[rsp+32]` for nominally the same record) — no compile-time-constant RSP distance exists across a defer boundary, the exact law `x86_frame_off`'s own comment already states. Reverted clean, re-confirmed byte-identity.
+- **THE RIGHT SHAPE WAS ALREADY NAMED, NOT DISCOVERED:** `ZREFS`'s own s139 comment (x86_asm.h:1197) says U-2 is "the RECORD-FIELD tier that ends per-template record layout assumptions (the s132 deferclob corpse: IR_MATCH_DEFER β = bare `jmp [rsp]` three lines from IR_MATCH_ALTERNATE β = `[rsp+8]`)" — this IS the defect this rung chases, already scoped, not yet built. Model: `sn4_choice_rbp_off()` + `zone_ref()`/`ZREFS` (a per-node authority returning either "no home, stay on depth-tracked FR/FRQ" or a NEGATIVE RBP-RELATIVE offset into the ENCLOSING activation frame, sized the same way ARBNO/CAPTURE/FENCE already are). This is depth-immune by construction — neither of this seat's two attempts (baked stack offset; bare ambient rbp) has that property; a named activation-frame slot does.
+
+### ⛔⭐⭐⭐ RESIDUE — SAME NAMED THING AS s139, NOW WITH A RULED-OUT SHAPE SPACE
+β still cannot trust ambient rbp, AND a raw stack-pushed record at a baked displacement cannot replace it (falsified, not merely untried). The fix needs a genuine registry slot, not a stack trick.
+
+**NEXT SEAT, pick up exactly here:**
+**(a) Build `sn4_defer_frame_rbp_off()`, modeled on `sn4_choice_rbp_off()` (emit.cpp:2411) exactly.** Register the unsealed carve-defer's frame-base snapshot in the enclosing MATCH_BEGIN's frame extra (same mechanism `arbno_frame_slot_assign()`/`emit_match_begin_frame_extra()` already widens for ARBNO). α writes rbp there via `ZREFS`/`zone_ref`, not a hand-rolled `mov`. β reads it back the same way — depth-immune by construction, correct regardless of which call path reached β.
+**(b) Confirm under gdb which node fires FIRST, before reasoning about it.** This seat's early assumption (crash is in the ARBNO-adjacent n11/n12/n16 chain) was wrong — the actual SEGV on `m1_defer_ALT` is at a third node (`n55`, reached through a different statement's own MATCH_BEGIN) this seat didn't identify until late. `nm` the linked binary for numeric addresses; unicode label names (`n5_match_defer_β`) do not resolve in `break LABEL` under this container's gdb — use `break *0xADDR`.
+**(c) Test against all 5 `probe/m1` witnesses after EVERY build, before beauty.** Do not land on fewer than 5/5 agreeing (this seat's own hypothesis 1 would have looked "fixed" on a single witness and was refuted only by the standing-greens).
+**(d) beauty retest** after (a) lands clean on the ablation net: same witness (beauty.sno:611). `./scrip --compile beauty.sno`, diff `.s` against the last-passing sibling.
+**(e) PUSH `corpus` `f8a40d63`** (the ablation table) — not yet pushed this session, credential needed.
+
+### ⭐ MEASURED — s140
+Ablation table: 5/5 witnesses reproduce s139's table on HEAD `0887f44c`, both media, oracle-verified. Reverted edit: byte-identical to s139 HEAD (re-confirmed post-revert, all 5 witnesses, m3). No gate run — no template change survives this session to gate. beauty not attempted (record-layout question had to resolve first).
+
+---
+
+
 
 ### ⭐⭐⭐⭐⭐ WHAT LANDED — s139
 - **ZSP SPINE-SPELLING AXIS (inert):** `ZREFC` hardwired FR/FRQ(scratch+d) as the only decline spelling; ALT choice record uses bare `[rsp+d]` so `bb_match_alternate` guarded OUTSIDE the accessor. `sn4_choice_rbp_off()==0` for every blob in beauty → **ALL 300 CHOICE resolutions were invisible to s138**. Fixed: `ZREFS(reg_off,d,w,customer,spine)` with `ZSP_RAW` for CHOICE. Beauty census: 279 → **579 resolutions, ZERO disagreements**. 1557/1557 byte-identical.
