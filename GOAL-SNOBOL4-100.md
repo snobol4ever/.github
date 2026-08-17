@@ -50,6 +50,28 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s136 (Claude Opus 5) — **THE LATTICE PASS PERTURBS THE PROGRAM IT MEASURES. EVERY ZDP NUMBER IN THIS FILE IS SUSPECT.** SCRIP `ed91c349`+, corpus `ce18a125`. All rungs DEFAULT-INERT.
+
+### ⛔⛔⛔ READ FIRST — THE RETRACTION THAT OUTRANKS EVERYTHING BELOW
+`SCRIP_ZDP=1 ./scrip --compile` **moves 81 of 656 programs** against the same build with the lattice off. The diff is a by-name-function LABEL COUNTER (`.Lbynamefnzd4`→`zd3`), i.e. an allocation/numbering shift, not arithmetic. `zdp_analyze` is not observation-neutral. **The s133 tier census, the s134 bomb counts and TEARDOWN-SKEW set, the s135 anchor zeros and the s136 probe census were all produced with it enabled and NONE of them describe the shipped program.** Full repro, three eliminated suspects, and the ranked next-look (`zw_carve_k` / `zls_result_live`, both read inside the transfer function) in `FINDING-2026-08-17-s136-zdp-analyze-perturbs-codegen.md`. ⭐ **THE STANDING LESSON: a DEFAULT-INERT pass is not an INERT pass. Every analysis needs its ON null proven, not only its OFF null.**
+
+### ⭐ WHAT LANDED — s136 (all default OFF, all null-proven at 656)
+- **`zdp_analyze` HAD NO CALLER.** s133 reported it hooked in `ir_drive_slot_assign` after `zls_build`; it was not, anywhere in `src/`. `zdp_valid` stayed 0 so `zdp_alpha`/`zdp_beta` returned ⊤ for every node. Hook restored (`scrip_ir.c`). This is why any inherited ⊤ figure — including the 7.38% ACTIVATION number — measured an unanalyzed lattice.
+- **LON'S EVERY-PORT PROBE** (`SCRIP_ZDP_TEARDOWN=1`): RSP0 banked at each graph's first BB; every α and β checks measured `RSP0−rsp` against `zdp_alpha`/`zdp_beta`; rbp-creating boxes bank rbp at α and check equality at β. **ONE SEAM** — `x86_deflabel` → `x86_zdp_probe_at`, reaching every port of every box in BOTH media with zero template edits. Hot path hand asm (rax+rflags only). Log, not trap.
+- **ζ-ONE U-1 UNIFIED ZONE PLAN** (`SCRIP_ZONE=1`): `zzone_plan` assigns every node its tier from `zdp_tier` (which had NO consumer). `ZREF` replaces `zone_ref`; STANDING and ACTIVATION share the rbp arm (Lon s81 — they differ in lifetime, not base), SPINE routes to `x86_zop`.
+- **NO RBP FRAME IS EVER CREATED FOR A FUNCTION (Lon's ruling, then MEASURED).** 0 `push rbp` in a plain DEFINE, 0 in a recursive one; the single hit in a function containing `S ? P` is the match's own ζ-STANDING. `bb_define.cpp`'s two writers sit behind `fnrbp()==1`, which the `:494` clamp aliases to 2 — `SCRIP_FN_RBP=1` output is byte-identical to default.
+
+### ⛔ THE UNIFICATION IS BARELY DISTRIBUTED — MEASURED CENSUS
+`zone_ref`, labelled *"THE ONE RSP/RBP TRANSLATION"*, had **2 callers in the entire tree** (`LFC`, `LFCQ`), serving one customer. Against: **1,151** `FRQ`/`FR` spine refs · **59** direct `RDQ("rbp",…)` in the seven ζ-family templates (`match_end` 19 · `arbno` 15 · `match_begin` 9 · `alternate` 7 · `fence1`/`defer`/`capture` 3 each) · **45** raw `"[rsp"` text emissions in code lines. ⭐ **AND THE REGISTRY KEY IS (NODE, CUSTOMER), NOT NODE** — one node hosts a leaf cell AND a capture save, each with its own slot, so a node-keyed offset plan is the wrong SHAPE, not merely side-effecting. A seat giving the planner offset authority must key it as the registry does.
+
+### ⭐⭐⭐ WHY THE PROBE FOUND NOTHING ON THE CORPSE — STRUCTURAL, NOT A BUG
+It checks the **BASE** (`RSP0−rsp` vs the lattice) and never the **DISPLACEMENT**. An operand banked at one offset and read at another is sound in rsp at both ends. That is the `deferclob` class verbatim (s133: *"BOTH DEPTHS ARE KNOWABLE; they disagree about WHAT IS STORED WHERE"*). The check that would catch it records `(slot_id, effective_address)` at the write and asserts it recomputes at the read — which needs both sites routed through ONE accessor to have a `slot_id` at all. **Distributing `zone_ref` is therefore not cleanup ahead of the real work; it is the precondition for the check that can find the class.**
+
+### ⭐⭐⭐ NEXT RUNG — pick up exactly here
+**(a) LOCALISE THE PERTURBATION.** Ranked suspects and the elimination already done are in the FINDING. Until it is fixed, no ZDP number may be quoted. **(b) ADD THE ON-NULL GATE** to `util_zdp_stdout_manifest.sh` so no future pass ships without it. **(c) RE-RUN the s136 probe on the corpse once (a) is fixed** — the "found nothing" verdict was measured on a perturbed program and is not yet final. **(d) DISTRIBUTE `zone_ref`** across the 59 direct-rbp ζ-family sites, keyed (node, customer), then build the displacement check from (the real target).
+
+---
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s135 (Claude Sonnet 4.6) — **LON'S ANCHOR CHECK BUILT AND GATED; INSTRUMENT SILENT IN MODE 3 — POSITIVE CONTROL NOT YET PROVEN.** SCRIP `aaf129f8`, corpus `5afd30aa`. Still DEFAULT-INERT.
 
 ### ⭐ WHAT LANDED — s135
