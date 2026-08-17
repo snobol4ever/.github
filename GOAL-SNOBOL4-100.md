@@ -283,3 +283,39 @@ Any reference to a deleted SNOBOL4 `GOAL-*.md` name, anywhere in `.github`/SCRIP
 | `GOAL-DATATYPE-PORTABLE-TESTS.md` | **OBS** — `x64 sbl` is the oracle, SPITBOL's DATATYPE spellings are the truth |
 
 **Kept, NOT absorbed** (platform / other repo / monitor participant): `GOAL-STCOUNT-ALL-LANGS.md` (SNOBOL4 side **→R-5**) · `GOAL-RTCC.md` · `GOAL-MODE34-IDENTICAL.md` · `GOAL-DESCR-TAG-ENCODING.md` · monitor/harness goals · every Icon/Prolog/Snocone/Raku/Pascal/Rebus goal.
+
+## LIVE CURSOR — 2026-08-17 s131 (Claude Sonnet 4.6) — **META SCORE MEASURED: 64.3 over 13 suites. SCRIP `1ecb68ec`, corpus `adfdb4a1`, x64 oracle `5035571`.**
+
+**ENVIRONMENT.** All four repos cloned fresh this session (`setsid nohup` required — plain `&` dies at tool-call boundaries in this container). Build clean: `scrip` 220376B + `libscrip_rt.so` 31686024B, zero compiler errors. Oracle verified alive (`sbl -b m1_alt_arm2_cap.sno` → `b`, rc=0). `gawk` + `gdb` 15.1 present. `nproc=1` (single core — scorecard ran ~26 min wall time, not the ~1h/core estimate; demos' 90s-per-mode timeouts dominate early throughput measurement, do not extrapolate from that window).
+
+**⚠ SETUP TRAP (Nth session, add to REPEAT SETUP TRAPS):** `pgrep -f scorecard_snobol4` matches the string in the *command line of the calling shell* — a plain `&` background job that actually died returns `1` (match count), a perfect false positive. Confirm with `ps -p <PID> -o etime=` or by watching the row count change. Use `setsid nohup … &` for genuine detachment; verify with `ps -eo pid,etime,args | grep scorecard`.
+
+**META SCORE = 64.3** (weight-averaged over 13 suites, denominator W=113). Full table:
+
+```
+SUITE             W     N  M3ok   M4ok    m3%    m4%  SCORE  UNSCR
+beauty_self      20     1     0     0    0.0    0.0    0.0      0  DIFF/DIFF=1
+beauty_suite     15    17    16    15   94.1   88.2   91.2      0  PASS/RC1=1 DIFF/ASM_FAIL=1
+demos            15    23    12    10   52.2   43.5   47.8      1  TIMEOUT/TIMEOUT=3 SIG11/SIG11=2 RC1/RC1=2
+benchmarks       10    23    21    17   91.3   73.9   82.6      0  PASS/SIG11=2 PASS/RC1=2 TIMEOUT/TIMEOUT=1
+bb_probes        10   188   185   185   98.4   98.4   98.4      0  RC1/RC1=3
+patterns         10   122   114   113   93.4   92.6   93.0      0  RC1/RC1=3 DIFF/DIFF=3 SIG11/SIG11=2
+crosscheck       10   195   193   193   99.0   99.0   99.0      1  SIG11/SIG11=1 DIFF/RC1=1
+feature_test      5   160   156   156   97.5   97.5   97.5      1  RC1/RC1=3 TIMEOUT/TIMEOUT=1
+probes_misc       5   263   234   215   89.0   81.7   85.4      1  PASS/DIFF=10 RC1/RC1=9 PASS/RC1=8
+csnobol4_suite    5   123    40    40   32.5   32.5   32.5      1  RC1/RC1=32 COMPILE_FAIL/COMPILE_FAIL=25 DIFF/DIFF=17
+gimpel            5     0     0     0    0.0    0.0    0.0    145
+lon               5    21     7     7   33.3   33.3   33.3     78  RC1/RC1=5 COMPILE_FAIL/COMPILE_FAIL=3 DIFF/DIFF=2
+misc              3   121    84    80   69.4   66.1   67.8     26  RC1/RC1=18 DIFF/DIFF=11 PASS/ASM_FAIL=4
+META SCORE      113                                   64.3
+```
+
+**⚠ COMPARISON CAVEAT — do not quote as "38.0 → 64.3".** The s91 baseline covered 10 of 13 suites; META re-normalizes over whatever suites are present. "64.3 over 13 suites at `1ecb68ec`" is the defensible statement. No s131 code landed; this is a measurement-only cursor.
+
+**CONCENTRATION: 36 of the 40.3 missing META points sit in four suites.** `beauty_self` (20.0 pts, DIFF/DIFF — runs, exits 0, wrong output, blocked on R-4(a) resumable ARBNO entry); `demos` (7.8 pts, TIMEOUT×3 + SIG11×2 + RC1×2); `gimpel` (5.0 pts, ALL 145 programs ORACLE_FAIL — N=0, unscoreable, suite costs full weight for reasons unrelated to SCRIP — investigate first, cheapest points on the board); `csnobol4_suite` (3.4 pts, 25 COMPILE_FAIL + 32 RC1).
+
+**INSTRUMENT GAP — 249 programs are DARK (oracle-fail, no pin, excluded from denominator):** `gimpel` 145, `lon` 78, `misc` 26. `gimpel` is the priority: weight-5, scores 0.0, and N=0 means the scorecard cannot distinguish "SCRIP fails everything" from "oracle invocation is wrong for this suite." Run one `gimpel` program manually against `sbl` to determine whether this is a lib-path or invocation flag issue before treating it as a SCRIP failure class.
+
+**m3 ≡ m4 violations (DEFINITION OF DONE §1) visible in this sweep:** `PASS/RC1` (beauty_suite×1, benchmarks×2, probes_misc×8), `PASS/SIG11` (benchmarks×2), `PASS/DIFF` (probes_misc×10), `DIFF/ASM_FAIL` (beauty_suite×1), `PASS/ASM_FAIL` (misc×4). Each is a law violation independent of oracle agreement.
+
+**END-OF-CONTEXT HANDOFF. No work rung opened this session.** Next seat: (1) run one `gimpel` program under `sbl` manually to classify the 145 ORACLE_FAILs (invocation bug vs genuine oracle crash); (2) if invocation bug, fix the scorecard lib path for gimpel and re-run that suite alone — cheap +5 META pts recovery; (3) then proceed with the named next rung from s130: resumable `MATCH_ARBNO` entry for stored-pattern blobs (R-4(a)), starting from the two IR dumps in `FINDING-2026-08-16-s120-arbno-stored-no-resume.md`.
