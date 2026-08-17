@@ -76,6 +76,23 @@ This seat "cured" two large TOP classes by resetting the incoming frontier at la
 
 **STATIC HALF ALREADY MEASURED (654 programs):** `MATCH_BEGIN` 820 · `MATCH_DEFER` 498 · `MATCH_ARBNO` 139 TEARDOWN-SKEW. DEFER and ARBNO are Lon's sources (1) and (3), now convicted by an exact equation rather than a possibly-imprecise meet. `meetbomb_barematch_red` 1 / `_nomatch_grn` 0.
 
+**⭐⭐⭐⭐⭐ THE GENERALISATION (Lon in-chat s134, and it SUPERSEDES the teardown-only form above):** *"If you did check at every beta could you not check against your expected (calculated) versus actual (measured) and compare against T like you say, which is zero in the previous case we just covered and can be 8, 16, 24, 32, etc above that saved RSP at activation alpha. Then you could find your calc bugs automatically."*
+
+**CHECK EVERY β, NOT ONLY THE TEARDOWN OWNERS.** Bake the lattice's own prediction `d = zdp_beta(nd) − zdp_alpha(nd)` as a compile-time constant and compare it at runtime against `RSP@β − RSP@α`. Total teardown is simply the case `d == 0`; every other β carries its own constant 8/16/24/32… **THIS IS A MUTUAL-VALIDATION HARNESS, NOT A BUG DETECTOR, AND IT RUNS IN BOTH DIRECTIONS:**
+
+| lattice | runtime | verdict |
+|---|---|---|
+| finite `d` | delta `== d` | AGREEMENT — the prediction is EARNED, not assumed. This is the only thing that can ever license consulting `zdp_known_alpha` from codegen. |
+| finite `d` | delta `!= d` | ⛔ **SOUNDNESS BUG.** Either the transfer function mis-calculated or the box leaked / over-freed. The witness is the program itself. |
+| **⊤** | delta observed **CONSTANT** on every execution | ⛔ **PRECISION BUG — THE LATTICE IS REFUSING THE SPINE FOR NOTHING.** |
+| ⊤ | delta observed to VARY | ⊤ is CORRECT and the RBP home is EARNED. |
+
+⭐⭐⭐ **ROW 3 IS WHY THIS RUNG OUTRANKS EVERYTHING ELSE ON THE FILE.** `REFUSAL IS THE SAFETY PROPERTY` is currently UNTESTABLE — nothing distinguishes a ⊤ that is protecting us from a ⊤ that is mere conservatism, so the 7.38% ACTIVATION set cannot be trusted to drive a tier decision and the s133/s134 GO/NO-GO stayed NO-GO for exactly that reason. Measuring the observed delta at every ⊤ β SETTLES IT PER SITE, mechanically, with no hand-written estimator to drift — it is the evidence `leaf_frame_candidate`, `blob_choice_rbp_scan`, the s128 five-term gate, the s130 window law and the s131 BAL decline were each guessing at one corner at a time.
+
+⛔ **THE BOOTSTRAPPING CAVEAT — NAME IT, DO NOT DISCOVER IT.** The saved α-RSP must belong to the CURRENT activation instance. For a re-entrant owner (ARBNO iterations, nested DEFER) that slot has to live in that activation's OWN frame, which only exists once the frame exists — so the instrument hits the very problem it is measuring. Single-instance owners are clean and can go first; **re-entrant ones sequence BEHIND U-3 (RBP registry unification), and a seat that ignores this will measure its own scaffolding.**
+
+⭐ **STAGE IT AS A LOG BEFORE A TRAP.** First mode RECORDS `(op, node, expected, actual)` and keeps running — one sweep yields the whole disagreement census across 654 programs. Only a second, stricter mode traps through `bomb_text`/`bomb_bytes`. A trap-first instrument dies on program #1 and tells you about exactly one site; the log tells you about all of them and is what makes the two ⊤ rows above measurable at all.
+
 **BUILD SPEC for the runtime half — all of it is constrained, none of it is open-ended:**
 1. **Killswitch `SCRIP_ZDP_TEARDOWN=1`, default OFF and BYTE-IDENTICAL.** OFF emits nothing; the manifest (654 programs, compile STDOUT, null proven against itself = 1 mover `unary_not.sno`) must re-prove zero contributed.
 2. **The α-side store needs a DEPTH-IMMUNE home, and that is the one real design decision.** RBP is pinned for the life of the match, so `[rbp − slot]` is the natural home; the slot comes from THE ONE REGISTRY (`frame_slot_scan`, offsets `-(64+16*idx)`, the fourth-customer pattern s130 already used for the leaf cell) and is granted ONLY under the killswitch, so the OFF layout cannot move. ⛔ Do NOT invent a parallel array or a file-scope cell — that is a new global and needs Lon's banner ask.
