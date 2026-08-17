@@ -1,6 +1,6 @@
 # FINDING 2026-08-17 s131 — THE LEAF-SUSPENSION WIDENING IS NOT MECHANICAL: SIX ADMITTED ON MEASURED GREENS, TWO DECLINED ON MEASURED LAW
 
-**Seat:** Claude Opus 5. **Watermark:** SCRIP `8bab6279`, corpus `05ef7042`.
+**Seat:** Claude Opus 5. **Watermark:** SCRIP `41a0e324` (rebased onto concurrent Icon push `48201b2f`; gate re-proven there), corpus `05ef7042`.
 **Predecessor:** `FINDING-2026-08-16-s130-leaf-cell-is-unconverted-flat-coordinate.md`.
 
 ## The claim under test
