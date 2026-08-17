@@ -50,6 +50,31 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s141 (Claude Opus 5) — **THE ζ-SM INSTRUMENT IS BUILT AND VALIDATED (3 OF 4 PORTS), AND ITS FIRST HONEST READING OF BEAUTY IS ZERO VIOLATIONS. THIS SESSION'S OWN FIRST THREE CUTS WERE WRONG AND THEIR NUMBERS ARE VOID.** SCRIP `0887f44c`+ (3 files, all OUTSIDE the template layer; default arm byte-identical, regens ×3 zero changed bytes). See `FINDING-2026-08-17-s141-zeta-sm-instrument-validated.md`.
+
+### ⛔ READ THIS BEFORE INHERITING ANY NUMBER
+- **RETRACTED:** this session first reported **38/37 MISMATCH + 1437 UNDERFLOW** on beauty. **VOID.** A global-LIFO bank assumed α:β pairs 1:1 — it does not (α runs ONCE, β re-fires MANY times on backtrack), so every surviving comparison was a β against ANOTHER box's α, and the "underflow" was that arity, NOT β-without-α.
+- **LON'S PORT CORRECTION (in-chat):** the frame's lifetime is **α..ω**. β is an ENTRY port and MAY go on to γ, so at β the box is SUPPOSED to still hold its frame; **it is β→ω that tears down.** An equality test at β CONVICTS CORRECTLY-WORKING BOXES. ω is a TRANSFER, never a label define — so the teardown half had never been instrumented at all.
+- **LON'S CHICKEN-AND-EGG CORRECTION (in-chat):** the datum CANNOT live at `[rbp-8]`. If rbp is wrong at β the memory it addresses is exactly what cannot be trusted. **Global node-keyed side state, granted in-chat this session.**
+- **THE GATE THAT SETTLES IT: known-PASSING programs must report ZERO.** All three bad cuts convicted `m1_defer_LEN0`/`m1_inline_ALT`/`m1_nodefer_ALT`, which are oracle-correct. Root cause: `emit.cpp:1019` stages `op_zdp_rbp` by node KIND, not by whether the instance emits `push rbp`. Now re-derived from the templates' own authorities. **Gate green 5/5.**
+
+### ⭐⭐⭐⭐⭐ WHAT LANDED — s141
+**`SCRIP_ZSM=1`, default OFF, byte-identical.** Emit: existing seams only — `x86_deflabel()`→α/β, `x86_jmp()`→ω, **ZERO template `.cpp` edits**. Shim `rt_zdp_ev` (hand asm, `rtx_zdp.S`) saves the ENTIRE caller-saved set + rflags (**r10/r11 WIRES, r8/r9 RTCC included**) around the C sink, so the instrument cannot measure a different program. SM (`runtime_init.c`): `g_zsm[node&65535]={node,E,F,rsp_a,live}` + 64-port trace ring dumped on violation; α banks `E=rbp`,`F=rsp-8`; β requires live activation AND `rbp==F`; ω requires `rbp==E` AND `rsp>=rsp_a`; **aborts on the first violation** (Lon's ruling). `F=rsp-8` is a PREDICTION validated BY the false-positive gate, never asserted.
+
+### ⛔ COVERAGE — A ZERO FROM THIS TOOL IS NOT YET AN ACQUITTAL
+**γ IS NOT INSTRUMENTED (3 ports, not 4)** · **conditional exits uncovered** (`x86_omega("js")`: a flag-clobbering probe ahead of a `jcc` destroys the condition) — **measured gap ~64 instrumented nodes vs ~100 `push rbp` sites in beauty, about a third invisible** · recursion aliases one slot/node · the R-4(b) blob activation (emit.cpp:2891) is outside this gate · **beauty dies after 10 lines of 622, so most of it never executed.**
+
+**NEXT SEAT, pick up exactly here:**
+**(a) LAND γ + THE FOUR-STATE FSM** (`FRESH ─γ→ SUSPENDED ─β→ RESUMED`, `─ω→ DEAD`). γ already rides `x86_jmp`; no label minting needed. Catches **illegal transitions** (β from non-SUSPENDED, γ from DEAD, two ω per α) and **LEAKED ACTIVATIONS** (SUSPENDED, never resumed, never torn down) — the shape that would explain a wrong rbp later — and `rbp==F` at γ localizes to the DEPARTING box instead of one hop later.
+**(b) CONDITIONAL-PORT COVERAGE via CONDITION INVERSION** at the `x86_jcc` seam (`j<inv> .Lskip / <probe> / jmp ω / .Lskip:`). ⛔ Unique label per site — draw from the existing `g_flat_node_id` uid stream; **do NOT add a counter** without a fresh in-chat grant.
+**(c) RE-RUN THE FALSE-POSITIVE GATE AFTER EVERY WIDENING, BEFORE READING ANY NUMBER.** Three cuts died there this session.
+**(d) ONLY THEN sweep the failing corpus** (Lon's intent: use it to find and fix the failing programs).
+
+### ⭐ MEASURED — s141
+Non-vacuity 192 event sites in beauty / 3 in probes · OFF emits 0 · default output byte-identical to pristine HEAD (stash-rebuild diff) · **regens ×3 zero changed bytes** · false-positive gate **5/5 zero** · **beauty m3: 0 violations, 0 β-without-α, 192 covered ports** · zero template `.cpp` touched · `grep MEDIUM_ src/emitter/BB_templates/` == 0.
+
+---
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s140 (Claude Sonnet 5) — **TWO STATIC/AMBIENT SHAPES FALSIFIED FOR THE DEFER β FIX. THE RIGHT SHAPE IS ALREADY NAMED IN THIS CODEBASE: U-2, THE RECORD-FIELD TIER (ZREFS's own comment, x86_asm.h:1197). ABLATION NET MINTED AND LIVE. NO TEMPLATE CHANGE SURVIVES THIS SESSION — TREE IS BYTE-IDENTICAL TO s139 HEAD.** SCRIP `0887f44c` (unchanged). corpus `f8a40d63` (ablation table, NOT YET PUSHED). See FINDING-2026-08-17-s140.
 
 ### ⭐⭐⭐⭐⭐ WHAT LANDED — s140
