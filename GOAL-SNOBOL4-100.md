@@ -50,7 +50,27 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
-## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s134 (Claude Opus 5, Lon in-chat) — **THE UNIFIED ζ TRAVERSAL IS COMPLETE AND ITS TWO FLATTERING ANSWERS WERE KLUDGES, BOTH REMOVED ON LON'S RULING. THE GUARANTEED MEET POINTS NOW BOMB, AND THE MINIMAL REPRO SAYS THE TRIGGER IS THE MATCH ITSELF.** SCRIP `597b41a2`, corpus `5afd30aa`. Still DEFAULT-INERT; manifest 654 programs vs PRISTINE = 1 mover (`unary_not.sno`) and THE NULL RETURNS THE SAME ONE ⇒ zero contributed.
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s135 (Claude Sonnet 4.6) — **LON'S ANCHOR CHECK BUILT AND GATED; INSTRUMENT SILENT IN MODE 3 — POSITIVE CONTROL NOT YET PROVEN.** SCRIP `aaf129f8`, corpus `5afd30aa`. Still DEFAULT-INERT.
+
+### ⭐ WHAT LANDED — s135
+- **LON'S ANCHOR MODEL (in-chat s135):** an anchor is a point where the graph's stack is TOTALLY EMPTY — STATEMENT_BEGIN and MATCH_BEGIN are the re-basing points. Every anchor must observe ONE rsp. Self-referential by construction: **no `op_zdepth` appears anywhere in the check**, so the instrument is not calibrated against the quantity it audits. That dissolves the circularity s134 named as a blocker.
+- **rtx/rtx_zdp.S:** hot path in hand asm per Lon's ruling ("use asm not C"). Agreeing anchor touches rax+rflags only, both restored — zero perturbation of the measured program. C would have forced the full SysV caller-saved set including r10/r11 WIRES and r8/r9 RTCC tier.
+- **runtime_init.c:** `g_zdp_anchor_rsp` (NEW GLOBAL, granted in-chat s135; `hidden` visibility for PIC per RTX_GATE_DEF precedent) + `rt_zdp_report` cold sink (log mode, not a trap — one sweep yields the whole census).
+- **templates/bb_zdp_anchor.cpp:** TEMPLATE-ONLY, both-medium, no MEDIUM_*. `mov rdi,rsp; add rdi,24` computes TRUE anchor RSP before the three arg-pushes.
+- **emit.cpp:** STATEMENT_BEGIN hook, killswitch `SCRIP_ZDP_TEARDOWN=1`, DEFAULT OFF.
+- **GATE:** manifest 124 programs hashing COMPILE STDOUT (never the committed `.s` — s133 lesson): OFF = **0 movers**, null-stable, non-vacuous at **124/124** under SCRIP_OPT=0. ON emits `call rt_zdp_anchor@PLT` at statement anchors in TEXT mode (verified).
+
+### ⛔ THE INSTRUMENT IS SILENT IN MODE 3 — POSITIVE CONTROL NOT PROVEN
+`gdb -ex 'break rt_zdp_anchor' --run` on meetbomb_barematch_red: **breakpoint never resolved, program exited rc=1.** The zeros on 14 crosscheck programs + both meetbomb witnesses mean nothing. **DO NOT READ ANY ZERO AS ANCHOR AGREEMENT UNTIL A POSITIVE CONTROL FIRES.**
+
+### ⭐⭐⭐ NEXT RUNG — pick up exactly here
+**(a) POSITIVE CONTROL FIRST:** `nm ./scrip | grep rt_zdp_anchor` — if absent, `rtx_zdp.S` is in `RT_PIC_SRCS` (the `.so` list) but not in the scrip binary's link list. Mode 3 never loads the `.so`; this is the BOTH-MEDIUM violation. Fix: add the `.S` to the binary's source list, not the template. Then prove the instrument fires at least once before reading any count.
+**(b) MATCH_BEGIN anchor hook** (only STATEMENT_BEGIN is wired in emit.cpp line ~1217; add the same block for IR_MATCH_BEGIN at its case).
+**(c) RBP-INVARIANCE CHECK** (your s135 second ask: check BBs that reference RBP, not every β; set is mechanically enumerable off x86_asm.h, not a judgement call, so it cannot drift).
+**(d) Only then:** sweep 654 programs, read the census against the static prediction (IR_STATEMENT_BEGIN 3933 · IR_MATCH_BEGIN 5 · IR_STATEMENT_END 0). Agreement confirms the lattice; disagreement in either direction is a finding.
+
+### ⭐ STANDING FINDING (independent of instrument validity)
+`x86_rsp_slide_known()` (x86_asm.h:582) is hardwired `return 1`, asserting depth is *"ALWAYS knowable — there is no other base."* ZDP measures that false at ~7.38% ACTIVATION. The compiler addresses through an assertion nothing checks. The anchor instrument is the thing that settles it — which is why this rung outranks everything else on the file.
 
 ### ⭐ WHAT LANDED — rungs (a) and (b) of the s133 NEXT RUNG, closed
 - **(a) THE WIRING MAP IS COMPLETE.** s133 said its 16,082-edge census was incomplete because operand-carried `(entry_j, resume_j)` pairs were never walked. They are now, from the exact op set that routes into `flat_drive_match_alt` (`emit.cpp:3082`). On `deferclob_stmt_alt_red`, **261 edges: γ→α 113 · ω→α 106 · ω→β 17 · γ→returns-into 11 · operand→α 7 · operand→β 7 · γ→β 0**. Independently confirms the s133 measured law. Glue edges report as *"returns-into <box>"*, never a fifth port row.
