@@ -50,6 +50,49 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s138 (Claude Opus 5) — **ζ-ONE U-3 IS LANDED: THE OFFSET HALF OF THE UNIFIED ZETA PLAN EXISTS, KEYED (NODE, CUSTOMER), AND ITS FIRST CENSUS ALREADY NARROWS DEFECT C.** SCRIP `b470f84e`+. All rungs DEFAULT-INERT.
+
+### ⭐⭐⭐⭐⭐ WHAT LANDED — s138
+- **THE (NODE, CUSTOMER) OFFSET AUTHORITY EXISTS** — `zzone_off_for(nd, customer)` (emit.cpp) + `ZCUS_{LEAF,ARBNO,CAPTURE,FENCE,CHOICE}` (emit.h). s136 recorded the blocker verbatim — *"THE REGISTRY KEY IS (NODE, CUSTOMER), NOT NODE ... a node-keyed offset plan is the wrong SHAPE"* — and this enum IS that second key.
+- ⭐ **THE BLOCKER WAS SEQUENCING, RE-VERIFIED INDEPENDENTLY, NOT INHERITED.** `frame_slot_scan` and `frame_need_of` are pure reads (checked at source this seat, not taken from the s137 note); their sole dependency is `g_emit_cfg`, which is live only during emission while `zzone_plan` runs from `scrip_ir.c` before it. **CURE: RESOLVE AT EMIT TIME, DO NOT CACHE.** ⛔ And no memo table — a cache is a new file-scope global and the NO-NEW-GLOBALS FACT RULE forbids one without an in-chat grant; the callees are the same O(n) scans the staging sites already run, so resolving beats caching on the rules AND on cost.
+- **ONE SENTINEL, FIVE PRODUCERS.** `sn4_choice_rbp_off` spelled "no rbp home" as `0` while the other four spelled it `-1` — two spellings of one fact, i.e. the s68/s70 spelled-twice disease with a comparison waiting to be written wrong. Normalised at the single point of consumption.
+- **THE TEMPLATE SIDE: `ZREFC(off,d,w,customer)`** with `ZREF()` preserved as the `ZC_LEAF` wrapper. **18 of the 59 direct-rbp ζ-family sites distributed** onto named accessors AFC/AFCQ · CFC/CFCQ · FFC/FFCQ · CROQ/CROD (arbno 5, capture 3, fence 3, alternate 7). The remaining ~41 are the FIXED STANDING HEAD LAYOUT (`-8` CAS mark, outer Σ/δ/Δ, `+16`/`+24` parent chain) — **not registry slots, and a future seat must not "finish the distribution" by re-basing them.**
+- ⭐⭐⭐ **THE DISPLACEMENT CHECK NOW EXISTS** (`zzone_disagree`, `SCRIP_ZONE_BOMB`). s136 named exactly why its every-port probe found nothing on the corpse: *"It checks the BASE (RSP0−rsp vs the lattice) and never the DISPLACEMENT. An operand banked at one offset and read at another is sound in rsp at both ends."* This is that missing check — planner offset vs template-staged offset, at every address site, both media. **MODE 2 IS A FULL CENSUS INCLUDING AGREEMENTS, and that is not a convenience:** s135 read fourteen zeros from an instrument whose breakpoint never resolved, and an instrument that is silent both when it agrees and when it is never reached cannot be told apart from a dead one.
+
+### ⭐ MEASURED — every owed gate, and the honest reading of each
+- **ON-NULL GATE** `test_gate_zdp_on_null.sh SCRIP_ZONE=1`: **659 programs, 0 movers.** The planner's offsets agree with every template-staged offset corpus-wide.
+- **DEFAULT-ARM BLAST RADIUS vs a pristine HEAD binary** (built from `git stash`, not reasoned about): 659 programs, **1 mover = `unary_not.sno`, PROVEN self-nondeterministic** — it differs against ITSELF on BOTH binaries (3 runs new, 2 old, 5 distinct md5s), so it cannot testify. **658/658 real: BYTE-IDENTICAL.**
+- **MODE-3 runtime** blast radius, 120 probe programs: **0 movers** (identical segfaults both binaries = pre-existing).
+- **Regens ×3: all three report zero changed bytes**, independently corroborating the byte-identity claim rather than restating it.
+- All four customers **verified guarded by `!= -1` at dispatch BEFORE the accessor swap** — the CAPTURE arm would otherwise have changed behaviour on the decline path (old `[rbp + -1]`, new spine), which is the one place this rung could have shipped a silent defect.
+- `test_gate_template_medium_invisible.sh --strict` still FAILs on the **inherited** WIP baseline (`bb_glue_flat` 4, `xa_flat` 8); touched files contribute 0.
+
+### ⭐⭐⭐ FIRST FINDING FROM THE INSTRUMENT — IT NARROWS DEFECT C ON ITS FIRST RUN
+Census on the s137 witnesses:
+```
+grn   5 ARBNO staged=-64 planned=-64  ·  2 SPAN LEAF -1
+red   5 ARBNO staged=-64 planned=-64  ·  4 SPAN LEAF -1
+```
+- The **two EXTRA SPANs are the red witness's one extra ingredient** — the inner `*Sp`'s carving `SPAN(' ')` — and **BOTH resolve to `-1` = NO RBP HOME**, because `sn4_span_frame()` is DEFAULT OFF and the leaf customer is dormant.
+- ⛔ **AND THAT IS NOT THE BUG EITHER — MEASURED, NOT ASSUMED.** Under `SCRIP_SPAN_FRAME=1` two of them DO acquire homes at `-32` (blob scope, `rc==2`) and **red STILL FAILS**. A seat about to "just turn the leaf customer on" should stop here; that experiment is already run.
+- ⭐ **NO `IR_MATCH_DEFER` APPEARS IN THE CENSUS AT ALL** — independently corroborating s137 from a completely different instrument: the `op_seal == 1` gate at `bb_match_defer.cpp:53` means an ARBNO body defer never gets a frame, and therefore never *addresses* one. **The defer is not mis-addressing its storage; it has none.**
+
+### ⭐⭐⭐⭐ THE CENSUS ON BEAUTY ITSELF — RUN THIS SEAT, AND IT EXONERATES A WHOLE CLASS
+`SCRIP_ZONE=1 SCRIP_ZONE_BOMB=2 ./scrip --compile beauty.sno` — **279 ζ-storage resolutions, ZERO disagreements** (planner and templates agree everywhere on beauty; the displacement check is clean at every site):
+```
+CAPTURE  58  RBP-HOMED        FENCE  24  RBP-HOMED        ARBNO   5  RBP-HOMED
+LEAF    192  SPINE  ← 192 of 192, NOT ONE HOMED
+```
+- **The single largest class in beauty is 192 leaf suspension cells, ALL on the spine**, because `sn4_span_frame()` is default OFF. That is the biggest unexploited lever visible anywhere in the file — **and it is NOT the M1 blocker, measured:** `SCRIP_SPAN_FRAME=1` leaves beauty's self-host output **byte-identical to the default arm** (same 10 lines, same stop point). Two independent witnesses now say the leaf class is not Defect C.
+- **BEAUTY'S CURRENT STOP IS EXACTLY THE s137 SIGNATURE, re-measured this seat:** 7 correct lines, then `Parse Error`, last line `START`, rc=0 — against the live oracle's **622** (`sbl -bf beauty.sno < beauty.sno`). Unmoved by U-3, as expected: U-3 is the precondition, not the cure.
+
+### ⭐⭐⭐ NEXT RUNG — pick up exactly here
+**(a) DEFECT C IS STILL THE BEAUTY BLOCKER AND IS UNMOVED BY THIS RUNG** — s137's fix shape (A) remains necessary-but-not-sufficient (frame pushed ⇒ clean FAIL becomes SEGV; excluding β from the widening ⇒ still SEGV). What U-3 adds is the *precondition* s136 said it would: a per-instance ARBNO activation now has an offset authority keyed the right way, and any producer/consumer displacement drift is now catchable the moment it appears. Start from the s137 instruction (read the SEGV rip against `x86_arbno_rbp_unwind_at` and the `n39_match_arbno_{as,af}` landings) **with `SCRIP_ZONE=1 SCRIP_ZONE_BOMB=2` on**, which no prior seat could do.
+**(b) DISTRIBUTE THE REMAINING ζ-FAMILY SITES THAT ARE ACTUALLY SLOTS** — `match_end` (19) and `match_begin` (9) were NOT touched; classify each as head-layout vs registry slot before swapping, exactly as this seat did for the four customers. ⛔ Do not swap the fixed head.
+**(c) THE CENSUS IS NOW CHEAP — RUN IT ON BEAUTY.** `SCRIP_ZONE=1 SCRIP_ZONE_BOMB=2 ./scrip --compile beauty.sno` is one command and no prior seat had it.
+
+---
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s137 (Claude Opus 5) — **THE s136 RETRACTION IS LIFTED, AND THE BEAUTY BLOCKER HAS A NAME: DEFECT C, REACHED THROUGH AN UNSEALED DEFER.** SCRIP `c312760c`+, corpus `ce18a125`+. All rungs DEFAULT-INERT.
 
 ### ⭐⭐⭐⭐⭐ WHAT LANDED — s137
