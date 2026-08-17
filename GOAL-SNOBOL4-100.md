@@ -50,6 +50,28 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s139 (Claude Sonnet 4.6) — **THE CHECKER WAS BLIND TO 52% OF BEAUTY'S ζ TRAFFIC (CHOICE), NOW UNBLINDED. DEFER β MUST RESTORE-THEN-RESUME. BEAUTY UNMOVED (10/622). RESIDUE: β CANNOT TRUST AMBIENT RBP.** SCRIP `0887f44c`. All rungs DEFAULT-INERT.
+
+### ⭐⭐⭐⭐⭐ WHAT LANDED — s139
+- **ZSP SPINE-SPELLING AXIS (inert):** `ZREFC` hardwired FR/FRQ(scratch+d) as the only decline spelling; ALT choice record uses bare `[rsp+d]` so `bb_match_alternate` guarded OUTSIDE the accessor. `sn4_choice_rbp_off()==0` for every blob in beauty → **ALL 300 CHOICE resolutions were invisible to s138**. Fixed: `ZREFS(reg_off,d,w,customer,spine)` with `ZSP_RAW` for CHOICE. Beauty census: 279 → **579 resolutions, ZERO disagreements**. 1557/1557 byte-identical.
+- **INHERITED s137 DISCRIMINATOR CORRECTED:** s137's "defer to LEN(0) ok, to SPAN(' ') FAIL" was measured on **oracle-FAIL programs** (unusable witnesses). Rebuilt on oracle-ok ablations: discriminator is **ARBNO body defer whose target CARVES** (no ALT required). `defer_SPAN` fails with no alternation at all.
+- **DEFER β COMPOSITION (default OFF, byte-identical):** s137 tried include-β (β→ω, destroys resume) and exclude-β (leaked frame). Neither tried **restore-then-resume**: `mov rsp,rbp; pop rbp; jmp [rsp]`. Green witness now holds under `SCRIP_DEFER_CARVE_RBP=1`; carve witnesses still SEGV.
+- **WHY s137's FIX-SHAPE-(A) SEGVd GLOBALLY:** `bb_match_defer.cpp:254` kept `op_seal==1` while α tested `dfrm()` → pushed frame β never popped. Converting β to dfrm() is also wrong: unsealed defer β is a RESUME PORT, not a fail exit. The port needs BOTH actions in order.
+
+### ⛔⭐⭐⭐ RESIDUE — ONE NAMED THING
+**β cannot trust the ambient `rbp`.** Defer suspends at γ still holding its frame; by the time β resumes, other activations (MATCH_BEGIN, sibling defer, next ARBNO instance) may have pushed their own. `rbp` callee-saved protects it across C crossings, not across a *suspension*.
+
+**NEXT SEAT, pick up exactly here:**
+**(a) Make the frame recoverable FROM THE RECORD, not from ambient rbp.** The defer record holds `[rsp+0]` = resume address; the activation's frame base belongs beside it. Widen the record (currently 16B: pad@0, resume@8) with a 3rd slot for the caller-rbp snap; β restores rbp FROM `[rsp+8]` (or wherever the frame-base snap lives) before the `jmp [rsp+0]`. ⛔ Do NOT land on a single-witness green — `defer_LEN0`/`inline_ALT` are the counter-witnesses this seat added; 150/151 and `probe/arbnofence/` punished the last two widenings.
+**(b) Mint the s139 ablation table into `corpus/probe/m1/` with `.ref` files** (`defer_ALT`, `defer_SPAN`, `defer_LEN0`, `inline_ALT` — all oracle-ok so any FAIL is a defect by construction). See FINDING-2026-08-17-s139.
+**(c) CHOICE census is now free** — `SCRIP_ZONE=1 SCRIP_ZONE_BOMB=2` shows all 300 of beauty's choice records. Run it after any change to the ALT template to confirm no CHOICE disagreement introduced.
+**(d) beauty retest** after the record-widen lands: same witness (beauty.sno:611, `ARBNO(*Command)` with `*Parse` body, second instance). Start with `./scrip --compile beauty.sno` and diff the `.s` against the last-passing sibling.
+
+### ⭐ MEASURED — gates
+1557/1557 byte-identical (unary_not self-nondeterministic re-proven: 5 runs 5 distinct md5s same binary) · `test_gate_zdp_on_null.sh SCRIP_ZONE=1` PASS 659/0 · regens ×3 zero changed bytes · medium-invisible strict FAIL on **inherited** bb_glue_flat(4)/xa_flat(8) baseline; touched files contribute 0 · beauty unmoved 10/622.
+
+---
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-17 s138 (Claude Opus 5) — **ζ-ONE U-3 IS LANDED: THE OFFSET HALF OF THE UNIFIED ZETA PLAN EXISTS, KEYED (NODE, CUSTOMER), AND ITS FIRST CENSUS ALREADY NARROWS DEFECT C.** SCRIP `b470f84e`+. All rungs DEFAULT-INERT.
 
 ### ⭐⭐⭐⭐⭐ WHAT LANDED — s138
