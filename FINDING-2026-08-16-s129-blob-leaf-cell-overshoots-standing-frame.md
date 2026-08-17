@@ -131,6 +131,43 @@ prerequisite, and it is now measured rather than predicted: **cross-blob zd pric
 `blob_frame_bytes()` must be reconciled before either can move.** Doing it as corruption repair
 also buys the s128 widening for free.
 
+## 6b. ⭐⭐⭐ THE EXACT SITE, AND THE EXACT MISSING TERM (localized s129, read-only)
+
+The cell spelling is produced by **THE ONE OFFSET FUNCTION**, `src/templates/x86_asm.h:583`:
+
+```c
+inline int x86_frame_off(int off) { return x86_rsp_slide_known() ? off + _.op_zdepth : -1; }
+```
+(text arm at `x86_asm.h:1115`, `snprintf(... "[rsp + %d]", off + _.op_zdepth)`.)
+
+**The sum has exactly one compensation term: `op_zdepth` — the BOX's own carve.** The function's
+own ZTOS-2 comment states the law it was added under: *"the box's own alpha carve moves rsp DOWN by
+K after that distance was computed, so the live distance is disp+K and a reference spelled with
+disp alone reads K bytes too low… a box compensates for exactly what IT carved."*
+
+**A framed blob carves a SECOND K that nobody compensates.** `PAT$0_α_body` does
+`push rbp; mov rbp,rsp; sub rsp, blob_frame_bytes()` (`emit.cpp:2842`) — 56 bytes here — and that
+carve happens AFTER the flat ZLS coordinates were assigned, exactly as the op_zdepth carve does.
+`x86_frame_off` has no `blob_frame_bytes()` term, so every FR/FRQ/FRQB reader inside a framed blob
+names an address computed as though the activation frame were not there.
+
+⛔ **THIS IS NOT A ONE-LINE ADD, AND MUST NOT BE ATTEMPTED AS ONE.** Three reasons, in order:
+1. **Blast radius.** This function is the sole consumer path for `x86_frame_modrm` (BINARY modrm),
+   `x86_frame_text_mem` (TEXT), and every `FR`/`FRQ`/`FRQB` operand — the file's own comment counts
+   ~1065 readers converted through it. A wrong sign or an un-gated arm moves the entire corpus.
+2. **Direction is NOT obvious and the arithmetic says so.** Naive `+blob_frame_bytes()` sends the
+   cell to `blob_rbp+116`, further INTO the caller. Naive `-56` gives `blob_rbp+4`, still above the
+   frame. Only re-basing the cell into the blob's OWN frame lands it legally. The correct answer is
+   a **re-home**, not a delta — which is why the s128 cursor called it *"the zd cross-blob pricing
+   must learn `blob_frame_bytes`"* and not "add a term".
+3. **The depth-immune arms must stay untouched.** Pinned `___` and island `r12` are depth-IMMUNE
+   bases; adding any activation compensation to them is the named FRQ/FRQB double-add class.
+
+**Therefore the rung is: teach the PLANNER (`zd_plan`/`zvo_resolve`, `src/contracts/zeta_storage.c`)
+that a framed blob's cells belong in the blob's frame**, so the coordinate arrives already correct
+and `x86_frame_off` keeps its single term. That is ONE AUTHORITY (the planner owns placement);
+patching the encoder would be the second speller of the same fact — s68/s70 disease.
+
 ## 7. NEXT RUNG (routed, not started — END-OF-CONTEXT LAW)
 
 1. **Reconcile the two owners of `blob_entry+N`.** Start at `src/contracts/zeta_storage.c`
