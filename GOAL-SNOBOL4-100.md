@@ -50,6 +50,30 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s148 (web seat: Claude Opus 5) — **CN-4 `&USER_DECLARED_CONSTANTS` LANDED: THE `&` NAMESPACE IS NOW A DECLARATION AND ORACLE-TRUE 251 IS BACK. NO NEW GLOBAL ANYWHERE (the offered grant was DECLINED as the wrong shape). CN-4b/CN-5 WIRED BUT INERT; CN-5's BLOCKER IS ONE NAMED LINE. AND THE MD5 BLAST-RADIUS INSTRUMENT IS MEASURABLY UNSOUND.**
+SCRIP `d68ec482` · corpus `8c00356b`. Record: `FINDING-2026-08-19-s148-CN4-user-declared-constants-and-a-noisy-instrument.md`. Gate `scripts/test_gate_udc.sh` **12/12** (2 ref witnesses × m3/m4 × `SCRIP_KW_STATIC` 0/1, plus the `.err_sno` witness stream-by-stream and its 251 text). Witnesses `corpus/probe/cn/cn_udc_{declare,reopen}.sno` + `cn_udc_closed.err_sno` + `cn_clear_unseal.err_sno`. All three `.s` regens: **zero changed artifacts**.
+
+### ⭐⭐⭐ WHAT LANDED — CN-4 IS LIVE
+`&USER_DECLARED_CONSTANTS` is tier-2 (it must be answerable BEFORE the tier-3 arm, since it decides whether that arm exists), homed at the free `kwb_own[7]`, **born 1 = pre-CN-4 behaviour verbatim** so the default arm is byte-identical. Closed ⇒ oracle-verbatim **251 on BOTH read and write**; 341/342 survive only for names the program actually declared, so the three errors stop competing for one situation. Placed ABOVE the tier-3 fallthrough — below it, `= 0` would be captured as a sealed constant by the namespace it is closing and could never be re-opened. ⛔ **ORACLE_FAIL BY CONSTRUCTION**: `sbl` 251s `&USER_DECLARED_CONSTANTS` itself, so the feature is `.ref`-pinned forever, never sbl-diffed.
+
+### ⭐⭐ THE GRANT WAS DECLINED, AND THAT IS THE DESIGN
+Lon granted a new lowering global; **it was not taken.** The env killswitch and the program's declaration are two INPUTS to ONE fact ("is the feature active for this compilation?"), so they resolve in `sno_const_feature()` and nowhere else — `_cs` stays a single function-local static. Spelled-twice disease is one fact with two HOMES; one home with two inputs is ONE AUTHORITY done right.
+
+### ⛔ THE OPTIMISATIONS ARE STAGED, NOT CASHED — AND ONE FALSE POSITIVE IS ON THE RECORD
+Isolation A/B (same source, `SCRIP_CONST_STATIC` flipped) is **byte-identical**: CN-4b and CN-5 are consulted but inert at emit, confirming s147 that every `pat_static` consumer is default-OFF/`PATV$`-gated/unreached. ⚠ **A mid-session "CN-4b reaches emit" reading was FALSE** — it came from an extra source statement, not `pat_static`. **Comparing two different sources is not an A/B; only same-source-killswitch-flipped is.**
+**CN-5's blocker, named:** `src/optimizer/gva_collect.c:10` — `gva_name_eligible()` returns 0 for `name[0]=='&'`, so `op_gva_k` is permanently −1 at a constant's defer site and `bb_match_defer.cpp:44`'s cell arm can never fire. ⛔ NOT TAKEN: admitting `&` to the GVA plane moves every constant into the register-allocation plane and collides with RTCC. Exactly CN-3b's shape — trivial to write, expensive to justify.
+
+### ⛔⭐⭐⭐ THE INSTRUMENT IS UNSOUND — FIX BEFORE THE NEXT CODEGEN RUNG
+**7 of 510 programs differ run-to-run under a FIXED `.so`, and FIVE ARE ALREADY-CRASHING** (rc=139/139/139/132/134, zero `TIME(` refs: `128_pat_recursive_grammar_right_rec`, `160_pat_alt_inner_gen_resume`, `216_indirect_goto_computed`, `cf_goto_computed`, `null`); the other two print `TIME()` deltas (`demo/calculator-1`, `demo/calculator-2`). **`setarch -R` tames NEITHER class** — s147 chased only the ASLR class. A dead program still emits bytes and unstable bytes masquerade as blast radius: the **s33 "non-empty is not alive"** false signal resurfaced INSIDE the instrument every codegen rung is validated against. **FIX: record `rc` beside the md5 and compare only `rc==0` programs.**
+
+### ⛔ ALSO FOUND — `CLEAR()` SILENTLY UN-SEALS A CONSTANT (pre-existing CN-2, routed as CN-6)
+`NV_CLEAR_fn` (`core.c:2378`) nulls every bucket entry without consulting `e->is_const`: `DATATYPE` PATTERN→NULL, **342 does NOT fire** afterwards (the ENTRY still exists so `NV_EXISTS_fn` stays true — the silent null the design forbids), and 341 then refuses to restore it. Permanently null AND permanently unwritable. This is the measured reason **CN-5 retains the `g_sno_fz_unsafe` guard**: a cached defer-site fn would outlive the value it names.
+
+### ⛔ NEXT SEAT — PICK UP EXACTLY HERE
+**(1) Instrument first** — add `rc` to the sweep; everything else is validated with it. **(2) CN-6** — the CLEAR defect; note `NV_EXISTS_fn` is the wrong predicate at `keywords.c:355` (it tests entry existence, not assignment). **(3) CN-5 stays parked** until `&`-in-GVA is priced against RTCC. **(4) The T2 ruling is still open and now cheaper** — `&USER_DECLARED_CONSTANTS = 1` can be read as the program electing option (a) for itself, retiring the language-wide semantics call; wired, deliberately not assumed.
+
+---
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s148 (web seat: Claude Opus 5, continuing D-3 KW-STATIC) — **KW-3b LANDED: THE WRITE SIDE IS NOW A SEALED STATIC INDEX TOO — THE ARMED ARM EMITS ZERO `SNO$KWSET` AND ZERO `rt_call_arr`. PLUS A LIVE ARMED-ARM FATAL FIXED (`&ERRTEXT` = string raised 208 AND TERMINATED). ⛔ TWO HOUSE SWEEPS NOT RUN — SEE "WHAT THIS SEAT DID NOT DO", THE RUNG IS GATED BUT NOT SWEPT.**
 SCRIP `2796a66e` (KW-3b(a)) + `126ccda1` (KW-3b) · corpus `83548f3a`. Baseline this seat: SCRIP `6cc3aaee` (CN-3b), corpus `e327bbc0`.
 
