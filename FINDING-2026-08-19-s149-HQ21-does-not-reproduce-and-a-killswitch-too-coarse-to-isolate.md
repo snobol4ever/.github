@@ -119,6 +119,16 @@ Proof the fixed sweep is now sound: **529 rows, two consecutive runs on a fixed 
 
 ## 4 ⛔⭐ NEW — `SCRIP_CONST_STATIC` IS TOO COARSE TO ISOLATE CN-4b/CN-5, SO THE "STAGED, NOT CASHED" READING IS UNSUPPORTED
 
+⚠ **SCOPE — THE TWO KILLSWITCHES MUST NOT BE CONFLATED (and this seat briefly did, then caught it).** This
+section indicts **`SCRIP_CONST_STATIC` only**. **`SCRIP_KW_STATIC` is a different switch and isolates
+PRECISELY — measured:** the default-vs-armed `.s` sweep moves **47 of 527** programs, and **47 of 47
+reference a `&` name (zero false positives)**; the remaining 480 are byte-identical. Arming changes
+emission for keyword-using programs and nothing else. Note this coexists with the board being IDENTICAL
+default-vs-armed on 318 rows — **same behaviour by a different route is exactly the rung's goal**;
+byte-identity and behavioural identity are different instruments and here they agree in the intended way.
+Nothing in this section bears on the KW killswitch, and nothing in that measurement rescues
+`SCRIP_CONST_STATIC`.
+
 s148 concluded: *"Isolation A/B (same source, `SCRIP_CONST_STATIC` flipped) is byte-identical: CN-4b and CN-5
 are consulted but inert at emit."* Two measured problems with that inference:
 
