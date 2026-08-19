@@ -50,6 +50,52 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s148 (web seat: Claude Opus 5, continuing D-3 KW-STATIC) — **KW-3b LANDED: THE WRITE SIDE IS NOW A SEALED STATIC INDEX TOO — THE ARMED ARM EMITS ZERO `SNO$KWSET` AND ZERO `rt_call_arr`. PLUS A LIVE ARMED-ARM FATAL FIXED (`&ERRTEXT` = string raised 208 AND TERMINATED). ⛔ TWO HOUSE SWEEPS NOT RUN — SEE "WHAT THIS SEAT DID NOT DO", THE RUNG IS GATED BUT NOT SWEPT.**
+SCRIP `2796a66e` (KW-3b(a)) + `126ccda1` (KW-3b) · corpus `83548f3a`. Baseline this seat: SCRIP `6cc3aaee` (CN-3b), corpus `e327bbc0`.
+
+### ⭐⭐⭐⭐⭐ WHAT LANDED — s148
+- **KW-3b — `&KW = value` BY SEALED INDEX.** Both `lower_snobol4.c` TT_KEYWORD assignment sites (plain assign + statement-level pattern-replacement) mint a new kind instead of the by-name builtin call. MEASURED WIN, from the emitted `.s`: armed emits **zero `SNO$KWSET`, zero `rt_call_arr`** — a name-string pointer + `rt_call_arr@PLT` + `to_cstring` + a ~60-arm strcmp cascade, and THEN a second cascade inside `rt_keyword_write_snobol4`, all replaced by one rip-relative load + O(1) array write. Legacy arm keeps the by-name call verbatim.
+- **KW-3b(a) — `&ERRTEXT` ACCEPTS A STRING.** `kwb_write_ent` raised **208 and TERMINATED** on `&ERRTEXT = 'text'` whenever armed (legacy merely swallowed it and read back null) — a hard blocker on ever flipping the default ON. Manual names the exception twice: Ch.14 Replacement field (*"must evaluate to an integer value (except for &ERRTEXT, which will accept a string)"*) and Ch.16 &ERRTEXT. ⛔ ORACLE-MEASURED, NOT INFERRED: `&ERRTEXT = 5` reads back **"5" / DATATYPE STRING**, so the entry accepts ANY value and stringifies it. Fixed in `kwb_write_ent` — the ONE body both `kwb_write` and `rt_kw_write_idx` execute — and deliberately **entry-specific, not `kind==KWB_STR`**: the other string entries are PROTECTED and `&ALPHABET = 'x'` must keep taking 208 (widening it takes `kw_protected_write.ref` oracle-wrong).
+
+### ⛔⭐⭐⭐⭐ WHY A SEPARATE IR KIND — TWO MEASURED REASONS, NOT SYMMETRY (do not "collapse" this into `IR_KEYWORD_ASSIGN` for IR-REDUCE)
+1. **NAMESPACE COLLISION, measured:** `TRACE` and `DUMP` are named by **BOTH** the SNOBOL4 keyword block and Icon's assign template, so the keyword NAME — the only key a shared template could dispatch on — cannot tell an Icon `&trace` from a SNOBOL4 `&TRACE`. And `sval`/`ival` are a **UNION** in `IR_lit_t`, so the lowerer cannot stash a resolved index beside the name to disambiguate.
+2. **DIFFERENT FAILURE TOPOLOGY:** Icon's `&pos := v` genuinely FAILS and takes ω. A SNOBOL4 keyword write RAISES (208/209) and at the default `&ERRLIMIT` of 0 **TERMINATES** — manual Ch.16 `&ERRLIMIT` is explicit that only a NON-ZERO `&ERRLIMIT` decrements, suppresses the message and *"converts the error to statement failure"*, and SCRIP has no such mechanism (`core_runtime_error` exits). So the kind is **γ-only** and is deliberately ABSENT from the ω-push traversal lists — which is also where the `IR_CALL` it replaces sat, so traversal is identical to before.
+Language stays implicit in PARSER/LOWER exactly as the read side does it: the lowerer picks the KIND, the emitter dispatches on the KIND, no language test anywhere.
+
+### ⛔⭐⭐⭐⭐⭐ THE ZD TRAP — RECORDED SO THE NEXT SEAT DOES NOT RE-DERIVE IT
+The READ sibling (`IR_KEYWORD_SNOBOL4`) is a **ZERO-OPERAND leaf**, so its `zd_nops` default of 0 is correct. This kind **CONSUMES** the assigned value, so it needs **`zd_nops == 1`**. Without that arm the ZD planner stages no `op_zread`, `ZOPQ(0,·)` resolves to **displacement 0 — THIS box's own result cell** — and the write reads back the descriptor it is about to store. Measured as `Error 208` on `&CASE = 1`, and **SILENT AT EMIT TIME** because displacement 0 is a perfectly legal address. Companion trap, this rung's FIRST failure: **operands are reached through `ZOPQ`/`ZOPD`, never `FRQ`** — `FRQ` is the legacy flat authority and is simply wrong in the ζ-cell regime (it read `rsp+48` where the operand sat at `rsp+16`).
+
+### EVIDENCE (this seat)
+| check | result |
+|---|---|
+| KW-STATIC gate, armed | **10 PASS / 14** (was 6/10; +4 rows, gate unchanged by the retarget itself) |
+| KW-STATIC gate, legacy | **0 / 14** — every row arm-sensitive, none inflated |
+| m3 ≡ m4 | every row, both new witnesses included ⇒ each defect has ONE home in shared runtime |
+| killswitch byte-identity, DEFAULT arm | **44/44 mode-4 `.s` byte-identical, 0 movers** (probe/kw + crosscheck/keywords + snobol4 demos) |
+| new-kind reachability | lowerer mints it ONLY when armed AND the block names the keyword; a miss keeps the verbatim `SNO$KWSET` call, which is what preserves `&ARB/&BAL/&REM/&FAIL` |
+
+### ⛔⛔ WHAT THIS SEAT DID NOT DO — THE RUNG IS GATED BUT NOT SWEPT
+- **THE BY-SET A/B WAS NOT RUN.** The s146/s147 cursors both warn in bold that a small witness gate does not substitute for it (KW-2's `082_keyword_stcount` regression was invisible to the 10-row gate and only the 802-row A/B caught it). **The next seat must run `ab_board_sweep.sh` base-vs-fix and default-vs-armed BEFORE this rung is trusted**, and especially before any default flip.
+- **REGENS ×3 WERE NOT RUN** (`util_regen_{benchmark,feature,demo}_s_artifacts.sh`). This session touched `emit.cpp`, `src/templates/`, and `lower_snobol4.c`, so RULES.md step 4 requires them. The 44/44 default-arm byte-identity predicts zero changed bytes, but that is a PREDICTION, not the measurement — and ⛔ per s145, never credit a rung with a regen's accumulated drift; prove attribution with the killswitch arm.
+- **NOTHING WAS PUSHED** (credential not supplied to this seat); `handoff_status.sh` not run. Per RULES.md this is a CHECKPOINT, not a handoff.
+
+### ⛔ CONTAINER TRAP HIT THIS SEAT — COSTS A CONFUSING HOUR IF RE-MET
+A `git stash`-based A/B run INLINE timed out mid-rebuild and left **corrupt `.o` files in `out/rt_pic/`** that produced entirely misleading `undefined reference to 'sno_pat_count' / 'xa_csettab_rodata'` link errors — symbols that are plainly defined in the tree. It is NOT a code defect. Cure: `rm -rf out/rt_pic && make libscrip_rt`. **Run stash-based A/B sweeps detached, never inline under a tool timeout.** (The measurements themselves completed on good builds before the corruption and stand.)
+
+### ⛔ NEXT SEAT — PICK UP EXACTLY HERE
+1. **Run the two missing sweeps above** (by-set A/B + regens ×3). Do this FIRST — it is the evidence this rung's landing is owed.
+2. **KW-4** — delete the gated bare-name family, the `kw_*` statics, the `SCRIP_SEED_NAMES` ALPHABET bridge, and `bb_match_advance`/`IR_MATCH_ADVANCE` (dead; last template reference to `kw_anchor`). Gates + md5 blast radius.
+3. **Flipping the killswitch default to ON remains its own gated step** — Class B changes `&TRIM`/`&FULLSCAN` behaviour for every program, and the full A/B is the evidence required.
+**STILL RED, BOTH ROUTED, NEITHER TAKEABLE HERE:** `kw_protected_write` needs the `&ERRLIMIT`→statement-failure mechanism (KW-5/ERRLIMIT rung). `kw_bare_shadow` is HQ's **B1** (an unset variable yields a NULL-tagged descriptor where the oracle gives the null string; manual p.24 verbatim: *"SPITBOL guarantees that a new variable's initial value is the null string."* DATATYPE is innocent).
+**NEW, ROUTED TO THE CN-* OWNER, NOT TAKEN:** on the **DEFAULT** arm `rt_keyword_write_snobol4`'s cascade names only ~11 keywords and **every other one falls through to `NV_SET_fn`, which CN-2 marks `is_const`** — so a SECOND assignment to a documented unprotected keyword (`&CASE`, `&ERRLIMIT`, …) raises **341 and TERMINATES**. This is the WRITE-side twin of the read-side hole s147 fixed (`&ARB` raising 342). Not patched here for two reasons: the armed block already fixes the class wholesale (it claims block-named keywords before that tier is reached), and KW-4 deletes the cascade outright. Witness minted: `corpus/probe/kw/kw_write_not_constant.{sno,ref}` — ⛔ its leading `OUTPUT` statement is LOAD-BEARING; with the `&CASE` pair as the program's first statements the seal does not fire and the witness goes green for the wrong reason.
+
+---
+
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s147 (web seat: Claude Opus 5, continuing D-3 KW-STATIC) — **KW-3 LANDED: THE KEYWORD IS NOW A STATIC IN THE EMITTED ASM, READ BY INDEX. AND THE ARMED GATE'S "6/10" WAS ALREADY 4/10 ON ARRIVAL — TWO ROWS HAD REGRESSED UNDER CN-2; ROOT-CAUSED AND FIXED, 6/10 RESTORED.**
+SCRIP `306858fe` + `b1f48c0d` (standing pin) · corpus `1a7e82ae`. Record: `FINDING-2026-08-19-s147-KW3-static-slot-and-CN2-pattern-keyword-regression.md`. Baseline this seat: SCRIP `a63c13d9` (CN-2), corpus `9e1b3f16`.
+
+---
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s147 (web seat: Claude Opus 5) — **CN-3 LANDED: DECLARATION REPLACES INFERENCE. `pat_static` 0→1 ON `*&Name`, BLAST RADIUS 0 DIFFERING OVER 1295 EMITTING FILES, WITNESSES GREEN BOTH MODES. THE T2 PAYOFF IS NOT YET REALIZED AND ONE RULING GATES IT.**
 SCRIP `9d85ca98` · corpus `9dd32aa4`. Record: `FINDING-2026-08-19-s147-CN3-landed-and-a-nondeterministic-rodata-string.md`. Witnesses `corpus/probe/cn/` (now 4 × `.sno`+`.ref`, each `&`-program shipping its `_classic.sno` oracle twin) · killswitch `SCRIP_CONST_STATIC` (default ON, `=0` byte-identical).
 
