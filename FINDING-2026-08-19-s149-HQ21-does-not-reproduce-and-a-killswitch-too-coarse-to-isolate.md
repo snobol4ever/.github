@@ -1,5 +1,23 @@
 # FINDING 2026-08-19 s149 — HQ-21 DOES NOT REPRODUCE AT ORIGIN HEAD, THE KW RUNG IS NOW ACTUALLY SWEPT, AND ONE KILLSWITCH IS TOO COARSE TO ISOLATE THE RUNG IT WAS USED TO MEASURE
 
+## ✅ RESOLVED WHILE THIS FINDING WAS BEING WRITTEN — HQ RETRACTED (HQ-27, `c31a9719`)
+HQ re-measured on a **pristine rebuild** (`rm -rf /tmp/si_objs out`) and every number flipped to match this
+seat's: `&W = "hi"` → `w=hi` in all arms · UDC **12/12** · arbnostore **10/10** · cn green. HQ-21 and HQ-24
+are **VOID**, and HQ minted **PRISTINE-BUILD-BEFORE-VERDICT** as standing law: any measurement following a
+`git checkout` of a different commit must be preceded by a full clean rebuild. HQ credits the stale-`.so`
+mechanism in §1 as the independently-measured corroborator. **§§1 and 1b below stand as the measurement
+record; act on HQ-27, not on the retracted banner.**
+
+⛔ **B2 REMAINS REAL AND IS UNAFFECTED BY ANY OF THIS** — the witness and beauty still crash at pristine HEAD.
+Nothing here excuses B2; the retraction is only about which commit was blamed for it.
+
+**A SECOND SEAT ALSO NUMBERED s149 WAS RUNNING CONCURRENTLY** and reached the same instrument conclusion
+independently (`1f971a5c`: *"s148's instability did not reproduce and names a different sweep"*), and landed
+CN-6 + CN-7. Two seats sharing one session number is itself a hazard worth a ruling — the ledger cannot
+distinguish our cursors by name.
+
+---
+
 **Seat:** claude.ai web (Claude Opus 5), continuing D-3 KW-STATIC.
 **Trees:** SCRIP `f80c3f4d` (= origin/main at session start, unmoved) · corpus `a51c7d25` · baseline worktree built at SCRIP `bc0eeff4`.
 **Files touched:** `scripts/util_s_md5_sweep.sh`, `scripts/ab_board_sweep.sh`, `scripts/test_gate_kw_static.sh`. **ZERO `src/` files** — so the ×3 `.s` regens are not triggered and the default arm is byte-identical by construction.
@@ -36,7 +54,29 @@ place, so the driver mints the new kind while the runtime half is the old one. R
 path that measures green in all four cells. The HQ-21 banner should be dispositioned before it costs another
 seat a session repairing something that measures correct.
 
-## 2 ⭐ THE SWEEP s148 SAID WAS MANDATORY, AND NEVER RAN, IS NOW RUN
+## 1b ⛔ HQ-24's ESCALATION ALSO DOES NOT REPRODUCE ON MAIN (tested after it landed mid-session)
+
+HQ pushed `7a498ec6` while this seat was measuring: *"KW-3b confound named and blast radius WIDENED
+(arbnostore 10→0, MKPAT empty-name wall) — D-3 repair ESCALATED"*, adding both to the repair gate and
+asserting that **every HEAD-based measurement after s148 was confounded by KW-3b**. That is a new, specific,
+falsifiable claim, so it was tested rather than assumed:
+
+| HQ-24 claim | Measured s149, both commits |
+|---|---|
+| `corpus/probe/arbnostore/` collapses 10 → 0 at HEAD | **base 10/10 and HEAD 10/10 — in BOTH modes** |
+| a `SNO$MKPAT` "pattern blob '' not registered" wall is minted | **never fires**; the code path (`by_name_dispatch.c:6920`) is present but unreached on all 10 |
+
+`probe/arbnostore` is not an incidental set — s122 identifies it as **the Milestone 1 blocker class**, so a
+true 10→0 would be the most serious claim on the board. It does not occur on `main` at `f80c3f4d`.
+
+**The likely reconciliation, stated as hypothesis and not as fact:** HQ measures on a tree carrying its own
+B2 fix-campaign work (origin now has a `hq-b2` branch, and HQ-24 reports two fix shapes falsified against
+`bc0eeff4`), so its numbers may describe **an interaction between B2's changes and KW-3b**, or a driver/`.so`
+pairing (§1). Either would be a real finding — but it would not be *"KW-3b breaks the default arm"*, which is
+what the banner instructs incoming seats to repair. ⛔ **On `main`, by every test either party has now named
+— 342-on-write, UDC 12/12, 529 md5s, 318 board rows, arbnostore 10/10, MKPAT — KW-3b measures clean.**
+
+
 
 s148's own cursor: *"THE BY-SET A/B WAS NOT RUN … the next seat must run `ab_board_sweep.sh` base-vs-fix and
 default-vs-armed BEFORE this rung is trusted."* Run three ways, **row-by-row, not totals** (totals hide
@@ -119,15 +159,46 @@ hand-run was wrong.** Same family as everything else in this FINDING: the measur
 
 ---
 
+## 7 ⭐ RE-PROVEN AFTER REBASE ONTO THE CONCURRENT SEAT'S CN-6 + CN-7 (RULES: re-prove the gate after a rebase)
+
+Rebuilt at the merged HEAD and re-ran everything this seat claims: UDC **12/12** · KW gate **armed 10/14** ·
+arbnostore **10/10** · `.s` byte-identity vs `f80c3f4d` **0 true movers / 527 comparable** (the only two
+differing rows are the other seat's label rename `RC_1`→`COMPILE_RC_1`, on rows already excluded as rc≠0).
+**CN-6 and CN-7 are runtime-C only and emission-neutral** — an independent confirmation of that seat's work.
+
+**⭐ WHY THOSE TWO HAD TO LAND TOGETHER, AND IT IS THE PRETTIEST THING ON THIS PAGE:** CN-7 (CLEAR was a
+silent no-op — it stored into `NV_t.val` while the compiled program reads the GVA cell) **was MASKING** CN-6
+(CLEAR un-seals a constant). A sealed constant survived CLEAR only *by accident*, because CLEAR did nothing
+at all. Fixing CN-7 alone would have **exposed** CN-6 and looked like a fresh regression introduced by the
+CLEAR fix. Measured here on the pre-CN-6 build: `after=PATTERN` — the constant survived, for the wrong reason.
+⛔ **A defect can be hidden by a second defect in the same function; fixing either one alone reads as a
+regression.** Same family as everything else in this FINDING — the measurement, not the code.
+
+## 8 A SECOND METHOD ERROR THIS SEAT OWES ITS OWN RECORD — THE SAME ONE, TWICE
+
+§6 records a relative-path-after-`cd` mistake. It happened **again**, in the post-rebase re-prove: a loop that
+did `cd $(dirname $w) && ./scrip --run` put `./scrip` out of scope and reported **arbnostore 0/10** — which
+would have read as *"HQ was right after all, and the Milestone 1 blocker class just collapsed."* Re-run with
+an absolute path: **10/10**. ⛔ **The lesson is not "be careful" — it is that a harness which resolves its
+binary relative to a directory it also `cd`s into can manufacture a total-failure board, and a total-failure
+board is exactly what a seat is primed to believe when a conviction is already on the table.** The checked-in
+sweeps get this right (`ab_board_sweep.sh` resolves `SCRIP_DIR` absolutely, up front); ad-hoc loops in chat do
+not, and this seat wrote two of them.
+
+
+
 ## NEXT SEAT
 
-1. **Disposition HQ-21** — the banner currently halts every incoming seat for a repair that measures green.
-   Either HQ re-measures on a clean pair (driver **and** `.so` from the same commit) or the banner is struck.
-2. **CN-4b/CN-5 remain undecided** (§4). Do not cite the s148 byte-identity as evidence either way.
-3. **CN-6** — the `CLEAR()` un-seals a declared constant defect stands, untouched here; note `NV_EXISTS_fn`
-   is the wrong predicate at `keywords.c:355`. Manual (Ch.19 CLEAR, p.215) is explicit and worth quoting to
-   the fix: `CLEAR(s)` nulls all user variables and `s` is an **exclusion** list, and CLEAR **does not clear
-   protected variables** — so a sealed constant surviving CLEAR is the oracle-shaped behaviour to aim at.
-4. **KW-4** (delete the gated bare-name family + `kw_*` statics + the `SCRIP_SEED_NAMES` bridge +
+1. **CN-4b/CN-5 remain undecided** (§4) — the only genuinely open question this seat leaves. Do not cite
+   s148's byte-identity as evidence either way; `SCRIP_CONST_STATIC` cannot resolve it.
+2. **CN-6 and CN-7 are LANDED** by the concurrent seat (`44673314`, `feed88a2`) and independently verified
+   here (§7) — emission-neutral, both witnesses green. The manual anchor is worth keeping beside the fix:
+   Ch.19 CLEAR p.215 — `CLEAR(s)` nulls all user variables, `s` is an **exclusion** list, and CLEAR **does
+   not clear protected variables**, so a sealed constant surviving CLEAR is the oracle-shaped behaviour.
+3. **KW-4** (delete the gated bare-name family + `kw_*` statics + the `SCRIP_SEED_NAMES` bridge +
    `bb_match_advance`) is unblocked by the sweeps in §2 — the rung is now swept, not merely gated.
-5. `132_pat_fence_eps_recur_shallow` m4 `FN__makeP` linkage gap (§2) needs an owner.
+4. `132_pat_fence_eps_recur_shallow` m4 `FN__makeP` linkage gap (§2) needs an owner — a `DEFINE`'d function
+   referenced but never emitted; arm- and commit-independent; violates DoD-1 m3≡m4.
+5. **Two seats ran as "s149" today.** The cursors are indistinguishable in the ledger. Worth a naming ruling
+   before the next parallel dispatch.
+
