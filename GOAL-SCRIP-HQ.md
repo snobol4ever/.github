@@ -72,6 +72,9 @@ Execute CN-O1 per GOAL-SNOBOL4-100 § ORACLE AMPLIFICATION. MINIMAL-source archa
 ### D-13 — csnobol4: accept `&name` as plain variables (`-x` build BESIDE stock) — **READY**
 Execute CN-O2, same contract in C, same gates, csnobol4's own suite green.
 
+### D-14 — SNOBOL4 WIRE-ORDER: canary instrument + census + gate — **READY**
+Execute GOAL-SNOBOL4-100 § WIRE-ORDER. Deliverables: (1) the push-sequence/frame-order grep gate (`scripts/test_gate_wire_order.sh`, greps == 0 baseline from HQ's census: 24/24 frames γ@+0/ω@+8, 4/4 pushes r11-first, RTCC +56/+64); (2) the WIRE CANARY — ζ-SM-precedent env-gated port check comparing live r10/r11 against the BB's staged wires, atexit summary, census over demos+patterns+crosscheck both modes; (3) the violation census routed as repair rows (the s44 WIRE-RESTORE class); NO blanket restore-at-landing without the census (Lon's always-live invariant is the END STATE; the census prices it). Collision: HQ owns B2 (defer L(6) stubs) — pull-rebase; the canary is instrument-only, default OFF, byte-identical.
+
 ### Parked: D-11 SN4-CONSTANTS CN-0..CN-4 (design landed in GOAL-SNOBOL4-100 § SN4-CONSTANTS; implementation queues behind D-3's block) · D-7 SNOBOL4 wall B2 (`zls_g_region` m3 SEGV) — ⛔ HQ-OWNED (Lon 2026-08-19: ZETA tracing at HQ) · D-8 json RC1/RC1+TIMEOUT · D-9 porter/treebank RC1 · D-10 calculator-1 m4-only RC1 · Raku (#4) `GOAL-RAKU-BB.md` OO LADDER · Pascal (#4) `GOAL-PASCAL-BB.md` · Rebus (#5) unstaffed by priority.
 
 ## THE M1 CAMPAIGN — BEAUTY SELF-HOST (the one thing "today")
@@ -97,6 +100,7 @@ Execute CN-O2, same contract in C, same gates, csnobol4's own suite green.
 | Prolog | s166 (2026-08-16) | R-0h landed; clause/recursion witnesses root-caused; PL-Z-1a γ-retain opt-in | same |
 
 ## LIVE CURSOR — HQ
+**2026-08-19 HQ-20 (Fable 5):** Lon's WIRE-ORDER observation VERIFIED by census (zero deviants; γ@+0/ω@+8 across frames, pushes, RTCC slots) and routed as design-of-record + the push-sequence trap law; his always-live-wires question routed with HQ position (instrument-then-repair, census prices the invariant); seat D-14 minted READY. CEO/CTO protocol noted: every idea/concern from chat becomes a routed rung or seat — this file is the ledger.
 **2026-08-19 HQ-19 (Fable 5):** B2 CURE PROVEN BY HAND-PATCH — one `add rsp,16` on the af ω fall-through runs the witness oracle-perfect. Owner narrowed: the right bracket's generic-emitter α-carve is leaked by the statement-side L(6) record stub (frees 16 of its 32; the blob-side twin frees all 32). Fix scoped to the L(6) stubs + the one-authority carve fact; lands next HQ slice with the full gate set (incl. beauty m3). FINDING addendum carries the accounting. Then CN-3c per Lon's ordering.
 **2026-08-19 HQ-18 (Fable 5):** B2 MECHANISM CONFIRMED at instruction level (FINDING addendum): retreat β-enters `jmp [rsp]` record-resume on defers that completed WITHOUT suspending — no record exists, jump lands in zeros. Bisect: armed by s121/s124 (`SCRIP_DEFER_RESUME=0` / `SCRIP_SEAM_WALK=0` both cure AND are oracle-correct on the witness); the s145 tail-beta rung is exonerated. FIX DESIGN routed (arm the record cell with the fail-through continuation at unsuspended completion — `jmp [rsp]` becomes valid in every state); lands next HQ slice with the full gate set, then CN-3c per Lon's ordering.
 **2026-08-19 HQ-17 (Fable 5):** Lon's ordering ruling: **HQ owns B2's fix, then CN-3c** — both ⛔ HQ-OWNED, no seat takes either. Board updated.
