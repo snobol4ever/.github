@@ -31,3 +31,15 @@ The follow-on the s10 comment promises: when the by-name chain finds the alias t
 SNOBOL-DEFINED function, trampoline into generated code (the machinery exists for defers/thunks:
 rt_proc_call_open_fnret / CALL2BB / EXPR$ collect). Gate with the standard ladder + this witness
 pair (opsyn witness green m4, xfail re-graded) + beauty m4 statement-count movement.
+
+---
+
+## ADDENDUM (s162, HQ) — THE B1 FAMILY BOTTOMS OUT AT B1c: THE FAIL-RETREAT. EVERYTHING ELSE IS NOW GREEN AND WITNESSED.
+
+**Falsified this slice (each with a witness now in `probe/b1/`):**
+- B1d (dyn-scope theory): EVAL inside a DEFINE'd fn reading dyn-scoped formals — WORKS both modes (`b1c_eval_fn_pattern_retreat` prints `CB: ty cap=AB` oracle-true before the crash). ⚠ TRAP FOR FUTURE GRADERS: the m4 binary's stdout is BLOCK-BUFFERED when piped — a SEGV swallows correct output already printed; grade under `stdbuf -o0` before concluding "crashed before X".
+- Pattern-VALUED formals through EVAL (`b1c_patvalued_formal_retreat`: `'A'|'B'` passed as `p`, fragment matches arm 2, `cap=B` oracle-true). The ladder A–H: scalar EVAL in fn ✓, formal-reading EVAL ✓, pattern-build ✓, deferred-call build ✓ (main+fn) ✓, thx-arg ✓, pattern-formal ✓ — ALL green m4.
+
+**B1c, measured (gdb on the witness m4):** after the deferred call returns and the match FAILS, the retreat cascade dies at `rip=0x1`: `[rsp] = {0x1, 0x40207d}` where 0x40207d is an address INSIDE `n53_lit_string`'s box — the cascade consumed an ordinary SPINE VALUE CELL (a literal's 16B descriptor pair) as a resume record. Not the zero-cell class (B2a/B2b's guard passes non-zero garbage); the cascade has walked PAST the record region. Both modes, guard-independent. The B2 FINDING's §FIX-CAMPAIGN successor: the fragment-blob ↔ main-match record protocol misaligns by (at least) one quad somewhere in the crossing.
+
+**Beauty consequence:** every grammar-BUILD layer is proven; B1c stands between the built grammar and any parse that must retreat (shift-reduce retreats constitutively). Beauty-m4's CLEAN Parse Error (no SEGV) is still unexplained-in-detail (its EVALs may fail on a construct the ladder misses, or its match dies pre-record) — but B1c is prerequisite either way. NEXT: record-layout census across the fragment/main crossing, then the B1c fix, then re-measure beauty + the un-swallowed B1b/B1c witnesses.

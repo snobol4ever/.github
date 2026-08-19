@@ -130,6 +130,10 @@ Manual v3.7 **p.131: EVAL FAILS if evaluation of its argument fails**, leaving t
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s150 (HQ, Fable 5) — **B2a LANDED ON MAIN (`d9f5cf24`) AFTER THE FULL PRISTINE RE-GATE HQ-27 DEMANDED — EVERY ARM FROM `rm -rf /tmp/si_objs out && make`, EVERY GATE GREEN. THE GUARD IS BEHAVIOR-NEUTRAL EVERYWHERE MEASURED; B2b IS THE REMAINING WALL AND THE NEXT HQ SLICE.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s162 (HQ, Fable 5) — **THE B1 FAMILY BOTTOMS OUT: B1d FALSIFIED (dyn-scope EVAL green both modes — the 'crash before output' was BLOCK-BUFFERING swallowing correct lines; grade under `stdbuf -o0`), PATTERN-VALUED FORMALS GREEN, THE A–H LADDER ALL GREEN. ONE WALL: B1c — THE FAIL-RETREAT CONSUMES A SPINE VALUE CELL AS A RECORD (rip=0x1, gdb'd). WITNESS PAIR IN `probe/b1/`. FINDING s156 ADDENDUM CARRIES THE ANATOMY.**
+
+Beauty path now: **B1c → (beauty re-measure) → B2c**. B1c is the B2 record-protocol work in the fragment↔main crossing — record-layout census first (`test_census_rbp_frames.sh` + the FINDING's record shapes), then the fix, standard ladder. HQ-owned, next slice, fresh context.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s161 (HQ, Fable 5) — **T4 LANDED (`8161a49e`): THE B1 WITNESS IS GREEN BOTH MODES. AND THE ONION KEPT PEELING: D-18a/b/c LANDED — THE RUNTIME FRAGMENT PATH WAS JUMPING THROUGH ITS OWN UNSEALED-CELL STUB (error 22 for EVERY deferred call inside an EVAL-built pattern, BOTH MODES). THE B1b WITNESS NOW EXECUTES ITS DEFERRED CALL ORACLE-TRUE — THEN SEGVS ON THE FAIL RETREAT (B1c). BEAUTY UNMOVED — ITS EVALS RUN INSIDE DYN-SCOPED DEFINE'D FNS (B1d witness owed).**
 
 The B1 chain, each layer witnessed before the next was visible:
