@@ -130,6 +130,10 @@ Manual v3.7 **p.131: EVAL FAILS if evaluation of its argument fails**, leaving t
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s150 (HQ, Fable 5) — **B2a LANDED ON MAIN (`d9f5cf24`) AFTER THE FULL PRISTINE RE-GATE HQ-27 DEMANDED — EVERY ARM FROM `rm -rf /tmp/si_objs out && make`, EVERY GATE GREEN. THE GUARD IS BEHAVIOR-NEUTRAL EVERYWHERE MEASURED; B2b IS THE REMAINING WALL AND THE NEXT HQ SLICE.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s163 (HQ, Fable 5) — **LON'S QUESTION ("does beauty run at all on small programs?") ANSWERED WITH A LADDER: ORACLE YES (indented input, `-bf`), SCRIP NOT YET — AND THE BLOCKER IS NOW A 10-LINE WITNESS: THE CROSS-MEDIUM PATTERN SEAM (`b1c_cross_medium_concat_seam`). THE GRAMMAR ITSELF IS FULLY EXONERATED — ALL 36 RULES BUILD ORACLE-IDENTICAL IN m4.**
+
+Chain: FINDING s156 Addendum s163 (two invocation-trap laws: `-bf` for beauty's oracle; tiny inputs must be indented — col-1 `X` is a LABEL and the oracle Parse-Errors it too). I–N ladder: everything green EXCEPT M = main-built ⊕ EVAL-built pattern CONCAT — the walk crosses the seam and dies (m4 SEGV; beauty's composite takes the clean F-path = its silent Parse Error; vH's rip=0x1 retreat = third face, one family). **The beauty self-host critical path is now: B1c-seam fix → beauty re-measure (expect the Shift/Reduce machine to RUN) → B2c (m3) → fixed point.**
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s162 (HQ, Fable 5) — **THE B1 FAMILY BOTTOMS OUT: B1d FALSIFIED (dyn-scope EVAL green both modes — the 'crash before output' was BLOCK-BUFFERING swallowing correct lines; grade under `stdbuf -o0`), PATTERN-VALUED FORMALS GREEN, THE A–H LADDER ALL GREEN. ONE WALL: B1c — THE FAIL-RETREAT CONSUMES A SPINE VALUE CELL AS A RECORD (rip=0x1, gdb'd). WITNESS PAIR IN `probe/b1/`. FINDING s156 ADDENDUM CARRIES THE ANATOMY.**
 
 Beauty path now: **B1c → (beauty re-measure) → B2c**. B1c is the B2 record-protocol work in the fragment↔main crossing — record-layout census first (`test_census_rbp_frames.sh` + the FINDING's record shapes), then the fix, standard ladder. HQ-owned, next slice, fresh context.
