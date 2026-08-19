@@ -73,11 +73,26 @@ are the SAME grammar: `calculator-1-match` **1.52×** (SCRIP faster) and `calcul
 **0.65×**. SCRIP's number never moved; the oracle's more than doubled. Any claim of a win or loss on
 that grammar is really a statement about FENCE.
 
-⛔ **NOT ROOT-CAUSED HERE** (END-OF-CONTEXT LAW — minted and routed). Two candidates, untested:
-FENCE is lowered but emits a no-op wiring, or it is honoured yet the surrounding arms already
-re-enter so there is nothing left to prune. The A/B is cheap: diff the `--compile` `.s` of
-`calculator-1-match` against `calculator-1-match-fence`. **If those two `.s` files are byte-identical
-the question is answered outright**, and per ASM-DIFF-FIRST that is the opening move.
+### ⭐ ASM-DIFF-FIRST RUN, AND IT HALVES THE QUESTION
+
+The opening move was made rather than left for the next seat. `--compile` on both variants:
+
+| variant | `.s` bytes | md5 |
+|---|---:|---|
+| `calculator-1-match` | 314,998 | `9c79bd7033da` |
+| `calculator-1-match-fence` | 309,819 | `befb525f1965` |
+
+**NOT byte-identical — they differ by 210 lines, and the fenced form is 5,179 bytes SMALLER**, with
+4 fence sites named in the emitted asm. **So the "FENCE emits a no-op wiring" hypothesis is
+REFUTED: FENCE is lowered and it does change the emitted code.** Both variants also compute the
+correct answer (check 32512, matching the oracle ref), so this is not a correctness bug.
+
+⛔ **What remains, NOT root-caused here** (END-OF-CONTEXT LAW — minted and routed): SCRIP emits
+different, smaller code for FENCE and gets *exactly the same throughput* from it, while the oracle
+gets 2.3×. So either the emitted pruning is semantically inert at run time, or SCRIP's execution of
+the unfenced form was never doing the backtracking FENCE exists to remove — in which case the
+oracle's 33/s unfenced figure, not SCRIP's, is the anomaly. Next instrument is a backtrack counter
+(or a `gdb` hit-count on the choice-point site) across the pair, NOT another `.s` read.
 
 ## 4. ⛔ ERROR 22 — "UNDEFINED FUNCTION CALLED" WHEN A SNOBOL FUNCTION IS CALLED FROM INSIDE ONE
 
@@ -122,8 +137,11 @@ the B1 write-up scopes to m4. Isolation done, so the next seat does not repeat i
 
 ## 7. ⛔ NEXT SEAT — PICK UP EXACTLY HERE
 
-1. **FENCE inertness (§3) is the highest-value open item on this board.** Start with the `.s` diff of
-   `calculator-1-match` vs `-match-fence`; byte-identity settles it in one command.
+1. **FENCE inertness (§3) is the highest-value open item on this board.** The `.s` diff is DONE and
+   refutes the no-op hypothesis (210 lines differ, fenced form 5,179 bytes smaller, 4 fence sites
+   emitted). Next instrument is a backtrack/choice-point COUNT across the pair, not another `.s`
+   read — and consider that the oracle's 2.3× unfenced penalty, not SCRIP's flatness, may be the
+   anomaly worth explaining.
 2. **Error 22 (§4)** — take the s156 B1 hunt and add porter's m3 case to it; the isolation above
    narrows it to the call itself, with argument and array ruled out.
 3. **json on SCRIP exceeds 60 s** where the oracle does 1.0K iters/s. Not characterised — could be a
