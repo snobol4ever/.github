@@ -122,6 +122,19 @@ Manual v3.7 **p.131: EVAL FAILS if evaluation of its argument fails**, leaving t
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s150 (HQ, Fable 5) — **B2a LANDED ON MAIN (`d9f5cf24`) AFTER THE FULL PRISTINE RE-GATE HQ-27 DEMANDED — EVERY ARM FROM `rm -rf /tmp/si_objs out && make`, EVERY GATE GREEN. THE GUARD IS BEHAVIOR-NEUTRAL EVERYWHERE MEASURED; B2b IS THE REMAINING WALL AND THE NEXT HQ SLICE.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s155 (HQ, Fable 5) — **B2b LANDED (`a075a0b1`): THE GUARD ESCAPE WENT GLOBAL (rtccb[31] MBC CELL) AND THE B2 WITNESS IS GREEN IN m4 FOR THE FIRST TIME — `SIG11 → nomatch rc=0`. beauty-m4 NOW RUNS CLEAN TO B1 (`Parse Error` / `START`, full header emitted). THE BEAUTY BOARD IS TWO NAMED WALLS: B1 (m4, alone) AND B2c (m3 dirty-quad twin).**
+
+Full record: FINDING-…-B2-minted… **Addendum 6** (anatomy, falsified designs, the MBC protocol, the pristine ladder, BASELINE-ARM law). Headlines: TRUE G1 0/527 same-arm identity; probe board zero-regressions with m4 +1 = the witness; beauty m4 rc=0 to the B1 wall; kw/udc/oracle boards unchanged-green.
+
+**NEXT (HQ, in order):**
+1. **B2c — carve-zeroing** (m3 twin): zero each defer α's reserved record quads at carve so "virgin quad == 0" holds on m3's dirty driver stack, not just m4's fresh pages; same killswitch family, priced (per-defer-α stores), then the guard cures m3's cascade class too. Witness first (m3 SIG drifts across trees = dirty-stack fingerprint), then beauty m3 re-run.
+2. **B1** (then unmasked in BOTH modes): candidate #1 unchanged — SCRIP's binary-operator OPSYN (`OPSYN('&','reduce',2)` / `OPSYN('~','shift',2)` in beauty's semantic.inc); beauty m4 now prints the wall's face directly (`Parse Error` on the first grammar statement), so iteration is cheap: fix-candidate → run beauty m4 → watch the beautified statement count grow.
+3. Then CN-3c/T2b per Lon's standing order.
+
+**⛔ BASELINE-ARM LAW** (Addendum 6, cost one false alarm): killswitch identity gates compare SAME ARMS once a switch ships ON in main — `branch@0` vs `main@0`. Three distinct md5s per program is the cross-arm telltale.
+
+**Seat loop note:** the CN seat answered s151's g-cn2 guidance within hours (`0994535e`, T2 reachability-boundary witness, 23/23) — the route-guidance-through-the-front-file protocol is measurably working.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s153 (HQ, Fable 5) — **BM-ONE EXECUTED: ONE COPY (Lon's ruling). harness.inc IS THE DRIVER, 12 BODY-ONLY BENCHMARKS UNDER THE CLASSIC NAMES, LEGACY-23 RETIRED, META'S BENCHMARK ROWS BECOME LIVE CORRECTNESS ROWS. VERIFIED: 12/12 check==ref ON m3+sbl, m4 SPOT 3/3.**
 
 - **Lon's rulings (in-chat, this session)**: "Forget the scorecard. We do not want that to stop us. ONE COPY of the programs... why not have the META SCORE use your new files?" — supersedes s152's relabel-don't-remove. Legacy 23 die; the timed family is promoted UP to `benchmarks/snobol4/` under the CLASSIC names (`var_access.sno` IS the timed benchmark now); `timed/` subdir retired.
