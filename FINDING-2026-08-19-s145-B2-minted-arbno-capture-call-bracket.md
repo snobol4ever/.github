@@ -116,3 +116,24 @@ the match's ABSOLUTE unwind (the `mov rsp,rbp`-family fail tail owned by MATCH_B
 node's ω; and the residual crash path on the witness (still core-dumping with the β guarded) must be traced
 with the same m4-symbol-gdb workflow before any further emission change. Work happens on a `bc0eeff4`-based
 branch until the D-3 repair restores a clean HEAD.
+
+## ⭐⭐⭐⭐⭐ THE FIX DESIGN, COMPLETE (end of s145 slice 2 — ready to implement, no open questions)
+The depth-immune continuation EXISTS in every emitted match already: `match_begin_β` opens with
+`lea rsp, [rbp + -56]` — the retry_whack, an ABSOLUTE rsp restore off ζ-STANDING — then runs the
+bump/retry/fail logic. The zero-arm must land exactly there. Mechanism (all existing machinery, zero RTX
+changes, zero frame relayout):
+1. **bb_match_begin** registers ONE ζ-STANDING slot via the s86/s87 unified frame-slot registry
+   (`frame_slot_scan` / the `capture_frame_slot()` idiom) — the MATCH-β CONTINUATION SLOT — and at α stores
+   its own β address into it (`def L(k)` placed at the β entry + `x86_lea_id("rax", k)` + `mov [rbp-slot], rax`;
+   both idioms already exist in the template layer).
+2. **bb_match_defer's record-resume β** becomes the s153-shaped guard, generalized: `mov rax,[rsp+0];
+   test; jne resume; mov rax,[rbp-slot]; jmp rax` — zero ⇒ jump to the match's β THROUGH ζ-STANDING (rbp is
+   pinned for the match's life, so this is depth-immune where the falsified node-ω arm was not).
+3. Killswitch `SCRIP_DEFER_BETA_GUARD` (default ON per Lon's autonomy grant), `=0` = raw `jmp [rsp]`
+   byte-identical.
+**Gate set:** witness green BOTH modes (expect `nomatch` — no MKPAT wall on the clean base) · arbnostore
+10/10 (the falsified arm's 2 losses must NOT recur — the whack replaces the depth-wrong ω) · cn + kw armed ·
+529 both arms · patterns+crosscheck A/B · **beauty m3** (join m4 at B1 = the payoff) · regens ×3.
+**Residual to trace during implementation:** the guarded witness still core-dumped once on the clean base —
+re-trace with m4 symbols AFTER the whack-arm lands (the ω-at-depth arm may itself have caused the residual).
+Work on branch `hq-b2` (based `bc0eeff4`) until the D-3 KW-3b repair restores a clean main.
