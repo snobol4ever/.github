@@ -50,7 +50,40 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
-## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s146 (web seat: Claude Opus 5, dispatched D-3 KW-STATIC) — **KW-1 CENSUS COMPLETE AND KW-2 LANDED. THE KEYWORD BLOCK IS IN, ORACLE-TRUE, BEHIND `SCRIP_KW_STATIC` (DEFAULT OFF). GATE 0/10 → 6/10 ARMED; BY-SET A/B 712→715 WITH ZERO PASS→FAIL; KILLSWITCH BYTE-IDENTITY 529/529.**
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s147 (web seat: Claude Opus 5, continuing D-3 KW-STATIC) — **KW-3 LANDED: THE KEYWORD IS NOW A STATIC IN THE EMITTED ASM, READ BY INDEX. AND THE ARMED GATE'S "6/10" WAS ALREADY 4/10 ON ARRIVAL — TWO ROWS HAD REGRESSED UNDER CN-2; ROOT-CAUSED AND FIXED, 6/10 RESTORED.**
+SCRIP `306858fe`. Baseline this seat: SCRIP `a63c13d9` (CN-2), corpus `9e1b3f16`.
+
+### ⭐⭐⭐⭐⭐ KW-3 — WHAT LANDED
+`bb_keyword_snobol4` resolves `&KW` to its canonical block index AT EMIT TIME (`rt_kw_index`; the keyword is a source literal, so its index is a compile-time fact), seals it as a static quad (`x86_ro_seal_q`), and the box loads it rip-relative (`x86_ro_load_q`) and calls `rt_kw_read_idx`:
+```
+        mov   rdi, qword ptr [rip + .Lx127_0]
+        call  rt_kw_read_idx@PLT
+.Lx127_0:  .quad 0        <- &ANCHOR, statically present in the program
+```
+That retires the KW-1-measured read cost — a pointer to the keyword's NAME STRING + two case-folds + a ~60-arm strcmp cascade — for one rip-relative load and an array index. BOTH-MEDIUM + TEMPLATE-ONLY hold (the seal/load pair is the sanctioned medium-invisible couple; zero raw-byte producers, zero `MEDIUM_*` in the template).
+- **ONE AUTHORITY kept:** `kwb_read`/`kwb_write` split into entry-keyed bodies that BOTH the by-name and by-index paths execute — the fast path cannot answer differently from the slow one.
+- **⛔ DELIBERATE SCOPE CALL, DIVERGING FROM THIS RUNG'S ORIGINAL TEXT (needs Lon's ruling):** the per-keyword SLOT is emitted static; the **CELLS STAY IN THE RUNTIME**. Relocating cells would put a keyword's storage somewhere other than where its consumer reads it — *precisely the spelled-twice disease KW-2 cured with the `&TRIM = 1` fix*. `rt_kw_bind()` is untouched and remains the relocation seam if Lon wants the full block moved.
+
+### ⛔⭐⭐⭐⭐ THE INHERITED REGRESSION — READ THIS BEFORE TRUSTING ANY RECORDED WATERMARK
+The s146 cursor records the armed gate at **6/10**. This seat measured **4/10** — and then measured a **PRISTINE baseline tree** and got 4/10 with an *identical failing set*, proving the loss predated this work. Cause: **CN-2 re-keyed the tier-3 read from the bare name to a canonical `"&Name"`**, severing the bridge by which `&ARB` reached the bare `ARB` primitive-pattern variable. `&ARB/&BAL/&REM/&FAIL/&FENCE/&ABORT/&SUCCEED` therefore fell into the user-constant tier and raised **error 342 ON READ**. Manual Ch.16 p.187–188 is explicit (*"&ARB The primitive pattern ARB"*; protected read-only repositories of system patterns), and KW-2's own design note had relied on these falling through. Fixed ahead of tier-3: a keyword the manual names can never be an "unknown `&name`". **LESSON: a recorded watermark is a claim, not a measurement — rebuild the pristine baseline and measure it before attributing a red row to your own rung.**
+
+### EVIDENCE (this seat)
+| check | result |
+|---|---|
+| killswitch byte-identity, default arm | **529/529, ZERO movers** (measured twice — after KW-3, and again after the fix) |
+| regens ×3 | zero changed bytes (independent confirmation) |
+| KW-STATIC gate armed | **4/10 → 6/10** (s146 watermark restored) |
+| by-set A/B, crosscheck 318, m3 | base vs fix **0 movers** · base-ARMED vs fix-ARMED **0 movers** · default vs armed **0 movers** |
+| `082_keyword_stcount` (s146's regression witness) | PASS both arms |
+⚠ `ab_board_sweep.sh --mode 4` is **not a pass board** — it diffs `--compile` stdout (assembly) against the program's expected *output*, so it reads 0/318 structurally on every arm. Valid only as an invariance check. Do not record its number as a score.
+
+### ⛔ NEXT SEAT — PICK UP EXACTLY HERE
+**KW-3b (write half)** — `rt_kw_write_idx` is **landed and ready** as the runtime half; writes still route through the `SNO$KWSET` by-name builtin. Retarget the two `lower_snobol4.c` call sites (`:586`, `:2327`) and give `&KW =` a real template on the same sealed-index shape as the read. BOTH-MEDIUM, TEMPLATE-ONLY. Then **KW-4** — delete the gated bare-name family, the `kw_*` statics, the `SCRIP_SEED_NAMES` ALPHABET bridge, and `bb_match_advance`/`IR_MATCH_ADVANCE`. ⚠ **Re-run the by-set A/B, not just the witness gate.** ⚠ **Flipping the killswitch default to ON is still its own gated step** (Class B changes `&TRIM`/`&FULLSCAN` behaviour for every program).
+**STILL RED, BOTH ROUTED:** `kw_protected_write` needs the `&ERRLIMIT`→statement-failure mechanism SCRIP does not have (KW-5/ERRLIMIT rung). `kw_bare_shadow` is HQ's **B1** — an unset variable yields a NULL-tagged descriptor where the oracle gives the null string; **manual p.24 is the authority and is verbatim: *"SPITBOL guarantees that a new variable's initial value is the null string."*** DATATYPE is innocent.
+
+---
+
+ THE KEYWORD BLOCK IS IN, ORACLE-TRUE, BEHIND `SCRIP_KW_STATIC` (DEFAULT OFF). GATE 0/10 → 6/10 ARMED; BY-SET A/B 712→715 WITH ZERO PASS→FAIL; KILLSWITCH BYTE-IDENTITY 529/529.**
 SCRIP `bf7e25bb` · corpus `afd0fda8`. Record: `FINDING-2026-08-19-s146-KW1-census-keyword-truth-table.md`. Witnesses `corpus/probe/kw/` (6 × `.sno`+`.ref`) · gate `scripts/test_gate_kw_static.sh [--armed|--legacy]`. **Zero template/emitter/lower files touched** — the whole rung is runtime C, which is what the census predicted (m3 ≡ m4 on every defect row ⇒ one home, not two).
 
 ### ⭐⭐⭐⭐⭐ KW-2 — WHAT LANDED
