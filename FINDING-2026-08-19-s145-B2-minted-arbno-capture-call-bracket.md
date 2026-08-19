@@ -95,3 +95,24 @@ landing violated the protocol. D-14's canary would have caught this class (wires
 **Beauty tie-in:** beauty's brackets are nPush()/nPop() — TWO DIFFERENT stored patterns, each single-site… but
 its grammar re-uses stored patterns at many sites (*&Space at two sites in beauty_c, `*Space` twice in classic
 main05/611) — the multi-site class is exactly beauty-shaped.
+
+## ⛔⭐⭐⭐⭐ FIX CAMPAIGN, SLICE 1 — TWO SHAPES FALSIFIED, THE CONFOUND NAMED, THE DESIGN NARROWED (HQ, end of s145)
+**The confound first (it voids part of HQ-23):** every HEAD-based measurement in this hunt after s148 was
+CONFOUNDED BY KW-3b — re-baselined at the green parent `bc0eeff4`: witness rc=132 and **arbnostore 10/10**
+there, while at HEAD arbnostore reads **0/10** and every capture-call probe hits a NEW `SNO$MKPAT: compiled
+pattern blob '' not registered` wall. ⛔ **KW-3b's blast radius therefore includes the ENTIRE stored-pattern
+class (arbnostore 10→0) and a pattern-registration corruption (empty blob names) — the D-3 repair brief is
+now URGENT and its gate set must include arbnostore 10/10 + the MKPAT wall's disappearance.**
+**Live trace (m4 + symbols, the decisive instrument):** the retreat cascade is `stmt-β → PAT$1_res →
+n11β → [rsp]=PAT$0_res (the INNER thunk blob's record — consumed correctly) → … → n9β → [rsp] = 0x0 →
+jmp 0 = the SIGSEGV`. All labels/depths measured, not inferred.
+**Falsified shape #1 (blanket zero-guard → node-ω):** generalizing the s153 zero-guard to every record-resume
+β cures the jump-through-zero BUT its zero-arm exits via `x86_omega()` at the CURRENT (arbitrary) depth —
+measured on the CLEAN base: arbnostore 10/10 → 8/10, and the witness still dumps core via another path.
+Reverted. The s153 arm works only because its `zrelease` is that class's exact depth correction.
+**Falsified shape #2 (the +16 af pop):** already voided above — accident of layout.
+**THE NARROWED DESIGN (next slice, on the clean base):** the zero-cell continuation must be DEPTH-IMMUNE —
+the match's ABSOLUTE unwind (the `mov rsp,rbp`-family fail tail owned by MATCH_BEGIN/ζ-STANDING), not the
+node's ω; and the residual crash path on the witness (still core-dumping with the β guarded) must be traced
+with the same m4-symbol-gdb workflow before any further emission change. Work happens on a `bc0eeff4`-based
+branch until the D-3 repair restores a clean HEAD.
