@@ -33,3 +33,14 @@ Both oracles learn `&name` as plain variables (`sbl-x`, `csnobol4-x` — HQ boar
 
 ## The flagship + isolation ladder
 `corpus/programs/snobol4/demo/beauty_c/` — GENERATED (generator + WAVE list are the single source of truth). Fixed point: `beauty_c < beauty.sno ≡ beauty.sno`. Wave-1 = 52 pure grammar constants (62 pattern-shaped minus call-duals and DEFINE/OPSYN-tainted names — the `&reduce` reseal of run-1 is the measured teacher). Widening a wave moves one pattern between the constant and dynamic worlds = bisecting engine defects by construct.
+
+---
+
+## T1 FOLD SEMANTICS — SPEC AMENDMENT (s151, HQ ruling)
+
+T1 (`c3add39a`) folds a declared scalar `&Name` whose one-time assignment is a literal (TT_ILIT/FLIT/QLIT) into that literal at every read site. The fold is TEXTUAL, and that is the SPEC, not an approximation:
+
+- A declared constant's read denotes its declared literal EVERYWHERE in the program, independent of statement execution order (the C worldview: the declaration is the truth, not the store that implements it — Lon's "CONSTANT GUARANTEED").
+- **Error 342 narrows to:** (a) reads of UNDECLARED `&names` — live, witnessed (`cn_read_before.err_sno`); (b) reads of a declared constant NEVER assigned anywhere in the program — compile-time detectable; diagnostic owed when T1 meets such a program.
+- **Documented and ACCEPTED:** on the degenerate class "read textually after the assignment but executed before it", `SCRIP_CONST_T1=0` raises 342 and `=1` yields the value — the arms diverge THERE ONLY, by spec. No dominance/flow analysis will be added to reconcile them.
+- **OPEN (g-cn2), the EVAL boundary:** EVAL-compiled thunks lower at RUNTIME; T1's literal table is DRIVER-side. Until `cn_t1_eval.sno` proves both modes read the sealed cell correctly inside thunks, no fold in the runtime-compile path is the safe default — verify which way the landed code behaves, then witness it.
