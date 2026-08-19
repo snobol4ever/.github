@@ -73,6 +73,27 @@ The generated program owns keyword storage: a `.data` keyword block emitted per 
 **THE OPTIMIZER PAYOFF (why this is MASSIVE):** T1 scalar constants → immediates/rodata in emitted code, zero NV/GVA reads. T2 **CONSTANT PATTERNS** → `pat_static` becomes a DECLARED GUARANTEE instead of a conservative inference: the pattern graph stages at compile time, and every `*P`-defer / stored-ARBNO resume record / re-evaluation guard on a declared-constant target is BYPASSED — the s121–s145 defer-machinery pain class shrinks to genuinely-dynamic patterns only. T3 constant strings/tables → rodata, no GC scan, no write barriers. (KW-STATIC synergy is exact: same block mechanism, same bind call, one extra RO segment.)
 **RUNGS:** CN-0 spec vs manual ch.16 keyword lists + error-number allocation · CN-1 the bit + cell decision (`descr.h`, `GOAL-DESCR-TAG-ENCODING.md`) + parser/lower plumbing (`&name` LHS with non-keyword name = const-def; TT_KEYWORD read path resolves tier 3) · CN-2 scalars end-to-end + seal errors + witnesses (⛔ extension programs ORACLE_FAIL by construction — pin `.ref`s, the scorecard's pin-only path covers this) · CN-3 constant PATTERNS: guarantee-propagation into `pat_static`, defer-site bypass, measured on a beauty-shaped `ARBNO(*Command)` grammar mimic · CN-4 the RO segment on the KW-STATIC block + mprotect + immediates, killswitch + full gates.
 
+
+### ⭐⭐⭐⭐ SN4-CONSTANTS FLAGSHIP + ORACLE AMPLIFICATION (Lon's 2nd + 3rd Eurekas, 2026-08-19 in-chat)
+**BEAUTY-C (2nd Eureka — the isolation vehicle):** `corpus/programs/snobol4/demo/beauty_c/` — GENERATED
+(never hand-edited; `gen_beauty_c.py` + its WAVE1 list are the single source of truth). Measured basis:
+beauty assigns 180 names, 137 once, **62 pattern-shaped and ZERO grammar patterns ever mutated or
+capture-assigned — the grammar is 100% constant-in-practice.** Wave-1 converts the 59 clean names (3
+call-duals `nPush/nPop/nInc` deferred); 134 lines change. Fixed point: `beauty_c < beauty.sno ≡ beauty.sno`
+(converted ENGINE, CLASSIC input) — M1's own witness untouched. Isolation ladder: once CN-3 stages declared
+constants statically, each pattern moved between WAVE1 and the dynamic world bisects walls B1/B2 by construct.
+**ORACLE AMPLIFICATION (3rd Eureka, verbatim in substance: *"enhance SPITBOL and CSNOBOL4 to simply accept
+those as variable names so the programs will run without modification"*):** teach BOTH oracles to accept
+non-keyword `&name` as a plain variable — no constant semantics there (wave programs are single-assignment
+by construction, so plain-variable behavior is observably identical), which restores LIVE-ORACLE differential
+grading across the extension boundary. ⛔ **PRISTINE-ORACLE LAW: the stock `sbl`/csnobol4 binaries are NEVER
+replaced — extended builds land BESIDE them (`bin/sbl-x`, `csnobol4-x`); classic programs keep grading against
+stock; only `&`-programs grade against `-x`.** Rungs: **CN-O1 (x64/SPITBOL)** — locate the keyword-lexing
+error path in the MINIMAL source, route unknown `&IDENT` to plain-variable interning, rebuild per the repo's
+INSTALL, witnesses (`&x = 1; OUTPUT = &x` + re-assign + beauty_c fixed point), then the FULL classic corpus
+byte-identical stock-vs-`-x` (the no-regression gate that keeps `-x` trustworthy). **CN-O2 (csnobol4)** — same
+contract in C (lexer/keyword table), same gates, plus its own test suite green.
+
 ### ⛔ NEXT (rewritten after the same-day landing)
 **M1-R0 IS DONE — do not redo it** (SCRIP `281040ef`; FINDING-2026-08-19-s145 incl. its same-day-corrections section is the record). Beauty's remaining walls **B1** (grammar rejects the first statement; repro = beauty + stdin `START`; exclusion list = FINDING §4: seeding fixed · reached &ALPHABET captures green · arbnostore class 10/10 green incl. all four `_red` · DATATYPE-null branch-equal · no runtime EVAL/CODE) and **B2** (m3-only SEGV, bt unreliable) are ⛔ **HQ-OWNED — a web seat does NOT take them.** The web seat for this front is **D-3 KW-STATIC, TOP #1** (`GOAL-SCRIP-HQ.md` DISPATCH BOARD, first entry; design of record = the KW-STATIC section above). Other open web-seat work: D-2 claws5 SIG11 ×3; then json / porter / treebank / calculator-1-m4 per the board.
 

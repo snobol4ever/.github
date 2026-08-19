@@ -62,6 +62,12 @@ Open `GOAL-ICON-100.md`, execute its own LIVE CURSOR's next rung exactly (R-0 de
 ### D-6 — PROLOG (#3) — **READY (pointer seat)**
 Open `GOAL-PROLOG-100.md`, execute its s166 cursor's next rung exactly. Its file is sovereign.
 
+### D-12 — x64/SPITBOL: accept `&name` as plain variables (`bin/sbl-x` BESIDE stock) — **READY**
+Execute CN-O1 per GOAL-SNOBOL4-100 § ORACLE AMPLIFICATION. MINIMAL-source archaeology: find the unknown-keyword error path, intern `&IDENT` as a variable instead. Gates: the two witnesses + beauty_c fixed point (once SCRIP CN-2 exists — until then witness-level only) + ⛔ the FULL classic corpus byte-identical stock-vs-x. NEVER touch/replace stock `sbl`.
+
+### D-13 — csnobol4: accept `&name` as plain variables (`-x` build BESIDE stock) — **READY**
+Execute CN-O2, same contract in C, same gates, csnobol4's own suite green.
+
 ### Parked: D-11 SN4-CONSTANTS CN-0..CN-4 (design landed in GOAL-SNOBOL4-100 § SN4-CONSTANTS; implementation queues behind D-3's block) · D-7 SNOBOL4 wall B2 (`zls_g_region` m3 SEGV) — ⛔ HQ-OWNED (Lon 2026-08-19: ZETA tracing at HQ) · D-8 json RC1/RC1+TIMEOUT · D-9 porter/treebank RC1 · D-10 calculator-1 m4-only RC1 · Raku (#4) `GOAL-RAKU-BB.md` OO LADDER · Pascal (#4) `GOAL-PASCAL-BB.md` · Rebus (#5) unstaffed by priority.
 
 ## THE M1 CAMPAIGN — BEAUTY SELF-HOST (the one thing "today")
@@ -87,6 +93,7 @@ Open `GOAL-PROLOG-100.md`, execute its s166 cursor's next rung exactly. Its file
 | Prolog | s166 (2026-08-16) | R-0h landed; clause/recursion witnesses root-caused; PL-Z-1a γ-retain opt-in | same |
 
 ## LIVE CURSOR — HQ
+**2026-08-19 HQ-9 (Fable 5):** Eurekas 2+3 landed. beauty_c GENERATED (corpus `aae61291`): 59 grammar constants, 134 lines, deterministic generator, fixed point = converted engine × classic input. Oracle-amplification rungs cut (CN-O1 x64, CN-O2 csnobol4) with the PRISTINE-ORACLE LAW (stock binaries never replaced; `-x` builds beside). Board: D-12/D-13 READY. D-3 (KW-STATIC) is LIVE per Lon. HQ next: CN-2 minimal engine so beauty_c runs on SCRIP.
 **2026-08-19 HQ-8 (Fable 5):** Lon's CONSTANTS extension (verbatim grant in GOAL-SNOBOL4-100 § SN4-CONSTANTS): three-tier `&` namespace, one-time sealed assignment, bit + RO-page guarantee, optimizer tiers T1-T3 — T2 kills the defer/stored-ARBNO pain class for declared patterns. CN-0..CN-4 ladder cut, parked as D-11 behind D-3's block; D-3 brief gained the CONSTANTS-READY line (still fire-safe).
 **2026-08-19 HQ-7 (Fable 5):** Fire-readiness pass for D-3: goal-file NEXT rewritten post-landing (M1-R0 DONE · B1/B2 HQ-OWNED · web seat = D-3), watermark `281040ef`; D-3 collision notice current; sweep tool at its real home SCRIP `abd79832` (first landing cwd-slipped into `.github`, reverted `4acd11c9`), determinism + cross-build `.s` invariance (529/529) proven. **GOAL-SNOBOL4-100 IS READY TO FIRE (seat D-3).**
 **2026-08-19 HQ-6 (Fable 5):** A/B verdict clean (911 rows/arm, 4 movers, ZERO green→red) — **M1-R0 LANDED, SCRIP `281040ef`** (+ the `.gitignore` bare-`core` trap fixed after it ate a staged commit twice). FINDING corrected same-day (the "START oracle-true" claim was a tail-slice error; DATATYPE-null demoted). B1 sharply localized with a grown exclusion list (arbnostore 10/10 green incl. all four `_red`); next: binary-`&` semantics at beauty:225, grammar-mimic witness, B2 clean gdb — all HQ-owned. D-3 (KW-STATIC, top #1) unaffected and ready.
