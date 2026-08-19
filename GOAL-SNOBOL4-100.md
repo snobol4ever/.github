@@ -50,8 +50,36 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
-## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s146 (web seat: Claude Opus 5, dispatched D-3 KW-STATIC) — **KW-1 CENSUS COMPLETE: THE KEYWORD TRUTH TABLE IS MEASURED AND THE DEFECT SET IS BIGGER THAN "SPECIAL CASES" — FOUR CLASSES, INCLUDING PROTECTION NOT ENFORCED AT ALL. WITNESS SET + GATE MINTED, BASELINE 0 PASS / 8.**
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s146 (web seat: Claude Opus 5, dispatched D-3 KW-STATIC) — **KW-1 CENSUS COMPLETE AND KW-2 LANDED. THE KEYWORD BLOCK IS IN, ORACLE-TRUE, BEHIND `SCRIP_KW_STATIC` (DEFAULT OFF). GATE 0/10 → 6/10 ARMED; BY-SET A/B 712→715 WITH ZERO PASS→FAIL; KILLSWITCH BYTE-IDENTITY 529/529.**
+SCRIP `bf7e25bb` · corpus `afd0fda8`. Record: `FINDING-2026-08-19-s146-KW1-census-keyword-truth-table.md`. Witnesses `corpus/probe/kw/` (6 × `.sno`+`.ref`) · gate `scripts/test_gate_kw_static.sh [--armed|--legacy]`. **Zero template/emitter/lower files touched** — the whole rung is runtime C, which is what the census predicted (m3 ≡ m4 on every defect row ⇒ one home, not two).
+
+### ⭐⭐⭐⭐⭐ KW-2 — WHAT LANDED
+**The block homes each keyword AT THE CELL ITS CONSUMER ALREADY READS**, rather than taking a fresh copy. That is the design decision that matters: it RETIRES the spelled-twice disease instead of adding a third spelling, and it makes KW-3 a pure relocation (`rt_kw_bind()` is already the seam — reads and writes go THROUGH a bound pointer today).
+- **A LIVE BUG FIXED, not just stale state: `&TRIM = 1` did nothing.** The write landed in keywords.c's `g_trim` while the input path tested core.c's `kw_trim`, so the keyword read back as 1 and never trimmed a line. Homing `&TRIM` at `kw_trim` is the entire fix. Witness `kw_trim_effect` (+`.dat` stdin).
+- **CLASS B closed** — oracle-true initial values, NOT copied from the C initializers (`&TRIM`1 `&CASE`1 `&FULLSCAN`1 `&MAXLNGTH`16777216 `&STLIMIT`2147483647, + `&ABEND &INPUT &OUTPUT &PROFILE &COMPARE &ERRTYPE` which did not exist).
+- **CLASS C closed** — `&UCASE`/`&LCASE` are STRING; `kw_read` left untouched so Icon keeps its csets.
+- **CLASS A closed both halves** — read (`NV_GET_fn`) and write (`NV_SET_fn`) families gated TOGETHER so they cannot disagree. Gated, not deleted; KW-4 deletes after measuring.
+- **CLASS D enforced** — 209 protected / 208 non-integer, **in the oracle's order** (the value test fires BEFORE the protected test; swap them and `&ALPHABET = 'x'` goes oracle-wrong).
+
+### ⛔ THE REGRESSION THE 10-ROW GATE MISSED AND THE BY-SET A/B CAUGHT
+Seeding runs **lazily at first keyword touch**, not at program start — so initializing PROTECTED entries **rewound the live `&STNO`/`&STCOUNT` counters**, taking `crosscheck/keywords/082_keyword_stcount` PASS→FAIL. Fixed: protected repositories are NEVER initialized; they own their value and the block only reads it. **Lesson for KW-3: a small witness gate does not substitute for the by-set A/B.** Both were needed; only the second saw this.
+
+### ⛔ STILL RED — BOTH ROUTED, NEITHER TAKEABLE ON THIS SEAT
+- **`kw_protected_write`** needs the **`&ERRLIMIT` → statement-failure** mechanism, which **SCRIP does not have at all** — `kw_errlimit` is a dead static, nothing converts an error to statement failure, and the error-report block format differs from the oracle's. That is its own rung (call it KW-5 / ERRLIMIT), independent of KW-STATIC.
+- **`kw_bare_shadow`'s last two lines** are `DATATYPE(<unset variable>)` = `NULL` vs oracle `STRING` — **HQ's B1**, handed over, not taken (below).
+
+### ⭐⭐⭐⭐ HANDOFF TO HQ — B1 IS LOCALIZED, AND DATATYPE IS INNOCENT
+Found while clearing the bare-name class; witness `corpus/probe/kw/kw_unset_datatype.{sno,ref}`. Four lines separate the defect from its neighbours: a **null literal**, an **assigned null**, and a **non-null string** are ALL correct in SCRIP today; **only an UNSET VARIABLE differs** (oracle STRING, SCRIP NULL). So the s145 suspect "DATATYPE(null) = NULL" is more precisely: **DATATYPE is innocent — the wrong datum is the descriptor an unset variable yields**, which carries a distinct NULL tag instead of being the null string manual p.24 gives every fresh variable. **Identical on both killswitch arms**, confirming it is not keyword-related. ShiftReduce.inc calling DATATYPE ×2 remains the reason this reaches beauty.
+
+### ⛔ NEXT SEAT — PICK UP EXACTLY HERE
+**KW-3** — emit the block into the program's `.data` and bind it via `rt_kw_bind()` in the main prologue; retarget `bb_keyword_snobol4` reads to `[rip+disp]`; give `&KW =` a real template instead of the `SNO$KWSET` by-name builtin call (measured cost today: a read emits a pointer to the keyword's NAME STRING + a ~60-arm strcmp cascade; a write has no template at all). BOTH-MEDIUM, TEMPLATE-ONLY. Then **KW-4** — delete the gated bare-name family, the `kw_*` statics, the `SCRIP_SEED_NAMES` ALPHABET bridge, and `bb_match_advance`/`IR_MATCH_ADVANCE` (dead; last template reference to `kw_anchor`); gates + md5 blast radius. ⚠ **Re-run the by-set A/B, not just the witness gate, after every rung.** ⚠ **Flipping the killswitch default to ON is its own gated step** — Class B changes `&TRIM`/`&FULLSCAN` behaviour for every program, and the 802-row A/B is the evidence required.
+
+---
+
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s146 (web seat: Claude Opus 5, dispatched D-3 KW-STATIC) (MEASUREMENT RECORD — the KW-2 cursor ABOVE is the live one) — **KW-1 CENSUS: THE KEYWORD TRUTH TABLE IS MEASURED AND THE DEFECT SET IS BIGGER THAN "SPECIAL CASES" — FOUR CLASSES, INCLUDING PROTECTION NOT ENFORCED AT ALL. WITNESS SET + GATE MINTED, BASELINE 0 PASS / 8.**
 Record: `FINDING-2026-08-19-s146-KW1-census-keyword-truth-table.md`. Witnesses `corpus/probe/kw/` (4 × `.sno`+`.ref`, oracle-minted) · gate `scripts/test_gate_kw_static.sh`. Zero src/ files touched this session — census only, so the default arm is byte-identical by construction.
+
+### ⛔ SUPERSEDED IN PART — the s146 cursor ABOVE is the live one; KW-2 has since landed. The census below stands as the measurement record.
 
 ### ⭐⭐⭐⭐⭐ WHAT KW-1 MEASURED — s146
 - **CLASS A — BARE-NAME SHADOW (13 of 14 wrong).** `NV_GET_fn` (core.c:2199-2213) hijacks 14 unprefixed names before the variable table. Manual Ch.16 p.187 is explicit: keyword names "are set apart from other variables by the unary operator ampersand" ⇒ bare `ANCHOR` is an ORDINARY NULL VARIABLE. Oracle agrees on all 14. s145 already gated the bare-`ALPHABET` member behind `SCRIP_SEED_NAMES`; **this is the other 14, and `ALPHABET` has a SECOND hijack site at core.c:2213.** ⚠ NOT beauty's B1 — all 14 names appear in beauty only inside string literals / `IDENT(objType,'CODE')`, never as bare reads.
@@ -63,8 +91,7 @@ Record: `FINDING-2026-08-19-s146-KW1-census-keyword-truth-table.md`. Witnesses `
 - **THE COST KW-STATIC REMOVES, measured from emitted `.s`:** a `&KW` READ emits a pointer to the keyword's NAME STRING + `call rt_keyword_read_snobol4@PLT` → lowercase into a 64B buffer → ~60-arm strcmp cascade → possible `NV_GET_fn` hash lookup. A `&KW =` WRITE has no template at all — it lowers to a BY-NAME BUILTIN CALL, `.string "SNO$KWSET"` → `rt_call_arr@PLT` → `to_cstring` → a second cascade.
 - ⭐ **m3 ≡ m4 on all 8 gate rows** — every failure is byte-identical across modes, so the entire defect set lives in the shared runtime/lowering path, not in either emitter medium. KW-2's fix has ONE home.
 
-### ⛔ NEXT SEAT — PICK UP EXACTLY HERE
-**KW-2** — emit the block + `rt_kw_bind` + runtime indirection behind killswitch `SCRIP_KW_STATIC` (default OFF until gated); bake Class-B oracle-true defaults, a per-entry protected bit, and the 208-before-209 order. Then **KW-3** (retarget `bb_keyword_snobol4` to `[rip+disp]`; give `&KW =` a real template instead of the `SNO$KWSET` by-name call), then **KW-4** (delete the bare-name family + the `kw_*` statics + the `SCRIP_SEED_NAMES` ALPHABET bridge; gates + md5 blast radius). ⚠ **Class B is a real behaviour change** — `&TRIM=1`/`&FULLSCAN=1` alter input handling and scanning for every program; land it with the killswitch A/B and a BY-SET old-vs-new over crosscheck+patterns+probe, ZERO PASS→fail, exactly as s145 did. Gate must read **8/8** before KW-4 is done.
+*(KW-1's "next seat" block is retired — KW-2 landed the same session; the live NEXT SEAT is in the s146 cursor above.)*
 
 ---
 

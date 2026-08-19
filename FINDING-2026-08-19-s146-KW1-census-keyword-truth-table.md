@@ -148,3 +148,43 @@ One `.data` block per emitted program, bound once in the main prologue via `rt_k
 
 **Gate for all four rungs:** `bash scripts/test_gate_kw_static.sh` (added this session) — runs `corpus/probe/kw/` in both modes against the oracle refs. Measured baseline this session: **0 PASS / 8** (4 witnesses × 2 modes). KW-4 is not done until it reads 8/8.
 ⭐ **m3 ≡ m4 on all four witnesses** — every failure is byte-identical across modes, so this whole defect set lives in the shared runtime/lowering path, NOT in either emitter medium. That is good news for KW-2: the fix has one home.
+
+---
+
+# ADDENDUM — KW-2 LANDED THE SAME SESSION (SCRIP `bf7e25bb`, corpus `afd0fda8`)
+
+The census above is the measurement record; this is what was built on it.
+
+## The design decision that mattered
+The block homes each keyword **at the cell its consumer already reads**, not at a fresh copy. §6 measured the disease as *two* spellings of every integer keyword; a block with its own storage would have made *three*. Homing at the consumer's cell means the block does not add a spelling — it makes the one surviving spelling be the cell that the consuming code actually tests. `rt_kw_bind()` therefore already exists as the KW-3 seam: reads and writes go THROUGH a bound pointer today, so emitting the block into the program's `.data` is a pure relocation of storage.
+
+## It immediately paid for itself: `&TRIM = 1` DID NOTHING
+Not stale state — a **live defect**, invisible to any test that only reads the keyword back. The write landed in `g_trim`; the input path tested `kw_trim`. `&TRIM` reported 1 and never trimmed a line. Homing `&TRIM` at `kw_trim` is the whole fix. Witness `probe/kw/kw_trim_effect` (ships a `.dat` as stdin — the gate now feeds `<name>.dat` when present).
+
+## Status by class
+| class | armed result |
+|---|---|
+| **A** bare-name shadow | **closed**, read (`NV_GET_fn`) AND write (`NV_SET_fn`) halves gated together so they cannot disagree. Gated, not deleted — KW-4 deletes after measuring. |
+| **B** wrong initial values | **closed** — oracle-true, not copied from the C initializers |
+| **C** cset leak | **closed** — `&UCASE`/`&LCASE` STRING; `kw_read` untouched so Icon keeps its csets |
+| **D** protection | **enforced** — 209 protected / 208 non-integer, in the oracle's order. Witness still red: see below. |
+
+## Gates
+- **killswitch byte-identity 529/529** mode-4 `.s` md5 unchanged (stash-rebuild A/B). Zero template/emitter/lower files touched — as §0's `m3 ≡ m4` finding predicted, the whole fix had one home.
+- **by-set blast radius: 802 rows** (crosscheck + probe + benchmarks, m3), **712 → 715 PASS, ZERO PASS→fail**, 3 movers all the intended witnesses.
+- **witness gate 0/10 legacy → 6/10 armed**, m3 ≡ m4 on every row.
+
+## ⛔ THE REGRESSION THE WITNESS GATE MISSED AND THE BY-SET A/B CAUGHT
+Seeding runs **lazily at the first keyword touch**, not at program start. Initializing PROTECTED entries therefore **rewound the live `&STNO`/`&STCOUNT` counters**, taking `crosscheck/keywords/082_keyword_stcount` PASS→FAIL. Fixed: protected repositories are never initialized — they own their value, the block only reads it.
+**Standing lesson for KW-3/KW-4: a small witness gate does not substitute for the by-set A/B.** Both were run; only the second saw this.
+
+## Still red — routed, not taken
+- **`kw_protected_write`** needs the **`&ERRLIMIT` → statement-failure** mechanism. SCRIP does not have it at all: `kw_errlimit` is a dead static, nothing converts an error to statement failure, and the terminating error-report format differs from the oracle's block. **Its own rung (KW-5 / ERRLIMIT), independent of KW-STATIC.**
+- **`kw_bare_shadow`'s last two lines** — `DATATYPE(<unset variable>)`. HQ's B1; handed over below, not taken.
+
+## ⭐ HANDOFF TO HQ — B1 LOCALIZED, AND `DATATYPE` IS INNOCENT
+Witness `probe/kw/kw_unset_datatype.{sno,ref}`, found while clearing class A. Four lines separate the defect from its neighbours: a **null literal**, an **assigned null**, and a **non-null string** are ALL correct in SCRIP today; **only an UNSET VARIABLE differs** (oracle STRING, SCRIP NULL). So s145's suspect is sharper than "DATATYPE(null) = NULL": **DATATYPE is innocent — the wrong datum is the descriptor an unset variable yields**, carrying a distinct NULL tag instead of being the null string manual p.24 gives every fresh variable. **Reads identically on both killswitch arms**, confirming it is not keyword-related. `ShiftReduce.inc` calling `DATATYPE` ×2 remains why this reaches beauty.
+
+## Next
+**KW-3** (emit block into `.data`, bind in main prologue, retarget `bb_keyword_snobol4` to `[rip+disp]`, give `&KW =` a real template instead of the `SNO$KWSET` by-name call) — **not opened this session**, deliberately: it is a codegen change in both media requiring regens ×3 and the full gate set, and END-OF-CONTEXT LAW forbids opening what cannot be closed. The seam is in place and the semantics are proven, so it starts from a clean base.
+⚠ **Flipping the killswitch default to ON is its own gated step** — class B changes `&TRIM`/`&FULLSCAN` behaviour for every program; the 802-row A/B is the evidence required.
