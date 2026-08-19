@@ -55,9 +55,9 @@ Verified in **BOTH media** (m3 `--run`, m4 `--compile` + `gcc -no-pie`).
 
 ---
 
-## 3. ⛔ NEW — `CLEAR()` IS A NO-OP FOR EVERY ORDINARY VARIABLE (routed CN-7, NOT fixed)
+## 3. ⭐⭐⭐ CN-7 LANDED — `CLEAR()` WAS A NO-OP FOR EVERY ORDINARY VARIABLE
 
-Found while establishing the CN-6 contract; **A/B-proven pre-existing** — identical output with the fix stashed and unstashed, so CN-6 neither caused nor masks it.
+Found while establishing the CN-6 contract; **A/B-proven pre-existing** — identical output with the CN-6 fix stashed and unstashed, so CN-6 neither caused nor masked it.
 
 ```
         X = "gone"
@@ -66,22 +66,30 @@ Found while establishing the CN-6 contract; **A/B-proven pre-existing** — iden
         OUTPUT = "indirect=[" $("X") "]"
 ```
 
-| | oracle | SCRIP |
-|---|---|---|
-| direct | `[]` | `[gone]` |
-| indirect | `[]` | `[gone]` |
+| | oracle | SCRIP before | SCRIP after |
+|---|---|---|---|
+| direct | `[]` | `[gone]` | `[]` |
+| indirect | `[]` | `[gone]` | `[]` |
 
-**Mechanism:** `_CLEAR_` (`core.c:1203`) calls only `NV_CLEAR_fn`, which nulls `NV_t.val` in the hash buckets. The compiled program reads the **GVA-bound cell**, which CLEAR never reaches, so the null is written somewhere the program does not look. The direct and indirect reads **agree with each other in both engines** — that pairing is the point of the witness: this is not an indirection defect and not a read-path split, it is CLEAR failing to reach the storage the program actually uses. Manual Ch.19 is unambiguous that the null string is assigned to *all* user variables.
+**Mechanism — and it is NOT the design question this seat first thought it was.** My initial read routed this to a ruling ("does CLEAR walk the GVA plane, or do NV and GVA stop being two homes for one fact?"). Reading the file falsified that. `NV_t` already carries `cell` + `is_gva`, and **five sites spell the same store convention** — `is_gva ? *cell : val` at 2185 (GET fastpath), 2227 (GET), 2242 (SET fastpath), 2302 (SET), 2345 (PTR). `NV_CLEAR_fn` was **the only writer in the file that ignored it**, storing to `val` unconditionally. So CLEAR nulled a copy the compiled program never reads. There is no second plane to walk and no ownership question: the entry already knows where its storage is, and CLEAR simply never asked.
 
-This is also the honest reason `lower_snobol4.c`'s `g_sno_fz_unsafe` treats a single `CLEAR` anywhere as a whole-program poison for static pattern staging: **the poison is correct, the clear is not.**
+**Fix:** `if (!_e->is_const && !is_protected_pat_name(_e->name)) { if (_e->is_gva) *_e->cell = NULVCL; else _e->val = NULVCL; }` — the same two arms as 2242/2302, plus the two skip classes the manual names (CN-6's sealed constants, and the protected pattern family `ARB`/`ABORT`/`BAL`/`FENCE`/`FAIL`/`REM`/`SUCCEED`).
 
-Witness minted: `corpus/probe/cn/cn_clear_user_var.{sno,ref}` (`.ref` generated from the live oracle). **Deliberately not fixed this seat** — the fix must decide whether CLEAR walks the GVA plane or whether NV and GVA stop being two homes for one fact (which is ONE-AUTHORITY territory and touches RTCC/GVA ownership), and that is a hunt, not a rung. END-OF-CONTEXT LAW: repro minted, routed, stopped.
+**Two things deliberately NOT done, each for a measured reason:**
+- **Not routed through `NV_SET_fn`**, even though that is the store authority. `g_call_fastpath_off` is set to 1 exactly when a variable acquires an I/O association (`core.c:2912/2940`), which sends every subsequent `NV_SET_fn` down the slow path into `_io_chan_find_by_var`. A bulk reset must not fire I/O associations, and must not raise error 42 on a protected name the way an ordinary assignment does. CLEAR is not a series of user assignments.
+- **`_var_reg` not updated.** `_var_reg_n` is **never incremented anywhere in the file** — it is declared, initialized to 0, looped over at 2242/2303/2318 and GC-visited at 2954, but nothing ever adds an entry. Those loops are already no-ops over empty storage, so there is no third home to keep in sync. (Flagged as dead storage; not removed this seat.)
+
+### BLAST RADIUS — REACHABILITY, PROVEN AGAINST ALIASING
+`NV_CLEAR_fn` has **exactly one caller** (`_CLEAR_`, `core.c:1205`). Across `corpus/programs/`, `corpus/probe/`, `corpus/crosscheck/` and `SCRIP/test/`, nine files mention the token `CLEAR` and **not one invokes the builtin**: `beauty/expression.sno` and `lon/sno/bootstrap.sno` carry it inside a builtin-*name string table*; `lon/sno/snobol4.sno:61` assigns `snoCLEAR = 'CLEAR'` once as a lexicon entry and never references it again (checked for OPSYN/indirect invocation — none); `csnobol4-suite/bench.sno`'s hits are a user-defined `CLEAR_D_VF`. The changed code is therefore unreachable from every corpus program **by construction** — stronger than an md5 sweep, and independent of the instrument s148 measured unsound. Gates after both fixes: **UDC 12/12**, **KW-STATIC armed 10/14** (unchanged failures `kw_bare_shadow`, `kw_protected_write`). Both fixes verified in **BOTH media**.
+
+`g_sno_fz_unsafe`'s whole-program CLEAR poison in `lower_snobol4.c` is a *lowering* decision keyed on source text and is unaffected by this runtime change — but it is now poisoning against a CLEAR that finally does something.
 
 ---
 
 ## 4. NEXT SEAT
 
-1. **CN-7** — the CLEAR/GVA split above. Start from `NV_bind_gva` (the s144 cursor already flagged it as unexamined) and decide the ownership question before writing code; do **not** simply add a second walk, which would spell one fact in two homes.
-2. **Instrument** — s148's item (1) still stands: record `rc` beside the md5 in the sweep and compare only `rc==0` programs. CN-6 sidestepped it via reachability, but the next codegen rung cannot.
-3. **`NV_EXISTS_fn` as the 342 predicate** (`keywords.c:360`) — it tests entry existence, not assignment. CN-6 closes the one reachable hole (CLEAR-created null-with-live-entry); the predicate is still the wrong shape and should be revisited if any other path can null a cell without removing its entry.
-4. **HQ-21 brief is closed as VOID** — re-measure at HEAD before executing any inherited repair brief.
+1. **Instrument** — s148's item (1) still stands: record `rc` beside the md5 in the sweep and compare only `rc==0` programs. Both fixes this seat sidestepped it via reachability, but the next codegen rung cannot.
+2. **`NV_EXISTS_fn` as the 342 predicate** (`keywords.c:360`) — it tests entry existence, not assignment. CN-6 closes the one reachable hole (CLEAR-created null-with-live-entry); the predicate is still the wrong shape and should be revisited if any other path can null a cell without removing its entry.
+3. **`_var_reg` is dead storage** — `_var_reg_n` is never incremented; the loops at 2242/2303/2318 and the GC visit at 2954 operate on permanently empty storage. Either it lost its producer in a refactor (in which case something that should be registering is not, and that is a latent bug) or it is vestigial and should be deleted. Worth one grep of the history before either conclusion. NOT investigated this seat.
+4. **Asymmetry noted, not chased:** `NV_SET_fn`'s fastpath (2242) updates `_var_reg`; the slow update path (2302) does too, but via a separate loop at 2303 — three spellings of one store shape across 2242/2302/2318 plus the read shape at 2185/2227/2345. If `_var_reg` turns out to be live, collapsing these into one `_nv_store(NV_t*, DESCR_t)` helper is the ONE-AUTHORITY move. Deliberately not attempted here: it touches the hottest path in the runtime and would need a corpus sweep to validate — i.e. it needs the instrument fixed first (item 1).
+5. **HQ-21 brief is closed as VOID** — re-measure at HEAD before executing any inherited repair brief.
