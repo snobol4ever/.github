@@ -79,6 +79,53 @@ it — it defers it, and each deferred collection is larger.
 `table_access` 8704 iters either way), so it is already collection-free in this window. Raising SCRIP's
 arena equalises the measurement condition; it does not hand SCRIP an advantage.
 
+### 3b. ⛔⛔ HEAP SIZING IS A MEASUREMENT DEVICE, NOT A FIX — TOTAL GC COST IS INVARIANT
+
+Falsifiable prediction from the cost model (cost ∝ blocks allocated ⇒ heap size changes only *when* you
+pay, never *how much*), tested on a 4 s window of `table_access`:
+
+| `SCRIP_HEAP_MB` | stalls | total GC | % of window | worst pause | work |
+|---|---:|---:|---:|---:|---:|
+| 512 (ships) | 4 | 2,811 ms | **70%** | 894 ms | 1,218 ms |
+| 1024 | 3 | 2,657 ms | **65%** | 1,062 ms | 1,418 ms |
+| 2048 | 1 | 3,297 ms | **66%** | **3,297 ms** | 1,693 ms |
+
+**Total GC time is flat across a 4× heap range; only the pause distribution changes, and it gets WORSE —
+at 2 GB the whole bill arrives as one 3.3-second freeze.** So on any allocation-heavy program that runs
+longer than one arena fill, SCRIP spends **~two-thirds of its wall clock collecting garbage, at every
+heap size.** Sizing the arena moves the pause outside a 500 ms benchmark window; it does not make the
+product faster, and no seat should read §4's landing as having fixed anything.
+
+⛔ **Consequence — THREE DIFFERENT NUMBERS, ALL TRUE, DO NOT CONFLATE:**
+- **0.48×** — `table_access` with GC excluded. The right figure for judging **codegen and runtime work**.
+- **~0.16–0.23×** — what a user actually gets on a long-running allocating program at the shipping default.
+- **~2.5×** — the gap between them. That is the size of the GC defect, and it is the largest single
+  performance item on the SNOBOL4 board.
+
+### 3c. WHY THE ORACLE DOES NOT HAVE THIS PROBLEM — MEASURED, AND IT IS A COST-MODEL DIFFERENCE
+
+`sbl` on the identical program, 4 s budget: **129 batches, every delta 29–34 ms, zero stalls, 66,560
+iterations — in a resident footprint of 2,844 KB** (SCRIP: 606,888 KB, **213×**). 66,560 fresh
+`TABLE(512)`s cannot coexist in 2.8 MB, so SPITBOL is provably collecting *continuously* and reusing;
+its pauses are simply too small to surface inside a 30 ms batch.
+
+The manual states the mechanism (§ Storage Management): *"SPITBOL uses a fast garbage collector to
+reclaim unused memory. The collection algorithm needs to distinguish between small integers and memory
+addresses"* — pointer identification for **relocation**, i.e. a compacting/copying collector that walks
+and moves the LIVE set. Garbage costs it nothing.
+
+**That is the whole difference, and it is exactly inverted between the two engines:**
+
+| | SPITBOL | SCRIP |
+|---|---|---|
+| collection cost tracks | **survivors** | **garbage** (7,352,520 blocks walked to retain 1,548, `reclaimed 0`) |
+| footprint on this workload | 2.8 MB | 593 MB |
+| pause profile | continuous, sub-ms, invisible | 835 ms–3.3 s, catastrophic |
+| share of wall clock | negligible | **65–70%** |
+
+In this workload survivors ≈ 0 and garbage ≈ everything — precisely the case where SPITBOL's model is
+best and SCRIP's is worst. A collector whose cost is O(live) would make `table_access` a non-event.
+
 ## 4. WHAT LANDED
 
 - **`test_bench_snobol4_timed.sh`** — `HEAP` (default 1024) applied to m3/m4, and the **regeneration count
@@ -147,9 +194,12 @@ published, and one of the two rows that carried the "3× slower on aggregates" s
 
 ## 7. ⛔ NEXT SEAT — PICK UP EXACTLY HERE
 
-1. **The GC is the biggest single performance item in this suite and is unowned.** Cost is O(blocks ever
-   allocated), not O(live). 7.35M blocks walked for 1,548 survivors, `reclaimed 0`. Do not assume the
-   RBX frontier without measuring — that is the same hypothesis s149 routed and nobody has tested.
+1. **The GC is the biggest single performance item on the SNOBOL4 board and is unowned.** Cost is
+   O(blocks ever allocated), not O(live): 7.35M blocks walked for 1,548 survivors, `reclaimed 0`, and
+   **65–70% of wall clock at every heap size** (§3b). The oracle's collector is O(survivors) and runs the
+   same workload in 2.8 MB (§3c), so this is a cost-model difference, not a tuning gap — the target is a
+   collector that does not walk garbage. Worth ~2.5× on allocating programs. Do not assume the RBX
+   frontier without measuring; that is the same hypothesis s149 routed and nobody has tested.
 2. **`COLLECT(n)` ignores its argument** (`core.c:1239`). Implementing the manual's minimum-words
    semantics would give programs a supported way to pre-size the heap, which is what this rung wanted.
 3. **`TIME()` wall-vs-CPU** (manual p.244: Unix `TIME()` excludes I/O wait; SCRIP uses `CLOCK_MONOTONIC`)
