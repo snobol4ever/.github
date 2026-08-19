@@ -22,3 +22,15 @@ kw_direct 10/10 · kw_static 22/22 armed / 1/22 legacy · UDC 27/27 · corpus m3
 ## Open residue on this front (honest, not renamed)
 - **KW-2's emit+bind half remains unbuilt** — cells still live runtime-side; "the emitted program owns keyword storage" is landed in *effect* (direct refs, no calls) but not in *letter* (no per-program `.data` block). It matters only if CVA-style `mprotect` sealing of keyword pages is wanted; the rebind tripwire keeps it safe to add later.
 - KW-4 legacy-arm deletion list; `kwb_own[7]`→0 namespace close — **blocked by the four missing manual keywords `&LINE/&FILE/&LASTLINE/&LASTFILE`** (oracle answers 1 / file / 0 / null; SCRIP 342s — measured this seat), which must exist before 251 becomes their answer; SETEXIT; &ERRTYPE-assignment-signals-error.
+
+## Addendum (same seat, Lon's question): indirect keyword assignment through the name operator — oracle contract measured, SCRIP door not yet built
+Lon asked: `N = .&ALPHABET` then `$N = 'not good'` — is that assigning as keyword? **Oracle: yes, and the guard holds AT THE CELL, through the indirection**: `$N = 'not good'` fails **208** (value-test-before-protection survives `$` — the string dies as non-integer before protection is consulted); `M = .&ANCHOR; $M = 5` **writes through** and `&ANCHOR` reads back 5 (one cell — a direct read sees it); `$M = 'junk'` fails 208. **SCRIP today: `.&KEYWORD` does not lower** — `FATAL lower_snobol4: name operator over this form is outside the landed subset`, both modes — so no bypass hole exists yet. ⛔ **SPEC FOR THE SEAT THAT LANDS `.&KW`**: a `$name-of-keyword` store MUST route through `rt_kw_write_idx`/`kwb_write_ent` — the one door — never a raw NV store to an `"&NAME"` cell (that would skip 208/210/287/209 + KW-5 silently AND split-brain against the KW-D direct-read cells). Witness program + oracle output verbatim:
+```
+	&ERRLIMIT = 100
+	N = .&ALPHABET
+	$N = 'not good'	:S(A1)F(A2)      -> protected-indirect-failed errtype=208
+	M = .&ANCHOR
+	$M = 5	:S(B1)F(B2)              -> unprot-indirect-ok anchor=5
+	$M = 'junk'	:S(C1)F(C2)          -> unprot-badval-failed errtype=208
+	                                 -> end anchor=5
+```
