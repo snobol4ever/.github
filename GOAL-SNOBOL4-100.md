@@ -88,6 +88,34 @@ Minted `corpus/probe/kw/kw_pattern_family.{sno,ref}`, oracle-minted and **proven
 ---
 
  THE KEYWORD BLOCK IS IN, ORACLE-TRUE, BEHIND `SCRIP_KW_STATIC` (DEFAULT OFF). GATE 0/10 → 6/10 ARMED; BY-SET A/B 712→715 WITH ZERO PASS→FAIL; KILLSWITCH BYTE-IDENTITY 529/529.**
+
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s147 (web seat: Claude Opus 5) — **CN-3 LANDED: DECLARATION REPLACES INFERENCE. `pat_static` 0→1 ON `*&Name`, BLAST RADIUS 0/1572, WITNESSES GREEN BOTH MODES. THE T2 PAYOFF IS NOT YET REALIZED AND ONE RULING GATES IT.**
+SCRIP `9d85ca98` · corpus `9dd32aa4`. Record: `FINDING-2026-08-19-s147-CN3-landed-and-a-nondeterministic-rodata-string.md`. Witnesses `corpus/probe/cn/` (now 4 × `.sno`+`.ref`, each `&`-program shipping its `_classic.sno` oracle twin) · killswitch `SCRIP_CONST_STATIC` (default ON, `=0` byte-identical).
+
+### ⭐⭐⭐⭐⭐ CN-3 — WHAT LANDED
+**The defect was one `continue`.** The pre-scan skipped every `&Name =` statement wholesale, so a constant's defining tree never entered `g_sno_seal` and `*&Name` resolved nothing — exactly why CN-2 had to leave `pat_static` at 0. **`sno_seal_pat` must PROVE single-assignment and therefore carries two gates a DECLARED constant does not need:** `sno_fz_wrcount(nm)!=1`, and `g_sno_fz_unsafe` — a **whole-program poison** where one `EVAL`/`CODE`/`CLEAR` or one indirect `$(...)` anywhere voids static staging for **every name in the program**. CN-2 already seals the cell, so `sno_const_pat()` consults neither. `sno_pat_dfree` still runs: a constant containing a dynamic `*Y` correctly stays 0.
+- **Classification needed no second copy of the keyword list** (ONE AUTHORITY): only a tier-3 user constant can reach that arm with a *pattern* RHS — every assignable tier-2 keyword takes an integer/string, every tier-1 protected keyword refuses assignment (**oracle 209, measured**). `sno_is_pattern_rhs` IS the classifier.
+- `seal` deliberately left 0 — s142 `seal==2` is a different mechanism and gets its own measurement rather than confounding this one.
+
+### ⛔ NOT YET REALIZED — EMITTED ASM IS BYTE-IDENTICAL
+Every current `pat_static` consumer is default-OFF (`SCRIP_DEFER_HAZ_STATIC`), `PATV$`-gated, or unreached by these shapes. **s101's reason for distrusting `pat_static` as a hazard exemption is about the defer's runtime spine record — declaration does NOT fix that.** CN-3 is the lowering half only.
+
+### ⛔ CN-3b INERT, AND WHY THAT IS THE USEFUL RESULT
+Both keyword arms for the constant-chain case are **inert**: `sno_pat_supported()` has no `TT_KEYWORD` arm, returns 0, and gates registration — so `&Item = &Word | &Num` is refused before either classifier is consulted. Chain witness stamps **1 node in BOTH arms; CN-3c's gate is moving it to 2.** ⛔ **The missing arm is NOT a one-liner:** `sno_pat_supported` asserts *the lowerer can emit this tree*, so admitting bare `&Word` in pattern position is a claim about the pattern-valued keyword read path (`IR_MATCH_VALUE`/dynamic class); asserting it unproven would seal-note a tree the lowerer cannot build. Arms kept + annotated so CN-3c does not re-derive it.
+
+### ⛔ SWEEP HYGIENE — A REAL DEFECT AND A PROCESS CORRECTION
+`corpus/programs/snobol4/parser/unary_not.sno` (`x = ~BREAK(nl)`) emits a **LIVE dangling `.rodata` string**: `lea rdi,[rip+.S0]` where `.S0` is ASLR-dependent uninitialized memory — five runs in a FIXED arm give five different strings, stable only under `setarch -R`. Pre-existing, not constants-related. Oracle raises `ERROR 069`; SCRIP silently succeeds rc=0. **PROCESS: run every MD5 blast-radius sweep under `setarch -R`** — this file masqueraded as the one real emission delta in 1572 until it was chased. Own rung; repro is one line.
+
+### ⛔⭐⭐ FOR LON — ONE RULING GATES THE ENTIRE T2 PAYOFF
+T2 is "defer-site **bypass**" — inline the constant's graph, emit no `IR_MATCH_DEFER`. It collides with CN-2's **error 342 (read before one-time assignment)**: inlining would silently match when the defining statement has not executed, and the design says a silent null "would defeat GUARANTEED". Arbitrary `:(GOTO)` makes definition-dominates-use unprovable in general. Choices: (a) bypass, 342 becomes unreachable at bypassed sites; (b) one cheap `NV_EXISTS` entry guard, then bypass; (c) bypass only when the definition is textually first and no goto reaches the use without crossing it. **Semantics call, not an implementation one — not taken on this seat.**
+
+### ⭐⭐ TWO ORACLE FACTS BANKED (both re-usable, both measured this seat)
+- **Manual v3.7 ch.16 is STALE; the binary is law.** `&TRIM=1` (manual says initially 0) and `&MAXLNGTH=16777216` (manual says 4,194,304). **s146's Class B values stand.**
+- **`&ERRLIMIT` → statement failure CONFIRMED at the oracle**, with `&ERRTYPE`/`&ERRTEXT` set: 209 = protected write, **208 fires FIRST on a non-integer value** (confirms s146 Class D ordering), 251 = closed-namespace rejection (why every `&`-program ORACLE_FAILs). ⛔ **CN-2's error 341 is the SAME machinery** — to be oracle-shaped it must become interceptable exactly as 208/209 are. **CN and KW-5 share one mechanism; whoever builds `&ERRLIMIT` should build it for both.**
+
+---
+
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s146 (web seat: Claude Opus 5, dispatched D-3 KW-STATIC) — **KW-1 CENSUS COMPLETE AND KW-2 LANDED. THE KEYWORD BLOCK IS IN, ORACLE-TRUE, BEHIND `SCRIP_KW_STATIC` (DEFAULT OFF). GATE 0/10 → 6/10 ARMED; BY-SET A/B 712→715 WITH ZERO PASS→FAIL; KILLSWITCH BYTE-IDENTITY 529/529.**
 SCRIP `bf7e25bb` · corpus `afd0fda8`. Record: `FINDING-2026-08-19-s146-KW1-census-keyword-truth-table.md`. Witnesses `corpus/probe/kw/` (6 × `.sno`+`.ref`) · gate `scripts/test_gate_kw_static.sh [--armed|--legacy]`. **Zero template/emitter/lower files touched** — the whole rung is runtime C, which is what the census predicted (m3 ≡ m4 on every defect row ⇒ one home, not two).
 
 ### ⭐⭐⭐⭐⭐ KW-2 — WHAT LANDED
