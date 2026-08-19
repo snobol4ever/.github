@@ -16,7 +16,7 @@ Surviving, because they are about CORRECTNESS not scheduling: re-prove your goal
 
 **BOTH-MEDIUM MANDATORY.** Every code-outputting function correct for BOTH TEXT and BINARY. Any function gating output on `MEDIUM_TEXT`/`MEDIUM_BINARY` is a violation. Gate: `grep -rn '"ins[0-9]\+\"\|"Lins[0-9]\+\"' src/emitter/` == 0.
 
-**NO MEDIUM_* IN TEMPLATES.** Zero `MEDIUM_*` in any `bb_*.cpp`; `x86("label")`/`x86("comment")` are medium-complete; asm-producing free helpers live INSIDE `x86()` dispatch. Gates: `grep -rn 'MEDIUM_' src/emitter/BB_templates/` == 0 and no `x86_(frame|ro|reg)_*(` in templates.
+**NO MEDIUM_* IN TEMPLATES.** Zero `MEDIUM_*` in any `bb_*.cpp`; `x86("label")`/`x86("comment")` are medium-complete; asm-producing free helpers live INSIDE `x86()` dispatch. Gates: `grep -rn 'MEDIUM_' src/templates/bb_*.cpp` == 0 and no `x86_(frame|ro|reg)_*(` in templates. ⛔ PATH CORRECTED s168 (HQ): the old text grepped `src/emitter/BB_templates/`, a directory that no longer exists — the gate was VACUOUS and 29 violations accumulated (seat3 census). Until queue row `medium-retire` lands, the 29 are a known-red RATCHET: the count may not grow.
 
 **ICON STACKLESS ONE-REGISTER FRAME.** No `g_vstack`/`rt_push_*`/`rt_pop_*`/r12-as-TOS in Icon graphs; all per-box RW in ONE local frame `[reg+off]`. Gates: `test_gate_icn_no_stack.sh` == 0; `test_gate_icn_one_reg_frame.sh` == 0. **ICON READ-ONLY LOCALS ARE IP-RELATIVE** (`[rip+disp]` sealed beside blob); RW uses `[reg+off]`.
 
