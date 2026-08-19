@@ -130,6 +130,35 @@ Manual v3.7 **p.131: EVAL FAILS if evaluation of its argument fails**, leaving t
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s150 (HQ, Fable 5) — **B2a LANDED ON MAIN (`d9f5cf24`) AFTER THE FULL PRISTINE RE-GATE HQ-27 DEMANDED — EVERY ARM FROM `rm -rf /tmp/si_objs out && make`, EVERY GATE GREEN. THE GUARD IS BEHAVIOR-NEUTRAL EVERYWHERE MEASURED; B2b IS THE REMAINING WALL AND THE NEXT HQ SLICE.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s158 (HQ, Fable 5) — **RESTART BRIEF BOARD: THREE SEATS, THREE BRIEFS. Read YOUR brief below + the s157/s156 cursors, then execute in order. COMPLETION AT DISPATCH: KW ~75% · CN ~75% · BM ~90%.**
+
+### SEAT-KW — "&keywords as static" (D-3 continuation) — ~75%
+DONE (verified pristine): KW-1 census · KW-2 static block (oracle-true initials, `SCRIP_KW_STATIC` default OFF) · KW-3 read-by-index · KW-3b write-by-index sealed (the HQ-21 indictment measured VOID) · &ERRTEXT string carve-out · armed gate 10/14 with EXACTLY the two routed reds.
+THIS SEAT, in order:
+1. **KW-5** — the &ERRLIMIT / protected-keyword-write statement-failure mechanism (MANUAL FIRST: Ch.14 replacement-field rules; the live oracle is law where the manual is stale). Deliverable: `kw_protected_write` green both modes → armed 12/14.
+2. **kw_bare_shadow: ANALYSis, NOT fix** — it is B1-CLASS (by-name dispatch; FINDING s156). If it depends on D-18 (general by-name→SNOBOL-defined follow-on) or T4 (HQ, in flight), DOCUMENT the dependency with a witness and move on. Do NOT build the trampoline in this seat.
+3. **DEFAULT-FLIP PREP** (the payoff): full ladder with `SCRIP_KW_STATIC=1` as default — pristine byte-identity of the =0 arm (**BASELINE-ARM law: same-arm comparisons**), blast census ON, ALL boards (arbnostore/cn/m1/kw/udc/oracle-arbno/demos), THEN the flip in ONE commit carrying the measurements, THEN the legacy special-case retirement list. `kwb_own[7]`→0 (oracle-251 default) is ITS OWN gated step after.
+Laws that bit this front: PRISTINE-BUILD-BEFORE-VERDICT (`make pristine` is the incantation now) · BASELINE-ARM · RE-MEASURE-AN-INHERITED-BRIEF · the JEKYLL TEST before accusing any concurrent actor · isolate in a seat-named worktree.
+
+### SEAT-CN — "&USER_DECLARED_CONSTANTS" — ~75%
+DONE: CN-2 seal + 341/342 · CN-4 declaration namespace · CN-4b/5 wiring · CN-6/7 CLEAR fixed · CN-8 vestige deletion · T1 scalar fold · T2 inline · g-cn2 EVAL/CODE boundary gates (23/23) · $() truth table pinned for ruling.
+⛔ SEQUENCING: beauty-VISIBLE payoffs are MASKED until HQ lands T4 (s157) — do not re-measure beauty_c BEHAVIOR yet; COMPILE-TIME censuses are this seat's honest medium.
+THIS SEAT, in order:
+1. **CN-9b** — `gen_beauty_c.py` predates CN-4: regen beauty_c WITH the `&USER_DECLARED_CONSTANTS` declaration (WAVE-1 52 names), keep the fixed-point law (classic input → classic output byte-identical AT COMPILE-COMPARE level), then the COMPILE-TIME census T1/T2 ON vs OFF on beauty_c.sno (`rt_keyword_read` PLT sites, defer count in .s) — the T2-audit the s150 cursor asked for, measurable NOW without running beauty.
+2. **NV_EXISTS_fn wrong-predicate** (keywords.c 342-read-side, s148 item 3): fix; all 342/341/251 witnesses stay green.
+3. **$() ruling implementation** — Lon rules (HQ recommendation on record: consistent-strict, 342 through the alias). Implement the ruling; witness BOTH halves agreeing.
+4. Stretch: integrate the `.err_sno` error-witness family into a graded sweep (they are currently unswept).
+PARKED — DO NOT TOUCH: CN-5 primitives (pricing pending) · T3/CVA (needs Lon banner-ask) · CN-3c/T2b (HQ-owned, sequenced after T4).
+
+### SEAT-BM — "harness for ALL benchmarks, run as validation tests" — ~90%
+DONE: time-based inversion · ONE-COPY landing (`harness.inc` + 12 bodies under classic names) · scorecard benchmark rows are LIVE oracle rows (norm DELETES `^iters:`/`^ms:` both sides) · runner guard (grades only harness-driven) · `indirect_dispatch.xfail` honest · NOISE-FLOOR baked.
+THIS SEAT, in order:
+1. **BM-2 — FINISH ONE COPY**: convert `roman` and `mixed_workload` to harness bodies (real workloads; deterministic check values, oracle-diffed refs). DELETE the redundant variants per Lon's "enough variations": arith_int, arith_mixed, arith_str, cap_imm_nret2, cap_imm_nret, eval_dynamic, func_call_overhead, pattern_bt_deep, table_churn; `indirect_dispatch` = seat's call (it is oracle-broken upstream — delete, or keep the xfail pair; write the reasoning either way). END STATE: every `.sno` in `benchmarks/snobol4` is harness-driven AND graded — the runner guard becomes a tautology.
+2. **NO SILENT DENOMINATORS**: until BM-2 completes, the runner prints its UNGRADED list BY NAME every run.
+3. **The 13% K-independent calibration under-report** — still unexplained; root-cause before any ABSOLUTE cross-engine claim (relative rankings unaffected). Your own K-independence measurement (floor 2..80ms) is the starting fact.
+4. **META re-baseline** after BM-2 — the benchmarks suite weight now carries live correctness; record old→new META in the cursor.
+5. Stretch: **D-16 THP root-cause** (HQ board carries the brief: per-front matrix, perf counters, keep BOTH wins; flipping the default is NOT the fix).
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s157 (HQ, Fable 5) — **T4 MINTED (Lon's constant-folding instinct, formalized): FOLD THE OPSYN — COMPILE-TIME OPERATOR BINDING KILLS B1 AT BEAUTY'S SITES WITHOUT TOUCHING THE RUNTIME. THE CRITICAL PATH RE-SEQUENCES: T4 → B2c → TAIL; CN-3c RIDES BEHIND T4.**
 
 **T4 — OPSYN-FOLD (constant operator aliasing), the SN4-CONSTANTS worldview applied to OPERATOR BINDINGS:** `OPSYN('&','reduce',2)` with literal args, executed unconditionally in the preamble, is a COMPILE-TIME-VISIBLE constant binding — exactly the class Lon's declaration philosophy names. Fold it: rewrite `X & Y` call sites to DIRECT user-function calls (`reduce(X,Y)`) in the lowerer. The by-name runtime chain (B1's missing follow-on) is then BYPASSED at every folded site — no C→generated-code trampoline needed for beauty. Precedent machinery exists end-to-end: the lowerer already builds user-call nodes for `reduce(X,Y)` spelled directly; T2/CN-3 own the declaration-plumbing shape; killswitch + byte-identity + blast ladder standard. CONSERVATIVE ADMISSION (the T1 lesson): fold ONLY when the operator has exactly ONE OPSYN in the program, args literal, target a DEFINE'd function — anything dynamic keeps the runtime path (and thus TODAY'S m4 silent-empty, no worse). The general runtime follow-on (cures `$FN(X)` too) stays on the board as a SEAT brief (D-18 candidate) — T4 does not retire it, it just takes beauty off its critical path.
