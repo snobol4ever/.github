@@ -62,4 +62,5 @@ Every brief carries: front + rung pointer · setup deltas beyond PLAN.md's stand
 | Prolog | s166 (2026-08-16) | R-0h landed; clause/recursion witnesses root-caused; PL-Z-1a γ-retain opt-in | same |
 
 ## LIVE CURSOR — HQ
+**2026-08-19 HQ-2 (Fable 5):** SSH ruling landed — keyring agent auth confirmed (`Hi LCherryholmes!`), all repos pushed (SCRIP `6d47e61c` · corpus `e4b4fda7` · .github `0708c5e0`+), RULES.md credential law amended for local seats. **D-1 and D-2 are LIVE — fire at will.** Residue: Lon's 2 in-editor calculator `.sno` edits await his commit/hold call; one4all fetch flag = frozen repo, ignore.
 **2026-08-19 HQ-1 (Fable 5):** file minted · history scan done (numbers above) · M1 ladder cut · D-1/D-2 briefs READY, gated on the credential push · SNOBOL4 s145 cursor moved in its own file · PLAN.md row added. NEXT: push all repos (credential asked in-chat) → Lon fires D-1 (+D-2 in parallel) → HQ verifies D-1's suite A/B and beauty re-run, then cuts M1-R2 or the next blocker rung from the FINDING.
