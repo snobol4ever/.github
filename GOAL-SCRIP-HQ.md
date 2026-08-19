@@ -13,7 +13,8 @@ ONE long-lived HQ session (this one, on Lon's Linux at `/home/claude`) — **the
 5. **ONE DISPATCH = ONE RUNG = ONE DELIVERABLE.** A brief needing "and then" twice is two briefs.
 6. **EVERY DISPATCH IS WRITTEN HERE FIRST** (DISPATCH BOARD), so any seat can be re-fired verbatim and the plan survives HQ context loss or restart.
 7. **RULES.md BINDS HQ TOO** — commit identity, credential ask in-chat, no new globals without grant, ASM-DIFF-FIRST, all template laws for any code HQ itself touches.
-8. **HQ RESTART PROTOCOL:** read `PLAN.md` → `RULES.md` → this file (board + cursor) → the three front cursors (headline only). The memory system points here.
+8. **PUSH .github IMMEDIATELY, NEVER ASK (Lon 2026-08-19, in-chat):** every `.github` MD edit is committed AND pushed the moment it lands — web seats read `.github` ONCE at startup, rightfully, so an unpushed doc edit is invisible to every seat fired after it. No batching, no end-of-turn deferral.
+9. **HQ RESTART PROTOCOL:** read `PLAN.md` → `RULES.md` → this file (board + cursor) → the three front cursors (headline only). The memory system points here.
 
 ## DISPATCH PROTOCOL
 Lon fires a seat with one line: **`here we go — you are HQ seat D-<n>: clone per PLAN.md Session Setup, open .github/GOAL-SCRIP-HQ.md, execute DISPATCH BOARD seat D-<n> exactly.`**
@@ -84,6 +85,7 @@ Open `GOAL-PROLOG-100.md`, execute its s166 cursor's next rung exactly. Its file
 | Prolog | s166 (2026-08-16) | R-0h landed; clause/recursion witnesses root-caused; PL-Z-1a γ-retain opt-in | same |
 
 ## LIVE CURSOR — HQ
+**2026-08-19 HQ-6 (Fable 5):** A/B verdict clean (911 rows/arm, 4 movers, ZERO green→red) — **M1-R0 LANDED, SCRIP `281040ef`** (+ the `.gitignore` bare-`core` trap fixed after it ate a staged commit twice). FINDING corrected same-day (the "START oracle-true" claim was a tail-slice error; DATATYPE-null demoted). B1 sharply localized with a grown exclusion list (arbnostore 10/10 green incl. all four `_red`); next: binary-`&` semantics at beauty:225, grammar-mimic witness, B2 clean gdb — all HQ-owned. D-3 (KW-STATIC, top #1) unaffected and ready.
 **2026-08-19 HQ-5 (Fable 5):** Lon's split: KW-STATIC to the TOP as #1 for a claude.ai Opus/max seat (D-3 brief hardened for cold start: shape + file map + ladder + collision notice); B1 (DATATYPE-null → beauty) and B2 (ζ `zls_g_region` trace) are HQ-OWNED here. Seeding-fix A/B still baking; SCRIP commit lands on its verdict.
 **2026-08-19 HQ-4 (Fable 5):** Lon set front priorities (1 / 1.5 / 2 / 3 / 4 / 5). HQ executed D-1 itself: s144 blocker CLEARED, beauty emits its header both modes; walls B1 (DATATYPE-null, prime suspect w/ receipts) + B2 (`zls_g_region` m3 SEGV) named; 6-suite × 2-arm A/B running in background gating the SCRIP commit. KW-STATIC directive recorded as design-of-record + grant. Board now carries D-1' D-2 D-3 D-4 D-5 D-6 READY — a full 6-seat slate.
 **2026-08-19 HQ-3 (Fable 5):** Topology recorded per Lon — HQ = the only local/SSH seat; workers = claude.ai web seats on PAT; 7 language fronts then the backend rollout. Gimpel `*_end`/`*_END` end-label convention committed with Lon's calculator edits (corpus `0250ca0a`, behavior-clean, regen-coherent); census: one `_x` straggler remains, `programs/lon/sno/debug.sno`, Lon's call.

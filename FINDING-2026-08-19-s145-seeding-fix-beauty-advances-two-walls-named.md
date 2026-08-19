@@ -48,3 +48,26 @@ CODE/FNCLEVEL/RTNTYPE` as bare names BEFORE table lookup (core.c:2199–2212) �
 `ANCHOR` etc. is likely hijacked identically (unprobed). **Lon's structural directive supersedes piecemeal
 gating — KW-STATIC (grant recorded in GOAL-SNOBOL4-100 s145 cursor): "place all the keywords as statics in
 the emitted asm and use direct references."** The special-case family dies wholesale there.
+
+## ⛔ s145 SAME-DAY CORRECTIONS + THE A/B VERDICT (append-only; corrections outrank the text above)
+1. **"s144's minimal repro is DEAD / START now echoes oracle-true" is FALSE** — graded with `tail -2`, which
+   sliced off the error line. Full m4 output on `START\n` is `Parse Error` + `START` + blank (= `mainErr1`'s
+   `OUTPUT = Src`, beauty.sno:617–618, Src carries its own trailing nl). ⛔ Never grade with tail.
+2. **DATATYPE-null DEMOTED from B1 prime suspect:** at ShiftReduce.inc's two `IDENT(DATATYPE(x),'EXPRESSION')`
+   sites, `"NULL"` and `"STRING"` take the SAME branch. The divergence is still real (oracle: STRING) and gets
+   its own small rung, but it cannot explain B1.
+3. **A/B VERDICT (911 rows/arm, 6 suites, same build):** 4 movers — the rung witness DIFF/DIFF→PASS/PASS,
+   plus three red→red failure-mode shuffles (`probe/dc_nest_bt`, `probe/leafsib/leafsib_rem`,
+   `csnobol4-suite/nqueens`). **ZERO green→red. Fix LANDED: SCRIP `281040ef`** (also fixes `.gitignore`'s bare
+   `core` line, which matched `src/runtime/core/` and silently refused `git add` twice).
+4. **B1 state: OPEN, sharply localized.** Repro = beauty + stdin `START\n` → `main05` `Src POS(0) *Parse
+   *Space RPOS(0)` fails (oracle matches). EXCLUDED by measurement: the seeding (fixed), reached `&ALPHABET`
+   captures (probe `nl.size=1 tab.size=1` = oracle), the whole arbnostore class (**all 10 witnesses PASS/PASS
+   in the sweep, including the four `_red`**), DATATYPE-null (branch-equal), runtime EVAL/CODE compile (beauty
+   uses APPLY only — the earlier census pattern also counted APPLY). NEXT candidates: the binary-`&` construct
+   in the grammar root (`Parse = nPush() ARBNO(*Command) ("'Parse'" & 'nTop()') nPop()`, beauty.sno:225 —
+   check match.inc/OPSYN + manual for binary ampersand semantics), unevaluated-call side-effect patterns
+   (`nPush()`/`nTop()` inside patterns), deferred-recursion depth through *Command's productions.
+5. **B2 state:** the `zls_g_region` frame in the gdb bt is unreliable (that function is emit-time; beauty does
+   no runtime compile) — treat as stack noise; B2 needs a clean gdb session (`SCRIP_NO_SEGV_HANDLER=1`, proper
+   frame inspection). HQ-owned.
