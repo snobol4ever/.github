@@ -44,3 +44,36 @@ T1 (`c3add39a`) folds a declared scalar `&Name` whose one-time assignment is a l
 - **Error 342 narrows to:** (a) reads of UNDECLARED `&names` — live, witnessed (`cn_read_before.err_sno`); (b) reads of a declared constant NEVER assigned anywhere in the program — compile-time detectable; diagnostic owed when T1 meets such a program.
 - **Documented and ACCEPTED:** on the degenerate class "read textually after the assignment but executed before it", `SCRIP_CONST_T1=0` raises 342 and `=1` yields the value — the arms diverge THERE ONLY, by spec. No dominance/flow analysis will be added to reconcile them.
 - **OPEN (g-cn2), the EVAL boundary:** EVAL-compiled thunks lower at RUNTIME; T1's literal table is DRIVER-side. Until `cn_t1_eval.sno` proves both modes read the sealed cell correctly inside thunks, no fold in the runtime-compile path is the safe default — verify which way the landed code behaves, then witness it.
+
+---
+
+## CONST-GRAPH — EMIT-ONCE / LINK-MANY (the CN-13 design of record; Lon's Q3 s162 "keep a global offsets structure and deduce offsets WITHOUT inlining", re-ordered s166: "FULL graph traversal with whole graph ZETA SPINE calculated when NOT using constant folding and use a LINKED graph; i.e. the PASS-THRU GLUE which has less baggage than today")
+
+This is the section CN-13's own ladder names as step 0. Written s166 from a full in-source verification pass; every mechanism claim below was read in the tree at SCRIP `e06cee8b`, not assumed.
+
+### THE ECONOMICS, MEASURED (s166, witness `&Num = SPAN('0123456789')` at N sites, mode-4 `.s` line count, scaled N = 1·2·12·24 to isolate the MARGINAL cost)
+
+| road | 1 site | 24 sites | **marginal per site** |
+|---|---|---|---|
+| constants OFF (`SCRIP_CONST_STATIC=0`) — dynamic defer + blob | 406 | 5121 | **205 lines** |
+| **today's default** — CN-12 substitution (inline a copy per site) | 349 | 3477 | **136 lines** |
+| CN-13 target — one shared graph + thin sites | 349 | ~470 | **~5 instructions** |
+
+Scaling is exactly linear (485−349 = 136; (1845−485)/10 = 136; (3477−1845)/12 = 136), so the number is the cost of a WHOLE COPY OF THE GRAPH and nothing else. CN-12's substitution buys 34% over the dynamic road and then stops: the remaining 136 lines/site is duplication, which is precisely what a LINKED graph deletes. beauty's `&White` at 42 sites = **41 redundant copies ≈ 5,576 lines of emitted asm.**
+
+### THE FOUR BLOCKERS A SEAT WOULD EXPECT — ALL FOUR ARE ALREADY CLEARED IN-TREE (verified s166, this is the section's real payload)
+
+1. **"It needs a per-program directory: constant → {α label, ζ geometry}" — IT EXISTS, AND IT IS NOT A NEW GLOBAL.** `rt_proc_set_fn(pname, pfn)` records each proc graph's EMITTED ENTRY ADDRESS by name (`scrip.c` m3 proc loop), and `emit_patzeta_register(pname, frame_bytes, fp, uniform)` records its SUSPENSION/ζ FOOTPRINT by name, with `emit_patzeta_lookup()` already consumed at `emit.cpp` for the ARBNO-DT arm. `zls_graph_name()`/`zls_g_resume_by_name()` are the same shape for resume slots. ⛔ **This retires the NO-NEW-GLOBALS banner-ask that CN-13 as originally worded would have required** — the offsets structure Lon asked for is already built and already populated; the rung READS it, it does not mint it.
+2. **"m3 can't jump to another graph statically" — EMIT ORDER ALREADY MAKES IT LEGAL.** In BOTH media the proc/PAT$ graphs emit BEFORE main (`scrip.c` m4 pre-main loop; m3 proc loop, whose `emit_chain` RETURNS the entry address as `bb_box_fn pfn`). So at the moment a site in main is emitted, its target's address is a known constant. The `jmp rax` in `bb_glue_pass_wires_blob` is therefore NOT a structural necessity — it is dynamic resolution the site no longer needs once the target is a DECLARATION. TEXT takes the symbol, BINARY takes the known in-process address: the **KW-D sanctioned divergence** (s165, `rt_anchor_g`/`x86_load_got` precedent), zero new encoders.
+3. **"The callee side must be built" — IT IS BUILT.** `bb_glue_wire_γ()`/`bb_glue_wire_ω()` are already `jmp r10`/`jmp r11`, and R10/R11 are the reserved LIVE γ/ω wires by register contract. A shared graph already returns through exactly the wires a thin site would set.
+4. **"The deterministic/resumable split needs a new predicate" — IT EXISTS.** `pat_static` (`sno_name_static` = eligibly-resolved AND transitively defer-free) is already the "cannot recurse, no suspension" stamp, and `emit.cpp`'s `zd_k` already bills `IR_MATCH_DEFER && pat_static` as **K=0, a transfer box entering through the FLAT glue with ZERO FRAME**. That is the leaf-only slice's admission test, already computed.
+
+### WHAT THE RUNG ACTUALLY IS, THEN — AND WHY HALF OF IT IS A TRAP
+
+With 1–4 cleared, the remaining work is ONE POLICY CHANGE plus its linkage: **a multi-site declared constant must stop being SUBSTITUTED and start being LINKED** — its graph registered once (the `sno_pat_collect`/`sno_pat_thunks_build` PAT$ road already emits exactly one graph per distinct stored pattern), its ζ-SPINE planned once by its own whole-graph traversal (`zdp_analyze` → `zzone_plan` → `zls_build`; RSP-relative FORTH makes the shared graph position-independent BY CONSTRUCTION, which is why the site needs no RBP activation and no offset arithmetic), and each site reduced to the bare pass-thru: set the two wires, jump the known α.
+⛔ **DO NOT LAND THE LINKAGE HALF ALONE.** Making the defer site's target static WITHOUT the policy change is a VACUOUS rung: under the default arm a declared constant is substituted, so the defer site is never reached, and the new arm would be dead code measuring green. That is verbatim the s146/s147 "KW-2/KW-3 quietly redefined to index-plus-call and marked done" failure that cost five sessions, and the s165 lesson it produced: **a directive whose success metric is a count in the emitted asm needs a gate that counts the emitted asm.** That gate is `scripts/test_gate_const_graph.sh` (landed s166) and it exists BEFORE the code deliberately.
+
+### LADDER (unchanged in shape from the s162 note, now with its blockers cleared)
+(1) leaf-only slice — one SPAN constant, one shared graph, ≥2 sites; gate = marginal lines/site collapses, green both modes, killswitch off-arm byte-identical. (2) ALT-carrying constants — `cn_nest_alt_defer`'s defer count drops, output byte-identical; this is also what makes the s161 TOP-LEVEL-ONLY depth limit structurally obsolete rather than repaired. (3) recursion through the protocol (the `sno_kw_chase` cycle guard deletes — recursion becomes the graph linking to itself). (4) blob native-leaf for value builds.
+**Boundary, restated so nobody oversells it:** a shared graph is still statement-regime boxes — the may-only-add-passes construct exclusions (FENCE/capture/BAL) bound its CONTENT exactly as they bound inline. CN-13 fixes duplication, nesting, recursion and the interpreter; the construct frontier advances on its own rungs.
+**Convergence:** the linkage protocol ("enter emitted code with return wires") is the SAME mechanism B1's by-name→SNOBOL-defined trampoline needs — one build, two walls.
