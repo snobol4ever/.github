@@ -25,8 +25,8 @@ Second textual definition = compile error (CN-0 target; today runtime-only). Any
 ## Optimizer tiers
 **T1** scalar constants → immediates/rodata, zero NV/GVA reads. **T2** constant PATTERNS → `pat_static` by DECLARATION: stage the graph at compile time; every `*&P` defer / stored-ARBNO resume on a declared-constant target bypasses the dynamic machinery (⛔ but NOT the match-time `. *Fn()` capture-call class — those side-effects fire per match by design; see the B2 FINDING). **T3** constant strings/tables → rodata, no GC scan, no write barriers.
 
-## Parser-action primitives (CN-5, Lon verbatim: nPush/nInc/nDec/nPop "MUST also be constant … BUILT-IN pattern primitives")
-Engine-native zero-width primitives (+`nTop` reader), reference semantics from `beauty/semantic.inc` + `counter.inc`; the native win = backtrack-correct unwind via the four ports. Open for Lon: builtin-yields-to-DEFINE vs builtin-wins.
+## Parser-action COMPILER primitives (CN-5; Lon's final ruling 2026-08-19: "nPush/nPop FAMILY is a compiler primitive… CONSTANT forever… we'll eventually remove the *.inc file")
+Builtin WINS always — sealed compiler names, user DEFINE of them = error. The family lowers at compile time to dedicated zero-width boxes (counter op + four-port backtrack undo); the runtime two-level encoding (`'' . *Fn()` deferred-call capture = the B2 thunk/record class) is never emitted for them. `semantic.inc`/`counter.inc` retire at end state; beauty_c rides the primitives. Precedence question CLOSED.
 
 ## Oracle amplification + the pristine-oracle law
 Both oracles learn `&name` as plain variables (`sbl-x`, `csnobol4-x` — HQ board D-12/D-13) so converted programs keep LIVE oracle grading (single-assignment ⇒ observably identical). ⛔ Stock binaries are NEVER replaced; every `-x` proves full-classic-corpus byte-identity vs stock before anything trusts it.
