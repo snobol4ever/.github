@@ -55,3 +55,24 @@ against the bracket-free sibling). This is squarely the ζ/defer territory Lon a
 **Killswitch bisect:** default rc=132 · `SCRIP_ARBNO_TAILBETA=0` rc=132 (**the s145 tail-beta rung is exonerated**) · **`SCRIP_DEFER_RESUME=0` rc=0 `nomatch`** · **`SCRIP_SEAM_WALK=0` rc=0 `nomatch`** — B2 is armed by the s121/s124 resume pair, and both cured arms are oracle-correct on the witness.
 **ASM-DIFF (witness vs bracket-free sibling, mode-4 text):** the witness's statement graph carries the brackets as `match_defer` nodes whose **β labels are `jmp qword ptr [rsp]`** — the CLASS-D record resume — and the retreat edges from the failing right side (`RPOS` fail, ARBNO σ/af) β-target exactly those labels. But `'' . *PC()` **completes deterministically without suspending** (ε-match, call fires, capture lands, success) — no suspension record is ever pushed — so at retreat time `[rsp]` holds unrelated stack data: m3 slides into slab zeros (SIGILL/SEGV at the RX edge), m4 jumps through junk (SIGSEGV). s121's own gate text predicted the class ("a deterministic carrier's β fail-throughs home"); the statement-graph wiring assumed record-entry is always valid — false for completed-unsuspended defers.
 **FIX DESIGN (HQ, to land next slice with full gates):** THE RECORD CELL MUST ALWAYS CARRY A VALID CONTINUATION — bb_match_defer's completion path arms its own record slot with the FAIL-THROUGH continuation (its ω/fail glue) whenever it exits WITHOUT publishing a suspension; the suspension path keeps writing the resume stub as today. Then `jmp [rsp]` is correct in every state, no admission-gate re-narrowing needed, and the s121 arbnostore repairs are untouched (they enter genuinely-suspended records). Killswitch + byte-identity + 529 sweep + arbnostore 10/10 + beauty both modes = the gate set. Alternative rejected: re-narrowing the SEQ-RESUME-GATE at lower time cannot see whether a blob will suspend (runtime fact) — it would re-break the repaired arbnostore class or under-fix this one.
+
+## ⭐⭐⭐⭐⭐ THE CURE, PROVEN BY HAND-PATCH (HQ, same day) — AND THE OWNER, NARROWED TO ONE SEAM
+**One instruction fixes the witness:** rerouting the arbno-af ω fall-through (`jmp n9_match_defer_β`) through a stub
+that does `add rsp, 16` first makes the witness run ORACLE-PERFECT (`nomatch`, rc=0). The depth delta is exactly
+one 16-byte cell.
+**Owner accounting (read off the witness .s):** the leaked 16 is the RIGHT bracket's (n11's) **generic-emitter
+α-carve** (`sub rsp,16` at `n11_match_defer_α` — NOT emitted by bb_match_defer.cpp; it is the ζ-carve from the
+generic per-node staging). n11's γ pushed the 16-byte {L(6)-stub, cursor} record; RPOS failed; n11's β
+record-resume ran L(6), which frees ONLY the record (`add rsp,8; pop rax`) and ω-exits **with the α-carve still
+on the spine**; the arbno's af then enters the LEFT bracket's `jmp [rsp+0]` 16 bytes short of its record. The
+blob-side twin stub (`.Lx13_6`) frees all 32 (8+8+16) — the statement-side L(6) is the one that under-frees.
+**THE FIX (next HQ slice, scoped):** the defer's exhaust/ω path must free what its α carved (THE MODEL: "ω
+self-frees on failure") — land it at the L(6) stubs (both `sn4_alt_carrier()` arms) as the carve-release,
+gated by whether the generic staging carved for this node (the zd_k/op-carve fact must be read from ONE
+authority, not re-derived in the template), killswitch, default per Lon's blanket grant. ⛔ The naive
+alternative — popping at the arbno-af edge — is WRONG by construction: the delta is a property of the
+LEAKING NODE's exit, not of the af edge (depth-clean bodies would be over-popped; arbnostore 10/10 rides
+those edges).
+**Gate set at landing:** witness green BOTH modes · arbnostore 10/10 · cn 5/5 · KW armed 6/10 · 529 sweep both
+arms · patterns+crosscheck behavior A/B · **beauty m3 re-run** (if the leak is beauty's B2, m3 stops crashing
+and joins m4 at wall B1 — one front left).
