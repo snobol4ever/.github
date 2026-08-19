@@ -70,6 +70,27 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s150 (HQ, Fable 5) — **B2a LANDED ON MAIN (`d9f5cf24`) AFTER THE FULL PRISTINE RE-GATE HQ-27 DEMANDED — EVERY ARM FROM `rm -rf /tmp/si_objs out && make`, EVERY GATE GREEN. THE GUARD IS BEHAVIOR-NEUTRAL EVERYWHERE MEASURED; B2b IS THE REMAINING WALL AND THE NEXT HQ SLICE.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s150 (web seat: Claude Sonnet 4.6) — **KW-3b REPAIR FULLY RE-MEASURED VOID (5 of 5 claims falsified at HEAD). SN4-CONSTANTS T1 LANDED: DECLARED SCALAR `&Name` FOLDS TO ITS LITERAL — ZERO RT_KEYWORD_READ CALL, ZERO SPINE CARVE. ⛔ CONCURRENT SEAT FOUND ON SAME FILESYSTEM — TWO SEATS SHARING ONE WORKTREE IS THE CORRUPT-.o TRAP CLASS.**
+SCRIP `c3add39a` · corpus `d1ab283b`. Gates: UDC 12/12, KW-STATIC armed 10/14, killswitch byte-identity 0/529, T1 blast radius 0/529 (no corpus program uses UDC yet — payoff on beauty_c wave-1). T1 witness `probe/cn/cn_t1_scalar_fold.{sno,ref}` minted, both modes PASS. Regens ×3 zero changed bytes.
+
+### ⭐⭐⭐ T1 — SCALAR FOLD: WHAT LANDED
+Reading a declared `&N = 42` was emitting a by-name string, spine carve, 3 register spills, `call rt_keyword_read_snobol4@PLT`, 4 reloads — ~12 instructions per read. Fix: widen the EXISTING `g_sno_seal` table with a `val` field (not a parallel array — that is the spelled-twice shape RULES.md names); `sno_const_note_val`/`sno_const_val`/`sno_const_t1_on` mirror the T2 pair exactly. Fold at `sx_lower` TT_KEYWORD arm recurses into `sx_lower` on the stored literal — inherits `TT_ILIT/FLIT/QLIT` arms, no new emission path. ⛔ **`rt_kw_index()` guard is load-bearing, not belt-and-braces**: CN-3's "classification is free because no tier-2 keyword takes a pattern RHS" argument does NOT carry to T1 (integers/strings are exactly what `&ANCHOR`/`&CASE`/`&TRIM` take); without the guard, `&CASE = 1` would freeze into an immediate and silently break every program that relies on the keyword's mutability. `rt_kw_index` is block-own and killswitch-independent. Admitting `&CASE = 0` at the note site (guarded the same way) is intentionally conservative — cost is one missed fold, gain is never misclassifying a keyword variable declared in the program's preamble.
+
+### ⛔ KW-3b REPAIR VERDICT: ALL FIVE CLAIMS VOID AT HEAD
+`&W = "hi"` prints `hi` rc=0 both arms (correct — namespace born open) · UDC 12/12 · arbnostore 10/10 · zero SNO$MKPAT hits on m1+cn · 0 movers of 529 vs `bc0eeff4` killswitch-OFF `.so`-swapped A/B. `4bbc8c4b` (CN-4) IS the repair HQ specified; it landed after HQ's bisect point. No repair was needed or made.
+
+### ⛔ CONCURRENT SEAT — FILESYSTEM SHARING RISK (Lon, please decide)
+Mid-session HEAD moved `6024fed9`→`32ed33dc` (CN-8+CN-9) committed by another seat **into the same working tree** this seat was building in. The corrupt-`.o` trap this file already records (the `CONTAINER TRAP` under s148) is exactly this: two `make` invocations on the same `out/rt_pic/` write partial objects each other reads. Timing worked out (my sweeps completed at 16:18, foreign rebuild at 16:24) so measurements above are attestable. Isolated onto worktree `SCRIP_s150`, branch `s150-udc`, throughout. **Two claude.ai WEB seats MUST clone into SEPARATE directories** — they are separate containers logically but this session's evidence shows they can share a filesystem mount. `git pull --rebase` before every push is necessary but not sufficient when `out/` is shared.
+
+### ⛔ NEXT SEAT — PICK UP EXACTLY HERE
+**(1) T2 audit** — T2 is live and cashing (DEFER refs 22→14 on cn_t2 witness), but zero movers in 529-program sweep (no corpus program uses UDC). First consumer is `beauty_c` wave-1 (52 declared grammar constants). Run T2 blast radius **on `beauty_c`** once `beauty_c` has its declarations — not the standard sweep. **(2) CN-5 parked** pending `&`-in-GVA vs RTCC pricing (s148's item 3 is also still open: `NV_EXISTS_fn` at `keywords.c:360` is the wrong 342 predicate). **(3) T3 / CVA** — constant strings/tables → rodata and the mmap'd sealed arena; CVA is new file-scope state and needs an explicit Lon banner-ask before code. **(4) Concurrent-seat hazard** — Lon to rule on worktree discipline.
+**(5) Items from s149 next-seat list resolved here:** `_var_reg` DELETED (CN-8, other seat) · `.s` instrument rc-recording LANDED (CN-8) · `sno_const_val` name forward-declared (this seat). Items still open from s149: output sweep naming (`util_out_sweep.sh` exists as of CN-8 but its 7/510 anomaly root cause not closed), `NV_EXISTS_fn` wrong predicate, ONE-AUTHORITY `_nv_store` candidate.
+
+---
+
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s149 (web seat: Claude Opus 5) — **CN-6 + CN-7 LANDED: `CLEAR()` NO LONGER UN-SEALS A DECLARED CONSTANT, AND IT NOW ACTUALLY CLEARS — IT WAS SILENTLY A NO-OP FOR EVERY ORDINARY VARIABLE. THE HQ-21 INDICTMENT IS MEASURED VOID AT HEAD — CN-4 WAS ALREADY ITS REPAIR.**
+SCRIP `f80c3f4d`+CN-6+CN-7 · corpus `a51c7d25`+CN-7 witness. Gates: UDC 12/12, KW-STATIC armed 10/14. Blast radius NIL by reachability — `NV_CLEAR_fn` has exactly ONE caller and no corpus program invokes `CLEAR()` (nine token hits, all name-tables or a user `CLEAR_D_VF`; `snoCLEAR = 'CLEAR'` is a lexicon entry never referenced again). Record: `FINDING-2026-08-19-s149-CN6-clear-unseal-fixed-and-clear-is-a-noop.md`.
+
 The ladder (baseline = pristine origin/main `3694b72f`; branch rebased finally onto `6d0fd9c3` — legitimate because the two intervening commits touch ZERO src/ files, so the gated driver sources are byte-for-byte the landed ones):
 - **G1 identity, `SCRIP_DEFER_BETA_GUARD=0`**: 0 movers / 527 comparable (529-list, rc-recording sweep). Killswitch honest, re-proven pristine.
 - **G2 blast radius, guard ON (the default)**: 375/527 .s move — the expected class: half A's continuation-cell store lands in EVERY match frame.
@@ -105,6 +126,10 @@ All 23 print a nondeterministic ms delta while all 23 sibling `.ref` hold a dete
 
 ### ⛔ NEXT SEAT
 (1) Root-cause the THP defect — 2.26x behind one env var. (2) Legacy-23 disposition (Lon's ruling). (3) `TIME()` wall-vs-CPU. (4) The timed family is deliberately **not** wired into `scorecard_snobol4.sh` — adding a suite reweights META and that is a scoring decision.
+
+### ⛔ NEXT SEAT — SEE s150 CURSOR ABOVE (supersedes this list)
+**(1)** `util_out_sweep.sh` NAMED (CN-8, concurrent seat) — root-cause of 7/510 anomaly still open. **(2)** `_var_reg` DELETED (CN-8). **(3)** `NV_EXISTS_fn` wrong predicate — still open. **(4)** ONE-AUTHORITY `_nv_store` — still open. **(5)** CN-5 still parked. **(6)** T2 ruling resolved — T2 is live, audit against beauty_c is next.
+⛔ **PROCEDURAL, EARNED TWICE THIS SEAT:** Re-measure an inherited verdict before executing against it; later commits expire it.
 
 ---
 
