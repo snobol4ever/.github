@@ -167,12 +167,14 @@ The B1 chain, each layer witnessed before the next was visible:
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s158 (HQ, Fable 5) — **RESTART BRIEF BOARD: THREE SEATS, THREE BRIEFS. Read YOUR brief below + the s157/s156 cursors, then execute in order. COMPLETION AT DISPATCH: KW ~75% · CN ~75% · BM ~90%.**
 
-### SEAT-KW — "&keywords as static" (D-3 continuation) — ~75%
-DONE (verified pristine): KW-1 census · KW-2 static block (oracle-true initials, `SCRIP_KW_STATIC` default OFF) · KW-3 read-by-index · KW-3b write-by-index sealed (the HQ-21 indictment measured VOID) · &ERRTEXT string carve-out · armed gate 10/14 with EXACTLY the two routed reds.
-THIS SEAT, in order:
-1. **KW-5** — the &ERRLIMIT / protected-keyword-write statement-failure mechanism (MANUAL FIRST: Ch.14 replacement-field rules; the live oracle is law where the manual is stale). Deliverable: `kw_protected_write` green both modes → armed 12/14.
-2. **kw_bare_shadow: ANALYSis, NOT fix** — it is B1-CLASS (by-name dispatch; FINDING s156). If it depends on D-18 (general by-name→SNOBOL-defined follow-on) or T4 (HQ, in flight), DOCUMENT the dependency with a witness and move on. Do NOT build the trampoline in this seat.
-3. **DEFAULT-FLIP PREP** (the payoff): full ladder with `SCRIP_KW_STATIC=1` as default — pristine byte-identity of the =0 arm (**BASELINE-ARM law: same-arm comparisons**), blast census ON, ALL boards (arbnostore/cn/m1/kw/udc/oracle-arbno/demos), THEN the flip in ONE commit carrying the measurements, THEN the legacy special-case retirement list. `kwb_own[7]`→0 (oracle-251 default) is ITS OWN gated step after.
+### SEAT-KW — "&keywords as static" (D-3 continuation) — ✅ **COMPLETE, s161** (was ~75% at this dispatch)
+**All three items closed and the default is FLIPPED — see the s161 LIVE CURSOR at the top of this file and `FINDING-2026-08-19-s161-kw-front-two-mis-routed-defects-and-the-default-flip.md`.** SCRIP `02d96577` · corpus `4ffc0077`. Gate **16/16** (was 10/14), verdict on a pristine tree.
+Kept here because the brief's own routing was measured WRONG and the next seat should read why, not repeat it:
+- item 1 **KW-5** ✅ — `&ERRLIMIT`→statement-failure landed; `kw_protected_write` green both modes.
+- item 2 **kw_bare_shadow** ⛔ **the brief said B1-class, blocked behind D-18/T4, do-not-fix. IT WAS NOT.** The whole residue was `DATATYPE` of an unset variable answering NULL where the oracle says STRING (SNOBOL4 has no null datatype). Two-line fix, no trampoline, and the corpus FAIL set strictly SHRANK. **RE-MEASURE-AN-INHERITED-BRIEF earned its citation again.**
+- item 3 **DEFAULT FLIP (KW-6)** ✅ — full both-arms ladder green; `SCRIP_KW_STATIC` INVERTED (=0 still restores pre-KW-2 behaviour, so BASELINE-ARM keeps a baseline). Payoff: `SNO$KWSET` 2→0, `rt_keyword_read/write@PLT` 3→0, `rt_kw_*_idx` 0→5.
+- **KW-5b, not in the brief and found only while preparing the flip:** block initials were seeded LAZILY, so a program touching no keyword ran on the C initializers — `L = INPUT` answered size 8 vs the oracle's 5, and the SAME program with one `&ANCHOR` in front answered 5. **The answer depended on ACCESS ORDER, and the 14/14 gate could not see it** — every KW witness touches a keyword by construction. Witness `probe/kw/kw_trim_lazy_seed`.
+**NEXT ON THIS FRONT, nothing blocking:** legacy special-case retirement (that code is now reachable only through the killswitch) · `kwb_own[7]`→0 (its own gated step) · SETEXIT (absent; KW-5 is only the no-label arm of &ERRLIMIT) · `&ERRTYPE`-assignment-signals-an-error (Ch.16), which pairs with SETEXIT.
 Laws that bit this front: PRISTINE-BUILD-BEFORE-VERDICT (`make pristine` is the incantation now) · BASELINE-ARM · RE-MEASURE-AN-INHERITED-BRIEF · the JEKYLL TEST before accusing any concurrent actor · isolate in a seat-named worktree.
 
 ### SEAT-CN — "&USER_DECLARED_CONSTANTS" — ~75%
