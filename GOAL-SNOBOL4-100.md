@@ -130,6 +130,17 @@ Manual v3.7 **p.131: EVAL FAILS if evaluation of its argument fails**, leaving t
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s150 (HQ, Fable 5) — **B2a LANDED ON MAIN (`d9f5cf24`) AFTER THE FULL PRISTINE RE-GATE HQ-27 DEMANDED — EVERY ARM FROM `rm -rf /tmp/si_objs out && make`, EVERY GATE GREEN. THE GUARD IS BEHAVIOR-NEUTRAL EVERYWHERE MEASURED; B2b IS THE REMAINING WALL AND THE NEXT HQ SLICE.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s161 (HQ, Fable 5) — **T4 LANDED (`8161a49e`): THE B1 WITNESS IS GREEN BOTH MODES. AND THE ONION KEPT PEELING: D-18a/b/c LANDED — THE RUNTIME FRAGMENT PATH WAS JUMPING THROUGH ITS OWN UNSEALED-CELL STUB (error 22 for EVERY deferred call inside an EVAL-built pattern, BOTH MODES). THE B1b WITNESS NOW EXECUTES ITS DEFERRED CALL ORACLE-TRUE — THEN SEGVS ON THE FAIL RETREAT (B1c). BEAUTY UNMOVED — ITS EVALS RUN INSIDE DYN-SCOPED DEFINE'D FNS (B1d witness owed).**
+
+The B1 chain, each layer witnessed before the next was visible:
+- **B1 (s156)** by-name→SNOBOL-defined, main programs: CURED by T4 fold (`probe/b1/b1_opsyn_binary_snodef` green both modes; killswitch byte-identical; blast 0/527).
+- **B1b (this slice)** `probe/b1/b1_eval_pattern_defer_call`: EVAL builds a pattern carrying `*F('t',TH)`; oracle prints `F called: t cap=A` + `nomatch`. SCRIP raised error 22 both modes. THREE defects under it, all landed: (a) `eval_thunks_emit_from` never sealed its thunks' alpha$ cells (driver-parity seal added; authority HOISTED to `bb_ab_seal_entry_cells` — driver statics unlinkable from the .so); (b) fragment TINY call sites jump alpha$ cells no seal walk can fill (fragment chains carry no `<name>_α` label) — fragments now decline TINY via `g_rt_fragment_emit` and ride the rt fn-pointer path main thunk calls use; (c) **`rt_dyn_alpha_fn` preferred the allocator's own undef-stub sentinel over the live registered fallback** — and `bb_ab_fn_cell_ptr` allocates-to-stub on first request, so the reader MANUFACTURED its own error 22 (exact-sentinel test landed). `SCRIP_SEAL_DIAG=1` = the fill/miss ledger that convicted it.
+- **B1c (NEW, next)**: the witness now calls F oracle-true, then SEGVs on the FAIL RETREAT — both modes, guard-independent. The retreat of a deferred-call record inside a FRAGMENT chain is the B2 record-resume family in the fragment medium. Witness in place; gdb next.
+- **B1d (owed)**: beauty m4 still CLEAN Parse Error — never reaches the retreat crash, so its grammar EVALs still fail SILENTLY: `shift()` EVALs a string referencing DYN-SCOPED FORMALS (`p`, `t`) of the calling DEFINE'd fn — one layer past B1b (whose EVAL ran at main level with globals). Next witness: EVAL-inside-DEFINE'd-fn reading formals; suspicion: fragment NV reads vs save-set staging.
+- Gates: suites 51/57 both modes (= prior 48 + 3 new cn rows, zero regressions), T4 blast 0/527, OFF-arm byte-identity proven on the witness.
+
+**Board effect**: B2c (m3 dirty-quad) unchanged, still queued. The beauty critical path is now B1d → B1c → B2c — three named walls, two witnessed, one witness owed. CN-3c/T2b stays behind them.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s158 (HQ, Fable 5) — **RESTART BRIEF BOARD: THREE SEATS, THREE BRIEFS. Read YOUR brief below + the s157/s156 cursors, then execute in order. COMPLETION AT DISPATCH: KW ~75% · CN ~75% · BM ~90%.**
 
 ### SEAT-KW — "&keywords as static" (D-3 continuation) — ~75%
