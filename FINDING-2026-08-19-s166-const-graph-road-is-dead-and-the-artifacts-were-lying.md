@@ -1,30 +1,34 @@
-# FINDING s166 — THE EMITTED SHARED-PATTERN-GRAPH ROAD IS UNREACHABLE AT HEAD, THE INLINE-SET AND THE GRAPH-SET ARE THE SAME SET, AND 390 `.s` ARTIFACTS HAD BEEN LYING ABOUT IT
+# ⛔⛔⛔ RETRACTED IN FULL BY ITS OWN AUTHOR, SAME SESSION (s166) — THE "DEAD ROAD" WAS A STALE GREP PATTERN, NOT A DEAD ROAD
 
-**Seat:** local, Claude Opus 5, CN front, 2026-08-19. **Trees:** SCRIP `22dc2f8c` · corpus `f5538e01`. **Provenance:** found while scoping CN-13 CONST-GRAPH rung 1 (Lon's order: *"FULL graph traversal with whole graph ZETA SPINE calculated when NOT using constant folding and use a LINKED graph; i.e. the PASS-THRU GLUE which has less baggage than today"*). Every number below is a live measurement on a pristine build, not a read of a committed artifact — which is itself the point of the finding.
+**Status: VOID. Do not act on any version of this file's original claims.** The retraction and the correct measurements are below; the original text is kept underneath as the record of the error, exactly as HQ-21 was kept.
 
-## THE CLAIM
+## WHAT I CLAIMED, AND WHY IT WAS WRONG
 
-`proc_PAT$N` — the emitted, shared, four-port pattern graph with the CLASS D suspension protocol — **cannot be produced by any SNOBOL4 source program at HEAD.** It is not merely unused; it is unreachable.
+I claimed the emitted shared-pattern-graph road (`proc_PAT$N`) was **unreachable at HEAD** — "0 of 59 programs", "no source shape resurrects it", "the fz table gates both roads so there is no middle tier", "zero live coverage, reviving it is reviving bit-rot".
 
-## THE EVIDENCE
+**Every one of those claims is FALSE, and they all came from ONE defect: I grepped a label that had been RENAMED.** The emitted graph is no longer spelled `proc_PAT$N_α`; the s62 STUB-BLOB-DELETE bare-chain change emits kind-2 thunks with an `FN__` face and no `proc_` wrapper, so the live spelling is **`FN__PAT$N` + `PAT$N_α_body` / `PAT$N_β` / `PAT$N_γ` / `PAT$N_ω` / `PAT$N_res`**. My sweep searched for the OLD string and found nothing, and I read "no matches" as "no road".
+The second sweep compounded it: it searched `grep -rl "proc_PAT" corpus --include=*.s` **after I had already regenerated every one of those artifacts into the new spelling**, so the file list was empty and the loop reported "of 0 programs" — a denominator of zero read as a result. A third pass used `grep -q "FN__PAT\$"` inside double quotes, where `\$` collapses to `$` and grep reads it as END-OF-LINE, giving another false zero.
 
-1. **0 of 59.** Of the 59 corpus programs whose COMMITTED `.s` contains a `proc_PAT$` graph, **zero** still emit one when recompiled at HEAD (each rc=0 with real output; `word4.sno`, `115_pat_fence_via_var_recursive`, `178_pat_recursive_star_list_zs2` spot-verified individually).
-2. **No source shape resurrects it.** Swept `P = BAL` · `FENCE 'a'` · `SPAN(…) . W` · `ARB . W` · `BREAK(' ')`, each with two `*P` star-defer sites — the exact construct class the road exists for. Result: `proc_PAT$` = 0 in all five. The non-inlinable ones go to **`rt_defer_run_all`, the runtime blob INTERPRETER**; the inlinable ones inline.
-3. **The builder is still wired.** `sno_pat_thunks_build(0)` is still called on the main path (`lower_snobol4.c:2834`), so this is not an unwiring — every graph it would build is suppressed by PT-2's `sno_fz_procname_is_dead` (*"all refs inlined, no `*name` consumers; proc_PAT graph is dead code"*).
+## THE CORRECT MEASUREMENTS (label-agnostic, fixed-string `grep -F`, live compiles at HEAD)
 
-## THE MECHANISM — WHY THERE IS NO MIDDLE TIER
+- **58 of 318 crosscheck programs emit a `PAT$N` graph at HEAD.** The road is LIVE and has real, broad coverage — including `expr_eval`, the whole `066/068/105/108/109` FENCE-via-var family, and `070_pat_arbno_star_var_digits`.
+- **`word4.sno` — the program I declared one of the "zero" — emits `FN__PAT$0` with the complete four-port CLASS D shape** (`PAT$0_α_body`, `PAT$0_γ` pushing the `{res,r10,r11}` record, `PAT$0_res`, `PAT$0_β`, `PAT$0_ω`).
+- **The middle tier EXISTS.** Re-run of the shape sweep with the correct label: `P = BAL`, `P = SPAN(…) . W`, `P = ARB . W` each emit a `PAT$` graph; `FENCE 'a'`, `BREAK(' ')`, `SPAN(…)` inline. So capture/BAL shapes are exactly the population that qualifies for a graph and is refused by inlining — the tier I claimed could not exist.
 
-**The fz table gates BOTH roads.** A name enters `g_sno_fz` only by passing `sno_pat_invariant` + the single-write/fz-safe sweep. `sno_fz_mark_defer` attaches a `PAT$N` procname **only** to fz-table names, and PT-2 then suppresses the graph unless that name has surviving `*name` consumers. The lowerer states the containment itself: *"inline-set ⊆ blob-linkage-set BY CONSTRUCTION"*.
-So the population splits exactly two ways and nothing lands between them: **fz-qualified ⇒ inline-eligible ⇒ inlined** (PT-1, PAT-INLINE-ARBNO and CN-12 successively widened the inline set until it covered the fz set), and **not fz-qualified ⇒ no procname ⇒ interpreter**. The shapes inlining refuses (captures, FENCE, BAL) are the same shapes `sno_pat_invariant` refuses, so they never had a procname to link to in the first place. **The graph road's residents were consumed by inlining, one correct-and-gated widening at a time, and nobody decided to retire it.**
+## WHAT SURVIVES THE RETRACTION (re-verified, unaffected by the grep defect)
 
-## WHAT THIS COSTS CN-13
+- **The artifact staleness is real.** The CN-14 regen rewrote **414 of 484 crosscheck `.s` artifacts (net −23,654 lines)** while CN-14's own measured blast was **24 of 527** — so the tree carried large accumulated staleness, part of it this very label rename. `.s` = HONEST CURRENT OUTPUT does decay silently between regens.
+- **The CN-13 economics are real** (measured independently of any label): marginal cost of one more use site = **136 lines** (today's substitution) vs **205** (dynamic) vs ~5 target, exactly linear in site count; and of the **17 instructions** a live defer site spends entering a shared graph, **13 are dynamic resolution** a declaration makes unnecessary.
+- **CN-13's original scoping therefore STANDS, and is better news than the retracted version:** the road is live and covered, so rung 1 is the linkage + policy work as first scoped, NOT a resurrection. The "prove it still works before linking" precondition I invented is unnecessary — 58 programs prove it every crosscheck run.
 
-- Rung 1 is **not** "re-link the shared graph". It is **"create the middle tier"** — a name that qualifies for a graph and is DELIBERATELY NOT inlined because it is a declared constant used at ≥2 sites — and only then link it. Defeating PT-2 for that class is step one.
-- ⛔ **The revived road has had ZERO live coverage for many sessions.** No corpus program, no gate, no witness exercises the CLASS D emitted-graph protocol today; it has been bit-rotting unobserved. Reviving untested emission is the exact provenance of the B1c/B2c record-protocol crash classes already on this board. **Rung 1's first deliverable must be a witness that FORCES the road and proves the protocol green in both modes — a resurrection test — before one line of linkage is written. If that test fails, THAT is the rung.**
-- The economics that motivate the rung are unchanged and were measured this session: 205 lines/site (dynamic) · **136 lines/site (today's substitution)** · ~5 instructions (target), exactly linear in site count. Of the 17 instructions a live defer site spends entering a shared graph, **13 are dynamic resolution** that a declaration makes unnecessary.
+## THE ACTUAL LESSON, WHICH IS SHARPER THAN THE ONE I WROTE
 
-## THE SECOND FINDING — THE INSTRUMENT WAS LYING, AND THAT IS HOW THIS WAS ALMOST MISSED
+I wrote "REGENERATE BEFORE YOU DIFF". That is still good advice but it is not what bit me. What bit me is one level down and worse:
 
-The CN-14 regen owed at handoff rewrote **414 of 484 crosscheck `.s` artifacts, net −23,654 lines.** CN-14's own measured blast radius was **24 of 527** programs. **So ~390 artifacts were already stale before this session touched anything** — describing roads the compiler stopped taking sessions ago.
-⛔ **This session's CONST-GRAPH design section was initially written FROM ONE OF THOSE STALE FILES** (`word4.s`), and its protocol reading — accurate for the file — described a road that no longer exists. It was corrected only because the road was then measured live. **`.s` = HONEST CURRENT OUTPUT decays silently between regens, and ASM-DIFF-FIRST is a law whose own instrument must be regenerated before it is trusted.** A dead road's artifacts keep testifying that it lives.
-**Proposed standing law: regenerate before you diff.** Any session opening an asm-diff investigation regenerates the artifacts it is about to read, or reads only files it produced itself in that session.
+⛔ **A GREP THAT RETURNS ZERO IS NOT EVIDENCE OF ABSENCE UNTIL THE PATTERN IS PROVEN TO MATCH SOMETHING.** Three times in one investigation a zero came back — renamed label, empty file list, `$` eaten as end-of-line — and each time I read the zero as a fact about the compiler instead of a fact about my pattern. **Every one would have been caught in seconds by a positive control: run the pattern against a case it MUST match before trusting a zero.** The project already has this law for gates (the s165 "prove the gate goes red" discipline, and the KILLSWITCH BYTE-IDENTITY law); it applies to measurement greps identically. **A negative result needs a positive control, always.**
+
+Related and unchanged: the s149 `COMPILE_RC_<rc>` law in `util_s_md5_sweep.sh` exists because a *truncated* artifact once masqueraded as a result. Same family — an instrument returning something that is not what the reader thinks it is.
+
+---
+## THE RETRACTED TEXT, kept as the record of the error
+The original claimed: `proc_PAT$N` cannot be produced by any SNOBOL4 source program at HEAD; 0 of 59 programs emit one; no source shape resurrects it; the fz table gates both roads so no middle tier exists; the road has zero live coverage and reviving it is reviving bit-rotted untested code of the B1c/B2c provenance; and CN-13 rung 1 must therefore begin with a resurrection test. **All VOID per the measurements above.**
