@@ -188,3 +188,24 @@ Witness `probe/kw/kw_unset_datatype.{sno,ref}`, found while clearing class A. Fo
 ## Next
 **KW-3** (emit block into `.data`, bind in main prologue, retarget `bb_keyword_snobol4` to `[rip+disp]`, give `&KW =` a real template instead of the `SNO$KWSET` by-name call) — **not opened this session**, deliberately: it is a codegen change in both media requiring regens ×3 and the full gate set, and END-OF-CONTEXT LAW forbids opening what cannot be closed. The seam is in place and the semantics are proven, so it starts from a clean base.
 ⚠ **Flipping the killswitch default to ON is its own gated step** — class B changes `&TRIM`/`&FULLSCAN` behaviour for every program; the 802-row A/B is the evidence required.
+
+---
+
+# ADDENDUM 2 — BEAUTY IS UNAFFECTED BY KW-STATIC (an EXCLUSION for HQ, measured)
+
+Ran beauty's self-host (`beauty.sno < beauty.sno`) on BOTH killswitch arms, both modes, against the KW-2 build (SCRIP `5510ea8c`):
+
+| mode | arm | rc | stdout | verdict |
+|---|---|---|---|---|
+| m3 | legacy | 139 (SIGSEGV) | 7 lines | — |
+| m3 | `SCRIP_KW_STATIC=1` | 139 (SIGSEGV) | 7 lines | **byte-identical to legacy** |
+| m4 | legacy | 0 | 10 lines: 7-line header byte-true, then beauty's own `Parse Error`, then `START` | — |
+| m4 | `SCRIP_KW_STATIC=1` | 0 | same 10 lines | **byte-identical to legacy** |
+
+**This reproduces the s145 wall description exactly** (m4: header byte-true then beauty's OWN `Parse Error`, rc=0 no crash; m3: same prefix then SIGSEGV) — an independent confirmation on a different build that s145's two walls are still where s145 left them, and that KW-2 did not move, mask, or worsen either.
+
+**What this EXCLUDES, and it is worth having:** none of the four keyword defect classes is on beauty's B1 or B2 path. Not the bare-name shadow (already argued from source in §2 — the 14 names appear in beauty only inside string literals and an `IDENT(objType,'CODE')` — and now confirmed by execution), not the wrong initial values (including `&TRIM`/`&FULLSCAN`, which change input handling and scanning for every program and still change nothing here), not the cset leak, not the missing protection. **HQ can strike the whole keyword family off the B1/B2 suspect list.**
+
+⚠ The exclusion is honest but bounded: beauty dies 7 lines into 622, so this measures only the prefix that executes. A keyword defect in the unreached remainder would not show up here. What is proven is that keywords are not what STOPS it.
+
+**Where B1 does point, from this session:** `probe/kw/kw_unset_datatype` — an unset variable yields a NULL tag instead of the null string (oracle STRING, SCRIP NULL), with the null literal, the assigned null, and the non-null string all already correct. Identical on both arms, so it is not keyword-related. That is the live suspect; the keyword classes are not.
