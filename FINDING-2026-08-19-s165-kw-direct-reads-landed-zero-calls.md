@@ -52,3 +52,24 @@ Chasing whether KW-D/KW-6's armed write path skips RC-5's `&ANCHOR` register mir
 - **Measured, both modes vs live oracle:** `&ANCHOR = 1` anchors correctly (`X 'bc'` on `'abcabc'` fails, oracle-equal); bare `ANCHOR = 1` is an ordinary variable with no matching effect and `&ANCHOR` still reads 0 — oracle-equal. **No live defect on either spelling.**
 - ⛔ **THE HAZARD, stated for whoever revives match-advance:** `bb_match_advance`'s tail is `mov rcx,[rip+kw_anchor]; mov rax,[rcx]; cmp rax,0; jne ω` — i.e. `kw_anchor` is DECISIVE (non-zero = anchored = refuse to advance). Wire that opcode back in as-is and **anchored matching silently goes unanchored on the DEFAULT arm**, because `&ANCHOR = 1` lands in `g_anchor` and leaves `kw_anchor` at 0. Fix at revival = read `rt_anchor_g`, exactly as `bb_match_begin.cpp:76/143` already does — one spelling, the block's cell.
 - **Disposition suggested:** route to `GOAL-DEAD-CODE-SWEEP.md` — delete `bb_match_advance.cpp` + `IR_MATCH_ADVANCE` + the `NV_SET_fn`/`ASGNIC_fn` bare-`ANCHOR` hijacks together, since `kw_anchor`'s last real reader dies with the template. That also retires one more member of the bare-name hijack family KW-2 was chartered to subsume (s161 closed the `&`-form; this is the surviving bare form).
+
+## Addendum 4 — THE DUPLICATE-CELL CENSUS: six keywords have TWO cells, and the legacy arm is ORACLE-WRONG IN EIGHT MEASURED PLACES (KW-4 is a correctness rung, not hygiene)
+Addendum 3's `kw_anchor` was not a one-off. Census of every KWB_INT entry against same-named file-scope cells:
+
+| keyword | cell the BLOCK writes (and KW-D reads direct) | ORPHAN cell | orphan's readers |
+|---|---|---|---|
+| `&ANCHOR` | `g_anchor` (`rt_anchor_g`) | `kw_anchor` | dead `bb_match_advance` + monitor + `NV_*` hijacks |
+| `&TRIM` | `kw_trim` | `g_trim` | **none — fully dead** |
+| `&MAXLNGTH` | `g_maxlngth` | `kw_maxlngth` | `NV_*` hijacks only (⛔ **no 205 enforcement exists anywhere** — the limit is decorative) |
+| `&TRACE` | `g_trace` | `kw_trace` | `NV_*` hijacks |
+| `&STCOUNT` | `g_stcount` | `kw_stcount` | `NV_*` hijacks + monitor |
+| `&STNO` | `g_stno` | `kw_stno` | `NV_*` hijacks |
+
+Note s146 KNEW of the &MAXLNGTH duplicate — the block comment cites "g_maxlngth 5000000 vs kw_maxlngth 524288 vs oracle 16777216" — and picked the right cell without retiring the other.
+
+**Every orphan is reachable only through the BARE-NAME HIJACK FAMILY** (`NV_GET_fn`, `core.c` ~2200-2211: `STNO STLIMIT ANCHOR TRIM FULLSCAN CASE MAXLNGTH FTRACE TRACE ERRLIMIT CODE`), which intercepts a PLAIN variable name and returns a keyword cell. **Measured, both arms, against live oracle** (witness `probe/kw/kw_bare_names_null.{sno,ref}`, corpus `pushed`): eight unset plain variables named `MAXLNGTH/TRACE/STCOUNT/STNO/ANCHOR/TRIM/FULLSCAN/ERRLIMIT` must read as the NULL STRING (keywords are set apart by the unary `&`, Ch.16 opening).
+- **ARMED default: all eight correct** (bypassed — KW-2/s161's doing).
+- **LEGACY `SCRIP_KW_STATIC=0`: all eight ORACLE-WRONG** — `MAXLNGTH` reads **524288**, the other seven read **0**, where the oracle reads null.
+
+⭐ **THIS REFRAMES KW-4.** The legacy arm has been carried as a same-arm baseline for the BASELINE-ARM law, i.e. as harmless history. It is not harmless: it is a measured source of eight silent wrong answers of exactly the class s144's `nl`/`lf` pre-seeding belonged to (a SCRIP invention with no basis in the manual, beating the program's own variables to the punch). Retiring it deletes, in one motion: 11 bare-name hijacks · 6 duplicate cells · the dead `bb_match_advance`/`IR_MATCH_ADVANCE` pair · and the `SCRIP_KW_STATIC` getenv. ⛔ Cost to weigh first: it removes the same-arm baseline the killswitch-byte-identity law leans on for this front — so KW-4 should land only once HQ is content that `SCRIP_KW_DIRECT` (KW-D's own switch, 0/529 byte-identical) is a sufficient baseline in its place.
+Gate now **26/26** armed / **1/26** legacy — the two new witnesses are arm-controlled and the spread is the feature.
