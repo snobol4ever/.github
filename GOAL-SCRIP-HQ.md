@@ -46,6 +46,8 @@ Every brief carries: front + rung pointer · setup deltas beyond PLAN.md's stand
 **⛔ COLLISION NOTICE:** the seeding fix is LANDED (SCRIP `281040ef`) — but HQ keeps hunting B1/B2 and may touch runtime/pattern files at any time. `git pull --rebase` before EVERY build and push; merge, never park (RULES). Gate tooling: `scripts/util_s_md5_sweep.sh` (per-program mode-4 `.s` md5; diff two runs — deterministic, verified twice-identical over 529).
 **Handoff:** GOAL-SNOBOL4-100 cursor move + FINDING + push + `handoff_status.sh` verbatim.
 
+**⭐ CONSTANTS-READY (added HQ-8):** design the keyword block so a read-only CONSTANTS segment can join it later (same bind, one extra segment, `mprotect(PROT_READ)` after init) — design of record: GOAL-SNOBOL4-100 § SN4-CONSTANTS. Do NOT implement constants this seat; just don't paint the block into a corner.
+
 ### ⛔ D-1' — HQ-OWNED, do not take (Lon 2026-08-19: beauty + ζ stay at HQ): wall B1 — the `DATATYPE(null)` divergence
 D-1 was EXECUTED AT HQ 2026-08-19 (Lon idled the seats): seeding fix in-tree, s144 blocker CLEARED, beauty emits its header both modes. See the s145 cursor + `FINDING-2026-08-19-s145-…two-walls-named.md`. THIS seat takes wall B1: SCRIP `DATATYPE(null)` returns "NULL" where the oracle returns "STRING" (manual: the null string IS a string; probe receipt in the FINDING) and beauty's parser core `ShiftReduce.inc` calls DATATYPE ×2. Fix the builtin, own blast radius (suite A/B on DATATYPE-using programs + full sweep), then re-run beauty self-host m4 (crash-free lane): header emission should extend or complete. If a further parse wall appears, bisect beauty.sno's input lines (minimal `START` already oracle-true) and mint the next FINDING. Handoff: cursor s147+, push, `handoff_status.sh` verbatim.
 
@@ -60,7 +62,7 @@ Open `GOAL-ICON-100.md`, execute its own LIVE CURSOR's next rung exactly (R-0 de
 ### D-6 — PROLOG (#3) — **READY (pointer seat)**
 Open `GOAL-PROLOG-100.md`, execute its s166 cursor's next rung exactly. Its file is sovereign.
 
-### Parked: D-7 SNOBOL4 wall B2 (`zls_g_region` m3 SEGV) — ⛔ HQ-OWNED (Lon 2026-08-19: ZETA tracing at HQ) · D-8 json RC1/RC1+TIMEOUT · D-9 porter/treebank RC1 · D-10 calculator-1 m4-only RC1 · Raku (#4) `GOAL-RAKU-BB.md` OO LADDER · Pascal (#4) `GOAL-PASCAL-BB.md` · Rebus (#5) unstaffed by priority.
+### Parked: D-11 SN4-CONSTANTS CN-0..CN-4 (design landed in GOAL-SNOBOL4-100 § SN4-CONSTANTS; implementation queues behind D-3's block) · D-7 SNOBOL4 wall B2 (`zls_g_region` m3 SEGV) — ⛔ HQ-OWNED (Lon 2026-08-19: ZETA tracing at HQ) · D-8 json RC1/RC1+TIMEOUT · D-9 porter/treebank RC1 · D-10 calculator-1 m4-only RC1 · Raku (#4) `GOAL-RAKU-BB.md` OO LADDER · Pascal (#4) `GOAL-PASCAL-BB.md` · Rebus (#5) unstaffed by priority.
 
 ## THE M1 CAMPAIGN — BEAUTY SELF-HOST (the one thing "today")
 **Definition (Lon s117, unchanged):** `beauty.sno < beauty.sno` output byte-identical to the checked-in INPUT FILE, BOTH modes; no pinned md5 ever. Weights: beauty_self 20 + beauty_suite 15 of META 100.
@@ -85,6 +87,7 @@ Open `GOAL-PROLOG-100.md`, execute its s166 cursor's next rung exactly. Its file
 | Prolog | s166 (2026-08-16) | R-0h landed; clause/recursion witnesses root-caused; PL-Z-1a γ-retain opt-in | same |
 
 ## LIVE CURSOR — HQ
+**2026-08-19 HQ-8 (Fable 5):** Lon's CONSTANTS extension (verbatim grant in GOAL-SNOBOL4-100 § SN4-CONSTANTS): three-tier `&` namespace, one-time sealed assignment, bit + RO-page guarantee, optimizer tiers T1-T3 — T2 kills the defer/stored-ARBNO pain class for declared patterns. CN-0..CN-4 ladder cut, parked as D-11 behind D-3's block; D-3 brief gained the CONSTANTS-READY line (still fire-safe).
 **2026-08-19 HQ-7 (Fable 5):** Fire-readiness pass for D-3: goal-file NEXT rewritten post-landing (M1-R0 DONE · B1/B2 HQ-OWNED · web seat = D-3), watermark `281040ef`; D-3 collision notice current; sweep tool at its real home SCRIP `abd79832` (first landing cwd-slipped into `.github`, reverted `4acd11c9`), determinism + cross-build `.s` invariance (529/529) proven. **GOAL-SNOBOL4-100 IS READY TO FIRE (seat D-3).**
 **2026-08-19 HQ-6 (Fable 5):** A/B verdict clean (911 rows/arm, 4 movers, ZERO green→red) — **M1-R0 LANDED, SCRIP `281040ef`** (+ the `.gitignore` bare-`core` trap fixed after it ate a staged commit twice). FINDING corrected same-day (the "START oracle-true" claim was a tail-slice error; DATATYPE-null demoted). B1 sharply localized with a grown exclusion list (arbnostore 10/10 green incl. all four `_red`); next: binary-`&` semantics at beauty:225, grammar-mimic witness, B2 clean gdb — all HQ-owned. D-3 (KW-STATIC, top #1) unaffected and ready.
 **2026-08-19 HQ-5 (Fable 5):** Lon's split: KW-STATIC to the TOP as #1 for a claude.ai Opus/max seat (D-3 brief hardened for cold start: shape + file map + ladder + collision notice); B1 (DATATYPE-null → beauty) and B2 (ζ `zls_g_region` trace) are HQ-OWNED here. Seeding-fix A/B still baking; SCRIP commit lands on its verdict.
