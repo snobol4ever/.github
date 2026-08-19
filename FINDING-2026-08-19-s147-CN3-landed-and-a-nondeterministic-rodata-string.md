@@ -43,7 +43,22 @@ IS the classifier.
 | `pat_static` on the `*&Name` node | **0 → 1** (EARN diag: 2 vs 1 nodes across arms) |
 | witnesses `cn_arbno_static`, `cn_const_chain` | green **m3 AND m4**, m3 ≡ m4 |
 | `.ref` provenance | **classic twins** through `x64/bin/sbl` — extension programs ORACLE_FAIL by construction (stock `sbl` rejects a tier-3 `&name` with **error 251**) |
-| MD5 blast radius, all 1572 corpus+test `.sno` | **0 differing** under fixed ASLR |
+| MD5 blast radius, all 1572 corpus+test `.sno` | **0 differing** under `setarch -R` — but see the COVERAGE CAVEAT below |
+
+### ⛔ COVERAGE CAVEAT ON THIS GATE — MEASURED, AND IT WEAKENS MY OWN CLAIM
+
+"0 differing over 1572" is **not** 1572 files of evidence. Measured directly: of the
+1572 corpus+test `.sno` files, **1295 emit asm and 277 emit NOTHING** (empty output /
+`Aborted`). A file the compiler cannot compile produces identical empty output in BOTH
+killswitch arms, so it passes the A/B **vacuously**.
+
+**The honest gate is therefore: 0 differing across the 1295 files that actually emit.**
+The 277 are consistent with the known walls (the s91 scorecard baseline is META 38.0),
+but they are not evidence for CN-3 and must not be counted as such.
+
+**Reusable lesson for every future killswitch A/B in this project:** an md5-equality
+sweep silently counts non-compiling files as agreement. Report the emitting count
+alongside the differing count, or the gate overstates itself by ~18% of the corpus.
 
 **⛔ THE T2 PAYOFF IS NOT YET REALIZED — emitted asm is byte-identical.** Every current
 `pat_static` consumer is default-OFF (`SCRIP_DEFER_HAZ_STATIC`), `PATV$`-gated, or
