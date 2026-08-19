@@ -24,7 +24,7 @@ All paths are absolute, rooted at the standard checkout layout
 | Rebus    | `/home/claude/corpus/programs/rebus/`    | varies                             | — |
 | Pascal   | `/home/claude/corpus/programs/pascal/`   | reference compiler (pcom.pas/pint.pas) + `.pas` probes; no suite yet | ref |
 | Icon TIMING benchmarks | `/home/claude/corpus/benchmarks/icon/` | 10 link-heavy programs + support + `.dat`; NOT byte-diffable (timing scaffold output) — full map, reference-impl build recipes, and runner traps: `GOAL-ICON-BB.md` §ICON BENCHMARK MAP | 10 |
-| **SNOBOL4 TIMED benchmarks** ⬅ NEW 2026-08-19 s149 | `/home/claude/corpus/benchmarks/snobol4/timed/` | `<kernel>_t.sno` + `.ref` (check line only) + `NOISE-FLOOR.tsv`; TIME-based (fixed ms budget, iterations counted). GENERATED — edit `SCRIP/scripts/gen_timed_bench_snobol4.sh`, never the `.sno`. Runner `test_bench_snobol4_timed.sh` | 12 |
+| **SNOBOL4 TIMED benchmarks** ⬅ s149, PROMOTED s155 (BM-ONE) | `/home/claude/corpus/benchmarks/snobol4/` | `<kernel>.sno` (body-only) + `.ref` (check line only) + `harness.inc` + `NOISE-FLOOR.tsv`; TIME-based (fixed ms budget, iterations counted). ⛔ NOT generated — `harness.inc` is the ONE driver and the bodies are HAND-EDITABLE. `gen_timed_bench_snobol4.sh` is DELETED. `timed/` subdir is RETIRED. Runner `test_bench_snobol4_timed.sh` (grades only files that include `harness.inc`) | 12 |
 | **BB reference embodiments** ⬅ SINGLE COPY (2026-08-04) | `/home/claude/corpus/probe/bb/` | `test_sno_*.c` · `test_icon*.c` · `test_sno_cell_*.s` · `test_sno_stmt_frame_*.{s,sno}` · `test_sno_call2bb_*.sno` · the 141-probe suite | one home |
 
 ⛔ **THE BB EMBODIMENTS HAVE EXACTLY ONE HOME: `corpus/probe/bb/` (Lon directive 2026-08-04).** They
