@@ -94,6 +94,46 @@ the unfenced form was never doing the backtracking FENCE exists to remove — in
 oracle's 33/s unfenced figure, not SCRIP's, is the anomaly. Next instrument is a backtrack counter
 (or a `gdb` hit-count on the choice-point site) across the pair, NOT another `.s` read.
 
+### ⛔⭐⭐ MOVEMENT vs README's s34 TABLE — **FENCE USED TO WORK, AND THE README SAYS SO**
+
+`SCRIP/README.md` § *Demo suite — 2026-08-09 s34, HEAD `a5c2264`* measures the SAME six programs
+by the same in-program method (`TIME()` bracketing the match loop; startup, link and blob compile
+excluded), differing only in which variable is fixed. Directly comparable, and it is not flattering:
+
+| demo | s34 (2026-08-09, `a5c2264`) | now (2026-08-19) | change |
+|---|---:|---:|---|
+| claws5-match | **1.61×** | **SIGSEGV** | ran then, cores now |
+| claws5-match-fence | **1.68×** | **SIGSEGV** | ran then, cores now |
+| treebank-match-fence | **1.57×** | 1.04× | **−34%** |
+| treebank-match | 1.05× | 0.89× | −15% |
+| calculator-1-match | 1.33× | **1.52×** | +14% |
+| calculator-1-match-fence | 0.98× | 0.65× | **−34%** |
+
+**Every row that regressed by a third is a FENCE row, and the two rows that now crash are the
+claws5 pair.** The unfenced rows are flat-to-better (treebank −15%, calculator-1 **+14%**).
+
+⭐ **This dates the FENCE regression and proves it is a regression, not a design limit.** The
+README's own commentary on that table reads: *"both fence variants beat their non-fence siblings on
+the SCRIP side (1.68 vs 1.61; 1.57 vs 1.05) … FENCE is pruning backtracking SCRIP would otherwise
+pay for, and pruning more of it than SPITBOL's does."* On 2026-08-09 FENCE bought SCRIP **+49% on
+treebank** (1.57 vs 1.05). Today it buys **exactly 0%** on all three grammars. So the window
+`a5c2264` → HEAD contains the change that made FENCE inert — which is a **bisect**, and a far
+cheaper hunt than the choice-point instrumentation proposed above. **Do the bisect first.**
+
+⚠ **`SCRIP/README.md` is publishing numbers for programs that do not run at this HEAD** (both
+claws5 rows there, plus the s128 match-only grid's claws5-match `0.195 ms/match` "SCRIP beats
+SPITBOL per-match"). Marked in the README per the file's own convention for superseded grids;
+the historical tables are kept, not deleted.
+
+### THE "3–4×" QUESTION, ANSWERED
+
+These demos were **never 3–4×** — the best SCRIP ever posted on this family is the s34 table's
+1.68×. The 3–4× figures belong to the **microbenchmark** family (`func_call` 3.75×, `fibonacci`
+3.59×, `arith_int` 3.10× in the s68 README pass), which is emitted scalar/call/dispatch code — and
+those have not regressed: the BM-3 board measures them at **4.9×–7.0×** today (var_access 7.01×,
+func_call 5.86×, op_dispatch 5.56×, arith_loop 4.92×, fibonacci 4.89×). The split is the same one
+BM-3 named: **emitted code is 5–7× the oracle; grammar-and-runtime workloads are 0.35×–1.5×.**
+
 ## 4. ⛔ ERROR 22 — "UNDEFINED FUNCTION CALLED" WHEN A SNOBOL FUNCTION IS CALLED FROM INSIDE ONE
 
 Four rows die this way: `porter` in **both** modes, `calculator-1`/`calculator-2` in **m4 only**
