@@ -86,10 +86,23 @@ Found while establishing the CN-6 contract; **A/B-proven pre-existing** — iden
 
 ---
 
-## 4. NEXT SEAT
+## 4. THE INSTRUMENT — HARDENED, AND ONE CLAIM THAT DID NOT REPRODUCE
 
-1. **Instrument** — s148's item (1) still stands: record `rc` beside the md5 in the sweep and compare only `rc==0` programs. Both fixes this seat sidestepped it via reachability, but the next codegen rung cannot.
+s148's item (1) was *"record `rc` beside the md5 and compare only `rc==0` programs"*. Done in `scripts/util_s_md5_sweep.sh`, **but the measurement first contradicted the diagnosis and that matters for the next seat.**
+
+**The structural defect was real and is now fixed.** The old row test was `[ -s "$W/p.s" ]` alone: a compiler that dies partway still leaves a **non-empty truncated** `.s`, which was then hashed as a legitimate result — the s33 *"non-empty is not alive"* class living inside the instrument every codegen rung is validated against. Two truncated arms hash to two different md5s and masquerade as blast radius. Now `rc!=0` emits `COMPILE_RC_<rc>`, a **stable label**: a compile that segfaults reads `COMPILE_RC_139` in *both* arms and correctly shows as zero movers instead of two random hashes. `rc==0` with empty output emits `COMPILE_EMPTY`. Only rows carrying a real md5 are byte-identity claims.
+
+**Validation (the instrument must prove itself):** 529 programs, before vs after — **527 md5-carrying rows byte-identical, 0 movers**; exactly the 2 failing rows relabeled `COMPILE_FAIL` → `COMPILE_RC_1` (`crosscheck/coverage/coverage_sno_nodes.sno`, `programs/snobol4/demo/expression.sno`).
+
+⛔ **What did NOT reproduce, stated plainly.** s148 reported *"7 of 510 programs differ run-to-run under a FIXED `.so`"*. On this build: **two full sweeps, 529 programs, 0 movers.** And **zero** failed compiles emitted any bytes, so the spurious-md5 hazard has **no live instance on this tree today** — the hardening is byte-identical in effect here and was landed as insurance, not as a repair of an observed break.
+
+⛔ **AND THE SYMPTOMS POINT AT A DIFFERENT INSTRUMENT.** s148's named evidence — rc **139/139/139/132/134** and *"the other two print `TIME()` deltas (`demo/calculator-1`, `demo/calculator-2`)"* — is **runtime** crash and **program-output** drift. `util_s_md5_sweep.sh` hashes `--compile` output; a `TIME()` delta cannot appear in a `.s`, and rc 139 there would be the *compiler* segfaulting, not the program. So s148 was measuring a sweep of **program output**, which this file is not. `ab_board_sweep.sh` — the obvious candidate — **already classifies rc correctly** (`TIMEOUT`/`LINKFAIL`/`ERROR` at lines 50–52) and is not the culprit either. **The unsound output-sweep s148 actually used has not been identified.** Whoever picks this up should get its name from s148 before assuming the instrument question is closed: this seat hardened the `.s` sweep, which is a real improvement and not the thing s148 measured breaking.
+
+## 5. NEXT SEAT
+
+1. **Identify s148's output sweep** (see §4). The `.s` sweep is hardened; the sweep that actually showed 7/510 instability is still unnamed. Do not treat the instrument item as closed.
 2. **`NV_EXISTS_fn` as the 342 predicate** (`keywords.c:360`) — it tests entry existence, not assignment. CN-6 closes the one reachable hole (CLEAR-created null-with-live-entry); the predicate is still the wrong shape and should be revisited if any other path can null a cell without removing its entry.
-3. **`_var_reg` is dead storage** — `_var_reg_n` is never incremented; the loops at 2242/2303/2318 and the GC visit at 2954 operate on permanently empty storage. Either it lost its producer in a refactor (in which case something that should be registering is not, and that is a latent bug) or it is vestigial and should be deleted. Worth one grep of the history before either conclusion. NOT investigated this seat.
-4. **Asymmetry noted, not chased:** `NV_SET_fn`'s fastpath (2242) updates `_var_reg`; the slow update path (2302) does too, but via a separate loop at 2303 — three spellings of one store shape across 2242/2302/2318 plus the read shape at 2185/2227/2345. If `_var_reg` turns out to be live, collapsing these into one `_nv_store(NV_t*, DESCR_t)` helper is the ONE-AUTHORITY move. Deliberately not attempted here: it touches the hottest path in the runtime and would need a corpus sweep to validate — i.e. it needs the instrument fixed first (item 1).
-5. **HQ-21 brief is closed as VOID** — re-measure at HEAD before executing any inherited repair brief.
+3. **`_var_reg` is dead storage** — `_var_reg_n` is never incremented; the loops at 2242/2303/2318 and the GC visit at 2954 operate on permanently empty storage. Either it lost its producer in a refactor (in which case something that should be registering is not, and that is a latent bug) or it is vestigial and should be deleted. One history grep decides. NOT investigated this seat.
+4. **ONE-AUTHORITY candidate, deliberately deferred:** the store shape is spelled at 2242/2302/2318 and the read shape at 2185/2227/2345. Collapsing them into one `_nv_store(NV_t*, DESCR_t)` is the right move **if** `_var_reg` proves live — but it touches the hottest path in the runtime and needs a corpus sweep to validate.
+5. **CN-5 stays parked** pending `&`-in-GVA vs RTCC pricing. **T2 ruling still open.**
+6. **Two inherited claims in a row failed to re-measure at HEAD** (HQ-21 §1, and the instrument instability §4). Neither author was careless — both measured something real at the time. The lesson is procedural: **re-measure an inherited verdict at HEAD before executing against it**, because later commits expire it.
