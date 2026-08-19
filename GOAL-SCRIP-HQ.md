@@ -37,7 +37,24 @@ Every brief carries: front + rung pointer · setup deltas beyond PLAN.md's stand
 **Deliverable:** ASM-DIFF-FIRST root cause — ablate claws5-match toward the smallest SIG11 witness (mint into `corpus/probe/`), diff its `--compile` `.s` against a passing sibling; gdb only after. FINDING + witness pair pushed. A fix ONLY if it fits behind a killswitch with the standard gates; otherwise investigation-only is a complete deliverable.
 **Handoff:** cursor move (their own s-number) + push + `handoff_status.sh` verbatim.
 
-### Parked (design next, fire later): D-3 json RC1/RC1+TIMEOUT · D-4 porter RC1/ASM_FAIL + treebank RC1 · D-5 calculator-1 m4-only RC1 (m3≡m4 violation, likely cheap) · Icon/Prolog fronts get D-seats once their next rungs are cut by HQ from their own cursors.
+### D-1' — SNOBOL4 M1-R1: beauty wall B1 — the `DATATYPE(null)` divergence — **READY**
+D-1 was EXECUTED AT HQ 2026-08-19 (Lon idled the seats): seeding fix in-tree, s144 blocker CLEARED, beauty emits its header both modes. See the s145 cursor + `FINDING-2026-08-19-s145-…two-walls-named.md`. THIS seat takes wall B1: SCRIP `DATATYPE(null)` returns "NULL" where the oracle returns "STRING" (manual: the null string IS a string; probe receipt in the FINDING) and beauty's parser core `ShiftReduce.inc` calls DATATYPE ×2. Fix the builtin, own blast radius (suite A/B on DATATYPE-using programs + full sweep), then re-run beauty self-host m4 (crash-free lane): header emission should extend or complete. If a further parse wall appears, bisect beauty.sno's input lines (minimal `START` already oracle-true) and mint the next FINDING. Handoff: cursor s147+, push, `handoff_status.sh` verbatim.
+
+### D-2 — SNOBOL4 demos: claws5 SIG11 ×3 root cause — **READY** (unchanged, see above)
+
+### D-3 — SNOBOL4 KW-STATIC: keywords as emitted statics — **READY** (Lon's directive 2026-08-19, grant recorded in GOAL-SNOBOL4-100 s145 cursor)
+Execute the KW-STATIC ladder (KW-1 census → KW-2 block+bind+indirection → KW-3 direct-ref templates → KW-4 delete the special-case family) per the design-of-record section in GOAL-SNOBOL4-100. KW-1 alone is a complete seat deliverable. Also resolves wall B2's cousin-class NV hijacks (STCOUNT/ANCHOR/TRIM/…).
+
+### D-4 — SNOCONE (#1.5) front stand-up — **READY**
+Snocone rides the SNOBOL4 engine (SPITBOL semantics law). Deliverable: consolidate the Snocone GOAL-* files into `GOAL-SNOCONE-100.md` per the s92/s165/s229 precedent (THREE ZETAS framing, ONE file, ledger of absorbed rungs verified against live source), mint `scorecard_snocone.sh` mirroring the SNOBOL4 instrument, and measure the baseline. NO code this seat — instrument + plan + honest watermark only.
+
+### D-5 — ICON (#2) — **READY (pointer seat)**
+Open `GOAL-ICON-100.md`, execute its own LIVE CURSOR's next rung exactly (R-0 default-arm resurrection per its triple watermark / bisect range). Its file is sovereign; HQ adds nothing.
+
+### D-6 — PROLOG (#3) — **READY (pointer seat)**
+Open `GOAL-PROLOG-100.md`, execute its s166 cursor's next rung exactly. Its file is sovereign.
+
+### Parked: D-7 SNOBOL4 wall B2 (`zls_g_region` m3 SEGV — fire after D-1' or to a ζ-fluent seat) · D-8 json RC1/RC1+TIMEOUT · D-9 porter/treebank RC1 · D-10 calculator-1 m4-only RC1 · Raku (#4) `GOAL-RAKU-BB.md` OO LADDER · Pascal (#4) `GOAL-PASCAL-BB.md` · Rebus (#5) unstaffed by priority.
 
 ## THE M1 CAMPAIGN — BEAUTY SELF-HOST (the one thing "today")
 **Definition (Lon s117, unchanged):** `beauty.sno < beauty.sno` output byte-identical to the checked-in INPUT FILE, BOTH modes; no pinned md5 ever. Weights: beauty_self 20 + beauty_suite 15 of META 100.
@@ -55,13 +72,14 @@ Every brief carries: front + rung pointer · setup deltas beyond PLAN.md's stand
 **Milestone timeline:** M1 first earned s57 2026-04-28 on the one4all engine (VOID — to be re-earned native, per PLAN) · 2026-05-31 Ground Zero → SCRIP · 2026-08-15 s92/s93 SNOBOL4 consolidation (22 files → ONE) · 2026-08-15 s229 Icon consolidation · 2026-08-16 s165 Prolog consolidation · 2026-08-16 s117 fixed-point ruling · 2026-08-18 s144 beauty blocker root-caused · **2026-08-19 HQ stood up.**
 
 ## STATE BOARD — the three fronts (HQ-maintained)
-| front | cursor | headline | next |
+| front (Lon priority 2026-08-19: SNOBOL4 #1 · Snocone #1.5 · Icon #2 · Prolog #3 · Raku/Pascal #4 · Rebus #5) | cursor | headline | next |
 |---|---|---|---|
 | SNOBOL4 | s145 (2026-08-19) | ARBNO-TAIL-BETA default ON · demos 13/22 m3 · 12/22 m4 · seeding blocker fully specified | **D-1 fires M1-R0** |
 | Icon | s229 era (see file) | R-0 resurrect default arm; triple watermark at `07d6eae7` | HQ cuts next rung from its cursor before any D-seat |
 | Prolog | s166 (2026-08-16) | R-0h landed; clause/recursion witnesses root-caused; PL-Z-1a γ-retain opt-in | same |
 
 ## LIVE CURSOR — HQ
+**2026-08-19 HQ-4 (Fable 5):** Lon set front priorities (1 / 1.5 / 2 / 3 / 4 / 5). HQ executed D-1 itself: s144 blocker CLEARED, beauty emits its header both modes; walls B1 (DATATYPE-null, prime suspect w/ receipts) + B2 (`zls_g_region` m3 SEGV) named; 6-suite × 2-arm A/B running in background gating the SCRIP commit. KW-STATIC directive recorded as design-of-record + grant. Board now carries D-1' D-2 D-3 D-4 D-5 D-6 READY — a full 6-seat slate.
 **2026-08-19 HQ-3 (Fable 5):** Topology recorded per Lon — HQ = the only local/SSH seat; workers = claude.ai web seats on PAT; 7 language fronts then the backend rollout. Gimpel `*_end`/`*_END` end-label convention committed with Lon's calculator edits (corpus `0250ca0a`, behavior-clean, regen-coherent); census: one `_x` straggler remains, `programs/lon/sno/debug.sno`, Lon's call.
 **2026-08-19 HQ-2 (Fable 5):** SSH ruling landed — keyring agent auth confirmed (`Hi LCherryholmes!`), all repos pushed (SCRIP `6d47e61c` · corpus `e4b4fda7` · .github `0708c5e0`+), RULES.md credential law amended for local seats. **D-1 and D-2 are LIVE — fire at will.** Residue: Lon's 2 in-editor calculator `.sno` edits await his commit/hold call; one4all fetch flag = frozen repo, ignore.
 **2026-08-19 HQ-1 (Fable 5):** file minted · history scan done (numbers above) · M1 ladder cut · D-1/D-2 briefs READY, gated on the credential push · SNOBOL4 s145 cursor moved in its own file · PLAN.md row added. NEXT: push all repos (credential asked in-chat) → Lon fires D-1 (+D-2 in parallel) → HQ verifies D-1's suite A/B and beauty re-run, then cuts M1-R2 or the next blocker rung from the FINDING.
