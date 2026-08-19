@@ -137,3 +137,15 @@ changes, zero frame relayout):
 **Residual to trace during implementation:** the guarded witness still core-dumped once on the clean base —
 re-trace with m4 symbols AFTER the whack-arm lands (the ω-at-depth arm may itself have caused the residual).
 Work on branch `hq-b2` (based `bc0eeff4`) until the D-3 KW-3b repair restores a clean main.
+
+---
+
+## ADDENDUM 5 — s150 (HQ): THE PRISTINE RE-GATE AND THE LANDING (2026-08-19)
+
+B2a is ON MAIN: `d9f5cf24` (rebased onto `6d0fd9c3`; the two commits between the branch base and the landed tip touch ZERO src/ files, so the gated driver sources are the landed ones byte-for-byte). Every arm measured from `rm -rf /tmp/si_objs out && make` per HQ-27's PRISTINE-BUILD-BEFORE-VERDICT law.
+
+- **G1 (guard=0 identity)**: 0 movers / 527 comparable (rc-recording sweep, s149 instrument). The killswitch is honest.
+- **G2 (guard ON — the default)**: blast radius 375/527 .s movers — the expected every-match-frame class (half A stores the continuation cell in EVERY match frame carve).
+- **G2 behavior (all ON)**: arbnostore 10/10·10/10 · cn 8/8·8/8 · m1 family 47/53 m3 · 46/53 m4 — row-for-row identical to the pristine-main baseline; kw `--armed` 10/14 with exactly the two routed reds; udc 12/12; oracle arbno witnesses 16/16 both modes; demo-dir outputs byte-identical OFF vs ON; beauty m3 SEGV in BOTH arms with byte-identical 259-byte output.
+
+The witness `m1_arbno_capture_call_bracket` still reads SIG4 m3 / SIG11 m4 in BOTH arms: **B2a alone cures nothing measured and harms nothing measured** — consistent with, and only with, the B2b mechanism (the guard's escape path is correct only under ζ-STANDING rbp; under blob/defer ACTIVATION rbp, [rbp-48] is not the continuation and the escape jumps through garbage — the measured rip=0x100000002 class — the same crash the unguarded `jmp 0` gave). B2b is the remaining wall: frame-chain continuation copy vs layout-aware slot, FRAME-LAYOUT CENSUS FIRST (`scripts/test_census_rbp_frames.sh`), then re-run the witness and beauty m3.
