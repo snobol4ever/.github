@@ -51,7 +51,7 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-19 s147 (web seat: Claude Opus 5, continuing D-3 KW-STATIC) — **KW-3 LANDED: THE KEYWORD IS NOW A STATIC IN THE EMITTED ASM, READ BY INDEX. AND THE ARMED GATE'S "6/10" WAS ALREADY 4/10 ON ARRIVAL — TWO ROWS HAD REGRESSED UNDER CN-2; ROOT-CAUSED AND FIXED, 6/10 RESTORED.**
-SCRIP `306858fe`. Baseline this seat: SCRIP `a63c13d9` (CN-2), corpus `9e1b3f16`.
+SCRIP `306858fe` + `b1f48c0d` (standing pin) · corpus `1a7e82ae`. Record: `FINDING-2026-08-19-s147-KW3-static-slot-and-CN2-pattern-keyword-regression.md`. Baseline this seat: SCRIP `a63c13d9` (CN-2), corpus `9e1b3f16`.
 
 ### ⭐⭐⭐⭐⭐ KW-3 — WHAT LANDED
 `bb_keyword_snobol4` resolves `&KW` to its canonical block index AT EMIT TIME (`rt_kw_index`; the keyword is a source literal, so its index is a compile-time fact), seals it as a static quad (`x86_ro_seal_q`), and the box loads it rip-relative (`x86_ro_load_q`) and calls `rt_kw_read_idx`:
@@ -66,6 +66,10 @@ That retires the KW-1-measured read cost — a pointer to the keyword's NAME STR
 
 ### ⛔⭐⭐⭐⭐ THE INHERITED REGRESSION — READ THIS BEFORE TRUSTING ANY RECORDED WATERMARK
 The s146 cursor records the armed gate at **6/10**. This seat measured **4/10** — and then measured a **PRISTINE baseline tree** and got 4/10 with an *identical failing set*, proving the loss predated this work. Cause: **CN-2 re-keyed the tier-3 read from the bare name to a canonical `"&Name"`**, severing the bridge by which `&ARB` reached the bare `ARB` primitive-pattern variable. `&ARB/&BAL/&REM/&FAIL/&FENCE/&ABORT/&SUCCEED` therefore fell into the user-constant tier and raised **error 342 ON READ**. Manual Ch.16 p.187–188 is explicit (*"&ARB The primitive pattern ARB"*; protected read-only repositories of system patterns), and KW-2's own design note had relied on these falling through. Fixed ahead of tier-3: a keyword the manual names can never be an "unknown `&name`". **LESSON: a recorded watermark is a claim, not a measurement — rebuild the pristine baseline and measure it before attributing a red row to your own rung.**
+
+### ⭐⭐⭐⭐ THE STANDING PIN — WHY THIS CLASS CANNOT GO SILENT AGAIN
+Minted `corpus/probe/kw/kw_pattern_family.{sno,ref}`, oracle-minted and **proven in BOTH directions**: it FAILS on the pristine pre-fix baseline and PASSES on the fixed build. It exercises `&ARB`/`&REM` as real pattern operands (behaviour beyond `DATATYPE`) and pins the remaining five at the READ. Run by `test_gate_kw_static.sh` as a **STANDING PIN outside the score** — the fix lives outside the killswitch so the row passes on both arms, and a row identical on both arms measures nothing about *arming*; scoring it would have inflated the legacy arm 0/10 → 2/12. The gate exits non-zero if the pin breaks, independent of the score.
+**⛔ GAP FOUND WHILE MINTING IT (new, unrouted):** `&BAL`, `&FAIL`, `&FENCE`, `&SUCCEED`, `&ABORT` **cannot be used as pattern operands at all** — the lowerer rejects them (*"pattern shape outside the SN4-PAT subset"*). Separate and larger than KW-*; on the road to 100% but not on this ladder.
 
 ### EVIDENCE (this seat)
 | check | result |
