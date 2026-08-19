@@ -76,3 +76,22 @@ those edges).
 **Gate set at landing:** witness green BOTH modes · arbnostore 10/10 · cn 5/5 · KW armed 6/10 · 529 sweep both
 arms · patterns+crosscheck behavior A/B · **beauty m3 re-run** (if the leak is beauty's B2, m3 stops crashing
 and joins m4 at wall B1 — one front left).
+
+## ⛔⭐⭐⭐⭐⭐ MECHANISM CORRECTED — THE REAL DEFECT IS THE SHARED-BLOB HARDWIRED β LANDING (HQ, supersedes the "L(6) under-frees" hypothesis above)
+Deeper read of the witness .s exonerates the stubs: n11's L(6) frees all 32; n12's fast path is carve-neutral;
+the blob's CLASS-D record is `{res-stub@+0, r10@+8, r11@+16, rbp@+24}` (the WIRE-ORDER discipline, ascending)
+and `PAT$1_res` restores wires+frame and pops 32 — balanced. **The defect: `PAT$1_β` then executes
+`jmp n11_match_defer_β` — a SINGLE HARDWIRED SITE LANDING — while the stored pattern nP is SHARED by TWO defer
+sites (n9 and n11).** An n9-origin retreat (`af → n9β → jmp [rsp] → PAT$1_res`) restores n9's OWN wires from
+its record, then gets thrown at n11's β anyway; n11β re-executes `jmp [rsp]` at consumed-record depth →
+garbage → the slab-zero slide / m4 junk jump. The earlier +16 hand-patch cured the WITNESS by accident of
+layout, not by principle — do not land it.
+**THE FIX (exact):** the post-`PAT$1_res` continuation must ride the RESTORED WIRES (or a site cell carried in
+the record), never a hardwired site label — the emitter's blob-β landing selection (the s121 half-B2 dispatch
+region, emit.cpp ~3257 + the PAT$ β publication) must emit the return-through-r11/r10 form (or per-site res
+stubs) for MULTI-SITE blobs. Single-site blobs are unaffected, which is why arbnostore (single-site witnesses)
+stayed green through s121–s125. **This also makes B2 a WIRE-ORDER citizen: the record layout was right; the
+landing violated the protocol. D-14's canary would have caught this class (wires restored ≠ site entered).**
+**Beauty tie-in:** beauty's brackets are nPush()/nPop() — TWO DIFFERENT stored patterns, each single-site… but
+its grammar re-uses stored patterns at many sites (*&Space at two sites in beauty_c, `*Space` twice in classic
+main05/611) — the multi-site class is exactly beauty-shaped.
