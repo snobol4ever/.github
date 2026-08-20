@@ -32,7 +32,8 @@ Every M1 wall on the 2026-08 board is a mismatch between these. The cure is ONE 
 | **(6)** | EVAL | runtime fragment compile + crossing (the B1c/retain-budget territory) |
 | **(7)** | CODE | runtime statement-graph compile + crossing |
 | **(8)** | MEGA | ARBNO/DEFER/EVAL/CODE stacked combinations — the beauty grammar shape |
-Witness home: `corpus/probe/passthru/pt<class>_*`; every class × {var-road, func-road} × 1–3 layers × BOTH directions (γ forward, β retreat back through every seam). Gate: the class's whole witness family oracle-identical BOTH modes before the next class opens.
+| **(9)** | BEAUTY-CONJUNCTION (s179, Lon "0 through class 9") | class-8 stacks embedded in CONTEXT — capture-before-`ARBNO(*defer)`, grammar chains (`STMT = *LBL *GTO`), a many-name polluted namespace (the 16-include/ALPHABET-19 fwctx ingredient) — failure modes that appear only in conjunction, never in any ingredient alone |
+Witness home: `corpus/probe/passthru/pt<class>_*`; every class × {var-road, func-road} × 1–3 layers × BOTH directions (γ forward, β retreat back through every seam). Gate: the class's whole witness family oracle-identical BOTH modes before the next class opens. **s179: the grid is TOTAL 0–9** (`ptc<class><f|b>_<var|fn><2|3>`, 26 new rows; runner `SCRIP/scripts/board_passthru_combo.sh` — per-row verdicts + per-class rollup, proper m4 lane). First fresh kill on the day it was completed: the CODE-road thunk gate (classes 7×fn — `FINDING-2026-08-20-s179-code-road-thunk-gate.md`).
 
 ## THE RESULT GRID (measured at HEAD 2026-08-20, HQ; the RESULT-law baseline)
 r13 = subject base · r15d = subject length · **r14d = cursor delta, THE result register of the matcher family** · r10/r11 = the two continuations.
@@ -52,6 +53,10 @@ A whole-graph traversal partitions the pattern BBs into SUBGRAPHS keyed by `*P` 
 
 ## THE WITNESS PLAN — combinatorial (supersedes ad-hoc pt* fills)
 Classes 0–8 × {`*PAT_var` road, `PAT_func()` road} × {2, 3 levels} × {γ-forward, β-retreat back through every seam} — forward and backtracking, up and down the jumps. Every witness oracle-refed. A red row is never denied (law 0d): minimize to a reproducer, stop the world, show Lon.
+
+## INSTRUMENT STATUS (s179)
+- **ZSM-ALL LANDED** (`SCRIP_ZSM=1 SCRIP_ZSM_ALL=1`): law 0b mechanized for EVERY box — frameless boxes emit kinds 5..8 (α·/β·/ω·/γ· in dumps) normalized onto the existing FSM by ONE identity (`F := rbp-at-α`), so β/γ bomb on `rbp != rbp@α` and ω bombs on enclosing-frame or RSP-carve imbalance, all boxes, zero new globals. The frame-pushing kinds keep their stricter F/E split. Default byte-identical by construction.
+- **Owed next:** the declared-vs-actual RESULT-offset comparison (needs the RESULT-law slot lattice, PF-3 territory) · stack DOPING (needs a store-imm-to-[rsp+disp] encoder audit first — TEMPLATE-ONLY, both media).
 
 ## STATUS
 - 2026-08-20 HQ (Fable): file minted; L1 witness family + HEAD baseline census this session (see GOAL-SNOBOL4-100 cursor + FINDING when pushed). Delegation suspended — HQ executes.
