@@ -24,7 +24,9 @@ s153's truth table opened with `read declared $("&N") -> 42 (same cell as &N: co
 - **UDC OFF (default): SCRIP IS ALREADY ORACLE-EXACT.** The whole `o_write` probe reproduces byte-for-byte. Pinned now in `probe/cn/cn_indirect_is_ordinary_var.{sno,ref}` — **.ref minted from the live oracle**, green m3+m4. This is ruling (4)'s read half: it needed no code, and it now has a regression guard it never had.
 - **UDC ARMED: BOTH halves diverge.** `$('&N')` returns `42` (routed to the constant CELL, oracle says null) and `$('&N') = 99` raises **341** (oracle assigns silently).
 
-## 2. Why the `$()` code change is BLOCKED and not guessed
+## 2. Why the `$()` code change is BLOCKED and not guessed — ⛔ CLOSED s174: HQ-61 RULED **(i) faithful**, and it is LANDED
+
+**This section is history, not orientation.** HQ-61: *"your probe governs — ORACLE-FAITHFUL CONFIRMED … BOTH halves; drop 341-on-indirect-write; the ARCH-SN4-CONSTANTS `$()` clause goes VACUOUS."* Delivered the next session at this seat — `is_const` turned out to be the namespace tag already, so the split needed no key mangling; 40/0 gate, 0 `.s` movers, corpus identical. Receipts, mechanism, and the one silent-wrong-answer trap it exposed: `FINDING-2026-08-20-s174-dollar-indirect-is-a-disjoint-namespace-and-is_const-is-the-tag.md`. The costing below is kept because it is what the ruling chose between.
 
 "ORACLE-READS" taken literally directs `$('&N')` to answer **null**, not `42` — so the ruling's own name calls for a read-side routing change that option (b)'s body does not mention. And the two halves cannot be split the way (b) implies: routing reads to the ordinary variable while writes keep hitting the sealed keyword cell yields a program where `$('&X') = 1` errors 341 and `$('&X')` then reads a *different, untouched* cell. That is not "the two halves agreeing", it is a new incoherence. **Question routed to HQ via the QUESTION BOX with these receipts; per RULES.md this seat did not freelance past it.** Both candidate outcomes are cheap once ruled:
 - **(i) faithful** — route `$()` wholly to the ordinary-variable namespace; both halves agree trivially; the ARCH sentence's `$()` clause is struck as vacuous.
@@ -88,4 +90,4 @@ Riding any of these would have gated this ruling behind an unrelated repair, so 
 ## 7. State of `SEAT-CN-3` item 4
 
 - **EVAL-vs-342 half: CLOSED.** Implemented, witnessed on the live oracle, green m3+m4, gate assertion added, revert-probed, 0 movers everywhere else.
-- **`$()` half: BLOCKED ON HQ**, with the premise falsified, both candidate implementations costed, and the oracle-true default arm pinned green in both modes. The row is NOT reported done.
+- **`$()` half: CLOSED s174** (was BLOCKED ON HQ when this FINDING was written). HQ-61 ruled option (i); landed, witnessed, gated, revert-probed — see the s174 FINDING. **`SEAT-CN-3` item 4 is now closed in BOTH halves.**
