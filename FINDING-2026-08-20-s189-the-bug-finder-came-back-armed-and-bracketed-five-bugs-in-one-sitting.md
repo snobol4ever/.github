@@ -58,3 +58,19 @@ Both boxes are DEAD (activations retired), yet the retreat wiring bounces betwee
 
 - The GOAL-SCRIP-HQ queue's `m1-composed-wild-jump` row said *"the crash is inside the `*Parse` match"* — **refined**: the wrong ANSWER is inside the match (it concedes where the oracle matches); the CRASH is after it, on the failure road, at the first RETURN pop-pair consumer of a shifted stack (§2). One defect family became two rows with a clean seam.
 - The monitor-vs-map statement numbering confusion cost this session ~20 minutes: `build_stno_map.py` IS the authority (monitor-verified against live SPITBOL to END); an earlier in-chat table quoted from a stale map. Trust the script, not transcripts.
+
+## 7 · SECOND SWEEP (same session): twelve more witnesses through the finder
+
+| witness | bracket | disposition |
+|---|---|---|
+| `alttop_nofence_ctl` | **RED, DIVERGE step 4 — and it is the no-fence CONTROL** | FENCE exonerated; row re-scoped to `alt-resume-carrier-selection`: a stored ALT arm ending in an alternation publishes the arm HEAD as resume carrier, so external β re-enters the exhausted inner alternation and concedes (carrier-SELECTION; barer twin green) |
+| `fence_alttop` · `fence_left_altresume` | step 4 each | same class as the control — witnesses 2 and 3 |
+| `atp_stored_red` | step 5: spl `v=0` then `v=1` (ARB retries, `@v` re-fires); scr concedes after `v=0` | **the `@` twin of s188's `$` cure** — `IR_MATCH_ATP` untiered in `zdp_seam_tier`; fix laid out to the case label (new row `atp-cursor-assign-retry`) |
+| `arbno_nullalt_falseaccept` | step 4, scr `:S` where spl `:F` | third witness on rank-0 `arbno-tail-false-accept` |
+| `opsyn_elem` | step 11: spl `@8 CALL DoReduce` vs scr outcome label | second witness of the never-fires wire (row 31) |
+| `rseal_unsealed_ctl` | step 4, red | the rseal CONTROL — candidate under `alt-resume-carrier-selection`; classify before trusting the sealed/unsealed contrast |
+| `arbno_alt_fence_L1` | step 4 | receipt added to its row; may fall to the carrier fix |
+| `rseal_arbno` · `rseal_commands` · `opsyn_named_ctl` · `arbno_altrec_falsereject` · `argpat_arbno` | **NO DIVERGENCE — agree to END under the monitor** | ⭐ **MONITOR-ARM-INVISIBLE class, and the invisibility is itself the lead:** the defect requires something `MONITOR_BIN` disables, which convicts the GVA-on/optimizer arm as the first suspect and rules the autobug road OUT for these five. Road: plain-build ring census + ASM-DIFF; first discriminator = reproduce with the monitor's own knobs flipped on a plain build |
+
+Also: `arbno-altsib-residue` minted — the s186 sibling-alternations cure (`cecb7d11`) did not clear `arbno_altrec_falsereject` at HEAD.
+Fleet note: four fresh claims landed DURING this sweep (`beauty-return-pair-shift` claimed 20 minutes after the row was pushed; `scorecard-oracle-case`, `m1-class-b-stmt-parse-error`, `fuzz-diff-batch`). The loop is running.
