@@ -70,6 +70,12 @@ Every brief carries: front + rung pointer · setup deltas beyond PLAN.md's stand
 | 28 | `kw-missing-4` | `&LINE/&FILE/&LASTLINE/&LASTFILE` (oracle 1/file/0/null, s165) | oracle-differential witnesses green both modes |
 | 29 | `icon-r0-bisect` | GOAL-ICON-100 R-0 bisect `8487d499..07d6eae7` only | culprit commit named: FINDING + cursor |
 | 30 | `prolog-next` | GOAL-PROLOG-100 cursor's ONE next rung | that rung's own stated gate |
+| 31 | `fwctx-conjunction` | ⭐M1 FRONTIER (s178-f/s179): sk23 hollow grammar nomatch at cursor 0 only under 16-includes+ALPHABET-19; blob numbering shifts +8 — suspect OPQ$/PAT$ index or GVA-offset class; instrument = s179 ZSM-ALL or BB 4-port trace | root-cause FINDING; witness green m3 if killswitch-clean |
+| 32 | `161-o2-red` | s178-e named red: `161_pat_defer_fn_nested_match` SEGV both modes at -O2 only; UB hunt in pattern_match.c/rt.c | root-cause FINDING; green at default RT_OPT if killswitch-clean |
+| 33 | `ptx-shift-m4` | s179 board: `ptx_shift_*` m4-ONLY silent nomatch (EVAL-built shift patterns, the beauty skeleton shape); first split O2-vs-m4-road via -O0 .so A/B | minimal witness pair + root-cause FINDING |
+| 34 | `datatype-case` | s177 cursor debt: DATATYPE of user DATA answers UPPERCASED vs oracle declared-case; beauty dispatches `$('pp_' t)` by case | witness green both modes + non-regression |
+| 35 | `gimpel-lon-oracle-format` | scorecard s179 gap: gimpel 145 + lon 78 rows UNSCR — sbl ERROR 214 on classic column format; corpus normalization, never touch stock sbl | both suites UNSCR < 10 + FINDING |
+| 36 | `beauty-cn-convert` | BEAUTY-CN standing rung (Lon "no going back"): beauty.sno → `&PATTERNS` namespace, re-baseline per s117 fixed point | converted file + drivers green + FINDING |
 | 99 | `beauty-fixed-point` | ⛔ **HELD — M1 GATE ROW** (fire only after rows 2/3/4 claims all DONE): self-input byte-diff both modes + beauty_suite drivers | byte-identical both modes ⇒ M1 EARNED IN CAPITALS; else divergence FINDING + stop |
 
 ## DISPATCH BOARD — live
