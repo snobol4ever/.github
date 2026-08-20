@@ -90,3 +90,15 @@ The ledger is 13 cures against 1 nondeterministic wrong answer, and the wrong an
 ## RE-PROOF DISCIPLINE APPLIED
 
 Every claim here is from ONE pristine tree at ONE commit, driver and `out/libscrip_rt.so` built together (the s149 mixed-pair law: a fresh driver on a stale `.so` invents movers). Both arms of every board ran against that same pair, differing only in the env var. The `TDump` result was re-measured four ways before it was believed: parallel board (`--jobs 8`), serial board (`--jobs 1`) repeated 3× armed and 2× default, 10 direct runs per arm at each stack limit, and a 3-run md5 comparison — and the first, contradictory reading (10/10 identical md5s in both arms) was **wrong because I had not set `ulimit -s unlimited`**, which is exactly the mistake that would have let this flip land.
+
+## ⭐⭐⭐ ADDENDUM — TWO-SEAT CONVERGENCE, FOUND AT THE MERGE (seat4's s172, pushed while this seat was sweeping)
+
+Seat4's `claws5-m4-sig11` cursor, landed concurrently, predicted this blocker **from the asm alone and from the opposite direction**:
+
+> *"Defect A's severed unwind wires are unfixed and untracked, and **arming SPAN_FRAME will HIDE them** — `n21_match_arbno_af` emits `cmp r14d,eax; jmp …_pos_β` with its conditional recede `jne n26_match_span_β` DROPPED (a dead compare) … **Wrong-answer risk on the ARBNO-RETREAT path; needs its own witness** (an ARBNO over a multi-element ALT arm that must FAIL and retreat)."*
+
+**`TDump_driver` is that witness.** Its armed failure is exactly a retreat-path wrong answer: the match spuriously FAILS and the `:F(TDump1)` branch runs, which is why the output is *quoted* rather than crashed. Seat4 reasoned forward from a dropped conditional recede to "wrong-answer risk on retreat"; this seat measured a nondeterministic wrong answer on retreat and traced it to a leaf on an ALT arm. Neither of us had the other's result.
+
+**This changes the disposition question's shape, and in HQ's favour on the value side.** Seat4 also raises the cure ledger — *"the flip is worth more than s170 priced it … add two D-2 board rows cured in BOTH modes on the real input"* — and this seat's board independently confirms that (all three claws5 programs, not one). So the honest statement is: **the arm cures more than anyone had priced, AND it exposes a live wrong-answer path that was already there and already predicted.** The two are not in tension — a switch that re-homes leaf cells would naturally both fix the wild write and unmask a severed recede that the wild write's crash had been pre-empting.
+
+⭐ **THEREFORE THE FIRST PLACE TO LOOK IS NAMED, NOT GUESSED:** seat4's dropped `jne n26_match_span_β` conditional recede in `n21_match_arbno_af`. That is a concrete, asm-level starting point for the `TDump_driver` root cause, and it costs the next seat nothing to test first. `TDump.sno` is itself a `.s` mover, so the passing/failing pair is one `--compile` per arm (ASM-DIFF-FIRST).
