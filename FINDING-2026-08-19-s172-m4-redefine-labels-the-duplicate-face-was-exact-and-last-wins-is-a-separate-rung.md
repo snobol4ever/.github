@@ -34,7 +34,7 @@ The regen `changed=0` and the sweep's 0/527 are two independent instruments agre
 
 Three things make this the right thing to hand on rather than to fold in:
 1. **It is upstream of the faces.** One proc row per name means the row already holds the *last* body when the *first* call compiles. Curing it means the call must dispatch through `fn_cell$<FN>` at run time (the AB/cell road the slim arm already rides), not a static `lea`.
-2. **It is not a mode-34 violation.** m3 ≡ m4, both `second:a`. Confirmed independently via the `SCRIP_NO_TINY=1` hatch: with the tiny shim declined the answer is *still* `second:a` in both modes, so the shim was never the cause.
+2. **It is not a mode-34 violation.** m3 ≡ m4, both `second:a`. Confirmed independently via the `SCRIP_NO_TINY=1` hatch: with the tiny shim refused the answer is *still* `second:a` in both modes, so the shim was never the cause.
 3. **Fixing it inside this rung would have opened a mode-34 divergence.** A naive emit-once that bound the surviving face to the *first* body would give m4 `first:a` against m3's `second:a`. The landed guard does not do that — it dedupes a provably identical block, so it cannot move either mode.
 
 Witness is checked in **known-red with the oracle `.ref`**, in `corpus/probe/redef/` — outside the crosscheck harness feed and outside `util_s_md5_sweep`'s default list, so it gates nothing.

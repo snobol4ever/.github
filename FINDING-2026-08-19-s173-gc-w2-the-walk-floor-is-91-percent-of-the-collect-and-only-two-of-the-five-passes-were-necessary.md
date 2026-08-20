@@ -40,7 +40,7 @@ s167 named five passes (count · flag-clear+index+pmap · forwarding · live-arr
 
 ⛔ **THE REMAINING TWO PASSES ARE A STRUCTURAL FLOOR, NOT REMAINING DEBT.** The index walk must complete **before** mark (it clears `HBF_MARK`/`HBF_PIN`, zeroes `fwd`, and builds the index mark itself navigates by). The forwarding walk must run **after** mark (it reads the marks). They are separated by the phase they exist to bracket and **cannot** be fused by any restructuring that keeps mark in the middle. **GC-W2 is therefore complete at its ceiling: 4 unconditional O(nblk) walks → 2, which is the minimum this collector shape admits.** Any future gain on the floor requires changing what a collect *is* (GC-P's territory), not how many times it walks.
 
-## 4. D-22's third prescription — "pmap incremental" — is priced and DECLINED
+## 4. D-22's third prescription — "pmap incremental" — is priced and REFUSED
 
 Measured directly (throwaway build, fill skipped, probe hoisted out of the block loop after a first attempt put a `getenv` inside it and inflated **both** arms ~9×): index walk **76.4 ms with the pmap fill, 69.5 ms without** ⇒ the 1,048,576-entry rebuild costs **~6.8 ms, 3.3% of the collect**. And it is not free to remove: the pmap is the accelerator that keeps `gc_blk_of` O(1), and every conservative-scan word falls back to an O(log 5.6M) binary search without it. **Not worth a rung. D-22's GC-W2 line should be amended to "index once + forwarding/live fused"; "pmap incremental" is dispositioned here.**
 

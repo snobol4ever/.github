@@ -85,7 +85,7 @@ The ledger is 13 cures against 1 nondeterministic wrong answer, and the wrong an
 
 1. **Hold the flip** until `TDump_driver` is root-caused and fixed — the arm then flips as a strict improvement. (My recommendation: the counterexample is in the cured class, so it is likelier a defect *in the re-homing* than an unrelated collision, and fixing it may widen the cure rather than merely unblock the flip.)
 2. **Flip anyway and carry `TDump_driver` as a known-red**, on the argument that 13 crashes outweigh one wrong answer. ⛔ This trades a self-announcing failure for a silent one and I would not take it without Lon.
-3. **Flip narrowed** — admit fewer leaf ops, or decline the leaf class `TDump` hits, so the cure lands without the counterexample. Needs the root cause first, so it reduces to (1).
+3. **Flip narrowed** — admit fewer leaf ops, or refuse the leaf class `TDump` hits, so the cure lands without the counterexample. Needs the root cause first, so it reduces to (1).
 
 ## RE-PROOF DISCIPLINE APPLIED
 
