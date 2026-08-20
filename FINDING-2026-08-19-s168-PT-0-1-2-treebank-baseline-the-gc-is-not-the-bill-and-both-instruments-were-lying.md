@@ -1,7 +1,7 @@
 # FINDING s168 (PT front, rungs PT-0..PT-2) — THE GC IS NOT THE BILL ON PURE MATCHING, AND BOTH SANCTIONED INSTRUMENTS WERE PRINTING FICTION
 
 **Seat:** queue row `pt-baseline` (rank 3), brief = `GOAL-SNOBOL4-100.md` s166 §PT, rungs **PT-0..PT-2 ONLY** (instrument-only, no fixes).
-**Tree:** SCRIP `25d8970c` for §2/§3, re-proved for §1 at post-`a78b39fb` (FZ-3) HEAD after a mid-seat rebase — see §1 · corpus `f5538e01` · oracle `x64` cloned this seat.
+**Tree:** SCRIP `25d8970c` for §2/§3, re-proved for §1 at post-`a78b39fb` (FZ-3) HEAD after a mid-seat rebase — see §1 · corpus `f5538e01` (the three workload files — `treebank-match.sno`, `treebank-match-fence.sno`, `VBGinTASA.dat` — verified byte-unchanged at the newer corpus HEAD pulled at handoff, so corpus drift does not touch these numbers) · oracle `x64` cloned this seat.
 **Build:** `make pristine` (HQ-27), driver + `out/libscrip_rt.so` from ONE build, same second (19:30:02) — the s149/HQ-27 ABI-mix and stale-`.so` classes are both excluded by construction.
 **⛔ RT_OPT = `-O0` on every number below** (FACT RULE O0-DEV; 260 × `-O0`, zero `-O1/-O2` in the build log). O2-DIRECTED-ONLY binds — Lon did not direct `-O2` this seat. **§7 states which conclusions are RT_OPT-sensitive and which are not.**
 
