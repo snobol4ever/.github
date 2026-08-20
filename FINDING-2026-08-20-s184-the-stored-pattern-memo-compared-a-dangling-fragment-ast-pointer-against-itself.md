@@ -60,3 +60,65 @@ The salt guard, transplanted verbatim, plus a `salt` field on the existing `g_sn
 2. Class 2 above — the OPSYN'd operator's missing blob is a *static-road refusal*, cheap to chase and it is on every beauty grammar line.
 3. Class 1 — `ARBNO` in argument position.
 4. The m3≢m4 divergence on `ptw_min_opsyn_named_ctl`.
+
+---
+
+# ADDENDUM 1 — THE CLASS-A WILD JUMP IS `RETURN` POPPING Δ OFF THE ζ-SPINE
+
+Written after HQ's three mid-session messages arrived (row `a-m1-composed-wild-jump`). **HQ's numbers were taken at SCRIP `ffbc1425`; the polarity has MOVED at HEAD `2dbb8a56` and the ladder must be re-taken.**
+
+## ⛔ HQ'S MINIMAL CRASHER NO LONGER CRASHES — THE WALL MOVED ONE ELEMENT RIGHT
+Same harness (copy the beauty dir, override ONE grammar line, feed `m1_lad_empty.in`), 3–5 runs each, at HEAD:
+| override | HQ @ `ffbc1425` | HEAD `2dbb8a56` |
+|---|---|---|
+| `Parse = *Stmt nl` | **CRASH** | **rc=0, 3/3** — cured, and cured in ALL THREE arms (default · `SCRIP_PATSALT=0` · `SCRIP_RTSEQ_RESUME=0`), so **not** by this session's PATSALT |
+| `Parse = *Stmt ("'Stmt'" & 7) (nl \| ";")` | **CLEAN** (HQ: *"inserting an epsilon-capture between the defer and the variable CURES it"*) | **rc=139, 5/5** |
+| `Parse = nPush() ARBNO(*Command) ("'Parse'" & 'nTop()') nPop()` (the real line) | rc=139 | rc=139 default · rc=139 `PATSALT=0` · **rc=0 `RTSEQ_RESUME=0`** |
+**So HQ's discriminator (3) is inverted at HEAD: the intervening epsilon-capture no longer cures — it is now REQUIRED to crash.** Anything resting on it should be re-taken.
+
+## THE REDUCED WITNESS — THREE GRAMMAR LINES, ONE-TOKEN GREEN/RED PAIR
+`scripts/util_beauty_m1_reduce.sh` (checked in; `--green` for the control) applies:
+```
+Label = epsilon ~ 'Label'
+Stmt  = *Label *Label          ← RED (rc=139, 5/5).   *Label alone ⇒ GREEN (rc=0, 5/5)
+Parse = *Stmt ("'Stmt'" & 7) nl
+```
+**All three ingredients are load-bearing, each removable one token at a time:**
+| ablation | rc |
+|---|---|
+| `*Stmt ("'Stmt'" & 7) nl` | **139** |
+| `*Stmt reduce("'Stmt'", 7) nl` (named call, not the OPSYN'd operator) | **139** — so the operator spelling is NOT the discriminator |
+| `*Stmt ("'Stmt'" & 7)` · `*Stmt reduce("'Stmt'", 7)` (drop the tail) | 0 |
+| `*Stmt ("'Stmt'" & 7) ";"` (**literal** tail instead of the variable `nl`) | 0 |
+| `*Stmt "" nl` · `*Stmt LEN(0) nl` · `*Stmt "" "" nl` (middle is not a call result) | 0 |
+| `*Comment ("'Stmt'" & 7) nl` (leading defer to a **static** pattern) | 0 |
+So the shape is **defer-to-a-runtime-composed-pattern + a function-call-result element + a VARIABLE-held operand**, and `Label` reduces all the way to `epsilon ~ 'Label'`.
+⛔ **A standalone (no-include) witness still does not reproduce** — two attempts, both oracle-identical. This confirms HQ's negative result: **beauty's include context is load-bearing.** The reduction script is therefore the artifact, not a `.sno`.
+
+## ⭐⭐ THE ROOT CAUSE, MEASURED — `RETURN` POPS Δ AND JUMPS TO IT
+gdb on the reduced RED witness (plain build, `CSN_NO_SEGV_HANDLER=1`, no monitor, no ZSM):
+```
+rip = 0x7ffff7ffd000   (_rtld_global, .data of ld.so)   bt: #1 0x0 — destroyed, as the brief warned
+rcx = 0x7ffff7ffd000   r15 = 0x7ffff7ffd000   r13 = 0x0   r14 = 0x41bd68
+rsp = 0x7fffffff88c0   [rsp-24] = 0x7fff8e0196c0   [rsp-16] = 0x00007ffff7ffd000   [rsp-8] = 0x41bd68
+```
+There are exactly **158** `jmp rcx` sites in the emitted `.s`, and a census of the instruction feeding each one places the crash: 78 set `rax, rdi` (γ), 78 set `eax, 104` (ω), and **two are the global trampolines**
+```
+RETURN:   pop rcx
+          add rsp, 8;   jmp rcx
+```
+`rax = 0xffffffff` matches neither γ nor ω arm (no site anywhere sets `eax` to −1), and `pop rcx; add rsp,8` leaves `rsp` exactly where it started — which is what the crash shows. **`rcx` was loaded from `[rsp-16]`, and `[rsp-16]` holds `0x7ffff7ffd000` = the live `r15`.**
+
+**R13/R14/R15 are Σ/δ/Δ** (register contract of record). The three words under `rsp` are **`[rsp-24]=Σ` (a heap pointer), `[rsp-16]=Δ`, `[rsp-8]=δ`** — a match-state save frame sitting exactly where the function-call return record belongs.
+
+> **IN ONE SENTENCE: a match-state save and a function-return record collide on the ζ-SPINE, so SNOBOL4's `RETURN` trampoline pops Δ as its continuation and jumps to it.**
+
+This is not "a corrupted pointer" — it is an **RSP-depth accounting error of one spine cell per composed element**, which is why the crash is *element-count* sensitive (one `*Label` green, two red), why a **literal** tail is green while a **variable** tail is red (the variable operand allocates a spine cell the literal does not), and why HQ's ladder flipped polarity the moment another rung changed the depth by one.
+
+## ⭐ POSSIBLY ONE FAMILY WITH seat7's s184 — CROSS-REFERENCE BEFORE EITHER IS FIXED
+`FINDING-2026-08-20-s184-the-armed-carve-moves-rsp-and-no-flat-spine-operand-is-rebased.md` (seat7, row `span-frame-flip`) names *"the armed carve moves `rsp` for the whole graph and not one flat ζ-SPINE operand offset is rebased"* on `TDump_driver` under `SCRIP_SPAN_FRAME=1`. That is **a different witness and a different arm** — seat7's is a coherent wrong answer at α, mine is a wild jump through `RETURN` — but both are *"rsp moved and something that indexes off it was not told"*. Whoever fixes either should read the other first; a single depth-accounting authority may retire both.
+
+## NEXT
+1. **Find the unbalanced `sub rsp` / `add rsp` pair** on the runtime-composed concat road — the α that allocates a ζ-SPINE cell per element against the ω/whack that frees them. The green/red pair is one element apart, so their emitted `.s` differ by exactly that allocation.
+2. Re-take any ffbc1425 ladder number (see the table above) before building on it.
+3. `ptw_min_opsyn_elem` / `ptw_min_argpat_arbno` (FINDING body) remain owed and are unrelated to this jump.
