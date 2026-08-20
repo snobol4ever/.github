@@ -255,7 +255,7 @@ Records: `FINDING-2026-08-19-s154-gc-stall-is-the-benchmark-and-collect-cannot-f
 
 ## ⛔ PRUNED CURSOR INDEX — the 62 cursor blocks cut at s185, each with the FINDING that carries its content
 **Cut BY SESSION NUMBER per the fleet-era STALE-ORIENTATION (c) ruling in `RULES.md` — never by position.** Full text of every row is one `git log -p -- GOAL-SNOBOL4-100.md` away; nothing is lost, only unstacked. ⛔ **THE MECHANICAL CHECK THAT LICENSED EACH CUT, and the one the next pruning seat must repeat:** every cut block whose queue row is still LIVE was verified to name its own `FINDING-*.md` **before** removal — at s185 that check passed on **all** of them, so no live rung lost its cold-start. A `—` in the FINDING column is a block whose lane is closed or whose content is durable elsewhere in this file.
-⛔ **Four lanes holding an OPEN CLAIM at prune time have NO cursor in this file at all** — `gates-retire-4`, `regen-hygiene`, `lon-include-root`, `pat-eval-double-fn-arbno`. That was checked, not assumed: their state lives in FINDINGs, and a future seat must not read their absence here as absence of work.
+⛔ **Four lanes holding an OPEN CLAIM at prune time had NO cursor in this file at all** — `gates-retire-4`, `regen-hygiene`, `lon-include-root`, `pat-eval-double-fn-arbno`. (`lon-include-root` now has one, at the top — added by seat1 in the same session, minutes after this prune; the other three still do not.) That was checked, not assumed: their state lives in FINDINGs, and a future seat must not read their absence here as absence of work.
 
 | s | seat | front/row | headline | FINDING |
 |---|---|---|---|---|
