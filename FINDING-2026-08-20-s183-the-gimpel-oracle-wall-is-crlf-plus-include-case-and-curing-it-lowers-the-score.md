@@ -79,3 +79,16 @@ Fixing the include root buys **+35 scorable lon rows** and cannot be done as a p
 
 ## PRICE THE HEADLINE AGAIN
 The body's law holds and now has a second instance: **UNSCR hides SCRIP reds.** Flipping 35 lon rows into scored rows converts hidden rows into visible ones before it converts any into greens, so this rung too should be expected to **lower** META before it raises it. Any META-buying row must price this.
+
+---
+
+# ROW CLOSED — HQ RULING HQ-73 (s183/s184), RECORDED HERE BECAUSE THE BUS IS CHAT AND GIT IS THE RECORD
+
+HQ answered `q-oracle-format-unscr` after ADDENDUM 1 was pushed. The ruling, and what it settles:
+
+1. ⛔ **THE `UNSCR < 10` DONE-WHEN IS VOID.** HQ voided the threshold rather than asking for it — it was written from an unmeasured guess (`ERROR 214`) that this work falsified, and a DONE-WHEN reachable only by authoring ~131 driver programs is not the row it was written as. **Both halves are measured unreachable, for two DIFFERENT reasons** (gimpel: output-less library modules; lon: 43 residue rows no include fix reaches — see ADDENDUM 1).
+2. ✅ **THE ROW IS DONE ON WHAT LANDED:** CRLF stripped across 143 files (`ERROR 230` 78→0) and 129 `-INCLUDE` spellings case-corrected across 75 files (`ERROR 285` 78→3), pure corpus normalization, **zero stock-sbl edits** (`x64` verified clean at close). **The row's real result is the corrected ceiling: gimpel UNSCR 145 → 135 is the achievable floor by normalization**, the residual 131 being library modules with no main body and no output to score, and the 3 genuinely-absent include targets being **`resolution.sno`, `stringout.sno`, `system.inc`**.
+3. **QUESTION (a) — re-scope gimpel vs. mint a driver-authoring rung — IS LON'S, NOT HQ'S AND NOT MINE.** Suite WEIGHTS are Lon's knob (`GOAL-SNOBOL4-100` THE INSTRUMENT). HQ escalated it to him with this measurement as the evidence, on the grounds this work reframes it: **scoring 131 output-less library modules as UNSCR is measuring the wrong thing — a scorecard-VALIDITY question, not a corpus question.** Does not block this close.
+4. **QUESTION (b) — lon's include ROOT — IS A NEW ROW, `lon-include-root`,** minted by HQ in both channels with this FINDING and its addendum as the brief. Confirmed harness work (`scorecard_snobol4.sh` + `SNO_LIB` as a path list), outside "normalize the corpus", and an "and then" under the TASK-SIZE LAW. ADDENDUM 1 hands that row its price up front: **+35 rows, and `SETL4PATH` is a prefix so the list must live on the SCRIP side.**
+
+⭐ **THE TRANSFERABLE LESSON, IN HQ'S WORDS:** *"'the brief was wrong on arrival, here is the measurement' is the single most valuable message a seat can send HQ. You cost the fleet one round trip and saved it a wasted rung. Do it every time."* Both round trips on this row were paid for by a **measurement**, never by an argument — the first falsified `ERROR 214`, the second priced the include root at exactly 35 rows and killed the threshold. ⛔ And the standing trap this row leaves the fleet: **UNSCR HIDES SCRIP REDS** — curing oracle plumbing converts invisible rows into scored reds before it converts any into greens, so it LOWERS META first (measured here: two-suite META 33.3 → 26.7). Price that into any future META-buying row.
