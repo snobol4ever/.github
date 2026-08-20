@@ -7,7 +7,7 @@
 
 ## 1. WHAT THE FLAG ACTUALLY IS — FROM THE MANUAL, NOT FROM TASTE
 
-`scorecard_snobol4.sh:80` runs the live oracle as `sbl -b` for **13 of 14 suites** and `sbl -bf` for `beauty_self` alone. CLAUDE.md documents `-bf` purely as a SIGSEGV workaround. That is wrong, and the manual is unambiguous (line numbers are `pdftotext -layout` of `1-spitbol-manual-v3.7.pdf`):
+`scorecard_snobol4.sh:80` runs the live oracle as `sbl -b` for **12 of its 13 suites — 11 once the off-limits `lon` suite is set aside** and `sbl -bf` for `beauty_self` alone. CLAUDE.md documents `-bf` purely as a SIGSEGV workaround. That is wrong, and the manual is unambiguous (line numbers are `pdftotext -layout` of `1-spitbol-manual-v3.7.pdf`):
 
 - **l.6943** `-b` = "suppress SPITBOL's two-line screen sign-on message". Cosmetic. That is its *whole* job.
 - **l.6945** `-f` = "don't fold lower-case names to upper case".
@@ -42,7 +42,7 @@ Three runs each, `beauty.sno < beauty.sno`, SETL4PATH=.:
 | `sbl -b` | rc=**139** | rc=**139** | rc=**231** | 1081 (error listing) |
 | `sbl -bf` | rc=0 `6f1671c07577` | rc=0 `6f1671c07577` | rc=0 `6f1671c07577` | **40971** |
 
-**The Milestone-1 program has no stable oracle at all under the flag 13/14 suites use.** beauty came back `FLAKY` in the sweep, and the FLAKY tag *was* the finding.
+**The Milestone-1 program has no stable oracle at all under the flag 12 of the 13 suites use.** beauty came back `FLAKY` in the sweep, and the FLAKY tag *was* the finding.
 
 ⛔ **AND THE SIGSEGV IS AN EFFECT OF FOLDING, NOT AN INDEPENDENT ORACLE BUG.** Under `-b` beauty dies in a storm of `ERROR 217 -- syntax error: duplicate label` at lines 559/561/563… on `visit_1`, `visitEnd` — camelCase labels that only collide **when folded** — and *then* cores. SPITBOL cores during **error recovery**, and folding is what manufactures the errors. Independent 2-line witness (`endlbl.sno`): a stray label produces `ERROR 215` + **rc=139** under `-b`, and a clean `rc=1` under `-bf`. **Three separate documents in this tree blame the environment for this:** CLAUDE.md/RULES.md ("plain `-b` SIGSEGVs after 34 lines"), `board_beauty_m1.sh:18`, and `cmp3_snobol4.sh:31` ("benign sandbox segfault-on-exit"). It is neither the sandbox nor a beauty bug — it is the flag.
 
@@ -130,3 +130,10 @@ Under `-f`, **only the all-uppercase spelling is honored.** This contradicts the
 bash scripts/util_oracle_flag_sweep.sh sweep      /tmp/ofs 12   # 3-arm sweep -> arms.tsv
 bash scripts/util_oracle_flag_sweep.sh transition /tmp/ofs      # movers -> scorecard verdict delta
 ```
+
+## 13. ⛔ CORRECTIONS TO THIS FINDING (kept visible, not silently edited)
+
+- **"13 of 14 suites" WAS WRONG — caught by seat2 at s189, and it originated in my own s186 note and was copied into the rank-0 queue brief from there.** At SCRIP `213771e2` the `SUITES` table has **13 rows**, not 14, and `beauty_self` alone ran `-bf`, so **12 suites ran `-b`** — of which one is the off-limits `lon` suite, leaving **11 non-lon suites that actually flip**. Corrected throughout this file, in the cursor, and in `util_oracle_flag_sweep.sh`'s header. The queue brief still carries the wrong figure and wants the same fix. **A number invented once and quoted onward is indistinguishable from a measured one** — this is the same class as the stale-build lesson seat5 recorded at s186.
+- **THE SIGSEGV CLAIM IS SHARPENED BY seat2'S INDEPENDENT MEASUREMENT, NOT WEAKENED.** They showed a *genuine* duplicate label (`shift`/`shift`, both lower-case) **SIGSEGVs under `-bf` too**. So the crash lives in SPITBOL's **ERROR-217 REPORT path**, and folding's role is precisely to *manufacture the phantom errors that walk into it* — which is what §3's "cores in error recovery" says, now with the cleaner separation: the flag is not the crash, it is the supply of crashes. `CLAUDE.md`'s oracle line is a **fourth** document needing the correction listed in §9.5.
+- **MY TRANSITION REPLAY IS A FLOOR, NOT THE BOARD.** `verdict()` compares outputs only; it does not reproduce `grade()`'s `TIMEOUT`/`SIG<n>`/`RC<n>` labels, so the §5 transition counts bound the real per-suite movement from below. seat2 is running the full board on both arms for the true META delta — that number, not mine, is the one to quote.
+- **seat2 ADDS THREE CONSTRUCTS I DID NOT MEASURE**, so the case for `-bf` does not rest on labels: lower-case `output` (`-b` prints both lines; `-bf` and SCRIP print one); and indirect reference in **both** directions — with only lower-case `abc` assigned, `$('ABC')` resolves under `-b` and is null under `-bf` **and under SCRIP**, and symmetrically with only `ABC` assigned. Manual p.192: special names take any case ONLY under folding; p.182: folding treats the `$` string as upper-case when making the name.
