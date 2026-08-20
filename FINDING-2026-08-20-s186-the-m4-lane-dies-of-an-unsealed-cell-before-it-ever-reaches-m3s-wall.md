@@ -139,3 +139,16 @@ The EVAL source being compiled at that moment is beauty's own grammar rule, verb
 - **One NEW row:** `m1-board-instrument` — the three defects in §5.
 
 **FILES TOUCHED BY THIS ROW: none in SCRIP, none in corpus.** No codegen was touched, so RULES step-4 `.s` regen carries no debt here.
+
+---
+
+## 7. RE-PROVED AFTER THE REBASE
+
+The row's `git pull --rebase` at handoff brought in seat7's s184 XH-FRAME-EXTRA landing, which touches `src/emitter/emit.cpp` — the same file that owns the AB cell allocator — so the reading was **re-proved rather than assumed**. The diff between the measured tree and the new HEAD is `sn4_xh_frame_extra()` plus one call site in `codegen_flat_chain_body`; it does not touch `bb_ab_slot_for` / `bb_ab_fn_cell_ptr` / `bb_ab_cell_addr`. `make pristine` at SCRIP **`0b75fa5e`** / corpus **`794d2478`**, RT_OPT `-O0`, every number re-measured:
+
+- all 8 witnesses **identical** — Class A m3 rc139 / m4 rc1, Class B rc0 / rc0;
+- **m3 stdout ≡ m4 stdout on all 8**, unchanged;
+- full self-host **md5 `e883e4b862ba`** in both modes, unchanged;
+- m4 `.s` cell greps still `alpha$` **0** · `fn_cell` **0** · `rt_ab_undef_fn_stub` **0**.
+
+The watermark named in the header (`fb2d505c`) is an ancestor of `0b75fa5e`, so both commits resolve and the two readings agree.
