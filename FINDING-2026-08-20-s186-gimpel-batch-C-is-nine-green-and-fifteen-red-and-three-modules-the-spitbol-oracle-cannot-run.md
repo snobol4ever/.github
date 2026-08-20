@@ -1,6 +1,7 @@
 # FINDING s186 — gimpel batch C: 9 green, 15 red, and 3 modules the Spitbol oracle cannot run at all
 
 **Session:** 2026-08-20 s186 · seat6 · queue row `gimpel-drivers-C` · corpus `f79826f7`, SCRIP `47064a1c` (pristine, RT_OPT `-O0`)
+**RE-PROVEN AFTER REBASE onto SCRIP `06358b06`** (which moved `emit.cpp`, `lower_snobol4.c`, `pattern_match.c`, `x86_asm.h` — the m1-class-b chained-deferral rung): second `make pristine`, corpus **m3 332/5 · m4 325/11** again, and the batch-C table below **byte-identical**. Every verdict here holds on both trees.
 **Brief:** Lon s183 ruling — *"You should make tests out of each Gimpel function. Make an entire test suite around it."* Batch C = 25 modules (18 self-contained + 7 include-bearing).
 **Delivered:** 24 new `<NAME>_driver.sno` + oracle `.ref` (BLANKS was HQ's worked example), 1 `.input`, 3 probes in `corpus/probe/gimpel/`.
 **Corpus fail-set for the existing suites: UNCHANGED — m3 332/5, m4 325/11**, fail-sets identical by name (§6).
