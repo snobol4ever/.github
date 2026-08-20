@@ -73,7 +73,8 @@ method.
    position is not.
 5. **NOT the chained-`DT_X` defect of §6** — measured, see §6's last paragraph.
 
-## 6. ⭐ WHAT WAS CURED AND LANDED — CHAINED `DT_X` DEFERRAL (SCRIP `06358b06`)
+## 6. ⭐ CHAINED `DT_X` DEFERRAL — TWO SEATS, ONE FACT, ONE SURVIVING SPELLING
+⛔ **CONVERGENCE, RECORDED HONESTLY.** seat2 (row `defer-depth-floor`, SCRIP `fccc81cc`, `FINDING-…-s187-…`) root-caused the SAME fact independently and inside the same hour. The rebase merged BOTH loops into `rt_defer_xpat_dtp`; seat2's drain runs first, so this seat's loop behind it was **dead code**, and two spellings of one fact is the spelled-twice disease. **seat2 owns the row and seat2's line stays**; this seat's loop, its `#define` and its killswitch were removed in SCRIP `213771e2`, re-measured at watermark. What survives from this seat is the **ladder, the two witnesses, and the measurement that this cure is NOT class B's cure.** The original seat3 cure was SCRIP `06358b06`.
 A pattern variable whose entire value is a bare unevaluated expression **IS** a `DT_X` descriptor. So resolving
 `*P3` where `P3 = *P2`, `P2 = *P1` lands on ANOTHER `DT_X`, not on a pattern. `rt_defer_xpat_dtp`
 (`src/runtime/pattern_match.c`) resolved **exactly one hop**, parked the intermediate `DT_X` and returned NULL,
@@ -81,12 +82,11 @@ which fails the match. Ladder, independent of leaf kind (`SPAN` or literal), of 
 
     hops=1 both match · hops=2 both match · hops=3,4,5 oracle match / SCRIP NOMATCH
 
-**Cure:** follow the chain, bounded by `RT_DEFER_XPAT_MAX_HOPS` (a cycle guard for `A = *B` / `B = *A`). The
-FINAL value is parked under the ORIGINAL name so the close path still literal-matches a scalar tail and each
-expression is still run exactly once. **No new globals** — a `#define` constant and a stateless predicate;
-`getenv` is consulted only on the chained path, so the default arm costs nothing.
-**Killswitch `SCRIP_DEFER_XPAT_CHAIN=0`** restores the pre-fix single resolve. Witnesses: `corpus/probe/m1/`
-`m1_defer_chain` (red pre-fix, green BOTH modes after, red again under the killswitch) and `m1_defer_chain_ctl`
+**Cure (seat2's, now the single authority):** drain the chain under a bounded cycle guard, then park the FINAL
+value under the ORIGINAL name — so the close path still literal-matches a scalar tail and each expression still
+runs exactly once.
+Witnesses (they now stand as regression cover for seat2's cure, and both PASS under it): `corpus/probe/m1/`
+`m1_defer_chain` (red pre-fix, green BOTH modes after) and `m1_defer_chain_ctl`
 (the 2-hop control, always green — it is what proves the defect is the SECOND hop, not deferral as such).
 
 ⛔ **IT IS NOT CLASS B'S CURE, AND THAT IS MEASURED, NOT ASSUMED.** A gated `[DEFER]` trace over beauty's whole
