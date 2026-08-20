@@ -54,7 +54,7 @@ same missing predicate:
 - `leaf_frame_candidate()` (s130/s131) — which leaf ops may frame
 - `blob_choice_rbp_scan()` / s128's admission `_nc==1 ∧ !_fn ∧ !_lf ∧ registry-demand-framed ∧ !blob_wire_clobber_scan()`
 - the s130 "8-byte usable-window law" (d ∈ {0,4}, d=8 is the neighbour's floor)
-- the s131 BAL decline (+0/+4/+8 spends three words, so refuse)
+- the s131 BAL refuse (+0/+4/+8 spends three words, so refuse)
 - s127's retracted "frame zero-demand blobs by shape" (5 SEGV movers)
 - s131b's reverted registry-handle re-base (broke `clob_altarm_trueinline_grn`)
 
@@ -82,8 +82,8 @@ consulting a depth verdict, because no such verdict exists on that side.
 ## WHAT THIS RETIRES AND WHAT IT REPLACES
 
 **RETIRES** the s132 ζ-ONE rung ladder as previously written (U-2..U-5 as "unify accessors, migrate families
-under whitelists"). Unifying the accessors was necessary plumbing and U-0/U-1 stand (`5e35e6c2`, 62/62
-byte-identical both arms), but **migrating families under whitelists is more of the disease**: the whitelists
+under op-filters"). Unifying the accessors was necessary plumbing and U-0/U-1 stand (`5e35e6c2`, 62/62
+byte-identical both arms), but **migrating families under op-filters is more of the disease**: the op-filters
 ARE the approximations above.
 
 **REPLACES IT WITH** restoring the lattice:

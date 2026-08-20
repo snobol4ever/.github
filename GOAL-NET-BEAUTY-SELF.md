@@ -3208,7 +3208,7 @@ HEADs unchanged: snobol4dotnet `12bd3fa`, x64 `dd66e14`, SCRIP `f95817cd`.
 - **Sessions #73, #74, #75, #76, #77, #79 — diagnostic-only, no commit
   for the structural bug.**  Each session named `AbstractSyntaxTree.
   ComputeAlternate` / `Graft` / `PatternAlternation (Pipe).cs` as the
-  suspect site and declined to read those files end-to-end in favour of
+  suspect site and refused to read those files end-to-end in favour of
   more wire instrumentation.
 - **The wire instrumentation IS the deliverable, however** — every
   session has moved S-2-bridge-7-byrd-pattern forward.  Session #75

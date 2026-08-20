@@ -1,4 +1,4 @@
-# FINDING 2026-08-17 s131 — THE LEAF-SUSPENSION WIDENING IS NOT MECHANICAL: SIX ADMITTED ON MEASURED GREENS, TWO DECLINED ON MEASURED LAW
+# FINDING 2026-08-17 s131 — THE LEAF-SUSPENSION WIDENING IS NOT MECHANICAL: SIX ADMITTED ON MEASURED GREENS, TWO REFUSED ON MEASURED LAW
 
 **Seat:** Claude Opus 5. **Watermark:** SCRIP `41a0e324` (rebased onto concurrent Icon push `48201b2f`; gate re-proven there), corpus `05ef7042`.
 **Predecessor:** `FINDING-2026-08-16-s130-leaf-cell-is-unconverted-flat-coordinate.md`.
@@ -11,7 +11,7 @@ ONE activation-frame slot registry, and named the next rung:
 > **(a) WIDEN TO THE SEVEN SIBLINGS** — BREAK/BREAKX/TAB/RTAB/REM/ARB/BAL carry
 > the identical unsound `FR(x86_scratch_off)` spelling and are UNTOUCHED; the
 > widening is **mechanical** (same accessor pair, same predicate, add the ops to
-> `leaf_frame_candidate`'s whitelist) but earns its own blast radius.
+> `leaf_frame_candidate`'s op-filter) but earns its own blast radius.
 
 The spelling premise is TRUE — verified by grep, all seven carry it. **The
 "mechanical" conclusion is FALSE**, and taking the instruction literally would
@@ -33,7 +33,7 @@ ARB/BAL `rc=0` with a **silent wrong answer** (`parse fail`) — worse than a
 crash, since nothing announces it. **m3 ≡ m4 in every row**, so the defect is
 medium-independent, exactly as SPAN's was.
 
-## ⛔ DECLINE 1 — BAL, AND WHY A GREEN WITNESS WOULD HAVE LIED
+## ⛔ REFUSE 1 — BAL, AND WHY A GREEN WITNESS WOULD HAVE LIED
 
 Per-template measurement of the offsets each sibling actually spends in its
 scratch cell:
@@ -53,7 +53,7 @@ to BAL's third word: **the same cross-owner overwrite this rung exists to kill,
 moved indoors.** The trap is that `leafsib_bal` would have gone **GREEN** while
 silently corrupting a sibling class — the defect would have been invisible in
 its own witness and would have surfaced sessions later as an unrelated ARBNO or
-capture bug. This is the identical failure mode s130 already declined
+capture bug. This is the identical failure mode s130 already refused
 `SPAN(*var)` for; BAL joins it in the 12B/16B wide class.
 
 **The generalisable lesson:** in this registry, *a witness going green is not
@@ -61,7 +61,7 @@ sufficient evidence that an admission is safe*, because the damage lands in a
 neighbour that the witness never exercises. Admission requires the offset audit,
 not just the green.
 
-## ⛔ DECLINE 2 — ARB IS A DIFFERENT DEFECT, AND THE MONITOR IS WHY WE KNOW
+## ⛔ REFUSE 2 — ARB IS A DIFFERENT DEFECT, AND THE MONITOR IS WHY WE KNOW
 
 ARB was initially admitted (it fits the window) and stayed RED. MONITOR-FIRST
 settled it — with one correction worth recording, because it is a reusable trap:
@@ -86,8 +86,8 @@ outright.** ARB never resumes into the arm interior to extend from null, so
 reached is an unproven admission that widens every frame for no measured green.
 ARB belongs to the **s120/s122/s123 arm-interior RESUME class** and waits for
 that rung; its template already routes through `LFC`/`LFCQ`, which on the
-declined arm returns the legacy spelling byte-identically, so that rung inherits
-the plumbing and changes one word in the whitelist.
+refused arm returns the legacy spelling byte-identically, so that rung inherits
+the plumbing and changes one word in the op-filter.
 
 ## ONE AUTHORITY — the accessor moved out of the template
 
@@ -108,7 +108,7 @@ rung exists to kill. The accessor is therefore sited ONCE in `x86_asm.h` as
 * ON-arm blast radius **50** (s130's SPAN-only was 36; six ops, so wider).
 * **Scorecard IDENTICAL on both arms** — META 67.9, `beauty_suite` 41.2,
   `patterns` 82.4, `crosscheck` 93.3, **zero row movers ⇒ zero regressions.**
-* Both declines **PROVEN INERT**: `--compile` byte-identical across both arms.
+* Both refuses **PROVEN INERT**: `--compile` byte-identical across both arms.
 * Template-only + both-medium greps **0** on every touched file.
 * Pre-existing, NOT this rung: `test_gate_template_medium_invisible.sh --strict`
   fails on `bb_glue_flat.cpp(4)` + `xa_flat.cpp(8)`, both untouched here.

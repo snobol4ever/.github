@@ -28,7 +28,7 @@ Confirmed a third time by independent measurement, then **localized and cured**:
   tagword walked as a return address. Reached via `rt_outer_call`.
 - **Mechanism (not theory — read from the source):** `MONITOR_BIN` forces `n_gva_m3=0`
   (`src/driver/scrip.c:1574` and `:1722`). GVA-off makes both the SCC gate and the role-4
-  TINY shim decline, so every call falls to the **legacy flat-glue arm**
+  TINY shim refuse, so every call falls to the **legacy flat-glue arm**
   (`bb_call_proc_staged.cpp:742`, twin at `:463`). That arm pushes the γ/ω pair **only**
   under `SCRIP_SLIM_PAIR`; without it the site pushes nothing and `:(RETURN)` pops
   enclosing-frame bytes. The template's own comment says exactly this.

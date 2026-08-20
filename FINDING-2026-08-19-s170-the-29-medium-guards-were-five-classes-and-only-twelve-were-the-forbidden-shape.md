@@ -120,7 +120,7 @@ that a missing shape means *add the encoder*, so `x86("jmp_fn", label, fp)` + `x
 sealed `[rip + __]` 5-arg forms already hold for RO loads. The template is medium-free; zero movers.
 
 `bb_scan_stmt`'s 3 sites (HQ-affirmed) were the medium choosing nothing but **diagnostic wording**:
-TEXT split a decline three ways by which operand was non-literal, BINARY lumped all three under
+TEXT split a refuse three ways by which operand was non-literal, BINARY lumped all three under
 "pattern". Rewritten to say *what* differs — the LANG-sentinel cure applied to the medium axis — so m3
 gains subject/replacement precision it never had. No corpus program reaches those bombs; zero movers.
 

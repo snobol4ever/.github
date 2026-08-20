@@ -149,7 +149,7 @@ register / subject-model convention) — never through a function pointer plus a
 
 **HISTORY — READ THIS, because it is why the rule now exists in this strongest form.** This prohibition has
 stood for **AT LEAST TWO MONTHS**. Lon ordered these C `(ζ, int entry)` byrd boxes DELETED at least **THREE
-separate times**, and each time a session either declined, re-introduced them, or held/reverted the deletion
+separate times**, and each time a session either refused, re-introduced them, or held/reverted the deletion
 "to keep the build green." A prior plain rule (RULES.md "NO C BYRD-BOX FUNCTIONS") did **not** hold. They
 were finally deleted **2026-06-01** — the `pl_*_fn` family (all of `pl_broker.c`), `gen_bb_dcg`,
 `gen_bb_oneshot`, `resolve_bb_dcg`, `bb_deferred_var`/`_exported`, `fail_box`, the dead `bb_cap`/`bb_atp`

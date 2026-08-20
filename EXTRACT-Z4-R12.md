@@ -57,7 +57,7 @@ rm -f scrip && make -j4 scrip && make libscrip_rt     # BOTH — or compiler and
 - The **side-stack island allocator** for suspending PAT$ blobs (`f7de3863`'s own headline). HEAD has no side stack — the pinned-rbp graph replaced it.
 - `x86_r12_modrm` — RENAMED to `x86_frame_modrm` at `c26a398a`. It already encodes `x86_fb_num()` generically, so it serves R12 unchanged once the accessor returns 12; **no encoder work is expected here** (verify, do not assume).
 - The **r12 chain anchor** in `rt_chain_enter`, deleted at `cc624e92` (s67) as redundant once epilogues unwound both edges absolutely. Config 1 may not need it back — s65 already ran without it.
-- **Co-expressions**: the historical limitation (R-D). Six-register coexpr save in `bb_create.cpp` covers r12 regardless; declines must be LOUD.
+- **Co-expressions**: the historical limitation (R-D). Six-register coexpr save in `bb_create.cpp` covers r12 regardless; refuses must be LOUD.
 
 ## 6. HONEST LIMITS
 (a) The epoch's `.s` artifacts and corpus are NOT contemporaneous with today's corpus — only the fixed Z4 probe set is legitimate for cross-epoch comparison. (b) The 12-vs-17 pairing is by FILE COUNT; the per-site pairing (which HEAD arm descends from which epoch arm) is NOT yet done and is the first task of Z4-7. (c) Nothing here is a claim that config 1 is *fast* — it measured ~8-15% slower than config 2 on every probe. Its value is **correctness-oracle status (5/5)** and the call-path number (`z4_fib` 71ms, the best of all three generations).

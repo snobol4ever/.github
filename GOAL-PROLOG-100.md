@@ -100,7 +100,7 @@ Pipeline: Prolog AST → `lower_prolog` (four-port IR) → m3 `--run` (EMIT BINA
 | `IR_CUT` | self | — | γ_in | cut barrier → ω_in |
 | leaf | self | — | γ_in | ω_in |
 
-Admission recipe (new deterministic builtin): (1) `IR_DET_FOO` in `IR.h` + name table `scrip_ir.c`; (2) `rt_pl_foo_cell(...)` — cell-based, trail-mark/unwind, no `g_resolve_env`, `prolog_atom_intern()` not `ATOM_*`; (3) `bb_det_foo.cpp` — FRQ per slot, one call, `test eax,eax; jne γ; jmp ω; def β; jmp ω`; (4) `bb_prepare` block in `emit_bb.c`; (5) `emit_core.c` dispatch case; (6) Makefile `RT_PIC_SRCS` + rule; (7) four `scrip.c` sites (`pl_gz_rule_body_goal_ok` · `pl_gz_rule_clause` whitelist · `pl_gz_count_synth_goal` · `pl_gz_build_goal`, named arm BEFORE the generic pair-comparator arm). Key rule: `ir_call_arg` for `is_builtin_exec` builtins; `ir_pair_arg` for arity-2 pairs.
+Admission recipe (new deterministic builtin): (1) `IR_DET_FOO` in `IR.h` + name table `scrip_ir.c`; (2) `rt_pl_foo_cell(...)` — cell-based, trail-mark/unwind, no `g_resolve_env`, `prolog_atom_intern()` not `ATOM_*`; (3) `bb_det_foo.cpp` — FRQ per slot, one call, `test eax,eax; jne γ; jmp ω; def β; jmp ω`; (4) `bb_prepare` block in `emit_bb.c`; (5) `emit_core.c` dispatch case; (6) Makefile `RT_PIC_SRCS` + rule; (7) four `scrip.c` sites (`pl_gz_rule_body_goal_ok` · `pl_gz_rule_clause` op-filter · `pl_gz_count_synth_goal` · `pl_gz_build_goal`, named arm BEFORE the generic pair-comparator arm). Key rule: `ir_call_arg` for `is_builtin_exec` builtins; `ir_pair_arg` for arity-2 pairs.
 
 ## Session Setup (every session)
 ```bash

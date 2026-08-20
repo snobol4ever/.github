@@ -4,7 +4,7 @@
 **Trees:** SCRIP `f44be5f1` (the commit the brief names — it was origin HEAD on arrival), corpus `a3604cc9`, .github `12355307`. Oracle `x64/bin/sbl` cloned and smoke-verified before any verdict. **Both measurement arms and the post-flip re-measure ran on `make pristine` builds — driver AND `out/libscrip_rt.so` from one commit** (HQ-27 PRISTINE-BUILD-BEFORE-VERDICT; this is the exact contamination class that manufactured the retracted HQ-21 numbers).
 
 ## What was inherited
-HQ's `f44be5f1` landed B1c fragment emit-context parity behind `SCRIP_B1C_PARITY`, **default OFF**, explicitly deferring the A/B and the flip to this seat. Three getenv sites: `src/runtime/runtime_eval.c:231` (the fragment proc loop's parity block — `rt_proc_set_jmpentry` / SN4-FLAT-PROC floor / PL-DC arming / frame-bytes / zstatic / patzeta / DC seal) and `src/templates/bb_call_proc_staged.cpp:322,593` (the two TINY-decline gates, `!g_rt_fragment_emit || _b1c*`).
+HQ's `f44be5f1` landed B1c fragment emit-context parity behind `SCRIP_B1C_PARITY`, **default OFF**, explicitly deferring the A/B and the flip to this seat. Three getenv sites: `src/runtime/runtime_eval.c:231` (the fragment proc loop's parity block — `rt_proc_set_jmpentry` / SN4-FLAT-PROC floor / PL-DC arming / frame-bytes / zstatic / patzeta / DC seal) and `src/templates/bb_call_proc_staged.cpp:322,593` (the two TINY-refuse gates, `!g_rt_fragment_emit || _b1c*`).
 
 ## THE A/B — 6 suites, 1024 programs, both modes, both arms
 Suites (the `--suites` set, sizes as measured): `crosscheck` 196 · `patterns` 122 · `bb_probes` 188 · `feature_test` 161 · `probes_misc` 334 · `demos` 23 = **1024 rows/arm**, each row graded in m3 AND m4 against the live oracle or its pinned `.ref`.

@@ -7,7 +7,7 @@
 
 ## 1 ⭐⭐⭐⭐⭐ THE INSTRUMENT COULD NOT SEE THE CHOICE CUSTOMER AT ALL — AND CHOICE IS 52% OF BEAUTY'S ζ TRAFFIC
 
-`ZREFC` (s138) hardwired ONE decline spelling: `FR/FRQ(x86_scratch_off + d)`, the leaf family's flat ZLS coordinate. The ALT choice record's declined arm is a **different address** — bare `[rsp+d]` — so `bb_match_alternate` could not call the accessor on that arm and guarded **outside** it: `cro ? CROQ(..) : RSP(..)`.
+`ZREFC` (s138) hardwired ONE refuse spelling: `FR/FRQ(x86_scratch_off + d)`, the leaf family's flat ZLS coordinate. The ALT choice record's refused arm is a **different address** — bare `[rsp+d]` — so `bb_match_alternate` could not call the accessor on that arm and guarded **outside** it: `cro ? CROQ(..) : RSP(..)`.
 
 `sn4_choice_rbp_off()` returns 0 for every blob in beauty (the s128 admission is `_nc==1 && !_lf && !_fn`, very narrow), so **every** choice-record access took the unrouted arm. Measured consequence, s138 census vs this seat's:
 
@@ -22,7 +22,7 @@
 
 ⛔ **The class the goal file names as R-0 / the M1 root cause — "ALT-arm-interior capture has no home" — was the one class the displacement checker could not observe.** s138's census on beauty ("279 resolutions, ZERO disagreements") was true and also 52% blind.
 
-**CURE (landed, inert): `ZSP_SCRATCH`/`ZSP_RAW`, the DECLINE-SPELLING AXIS.** `ZREFS(reg_off, d, w, customer, spine)` is the dispatcher; `ZREFC` is its `ZSP_SCRATCH` wrapper (all four existing customers unchanged by construction); `CROQ`/`CROD` become `ZSP_RAW`. All 7 address sites in `bb_match_alternate.cpp` now call the accessor unconditionally. Byte-identical because `RSP(d)` **is** `RDQ("rsp", d)` verbatim (x86_asm.h:1424) and the dword site already spelled `RDD("rsp", d)` by hand. The `sub rsp,32`/`add rsp,32` carve/release pair stays guarded on `cro` — that one is behaviour, not an address.
+**CURE (landed, inert): `ZSP_SCRATCH`/`ZSP_RAW`, the REFUSE-SPELLING AXIS.** `ZREFS(reg_off, d, w, customer, spine)` is the dispatcher; `ZREFC` is its `ZSP_SCRATCH` wrapper (all four existing customers unchanged by construction); `CROQ`/`CROD` become `ZSP_RAW`. All 7 address sites in `bb_match_alternate.cpp` now call the accessor unconditionally. Byte-identical because `RSP(d)` **is** `RDQ("rsp", d)` verbatim (x86_asm.h:1424) and the dword site already spelled `RDD("rsp", d)` by hand. The `sub rsp,32`/`add rsp,32` carve/release pair stays guarded on `cro` — that one is behaviour, not an address.
 
 ⛔ **THE AXIS IS NOT A TIER.** Tier = which base the planner chose. Customer = which cell of that base. Spine spelling = how this customer addresses the spine *when it has no rbp home*. Conflating the third with the first is what would re-base a raw `[rsp]` record onto the leaf scratch coordinate — a different address.
 

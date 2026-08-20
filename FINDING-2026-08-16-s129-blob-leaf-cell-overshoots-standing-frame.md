@@ -68,7 +68,7 @@ so the callee's cell and the caller's mark alias.
 
 **`blob_frame_bytes() > 0` (via registry demand) with zd static pricing still ACTIVE.**
 
-- **Wire-clobber blobs escape** — dynamic-box graphs decline zd static pricing wholesale (the zdyn
+- **Wire-clobber blobs escape** — dynamic-box graphs refuse zd static pricing wholesale (the zdyn
   veto; `emit.cpp:2341` states this as the reason clobber blobs tolerate a frame at all).
 - **Zero-demand blobs escape** — `blob_frame_bytes()==0`, no frame, legacy shape (and the s127
   retraction proved framing them by shape is what breaks 120/131/165/181/182).

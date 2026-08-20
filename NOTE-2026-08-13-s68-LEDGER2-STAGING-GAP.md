@@ -239,7 +239,7 @@ One node kind, two arms; the RETURN arm emits NO release at all.
 `src/templates/x86_asm.h:2362`
     if (site == X86H_JMP && port == X86P_GAMMA && _.op_zgpop > 0) s += x86_add("rsp", (long)_.op_zgpop);
 The whack is conditioned on **`port == X86P_GAMMA`**. The statement's ordinary success wire is a GAMMA jmp, so
-it whacks. The `:(RETURN)` transfer is a GOTO arm on a different port, so the hook declines and the carve is
+it whacks. The `:(RETURN)` transfer is a GOTO arm on a different port, so the hook refuses and the carve is
 abandoned. bb_statement.cpp's own comment says the design intends "the release rides that jmp's X86H_JMP hook
 arm" — it rides only the gamma spelling of it.
 

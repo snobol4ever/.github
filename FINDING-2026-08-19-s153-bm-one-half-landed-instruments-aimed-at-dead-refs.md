@@ -65,7 +65,7 @@ first repair attempted here and it was wrong.
 Re-point and re-retire **in the same commit that lands the corpus side**: `harness.inc` plus the
 promoted body-only files. Per the s152 HQ ruling the LEGACY-23 are **relabelled, not removed** —
 they remain load-bearing corpus workload for `scorecard_snobol4.sh`,
-`test_gate_rbp_census_ratchet.sh`, `test_gate_zpop_whitelist.sh`, `test_census_rbp_frames.sh`,
+`test_gate_rbp_census_ratchet.sh`, `test_gate_zpop_op-filter.sh`, `test_census_rbp_frames.sh`,
 `util_regen_benchmark_s_artifacts.sh`, and the crosscheck/engine-bench utilities. If they stay in
 the parent, the timed family cannot be promoted into it without collision — so the promotion needs
 a target decision, not just a move.

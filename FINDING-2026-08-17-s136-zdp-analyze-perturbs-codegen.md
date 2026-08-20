@@ -48,7 +48,7 @@ build is independently proven inert."* The same trap, in the instrument built to
 ## WHAT WAS ELIMINATED (do not re-suspect these)
 
 1. **Registry ordering in the zone plan** — `zzone_off_of` asking capture→arbno→fence→leaf and taking
-   the first non-decline. Tested with a multi-claim diagnostic: **0 nodes are claimed by two registry
+   the first non-refuse. Tested with a multi-claim diagnostic: **0 nodes are claimed by two registry
    classes** on the movers. Refuted.
 2. **Registry side effects via the plan** — the plan was rewritten to never call the registry at all.
    **Still 81 movers.** Refuted.

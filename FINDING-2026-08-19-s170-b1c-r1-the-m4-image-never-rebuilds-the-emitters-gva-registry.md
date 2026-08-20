@@ -1,4 +1,4 @@
-# FINDING s170 (seat6, Opus 5) — B1c residue R1 ROOT-CAUSED: an m4 process never rebuilds the EMITTER's GVA registry, so the runtime fragment compiler asks `bb_scc_probe` a question the image cannot answer and TINY declines; behind that wall sits a second one — `alpha$<FN>` is unsealed for main-image procs in m4
+# FINDING s170 (seat6, Opus 5) — B1c residue R1 ROOT-CAUSED: an m4 process never rebuilds the EMITTER's GVA registry, so the runtime fragment compiler asks `bb_scc_probe` a question the image cannot answer and TINY refuses; behind that wall sits a second one — `alpha$<FN>` is unsealed for main-image procs in m4
 
 **Front:** GOAL-SNOBOL4-100 · M1 beauty self-host · wall B1c, residue **R1** (queue row 4 `b1c-m4-seam`). Continues FINDING-2026-08-19-s168 (HQ) which cured B1c in m3 and named R1; and s164/s164b which ruled out `jmp_entry`-alone and `g_flat_frame_floor`-alone.
 
@@ -23,7 +23,7 @@ Breakpoint on `bb_tiny_shim_ok`, printing the emit-side facts `bb_scc_probe` con
 ```
 m3  [SHIM] fname=PC nargs=0 frag=0 gva=1 dyn=1 reg=1 sccok=1 zc=2     <- main emission
 m3  [SHIM] fname=PC nargs=0 frag=1 gva=1 dyn=1 reg=1 sccok=1 zc=2     <- FRAGMENT emission -> ADMITS -> green
-m4  [SHIM] fname=PC nargs=0 frag=1 gva=0 dyn=1 reg=1 sccok=1 zc=2     <- FRAGMENT emission -> DECLINES -> SEGV
+m4  [SHIM] fname=PC nargs=0 frag=1 gva=0 dyn=1 reg=1 sccok=1 zc=2     <- FRAGMENT emission -> REFUSES -> SEGV
 ```
 
 **One bit differs: `g_gva_active`.** Everything HQ's R1 hypothesis suspected is in fact HEALTHY at m4 runtime — `rt_proc_dyn_scope`=1, `rt_proc_is_registered`=1, `scc_program_ok()`=1, `x86_zc_frame()`=ZC_FRAME_RSP. The proc table is populated in the m4 image. **`g_stage2` was not the gap.**
@@ -40,7 +40,7 @@ The emitter's GVA **name registry is entirely empty**, not merely the flag.
 - `gva_collect.c`'s `g_gva_names[]`/`g_gva_n` are filled by `gva_collect_graph()` during compilation. Nothing repopulates them at runtime.
 - In **m3** the compile and the run are ONE process (`scrip.c:1616` — `gva_register(...); g_gva_active = 1;`), so when the runtime fragment compiler re-enters the emitter for an EVAL body, the tables are still standing. **That is the entire m3/m4 asymmetry.**
 
-Consequence: in m4, `bb_scc_probe` returns 0 → `bb_tiny_shim_ok` returns 0 → the fragment falls to the **slim/legacy call path** — precisely the pushed-landing protocol s168 convicted as the B1c SEGV. **s168's TINY gate is therefore structurally unreachable in m4: `SCRIP_B1C_PARITY=1` is INERT there, and m4-`=1` ≡ m4-OFF.** The cure was never declined by m4; it was never offered.
+Consequence: in m4, `bb_scc_probe` returns 0 → `bb_tiny_shim_ok` returns 0 → the fragment falls to the **slim/legacy call path** — precisely the pushed-landing protocol s168 convicted as the B1c SEGV. **s168's TINY gate is therefore structurally unreachable in m4: `SCRIP_B1C_PARITY=1` is INERT there, and m4-`=1` ≡ m4-OFF.** The cure was never refused by m4; it was never offered.
 
 This is HQ's R1 hypothesis — *"TINY admission consults emit-side knowledge absent in an m4 process"* — **confirmed, with the specific knowledge named**: it is the GVA registry, not `g_stage2`.
 
@@ -98,7 +98,7 @@ The natural move is "have the m4 preamble publish `&<FN>_α` into the cell". **I
 ## 7. Next rung, named — **B1c-R1b: make the fragment→main-image TINY crossing land**, NOT "seal the cell"
 §5b closes the cheap road. The rung is the *protocol*, and the ASM-DIFF-FIRST move is already set up for whoever takes it: build the seal arm from §5b (it is ~15 lines and reproduces the SEGV on demand), then diff the emitted `<FN>_α` entry in the m4 `.s` against the m3 in-memory `<FN>_α` the same call reaches when it works, and find which entry-regime assumption the RX-slab caller violates. Two outcomes are acceptable and both close the seam:
 - **(a) fix the landing** so a fragment TINY site may call a statically assembled proc; or
-- **(b) admit TINY only for same-medium callees** — let a fragment site decline TINY for main-image procs *by callee medium* rather than by the blanket `g_rt_fragment_emit` D-18b flag, and fix the slim/legacy pushed-landing path that it then falls to (the mismatch s168 convicted). (b) may be the smaller correct rung: it restores m3 ≡ m4 by making both media use a path that works, instead of extending a path that does not.
+- **(b) admit TINY only for same-medium callees** — let a fragment site refuse TINY for main-image procs *by callee medium* rather than by the blanket `g_rt_fragment_emit` D-18b flag, and fix the slim/legacy pushed-landing path that it then falls to (the mismatch s168 convicted). (b) may be the smaller correct rung: it restores m3 ≡ m4 by making both media use a path that works, instead of extending a path that does not.
 
 **Also owed, cheap, and independent:** the `SCRIP_B1C_PARITY=1` **DIVERGE 0 → 1** in §6b is a live m3/m4 invariant breach that the `b1c-flip` seat must weigh before flipping the default.
 
@@ -108,7 +108,7 @@ The natural move is "have the m4 preamble publish `&<FN>_α` into the cell". **I
 
 ## ⛔ ADDENDUM (same session, after the `b1c-flip` seat landed `c6245f60`) — the arm went DEFAULT ON under this rung, and §6b's warning is now shipping
 
-Sequence, for the record: this rung landed layer 1 at SCRIP `dbb6b98d` **default OFF**; the `b1c-flip` seat then landed `c6245f60` *"FLIP SCRIP_B1C_PARITY DEFAULT ON — 9 movers / 1024 programs, every one crash→better, ZERO regressions"*, flipping the **three s168 sites** — but not the **fourth site this rung had just added**. Unset therefore meant **"m3 armed, m4 half-armed"**: m3's fragment admitted TINY while m4's still answered `gva=0` and declined — i.e. the R1 root cause shipping at the default.
+Sequence, for the record: this rung landed layer 1 at SCRIP `dbb6b98d` **default OFF**; the `b1c-flip` seat then landed `c6245f60` *"FLIP SCRIP_B1C_PARITY DEFAULT ON — 9 movers / 1024 programs, every one crash→better, ZERO regressions"*, flipping the **three s168 sites** — but not the **fourth site this rung had just added**. Unset therefore meant **"m3 armed, m4 half-armed"**: m3's fragment admitted TINY while m4's still answered `gva=0` and refused — i.e. the R1 root cause shipping at the default.
 
 **Resolved at SCRIP `3a4ca273`:** this rung's site flipped to match, so `SCRIP_B1C_PARITY` is ONE coherent switch again (`=0` disarms all four). Re-measured pristine at `c0efe346`+flip, armed vs disarmed:
 
@@ -152,6 +152,6 @@ ASM-DIFF-FIRST per RULES.md. The set-up this rung banked is the **repro arm**, n
 3. **The diff.** Compare the **m4 statically assembled `<FN>_α` entry** (`./scrip --compile -o e.s corpus/probe/b1/b1c_e_plain.sno < /dev/null`, then read `PC_α` — it was `e_plain.on.s:62`) against the **m3 in-memory `<FN>_α`** the same call reaches *when it works* (`./scrip --dump-bb`, and the live bytes at the `alpha$PC` cell target). The question is narrow: **which entry-regime assumption does the RX-slab caller violate?** The sig-record pointer rides **`rcx`** from the slab into a callee assembled under the main image's regime. An instruction byte-identical across both is exonerated (RULES.md).
 4. **Only then gdb** — the caller is `bb_call_proc_staged.cpp` **:341 / :621** (`x86("jmp","[rip@cell + __]", bb_ab_fn_cell_ptr("alpha$"+name))`); the m3 authority that fills the cell is `bb_define.cpp:82 bb_ab_seal_entry_cells`, called only from `scrip.c:1682/1721/1814` (m3 path) and `runtime_eval.c:249` (fragment path) — **never for main-image procs in m4**, which is the whole asymmetry. Use `CSN_NO_SEGV_HANDLER=1`; hardware watchpoints do not work in this container.
 
-**Two acceptable outcomes, both close the seam** (unchanged from §7): **(a)** fix the landing so a fragment TINY site may call a statically assembled proc; or **(b)** admit TINY only for **same-medium callees** — decline by *callee medium* rather than by the blanket `g_rt_fragment_emit` D-18b flag — and fix the slim/legacy pushed-landing path it then falls to. **(b) is likely the smaller correct rung: it restores m3 ≡ m4 by making both media use a path that works, instead of extending one that does not** — and it is the move that retires the `DIVERGE=1` breach in row 13's first face.
+**Two acceptable outcomes, both close the seam** (unchanged from §7): **(a)** fix the landing so a fragment TINY site may call a statically assembled proc; or **(b)** admit TINY only for **same-medium callees** — refuse by *callee medium* rather than by the blanket `g_rt_fragment_emit` D-18b flag — and fix the slim/legacy pushed-landing path it then falls to. **(b) is likely the smaller correct rung: it restores m3 ≡ m4 by making both media use a path that works, instead of extending one that does not** — and it is the move that retires the `DIVERGE=1` breach in row 13's first face.
 
 **Already eliminated by test — do not re-derive** (five hypotheses now dead on this wall): `jmp_entry`-alone (s164) · `g_flat_frame_floor`-alone (s164b) · `g_stage2` (§2, this rung) · "the emitter's GVA registry" (**cured**, §4 — layer 1, landed) · **"just seal the `alpha$<FN>` cell"** (§5b — built, measured, WORSE).

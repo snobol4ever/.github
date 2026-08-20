@@ -57,15 +57,15 @@ in BOTH arms — every emitter flag identical.
 ```
 [ZD] h=0 r=0 i=0 IR_STATEMENT_BEGIN K=0  zout=0  gpop=0  wpop=0
 [ZD] h=0 r=1 i=1 IR_LIT_INTEGER   K=16 zout=16 gpop=16 wpop=0
-[ZD] run h=2 len=4 DECLINED at i=3 (opnd op=3)
+[ZD] run h=2 len=4 REFUSED at i=3 (opnd op=3)
 ```
 
-`op=3` = **`IR_BINOP`** (the `+`). Decline reason `why="opnd"`. The second run cannot arm the
+`op=3` = **`IR_BINOP`** (the `+`). Refuse reason `why="opnd"`. The second run cannot arm the
 BINOP because the split already freed the spine cell holding its first operand.
 
 ⭐ **THE DEFECT IS THE RUN BOUNDARY AT `h=2`. Everything else is consequence** — the four
-declined nodes, the fall to flat-FRQ addressing, and the wrong value. Do not chase the BINOP,
-do not chase the flat offsets, and do not "fix" the declined path: the armed path is already
+refused nodes, the fall to flat-FRQ addressing, and the wrong value. Do not chase the BINOP,
+do not chase the flat offsets, and do not "fix" the refused path: the armed path is already
 correct and m4 proves it.
 
 ## 4. THE TRIGGER IS THE PRIOR GRAPH'S IR POPULATION — WITNESS PAIR MINTED
@@ -114,13 +114,13 @@ carrier is NOT YET NAMED. **Dependence is proven; the carrier is not.** State it
 
 Instrument is already minted and costs one command:
 ```bash
-SCRIP_ZD_DIAG=1 scrip --run corpus/probe/eval/ev_pad_alias_0.sno   # run splits at h=2, DECLINED (opnd op=3)
+SCRIP_ZD_DIAG=1 scrip --run corpus/probe/eval/ev_pad_alias_0.sno   # run splits at h=2, REFUSED (opnd op=3)
 SCRIP_ZD_DIAG=1 scrip --run corpus/probe/eval/ev_pad_alias_1.sno   # one run h=0 len=6, all armed
 ```
-Find why `zd_plan` cuts a run boundary at `h=2` in arm 0 and not arm 1. The decline print is
+Find why `zd_plan` cuts a run boundary at `h=2` in arm 0 and not arm 1. The refuse print is
 `emit.cpp:2457`; `why="opnd"` is the branch to instrument, and the run-FORMATION loop above it
 (which sets `hi` and fills `run[]`) is the unread region — this seat ran out of context before
-reading it and deliberately did not open that hunt. `SCRIP_ZD_GAP=1` exists beside the decline
+reading it and deliberately did not open that hunt. `SCRIP_ZD_GAP=1` exists beside the refuse
 print and may already report the boundary.
 
 ## 8. UNCOMMITTED WHEN THIS NOTE WAS WRITTEN

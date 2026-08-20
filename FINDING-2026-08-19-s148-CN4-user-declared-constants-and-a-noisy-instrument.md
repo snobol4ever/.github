@@ -19,7 +19,7 @@ CN-2 left the tier-3 `&Name` namespace unconditionally open. That is a silent di
 
 ⛔ **It is not an oracle keyword.** `sbl` 251s `&USER_DECLARED_CONSTANTS` itself, so every program using the feature is ORACLE_FAIL **by construction** and can only ever be `.ref`-pinned, never sbl-diffed. Inherent to a namespace-opening extension.
 
-## ⭐⭐ CN-4b — ONE AUTHORITY, TWO INPUTS (no new global; the grant was DECLINED)
+## ⭐⭐ CN-4b — ONE AUTHORITY, TWO INPUTS (no new global; the grant was REFUSED)
 
 Lon granted "all your choices," which included permission for a new lowering flag. **It was not taken, because the flag was the wrong shape.** The env killswitch `SCRIP_CONST_STATIC` and the program's `&USER_DECLARED_CONSTANTS = 0` are not two facts needing two homes — they are two *inputs* to one fact ("is the declared-constants feature active for this compilation?"). Spelled-twice disease (s68/s70) is one fact with two homes; **one home with two inputs is ONE AUTHORITY done right.** The pre-scan reports the declaration through `sno_const_feature(1)`, which forces the `_cs` static that already existed; `_cs` remains a single function-local static.
 

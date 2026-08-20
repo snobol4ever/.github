@@ -27,7 +27,7 @@ is easier: rewrite to IR_GOTO with γ := old ω (fail path never reads the slot)
   `bc_run` splices them (branch-to-branch elimination doing double duty as dead-code sweep).
 - **OPT-CP copy_prop** — operand-web retargeting through proven-identity forwarders: IR_COERCE_STRING over
   LIT_STRING; IR_COERCE_INTEGER over LIT_INTEGER honoring the packed negative-errcode guard (`ival>>16`).
-  Conforming forwarders neutered to IR_SUCCEED — statically proven unable to fault. Whitelist is one line to
+  Conforming forwarders neutered to IR_SUCCEED — statically proven unable to fault. Op-filter is one line to
   extend when new identity-forwarder kinds appear.
 - **OPT-PF pat_fold** — SPITBOL-grade adjacent-literal merge, done at the TRUE architecture level: MATCH_LITs
   are never γ-chained; `IR_MATCH_SEQUENCE` is a driver box over interleaved `(entry_i, resume_i)` operand

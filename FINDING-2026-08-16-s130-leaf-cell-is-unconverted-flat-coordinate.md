@@ -70,7 +70,7 @@ All 26 span cell references route through **one** accessor pair (`SPC`/`SPCQ`) s
 
 Witness, ON: frame 56 → 72 bytes; the cell moves `[rsp+164]` → `[rbp-60]`, inside the blob's own frame.
 
-## 4. ⛔ THE 8-BYTE USABLE-WINDOW LAW — MEASURED, AND THE DECLINE IT FORCES
+## 4. ⛔ THE 8-BYTE USABLE-WINDOW LAW — MEASURED, AND THE REFUSE IT FORCES
 
 The registry tiles **one 16B granule per slot with the base 8 bytes ABOVE the granule floor**. For a blob:
 `blob_frame_bytes()` = `24 + 16*count` carved below the r10/r11/rdx entry wires at `[-24,0)`, slots at
@@ -86,7 +86,7 @@ So a slot offers `d ∈ {0,4}` **and nothing more** — `d=8` is the neighbour's
 
 `bb_match_span.cpp`'s `SPAN(*var)` deferred-by-name arm (`sval[0]=='*'`) is the ONE arm that spends the
 full 16B — `lea rsi,SPC(0)` / `lea rdx,SPC(8)` / `mov r8,SPCQ(0)` / `mov eax,SPC(8)`, the `{ptr,len}` pair
-`rt_pat_prim_str` fills. It is therefore **DECLINED in the planner** and keeps its legacy spelling
+`rt_pat_prim_str` fills. It is therefore **REFUSED in the planner** and keeps its legacy spelling
 byte-identically. Framing it would hand a neighbouring capture SAVE's cell to a runtime writer — the same
 cross-owner overwrite this rung exists to kill, moved indoors — and it would have been **invisible in the
 witness**, which uses a literal charset and never reaches that arm.
@@ -165,7 +165,7 @@ three runs, then re-measure the noise floor to **zero**.
 
 - **SPAN only.** BREAK / BREAKX / TAB / RTAB / REM / ARB / BAL share the identical unsound
   `FR(x86_scratch_off)` spelling and are UNTOUCHED. The widening is mechanical (same accessor pair, same
-  predicate, add the ops to `leaf_frame_candidate`'s whitelist) but needs its own blast radius.
-- **`SPAN(*var)` declined** — §4.
+  predicate, add the ops to `leaf_frame_candidate`'s op-filter) but needs its own blast radius.
+- **`SPAN(*var)` refused** — §4.
 - **`varcross_red` still red** — the cross-blob `MATCH_VALUE` class, untouched by this rung.
 - **Default stays OFF** pending the corpus-wide ON sweep and Lon's flip grant (R-7/s124 protocol).

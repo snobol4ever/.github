@@ -30,7 +30,7 @@ before `MATCH_END` rebuilt it.
 RPO `nodes[]` order `zd_plan` consumes (its own ZK-2 note: *"nodes[] is execution order"*), and that order is
 recovered from the graph by chasing γ. The walk now chases γ from the enclosing `MATCH_BEGIN` through
 `zd_chase()` — **the same edge-following authority the planner's run walker uses** — then steps back down the
-recovered prefix. Whitelist, `ASSIGN_SAVE` exclusion, LIFO contiguity and the bracket wall are unchanged.
+recovered prefix. Op-filter, `ASSIGN_SAVE` exclusion, LIFO contiguity and the bracket wall are unchanged.
 One rule added: the control kinds the FENCE1 siblings already exclude by name now **stop** the walk even at
 K=0, because a choice/suspension record with no cell of its own still owns spine below it. No new global,
 no new `IR_t` field. Witness now bills 16 and the release exactly matches the carve.

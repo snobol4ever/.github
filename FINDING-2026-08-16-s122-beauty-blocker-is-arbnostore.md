@@ -89,9 +89,9 @@ so the s120 characterisation is sound and is **not** part of the retraction in (
 **m3 ≡ m4.** The witness gives `Parse Error` in both modes (m4 via `--compile` + `gcc -no-pie`, runs clean).
 This is **not** a mode gap — it is a shared LOWER/emitter defect, so R-6 does not gate it.
 
-**Zero bombs.** `grep -ci bomb` on the emitted `.s` is **0**. Nothing declines; the emitter believes it
-compiled this correctly. This is the **silent-wrong-answer** class, not a known `x86_bomb` decline — which is
-why it survived to Milestone 1 while the loud ARBNO declines in R-4(a) were being counted.
+**Zero bombs.** `grep -ci bomb` on the emitted `.s` is **0**. Nothing refuses; the emitter believes it
+compiled this correctly. This is the **silent-wrong-answer** class, not a known `x86_bomb` refuse — which is
+why it survived to Milestone 1 while the loud ARBNO refuses in R-4(a) were being counted.
 
 **Ingredient isolation** (each row an independent program, oracle-anchored, `Src='ab'`):
 

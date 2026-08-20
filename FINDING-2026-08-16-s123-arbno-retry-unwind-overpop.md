@@ -54,7 +54,7 @@ bb_label_t *resume_tgt = &lbl_ω;                                     /* ← the
 for (i) if (nodes[i]->op == IR_SUSPEND)                resume_tgt = betas[i];   /* Prolog/Icon */
 if (body_root) for (i) if (nodes[i]==body_root && op==IR_DISJUNCTION)      resume_tgt = lbls[i];
 if (body_root) for (i) if (nodes[i]==body_root && op==IR_CALL_BUILTIN_GEN) resume_tgt = betas[i];
-/* [SCRIP_DEFER_RESUME=1 only] leaf-generator arm, declined if any IR_MATCH_FENCE1 node: */
+/* [SCRIP_DEFER_RESUME=1 only] leaf-generator arm, refused if any IR_MATCH_FENCE1 node: */
 if (_dres && flat_pat && body_root) if (!_f1)
     for (i) if (nodes[i]==body_root && op in {ARBNO,ARB,BAL})               resume_tgt = betas[i];
 emit_jmp_label(resume_tgt, JMP_JMP);
@@ -104,7 +104,7 @@ run here.**
 | SCRIP `SCRIP_DEFER_RESUME=1` | **rc=139 SIGSEGV — identical crash to all four fence witnesses** |
 
 **FENCE is incidental.** The four breakers are fence-shaped only because those are the witnesses
-that happened to exist in the suite. Do NOT spend a rung widening the seal decline to see FENCE0
+that happened to exist in the suite. Do NOT spend a rung widening the seal refuse to see FENCE0
 metadata — that was this seat's own first hypothesis and it is wrong.
 
 ## 5. The mechanism, from gdb (RULES.md steps 2–3)

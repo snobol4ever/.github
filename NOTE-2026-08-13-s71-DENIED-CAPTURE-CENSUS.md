@@ -7,7 +7,7 @@ size of the class", so the ruling that finding asks for is made against a number
 
 Each program compiled once with `SCRIP_CAP_DIAG=1`; stderr counted. **No program was run.** This is the
 s66 discipline: the board's noise floor is ~5 and it flips programs green→red, so a runtime board cannot
-size a class this size. A capture is **DENIED** when `sno_cap_fc()` declined to register it, which shows up
+size a class this size. A capture is **DENIED** when `sno_cap_fc()` refused to register it, which shows up
 as `SAVE … save_active=0` and/or `COND … fc_disp=-1`.
 
 Scan root: `corpus/probe` + `corpus/programs/snobol4` = **476 programs**, of which **201 emit any `[CAP]`
@@ -57,7 +57,7 @@ Heaviest members of the 41 (denied-COND count):
 
 ## THE CHEAPEST NEXT PROBE (for whoever holds the ruling)
 
-Per-site attribution: re-run the census with the walk's bail kind printed beside each declined pair, so the
+Per-site attribution: re-run the census with the walk's bail kind printed beside each refused pair, so the
 303 split into *defer-caused* / *ALT-caused* / *ARBNO-caused* / other. That converts an upper bound into a
 work queue, and it is a diagnostic print inside `sno_cap_fc`, not a codegen change — byte-inert, gateable
 by the existing `DIAG=1 == DIAG=0` md5 check.
@@ -67,7 +67,7 @@ by the existing `DIAG=1 == DIAG=0` md5 check.
 ## ADDENDUM (same session) — THE 41 NARROWED TO 15, AND THE DENIER SET IS NAMED
 
 The 41 above were flagged as **co-occurrence**. They can be narrowed toward attribution **without any
-compiler change**, using only the emitted `.s`, because `fc_walk_range`'s whitelist denies on
+compiler change**, using only the emitted `.s`, because `fc_walk_range`'s op-filter denies on
 `default:` — so the deniers present in a program are exactly its **non-admitted kinds**.
 
 Admitted by the walk: `LIT LEN ANY NOTANY POS RPOS ATP ASSIGN_{SAVE,COND,IMM} GOTO`, the `fc_geom` set
@@ -97,7 +97,7 @@ co-occurrence: within this subset there is no other kind that *can* reach `defau
 
 `IR_MATCH_VALUE` is `IR_MATCH_DEFER`'s sibling — same template family (`bb_match_value.cpp` is
 structurally `bb_match_defer` with the name-based acquisition replaced by an operand-slot read), and
-**both share the property that makes the whitelist fix unsound: no compile-time extent.** Both are also
+**both share the property that makes the op-filter fix unsound: no compile-time extent.** Both are also
 already in `emit_graph_has_deep_arrival`'s list.
 
 ⇒ **Any eligibility answer must cover BOTH kinds, not DEFER alone.** A fix that admits only DEFER would

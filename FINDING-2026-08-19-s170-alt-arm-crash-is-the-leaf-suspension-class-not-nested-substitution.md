@@ -77,7 +77,7 @@ Any future witness of this class that is graded green on m3 alone is graded on l
 
 - **Every witness above turns green** — `u4`, `pad20`, `pad25`, `c3`, `cn_alt_leaf_flat_red`, `cn_alt_leaf_lit_red`, and `pd3000` (the m3 crasher) — **m3 PASS and m4 PASS in every cell**.
 - `test_gate_clobarm.sh`: **1/5 → 2/5**; the cured row is `clob_altarm_arm2direct_red`, the only rc=139 row. The other three reds are `parse fail`, a different defect, unmoved.
-- Default (`=0`) is byte-identical to pre-s130 **by construction** — a declined candidate never enters the registry scan.
+- Default (`=0`) is byte-identical to pre-s130 **by construction** — a refused candidate never enters the registry scan.
 
 Its own comment states why it is off: *"=1 opt-in pending the corpus ON-arm sweep and Lon's flip grant, per the R-7/s124 protocol."* **That flip grant is the disposition this defect is waiting on, and it is Lon's, not a seat's.**
 
@@ -122,7 +122,7 @@ So the ON-arm evidence is: 15 `.s` movers, all correct in both arms; no behaviou
 
 1. **⛔ LON'S RULING: flip `SCRIP_SPAN_FRAME` to default ON** — the ON-arm sweep above is now on the record and it is clean plus one cure; what remains is the 527-program artifact sweep. It is the cure for a live wrong-answer/crash class that is reachable from ordinary SNOBOL4 — an alternation with a SPAN arm in a program with enough statements ahead of it — with **no constant, no nesting, and no unusual construct required**. The 318-program sweep is measured above (15 movers, all correct both arms, zero regressions, `demo_claws5` m3 cured); the 527-program artifact sweep is what is left.
 2. **Then delete the limit for real** — `SCRIP_CONST_NEST` becomes the default and `sno_kw_nest_ok()` collapses to `!sno_kw_chase(nm, 0)`; op 0 (the genuine cycle test, dead today because op 3 subsumes it) becomes the live guard, which is what `sno_kw_chase`'s own comment always described.
-3. **ARB and BAL are still declined** inside `leaf_frame_candidate()` for two separate measured reasons (the 8-byte usable-window law). An ALT arm holding ARB or BAL is the same wild write with no cure available on either arm today — untested here, and the next witness worth minting.
+3. **ARB and BAL are still refused** inside `leaf_frame_candidate()` for two separate measured reasons (the 8-byte usable-window law). An ALT arm holding ARB or BAL is the same wild write with no cure available on either arm today — untested here, and the next witness worth minting.
 
 ## ⛔ RE-PROOF AFTER THE REBASE (RULES: "re-prove your goal's gate/watermark after a rebase")
 

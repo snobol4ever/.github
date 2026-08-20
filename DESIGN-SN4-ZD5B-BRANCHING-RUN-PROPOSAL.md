@@ -16,14 +16,14 @@ wrong for the pattern blob, where ALTERNATE/ARBNO/SEQUENCE store their arm entri
 
 The consequence is that the γ-walk hits IR_MATCH_ALTERNATE / IR_MATCH_ARBNO /
 IR_MATCH_SEQUENCE as single opaque nodes, `zd_wl_kind` returns 0 (no ZD arm), and the whole
-run declines. Every leaf kind reachable only through those nodes (IR_MATCH_LIT, IR_MATCH_LEN,
+run refuses. Every leaf kind reachable only through those nodes (IR_MATCH_LIT, IR_MATCH_LEN,
 IR_MATCH_SPAN, IR_MATCH_ANY, IR_MATCH_NOTANY, IR_MATCH_ASSIGN_SAVE, …) is unreachable by the
 current walk.
 
 **MEASURED SCOPE (s23t, 318 programs):**
-- 198 declined runs across 103 programs have a blob-interior first-blocker
+- 198 refused runs across 103 programs have a blob-interior first-blocker
   (ALTERNATE 67 · ASSIGN_SAVE 40 · LIT 29 · LEN 24 · SPAN 14 · SEQUENCE 12 · ANY 5 · etc.)
-- That is 57% of the total 349 declined runs
+- That is 57% of the total 349 refused runs
 - These are the programs ZD-5b would unlock
 
 ---
@@ -108,7 +108,7 @@ envelope node that itself carries K=0 (no cell).
 
 IR_MATCH_LIT, LEN, SPAN, ANY, NOTANY, BREAK, BREAKX, POS, RPOS, TAB, RTAB, ARB, REM, BAL:
 all carry K=16 (one position/match cell), all wired γ=next, ω=fail, no cross-statement
-operands. **These are the dominant population (198 of 349 declined runs). They are NOT
+operands. **These are the dominant population (198 of 349 refused runs). They are NOT
 structurally different from LIT_INTEGER, which already arms. The ONLY reason they don't arm
 today is that the run walker cannot reach them through ALTERNATE/SEQUENCE.**
 
@@ -192,7 +192,7 @@ authority — it only adds more armed members below the existing claim.
 
 - **IR_MATCH_ARBNO** — excluded. Its body depth is not static (per-iteration frames). RBP
   construct per law 4. OMEGA terrain.
-- **IR_MATCH_FENCE1** — excluded. zdyn-veto, OMEGA-owned. Already declined by the dynamic-box
+- **IR_MATCH_FENCE1** — excluded. zdyn-veto, OMEGA-owned. Already refused by the dynamic-box
   veto and pending ZW-6 relocation.
 - **IR_MATCH_DEFER / IR_MATCH_PATREF** — excluded. zdyn-veto class; pat_static=1 variants
   already admitted by the existing zdyn logic (s23i). No new planner logic needed for these;

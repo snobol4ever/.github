@@ -41,7 +41,7 @@ place. The released cells are exactly the ones whose β the cut skips, so the bo
 (`n29_match_assign_save_β`) expects RSP at the post-release depth already.
 
 **The ALT-arm branch deliberately does not subtract:** an `IR_MATCH_FENCE0` can never carry `zarm[i]>=0`, because the
-ZD-5b arm admission whitelist is leaf-only and rejects the whole arm on anything else. REL is 0 there by
+ZD-5b arm admission op-filter is leaf-only and rejects the whole arm on anything else. REL is 0 there by
 construction, not by omission.
 
 ## 3. ⭐ THE SECOND SITE — SAME DEFECT, DIFFERENT DEPTH SPELLING, AND ONLY A NEW WITNESS FOUND IT
