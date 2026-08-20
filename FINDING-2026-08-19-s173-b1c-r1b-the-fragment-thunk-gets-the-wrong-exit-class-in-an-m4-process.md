@@ -10,7 +10,9 @@
 
 ## THE ANSWER IN ONE LINE
 
-`emit.cpp:3308` picks a graph's shared γ/ω glue with `_wire_stub = (g_emit.flat_jmp_entry && g_flat_frame_floor > 0) || …`; in an m4 process the runtime fragment compiler computes `g_flat_frame_floor` by **searching `g_stage2` for `main`**, and **an m4 image's `g_stage2` contains only the fragment's own procs** — so the floor is 0, `_wire_stub` is 0, and the EVAL-built `EXPR$` thunk is emitted with `bb_glue_outer_γ/ω` (`mov eax,DT_S; ret`) instead of `bb_glue_wire_γ/ω` (`jmp r10` / `jmp r11`).
+`emit.cpp:3308` picks a graph's shared γ/ω glue with `_wire_stub = (g_emit.flat_jmp_entry && g_flat_frame_floor > 0) || …`; the runtime fragment compiler computes `g_flat_frame_floor` by **searching `g_stage2` for `main`** and taking `zls_g_region` of it — and **that source fails in BOTH modes**: an m4 image's `g_stage2` contains only the fragment's own procs (no `main` row at all), and in m3 `zls_g_region(main)` returns **−1 from the second EVAL onward**. Either way the floor is ≤ 0, `_wire_stub` is 0, and the EVAL-built `EXPR$` thunk is emitted with `bb_glue_outer_γ/ω` (`mov eax,DT_S; ret`) instead of `bb_glue_wire_γ/ω` (`jmp r10` / `jmp r11`).
+
+⭐ **The m3 half of that was NOT known when this rung opened** — it was found by landing the fix, and it is why the cure moves the m3 board too (§11).
 
 ---
 
@@ -118,3 +120,46 @@ Every fact above was measured on the shipped pristine build with gdb. `g_flat_fr
 ## 10. Next rung, named
 
 **B1c-R1c — land (a)+(b) behind one killswitch, default OFF**, then price the flip. Acceptance: the four witnesses hold their m3 answers with `.s` byte-identity **0 movers at the default arm**, and `b1c_cross_medium_concat_seam`'s missing second `PC ran` (§5 residue) is either cured or minted as its own witness. Two rows fall out of this one: **`semantic-driver-pushcounter`** (§7, null proc fn — its own wall) and the residue above.
+
+---
+
+# ⭐ LANDED THIS RUNG — HALF THE CURE, KILLSWITCH `SCRIP_B1C_LAND=1`, **DEFAULT OFF** (SCRIP `bd183811`)
+
+## 11. The `main` lookup is unreliable in m3 too — measured, and it re-frames the fix
+
+Landing (a) exposed a second, previously unnamed defect. On `crosscheck/patterns/140_pat_eval_double_fn_trick.sno` (two EVALs), in **m3**, breakpointed at the fragment seal:
+
+| fragment | `zls_g_region(main)` | floor | `_wire_stub` |
+|---|---|---|---|
+| `EXPR$0F1` (1st EVAL) | 160 | 160 | **1** ✅ |
+| `EXPR$1F2` (2nd EVAL) | **−1** | −1 | **0** ❌ |
+
+**`zls_g_region(main)` goes stale to −1 from the second EVAL onward** (`ir_drive_slot_assign` runs on each fragment graph in between), so **m3 has carried the identical wrong-exit-class defect all along** — it was simply invisible except on multi-EVAL programs, where m4 hits it on the *first* one. `PAT$0`/`PAT$1` read `_wire_stub=0` in every arm and mode: not this class.
+
+**So the fix is not "make m4 imitate m3" — it is "stop asking `main` a question it cannot answer".** The floor now falls back to the fragment's **own** region, which `runtime_eval.c`'s own `emit_chain` comment already licenses (*"fragment graphs are self-owned, never main-shared"*), and which is measurably the **right number, not merely a positive one**: `zls_g_region(_pg)` computes **160** — exactly what `main` gave the first fragment.
+
+## 12. Landing receipts (pristine `make pristine` RC=0, RT_OPT `-O0`, oracle proven alive)
+
+**Blast radius 0, proven twice, not asserted:**
+- `.s` md5 default-vs-armed over the **full crosscheck tree: 318/318 comparable, ZERO movers** (0 no-emit).
+- The changed function `eval_thunks_emit_from` takes **0 hits under `--compile`** (gdb) — unreachable on the compile path. ⇒ **RULES step-4 `.s` regens are a structural no-op for this rung**, the same argument and the same two receipts s170 used for its `gva_register` layer 1.
+
+**Default arm inert, MEASURED (both reproduce the recorded watermark):** crosscheck `--run` 308 / `--compile` 306 / **DIVERGE 1**; corpus m3 326.
+
+| | crosscheck m3 | crosscheck m4 | corpus m3 | corpus m4 | DIVERGE |
+|---|---|---|---|---|---|
+| default (shipping) | 308 | 306 | 326 | 323 | 1 |
+| **`SCRIP_B1C_LAND=1`** | **309** | 306 | **327** | 323 | **2** |
+
+**+1 in both m3 runners, m4 unchanged in both, ZERO regressions in either mode** — the gain is `140_pat_eval_double_fn_trick`, an EVAL-built-pattern program (the B1c family), i.e. the cure working.
+
+⛔ **The armed arm widens DIVERGE 1 → 2, and that is EXACTLY why it ships OFF.** `140` joins `141_pat_eval_double_fn_arbno`: m3 gains the program, m4 *cannot* until `alpha$<FN>` is sealed. Flipping this default alone would ship a second standing m3 ≡ m4 breach. **Flip it WITH its partner (b), never before.**
+
+**Gates:** `test_gate_template_medium_invisible` GREEN (ratchet **3**, ceiling 3 — not grown) · `test_gate_emit_no_lang` GREEN (LANG-BLIND). **Smokes:** Icon **14/14** both modes · Prolog 3/5 both modes (recorded watermark).
+
+**No new globals** (FACT RULE): `b1cland` is a function-local, `g_flat_frame_floor` / `zls_g_region` / `bb_ab_fn_cell_ptr` all pre-exist. Net new file-scope state: **zero**.
+
+## 13. What is left — B1c-R1c is now exactly ONE piece
+
+With (a) landed, **the seal alone completes the cure**, re-verified at this HEAD under `SCRIP_B1C_LAND=1` with the seal applied in gdb: `b1c_e_plain` → `PC ran`/`match` **oracle-identical**; the three retreat witnesses → **byte-identical to their m3 answers**. The remaining work is seat6's reverted `rt_b1c_seal_alpha` + m4-preamble emission with `$`-bearing names excluded (their §5b(1) stands). ⛔ That piece edits the **m4 preamble**, so unlike this one it moves all 527 comparable `.s` when armed — ship it OFF, then flip **both** killswitches together and price the DIVERGE ledger once.
+
