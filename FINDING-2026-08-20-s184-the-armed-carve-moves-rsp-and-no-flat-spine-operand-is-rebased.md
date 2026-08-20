@@ -1,6 +1,6 @@
 # FINDING s184 (seat7, row `span-frame-flip`) — THE TDump_driver BLOCKER IS ROOT-CAUSED: THE ARMED CARVE MOVES `rsp` FOR THE WHOLE GRAPH AND NOT ONE FLAT ζ-SPINE OPERAND OFFSET IS REBASED
 
-**Status:** ROOT CAUSE NAMED + MINIMAL WITNESS + CONTROL. Flip still HELD (HQ-61 option (1)); the fix is **not** landed — see §6, the obvious fix is measured WRONG.
+**Status:** ROOT CAUSE NAMED + MINIMAL WITNESS + CONTROL + **CURE LANDED** (SCRIP `0b75fa5e`, killswitch `SCRIP_XH_FRAME_EXTRA`, default ON). Lon ruled the fix in-chat 2026-08-20 ("I'll answer. Do it.") on the §6 disposition question. §10 is the cure; §6 records the WRONG fix so it is not retried.
 **Tree:** SCRIP `ffbc1425` (pristine, RT_OPT `-O0`) · corpus `e2dcb1ee` · witnesses `corpus/probe/leafwide/`.
 
 ## 1. What HQ-61 asked for
@@ -98,3 +98,28 @@ That is a *second*, real inconsistency (the leaf is handed index 1 = `rbp-80` in
 ## 9. Files
 `corpus/probe/leafwide/{leafwide_span_dyncs_alt,ctl_span_constcs_alt}.{sno,ref}` (corpus `e2dcb1ee`).
 Repro: `cd corpus/probe/leafwide && SCRIP_SPAN_FRAME=1 scrip --run leafwide_span_dyncs_alt.sno </dev/null` — expect `bare`, get `quoted` ~11/12.
+
+
+## 10. ⭐⭐⭐ THE CURE — `XH-FRAME-EXTRA` (SCRIP `0b75fa5e`), and it was ONE TERM AT AN AUTHORITY THAT ALREADY EXISTED
+Lon ruled the fix in-chat after §6 was reported. The fix is **not** new machinery: `emit.cpp`'s cross-`MATCH_BEGIN` correction loop — the R-3(a) MRBP CROSS-HEAD FRAME arm — already sums the head's RSP motion per crossing. It just spelled that motion as a **constant**:
+```c
+if (emit_match_rbp()) _xh += 64;      /* "push rbp + 4 pushes + sub 24 = 64B of real RSP motion" */
+```
+⭐ **The 64 is the carve with `extra == 0`.** `emit_match_begin_frame_extra()` adds 16 per registry candidate **on top of that 24**, and that motion is exactly as real to a cross-head read as the 64 is. So:
+```c
+if (emit_match_rbp()) { _xh += 64 + (sn4_xh_frame_extra() ? emit_match_begin_frame_extra(nodes[_zm]) : 0); }
+```
+Summed per crossing exactly like the 64, so nested heads accumulate correctly. `SCRIP_XH_FRAME_EXTRA=0` restores the constant verbatim (house cure shape, per `SCRIP_RTSEQ_RESUME`). **No new global** — the memoised static follows the existing `sn4_span_frame`/`sn4_pt_frame` killswitch idiom exactly.
+
+**THE CURE, MEASURED** (TDump_driver m3, `ulimit -s unlimited`, 12 runs per cell):
+
+| | `SPAN_FRAME=0` | `SPAN_FRAME=1` |
+|---|---|---|
+| `XH_FRAME_EXTRA=1` (default) | 12/12 | **12/12** |
+| `XH_FRAME_EXTRA=0` (revert) | 12/12 | **4/12** |
+
+`leafwide_span_dyncs_alt` armed **1/12 → 12/12** m3, **3/8 → 8/8** m4 — so **m3 ≡ m4**, the design invariant holds and this was never a medium-specific defect. Control unchanged 12/12 everywhere.
+
+⭐ **THE SKEW WAS LATENT AT DEFAULT ALL ALONG, AND THE BLAST RADIUS PROVES IT.** `extra > 0` does not need `SPAN_FRAME` — ARBNO-frame, CAPTURE-SAVE and FENCE1 candidates all widen the carve at the shipped default. Default-arm `.s` blast radius (pristine, RT_OPT `-O0`): **7 movers / 502 comparable** — `omega_driver`, `Qize`, `Qize_driver`, `XDump_driver`, `beauty`, `beauty_c`, `unary_not` — i.e. **exactly the Gen/Qize/XDump class the R-3(a) comment itself names**, which is the strongest possible confirmation that the term belongs there. **All 7 are behaviourally IDENTICAL in both arms**; the 3 carrying oracle refs PASS both ways; `beauty` is unchanged (rc=139, same output md5, still the known M1 wall — this rung neither helps nor hurts M1). So the latent skew was real but not behaviourally reachable at default: `SPAN_FRAME` did not create the defect, it made `extra > 0` common enough to reach it.
+
+**RECEIPTS (pristine at SCRIP `0b75fa5e`, RT_OPT `-O0`):** corpus **m3 332/5 · m4 325/11 SKIP 1** = the s183 watermark exactly, fail-set identical **by name** · gates green (`emit_no_lang`, `template_medium_invisible` ceiling 0, `icn_no_stack`, `icn_semicolon_required`) · RULES step-4 regens all `changed=0`.
