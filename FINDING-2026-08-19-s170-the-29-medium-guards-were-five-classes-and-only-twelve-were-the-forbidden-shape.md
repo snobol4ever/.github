@@ -14,7 +14,7 @@ the 29 were never one thing. Measured, per site:
 | **dead by construction** | 4 | `bb_key_gen`'s `MEDIUM_MACRO_DEF` arm; `bb_call_bool`'s two arms sitting 9 lines **below an unconditional return** |
 | **tautology** | 2 | `bb_call_proc_staged`'s `if (MEDIUM_BINARY \|\| MEDIUM_TEXT)` |
 | **redundant wrapper** | 2 | `bb_gather`/`bb_mapgrep` wrapping `x86("directive",…)` in `IF(MEDIUM_TEXT,…)` |
-| **THE FORBIDDEN SHAPE** | 12 | `bb_glue_flat` 8 + `bb_call_write_slot` 4 — one instruction written twice |
+| **THE FORBIDDEN SHAPE** | 12 (+2) | `bb_glue_flat` 8 + `bb_call_write_slot` 4 — one instruction written twice; **plus 2 the census never saw**, see §7c |
 | **not an output gate at all** | 5 | `bb_define` C-side live-image state (3) + its emission twin (1) + diagnostics (1 file, 3 sites) |
 
 **Only 12 of 29 were the violation the FACT RULE names.** A single number had been standing in for
@@ -161,6 +161,38 @@ mechanism that makes crashes stable-looking is what disguises it.
 **The cheap defence, and it is the one this rung used:** before believing a single mover, re-run the
 sweep **on the control arm**. A difference that reproduces against an unmodified binary is the
 instrument talking, not the change.
+
+## 7c. ⛔ AND THE CENSUS ITSELF WAS SHORT BY TWO — THE RATCHET WAS COUNTING SPELLINGS
+
+The row's DONE-WHEN is `grep MEDIUM_ on the REAL path == 0`, so at the end I ran **the literal command**
+rather than trusting the gate I had written. They disagreed — and not in the way s169's disagreement had
+predicted.
+
+`bb_call_proc_staged:400` and `:667` gate on the medium as a **conditional expression** —
+`(MEDIUM_BINARY && cell ? A : B)` — and the ratchet's `if (MEDIUM_` / `IF(MEDIUM_` regex walked past
+both. **The true count was 31, not 29.** Two real violations had ridden through every census since
+seat3's, invisible for the dullest possible reason: nobody had written a guard in that shape when the
+regex was authored.
+
+They retire like the rest, and the conjunct there is worth contrasting with `bb_define:380`'s. That one
+collapsed for free because `fn_cell_ptr` is non-null in BINARY only. This one **could not**:
+`bb_ab_fn_cell_ptr()` returns a valid pointer in *both* media, so `MEDIUM_BINARY && cell` was not
+redundant — the medium was the whole discriminator. Only the way the **cell's address is named** differs
+(BINARY movabs's the live `&g_ab_fn_cells[slot]`, TEXT reaches the same slot through the GOT by label);
+the deref-and-jump tail was identical and spelled twice. `x86("jmp_fn_cell", label, cell)` takes both
+coordinates, exactly as §6's `x86("jmp_fn")` does.
+
+**The gate no longer enumerates spellings.** It counts every `MEDIUM_*` token that survives
+comment-stripping — syntax-independent, and what the rule literally says ("Zero `MEDIUM_*` in any
+`bb_*.cpp`"). The guard-site number is kept beside it as a breakdown, never as the gate.
+
+**Negative-tested**, per s169's own lesson that a gate nobody has watched fail is a gate nobody should
+believe: injecting `(MEDIUM_BINARY && 1 ? x86("nop") : x86("nop"))` into `bb_gather` makes the new gate
+FAIL (4 > 3, `rc=1`) while **the old regex reports zero guards in that file**.
+
+**A ratchet assembled from the violations already seen is permanently one syntax behind the code.** That
+is the same defect as s169's dead paths wearing different clothes: there, the gate read the wrong tree;
+here, it read the right tree through too narrow a slit. Both printed a confident number.
 
 ## 8. THE LESSON
 
