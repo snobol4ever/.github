@@ -160,3 +160,39 @@ With no resume surface the β-dispatch emitted `PAT$N_β: jmp PAT$N_ω`, so **AR
 
 ⛔ **BEAUTY IS STILL `Parse Error`** on every input class. This cured a real, named, oracle-differential class and did **not** finish M1. The loop continues: re-run `util_autobug.sh` for the next divergence.
 ⛔ **AND A CORRECTION TO ADDENDUM 1, KEPT VISIBLE:** it named `depth < 0` as "structurally impossible" and proposed making it FATAL. **That was wrong.** `runtime_init.c:112` documents the ZSM origin datum as ONE cell, so a nested activation's ORIGIN overwrites its caller's and the caller's later ports read against the callee's datum — Lon's own s136 ruling: *"I know RSP changes into a function but just ignore all that"*, noise "bounded to post-call ports and READ AS NOISE". The negative depth is an instrument artefact, not the wound. The load-bearing half of that trace was always the second symptom: **the retry that fires but never extends.**
+
+---
+
+# ADDENDUM 3 — ⭐⭐⭐ THE M1 WALL, ROOT-CAUSED AND REDUCED TO FIVE LINES
+
+## THE STATEMENT
+**A runtime-COMPOSED pattern has no β path from its right element back into its left element.** When the right element fails, control returns to `MATCH_BEGIN`'s restart loop instead of re-entering the left element's β to extend it. ARCH-PASSTHRU law 0a/2 verbatim — the crossing back into a suspended graph — for the JIT road.
+
+## THE WITNESS (`corpus/probe/passthru/`, all oracle-refed)
+| witness | form | verdict |
+|---|---|---|
+| **`ptw_min_fncat_arbno`** | `P = mk() ''` — stored, element is a **function-call result** | **RED** (oracle `match`, scrip `nomatch`) |
+| **`ptw_min_fncat_two`** | `P = mk() mk2()` | **RED** |
+| `ptw_min_fncat_inline` | `mk() ''` written INLINE | PASS |
+| `ptw_min_varcat` | `P = A ''` — stored, from a VARIABLE | PASS |
+Not concatenation, not ARBNO, not storage — **composing a stored pattern out of FUNCTION-CALL RESULTS**. That is beauty's `Parse = nPush() ARBNO(*Command) ("'Parse'" & 'nTop()') nPop()` verbatim: four function calls concatenated at runtime.
+
+## THE PROOF, PORT BY PORT (`SCRIP_ZSM_CENSUS`, plain build, no monitor)
+| witness | ARBNO ports |
+|---|---|
+| `ptw_min_fncat_arbno` (RED) | **2 — α and γ only, NEVER β** |
+| `ptw_min_varcat` (PASS) | **6 — includes the β retries** |
+And the failing retreat, read off the census: `β MATCH_BEGIN → γ MATCH_BEGIN → α MATCH_POS → β MATCH_BEGIN → … → ω MATCH_BEGIN`. The retreat **never reaches the ARBNO**; it unwinds to `MATCH_BEGIN`, which restarts at the next start cursor, `POS(0)` fails, and after cursors 0/1/2 the match concedes. **That is the `nomatch`.**
+
+## MECHANISM
+`pat_cat` (`pattern_match.c:211`) builds a `TT_SEQ` rcp node; `dtp_fn_of` (`:91`) lazily JIT-compiles it via `bb_compile_pat_tree_sz`. **The JIT road IS instrumented** (the ARBNO's α/γ prove it), and **the blob is NOT the problem** — the failing witness emits `PAT$0_β: jmp n0_match_arbno_β`, i.e. its resume surface is correctly wired. The missing wire is *between the composed elements*, in the JIT'd TT_SEQ.
+
+## ⛔ TWO HYPOTHESES FALSIFIED BY TEST THIS SESSION — RECORDED SO NOBODY RE-DERIVES THEM
+1. **"The five refusing blobs are the wall."** They are not. `SCRIP_FENCE_IGNORE=1` (diagnostic, added this session) zeroes the fence verdict outright and beauty is **bit-for-bit unchanged**: identical 22,397 events / 0 ARBNO / 0 FENCE1 / 25 DEFER in both arms, `Parse Error` on every input.
+2. **"beauty's ARBNO boxes are refused."** They are never *reached*. Beauty's `Parse` never becomes a blob at all — a concat of function-call results is built at RUNTIME as a pattern value; the compiled ARBNO boxes belong to other patterns.
+
+## WHY `ptw_min_fncat_arbno` SUPERSEDES `ptw_min_compose`
+`ptw_min_compose` needed the whole-program EVAL/indirect poison to push a VARIABLE-held concat onto the runtime road. Function-call results land there **unconditionally**, so no poison is needed and the witness is 5 lines with no exotic ingredients. Both are the same class; this is the sharp end of it.
+
+## NEXT RUNG (stated dispatch-ready)
+Give the JIT'd `TT_SEQ` a real β: element *i*'s failure must drive element *i−1*'s β before the sequence as a whole concedes to its caller. The ZSM census is the gate — **`ptw_min_fncat_arbno` must show ARBNO β ports, not just α/γ** — with `ptw_min_varcat` and `ptw_min_fncat_inline` unchanged as controls, the 7-mover fence class still green, and the corpus fail-set identical.
