@@ -126,3 +126,32 @@ Sequence, for the record: this rung landed layer 1 at SCRIP `dbb6b98d` **default
 - **`probe/b1/b1_apply_snodef_target.sno`** (minted by another seat during this rung) — same verdict: m3 PASS, **m4 SEGV(139) both arms**, untouched by R1.
 - **beauty tiny-input** — `printf 'START\n' | beauty-m4` still prints `Parse Error` + raw echo (oracle: `START`), unchanged, as expected: layer 1 removes the *crash*, and beauty's m4 wall is the F-path of the still-unlanded crossing (wall 2).
 - **Witness-set note:** `probe/b1/` held exactly the **five** witnesses HQ enumerated when this rung was locked; other seats have since grown it to **nine** (`e_plain`/`m_plain` checked in as real witnesses, plus the two `apply` witnesses). All nine are graded in the tables above.
+
+---
+
+## ⛔ ADDENDUM 2 (HQ answer RE `b1c-m4-seam`, same session) — ROUTING OF THE RESIDUE, and the COLD-START for queue row 5 `m4-fragment-landing`
+
+HQ's ruling on this rung, on the record: **(1)** the uniform-polarity flip `3a4ca273` is **AFFIRMED** (HQ-59 cursor) — `c6245f60` had left *unset* meaning **m3-armed / m4-half-armed**, i.e. the R1 root cause shipping at the default; the flip meets that commit's own bar (zero count movement, four witnesses SEGV→Error 22). **Do not revert it.** **(2)** Both not-cured walls are routed to their own rows (below). **(3)** The rung completes as **investigation + layer-1**; layer 2 is a different rung and a different seat.
+
+### Residue list — every unclosed thing this rung produced, with its owning row
+
+| # | residue | verdict at this HEAD | owning queue row |
+|---|---|---|---|
+| R1b | **the fragment→main-image TINY landing protocol** (wall 2, §5 + §5b) | four witnesses reach a clean **Error 22**; sealing the cell makes it **SEGV** | **NEW row 5 `m4-fragment-landing`** — cut from this FINDING's §7(a)/(b) framing; cold-start below |
+| — | `beauty_suite/semantic_driver.sno` **test 4** | m3 **PASS 8/8**; m4 prints `PASS: 1/2/3` then **SEGV(139)**, byte-identical armed and disarmed | same row 5 (it is the acceptance witness that is *not* in `probe/b1/`) |
+| — | `probe/b1/b1_apply_snodef_target.sno` | m3 PASS, **m4 SEGV(139) both arms**, untouched by R1 | **row 25 `apply-snodef-m4`** — the s156 class, now with seat4's 3-line repro (BM-2). ⛔ **Not** row 5: APPLY/by-name dispatch to a SNOBOL-defined target is a *dispatch* wall, not the fragment seam |
+| — | **`DIVERGE=1` at the shipping default** — `141_pat_eval_double_fn_arbno`, m3 PASS / m4 FAIL | a standing breach of the **m3 ≡ m4** design invariant, caused by wall 2, **carried as a NAMED breach**, not silently absorbed | **row 13 `pat-eval-double-fn-arbno`**. ⛔ **seat1 independently hit the same program from the other side**: it is also an **INTERMITTENT, load-dependent m3 `rc=139`**, the false-mover that burned seat1's `util_out_sweep` (it survives both of that script's existing cures, and manufactures a false mover in *either* direction). Two faces, one program — **row 13 must root-cause both, or prove them one class** |
+| — | R2, the three `*_retreat` wrong answers | out of scope here | closed by seat7 at `97ad2912` (`SCRIP_CAP_NAME_STRICT`, DEFAULT OFF) — and seat7's minimal witness has **no EVAL and no fragment** yet still SEGVs in m4, so the fragment hypothesis is not the whole story for row 5 |
+
+### COLD-START for row 5 `m4-fragment-landing` — first step, verified at HEAD `3a4ca273`
+
+ASM-DIFF-FIRST per RULES.md. The set-up this rung banked is the **repro arm**, not a fix; rebuild it, then diff.
+
+1. **Witness.** `corpus/probe/b1/b1c_e_plain.sno` (`P = EVAL("'x' *PC()")`, the s164 minimal isolator). Full set: the nine `probe/b1/` witnesses + `corpus/programs/snobol4/beauty_suite/semantic_driver.sno` (test 4).
+2. **Rebuild the falsified seal arm — it reproduces the SEGV on demand** (~15 lines; §5b). Runtime helper `rt_b1c_seal_alpha(name, addr)` filling `bb_ab_fn_cell_ptr("alpha$" + name)`; emit it into the SNOBOL4 mode-4 preamble in `src/driver/scrip.c` beside its `gva_register@PLT` line (**:1487**, the SNOBOL4 arm; **:1305** is the Icon twin — do not touch it), using the `prolog_op_user` rodata/text-switch idiom. ⛔ **The loop MUST exclude `$`-bearing proc names** — `EXPR$<n>`/`PAT$<n>` are the *runtime-built* fragment thunks and have no statically assembled α; referencing the label is a hard link error (measured: ``undefined reference to `EXPR$0_α'``).
+3. **The diff.** Compare the **m4 statically assembled `<FN>_α` entry** (`./scrip --compile -o e.s corpus/probe/b1/b1c_e_plain.sno < /dev/null`, then read `PC_α` — it was `e_plain.on.s:62`) against the **m3 in-memory `<FN>_α`** the same call reaches *when it works* (`./scrip --dump-bb`, and the live bytes at the `alpha$PC` cell target). The question is narrow: **which entry-regime assumption does the RX-slab caller violate?** The sig-record pointer rides **`rcx`** from the slab into a callee assembled under the main image's regime. An instruction byte-identical across both is exonerated (RULES.md).
+4. **Only then gdb** — the caller is `bb_call_proc_staged.cpp` **:341 / :621** (`x86("jmp","[rip@cell + __]", bb_ab_fn_cell_ptr("alpha$"+name))`); the m3 authority that fills the cell is `bb_define.cpp:82 bb_ab_seal_entry_cells`, called only from `scrip.c:1682/1721/1814` (m3 path) and `runtime_eval.c:249` (fragment path) — **never for main-image procs in m4**, which is the whole asymmetry. Use `CSN_NO_SEGV_HANDLER=1`; hardware watchpoints do not work in this container.
+
+**Two acceptable outcomes, both close the seam** (unchanged from §7): **(a)** fix the landing so a fragment TINY site may call a statically assembled proc; or **(b)** admit TINY only for **same-medium callees** — decline by *callee medium* rather than by the blanket `g_rt_fragment_emit` D-18b flag — and fix the slim/legacy pushed-landing path it then falls to. **(b) is likely the smaller correct rung: it restores m3 ≡ m4 by making both media use a path that works, instead of extending one that does not** — and it is the move that retires the `DIVERGE=1` breach in row 13's first face.
+
+**Already eliminated by test — do not re-derive** (five hypotheses now dead on this wall): `jmp_entry`-alone (s164) · `g_flat_frame_floor`-alone (s164b) · `g_stage2` (§2, this rung) · "the emitter's GVA registry" (**cured**, §4 — layer 1, landed) · **"just seal the `alpha$<FN>` cell"** (§5b — built, measured, WORSE).
