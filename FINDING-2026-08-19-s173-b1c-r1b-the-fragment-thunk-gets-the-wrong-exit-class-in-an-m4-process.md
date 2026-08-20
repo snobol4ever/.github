@@ -142,7 +142,8 @@ Landing (a) exposed a second, previously unnamed defect. On `crosscheck/patterns
 
 **Blast radius 0, proven twice, not asserted:**
 - `.s` md5 default-vs-armed over the **full crosscheck tree: 318/318 comparable, ZERO movers** (0 no-emit).
-- The changed function `eval_thunks_emit_from` takes **0 hits under `--compile`** (gdb) — unreachable on the compile path. ⇒ **RULES step-4 `.s` regens are a structural no-op for this rung**, the same argument and the same two receipts s170 used for its `gva_register` layer 1.
+- The changed function `eval_thunks_emit_from` takes **0 hits under `--compile`** (gdb) — unreachable on the compile path.
+- ⭐ **AND THE RULES STEP-4 REGENS WERE RUN, NOT MERELY ARGUED** — all five, in the prescribed order: `benchmark` **no changes** · `feature` **0 changed** · `demo` **no changes** · `programs` **emitted=623 changed=0 unchanged=623** · `prolog_bench` **emitted=22 changed=0**. Both trees clean afterwards, nothing to commit. (The `EMIT-FAIL`/`REJECTED-BY-AS` rows the scripts print are pre-existing rebus/prolog/icon shapes, left untouched by design and untouchable by a SNOBOL4 EVAL-path change.) s170 discharged the same step by structural argument; this rung discharges it by measurement.
 
 **Default arm inert, MEASURED (both reproduce the recorded watermark):** crosscheck `--run` 308 / `--compile` 306 / **DIVERGE 1**; corpus m3 326.
 
