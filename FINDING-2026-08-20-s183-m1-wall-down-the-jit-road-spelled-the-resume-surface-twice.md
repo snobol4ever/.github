@@ -95,3 +95,30 @@ HQ first wrote this crash up as **a fresh class**, reasoning from its own killsw
 - **DONE-WHEN:** a standalone witness reproduces `rc=139` at shipped default and is green under `SCRIP_RTSEQ_RESUME=0`; root cause named; fix only if killswitch-clean with corpus fail-set identical; FINDING.
 
 **Sibling rung, now unblocked and worth its own seat: `zsm-all-perturbation`** — root-cause why `SCRIP_ZSM_ALL=1` changes beauty's answer. DONE-WHEN: beauty's shipped-default answer is bit-identical with and without `SCRIP_ZSM_ALL=1`, or the perturbing mechanism is named and the instrument is fenced off in its own header.
+
+---
+
+## 9. ⭐⭐ ADDENDUM (same session, after the rung landed) — M1 STOPS BEING BINARY AND BECOMES DELEGABLE
+
+**Lon, s183 in-chat: *"Get beauty self hosting via delegation."*** The obstacle was not effort, it was **shape**: M1 was a **binary** fact — beauty either self-hosts or it does not — so there was exactly **one** rung, **one** seat could hold it, and every other seat queued behind it. No brief can parallelise a binary.
+
+**The fix is an instrument, not a brief.** `SCRIP/scripts/board_beauty_m1.sh` feeds beauty **increasing prefixes of its own source** and grades each rung against the **live oracle on the same input**; the full-file rung is additionally checked for the **fixed point** (output byte-identical to the *input*), which is the actual milestone. `--bisect` walks between the last green and the first red to name the exact failing line. If the oracle binary is absent the board **refuses to run** rather than print a plausible false all-FAIL table.
+
+**First reading (m3, SCRIP `3da13598`): 3/10 rungs green · first red at 10 lines · bisect → FIRST FAILING LINE = 8, the bare label `START`** (lines 1–7 are comments and pass).
+
+### The wall then reduced BY HAND into TWO INDEPENDENT CLASSES — 1-to-9-byte witnesses
+
+All checked into `corpus/programs/snobol4/demo/beauty/m1_lad_*.in` with live-oracle `.ref`s.
+
+| class | witnesses | SCRIP | oracle |
+|---|---|---|---|
+| **A — SEGV after a SUCCESSFUL parse** | `empty` (`\n`, **1 byte**) · `barelabel` (`X\n`, 2) · `end` (`END\n`, 4) · `comment` (`* hi\nEND\n`, 9) | `rc=139` | **the IDENTITY** |
+| **B — wrong answer, rc=0** | `stmt` (` A = 1\nEND\n`) · `labelstmt` · `two` · `match` | `Parse Error` | beautified text |
+
+⭐ **The sharpest fact in this addendum:** `m1_lad_comment` **prints `* hi` correctly and *then* dies.** The crash is therefore in the **completion/output path after a successful parse** — it is not a parsing bug at all. That single observation is what splits A from B.
+
+### Why they are three lanes and not one serial rung
+Class B fails **during** statement parse and bails; class A fails **after** a successful parse. **Different code paths.** They are sequential in a *run* but independent in the *code* — and curing B will **expose** A on every program, which is precisely the argument for not serialising them. Dispatched as `m1-composed-wild-jump` (A, seat4), `m1-class-b-stmt-parse-error` (B), and `m1-m4-lane` — the last because **M1 requires both modes** (DOD item 2) and the m4 lane **has never been run**.
+
+### ⛔ A trap that cost HQ a cut, recorded so no seat repeats it
+**An input without an `END` is not a program.** beauty parses a *whole* program; hand it a fragment and **the oracle itself answers with empty output**, so any verdict built on that input is meaningless. HQ's first cut of the class-B inputs had exactly this defect and was caught before dispatch — but only because the empty `.ref` looked wrong. Every ladder input ends with `END`.
