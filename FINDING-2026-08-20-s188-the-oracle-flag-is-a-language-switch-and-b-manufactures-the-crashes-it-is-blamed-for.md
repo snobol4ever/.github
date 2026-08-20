@@ -95,7 +95,37 @@ Under `-f`, **only the all-uppercase spelling is honored.** This contradicts the
 5. Correct CLAUDE.md/RULES.md/`board_beauty_m1.sh:18`/`cmp3_snobol4.sh:31`: `-bf` is not a SIGSEGV workaround; `-f` is the case-sensitivity switch and the SIGSEGVs are downstream of folding-induced errors.
 6. `datatype-case` (queue rank 34) **cannot be adjudicated before this ruling**: 4-line witness `DATA('jobj(a,b)')` → `DATATYPE` answers `JOBJ` under `-b`, `jobj` under `-bf`, and SCRIP answers `JOBJ`. SCRIP's uppercase answer is a bug **iff** the reference is `-bf`. This row is that row's prerequisite. (Same mechanism produces the one `demos` mover, `json.sno`'s `root=JOBJ` vs `root=jobj`.)
 
-## 10. REPRODUCTION
+## 11. ⭐⭐⭐ LON'S RULING, EXECUTED — "WE FIX ALL THE PROGRAMS BY UPPERCASING THE KEYWORDS"
+
+**Ruling (Lon, in-chat, s188):** *"We fix all the programs by uppercasing the keywords."* — i.e. §8's lowercase dialect is NOT to be marked out-of-dialect and dropped; the programs are to be REPAIRED so they mean under `-bf` what they meant under `-b`. Executed this session.
+
+**⛔ THE TRAP THAT BLANKET UPPERCASING WALKS INTO, AND IT IS NOT HYPOTHETICAL — THE CORPUS HOLDS BOTH DIALECTS.** A naive pass over all 2088 lon-excluded `.sno`/`.inc` files changes **197** of them, and among them it corrupts the very programs that already work: **`beauty.sno` uses `Integer` and `tab` as USER GRAMMAR NONTERMINALS**, and uppercasing them collides them with the built-in `INTEGER()` predicate and `TAB()` pattern — beauty runs clean under `-bf` (§3) *precisely because* `Integer` != `INTEGER`. Likewise `crosscheck/rung2/210_indirect_ref.sno` deliberately names a variable `bal`, which must NOT become the protected built-in `BAL`. **A corpus-wide sed would have broken the Milestone-1 program itself.**
+
+**THE DIALECT GUARD — the pinned `.ref` is the arbiter of which dialect a program is written in**, because it records the intended answer:
+- pin exists and `-bf` output == pin ⇒ **CASE-SENSITIVE dialect, never touched.**
+- program runs clean under `-bf` ⇒ not broken, not touched.
+- otherwise ⇒ folding dialect: uppercase keywords in the program **and its transitive `-INCLUDE` closure**, then ACCEPT only if `-bf` afterwards reproduces the pin (or, where the pin is independently broken, the pre-edit `-b` output). Anything else is **reverted automatically.**
+
+**WHAT THE UPPERCASER TOUCHES:** built-in function names (ch.19 summary ∪ Function-Descriptions headwords), the special system names (l.8027: `ABORT CONTINUE END FRETURN INPUT NRETURN OUTPUT RETURN SCONTINUE TERMINAL`) and primitive pattern variables (`ARB BAL FAIL REM SUCCEED`), every `&keyword`, and the control word of a control statement. **NEVER touched:** string-literal contents, `*`-comment lines, `;*` comment tails, and every user-defined name.
+
+**RESULT — 34 programs repaired across 35 files, each individually verified:**
+- **15** verified byte-identical to their pinned `.ref`.
+- **18** verified byte-identical to their pre-edit `-b` output, with a pin that **matches neither arm** — pre-existing pin breakage, left untouched and reported rather than papered over.
+- **1** (`programs/gimpel/INFINIP.sno`, unpinned) verified against its `-b` baseline.
+- **4 LEFT ALONE by the dialect guard** — `127_pat_json_keyvalue`, `210_indirect_ref`, `space2`, `noexec` — exactly the case-sensitive-dialect programs §4 identified by hand. The guard reproduced a human judgement mechanically.
+- **39 NOT FIXED, named with reasons:** 13 still differ after uppercasing, 11 still `rc!=0`, 8 are already all-caps so the uppercaser changes nothing (their difference is `&CASE`, or a name minted from a STRING LITERAL by `DATA`/`DEFINE`, which folding uppercases and `-f` does not — the §9.6 `datatype-case` mechanism), 7 are ambiguous (no pin, both arms clean and disagreeing). **All reverted; none left half-edited.**
+
+**⭐⭐ THE PAYOFF, MEASURED BY STASH A/B ON THE 33 PINNED EDITED PROGRAMS — SCRIP GOES 0/33 → 12/33, IN BOTH MODES.** Before the edit every one of them failed (`alph.sno`: `** Error 5 Undefined function or operation`, because lowercase `size` is not `SIZE`); after it, 12 match their pins exactly. **m3 and m4 agree to the program — 12/12 both — so the 1:1 law is preserved.** These were the rows §8 called unwinnable-by-construction; they are now ordinary passes, and the remaining 21 are honest reds against real references rather than rows SCRIP was forbidden to win.
+
+**⛔ TWO METHOD NOTES, RECORDED BECAUSE BOTH COST ME A MEASUREMENT.** (1) An earlier acceptance gate targeted the pinned `.ref` unconditionally; it refused 52 of 77 because so many csnobol4 pins match neither arm, and a later one targeted the `-b` output unconditionally and **wrongly "fixed" `210_indirect_ref` — reproducing the `ERROR 042` its pin says is wrong.** Only the two-part guard above is correct: *which arm the pin agrees with* is the question, not *what the pin says*. (2) A `git stash` run to measure the "before" arm **while a sweep was still in flight** silently contaminated that sweep (1848 rows against an 1786-program tree). A tree must be frozen for the whole of a measurement, not merely at its start.
+
+**⭐ THE SWEEP DELTA, RE-MEASURED ON THE REPAIRED TREE — MOVERS 77 → 42 OVER THE INTERSECTION, 36 CURED, AND ZERO GENUINE NEW ONES.** Compared BY NAME over the 1786 programs present in both sweeps (the tree moved under me mid-session — corpus `66259281` → `42530cb0` via another seat's push — so counts alone are not comparable and the set comparison is what carries the claim). ⛔ **The raw diff shows ONE apparent new mover, `programs/snobol4/smoke/empty_string.sno`, and it is a FALSE ALARM I chased down rather than shipped:** git shows the file untouched by this session, and four runs per arm give four different md5s under `-b` and three under `-bf` — it is nondeterministic under BOTH arms (the §3 error-recovery-core class). It read FLAKY before and MOVER after purely because the two same-flag control runs happened to agree that time. `programs/snobol4/smoke/multi.sno` appears as "cured" for the same reason and was likewise never edited. ⭐ **THE LIMITATION THAT MATTERS FOR ANY SEAT REUSING THIS TOOL: the control arm is a PROBABILISTIC filter, not a proof.** A nondeterministic program can still slip through as a MOVER when its two control runs coincide, so a mover set is an UPPER bound on real flag-dependence, exactly as seat7's s184 board note says a single-run two-arm sweep is a LOWER bound on a nondeterministic defect. Neither direction is safe without re-running the individual witness.
+
+**GATE RECEIPT (corpus board, after the edits):** **m3 332/5 · m4 325/11 · SKIP 1 (337)** — the standing watermark to the digit, fail-set unchanged. A no-op by construction (the board enumerates `crosscheck` + `beauty_suite` + 4 demos and never reaches `programs/csnobol4-suite` or `programs/gimpel`), which is exactly what makes it the right proof that 35 corpus edits regressed nothing. SCRIP tree untouched: `git status` clean, so no `.s` regen debt.
+
+**HYGIENE, NOTED NOT FIXED:** `programs/csnobol4-suite/popen.sno` / `popen2.sno` associate a file with a shell pipe (`OUTPUT(.o, 99,, "|cat >popen2.dat")`) and leave stray artifacts (`test.bin`, a file literally named `|cat >popen2.dat`) in the corpus when run. Removed by hand this session; the suite wants a scratch-dir convention.
+
+## 12. REPRODUCTION
 ```bash
 bash scripts/util_oracle_flag_sweep.sh sweep      /tmp/ofs 12   # 3-arm sweep -> arms.tsv
 bash scripts/util_oracle_flag_sweep.sh transition /tmp/ofs      # movers -> scorecard verdict delta
