@@ -107,6 +107,8 @@ Every red in the axis sweep fell to the one line, and **m3 ≡ m4 on all 18** be
 
 **Corollary on controls:** a control whose expected output is a *failure* proves only agreement in refusing. Where a mechanism's job is to produce a value, at least one control must show the value being produced.
 
+**⭐ RE-PROVED AFTER THE REBASE, NOT ASSUMED:** the push brought in two pattern-machinery commits beneath this one — seat4's `cecb7d11` ARBNO-ALTSIB and seat3's `213771e2` ONE AUTHORITY (the duplicate `DT_X` chain drain, s187's own file) — so every number was re-measured after a second `make pristine` at merged SCRIP **`9d811427`**: board **m3 332/5 · m4 325/11 · SKIP 1** fail-set identical **by name**, smoke **7/7 both modes**, medium-invisible **0**, emit_no_lang **LANG-BLIND OK**, and all 8 checked-in probe pairs verdict-identical (the `atp` pair red as checked in, its inline control green), `m3 ≡ m4` on every one.
+
 ## FILES
 
 - **SCRIP** — `src/contracts/zeta_depth.c` (one case label; the stale s180 comment corrected in place rather than left contradicting the code).
