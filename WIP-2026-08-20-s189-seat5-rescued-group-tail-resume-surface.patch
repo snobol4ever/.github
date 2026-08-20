@@ -1,0 +1,74 @@
+# WIP PATCH — RESCUED, NOT LANDED, NOT VERIFIED. Apply with `git apply` from the SCRIP root.
+#
+# PROVENANCE: found UNCOMMITTED in seat5's SCRIP working tree at s189 start (file mtime 22:57 UTC
+# 2026-08-20, SCRIP HEAD fccc81cc).  It is the residue of the seat5 session that held queue row
+# `arbno-nullalt-false-accept` (claim locked 22:29 UTC) before HQ RE-SCOPED and RENAMED that row to
+# `arbno-tail-false-accept` (rank 0, now seat8's).  That rename orphaned the claim, the session ended,
+# and this diff was never committed.  It exists NOWHERE in git: `git log -S` finds neither
+# `sno_group_tail` nor `SCRIP_SEQ_GROUP_TAIL` on any local branch or on origin/main at d3251f23.
+#
+# ⛔ WHAT THIS SEAT DID AND DID NOT DO.  Rescued verbatim and pushed so it cannot be lost a second
+# time; then `git checkout` restored the working file so this seat's own row (`scorecard-drop-lon`)
+# could commit and pass handoff_status.sh tree-clean.  ⛔ IT WAS NEVER BUILT, NEVER RUN, NEVER
+# BOARDED BY THIS SEAT — no watermark, no killswitch byte-identity sweep, no blast radius.  Treat
+# every claim in its embedded comment as the previous seat's UNVERIFIED assertion, not as measurement.
+#
+# WHY IT MATTERS TO `arbno-tail-false-accept` (seat8's rank-0 row): the patch's own comment describes
+# that row's witness exactly — "an ALT leaks its 32B choice record per retreat, displacing the ARBNO
+# cell reads that follow ... ARBNO read [rsp+4]=0 while its true yield sat at [rsp+36]=1, so ARBNO
+# extended across a '+' the ALT had consumed and RPOS(0) then accepted a subject the oracle refuses".
+# The row's witness is `E = ARBNO('a') LEN(1)` over subject 'aa+aa' with `POS(0) *E RPOS(0)`.
+#
+# THE CLAIM, in one line: a run's β surface is its SPINE TAIL, not its first-allocated node.  Both
+# customers that keep a run's resume surface (`sno_seq_nary`'s statement/group spine and the N-ary
+# ALT's per-arm surface) took first-allocated; head==tail for every SINGLE-node element, so the two
+# agree across the ordinary corpus and diverge exactly when one element lowers to a RUN of boxes —
+# a parenthesised group, an inlined defer/constant, or a multi-node ALT arm.  New authority
+# `sno_group_tail` returns the run's unique forward exit; `SCRIP_SEQ_GROUP_TAIL=0` claims to restore
+# both sites byte-identically (ONE switch, both halves — the s121 coupled-halves law).
+#
+# ⛔ REVIEW POINTS THE NEXT SEAT SHOULD NOT TAKE ON TRUST.  (1) `sno_group_tail` scans `g->all[]`
+# BACKWARD from `from` and returns the first node whose γ aims at the sentinel while excluding the
+# `IR_GOTO`-with-both-ports-on-S wiring pair — verify that exclusion matches EACH call site's own
+# tagging loop, since the two sites pass different sentinels (S vs A) and different `from` bases
+# (`_rb` after the GOTO-skip loop vs a raw `before`).  (2) It adds a function-local `static int _gt`
+# getenv cache — file-scope mutable state; the ⛔ NO NEW GLOBALS FACT RULE wants Lon's in-chat banner
+# grant unless a function-local static is ruled to be outside it.  The file's own `sno_defer_resume`
+# at :1245 uses the identical shape, so there is precedent to cite — but cite it, do not assume it.
+# (3) Manual authority for what ARBNO must do when it EXHAUSTS with a following element unsatisfied
+# is still owed by the row's own brief ("THE MANUAL IS THE AUTHORITY before any codegen") and this
+# patch does not supply it.  (4) ⛔ A FALSE ACCEPT MUST NEVER BE 'FIXED' BY MAKING THE PATTERN FAIL
+# EVERYWHERE — the row names four green controls plus the legitimately-matching subjects as the
+# regression set.
+#
+diff --git a/src/lower/lower_snobol4.c b/src/lower/lower_snobol4.c
+index 44a092d2..54616c9e 100644
+--- a/src/lower/lower_snobol4.c
++++ b/src/lower/lower_snobol4.c
+@@ -1245,6 +1245,8 @@ static int sno_defer_resume(void) { static int v = -1; if (v < 0) { const char *
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static int sno_pat_contains_fence(const tree_t * t, int depth) { if (!t || depth > 64) return 0; if (sno_is_fence(t)) return 1; for (int i = 0; i < t->n; i++) if (sno_pat_contains_fence(t->c[i], depth + 1)) return 1; return 0; }   /* ⭐ SN4-DEFER-RESUME FENCE REFUSE (s121, board-convicted same session): the first cut published a resume carrier for EVERY unsealed blob and broke exactly the fence-bearing stored-pattern class, 7 movers one shape (114/119/129/130/148/149/150 — a fence NESTED in an ALT/ARBNO body slips both the top-level flatten check and sno_pat_right_sealed's rightmost-only chase, and the resume re-entry crosses a fence that backup must not re-run: FENCE0 aborts, FENCE1 passes through once, manual pp.203/222).  A blob whose TREE contains any fence anywhere therefore publishes NO carrier and keeps =0 behaviour verbatim; per-blob locality is compositional — a referenced inner pattern's blob applies its own guard, so VAR members are deliberately not chased (also the A=B;B=A cycle guard for free).  Witness set: the 7 named programs restored + arbnostore/earn0/180/181/183 kept. */
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static IR_t * sno_group_tail(IR_graph_t * g, int from, IR_t * S, IR_t * dflt) { static int _gt = -1; if (_gt < 0) { const char * e = getenv("SCRIP_SEQ_GROUP_TAIL"); _gt = (e && *e == '0') ? 0 : 1; } if (!_gt) return dflt; for (int k = g->n - 1; k >= from; k--) { IR_t * x = g->all[k]; if (x && x != S && x->γ.node == S && !(x->op == IR_GOTO && x->ω.node == S)) return x; } return dflt; }   /* ⭐⭐⭐ GROUP-TAIL RESUME -- THE ONE AUTHORITY for "which box does a righter neighbour retreat INTO", read by both customers that keep a run's resume surface (the statement/group spine in sno_seq_nary and the per-arm surface in the N-ary ALT).  A run's beta surface is its SPINE TAIL, not its first-allocated node: the two agree for every SINGLE-node element (head == tail), so this is inert across the ordinary corpus, and they DIVERGE exactly when one element lowers to a RUN of boxes -- a parenthesised group, an inlined defer/constant, or a multi-node ALT arm.  Both call sites previously took first-allocated, which the SEQ-ERAD note in sno_seq_nary already flags as a stand-in for the DELETED IR_MATCH_SEQUENCE construct (that construct WAS the whole element's resume surface; first-allocated only reproduces it when the element is one box) and which the ALT's own SN4-NARY-ALT note already describes as "the alternative's OWN inner resume" -- the intent was written down at both sites and neither implementation met it.  CONSEQUENCE, measured: the next element's omega aimed at the run's HEAD and jumped PAST every box between, skipping both their retreat and their carve release (an ALT leaks its 32B choice record per retreat, displacing the ARBNO cell reads that follow -- gdb: ARBNO read [rsp+4]=0 while its true yield sat at [rsp+36]=1, so ARBNO extended across a "+" the ALT had consumed and RPOS(0) then accepted a subject the oracle refuses); on the ALT arm the picked node is worse still, the dead nested sentinel (GOTO, both ports on A), so retreating into a two-box arm CONCEDED instead of resuming the arm's own generator.  The tail is the unique forward exit -- the node still aimed at the sentinel, with the wiring pair excluded exactly as each site's own tagging loop excludes it.  SCRIP_SEQ_GROUP_TAIL=0 restores both sites byte-identically (ONE switch, both halves, the s121 coupled-halves law). */
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static IR_t * sno_seq_nary(scx_t * cx, const tree_t ** elems, int ne, IR_t * succ, IR_t * fail, IR_t ** out_rtail) {   /* ⭐ FENCE-PASS-THROUGH: out_rtail (nullable) receives res[ne-1], the LAST element's resume carrier — the run's EXTERNAL right-side resume surface.  Under the deleted IR_MATCH_SEQUENCE the construct's own β dispatched this internally; SEQ-ERAD removed the construct and no plain caller needed the surface until the fence pass-through seam (a righter construct's exhaust must resume the run's rightmost generator, not element 0). */
+     /* SEQ-ERAD SE-5/SE-6 (2026-08-04): IR_MATCH_SEQUENCE is fully deleted.  Elements wire DIRECTLY:
+      * σ (rightward success) -> next element's α; φ (leftward fail) -> previous element's β (β-tagged).
+@@ -1270,7 +1272,7 @@ static IR_t * sno_seq_nary(scx_t * cx, const tree_t ** elems, int ne, IR_t * suc
+         while (_rb < g->n && g->all[_rb] && g->all[_rb]->op == IR_GOTO
+                && g->all[_rb]->γ.node == S && g->all[_rb]->ω.node == S
+                && g->all[_rb]->n_operands == 0) _rb++;
+-        IR_t * ri = (_rb < g->n) ? g->all[_rb] : ei;
++        IR_t * ri = sno_group_tail(g, _rb, S, (_rb < g->n) ? g->all[_rb] : ei);
+         for (int k = before; k < g->n; k++) {
+             IR_t * x = g->all[k];
+             if (!x) continue;
+@@ -1794,7 +1796,7 @@ static IR_t * sno_pat_node(scx_t * cx, const tree_t * t, IR_t * succ, IR_t * fai
+         for (int i = 0; i < na; i++) {
+             int before = g->n;
+             IR_t * ei = sno_pat_node(cx, alts[i], A, A);
+-            IR_t * ri = (before < g->n) ? g->all[before] : ei;
++            IR_t * ri = sno_group_tail(g, before, A, (before < g->n) ? g->all[before] : ei);
+             int fp_i = 0;
+             for (int k = before; k < g->n; k++) {
+                 IR_t * x = g->all[k];
