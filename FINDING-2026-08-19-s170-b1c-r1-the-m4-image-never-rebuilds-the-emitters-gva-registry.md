@@ -103,3 +103,26 @@ The natural move is "have the m4 preamble publish `&<FN>_α` into the cell". **I
 **Also owed, cheap, and independent:** the `SCRIP_B1C_PARITY=1` **DIVERGE 0 → 1** in §6b is a live m3/m4 invariant breach that the `b1c-flip` seat must weigh before flipping the default.
 
 **Acceptance witness for the rung** (HQ, s170 census): `printf 'START\n' | <beauty m4 binary>` beautifies oracle-identically. At this HEAD it prints `Parse Error` in both arms — unchanged by layer 1, as expected: layer 1 removes the *crash*, and beauty's m4 wall is the F-path of the same unlanded crossing.
+
+---
+
+## ⛔ ADDENDUM (same session, after the `b1c-flip` seat landed `c6245f60`) — the arm went DEFAULT ON under this rung, and §6b's warning is now shipping
+
+Sequence, for the record: this rung landed layer 1 at SCRIP `dbb6b98d` **default OFF**; the `b1c-flip` seat then landed `c6245f60` *"FLIP SCRIP_B1C_PARITY DEFAULT ON — 9 movers / 1024 programs, every one crash→better, ZERO regressions"*, flipping the **three s168 sites** — but not the **fourth site this rung had just added**. Unset therefore meant **"m3 armed, m4 half-armed"**: m3's fragment admitted TINY while m4's still answered `gva=0` and declined — i.e. the R1 root cause shipping at the default.
+
+**Resolved at SCRIP `3a4ca273`:** this rung's site flipped to match, so `SCRIP_B1C_PARITY` is ONE coherent switch again (`=0` disarms all four). Re-measured pristine at `c0efe346`+flip, armed vs disarmed:
+
+| | corpus m3 | corpus m4 | crosscheck m3 | crosscheck m4 | DIVERGE |
+|---|---|---|---|---|---|
+| disarmed (`=0`) | 326 | 322 | 308 | 306 | 1 |
+| **armed (new default)** | **326** | **322** | **308** | **306** | **1** |
+
+**Zero count movement.** Icon smoke 14/14 both modes; Prolog smoke 3/5 (its recorded watermark). The gain is qualitative and is exactly `c6245f60`'s own bar: the four m4 B1c witnesses go **SEGV(139) → a clean Error 22**.
+
+**⛔ §6b IS NOW LIVE, NOT HYPOTHETICAL:** SNOBOL4 crosscheck **DIVERGE=1** (`141_pat_eval_double_fn_arbno`, passes m3 / fails m4) is now the SHIPPING default — a standing breach of the **m3 ≡ m4** invariant. It is caused by R1's unfixed wall 2, not by either flip. **It closes when B1c-R1b lands, and until then it should be carried as a named DIVERGE ratchet rather than silently absorbed.**
+
+## Answers owed to HQ on the two witnesses it routed
+- **`beauty_suite/semantic_driver.sno` — NOT cured by R1, in either arm.** Measured: m3 **PASS 8/8**; m4 prints `PASS: 1/2/3` then **SEGV(139)** at test 4, byte-identical armed and disarmed. By HQ's own stated criterion this is a **distinct wall** and wants its own row.
+- **`probe/b1/b1_apply_snodef_target.sno`** (minted by another seat during this rung) — same verdict: m3 PASS, **m4 SEGV(139) both arms**, untouched by R1.
+- **beauty tiny-input** — `printf 'START\n' | beauty-m4` still prints `Parse Error` + raw echo (oracle: `START`), unchanged, as expected: layer 1 removes the *crash*, and beauty's m4 wall is the F-path of the still-unlanded crossing (wall 2).
+- **Witness-set note:** `probe/b1/` held exactly the **five** witnesses HQ enumerated when this rung was locked; other seats have since grown it to **nine** (`e_plain`/`m_plain` checked in as real witnesses, plus the two `apply` witnesses). All nine are graded in the tables above.
