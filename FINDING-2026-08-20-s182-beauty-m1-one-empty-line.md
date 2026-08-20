@@ -82,3 +82,46 @@ Lon's `&USER_DEFINED_CONSTANTS` lever is the sound cure for the poison class (`s
 2. **Lon's ruling** on partial-evaluating the semantic layer (above) — it decides whether the `&PATTERNS` conversion of beauty (queue row 36) can help at all, since beauty's patterns are EVAL-built.
 3. The downstream composed-constant gap (`cn_const_compose_*`).
 4. Rewrite the two stale s148 comments in place (DOC RULE).
+
+---
+
+# ADDENDUM — THE MONITOR SESSION (Lon's call, s182 later the same day)
+
+**Lon, in-chat, twice: *"the IPC 2-way monitor with SCRIP<->SPITBOL help to find first divergence"* and *"For beauty.sno being so large, consider running the IPC 2-way monitor to isolate the first divergence which is directly after the FIRST bug."* HE WAS RIGHT AND THE ABLATION LANE WAS NOT GOING TO GET THERE.** Instrument audited first per ARCH-PASSTHRU (clean on a known-good witness, exact on a known-bad one) before any verdict was read from it.
+
+## ⭐ LANDED: PB-ARGORDER (SCRIP `be455630`) — A CORPUS MOVER THE MONITOR FOUND
+FIRST DIVERGENCE of a 1499-step beauty run, `case.inc:23` — **nowhere near the parser the ablation lane was digging in**:
+```
+icase = icase (upr(letter) | lwr(letter))          oracle: CALL upr        scrip: CALL lwr
+```
+**DEFECT:** the `PAT-ARG-BIND`/`PB-1s` pre-arg loop (`lower_snobol4.c:~2303`) **PREPENDED** each argument to its evaluation chain, so N pre-args evaluated **RIGHT-TO-LEFT** while `pre[]` is harvested left-to-right. SPITBOL evaluates expression operands **left to right** (manual v3.7 Ch.7). The CONCAT twin was already correct (`sx_binop` chains forward) — that asymmetry is what convicted this loop rather than the `TT_ALT` arm.
+**RECEIPTS:** corpus **m3 331/6 → 332/5**, fail-set diff is ONE line — **`demo_treebank` FAIL→PASS, a pure cure, zero new fails**; m4 325/11 unchanged. `SCRIP_PB_ARGORDER=0` reverts. Witness `probe/cn/cn_alt_eval_order.sno`. Zero new globals.
+**MONITOR RECEIPT:** with the cure in, the first divergence **MOVES 1499 → 1568**, landing on `main05` itself: oracle `CALL PushCounter` (enters `Parse`) vs scrip `LABEL stno=1083` (jumps straight to `mainErr1`).
+
+## ⭐⭐ THE M1 WALL IS NOW FOUR LINES
+A 3-stage probe at `main05` on the one-newline input puts the split **precisely at `RPOS(0)`**: `*Parse` alone OK on both · `*Parse *Space` OK on both · `*Parse *Space RPOS(0)` **scrip FAILS, oracle succeeds**. `RPOS(0)` is what forces the newline to be consumed, which requires **retrying and extending `ARBNO(*Command)`**. Reduced to standalone witnesses in `corpus/probe/passthru/`:
+| witness | form | verdict |
+|---|---|---|
+| `ptw_min_arbno_fence_defer` | `P = ARBNO(FENCE(*C))`, matched via `*P` + `RPOS(0)` | **RED** (oracle match / scrip nomatch) |
+| `ptw_min_arbno_fence_lit` | `P = ARBNO(FENCE('a'))` — no defer inside | **RED** |
+| `ptw_min_arbno_fence_inline` | same ARBNO(FENCE()) written INLINE | PASS |
+| `ptw_min_arbno_nofence` | `ARBNO(*C)` — no FENCE | PASS |
+**A STORED `ARBNO(FENCE(X))` REACHED THROUGH A DEFER LOSES ITS RETRY.** The two controls isolate it exactly: inline is fine, and ARBNO without the fence is fine. This is beauty's own shape — `Parse = nPush() ARBNO(*Command) …` where `Command = nInc() FENCE(3-arm ALT)`.
+**MANUAL AUTHORITY (v3.7 Ch.9, read this session at Lon's instruction):** *"If a subsequent pattern component fails to match, SPITBOL backs up, and asks ARBNO to try again. Each time ARBNO is retried, it supplies another instance of its argument pattern"* — `ARBNO(P)` ≡ `( "" | P | P P | … )`. And decisively: *"pattern matching is done exhaustively and no heuristics are applied. In particular, **deferred expressions are not assumed to match at least one character**"* — the heuristics *"often produce malfunctioning patterns when deferred evaluation is used within a pattern."* SPITBOL is ALWAYS fullscan.
+
+## ⭐⭐⭐ THE AUTOMATIC BUG FINDER — LON'S DESIGN, BUILT AND AUDITED (`scripts/util_autobug.sh`, SCRIP `85bc4b99`)
+**Lon's technique, verbatim in substance:** *"2-way monitor reports event of FIRST DIVERGENCE. The previous event then is event of the LAST AGREEMENT. The BUG is between [them] … INSTRUMENT the BB at that LAST AGREEMENT BB to fire TRACE ON … and TRACE OFF when it arrives at the FIRST DIVERGENCE BB. This trace has the BUG in it and should be REASONABLY LIMITED in size. An AUTOMATIC BUG FINDER!!!"*
+**THE BRACKET NEEDS NO COUNTER AND NO NEW RUNTIME STATE** — the monitor already closes the window on both sides: it sync-steps the engines and KILLS the scrip child the instant the controller answers `S` (`mon_send_bin`'s ack arm), i.e. **at the first divergence**. The process therefore dies inside the bug's own statement, the already-registered `SCRIP_ZSM` atexit reporter runs, and the ZSM four-port ring (last `ZSM_TRACE=64` ports, execution order) **is** the bounded trace. TRACE-ON becomes "64 ports ago" instead of a counter. Runtime half = one getenv-gated call to the existing `zsm_dump()` inside the existing atexit hook.
+**IT PAID ON ITS AUDIT RUN**, naming two things in `ptw_min_arbno_fence_defer`'s window:
+1. **`depth` GOES NEGATIVE** at an `ω·` (node 18784: RSP restored ABOVE its activation value, `depth=-16`). A negative carve depth is structurally impossible, **nothing currently treats it as fatal**, and it is exactly the RSP-relative-to-activation-time comparison Lon specified for the ZSM (ARCH-PASSTHRU INSTRUMENTS, "owed").
+2. **The ARBNO retry FIRES BUT NEVER EXTENDS** — from that point node 18352 cycles `β→γ→α·→β→γ→α·→β→ω`, no progress, then concedes. That is the `nomatch`.
+⛔ Monitor-safety is in the tool's header: a `MONITOR_BIN` verdict is a verdict on a DIFFERENT program. **The tool LOCATES; it never GRADES** — every bracket is confirmed on a plain build and minted as a standalone witness before being cited.
+
+## ALSO MEASURED THIS SESSION
+- **`&FULLSCAN = 0` conformance gap:** the oracle refuses it (`ERROR 274 — value assigned to keyword fullscan is zero`, manual: *"may only be set to a non-zero value"*); **SCRIP accepts it and reports `fullscan=0`**. Reads of `&FULLSCAN` agree (1) on both. Cheap, well-defined, not M1-blocking.
+- **The manual's own arithmetic parser (Ch.9 "Parsing and Translation") PASSES on SCRIP** — all five cases byte-identical to the oracle including nested parens and unary minus, and it still passes when converted to beauty's EVAL-built OPSYN idiom AND to beauty's double-capture argument-bearing deferred call (`p . thx . *Shift(t,thx)`). **This is Lon's CALCULATOR X example verbatim** (`primary = constant . *push() | "(" *exp ")"` — the `'(' *X ')'` at the very bottom of his brief). It is now the strongest PASSING control we have one structural step from beauty.
+
+## NEXT
+1. `ptw_min_arbno_fence_defer` — 4 lines, deterministic, and it IS M1. Make ZSM `depth < 0` FATAL first; it is a free invariant that convicts this class at the moment of damage.
+2. Confirm the finder's two named symptoms on a PLAIN build (monitor-safety).
+3. `&FULLSCAN=0` → ERROR 274.
