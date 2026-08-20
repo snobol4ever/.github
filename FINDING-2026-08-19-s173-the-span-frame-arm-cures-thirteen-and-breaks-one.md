@@ -102,3 +102,13 @@ Seat4's `claws5-m4-sig11` cursor, landed concurrently, predicted this blocker **
 **This changes the disposition question's shape, and in HQ's favour on the value side.** Seat4 also raises the cure ledger — *"the flip is worth more than s170 priced it … add two D-2 board rows cured in BOTH modes on the real input"* — and this seat's board independently confirms that (all three claws5 programs, not one). So the honest statement is: **the arm cures more than anyone had priced, AND it exposes a live wrong-answer path that was already there and already predicted.** The two are not in tension — a switch that re-homes leaf cells would naturally both fix the wild write and unmask a severed recede that the wild write's crash had been pre-empting.
 
 ⭐ **THEREFORE THE FIRST PLACE TO LOOK IS NAMED, NOT GUESSED:** seat4's dropped `jne n26_match_span_β` conditional recede in `n21_match_arbno_af`. That is a concrete, asm-level starting point for the `TDump_driver` root cause, and it costs the next seat nothing to test first. `TDump.sno` is itself a `.s` mover, so the passing/failing pair is one `--compile` per arm (ASM-DIFF-FIRST).
+
+## ⛔ CORRECTION AND CONTROL — 84 → **83** TRUE `.s` MOVERS, AND THE COUNTEREXAMPLE SURVIVES THE CONTROL SEAT3 ASKED FOR
+
+Seat3's s172 board post (read after this FINDING was first pushed) reports `programs/snobol4/parser/unary_not.sno` emitting **6 different `.s` md5s in 6 compiles at a fixed arm**, and recommends the fleet A/B protocol **require a hold-the-arm-fixed control before any mover is reported**. Run here, over all 1637 programs, two independent sweeps **at the same (default) arm**:
+
+**FALSE MOVERS AT A FIXED ARM = 1 — `programs/snobol4/parser/unary_not.sno`, exactly the program seat3 named.**
+
+So the wide `.s` blast radius above is corrected: **84 → 83 true movers / 1359 comparable.** The owed house-set number is **unaffected — 30 / 527** — because `programs/snobol4/parser/` is not in that list. Seat3's recommendation is right and it cost one number here; it would have cost more on a rung whose whole claim was byte-identity.
+
+**The behavioural counterexample survives the same control, which is why it is reportable.** The discriminator was measured before seat3's post was read: `TDump_driver` under `ulimit -s unlimited` is **10/10 stable-correct at the DEFAULT arm** and **2/10 at the armed arm**, 10 runs each. It is therefore **not** a member of seat3's "nondeterministic at a fixed arm" class — holding the arm fixed at OFF gives a stable PASS every time, and the instability appears only when the arm is flipped. That is the difference between a flaky program and a switch that makes a program flaky, and only the second one blocks a flip.
