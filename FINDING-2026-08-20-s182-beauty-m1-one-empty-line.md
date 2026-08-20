@@ -136,3 +136,27 @@ Ran `util_autobug.sh` on BOTH the 4-line witness and real beauty (one-newline in
 | ends | `ω` concede (depth −96) | `ω` concede (depth −720) |
 **Same first-negative value (−16), same no-progress retry cycle, same concede.** This is the evidence that the 4-line witness IS M1 — previously an argument from shape, now a measured trace-signature match. Work the 4 lines, not the 622.
 **FIRST ACTION (free, and it convicts at the moment of damage): make ZSM `depth < 0` FATAL.** A negative carve depth means RSP was restored ABOVE its activation value; it is structurally impossible in a correct machine, it is the RSP-relative-to-activation comparison ARCH-PASSTHRU already lists as owed, and today nothing reports it.
+
+---
+
+# ADDENDUM 2 — FENCE-RESUME LANDED (SCRIP `3bbba198`): THE ARBNO(FENCE()) RETRY CLASS IS CURED
+
+**Found by Lon's IPC/ZSM method end to end**, each step handing the next its target:
+1. **Monitor bracket** → first divergence at `main05` (`CALL PushCounter` vs `LABEL stno=1083`).
+2. **ZSM ring** → the ARBNO's β *fires* but never *extends* (`β→γ→α·→β→γ→α·→β→ω`, rsp unchanged throughout).
+3. **asm-diff** → `PAT$0_β: jmp PAT$0_ω` — the blob conceding wholesale.
+4. **A getenv-gated `RESUME-GATE` probe** → `body_root=(nil)` for the fenced twin vs a live tier-1 carrier for the passing control. That printed the root cause outright.
+
+**THE DEFECT — TWO WHOLESALE SHAPE REFUSALS, BELT AND SUSPENDERS, both asking "is there a FENCE1 *anywhere* in this blob":**
+- **the BUILDER** (`lower_snobol4.c:2624`): `pfenced = sno_pat_contains_fence(pat)` published `body_root = NULL` for the WHOLE graph — no resume surface at all;
+- **the BELT** (`emit.cpp:3341`): `_f1` refused the resume arm on the same anywhere-test.
+With no resume surface the β-dispatch emitted `PAT$N_β: jmp PAT$N_ω`, so **ARBNO conceded WITHOUT EXTENDING**. ⛔ This is precisely what law 0d forbids ("no admission filter, no shape refusal").
+
+**THE MANUAL IS THE AUTHORITY** (v3.7 Ch.9/18): FENCE *"fails if the scanner has to **back up through** it"* — but ARBNO's β does not back through anything; it **extends forward** with one more instance at the current cursor (`ARBNO(P)` ≡ `( "" | P | P P | … )`). Two different motions, and an anywhere-scan cannot tell them apart.
+
+**NARROWED, NOT DELETED** — the refusal owns a named 7-mover class. The carrier is published only when the first real body node is itself a **tier-1 generator** by `zdp_seam_tier`, the ONE lattice authority for "this box's β EXTENDS". Every other fenced shape keeps the old NULL exactly, and the fence template's own β still concedes if reached, so cut semantics are untouched.
+
+**RECEIPTS:** `ptw_min_arbno_fence_{defer,lit}` **nomatch → match** (oracle-identical) · both controls unchanged (inline; ARBNO-without-fence) · **the 7-mover class 114/119/129/130/148/149/150 ALL GREEN** · corpus **m3 332/5 · m4 325/11 with the fail-set IDENTICAL to pre-fix** · `SCRIP_FENCE_RESUME=0` reverts both halves.
+
+⛔ **BEAUTY IS STILL `Parse Error`** on every input class. This cured a real, named, oracle-differential class and did **not** finish M1. The loop continues: re-run `util_autobug.sh` for the next divergence.
+⛔ **AND A CORRECTION TO ADDENDUM 1, KEPT VISIBLE:** it named `depth < 0` as "structurally impossible" and proposed making it FATAL. **That was wrong.** `runtime_init.c:112` documents the ZSM origin datum as ONE cell, so a nested activation's ORIGIN overwrites its caller's and the caller's later ports read against the callee's datum — Lon's own s136 ruling: *"I know RSP changes into a function but just ignore all that"*, noise "bounded to post-call ports and READ AS NOISE". The negative depth is an instrument artefact, not the wound. The load-bearing half of that trace was always the second symptom: **the retry that fires but never extends.**
