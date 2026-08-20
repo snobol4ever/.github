@@ -82,16 +82,18 @@ inside the frozen dead arm of §5. **No live instance of the class remains on th
 
 ## 5. WHAT DID NOT RETIRE, AND WHY EACH ONE IS A RULED FLOOR RATHER THAN SKIPPED DEBT
 
-**29 → 5.** Every residual has a named owner; none was left because it was hard.
+**29 → 3.** Every residual has a named owner; none was left because it was hard.
 
-**(a) `bb_call_proc_staged`, 2 sites — HQ ruling, frozen pending Lon.** `bcps_bin_gen_arm` /
+**(a) `bb_call_proc_staged`, 2 sites — RETIRED (HQ green-light on Lon's delegated desk; rung 3, own commit).** `bcps_bin_gen_arm` /
 `bcps_txt_gen_arm` are the forbidden shape at *function* granularity **and have already diverged** —
 the TEXT arm carries `rtcc_wb`/`rtcc_rl` + `call_bare`, the BINARY arm carries neither. Exactly the
 drift the FACT RULE's WHY predicts. They are also **unreachable at every runnable configuration**
 (`x86_zc_frame() != ZC_FRAME_RSP`; `ZC_FRAME_ISLE` needs the retired `frame-r12` selector,
 `ZC_FRAME_DEAD5` `#error`s). Deleting them is part of the 17-arm `!= ZC_FRAME_RSP` question RULES
-reserves to Lon — **dead + forbidden does not un-reserve it** (HQ). Unifying them instead would mean
-choosing which diverged body is correct, untestable at any config that runs.
+reserves to Lon. HQ first froze them on exactly that ground — *dead + forbidden does not un-reserve it* —
+then green-lit **these two only**, as their own attributable commit; the other 15 arms stay reserved. Deleting
+them also removed the **third and last** raw-port-label site of §4, so that class now has no instance at all,
+live or dead. **29 → 3.**
 
 **(b) `bb_define` 103 / 488, 2 sites — ruled OUT OF SCOPE.** These gate **C-side state, not output**:
 allocating and storing the live `g_ab_fn_cells` pointer that exists only for the in-process m3 image
@@ -100,7 +102,7 @@ nothing. The honest cure — let the ONE allocator return NULL when there is no 
 hoisting `bb_ab_cell_addr` + `g_ab_fn_cells` out of a template file, which HQ minted as its own row
 (`ab-cell-hoist`).
 
-**(c) `bb_define` 427, 1 site — THE FLOOR IS 5, NOT HQ's 4.** Declared, not forced. HQ left this to me
+**(c) `bb_define` 427, 1 site — THE FLOOR IS 3, ONE ABOVE HQ's FIRST ARITHMETIC.** Declared, not forced. HQ left this to me
 as "emission", and it is; but its own `RTX-FUNC-0 BIND-NEUTRALIZE` comment records why it cannot be
 made medium-invisible **in place**: in BINARY the sealed `lea` bakes `ptr=0` as a movabs immediate with
 **no forward-patch**, so emitting its three TEXT bind instructions there would write 0 over the address
@@ -135,6 +137,30 @@ every corpus — the independent confirmation that codegen did not move. Gate
 `test_gate_template_medium_invisible.sh` green at ceiling 5. Icon smoke 14/14. SNOBOL4 6/1 and Prolog
 3/5 are **byte-for-byte identical to the baseline binary's** — both reds pre-existing (the SNOBOL4 one
 is queue row `smoke-define`), neither caused nor cured here.
+
+## 7b. ⛔ THE BINARY SWEEP PRODUCED A MOVER THAT WAS NOT MINE — AND IT LOOKED LIKE A CURE
+
+Recorded because the next seat to run a byte-identity A/B on this corpus will hit it.
+
+After rung 3, `util_out_sweep` reported **1 changed row**:
+`crosscheck/patterns/141_pat_eval_double_fn_arbno.sno` moved from `RUN_RC_139` to a real md5 — which
+reads exactly like *"deleting the dead generator arms fixed a segfault."* A tempting thing to publish.
+
+It is a **pre-existing intermittent crash**. Proof, in the order it was taken: re-running the sweep on
+the **unmodified baseline binary** reproduces the *identical* one-row flip (same md5, `027851e5…`), and
+HEAD against that second baseline capture is **0 movers**. 40 direct runs — 20 per arm — are `rc=0`
+with byte-identical output.
+
+**This is a NEW instance of the s148/s150 false-mover class, and `util_out_sweep.sh`'s two existing
+cures do not cover it.** Its header documents both: `rc!=0` is labelled `RUN_RC_<rc>` and never hashed
+(so a dead run cannot manufacture a hash), and elapsed-time fields are normalised (so parallel load
+cannot). An **intermittent crash defeats both at once** — the same program lands in the stable RC label
+on one run and a legitimate md5 on the next, so it reads as a mover *in either direction*, and the very
+mechanism that makes crashes stable-looking is what disguises it.
+
+**The cheap defence, and it is the one this rung used:** before believing a single mover, re-run the
+sweep **on the control arm**. A difference that reproduces against an unmodified binary is the
+instrument talking, not the change.
 
 ## 8. THE LESSON
 
