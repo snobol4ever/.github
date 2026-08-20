@@ -110,7 +110,6 @@ make -j4 scrip && bash scripts/test_per_kind_diff.sh
 ```
 make -j4 scrip
 bash scripts/test_per_kind_diff.sh    # PRIMARY: must show PASS unchanged or +N, FAIL=0
-bash scripts/test_gate_em_template_matrix.sh   # 855/855
 ```
 
 `--run` smoke run once per phase (1, 2, 3, 4):
