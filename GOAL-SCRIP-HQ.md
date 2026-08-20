@@ -41,7 +41,7 @@ Every brief carries: front + rung pointer · setup deltas beyond PLAN.md's stand
 | 2 | `regen-catchup` | the RULES-step-4 artifact debt: pristine HEAD, all `util_regen_*_s_artifacts.sh`, ONE commit per repo | regen commits pushed + FINDING attributing deltas to eras (283/340 stale, seat3 receipt) |
 | 3 | `pt-baseline` | PT-0..PT-2 only: treebank 3-way baseline + per-box histogram + GC-vs-engine split | FINDING: ratio table, top-10 costs, the split |
 | 4 | `gc-w1` | worklist mark replaces the whole-arena fixpoint (s167 D-22) | killswitch rung landed; gc_stress + corpus green; `[ZGC]` walk collapse; blast 0 |
-| 5 | `gc-r-ab` | GC-R only, measurement: `SCRIP_GC_BUDGET_MB` A/B on the timed family | FINDING table + knob verdict |
+| 5 | `gc-r-ab` | ✅ **DONE s169 seat1 — VERDICT NO** (`FINDING-2026-08-19-s169-gc-r-...md`): knob is confounded (disarms the inline-alloc fast path, −10..−14% with gc=0 in both arms), structurally gated (cannot fire below a half-full arena ⇒ 256 MB at the shipping default), and the best cadence arm (2944) still loses to GC-free (3840). Helped in 1 of 10 cells. **UNTESTABLE until GC-W1 + GC-P1** | A/B table ✓ · knob verdict stated ✓ |
 | 6 | `pt-json` | PT-J only: json input bisect, linearity verdict | FINDING: linear vs superlinear, with curve |
 | 7 | `cn-alt-depth` | SEAT-CN-3 item 1 only: ALT-arm nested-substitution m4 crash root-cause | root-cause FINDING (fix only if killswitch-clean) |
 | 8 | `bm-2-one-copy` | SEAT-BM-3 item 2 only: 9 deletions + roman/mixed_workload conversion | every benchmark `.sno` harness-driven AND graded; ungraded list empty |
