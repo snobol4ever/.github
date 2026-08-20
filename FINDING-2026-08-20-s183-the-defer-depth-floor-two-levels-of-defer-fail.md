@@ -66,3 +66,45 @@ The defer road is `rt_patv_defer_get_pat_dtp` → `dtp_fn_of` → the blob call 
 ## 6. THE ROW
 
 `defer-depth-floor` (rank 0). **DONE-WHEN:** root cause named; `ptw_min_defer2_{floor,pp_L2,pp_L3,arbno,depth9}` oracle-identical in **both** modes if killswitch-clean (else investigation-only with the mechanism named); `pp_L0`/`pp_L1`/`defer1_arbno_ctl` controls unchanged; `board_beauty_m1.sh --modes m3` re-run and the **new** first-red line recorded; corpus fail-set no worse (m3 332/5 · m4 325/11); FINDING.
+
+---
+
+## 7. ⭐ ADDENDUM — BATCHES 3 AND 4 (Lon's design): TWO MORE CLASSES, BOTH AT DEPTH 1
+
+Lon, s183 in-chat: *"make up batches of 20 reasonable beauty.sno like Expr patterns, take subsets. Add combo crazy. And just see how many fail. You can keep going as long as you find varying classes of failures."*
+
+Both batches were built so the rank-0 floor could **not** mask the result — every witness below is **one** defer level, verified rather than assumed.
+
+### Batch 3 — 336 grammars of beauty's real Expr shape `E = <primary> <wrap>( <op> *E <reduce> | epsilon )`
+**324 AGREE · 12 DIFF**, and all 12 shared one signature: `primary = ARBNO`, `wrap = bare ALT` (not FENCE). Ablating gave **two** distinct minimal reds:
+
+| witness | oracle | SCRIP | |
+|---|---|---|---|
+| `ptw_min_arbno_nullalt_falseaccept` — `E = ARBNO('a') ('+' \| '')`, subj `'a+a+a'` | **nomatch** | **match** | ⛔⛔ **FALSE ACCEPT** |
+| `ptw_min_arbno_altrec_falsereject` — `E = ARBNO('a') ('+' *E \| '')` | match | nomatch | false reject |
+
+**The false accept is the campaign's first.** Every other red found in 4.5 months is a false *reject*; this is the direction that makes a parser silently swallow malformed input. It needs all three ingredients, each with a green control checked in beside it: ARBNO as the left element (`SPAN` is green), an ALT whose **last** arm is the null string (`('+' | 'z')` green), the null arm **last** not first (`('' | '+')` green), and a subject the whole pattern must reject (`'aa+'`, `'a+'`, `'aaa'` all agree).
+
+### Batch 4 — 450 grammars over primary × capture × positional × anchoring
+**358 AGREE · 90 ORACLE-BAD · 2 DIFF**, collapsing to one class:
+
+| witness | oracle | SCRIP |
+|---|---|---|
+| `ptw_min_arb_immed_retry` — `E = ARB $ v`, `'a+aa' POS(0) *E RPOS(0)` | **match** (`v='a+aa'`) | **nomatch** |
+| `ptw_min_arb_cond_ctl` — the same with conditional `.` | match | match ✓ |
+| `ptw_min_span_immed_ctl` — `$` on a non-retrying element | nomatch | nomatch ✓ |
+
+**An immediate assignment (`$`) kills a generator's retry; a conditional (`.`) does not.** ARB must extend to reach `RPOS(0)` and never does. The controls isolate it to the *conjunction* — not `$` alone, not ARB alone.
+
+⛔ **The 90 ORACLE-BAD rows are not SCRIP verdicts.** Live `sbl` itself SIGSEGVs on many `$`-capture shapes. The runner classifies oracle failure *before* comparing, which is why they are excluded by construction — a harness that compared blindly would have booked 90 phantom passes or 90 phantom fails depending on which way it fell.
+
+### Running tally of what the batteries have produced
+| battery | rows | reds | new classes |
+|---|---|---|---|
+| 1 — shallow combos | 168 | 1 | 0 (found nothing) |
+| 2 — deep 3/5/7/9-level chains | 168 | 12 | **1** — the defer-depth floor (rank 0) |
+| 2b — depth-1 heavy backtracking | 120 | 19 | **1** — `arbno-alt-fence-L1` (15 of the 19 collapsed into the floor) |
+| 3 — beauty Expr shapes | 336 | 12 | **2** — false accept + its false-reject twin |
+| 4 — captures & positionals | 450 | 2 | **1** — `$` kills a generator's retry |
+
+**Classes are still varying, so the method has not exhausted itself.** The next unexplored axes: replacement statements (`S PAT = X`), unanchored scanning with `&ANCHOR`/`&FULLSCAN`, `TAB`/`RTAB` as the forcing tail, and multi-statement programs where a pattern value is rebuilt between matches.
