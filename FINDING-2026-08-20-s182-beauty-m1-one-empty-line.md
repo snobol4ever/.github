@@ -125,3 +125,14 @@ A 3-stage probe at `main05` on the one-newline input puts the split **precisely 
 1. `ptw_min_arbno_fence_defer` — 4 lines, deterministic, and it IS M1. Make ZSM `depth < 0` FATAL first; it is a free invariant that convicts this class at the moment of damage.
 2. Confirm the finder's two named symptoms on a PLAIN build (monitor-safety).
 3. `&FULLSCAN=0` → ERROR 274.
+
+## ⭐⭐⭐ THE FINDER PROVED THE WITNESS IS THE WALL (not by argument — by matching traces)
+Ran `util_autobug.sh` on BOTH the 4-line witness and real beauty (one-newline input). **The two bug windows carry the SAME SIGNATURE:**
+| | `ptw_min_arbno_fence_defer` (4 lines) | `beauty.sno` (622 lines + 16 includes) |
+|---|---|---|
+| bracket | DIVERGE step 6, stmt 3 | DIVERGE step 1568, `main05` (`@1080 CALL PushCounter` vs `LABEL stno=1083`) |
+| first negative depth | `ω· node=18784` → **depth=−16** | `ω· node=94000` → **depth=−16** |
+| then | `β→γ→α·→β` no-progress cycle on node 18352 | `β→γ→α·→β` no-progress cycle on node 93488 |
+| ends | `ω` concede (depth −96) | `ω` concede (depth −720) |
+**Same first-negative value (−16), same no-progress retry cycle, same concede.** This is the evidence that the 4-line witness IS M1 — previously an argument from shape, now a measured trace-signature match. Work the 4 lines, not the 622.
+**FIRST ACTION (free, and it convicts at the moment of damage): make ZSM `depth < 0` FATAL.** A negative carve depth means RSP was restored ABOVE its activation value; it is structurally impossible in a correct machine, it is the RSP-relative-to-activation comparison ARCH-PASSTHRU already lists as owed, and today nothing reports it.
