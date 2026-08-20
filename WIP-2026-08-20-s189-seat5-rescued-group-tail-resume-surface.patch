@@ -1,5 +1,48 @@
 # WIP PATCH — RESCUED, NOT LANDED, NOT VERIFIED. Apply with `git apply` from the SCRIP root.
 #
+# ⛔⛔ SUPERSEDED IN HALF, AND FALSIFIED IN ITS STATED MECHANISM — CORRECTED IN PLACE s189 BY seat8, WHO OWNS THE ROW.
+# Read this block BEFORE the header below it; two claims under it are now known wrong and are kept visible, not deleted.
+#
+# (1) THE SEQ HALF IS ALREADY LANDED AND IS REDUNDANT — DO NOT RE-APPLY IT.  seat8 reached the SAME root cause
+#     independently (ablation + --dump-ir) and landed it at SCRIP `a2979dc6`, killswitch `SCRIP_SEQ_TAIL`, row CLOSED.
+#     Their spelling is better and structurally so: they take the element tail FORWARD from the tagging loop that is
+#     already running (ti = the last node the loop itself tags σ), so the tag IS the site's own authority — which
+#     removes review point (1) below entirely: no backward `g->all[]` scan, no sentinel/from-base mismatch to verify.
+#     Receipts: pass-thru m3 148→152, m4 134→138 (+4 each, zero the other way); corpus m3 332/5 m4 325/11 and
+#     crosscheck m3 312/5 m4 308/8 DIVERGE 3 unchanged by name; blast radius 13 .s of 1549; ks=0 byte-identical.
+#
+#     ⭐ WHAT REMAINS LIVE IS THE **ALT HALF ONLY** (`case TT_ALT` at :1796) — seat8's routed row
+#     `alt-arm-resume-surface`.  Standing witness already on the board: `160_pat_alt_inner_gen_resume`,
+#     `'aXb' ? ('a' ARB . V | 'q') 'b'` → oracle V=[X], SCRIP SIGSEGV, UNMOVED by the SEQ rung — a multi-box arm
+#     publishing its HEAD.  Likely siblings: `145_pat_left_assoc_via_arbno_fence`, `ptx_shift_alt_arms{,_2layer}`,
+#     `ptw_min_fence_left_altresume`.  ⛔ It is a CRASH, not a wrong answer, and a DIFFERENT consumer (the ALT
+#     template's per-arm dispatch), so it needs its own witness ladder and its own A/B against a 138-row pass-thru
+#     board.  This patch is a CANDIDATE IMPLEMENTATION for that half and nothing more.
+#
+# (2) ⛔ THE PATCH'S OWN EMBEDDED gdb THEORY IS THE WRONG MECHANISM.  Its comment says *"an ALT leaks its 32B choice
+#     record per retreat, displacing the ARBNO cell reads that follow"*.  That cannot be the root cause: the witness
+#     `ptw_min_arbno_tail_falseaccept_nodefer` has **NO ALT AND NO DEFER** (`E = ARBNO('a') LEN(1)`, 'aa+aa',
+#     `POS(0) E RPOS(0)`) and false-accepts identically.  It is not a stack-displacement bug at all: **the IR ARRIVES
+#     MIS-WIRED and is visible in `--dump-ir` before a byte is emitted** (stored: `MATCH_RPOS` ω = ARBNO, the splice
+#     HEAD; inline sibling: ω = LEN, the TAIL), and `SCRIP_OPT=0` reproduces it — **LOWERER, not emitter.**  The real
+#     arithmetic is simpler and is what the gdb session actually saw: **LEN's β never runs, so its one consumed char
+#     is never given back; ARBNO resumes ONE CHAR PAST ITS OWN YIELD and every retry advances TWO.**
+#
+# (3) REVIEW POINTS (2) AND (3) BELOW ARE DISCHARGED, NOT OUTSTANDING.  The manual authority the row demanded is
+#     supplied: **SPITBOL v3.7 p.121** — `ARBNO(PAT)` behaves like `( "" | PAT | PAT PAT | … )` — plus **p.212**,
+#     *"matches the shortest string possible—initially the null string—and only tries to match pattern if other
+#     pattern components in the statement require it."*  ⭐ The law that matters: **the alternation is over instance
+#     COUNT and every alternative STARTS AT THE SAME CURSOR**, so a retry is legal only after the components that ran
+#     on the previous alternative reverse their own advance.  seat8 also cited `sno_defer_resume:1245` in-comment as
+#     the function-local-static precedent rather than assuming it.  Quoted in
+#     `FINDING-2026-08-20-s187-an-elements-resume-surface-was-its-first-box-not-its-last.md`.
+#
+# (4) ⛔ AND ONE INFERENCE IN THE RESCUER'S OWN COVER NOTE IS FALSIFIED — kept visible.  I wrote that this patch may
+#     bear on `ptw_min_nullalt_retreat_falsereject` because *"a multi-node ALT arm is precisely the divergent shape"*.
+#     **It does not apply there:** that red is GREEN IN BOTH MODES off the SEQ half alone, and both arms of
+#     `(LEN(1) | '')` are SINGLE boxes.  What diverged was that the ALT was the SEQ ELEMENT'S TAIL, so the following
+#     literal's ω landed on the splice HEAD (`ANY`) and the null arm was never retried.
+#
 # PROVENANCE: found UNCOMMITTED in seat5's SCRIP working tree at s189 start (file mtime 22:57 UTC
 # 2026-08-20, SCRIP HEAD fccc81cc).  It is the residue of the seat5 session that held queue row
 # `arbno-nullalt-false-accept` (claim locked 22:29 UTC) before HQ RE-SCOPED and RENAMED that row to
