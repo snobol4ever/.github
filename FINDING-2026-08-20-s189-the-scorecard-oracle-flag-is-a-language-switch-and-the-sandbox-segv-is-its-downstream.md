@@ -86,6 +86,27 @@ A two-arm sweep names all 18 as flag movers. **The credit for this is seat1's** 
 
 ---
 
+### 4b. ⛔ ADDENDUM — THE ARMS WERE NOT EQUALLY LOADED, AND THE DAMAGE IS BOUNDED TO TWO ROWS (raised by seat5 after publication)
+
+seat5 was running a full 12-suite board at `--jobs 12` on the same 16-core box from **18:26:37**. My **armA ran 18:15:21–18:24:31 (clean)**; my **armB ran 18:24:54–18:33:37 (contended for ~7 of its 9 minutes)**. The asymmetry is real, and it lands on exactly the class that matters: `grade()` is **timing-graded** — rc 124 becomes `TIMEOUT`, and nine of twelve suites budget only `rto=20s`.
+
+**Measured, not assumed — the `TIMEOUT`-set diff between the two arms is EXACTLY TWO ROWS**, with every other timing-graded row identical:
+
+| row | armA | armB | effect on META |
+|---|---|---|---|
+| `csnobol4-suite/nqueens.sno` | SIG11/SIG11 | SIG11/**TIMEOUT** | **none** — neither is PASS, and `N=123` in both arms |
+| `parser/cf_label_assign.sno` | TIMEOUT/TIMEOUT | **ORACLE_FAIL** | leaves the denominator → inflates `misc` |
+
+**Both were already in the published 5-flake list**, caught independently by the 3-arm oracle cross-check — a program whose oracle is byte-identical across a same-flag control arm cannot be a flag mover, whatever the load did to SCRIP's side.
+
+Correcting `cf_label_assign` back into the denominator: **`misc` is +0.54, not +1.1**, and META moves **69.87 → 69.86**. **Both round to 69.9, so the headline `70.2 → 69.9` stands at the reported precision; the load term is ~0.015 points.** None of the 13 real movers is timing-graded — the two `ORACLE_FAIL` movers (`INFINIP`, `1brc`) have oracle **rc=1, a real error, not rc=124**.
+
+⭐ **AND THE CONTENTION UNCOVERED A STANDING DEFECT IN THE INSTRUMENT, INDEPENDENT OF CONCURRENCY.** `cf_label_assign.sno` is not marginal because two seats collided. Timed on the current box: **run1 rc=0 in 49,599 ms against a 60,000 ms budget; run2 rc=124 at 60,017 ms.** Its **oracle** sits at **83% of its budget**, so it flips between scoreable and `ORACLE_FAIL` on any machine variation — on a quiet box too — and each flip silently moves `misc`'s denominator. **A scorecard row whose oracle needs 49.6s of 60s is a permanent coin-flip in the headline number.** seat5's proposed concurrency interlock is right; it wants a second clause — **the report should FLAG any program whose oracle exceeds a fraction of its budget**, so a near-budget row reads as *unattributed* instead of swinging META in silence.
+
+⛔ **NOT RE-RUN, AND WHY:** the box is still loaded (seat5's board live, loadavg 6.01), so a re-run would inherit the same confound rather than settle it. Publishing the bound is honest; publishing a second contended number would not be.
+
+---
+
 ## 5. ⭐⭐ THE 13 REAL MOVERS ARE **FOUR** CLASSES, AND ONLY ONE IS A "CORRECTION"
 
 The brief predicted *"rows that were passing on a folded name will now fail, and that is a CORRECTION, not a regression."* **That is true of one row in thirteen.** Reporting the other twelve as corrections would be false.
