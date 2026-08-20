@@ -14,13 +14,24 @@
 4. **TINY shim** — third call shape with its own admission/exits.
 Every M1 wall on the 2026-08 board is a mismatch between these. The cure is ONE law, proven bottom-up — not eight seats curing faces.
 
-## THE LADDER (Lon's order, exact; each level: witnesses FIRST, oracle-refed, both modes, 2–3 layers deep in EACH direction — γ forward through the layers AND β retreat back through them)
-- **L1 — ZERO-LOCAL family:** `*PATTERN_VAR` and `PATTERN_FUNC()` returning **POS, RPOS, TAB, RTAB**. Why first: ZERO allocations — pure register machines, so any failure is the crossing itself, uncontaminated by ζ. (Note: today's templates spend a scratch cell for TAB/RTAB — semantically they need NONE; L1 surfaces that debt.)
-- **L2 — ONE-LOCAL family:** same crossings for the one-cell boxes (SPAN/BREAK/BREAKX/REM …) after L1 is green.
-- **L3 — ARB and BAL** join *PAT_var/PAT_func (extending-β generators — retry state crosses the seam).
-- **L4 — ARBNO** (interior body, per-activation records).
-- **L5 — FENCE1 and FENCE0** (cut semantics across graphs).
-Witness home: `corpus/probe/passthru/` (`pt<level>_*`). Instruments: WIRE-ORDER canary (live r10/r11 vs staged wires at every port), ZDP every-port probe, ZSM lifecycle.
+## THE LADDER — NINE CLASSES (Lon 2026-08-20 in-chat, SUPERSEDES the first 5-level sketch; every class exercised through BOTH `*PATTERN_var` AND `PATTERN_func()` — "the whole problem derives from those two")
+| class | boxes | state character |
+|---|---|---|
+| **(0)** | POS · RPOS · LITERAL · LEN · ANY · NOTANY | ZERO-local; result = r14d; β reverses arithmetically or is a pure predicate |
+| **(1)** | TAB · RTAB · REM · BREAK · SPAN | one 4–8B cell today, ALL of it the entry-cursor β-restore (+ SPAN's loop counter); semantic minimum ~0 once the β convention is fixed (see RESULT GRID note) |
+| **(2)** | ARB · BAL · BREAKX | GENUINE retry state — extending-β generators (BREAKX reclassified here from the leaf family: its β re-enters, unlike BREAK) |
+| **(3)** | ALT · ARBNO | choice/iteration records (32B rsp record · 16B registry slot per activation) |
+| **(4)** | CAPTURE (SAVE/COND/IMM) | the RESULT-law hot case: result lands in a VARIABLE's cell, not a register |
+| **(5)** | FENCE0 · FENCE1 | cut semantics across graphs (0B · 16B watermark) |
+| **(6)** | EVAL | runtime fragment compile + crossing (the B1c/retain-budget territory) |
+| **(7)** | CODE | runtime statement-graph compile + crossing |
+| **(8)** | MEGA | ARBNO/DEFER/EVAL/CODE stacked combinations — the beauty grammar shape |
+Witness home: `corpus/probe/passthru/pt<class>_*`; every class × {var-road, func-road} × 1–3 layers × BOTH directions (γ forward, β retreat back through every seam). Gate: the class's whole witness family oracle-identical BOTH modes before the next class opens.
+
+## THE RESULT GRID (measured at HEAD 2026-08-20, HQ; the RESULT-law baseline)
+r13 = subject base · r15d = subject length · **r14d = cursor delta, THE result register of the matcher family** · r10/r11 = the two continuations.
+POS/RPOS/LIT/LEN/ANY/NOTANY: 0 locals, result r14d. TAB/RTAB/REM/BREAK: 4B = entry-cursor β-restore ONLY. SPAN(lit): 8B (loop ctr + entry). SPAN(*expr): 16B (needle {ptr,len} pair — ABI forces the fill call's out-params into memory). BREAKX 8B / ARB 8B / BAL 12B: genuine retry state. ARBNO 16B slot; ALT 32B rsp record; CAPTURE 16B slot (result → variable cell); FENCE0 0; FENCE1 16B watermark; DEFER = the crossing state itself (DTP + resume + banked pair).
+**⛔ THE β CONVENTION DECISION (class-1's rung must fix it):** today the machine mixes two β disciplines — relative boxes REVERSE r14 arithmetically, absolute movers RESTORE from their cell. A non-restoring TAB β chaining into a reversing LIT β reverses from the wrong value. Class-1's zero-local form requires the ONE law: every β re-derives r14 from its own knowledge, absolutely — then the four 4B cells vanish and class 1 collapses into class 0.
 
 ## STATUS
 - 2026-08-20 HQ (Fable): file minted; L1 witness family + HEAD baseline census this session (see GOAL-SNOBOL4-100 cursor + FINDING when pushed). Delegation suspended — HQ executes.
