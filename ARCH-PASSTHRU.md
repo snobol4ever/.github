@@ -44,6 +44,9 @@ POS/RPOS/LIT/LEN/ANY/NOTANY: 0 locals, result r14d. TAB/RTAB/REM/BREAK: 4B = ent
 - **BB 4-port tracing**: every transition logged as FROM (inside which α or β block) → TO (the exact α/β label) → VIA (γ or ω). All four ports, no sampling.
 - **STACK DOPING**: seed the stack with recognizable MARKERS so a wrong landing measures HOW FAR OFF it is, instead of "it went somewhere unknown".
 
+## THE NAMESPACE LAW (Lon 2026-08-20 in-chat: "DEFER *P2 goes through GVA cell — that is NAMESPACE POLLUTION")
+The defer road may touch a GVA cell ONLY for a real, mutable USER variable, and then by INDEX — late binding is what `*` means. Everything else is pollution and dies: (1) match-time STRING-name lookups (`rt_defer_run_all("MID")`) — name→cell resolves at compile; (2) synthetic names (`EXPR$N`, `PAT$N`, `PAT$n$V<i>`) interned as real variables beside user names — collidable, GC-scanned, published; they become ANONYMOUS handles (DTP/graph refs), never named cells; (3) constant-paired defers touch NO cell — compile-time stitch per the section below.
+
 ## COMPILE-TIME STITCHING — the subgraph partition (Lon 2026-08-20)
 A whole-graph traversal partitions the pattern BBs into SUBGRAPHS keyed by `*P` / `P()` PAIRED with the constant definition each resolves to (the pattern defers). Constant chains stitch AT COMPILE TIME, not runtime: e.g. the whole CALCULATOR `X` expression folds to ONE pattern by traversing the references. The fold can never yield a KNOWN DEPTH — at the very bottom of the purely-constant pattern sits one `'(' *X ')'` defer, the one UNKNOWN inside the KNOWN whole — but that is the useful part: the bottom `*X`'s size IS the whole pattern's size, so every offset needed ABOVE it is known and the last `*X` is inconsequential. Glue survives only at that bottom defer.
 
