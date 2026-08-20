@@ -205,3 +205,29 @@ streams — was invisible in the count entirely, because coverage is not a numbe
 
 Count the classes, not the sites. And when a rule's ratchet is retired, the retiring seat is the one
 best placed to say what the number was actually made of.
+
+---
+
+## §8 — THE LANE IS CLOSED: 3 → 0 (s172, seat6, queue row 10 `ab-cell-hoist`)
+
+The 3 this FINDING ruled a **FLOOR** were correctly described and wrongly concluded. All three asked
+one question — *does this image have a C-side cell at all?* — and they had to ask the MEDIUM only
+because the store they were asking about (`g_ab_fn_cells` / `bb_ab_cell_addr`) was file-static
+**inside the template**, where it could not know the medium itself.
+
+Cure: the store was RELOCATED verbatim to `src/emitter/emit.cpp` — the file that owns `g_medium` —
+and `bb_ab_cell_addr` now answers **NULL for TEXT**; each site became a test of the returned pointer,
+the shape §7's rung 3 had already blessed at `bb_define:359`. ⛔ The allocator keeps **TWO FACES**:
+`bb_ab_cell_addr` (live-image, NULL in TEXT) and `bb_ab_fn_cell_ptr` (operand, never NULL, both media
+— the address baked into every `x86_jmp_via_cell`). Collapsing them would bake 0 into TEXT.
+
+Measured pristine at SCRIP `51b73ce9`, re-proven after a mid-rung rebase: **0 movers** in both media
+(TEXT 527 `.s`, BINARY 575 runs), `SCRIP_AB=1` identical on 11 DEFINE witnesses × 2 modes, corpus and
+crosscheck fail-sets identical by name, regen `changed=0`. Gate ceiling **0**, negative-tested.
+
+**Lane total: 31 → 0 in five rungs.** Full account:
+`FINDING-2026-08-19-s172-the-last-three-medium-guards-were-a-store-in-the-wrong-file.md`.
+
+⛔ Residue this lane never covered: the gate's OTHER half still reports **8 raw-byte/medium-branch
+producers in `src/templates/xa_flat.cpp`** — not a `bb_*.cpp`, never in this ratchet's scope, and it
+wants its own row if HQ wants all of `src/templates/` medium-invisible rather than just the boxes.
