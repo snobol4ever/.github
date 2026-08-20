@@ -81,7 +81,16 @@ That is a *second*, real inconsistency (the leaf is handed index 1 = `rbp-80` in
 ⭐ **That failed experiment is the proof of §3**, and it is why it is recorded rather than discarded: widening the carve moved `rsp` by a further 16 and the flat operand offsets *again* did not follow, taking the read from 16-bytes-stale to 32-bytes-stale and turning a nondeterministic wrong answer into a deterministic one. **The carve is not independently adjustable.** Any fix must make B follow A — rebase the flat ζ-SPINE operand offsets by `op_frame_extra` for every node inside that MATCH_BEGIN's scope — or make A not move `rsp` at all. Fixing A alone is a regression.
 
 ## 7. Consequence for the arming verdict (HQ-61's re-sweep ask)
-⛔ **THE RE-SWEEP CANNOT DECIDE THE FLIP, AND RUNNING IT FIRST WOULD MISLEAD.** The armed arm is now known **broken by construction** for any statement graph where `emit_match_begin_frame_extra() > 0` meets a flat spine operand read in a re-homed box. A mover count taken before the fix measures which programs *happen* to have a foldable charset — an accident of constant-folding, not a safety property, and one that shifts with any optimizer change. The sweep belongs **after** B is made to follow A. The s173 30/527 number is stale for this reason as well as HQ's.
+**MEASURED, both stack regimes, 510 programs (`corpus/crosscheck` + `corpus/programs/snobol4`), m3, two-arm output diff at HEAD:**
+
+| regime | raw movers | true movers |
+|---|---|---|
+| default `ulimit` | 1 | **0** — `cf_goto_computed` is FALSE (SIGSEGV/SIGILL nondeterministically in **both** arms; seat1's row-14 class, caught only by re-running the control arm) |
+| `ulimit -s unlimited` | 1 | **1** — `TDump_driver`, i.e. exactly the blocker already known, and nothing else |
+
+⛔ **AND EVEN THE `1` IS A LOWER BOUND, NOT THE BLAST RADIUS.** The defect is nondeterministic (armed TDump_driver fails 6/10; the minimal witness 11/12), so a **single-run** two-arm diff misses every program that happened to pass that run — the same instrument gap seat1's row 14 names, in the other direction. A sound behavioural radius needs repetition per arm, which is why the structural statement below is the one to act on.
+
+⛔ **THE RE-SWEEP CANNOT DECIDE THE FLIP, AND RUNNING IT FIRST WOULD MISLEAD.** The armed arm is now known **broken by construction** for any statement graph where `emit_match_begin_frame_extra() > 0` meets a flat spine operand read in a re-homed box. A mover count taken before the fix measures which programs *happen* to have a foldable charset — an accident of constant-folding, not a safety property, and one that shifts with any optimizer change. The sweep belongs **after** B is made to follow A. The s173 30/527 number is stale for this reason as well as HQ's. **The two sweeps above are receipts for that claim, not a green light:** they say 0 and 1 while the arm is broken by construction — the gap between them and the defect is the measure of how little a pre-fix mover count is worth here.
 
 ## 8. Not this defect, kept so it is not re-derived
 `probe/leafwide/ctl_spanvar_alt_inline` (HQ's second witness) is **RED IN BOTH ARMS**, m3 and m4 — `nomatch` where the oracle says `match:aabb`. It is arm-independent and therefore **not** a flip blocker and **not** this class; its pattern-variable twin `leafwide_spanvar_alt` is green in both arms. It wants its own row.
