@@ -10,6 +10,28 @@
 
 My first write-up of this finding said **"IR_STATEMENT_END double-releases 96 bytes at depth 0."** **That is false and I falsified it myself.** I trusted the ring's `depth` column; `g_zsm_rsp0` is ONE cell re-based by every nested graph, and the last `ORIGIN` before the crash belonged to a *different* graph (`op=59 IR_MATCH_ASSIGN_IMM`, st=961) — the file's own documented KNOWN LIMIT. Read from raw rsp only, **every release on the failure road is arithmetically exact**: the frontier is stable at `0x…8860` across st=956/961/963/969, `MATCH_BEGIN`'s ω returns to it, and `STATEMENT_END`'s 96 is exactly the six cells its statement carved (6 × 16, `0x…8800`→`0x…8860`). **rsp was correct at the `pop rcx` all along.** A seat who saw the first version must be able to see it retracted; the `zd-statement-end-double-release` row I asked for on that reading is withdrawn.
 
+## ⭐ CONVERGENCE WITH HQ s189 — TWO ROADS, SAME ANSWER, AND THE CITATION THAT UNBLOCKS THE RULE
+
+HQ reached this mechanism independently and in parallel, from the `216_indirect_goto_computed` end (2 α-DEFINE events) while I came from the beauty end (236) — see `FINDING-2026-08-20-s189-the-computed-goto-runs-the-label-as-a-nested-activation.md`. Both of us also withdrew the "SHIFTED pair" reading independently: HQ on the grounds that `0x41bd68` is a main-binary address where a mode-3 continuation is a slab address, I on the grounds that `readelf -S` puts it at the exact base of `.fini_array`. **HQ's predicted board delta (m3 332/5 → 333/4) is exactly what landed.**
+
+⛔ **THE `NO PER-OP FILTER` CITATION, stated because HQ asked for it explicitly:** `rt_chain_enter` is **shared with the EVAL/CODE fragment road, where the jump-back IS correct** — a fragment is a nested evaluation that must come back. So this rung is **not** "delete the shim" and **not** an op filter. It is **two contracts that were collapsed into one — *transfer* (no return) vs *nested evaluation* (returns)** — and the split is made by **ADDING the transfer contract** (`rt_goto_resolve` + a tail-jumping arm), leaving the nested contract and every one of its callers byte-unchanged. Nothing is admitted or refused by op identity.
+
+## ⛔ HQ'S SECONDARY QUESTION, MEASURED — AND THE PREDICTION IS WRONG
+
+HQ: *"`.Lx44_1: add rsp,48; jmp main_γ` … under a tail transfer that code is unreachable; confirm it is removed rather than left as a dead landing."* **Measured: it is NOT unreachable, and removing it would be a regression.**
+
+`rt_goto_resolve` answers NULL for exactly two inputs — an empty name and the **`END` sentinel** — and a computed goto whose target evaluates to `END` is legal SNOBOL4 that must **terminate the program**. That is the `rax == 0` arm, and `jmp main_γ` is what terminates it; deleting the landing turns a clean rc=0 exit into a fall-through. Witness checked in as the ladder's **fifth rung**, `corpus/probe/igt/igt_computed_goto_end.sno` + live-oracle ref (corpus `728ff4b2`): oracle prints `before` rc=0, SCRIP prints `before` rc=0 on **both** arms — a **regression lock on the landing**, not a bug report.
+
+**HQ's four rungs, re-measured against their own checked-in refs:**
+
+| witness | `SCRIP_GOTO_TAIL=0` (old) | default (new) |
+|---|---|---|
+| `igt_inline_ctl` | GREEN | GREEN |
+| `igt_direct_goto_ctl` | GREEN | GREEN |
+| `igt_computed_goto` | **RED rc=139** | **GREEN** |
+| `igt_computed_goto_pre` | **RED rc=139** | **GREEN** |
+| `igt_computed_goto_end` (new) | GREEN | GREEN |
+
 ## THE CURE — ARM 1'S SHAPE, NOT A NEW ONE (SCRIP `b12cb82e`)
 
 The s55 DEFINE-FOLD arm already does the right thing for a *constant* label: `jmp [rip@cell + LBL__<name>]`, *"wires ride r10/r11, no chain, no reserve"*. The computed-name arm now does the same, with the address resolved at runtime instead of baked:
