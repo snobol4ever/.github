@@ -39,5 +39,21 @@ The directive *"guarantee EVERYWHERE that all transitions are PUSH F; PUSH S"* i
 3. **Re-measure the grid per class** — the ladder is the gate: a class is not open until its whole witness family is oracle-identical in BOTH modes.
 4. **Then** delete the 79 push/pop sites and mint the gate that proves no γ/ω contract rides r10/r11.
 5. Close instrument caveats (a) and (b) above before the three β FRAME LOST rows are quoted as defects.
+## ⭐⭐⭐ THE MIGRATION, MEASURED: 1/82 → 43/82, AND THE REMAINING HALF IS AN ARCHITECTURAL PRECONDITION, NOT A BUG LIST
+**The killswitch never reached the crossing machinery.** `bb_wire_stack_on()` was referenced in exactly TWO files (`bb_glue_flat.cpp` + its header) while `emit.cpp`'s blob head `:2720`, β-resume `:2981`, γ-suspend `:3028` and ω-retire `:3041` spoke r10/r11 **unconditionally** — the caller pushed a pair the callee never read, and the callee banked registers the caller never set. **That, not the design, was the 1/82.**
+| rung | change | grid (m3) |
+|---|---|---|
+| 1 | framed blob head sources the pair from `[rbp+8]/[rbp+16]` (law 0a's layout, reached automatically because the caller PUSHes before entry) | 1 → **23** |
+| 2 | frameless blob head sources from `[rsp+0]/[rsp+8]` at entry | 23 → **43** |
+| 3 | `blob_frame_bytes()` yields head bytes when armed so the pair can be RBP-anchored | 43 (no move — those blobs are frameless via `blob_frame_scope()`, not the count guard) |
+| 4 | port-split the landing release (γ owns it, ω does not) | 43 (no move) — **REVERTED**, analysis says the callee's ω does not self-clean so the landing owes both objects; an unsupported change is not kept |
+| 5 | gate the frameless pair-source to `flat_jmp_entry && flat_pat` | 43 (no move) — kept: it states in code the precondition rung 2 assumed |
+**Receipts: off-arm 82/82 BOTH modes throughout · armed m3 43/82 and m4 43/82 IDENTICAL (m3≡m4 holds) · smoke 7/7 both modes · 0 build errors.** SCRIP `5d6f6d48` (rungs 1–3), `ea9041d5` (rung 5).
+### ⛔ THE RESULT THAT DECIDES THE REST OF THE CAMPAIGN
+**The reds split by DIRECTION, not by class**: forward is 7 of 10 classes fully green (0f 1f 2f 4f 5f 6f 7f); backtrack is red (0b 1b 2b 6b 7b 9b at 0/4). Localized on `ptc0b_var2` (`'abcdef' POS(0) *P1 'ef' RPOS(0)` with `P1 = LEN(3) | LEN(2) ANY('c') LEN(1)` — the first alternative must fail and the machine must retreat INTO the blob and take the second):
+- **default arm:** `match`, and exactly ONE ZSM event, the documented-legal whack-owner γ move.
+- **armed arm:** `nomatch`, and `ω· rsp still 80 low vs α` on a **frameless** box — an **RSP UNDER-POP, not a wrong continuation**.
+⭐ **A FRAMELESS BOX CANNOT CARRY A STACK-BORNE PAIR ACROSS ITS OWN INTERIOR CARVE.** It has no rbp from which to re-derive depth, so the pair's address moves under it and β re-entry reads the carve instead of the continuation. **THE RBP ANCHOR IS NOT AN OPTIMISATION, IT IS A PRECONDITION:** law 0a's `[rbp+8]/[rbp+16]` is the only depth-immune home, and **law 0c tier-1 (RSP-relative, "fixed offsets computed from position in the execution sequence") is structurally unavailable to any crossing that must survive backtracking.** This is Lon's own s195 objection confirmed by measurement — *"that will only work if RSP is guaranteed proper, and it should be based on LIFO unwind"* — and it says the LIFO law must be **enforced**, not assumed: the ZSM's ω rsp-vs-α check is exactly that enforcement and it already works.
+**NEXT RUNG, NAMED:** force blob frame scope under the armed arm (`blob_frame_scope()` gates on `!g_emit.flat_bare_chain && !(g_flat_frame_floor > 0)`) so every crossing that can be backtracked into is framed and RBP-anchored, then re-measure the backtrack half. Until that lands, the 79 push/pop sites CANNOT be deleted — they are what makes the register form survive the carve that the stack form currently does not.
 ## RECEIPTS
 Pristine `make pristine` rc=0 before every arm (HQ-27). Runner `SCRIP/scripts/board_passthru_combo.sh both ptc` (82 rows × 2 modes, oracle-diffed, per-class rollup). Arms A/C/D logs in the session scratchpad. Baseline binaries saved and restored between arms so the A/D comparison is the same tree. Bomb text captured per witness with `tail`, not inferred from exit codes.
