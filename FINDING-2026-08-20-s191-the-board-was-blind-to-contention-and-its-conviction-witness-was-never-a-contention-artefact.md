@@ -1,7 +1,7 @@
 # FINDING s191 (seat1, `/home/claude1`, Claude Opus 5) — queue row `scorecard-provenance` (rank 1)
 # THE BOARD WAS BLIND TO CONTENTION — AND THE WITNESS THAT CONVICTED IT WAS NEVER A CONTENTION ARTEFACT
 
-**SCRIP `7d5ebaaf`** (two commits, both labelled s190 in their subject lines — this FINDING is filed s191 with the wave).
+**SCRIP `fa8eeea6`** (three commits; the first two are labelled s190 in their subject lines — this FINDING is filed s191 with the wave).
 corpus untouched. **No compiler source touched**, so no watermark is claimed and RULES step-4 regen is N/A.
 Gates green at the landed tree: `emit_no_lang` · `template_medium_invisible` (0, ceiling 0) · `icn_no_stack` · `icn_one_reg_frame`.
 
@@ -59,6 +59,29 @@ runnable peak is kept and printed (it is the responsive half and shows the burst
 1-minute average, which no single sample can spike. Both target failures still trip it: two `--jobs 12` boards for an hour drive
 the *average* past 16 cores, and a foreign burst inside a long board is caught because `load_peak` is the max **across** samples.
 
+## 3b. ⛔ THE OTHER AXIS OF PROVENANCE — THE BOARD NOW CATCHES ITS OWN STALE BINARY (HQ-27), AND IT CAUGHT ONE HERE
+
+The brief names HQ-27 as this row's **parent class**. The load half was built first; the stale-build half was not reasoned
+into existence — **the header caught it in its own output.** A mid-session rebase moved SCRIP to `21819132` while the binary md5
+and mtime stayed at `19:15:16`, so the report was printing a **new HEAD over numbers measured by an old compiler**. The git HEAD
+in the header is the **tree**, not the **binary**.
+
+Recorded now: `src_commit_epoch`/`_iso` (newest commit touching `src/` or the Makefile), `scrip_bin_epoch`, `src_dirty`.
+`report` compares them and prints, **on its own line** because staleness is not contention and must not be folded into that verdict:
+
+* ⛔ **STALE BINARY** — binary older than the newest compiler commit; `make pristine` and re-measure.
+* ⛔ **UNCOMMITTED COMPILER SOURCE** — N modified files under `src/` at measure time, so the recorded binary md5 may correspond to
+  **no commit at all** and the board is not reproducible from its own HEAD.
+
+**BOTH DIRECTIONS TESTED, because a detector never seen to go quiet is half-tested:** it **fires** on the genuinely stale binary
+this session started with (built 19:15:16, src moved 20:09:33) and **goes quiet** after `make pristine` (EXIT=0; md5
+`9d819fa0cca1` → `9e1cfa9e2080`, mtime 20:14:49 > 20:09:33).
+
+⭐ **MEASURED BESIDE IT, AND RECORDED PRECISELY BECAUSE IT CUTS AGAINST THE ALARM:** across the 124-program csnobol4 suite the
+stale binary and the pristine one differ on **exactly one row — nqueens**, the ASLR-nondeterministic one. That is evidence about
+*this suite at these two revisions*, not a general claim that staleness is harmless. The banner's job is not to prove staleness
+always costs something; it is to make it impossible for a reader not to know.
+
 ## 4. PROVEN WITH TWO REAL CONCURRENT BOARDS, NOT A STUBBED PEER
 
 | test | result |
@@ -108,10 +131,15 @@ two be told apart, which is precisely why it was worth building — **but nqueen
    Deterministic at 1.11s under `setarch -R`, which makes it **cheap to bisect** — the reproducer is `setarch -R ./scrip --run
    nqueens.sno`, and `scorecard_snobol4.sh one csnobol4_suite nqueens N` is the ready-made N-run harness. m4 flaps the same way,
    consistent with m3 ≡ m4 sharing one codegen.
-2. **`scorecard-icon-provenance`** — `scripts/scorecard_icon.sh` is the sibling instrument with the identical disease and is
-   **not** covered by this commit. The honest fix is not a second copy of these helpers (spelled-twice disease) but extracting
-   `sc_load`/`sc_peers`/`sc_board_*`/`sc_sampler` + the report header into one sourced file both boards use — **ONE AUTHORITY over
-   "what was this measured under"**. Creating that shared file is a design call, so it is asked rather than taken.
+2. **`scorecard-icon-provenance`** — ⛔ **CHECKED BEFORE ASSERTING, AND THE OBVIOUS CLAIM IS TOO STRONG.** `scripts/scorecard_icon.sh`
+   is 44 lines that *delegate* to `honest_icon_correctness.sh` / `test_smoke_icon.sh` / `test_crosscheck_icon.sh` / the gate
+   scripts and aggregate pass-counts; it has **no `--jobs`** and does **no per-program timing-grading of its own**, so it does not
+   carry the fine-grained `rc 124 → TIMEOUT` hazard. What it *does* share is the **provenance half**: it records nothing about
+   what it was measured under, and its sub-runners carry 240s/600s/900s budgets that a contended box can trip wholesale — one
+   tripped budget silently zeroes a whole category rather than one row, which is arguably worse. The fix is not a second copy of
+   these helpers (spelled-twice disease) but **extracting** `sc_load`/`sc_peers`/`sc_board_*`/`sc_sampler` + the report header
+   into one sourced file both boards use — **ONE AUTHORITY over "what was this measured under"**. Creating that shared file is a
+   design call, so it is asked rather than taken.
 3. **Any long runner that competes for the box** (`test_broad_corpus_snobol4.sh` and friends) should register with the same
    `/tmp/s4e-boards.d` registry once (2) lands — a contender that never registers is only visible to the load half.
 
