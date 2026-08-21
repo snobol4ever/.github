@@ -132,6 +132,30 @@ By directory (files needing work / total in-scope files):
 
 **Tooling note (found this session):** `SCRIP/tools/beautify.py` exists but does **NOT** implement these rules — it targets 120 columns (not 200), explicitly *preserves* comments (repositions block comments as trailing end-of-line comments rather than deleting them), and only bans blank lines inside function bodies (not file-wide). It is a different tool for a different, looser style and must not be run as-is against this goal. The original S200 pass's actual tool (`/tmp/beautify_sm.py`, per the S200-COMPLETE lessons-learned) lived in ephemeral `/tmp` and did not survive into the repo. A correct tool for THIS rule set (200-col, zero blank lines file-wide, zero comments except separators, separator-shape-aware) does not currently exist in the repo and needs writing or the 52 files need hand-editing per-violation; either way every change goes through the Oracle above before it counts as landed.
 
+## Reactivation 4 (R4) — 2026-08-20 — HQ (Fable 5) — **C/H/CPP passes 1–4 LANDED · Y/L NEWLY IN SCOPE AND LANDED · PASS 5 (WRAPPING) OPEN**
+
+**Lon directive, in-chat:** *"run the whole thing on all hand-written C, Y, and L code. ZERO comments except line breaks at 200 column length. ZERO blank lines."* **`.y`/`.l` had never been in scope before.**
+
+**Scope re-derived fresh** (this file's own law): 368 C/H/CPP under `src/` minus **14** generated — the marker grep alone found only **9**, so the union with the name pattern is still required, exactly as the Scope note warns. **363 in scope**, plus **9** `.y`/`.l`.
+
+**Census before (7 weeks of fleet drift since R3.1):** 2,901 lines >200 · 64 blank · **6,919 comment spans in 357 files** · and the separator histogram had **decayed off R3's uniform 200** — 13@120, 21@199, 56@198, 20@202, 3@204. ⛔ R3 claimed mixed widths were *"structurally impossible"*; they returned the moment humans hand-added separators again. **A generated invariant only holds while the generator is the only author.**
+
+**After (the committed tools, not hand passes):** 0 blank lines · **3,129 separators, every one exactly 200** · the only `/* */` content left in 363 files is those separators (`--count` == histogram == 3,129).
+
+**C ORACLE — `scripts/util_style200_oracle.sh` (new, automated):** **120 byte-identical · 0 BREAK/DIFF · 7 no-compile-both-ways · 34 headers.** ⛔ **Two gate-shaped holes found in my own Oracle and fixed before reporting:** (1) the first run used `CBASE`'s short `-I` list and skipped **96 of 161** files as no-compile-both-ways — a gate that cannot compile 60% of its subjects is not a gate; widened to the Makefile's `RT_INCS` (:336) verbatim, skips fell **96 → 7**. (2) Compiling the OLD `.c` against the CURRENT headers means a semantic change inside a reformatted **header** appears in BOTH objects and reads as a **false pass** — the trap this file already documents. Closed with the stash method: whole-tree before/after through 5 consumers (`driver_data.c`, `emit.cpp`, `rt.c`, `pattern_match.c`, `bb_call_value.cpp`), asm **and** data identical on all five.
+
+**Y/L ORACLE — `scripts/util_style200_oracle_yl.sh` (new).** A `.y`/`.l` has no object of its own, so its object-equivalent is **the generated parser**: regenerate both sides from an identical path/output name, **compile the generated `.c`**, compare `objdump` asm+data. **Result: 9/9 byte-identical, 0 breaks.**
+- ⛔ **The C stripper is UNSAFE on flex sources, proven not assumed.** A hazard scan *before* touching anything found `raku.l:152` — `[a-zA-Z0-9_.:/*+?=!$-]` — a bare `/*` inside a **character class**. Run blind it destroyed the lexer (generated before, failed after). Cured by a surgical strip removing only lines that are *entirely* a separator comment, leaving `:144`'s quoted `"//"` (Raku's defined-or) and `:152` intact.
+- ⛔ **Text comparison is the wrong gate here.** A pure comment strip on `snobol4.y` leaves a 1000-line raw diff → 48 ignoring `#line` → 28 ignoring comments too, and those 28 are **`yyrline[]`**, bison's grammar-rule line-number table, emitted only under `YYDEBUG`. Deleting a comment shifts every later line, so `#line` and `yyrline` move while behaviour does not. **Compile and the difference vanishes.**
+- ⛔ **My first negative test was VACUOUS and I nearly believed it.** I "injected" into `%{ … %}`; `snobol4.y` uses `%code requires{}`/`%code{}` and has **no `%{` at all**, so nothing was injected and the Oracle's clean report meant nothing. Re-run with the injection **proven landed** (git-dirty + marker grep) *before* reading the verdict — it then correctly FAILED. **A negative test that does not verify its own injection is a null test wearing a disguise.**
+- ⛔ **`objdump`'s filename echo carries the FULL PATH.** Normalizing only the basename left `before/` vs `after/` in the header and flagged 8 identical files as differing. This file already warns about exactly that; it caught me anyway. **Normalize globally, by string, including the directory.**
+
+⛔ **NOT DONE, NOT CLAIMED — pass 5 (wrapping):** **892** lines >200 across **70** C/H/CPP files (median 248, p90 434, **max 4,775**; `emit.cpp` alone holds 205) plus **117** in `.y`/`.l` (`pascal.y` 99). Real code, not comments — its own risk class, needing its own Oracle-gated pass. **Committed generated parsers deliberately NOT regenerated:** out of scope for this goal and proven semantically identical to the stripped sources, so regenerating would add only `#line` path churn.
+
+**Toolchain note (fleet-wide unblock, seat7's recipe, verified working here):** flex and bison are **not installed** and sudo needs a password, but `apt-get download flex bison libbison-dev libfl-dev` + `dpkg-deb -x` into a scratch prefix needs **no root** — flex 2.6.4 / bison 3.8.2 obtained that way and used for the whole Y/L Oracle. Recipe is in `util_style200_oracle_yl.sh`'s header.
+
+**Landed:** SCRIP `91dacb71` (C/H/CPP passes 1–4) · `c8b2c738` (Y/L).
+
 ---
 
 ## Watermark
