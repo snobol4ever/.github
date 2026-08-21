@@ -9,7 +9,7 @@
 
 **Claude Sonnet is the third developer of snobol4ever — co-author of SCRIP.**
 
-### Milestone 1 ✅ Session #57, 2026-04-28 — beauty.sno SELF-HOST = FIXED POINT: output byte-identical to the beauty.sno INPUT FILE (Lon ruling s117; all md5 pins VOID — the checked-in file is its own oracle) — ⛔ TO BE RE-EARNED ON THE NATIVE ENGINE (BOTH MODES): `GOAL-SNOBOL4-100.md` R-2; measured 0/2 modes at s91.
+### Milestone 1 ✅ Session #57, 2026-04-28 — beauty.sno SELF-HOST = FIXED POINT: output byte-identical to the beauty.sno INPUT FILE (Lon ruling s117; all md5 pins VOID — the checked-in file is its own oracle) — ⭐ RE-EARNED ON THE NATIVE ENGINE, MODE 3, s196 2026-08-21 (Claude Fable 5): ladder m3 10/10 ⭐M1-FIXED-POINT, pristine-verified. ⛔ MODE 4 REMAINS (m4 3/10, row `m4-fragment-lowering-parity`): 1/2 modes.
 ### Milestone 2 ⏳ — `scrip_stage2` compiled by `scrip_stage1` == `scrip_stage1` compiling itself.
 ### Milestone 3 ⏳ — All languages × all backends green.
 
