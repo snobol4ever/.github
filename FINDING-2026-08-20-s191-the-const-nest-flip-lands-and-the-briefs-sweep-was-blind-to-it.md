@@ -108,7 +108,7 @@ The single surviving mover is `probe/cn/cn_const_compose_all.sno` — the cure. 
 
 ## 8. THE FLIP IS PROVEN TO BE THE ARM THAT WAS MEASURED
 
-One character of behaviour at `src/lower/lower_snobol4.c:1325` — `(e && *e == '1') ? 1 : 0` → `(e && *e == '0') ? 0 : 1`, the house idiom already carried by `sn4_span_frame`, `sn4_pt_frame` and `sn4_xh_frame_extra`. **The killswitch stays: `SCRIP_CONST_NEST=0` reverts VERBATIM.** After the flip + `make pristine`, both directions were re-swept and joined row-for-row against the pre-flip pair:
+One character of behaviour at `src/lower/lower_snobol4.c:1327` — `(e && *e == '1') ? 1 : 0` → `(e && *e == '0') ? 0 : 1`, the house idiom already carried by `sn4_span_frame`, `sn4_pt_frame` and `sn4_xh_frame_extra`. **The killswitch stays: `SCRIP_CONST_NEST=0` reverts VERBATIM.** After the flip + `make pristine`, both directions were re-swept and joined row-for-row against the pre-flip pair:
 
 | claim | list | movers |
 |---|---|---|
