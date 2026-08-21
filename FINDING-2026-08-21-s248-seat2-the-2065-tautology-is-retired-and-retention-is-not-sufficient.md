@@ -59,5 +59,12 @@ Three arms, same suite, measured this session — this is the finding that chang
 ## 6. GATES + CANARY AT THE COMMIT
 `test_gate_emit_no_lang.sh` **OK (LANG-BLIND)** · `test_gate_pl_no_new_global.sh` **PASS, ratchet 14/14** · Icon canary **14/14 both modes** · Prolog smoke **3/5** · shipped-default `.s` **md5-identical to HEAD**. Shipped default and Icon are provably untouched: the change is gated on `pl_cells_graph`, which only opt-in `SCRIP_PL_CELLS=1` ever sets.
 
+## 6b. HANDOFF REGEN — ALL SIX RUN, `changed=0`, AND A SEVENTH TREE THAT WAS DRIFTING (NOT THIS SESSION'S)
+All six RULES step-4 scripts run in order: benchmark · feature · demo · programs (**623**) · prolog_bench (**22**) · crosscheck (**487**) — **`changed=0` everywhere**, ~1,130 programs. That is the independent second path confirming the shipped default is byte-identical, exactly as RULES intends.
+
+⛔ **The conditional seventh — `update_icon_bench_asm.sh` — found 20 of 23 icon bench `.s` STALE: 1,210 insertions / 14,692 DELETIONS** (queens −1144, rsg −1870, tgrlink −2412). **ATTRIBUTED BY MEASUREMENT, NOT ASSUMED:** `queens.icn` compiled at `e92aebfe` and at its parent `425c5d06` gives the SAME md5 (`3d5c52d5…`, 6707 lines) — **this session's commit is ICON-INERT** (gated on `pl_cells_graph`, which only `lower_prolog.c` sets). The drift is the sibling Icon era's; a seat had already landed the same regen upstream as corpus `96e894a9` ("THE DRIFT IS THE SIBLING'S r10/r11 ERA") — two seats reaching the same conclusion independently, so this session's duplicate commit was correctly dropped as empty on rebase.
+
+⭐ **WHY IT SAT, AND THE GENERALISABLE POINT:** `update_icon_bench_asm.sh` is a **CONDITIONAL** step in RULES (*"Icon emitter/lowerer touched ⇒ also…"*), and `.s` artifacts are read by no gate and no board. A seat that moves Icon codegen without regenerating therefore leaves **no trace anywhere**. This is the s169/s192 pattern a **third** time: *the trees that drift are the ones no step names UNCONDITIONALLY.* Worth a queue row to make the icon-bench regen unconditional, the way `crosscheck` was added at s192 on exactly this evidence.
+
 ## 7. NEXT
 PZ-1(c) — land the **five-site** enabling pair through the shared pin machinery (`emit_rec_pin`/`x86_fb`/heap-fb adopt), then re-run arm B. The guard committed here turns itself on the moment retention is real, so PZ-1(c)'s DONE-WHEN is simply *arm B stops costing −12*. PZ-1(b)'s caller-base save now has a proven-free home at `[kt-8]`.
