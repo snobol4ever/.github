@@ -23,6 +23,15 @@ Three micros identical but for the number of `A = A + 1` statements inside one h
 | loop-control share | 62% | **71%** | |
 **The two instruments agree**: per-add 17.25 vs 17.95 (4%) and 2.12 vs 2.30 (8%); loop control 25.87 vs 29.85 (15%) and 6.02 vs 5.50 (9%). ⇒ **`ZBODY` is amortized over `ZK` and did not invalidate the suite**, and every conclusion below stands — now in real nanoseconds rather than harness units. **Ceiling if loop control were free: k=1 goes 6.13× → 20.8×.**
 
+### ⭐ THE PROCEDURE BOUNDARY, PRICED DIRECTLY — IT IS FREE IN SCRIP
+Lon pressed further (*"there can not be a harness — these double loops must be inlined for each source"*). Measured, same differential method, three shapes of the identical loop:
+| shape | SPITBOL ns/iter | SCRIP ns/iter | ratio |
+|---|---:|---:|---:|
+| top-level, **literal** bound | 47.80 | 7.80 | 6.13× |
+| top-level, **variable** bound | 40.20 | 7.60 | 5.29× |
+| **`DEFINE`-wrapped, parameter bound (= the harness shape)** | 38.00 | 7.60 | 5.00× |
+⇒ **The `DEFINE` boundary costs SCRIP NOTHING — 7.60 vs 7.60 ns, identical** — and SPITBOL ~5%. **The harness is not invalidating anything; if anything it is CONSERVATIVE**, reporting 5.00× where a clean top-level loop reports 5.29×. ⛔ So inlining the timing loop into every source would re-spell the harness ~30 times to chase a ≤5% instrument effect that already runs in the ORACLE's favour. ⭐⭐ **THE REAL CAUTION THIS EXPERIMENT FOUND IS ELSEWHERE:** changing the loop bound from a LITERAL to a VARIABLE moved **SPITBOL by 16%** (47.80 → 40.20) while moving SCRIP by 2.6% — **the source idiom of a benchmark matters far more than the harness that wraps it**, and the two engines are not equally sensitive to it. A benchmark rewritten "equivalently" can move the oracle much more than it moves SCRIP. ⛔ My first version of this experiment confounded the wrapper with the literal→variable change and would have blamed the boundary for a 20% effect that was 16% operand idiom; the control above separates them.
+
 ## ⭐⭐ WHAT THE EMITTED ASM SAYS — HALF THE HYPOTHESIS IS ALREADY DONE
 **`+` IS ALREADY INLINE.** `--compile` of the loop shows an inline arithmetic fast path — `cvtsi2sd` / `addsd` / `movq rax, xmm0`, result tag stored, then `jmp` straight to the assign — with **`call rt_add@PLT` on a COLD branch** (`.Lx46_0:`) reached only when the fast path declines. That is why an add measures 2.12 units and beats SPITBOL 8.1×. **There is no win available on `+`; it is finished work.**
 
