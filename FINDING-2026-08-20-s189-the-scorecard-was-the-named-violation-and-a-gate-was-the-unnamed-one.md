@@ -103,10 +103,18 @@ and added `gimpel`/`lon`/`misc`): **1291 rows.**
 | **A** — script as it was, `lon` SCORED | 12 | **113** | **38.2** |
 | **B** — script as of this row, `lon` DROPPED | 11 | **108** | **38.9** |
 
-The other **12 suite lines are byte-identical** between the arms. `lon` scored **23.8** (N=21,
-UNSCR=78 — the pre-s185 state), well under the board's own 38.2, so removing it **raises META by
-+0.7**. Under `lon`'s post-s185 honest score of **12.5** (seat1, after the include fix took UNSCR
-78→43 and N 21→56) the same arithmetic gives **37.7 → 38.9, +1.2**.
+The other **12 suite lines are byte-identical** between the arms. `lon` scored **23.8**, well under
+the board's own 38.2, so removing it **raises META by +0.7**.
+
+⛔ **Two `lon` numbers exist and they are not in conflict — the difference is the BINARY, not the
+harness.** This union reads `lon` at **23.8** (N=21, UNSCR=78); seat1's s185 pre-fix reading was
+**33.3** at the *same* N=21 / UNSCR=78. Identical denominator, different pass count, because the two
+were measured five days and ~100 commits apart. Only the *denominator* is a harness property, and it
+matches exactly. Applying the same arithmetic to `lon`'s post-fix score of **12.5** (seat1, after the
+include fix took UNSCR 78→43, N 21→56) gives **37.7 → 38.9, +1.2** — a *projection* of the drop's
+direction and magnitude at a realistic `lon` score, **not** a measured META, since it pairs an s91-era
+board with an s185-era suite score. The measured answer is the +0.7 above; the projection says the
+real effect today is larger, because `lon` got honest and honest made it worse.
 
 ⛔ **THEREFORE: A POST-s189 META IS NOT COMPARABLE TO A PRE-s189 ONE, AND THE DIFFERENCE IS IN THE
 FLATTERING DIRECTION.** The scorecard's headline number improves because it stopped running its
@@ -125,6 +133,86 @@ renormalises and is *never* "out of 118" — on the union above `tw` was already
 because `gimpel` contributed **0** (all 145 of its programs were `ORACLE_FAIL`). A reader who divides
 by the declared total gets the wrong number in both eras.
 
+## ⭐⭐ A CURRENT 12-SUITE META EXISTS AGAIN — **70.1 AT THE MERGED HEAD** (70.4 before seat2's oracle-flag row)
+
+Nobody has had a full board since the s91 baseline, so one was run — four times, as it turned out.
+Pristine each time, RT_OPT `-O0`, `--jobs 12`, 1780 rows, oracle verified alive first.
+
+| board | tree | oracle | META |
+|---|---|---|---|
+| contended | SCRIP `23d2b914` | `-b` (11 of 12 suites) | 70.3 |
+| quiet | SCRIP `23d2b914` | `-b` (11 of 12 suites) | **70.4** |
+| merged HEAD | SCRIP `c7a24595` | `-bf` (all suites — seat2's `2357933d`) | **70.1** |
+| — the 0.3 between the last two is **seat2's flag row**, resolved by *their* 3-arm sweep, not mine | | | |
+
+```
+beauty_self 0.0 | beauty_suite 97.1 | demos 72.7 | benchmarks 96.7 | bb_probes 100.0 | patterns 96.3
+crosscheck 99.2 | feature_test 94.4 | probes_misc 87.3 | csnobol4_suite 27.6 | gimpel 39.8 | misc 67.5
+META 70.1 at c7a24595   (s91 baseline for comparison: 38.0)
+```
+`bb_probes` is at **100.0/100.0**. `beauty_self` remains **0.0** — Milestone 1 is untouched by any of
+this. `gimpel` is scoreable for the first time (83 rows where s91 had N=0/UNSCR=145).
+
+### ⛔ THE CONTENTION SCARE, AND WHAT RE-RUNNING ACTUALLY MEASURED
+
+Mid-row `ps` showed **seat2 and I each running a full 12-suite board at `--jobs 12` on the same
+16-core box**, neither aware. The instrument is **timing-graded** — `grade()` turns rc 124 into
+`TIMEOUT`, nine of twelve suites on a 20s budget — so I warned seat2 before they published, filed
+`q-scorecard-contention`, and re-ran quiet. **The re-run measured the noise floor instead:** exactly
+**5 movers of 1780** and **zero change to either pass set** (m3 1377 / m4 1318 in *both*), META
+70.3 → 70.4.
+
+⭐ **The goal file's stated floor — *"≈5 flips green→red"* — is right in MAGNITUDE and wrong in
+KIND.** All five movers are failure↔failure or failure↔unscoreable churn (`nqueens`, `dotnet/code`,
+`ORBREAK_driver`, and two `parser/cf_*` rows); **not one is a green↔red flip.** A seat budgeting ±5
+*passes* of tolerance is discarding real single-program cures. The honest floor is **±5 rows of
+failure-class churn, ±0 passes.**
+
+### ⛔⭐ RETRACTED IN PLACE — I CALLED ALL 11 MERGED-HEAD "REGRESSIONS" FALSE REDS, AND seat2's CURSOR IS THE AUTHORITY
+
+The rebase pulled in seat2's rank-0 `scorecard-oracle-case` (`2357933d`), which makes the oracle
+`-bf` for **every** suite, so my 70.4 was measured against a different ground truth and had to be
+re-run. At the merged head: **18 movers, 11 PASS→non-PASS, 1 non-PASS→PASS.** The single gain is
+seat8's `a2979dc6` landing — `probe/passthru/ptw_min_arbno_nullalt_falseaccept.sno` DIFF/DIFF →
+**PASS/PASS**, the campaign's only false accept, green on the board.
+
+I audited the 11 against the live oracle under both flags and concluded **all eleven were false
+reds**, and messaged seat2 saying so. ⛔ **That inference is wrong.** seat2 reached the better answer
+first, with a **3-arm sweep and a same-flag control arm** I did not have, and their classification
+stands: 5 flakes + 13 real, of which **one is a genuine SCRIP defect** — `1113_table.sno`,
+`CONVERT(t,'array')`: under `-f` a datatype name string must be upper-case (manual p.199), the oracle
+says `ERROR 164`, **SCRIP accepts it** — 5 are the `-include`-lowercase oracle bug, **5 are vacuous
+passes exposed** (`preload{1..4}` are the 4-byte program `end` carrying non-empty pins, passing
+because *mutual silence was scored as agreement*; their row `grade-mutual-silence`), and 2 are
+label-only relabels.
+
+⛔ **Where the measurement was right and the reading of it was wrong.** SCRIP's stdout *is*
+byte-identical to the `-b` oracle on all five of my class 1, and `pin != oracle(-b)` *is* true for all
+six of my class 2. Both facts hold. But **`-b` is not the correct reference — which is the entire
+point of seat2's row.** I treated agreement with a folding oracle as evidence of correctness, which
+is precisely the thing that row exists to stop. A same-flag control arm would have caught it; I ran a
+two-arm comparison across a flag change and read the difference as if only one thing had moved.
+
+⭐ **What survives, because it is orthogonal to the classification: `sbl`'s EXIT CODE IS NOT A
+LIVENESS SIGNAL IN EITHER DIRECTION.** Measured: it exits **0 after a fatal error** (class 1 —
+358–373 bytes containing `ERROR 022`, adopted by the board as ground truth) **and 1 on a clean,
+correct, 0-byte run** (class 2 — dropping `have_live` and leaving only a pin). `run_one`'s sole
+liveness test is `rc -eq 0`, so **both** directions move rows into and out of the denominator with no
+tree change. seat2 named the first direction at s186 (row `gimpel-suite-harness`, still unlanded);
+the **second, opposite direction is new** and belongs in the same guard.
+
+### ⛔⭐ THREE MECHANISMS IN ONE SESSION MOVED THIS BOARD'S HEADLINE WITHOUT ONE LINE OF COMPILER CHANGE
+
+1. **Dropping a suite** (this row): `lon` gone → **+0.7** on the s91 union. Measured *less*.
+2. **An oracle that times out**: `have_live=0` on an unpinned program makes it `ORACLE_FAIL`, and it
+   **leaves the denominator** — both such rows were *failing*, so `misc` rose 65.9 → 66.9. **+0.1.**
+   Measured *less*. An oracle that gets slower can only make the board look better.
+3. **An oracle flag change**: **−0.3**, which seat2's 3-arm sweep resolves into 1 genuine SCRIP
+   defect, 10 ground-truth artifacts and 5 flakes — **zero fail→pass board-wide**.
+
+HQ-73's *"UNSCR hides SCRIP reds"* is the general law and all three are instances. ⛔ **Never compare
+two METAs without first comparing their denominators, their oracle flags, and their builds.**
+
 ## RUN-PATH A/B — THE EDIT IS INERT ON EVERY SURVIVING SUITE
 
 `report`-only verification would not have proved the runner still works. Both arms were **run**
@@ -140,10 +228,18 @@ instance: self-diff the control arm before you attribute a mover.)
 
 ## RECEIPTS
 
-- **Pristine.** `make pristine` rc=0 before any published number (`scrip` + `out/libscrip_rt.so`
-  rebuilt), RT_OPT `-O0` per FACT RULE O0-DEV. SCRIP `23d2b914`. Oracle verified alive first
+- **Pristine, twice.** `make pristine` rc=0 before every published number (`scrip` +
+  `out/libscrip_rt.so` rebuilt), RT_OPT `-O0` per FACT RULE O0-DEV — once at SCRIP `23d2b914`, and
+  **again after the handoff rebase pulled in compiler changes** (`c7a24595`; seat8's `a2979dc6`
+  SEQ-TAIL, seat3's Class B, seat2's oracle flag, HQ's monitor work). Oracle verified alive first
   (`sbl -b probe/m1/m1_alt_arm2_cap.sno` → `b`, rc=0) — without it every board verdict is a plausible
   all-FAIL fiction.
+- **Gate GREEN over the full 1667-program sweep, and RE-PROVED after the rebase** — identical both
+  times: `programs=1667 emit-refuse=135 stray-markers=0 notes-on-jumps=0`. (`emit-refuse` is a
+  tripwire, never a watermark — the gate says so itself.)
+- **No compiler source touched ⇒ zero `.s` regen debt.** Two shell scripts, 32 inserted lines.
+- ⛔ **The merge with seat2's concurrent edit to the SAME file held clean** — their `sbl_flags()`
+  authority and my three edits are orthogonal and both present at `c7a24595`.
 - ⛔ **The A/B is binary-invariant by construction** — both arms ran the same binary — so its +0.7 is a
   property of the change, not of the build. The absolute suite numbers below are the pristine build's.
 - **`gawk` is NOT installed here and `report` does not need it.** The goal file's setup line says
