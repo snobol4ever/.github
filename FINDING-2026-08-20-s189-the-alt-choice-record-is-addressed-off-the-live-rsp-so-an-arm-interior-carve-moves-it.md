@@ -4,8 +4,17 @@
 else-branch fires, and it fires on a MEASUREMENT: the row's "if killswitch-clean" test comes back **negative**. No existing
 killswitch reaches any of the four witnesses (§5). Lon ruled investigation-only in-chat this session.
 
-**Tree:** SCRIP `3dc52576` · corpus `7aa87e81` · `make pristine` EXIT=0, RT_OPT `-O0` (O0-DEV). **NO FILE TOUCHED** — tree clean
-at handoff; this rung is measurement only.
+**Tree:** measured at SCRIP `3dc52576` · corpus `7aa87e81`; ⭐ **RE-PROVED IN FULL AT SCRIP `28e2122a` / corpus `1741f3ad` after
+seat7's `alt-seam-tier` landed MID-RUNG on the very files this FINDING is about** (`zeta_depth.c`, `emit.cpp`,
+`lower_snobol4.c`). Second `make pristine` EXIT=0, RT_OPT `-O0` (O0-DEV). **NO FILE TOUCHED** — both trees clean; this rung is
+measurement only.
+
+⛔ **WHAT THE RE-PROVE CHANGED, STATED FIRST BECAUSE IT PARTLY SUPERSEDES §4.** Seat7's tier-3 admission **CURED TWO of the four
+witnesses** — `ptw_min_fence_alttop` and `ptw_min_fence_left_altresume` are **GREEN both arms at `28e2122a`**. Still red:
+`ptw_min_alttop_nofence_ctl` (the fence-free PRIMARY) and `ptw_min_rseal_unsealed_ctl` (default red, `FENCE_IGNORE=1` green).
+⭐ **EVERYTHING ELSE IN THIS FINDING RE-MEASURED IDENTICAL** — the mechanism (§2), the full prediction table (§3), the asm
+signature, the barer twin, ptc3 8/8, and the board. **The class did not shrink; it is now exactly the residue seat7 had to fence
+off (§5b).**
 
 ---
 
@@ -77,12 +86,32 @@ splits them **2/2**, and the split disagrees with the bracketing (it agrees with
 | witness | default | `FENCE_IGNORE=1` | class |
 |---|---|---|---|
 | `ptw_min_alttop_nofence_ctl` | nomatch | **nomatch** | **IN** — rsp-depth (this FINDING). Fence-free; publishes a carrier (`rn=1`). |
-| `ptw_min_fence_alttop` | nomatch | **nomatch** | **IN** — rsp-depth, with the s182 fence refusal stacked ON TOP (`RESUME-NIL`, `pfenced=1`); remove the fence verdict and the depth defect is what is left. |
-| `ptw_min_fence_left_altresume` | nomatch | **match** | **OUT** — pure s182/s121 fence refusal. Not this class. |
+| `ptw_min_fence_alttop` | nomatch | **nomatch** | **IN** at `3dc52576` — rsp-depth with the s182 fence refusal stacked ON TOP (`RESUME-NIL`, `pfenced=1`). ⭐ **GREEN at `28e2122a`** (seat7's tier 3). |
+| `ptw_min_fence_left_altresume` | nomatch | **match** | **OUT** — pure s182/s121 fence refusal. ⭐ **GREEN at `28e2122a`.** |
 | `ptw_min_rseal_unsealed_ctl` | nomatch | **match** | **OUT** — pure fence refusal (`fb=IR_MATCH_DEFER fbtier=2`). **Classified OUT with evidence, as the row asked.** |
 
 ⛔ **So the row's own primary is the ONLY fence-free member**, and two of its four witnesses belong to a class that already has a
-disposition. A seat that "fixes the three together" would be chasing two mechanisms with one cure.
+disposition. A seat that "fixes the three together" would be chasing two mechanisms with one cure. ⭐ **THE RE-PROVE VINDICATED
+THE SPLIT:** seat7's tier-3 landing cured **exactly the two fence-side witnesses** and left **exactly the `_nc=2` primary** red —
+the 2/2 boundary this section drew from `FENCE_IGNORE` alone, confirmed by an independent cure landing on one side of it.
+⛔ `ptw_min_rseal_unsealed_ctl` stays red by default at `28e2122a` (still `FENCE_IGNORE`-curable): **OUT** stands.
+
+## 4b. ⭐⭐⭐ SEAT7 REACHED THE SAME BOUNDARY FROM THE CRASH SIDE, AND THIS FINDING IS THE MISSING *WHY*
+
+Landed the same session, independently: `28e2122a` gives `IR_MATCH_ALTERNATE` **seam tier 3** ("β RE-YIELDS AT THE SAME CURSOR").
+Its message records that the tier ALONE was not admissible — *"Admitted as ruled, tier 3 cured two witnesses and **SIGSEGV'd two
+programs**"* — so two conjuncts were **earned by crashes**, and the first is:
+
+> **(a) `_nc == 1`** — *"three witnesses one field apart; lf and fn identical across a cure and a crash, only the unsealed
+> choice-node COUNT separating them. s121/s126's ALT-depth conviction is STILL LIVE: ALT-FLAT makes arm INTERIORS footprint-0,
+> **which is not the claim that an arm holds no other carving choice node**."*
+
+⭐ **THAT LAST CLAUSE IS THIS FINDING'S MECHANISM, ARRIVED AT EMPIRICALLY.** Seat7 could establish *that* a second carving choice
+node in an arm breaks the box (a SIGSEGV said so); §2 above says **why**, instruction by instruction: the outer box's `s0`/`β`/`af`
+address `[rsp+N]` off the LIVE rsp, and the inner box's still-unpopped 32B record is what rsp points at. The two results are
+independent and they agree — which is also why the crash and the wrong answer are one class (§3). **`_nc == 1` is therefore not a
+conservative hold to be relaxed later; it is a correctness boundary with a named cause, and it stays until the addressing is
+fixed.**
 
 ## 5. ⭐⭐⭐ THE CURE IS ALREADY BUILT — AND ITS ADMISSION EXCLUDES EXACTLY THESE SHAPES
 
@@ -120,8 +149,9 @@ Widening `blob_choice_rbp_scan` is **not** a one-line admission change, and it m
 
 ## 7. GATES
 
-`make pristine` EXIT=0 · **no file touched, both trees clean** · barer twin `( 'a' | 'aa' )` GREEN · **ptc3 grid 8/8 GREEN** ·
-corpus board **m3 332/5 · m4 325/11 · SKIP 1 (337)**, fail-set identical **by name** · `.ref`s of all four witnesses re-derived
+`make pristine` EXIT=0 **twice** (`3dc52576` and, after seat7's mid-rung landing, `28e2122a`) · **no file touched, both trees
+clean** · barer twin `( 'a' | 'aa' )` GREEN · **ptc3 grid 8/8 GREEN** · corpus board **m3 332/5 · m4 325/11 · SKIP 1 (337)** at
+BOTH revisions, fail-set identical **by name** (diffed) · `.ref`s of all four witnesses re-derived
 from the LIVE oracle and identical under **both** `sbl -b` and `-bf` (the rank-0 folding hazard does not touch them) · ⛔ the
 SNOBOL4 scorecard was NOT run (it executes `corpus/programs/lon/`, which RULES.md forbids).
 
