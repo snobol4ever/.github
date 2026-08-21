@@ -1,6 +1,6 @@
 # FINDING s190 (seat3, `/home/claude3`, Claude Opus 5) — queue row `beauty-return-pair-shift`
 
-## ⛔ THE HEADLINE: THE PAIR IS NOT SHIFTED AND THE OMEGA UNWIND DOES NOT LEAK. `IR_STATEMENT_END` RELEASES 96 BYTES WHILE STANDING AT DEPTH **ZERO**, AND THE INSTRUMENT THE BRIEF SENDS YOU TO CANNOT SEE THAT DIRECTION BY CONSTRUCTION.
+## ⛔ THE HEADLINE: THE PAIR IS NOT SHIFTED AND THE OMEGA UNWIND DOES NOT LEAK. **rsp IS CORRECT AT THE POP; THE 16 BYTES IT POPS WERE NEVER A PAIR** — AND THE INSTRUMENT THE BRIEF SENDS YOU TO IS BLIND IN THE DIRECTION THAT MATTERS ANYWAY.
 
 The brief's step 2 says *"grep the census/ring for the FIRST omega imbalance before the crash (`RSP LEAK`, `rsp still`, `IMBALANCE`, `skew`) — the omega arm of `rt_zdp_sm_event` already measures rsp@omega vs rsp@alpha"*. It does — **in one direction only.** The ω arm's release test is literally `if (rsp < e->rsp_a)`, i.e. *"carved and never released"*. **Over-release — rsp climbed ABOVE where α stood — was invisible BY CONSTRUCTION, and over-release is how beauty dies.** A seat following step 2 to the letter finds a clean census and concludes there is no imbalance. There isn't one *of the kind the instrument tests for*. Armed with the other direction (`SCRIP_ZSM_OVERPOP=1`, landed SCRIP `2cf31532`), the same run reports **1094 over-releases** it previously could not see.
 
@@ -21,51 +21,53 @@ The brief's step 2 says *"grep the census/ring for the FIRST omega imbalance bef
 
 Oracle (`sbl -bf`) answers the identity, rc=0, on every one. **beauty's COMMENT road is green and its NON-COMMENT road SEGVs before emitting a single byte** — so the wall is not "an empty line", it is *any line that reaches the statement parse*. All eight `m1_lad_*.in` ladder rungs are the same rc=139, i.e. the ladder is not bracketing eight defects, it is showing one wall eight times.
 
-## THE MECHANISM, WITH THE NUMBERS
+## ⛔⛔ CORRECTED IN PLACE (same session, before any seat could inherit it): MY FIRST WRITE-UP OF THIS SECTION SAID "IR_STATEMENT_END DOUBLE-RELEASES 96 BYTES". **THAT IS FALSE AND I FALSIFIED IT MYSELF — STATEMENT_END'S RELEASE IS EXACT.**
 
-The DEFINE call protocol, read out of the emitted TEXT (`--compile`, not inferred) — `InitCounter_α`, and every one of the 255 DEFINEs is the same shape:
+I read the ring's `depth` column as "nothing carved" at STATEMENT_END's α. **`depth` is noise here and the file says so:** `g_zsm_rsp0` is ONE cell, re-based by every nested graph, and the last `ORIGIN` before the crash belongs to a *different* graph (`op=59 IR_MATCH_ASSIGN_IMM`, st=961). The raw rsp values are the only trustworthy column, and they say the opposite of what I first wrote. **Kept visible rather than silently rewritten, per STALE-ORIENTATION: a seat who saw the first version must be able to see it retracted.**
+
+## THE MECHANISM, WITH THE NUMBERS (re-derived from raw rsp only)
+
+The DEFINE call protocol, read out of the emitted TEXT (`--compile`, not inferred) — and all 255 DEFINEs are this shape:
 
 ```
 InitCounter_α:  sub rsp, 48                     ; activation frame
-                ... save-set into frame ...
                 lea r10, [rip + InitCounter_γ]
                 lea r11, [rip + InitCounter_ω]
                 push r11                        ; ω  -> [rsp+8]
                 push r10                        ; γ  -> [rsp+0]
-                jmp rax                         ; enter body
+                jmp rax                         ; enter body -- rsp now POINTS AT the pair
+RETURN:   pop rcx ; add rsp, 8 ; jmp rcx        ; γ at [rsp+0], drop ω   <-- DEPTH-EXACT
+FRETURN:  add rsp, 8 ; pop rcx ; jmp rcx        ; drop γ, ω at [rsp+8]
 ```
 
-and the ONE shared floater the whole program returns through:
+**So the pair sits AT the body's statement frontier and the body carves strictly below it.** The ring at the crash (minimal witness, raw rsp; `#n` = port index in the last-60 window):
 
 ```
-RETURN:   pop rcx
-          add rsp, 8;   jmp rcx        ; takes γ at [rsp+0], drops ω
-FRETURN:  add rsp, 8
-          pop rcx;      jmp rcx        ; drops γ, takes ω at [rsp+8]
+#12  α· op=36  IR_GOTO_DEFERRED    rsp=0x…8b30  rbp=0x…8e20  st=956   <-- the transfer in
+#13  α· op=113 IR_STATEMENT_BEGIN  rsp=0x…8860  rbp=0x…89d0  st=956   <-- frontier, 720B below
+#15  α· op=125 IR_VAR              rsp=0x…8850  st=961                <-- subject cell
+#17  α  op=63  IR_MATCH_BEGIN      rsp=0x…8850  st=961
+#21  α· op=67  IR_MATCH_DEFER      rsp=0x…8800
+#22  ORIGIN    op=59 IR_MATCH_ASSIGN_IMM rsp=0x…8800                  <-- datum re-based HERE
+#31  α· op=80  IR_MATCH_SPAN       rsp=0x…8760
+#32  ω· op=80  IR_MATCH_SPAN       rsp=0x…8790                        <-- THE MATCH FAILS
+#33  ω· op=67  IR_MATCH_DEFER      rsp=0x…8810
+#34  β  op=63  IR_MATCH_BEGIN      rsp=0x…8810
+#35  ω  op=63  IR_MATCH_BEGIN      rsp=0x…8860                        <-- back to frontier, exact
+#58  α· op=114 IR_STATEMENT_END    rsp=0x…8800  st=969
+#59  γ· op=114 IR_STATEMENT_END    rsp=0x…8860                        <-- 96 = 6 cells x 16, EXACT
+#60  α· op=25  IR_DEFINE           rsp=0x…8860  st=969                <-- RETURN floater
 ```
 
-**The pair IS pushed and the protocol is coherent. `RETURN`'s pop is DEPTH-EXACT** — it assumes rsp is standing precisely where those two pushes left it. 152+ sites in beauty reach it as `statement_end_{α,β}: add rsp, K; jmp RETURN` with K ∈ {32,48,64,80,96,112,128,144,160,192,224}, and **α and β overwhelmingly carry the SAME K**.
+**Every release on this road is arithmetically exact.** The frontier is `0x…8860` and it is stable across st=956/961/963/969. MATCH_BEGIN's ω returns to it. STATEMENT_END's 96 is exactly the six cells its statement carved (`IR_VAR, IR_CALL, IR_VAR, IR_COERCE_NUMERIC ×2, IR_CMP_TEST` — 6 × 16 = 96, `0x8800` → `0x8860`). **rsp is CORRECT at the `pop rcx`.**
 
-The ZSM ring at the crash (`SCRIP_ZSM=1 SCRIP_ZSM_ALL=1`, datum `g_zsm_rsp0 = 0x7fffffff8800` stamped by the last ORIGIN):
+**The defect is therefore not WHERE the floater pops — it is that the 16 bytes AT the frontier are not a pair.** `[0x…8860] = 0x7ffff7ffd000` (ld.so rw data), `[0x…8868] = 0x41bd68` (scrip `.fini_array` base). Not code, not `_γ`/`_ω`, not in any executable mapping.
 
-```
-α· op=15  IR_CMP_TEST       rsp=0x7fffffff8800  depth=0     st=969
-γ· op=15  IR_CMP_TEST       rsp=0x7fffffff8800  depth=0     st=969
-α· op=114 IR_STATEMENT_END  rsp=0x7fffffff8800  depth=0     st=969   <-- enters AT the datum
-γ· op=114 IR_STATEMENT_END  rsp=0x7fffffff8860  depth=-96   st=969   <-- releases 96 bytes
-α· op=25  IR_DEFINE         rsp=0x7fffffff8860  depth=-96   st=969   <-- the RETURN floater
-```
+## ⭐ THE LEADING HYPOTHESIS, STATED AS A HYPOTHESIS: THE PAIR WAS NEVER PUSHED ON THIS ENTRY PATH
 
-**`IR_STATEMENT_END` (node 13504) enters with depth 0 — nothing of its own carved — and emits `add rsp, 96` anyway, climbing 96 bytes ABOVE the datum.** The chain immediately preceding it had already walked its own cells off, 16 bytes per γ (`0x8850 → 0x8840 → 0x8830 → 0x8820 → 0x8810 → 0x8800`, ops 125/7/125/17/17/15 = IR_VAR, IR_CALL, IR_VAR, IR_COERCE_NUMERIC ×2, IR_CMP_TEST). So the 96 bytes STATEMENT_END is billed for **were already released by the consumers themselves — this is a DOUBLE release, not an over-estimate.** Control then enters `RETURN`, whose depth-exact `pop rcx` now reads 96 bytes above the pair.
+**The transfer into this body at `#12` is `IR_GOTO_DEFERRED`, not a call — and NO `IR_DEFINE` α event fires between it and the RETURN floater at `#60`** (grep-verified: the only `op=25` in the whole 60-port window is `#60` itself; 24 `op=25` events in the entire 2048-port ring). The pair is pushed by `IR_DEFINE`'s α and by nothing else. If no DEFINE α ran on this path, **nothing ever wrote those 16 bytes and `RETURN` is popping stack that was simply never initialised** — which is exactly what a slot holding two unrelated loader/image addresses looks like.
 
-Death site, single-stepped (13 instructions after the ZSM tap returns, at the **236th** `α·op=25` event — the brief's count is right):
-
-```
-pop rax                       ; result
-pop rcx                       ; rcx = 0x7ffff7ffd000
-add $0x8, %rsp
-jmp *%rcx                     ; -> SIGSEGV
-```
+⛔ **NOT YET PROVEN, and the honest gap:** `rbp` does move (`0x…8e20` → `0x…89d0`) and rsp drops 720 bytes between `#12` and `#13`, so *something* established a frame there — more than a bare goto explains, and no instrumented port accounts for it. The competing hypothesis (pair pushed, then clobbered) is not excluded. **The one measurement that decides it:** break at the last `IR_DEFINE` α preceding the crash and check whether it writes `0x…8860`, or set a software watchpoint on that address once the frontier is established. I did not get to it.
 
 ## ⛔ WHAT THE BRIEF GOT WRONG — BOTH CLAIMS, MEASURED
 
@@ -88,10 +90,10 @@ jmp *%rcx                     ; -> SIGSEGV
 
 ## ⛔ NAMED, NOT FIXED — AND WHY I DID NOT PATCH IT
 
-The leaking box is named (`IR_STATEMENT_END`, releasing at depth 0 into a depth-exact floater) but **the cure belongs to the ζ-depth planner, not to `bb_statement.cpp`**, and it is a CLASS decision: either the consumers stop popping their own cells, or STATEMENT_END stops being billed for cells a consumer already took. Clamping `K` at the template would be the op-filter shape RULES bans (`NO PER-OP FILTER`) and would paper over a model/emission disagreement that main-shaped graphs are currently absorbing silently everywhere else. That is Lon's call, not a seat's.
+There is **no leaking box** — that was the first write-up's error, retracted above. Every release on the failure road is exact. What is named instead is the SHAPE: **a `RETURN` whose depth-exact pop is served by an entry path (`IR_GOTO_DEFERRED`) on which no `IR_DEFINE` α is recorded.** Until the never-pushed-vs-clobbered question is decided by the measurement named above, any patch would be aimed at a guess. ⛔ In particular do NOT clamp STATEMENT_END's `K`: its release is arithmetically exact, and clamping it would be the op-filter shape RULES bans while breaking a correct box.
 
 ## SUGGESTED ROWS (asked, not worked)
 
-1. **`zd-statement-end-double-release`** — who owns the release of a consumed operand cell, the consumer's γ or STATEMENT_END's `K`? Both do today. One measurement: instrument `zeta_depth.c`'s staging against the ring's measured per-γ pops on the 6-node chain above.
+1. **`define-pair-never-pushed`** (supersedes the double-release row I first proposed, which rested on the retracted reading) — decide never-pushed vs clobbered for the 16 bytes at the frontier, then follow `IR_GOTO_DEFERRED` as an entry path into a DEFINE body: does it establish an activation, and if so who pushes the {γ,ω} pair on that road?
 2. **`zsm-overpop-triage`** — 1094 over-releases are now visible and most are legitimate whack-owners. A predicate that separates "whack-owner retiring an enclosing construct frame" from "double release" turns the new knob from a candidate list into a verdict.
 3. **`m1-ladder-is-one-wall`** — all 8 `m1_lad_*` rungs are the same rc=139; the ladder currently bills one defect eight times and its first-red number cannot move until this seam does.
