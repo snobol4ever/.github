@@ -2,7 +2,7 @@
 
 **Session:** 2026-08-20 s191 · seat5 `/home/claude5` · Claude Opus 5 · queue row `prototype-array-dim` (rank 2)
 **Landed:** NOTHING IN THE COMPILER. Zero `src/` files touched — the row's premise is falsified and the cure it implies is HQ's precedent call, not mine. Asked as `q-prototype-array-dim`; answer not received at time of writing.
-**Watermark:** re-measured on a PRISTINE build at merged SCRIP `bae55c8e` (RT_OPT `-O0`), corpus `c1b653ff`.
+**Watermark:** re-measured on a PRISTINE build at merged SCRIP `bae55c8e` (RT_OPT `-O0`), corpus `c1b653ff`, and **re-proved to still hold at corpus `61e8dfd2`**: that pull touches **zero** files under `crosscheck/` (`git diff --name-only c1b653ff..61e8dfd2 -- crosscheck/` = 0), so every number below is unchanged by construction rather than by re-measurement. **No compiler file touched**, so the standing corpus board watermark is untouched by construction; I did not run a board and do not claim one. RULES step-4 regen **NOT APPLICABLE**.
 
 ---
 
