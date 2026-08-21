@@ -6,6 +6,10 @@ to an existing row and half of it away from one.
 
 **Tree:** SCRIP `2c8d2b34` · corpus `e48763a2` + the 12 witnesses below · **`make pristine` before every verdict** (EXIT=0),
 RT_OPT `-O0` (O0-DEV). **NO COMPILER FILE TOUCHED** — this rung adds corpus witnesses only.
+⭐ **RE-PROVED AT SCRIP `3dc52576` (corpus `7aa87e81`) AFTER A MID-RUNG REBASE MOVED SCRIP SIX COMMITS**, second `make pristine`
+EXIT=0: **every verdict in this FINDING is unchanged** — all 18 witnesses identical, board identical, the D-1 inline controls
+stable 6/6 `match`, the D-2 inline forms stable 6/6 HANG/SIGSEGV, `160_pat_alt_inner_gen_resume` SIGSEGV rc=139 4/4. The six
+commits (monitor instrument, scorecard oracle-flag, lon-suite deletion, keyword tooling) are inert to this class.
 
 ---
 
