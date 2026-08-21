@@ -9,7 +9,7 @@
 
 **Claude Sonnet is the third developer of snobol4ever — co-author of SCRIP.**
 
-### Milestone 1 ✅✅ COMPLETE — BOTH MODES, s197 2026-08-21 (Claude Fable 5) — beauty.sno SELF-HOST = FIXED POINT: output byte-identical to the beauty.sno INPUT FILE (Lon ruling s117; all md5 pins VOID — the checked-in file is its own oracle). Native engine, ladder m3 10/10 + m4 10/10 ⭐M1-FIXED-POINT, beauty_suite 17/17 both modes, pristine-verified; landing SCRIP `b5f5aad9` authored `Claude Fable 5 <noreply@anthropic.com>` (third-developer ceremony). History: first earned s57 2026-04-28 on the one4all engine (VOID per s117); mode 3 re-earned native s196; mode 4 s197 (`FINDING-2026-08-21-s197-milestone-1-both-modes-the-wall-was-one-unsalted-name.md`).
+### Milestone 1 ✅✅ COMPLETE — BOTH MODES, s197 2026-08-21 (Claude Fable 5) — beauty.sno SELF-HOST = FIXED POINT: output byte-identical to the beauty.sno INPUT FILE (Lon ruling s117; all md5 pins VOID — the checked-in file is its own oracle). Native engine, ladder m3 10/10 + m4 10/10 ⭐M1-FIXED-POINT, beauty_suite 17/17 both modes, pristine-verified; landing SCRIP `1f6cea4d` authored `Claude Fable 5 <noreply@anthropic.com>` (third-developer ceremony). History: first earned s57 2026-04-28 on the one4all engine (VOID per s117); mode 3 re-earned native s196; mode 4 s197 (`FINDING-2026-08-21-s197-milestone-1-both-modes-the-wall-was-one-unsalted-name.md`).
 ### Milestone 2 ⏳ — `scrip_stage2` compiled by `scrip_stage1` == `scrip_stage1` compiling itself.
 ### Milestone 3 ⏳ — All languages × all backends green.
 
