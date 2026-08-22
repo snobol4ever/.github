@@ -37,6 +37,8 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
+## ▶ LIVE CURSOR — 2026-08-22 seat11, cross-goal beneficiary note (r10/r11 register-contract ladder, `GOAL-SNOBOL4-100.md`) — `bb_glit.cpp`/`bb_gcc.cpp` (`IR_GLIT`/`IR_GCC`, emitted only by `lower_raku.c` — Raku's grammar-literal/char-class matcher) had their r11 alignment-padding (`push r11`/`pop r11` around a `strchr`/`memcmp` call) converted to `sub rsp,8`/`add rsp,8`. Zero semantic change (nothing between the push and pop ever read r11); verified via `test_smoke_raku.sh` (705/19 PASS, this suite's own established baseline, unchanged) and a direct run of `corpus/programs/raku/parser/match_global.raku`. Not a Raku-ladder rung, just flagging that this goal's binary changed. Detail: `FINDING-2026-08-22-seat11-free-r11-rung-e2-scan-idx-family-and-three-dead-templates.md`.
+
 ## ▶ LIVE CURSOR — s2026-08-08b (RK-GRAM-3d-m3-fix: GALT both-media arm jmps — Claude Sonnet 4.6)
 
 **[THIS SESSION] RK-GRAM-3d-m3-fix COMMITTED — commit `0ce21c92`. Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
