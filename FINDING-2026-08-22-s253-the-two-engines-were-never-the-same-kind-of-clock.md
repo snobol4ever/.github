@@ -94,3 +94,26 @@ Claim `bench-external-cpu-and-elapsed-clock` intentionally NOT marked done — D
 sub-items outstanding. Left LOCKED for continuation (by this seat or another) rather than freed,
 since the instrument and its first integration are real, tested progress worth building on rather
 than re-deriving.
+
+## CROSS-REFERENCE, FOUND AFTER PUSHING — READ THIS BEFORE RE-BAKING ANYTHING
+Sibling row `bench-timed-oracle-flag` closed at s200 (SCRIP `db8a9ced`, 2026-08-21 evening; see
+`FINDING-2026-08-22-seat1-bench-timed-oracle-flag-was-closed-at-s200-...`) already re-baked
+`bake_noise_floor_snobol4_timed.sh`'s floor once — but on a DIFFERENT axis. That row proved the
+47.9% floor's TRIGGER is machine load, not the `-b`/`-bf` oracle flag (a controlled A/B on a quiet
+box measured the flag's own timing effect at -0.3% ± 2.6%, i.e. zero), and made load VISIBLE
+(nproc/loadavg now recorded in the bake header) so a loaded bake can't be silently compared against
+a solo one again. It did **not** change the underlying statistic away from self-timed `TIME()`.
+
+That is the missing half this row supplies, and the two findings now explain each other: **load is
+the trigger, and the TIME()-unit mismatch this row found is why load hits the two engines
+asymmetrically instead of just adding symmetric noise a min-of-N could absorb.** SPITBOL's
+self-reported `ms` is CPU-time — being descheduled mid-run does not move it, so its iteration count
+barely degrades under contention. SCRIP's self-reported `ms` is wall-clock — every descheduled
+millisecond is counted against its budget, so its iteration count degrades directly with load. A
+noise floor built on that pair isn't measuring symmetric jitter; it's measuring a comparison that
+tilts against SCRIP specifically as load rises. `db8a9ced`'s load-visibility fix lets you SEE this
+happening (and discard a loaded bake); this row's external CPU-time instrument is what would make
+the comparison itself load-ROBUST instead of merely load-legible. Re-baking
+`bake_noise_floor_snobol4_timed.sh` on `bench_rusage`'s `cpu(ms)` rather than `TIME()`'s self-report
+is the natural next step and should be done with `db8a9ced`'s nproc/loadavg header carried forward,
+not redone from scratch.
