@@ -263,6 +263,64 @@ argument, because SNOBOL4's left-to-right evaluation makes `f(x) + A` safe and `
 
 ---
 
+## 7C. THE THIRD LEVER — ONE CARVE PER STRETCH, AND THE PRICE LIST THAT RANKS ALL THREE
+
+Lon, in-chat: *"for any sequence of BB that are guaranteed to execute … and that have no outward branch … have the first BB do
+the SPINE CARVE for the whole short sequence … save the extra RSP BUMPING"*, with the constraint *"you never want to carve past
+a GAMMA, since that is why we are doing FORTH-style stack to keep it SMALL SMALL and grow as needed."*
+
+⭐ **The constraint is exactly right and it is the spec.** Two refinements found while measuring it:
+
+- **Inside a fall-through stretch, PEAK DEPTH IS UNCHANGED.** Same maximum RSP excursion, reached a few instructions earlier
+  and held a few nanoseconds longer. The FORTH "small small, grow as needed" property survives fully — which is what separates
+  this from a C-style whole-frame prologue, where depth × recursion is exactly what a SNOBOL4 matcher cannot afford. The
+  property breaks only when a γ can *leave* the stretch, because then a path that never runs boxes 3–5 still paid for them.
+  That is precisely the case Lon's rule excludes.
+- **A `_β` label inside the stretch does NOT break it.** `n26_lit_integer_β` unwinds `add rsp,16; add rsp,16` = 32; if `n25`
+  carves 32 and `n26` carves 0, the unwind total is still 32 and the handler is correct with no change. An early census that
+  disqualified stretches containing β entries was wrong and reported 5.9% coverage; the corrected criterion is γ-fallthrough.
+- **The release side is ALREADY coalesced** — `statement_end` emits one `add rsp, 48` / `add rsp, 144` for a whole statement.
+  The design already accepts the asymmetry; this closes it.
+
+### 7C.1 THE MEASURED PRICE OF A CARVE
+
+Isolated microbenchmark (8 chained `sub rsp,16`+2-store groups vs one `sub rsp,128` and the same 8 store pairs at re-based
+offsets — identical stores, identical final RSP, only the carve count differs): **7 carves removed = 0.24–0.35 ns/iteration**,
+i.e. **~0.17 cycles per carve** at ~4.9 GHz.
+
+⭐ **THE PRICE LIST — this is the durable output of s249, use it to rank any future idea before building it:**
+
+| work | cyc/instr | measured by |
+|---|---|---|
+| off-chain `mov` (the concat box) | **0.02** | copy-prop box deletion: −8 instr, −0.16 cyc |
+| **`sub rsp,16` spine carve** | **0.17** | the microbenchmark above |
+| on-chain statement work | **0.30** | payload scaling: +30 instr, +8.8 cyc per statement |
+| taken `jmp` to the next label | **~0.00** | §7A.1: 6 removed, 0.03 cyc |
+
+A carve is **8× an ordinary off-chain instruction and about half a chain position.** Worth attacking; not free-instruction cheap.
+
+### 7C.2 THE STRETCH CENSUS
+
+Criterion = consecutive α-boxes each carving exactly 16, moving RSP no other way, with γ jumping to the **next** box's α label.
+
+| scope | carves | removable | mean stretch |
+|---|---|---|---|
+| `arith_loop` **hot loop** | 12 | **10 (83%)** | **6.00** |
+| `arith_loop.s` whole file | 82 | 52 (63%) | 2.73 |
+
+**Stretches are longer where it is hot** — six-box runs in the loop body against ~2.7 elsewhere. Estimated payoff on
+`arith_loop`: 10 × 0.17 = **~1.7 cycles of 28.4 ≈ 6%**, twenty times the concat win and second only to chain-slot coalescing.
+
+⭐ **And it needs NO dataflow analysis**, unlike chain-slot coalescing. The condition is local and the emitter already computes
+it: its per-node loop holds `nodes[i]`, `lbls[i]` and `node_γ`, so **`node_γ == lbls[i+1]` IS the stretch test** — the very test
+built for the fallthrough-jmp peephole in §7A.1, measured at zero, and discarded. Same test, different payload, 6% not 0%.
+
+Queued as rank-0 rung **`spine-carve-coalescing`**, with the silent-corruption hazard named: each box re-bases **its own**
+result write to `[rsp + 16*(L-i)]` while every downstream reference stays byte-identical, and a deep-recursion program must be
+run to confirm peak stack depth did not grow — the one regression throughput numbers cannot see.
+
+---
+
 ## 8. WHAT IS LEFT — 120 INSTRUCTIONS, AND THEY ARE ALL THE SAME SHAPE
 
 | box | Ir/iter | the waste |
