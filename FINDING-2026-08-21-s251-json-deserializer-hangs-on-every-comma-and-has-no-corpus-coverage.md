@@ -55,3 +55,45 @@ SCRIP prints a leading `match_ms=675791` line on `[1]` (3 bytes of input); SPITB
 ## 6. RELATED, ALREADY QUEUED
 
 Rank-0 row `table-int-keys-and-nd-subscript` (*"TABLES STRINGIFY EVERY INTEGER KEY, AND N-D ARRAY ACCESS RE-ENTERS THE SUBSCRIPT DISPATCHER ONCE PER DIMENSION"*, HQ s249) lands directly on this workload: the de-serializer builds one TABLE per JSON object, so the object-creation half of Lon's "both sides" is gated by that row. Sequence the hang first (nothing runs without it), then the table row, then measure.
+
+## 7. MECHANISM FOUND — AND THREE HYPOTHESES KILLED ON THE WAY
+
+Ablation ladder, each a standalone witness run against both engines:
+
+| witness | shape | SCRIP | SPITBOL |
+|---|---|---|---|
+| `arb1` | `'[' SPAN(dig) ARBNO(',' SPAN(dig)) ']'` on `[1,2]` | MATCH | MATCH |
+| `arb2` | same, on `[1]` | MATCH | MATCH |
+| `arb3` | comma but no ARBNO | MATCH | MATCH |
+| `arb4` | `*elem` deferred ref inside ARBNO | MATCH | MATCH |
+| `arb5` | **recursive** `elem = SPAN(dig) | *p` inside ARBNO | MATCH | MATCH |
+| `arb6` | `.` deferred ACTION inside ARBNO | NOMATCH **n=2** | NOMATCH **n=1** |
+
+**⛔ KILLED — the hang is NOT ARBNO.** `arb1`–`arb5` all pass, including recursive deferred references inside `ARBNO(',' …)`. The queue row's opening hypothesis ("the ARBNO retry is the suspect") is **false**; it must be rewritten before anyone works the row.
+
+**⛔ KILLED — it is not deferred actions re-firing.** A fire-once variant of `json.sno` (`FENCE` after every deferred action: `*pobj`, `*parr`, `*ekey`, `*estr`, `*enum`, `*etru`, `*efal`, `*enul` — 9 fences → 17) **still hangs** on all three comma cases, and additionally on `{"a":[1,2],"b":{"c":3}}`.
+
+**⛔ KILLED — it is not CAS growth.** Sampled `/proc/<pid>/status` through a hang: **RSS flat at 22,600 KB** from t=1.0 s to t=5.0 s, `VmSize` flat at 1,698,892 KB (the mmap island *reservation*, not committed). Memory is stationary. This is a **spin**, not unbounded growth. (Lon's CAS-growth concern remains live for the 1.7 MB run — it is simply not what hangs a 5-byte input.)
+
+**⭐ THE SPIN, NAMED.** `perf record -F 999` on the hung mode-4 binary:
+
+```
+50.18%  json.bin  [.] n249_match_defer_α
+49.62%  json.bin  [.] n241_match_alternate_af
+```
+
+A perfect 50/50 two-box ping-pong — the deferred-expression box and the alternation box. The emitted asm shows why:
+
+```asm
+n241_match_alternate_af:
+                        mov  r14d, dword ptr [rsp + 0]     # restore cursor from the choice record
+                        mov  rax,  qword ptr [rsp + 16]    # load the SAME saved resume address
+                        jmp  rax
+.Lx261_19:              add  rsp, 32;  jmp n240_match_assign_cond_β
+```
+
+The `af` entry **restores the cursor and re-jumps to the stored continuation without popping or advancing the choice record** — while the sibling path immediately below it (`.Lx261_19`) does `add rsp, 32` first. So each trip leaves `rsp` unchanged and reloads an identical `r14d` and an identical jump target: a stationary state. The alternation never advances to its next arm and never retires the record. Flat memory, 50/50 split, forever — every observation is accounted for.
+
+**Secondary defect, independently witnessed:** `arb6` shows SCRIP firing the `.` conditional-assignment action **twice** where SPITBOL fires it **once**, on identical input with identical match outcome. Per Lon (in-chat, s251) those conditional assignments ride the **C.A.S. off R12 and grow in the mmap island**, so an over-firing `.` is both a semantic divergence from the oracle and a memory-growth risk on large inputs. It needs its own row; it is not the cause of this hang.
+
+**Next step for whoever takes the row:** decode the alternate choice-record layout — `[rsp+0]` cursor, `[rsp+16]` resume address, and what `[rsp+8]`/`[rsp+24]` hold (arm index? next-arm pointer?) — then establish why `af` is reached with an arm the record never advances past. Do NOT start from `json.sno`; the `.`-action witness `arb6` is 6 lines and diverges from the oracle on its own.
