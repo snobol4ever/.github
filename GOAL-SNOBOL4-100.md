@@ -50,6 +50,44 @@ timeout 8 /home/claude/x64/bin/sbl -b /home/claude/corpus/probe/m1/m1_alt_arm2_c
 ## ⛔ CONCURRENT SESSION NOTICE — GOAL-ICON-100 is running in parallel and will be committing to snobol4ever repos (SCRIP, corpus, .github) during this seat's lifetime. **`git pull --rebase` before every build and before every push.** Do not assume HEAD is what you cloned.
 
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-22 seat2 (`/home/claude2`, Claude Sonnet 5; THE LOOP queue row `bench-harness-unmeasurable`, rank 0) — **THE BENCHMARK HARNESS COULD NOT BE INSTRUCTION-COUNTED AT ALL — REPRODUCED AND QUANTIFIED ON ALL 15 KERNELS, NOW FIXED WITH A FIXED-WORK MODE THAT ADDS ZERO NEW GLOBALS/KILLSWITCHES/BUILTINS.**
+
+`corpus/benchmarks/snobol4/harness.inc`'s TIME-based mode (`ZBUD`=500ms wall-clock deadline) cannot be
+callgrind-counted: under instrumentation every arm self-shrinks its batch to fit the deadline's *slowed*
+real time, so total `Ir` measures callgrind's own throughput, not the kernel's. MEASURED across 14 of the
+15 kernels (`array_sum` excluded, pre-existing unrelated valgrind SIGSEGV): native per-500ms iteration
+counts span **3,840 to 75,497,472 (19,660x)**; default-mode callgrind `Ir` for the SAME 14 kernels spans
+only **95,048,167 to 158,657,256 (1.67x)**, and the ordering does not track true cost (`table_access`, the
+most expensive kernel per iteration, posts the *highest* Ir; `arith_loop`, the cheapest, posts the
+third-highest). Full table and the two-kernel headline demonstration (arith_loop vs table_access, 20,481x
+native gap collapsing to 0.95x under callgrind) in `FINDING-2026-08-22-seat2-bench-harness-unmeasurable.md`.
+
+**Fix, per Lon's directive routed through the queue brief** (two modes, TIME- and ITERATION-based, variable
+switch, all wrapping in the begin/end-bracket `.inc` files, `.sno` bodies untouched): `harness.inc` now does
+`fixed_n = INPUT :S(ZFIXRUN)` right after the CHECK line — `INPUT` fails cleanly at EOF (existing
+SNOBOL4/SPITBOL semantics, the same ones the CHECK phase already depends on), so `< /dev/null` (every
+existing call site) is completely unaffected, while `echo N | scrip --run k.sno` runs `ZBODY` exactly `N`
+times with NO wall-clock check anywhere in the path — batching at the kernel's own pinned `ZK` when it has
+one, so `string_concat` (non-steady-state, batch size is part of the workload) still measures many
+20,000-char batches, never one string built to the full length. Zero new globals, killswitches, or runtime
+builtins — pure SNOBOL4 control flow inside an existing `.inc`. All 15 kernels regression-tested against
+`.ref`, both modes, both engines (m3/m4): 15/15 pass; the family's own gate
+(`scripts/test_bench_snobol4_timed.sh`) reports `ok=15 bad=0` unmodified. `NOISE-FLOOR.tsv` gained 45
+fixed-work rows (new sibling script `scripts/bake_noise_floor_snobol4_fixed.sh`, SCRIP repo) beside the
+existing TIME-mode rows.
+
+**WATERMARK:** SCRIP `450368d0` · corpus `4b46a457` · `.github` at this commit. No compiler-source/codegen
+files touched (`harness.inc` is corpus, not `src/`), but the 15 benchmark `.s` artifacts were regenerated
+anyway via `util_regen_benchmark_s_artifacts.sh` since `harness.inc`'s content — and therefore every
+kernel's compiled output — changed. One rebase conflict on `NOISE-FLOOR.tsv` against a concurrent session's
+`bench-external-cpu-and-elapsed-clock` re-bake (17-column schema upgrade) resolved by merging both additions
+— that session's newer TIME-mode data plus this session's fixed-mode rows, both already in the same
+17-column format.
+
+**Not chased, flagged only:** `indirect_dispatch`/`mixed_workload` are documented elsewhere as m4
+XFAIL/SIGSEGV but passed cleanly in this session's testing — worth a fresh look before a future session
+assumes that status is current, but out of scope for this row.
+
 ## ⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-22 seat1 (`/home/claude1`, Claude Sonnet 5; THE LOOP queue row `byname-bake-cell-address`, rank 0) — **LANDS EXACTLY WHAT THE seat4 ENTRY BELOW CALLS FOR AS "NEXT": bb_ab_slot_for HASHED. LIKELY CLOSES seat4's `m3-executes-three-times-m4-on-beauty` ROW TOO AS A SIDE EFFECT ("table depth stops mattering once lookup is O(1)") — NOT INDEPENDENTLY RE-VERIFIED THIS SESSION, FLAGGING FOR WHOEVER OWNS THAT ROW NEXT.**
 
 **WATERMARK (SCRIP `c72482d6` → this session's 2 commits on top · corpus `51e640cd`, UNTOUCHED — all six `.s` regen scripts report `changed=0` twice · `.github` at this commit; codegen WAS touched (`emit.cpp`, `rt.c`) ⇒ the full six-script regen ladder ran, byte-identical everywhere):** full numbers, methodology, and the bake's design sketch in `FINDING-2026-08-22-seat1-byname-bake-cell-address.md`. Gate totals unchanged from yesterday's watermark: `test_corpus_snobol4.sh` **m3 PASS=355 FAIL=2 · m4 PASS=353 FAIL=2 SKIP=2 (357 total)** — identical pass/fail/skip BY NAME between the fix on and a from-scratch pre-patch control build (stash-based A/B, not assumed). `test_gate_emit_no_lang.sh` OK, `test_gate_template_medium_invisible.sh` OK (0 forbidden shape, ceiling unmoved), `test_gate_em_beauty_subsystems_mode4.sh` PASS=17 FAIL=0.
