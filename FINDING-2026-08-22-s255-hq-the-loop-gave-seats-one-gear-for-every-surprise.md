@@ -37,3 +37,37 @@ Cancelled **seat5** left `FINDING-2026-08-22-s254-…dangling-c_str.md` **untrac
 ## 6. THE GENERALISABLE POINT
 
 ⭐ **A protocol that offers one response to every surprise will get that response to every surprise, including the ones where it is the most expensive possible answer.** The fix is never "ask more carefully" — it is giving the seat a cheaper gear and saying which surprises belong in it. ⛔ And HQ writes for two audiences from one file: an operator-only instruction in a cursor is an instruction to eight sessions.
+
+---
+
+# ADDENDUM (same session) — THE BANNER LAW ASKED SESSIONS TO PREDICT THEIR OWN ENDING, SO NO SEAT EVER FIRED IT
+
+**Lon, in-chat:** *"FLEET worker 3 and actually none of the sessions when they quit and re-ask for a prompt, NEVER show the required banner."*
+
+## 1. ROOT CAUSE — the rule was unimplementable, not ignored
+
+HQ LAW 15 / `PROTOCOL.md` / all 8 seat `CLAUDE.md` said: **"MANDATORY LAST ACT OF EVERY SESSION — `bash scripts/s4e_msg.sh banner`."**
+
+⛔ **No session can obey that.** A session does not observe its own ending; it answers a prompt and yields. "Last act" is knowable only in retrospect, and by then the session is gone. Every seat that "forgot" the banner was in fact following a rule that cannot be followed.
+
+**MEASURED, and it is stark:** `hooks` appeared in **zero** settings files anywhere in the fleet. Only seats **1 and 8** had a `.claude/` directory at all (seat8's held nothing but a `scheduled_tasks.lock`). Enforcement of the fleet's single most important output was resting entirely on eight sessions independently remembering to do something at a moment none of them can detect.
+
+⭐ **THE IRONY IS THE LESSON.** The banner's own source already carries Lon's earlier ruling — *"Why are you trying to predict the future. Quit saying in the banner what you will do. You do not know the future."* The rule governing **when** to fire it had the identical defect, one level up, and went unnoticed for exactly as long.
+
+## 2. CURE — a `Stop` hook, because the harness knows what the model cannot
+
+`.claude/settings.json` in each of the 8 seat roots now carries a `Stop` hook running that seat's own `s4e_msg.sh banner`. `Stop` fires when the session stops responding — **including `/clear`, resume, and compact** — which is precisely the moment Lon named.
+
+- **Seat identity is correct by construction.** `s4e_msg.sh` derives `S4E` from `$BASH_SOURCE`, *not* cwd, so each hook naming its own seat's absolute script path self-identifies (`/home/claude5/SCRIP/...` → `seat5`). Verified on all 8 with `jq -e`.
+- **Output shape:** the command wraps banner stdout as `{"systemMessage": …}` — the required form for a `Stop` hook to display to the user. Pipe-tested against a live seat before writing any config; **4.5s** measured, `timeout: 120`.
+- **Idempotent by hand.** A seat may still run the banner manually any time; nothing breaks.
+- ⛔ **HQ deliberately gets NO hook.** Lon reads HQ in chat directly — the banner exists *because* he does not read seat transcripts. Firing it on every HQ reply would be noise.
+- ⛔ **ADOPTION CAVEAT:** the settings watcher only watches directories that had a settings file at session start, and six seats had none. The hook therefore takes effect at each seat's **next launch** — which is the re-fire Lon already performs. Stated to him rather than left to be discovered.
+
+## 3. THE RULE TEXT CHANGED TOO, NOT JUST THE MECHANISM
+
+Propagated to `PROTOCOL.md`, `SEAT-CLAUDE.md`, all 8 seat `CLAUDE.md`, and HQ's own: the banner is now documented as **automatic**, with **"⛔ NEVER TYPE A VERDICT YOURSELF"** retained and sharpened — a hand-typed doneness claim beside a banner that disagrees is the same STALE-ORIENTATION(a) violation that voided 11 false "PUSH PENDING" banners at s47. Leaving the old "remember to do this" text beside a working hook would have re-created the ambiguity the hook exists to remove.
+
+## 4. THE GENERALISABLE POINT
+
+⭐ **Before writing any "always / never / every session" rule, ask what the session must KNOW in order to obey it.** If the answer is a fact only the harness holds — when a session ends, when a context is cleared, when a user walks away — then the rule is decoration and its violations are not disobedience. Move it into the harness or drop it. ⛔ This is the second law in one session found to be defective in its *shape* rather than its content (see the main FINDING: one gear for every surprise). Both were written as exhortations where a mechanism was required.
