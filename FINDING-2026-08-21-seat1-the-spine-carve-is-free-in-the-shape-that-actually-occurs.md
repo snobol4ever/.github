@@ -18,6 +18,8 @@ The row predicted **0.24–0.35 ns/iter for 7 removed carves**, i.e. 0.79–1.15
 
 **Why, and it is not a mystery.** The two-store loop runs at **8.06 tsc/iter for 16 stores** — exactly 2 stores/cycle, the store-port throughput limit. The loop is store-bound, so the `sub rsp` retires in the shadow of the stores and costs nothing. `sub rsp,16` is a stack-engine operation with no dependent consumer; it only becomes visible when nothing else saturates a port.
 
+⭐ **Reconciled against s249, and the divergence is the MACHINE, not the shape.** s249 §7C.1 specifies its microbench as *"8 chained `sub rsp,16`+2-store groups vs one `sub rsp,128` and the same 8 store pairs at re-based offsets — identical stores, identical final RSP, only the carve count differs."* That is byte-for-byte what `carve_pair.c` runs. So this is not a disagreement about method: the same experiment gives 0.24–0.35 ns/iter on HQ's box (Lon's Linux, ~4.9 GHz) and ~0 on this seat's (TSC 3.294 GHz), where the store ports saturate first. **The s249 price list's 0.17 cyc/carve is therefore a per-machine constant, not a portable one** — which matters for every future row that ranks an idea against that list before building it.
+
 ⛔ **This is decisive for the rung, because a SCRIP box writes a 16-byte DESCR result — literally two 8-byte stores per carve.** That is the measured-free column. `n1_lit_integer_α` is the canonical case: `sub rsp,16`, `mov [rsp+0]`, `mov [rsp+8]`. The row's own price list ("a carve is 8× an ordinary instruction") holds only for a carve that is *not* behind the DESCR write, and in the hot loop they all are.
 
 ## 2. The census — the hot-loop carve count reproduces exactly; the stretch decomposition does not
@@ -35,15 +37,25 @@ Criterion as stated: consecutive α-boxes each carving 16, no other rsp movement
 
 The hot loop is the `ZBL` back-edge, `arith_loop.s` lines 358–559 (`n36_statement_begin_α`), 18 α-boxes of which 12 carve. It does **not** decompose into 2 stretches of 6: `n39_binop_α` and `n50_binop_α` each contain an `add rsp`, which disqualifies them as non-final members and splits the run into 3 + 5 + 3. The most likely cause is s249's own arith_loop work (**+41.9% throughput, 165 → 120 instructions/iteration**), which changed this file's box structure after the census was taken.
 
-## 3. ⭐ A sharpening of Lon's safety rule that the census criterion does not capture
+## 3. The β side — s249's claim CONFIRMED by tracing a whole chain, and a correction to my own first pass
 
-Lon's rule is *"never carve past a γ that can leave the stretch."* Working the offsets through, the rule must extend to **every** exit, not just γ:
+s249 §7C states *"a `_β` label inside the stretch does NOT break it"*, and the row asks that this be verified on one concrete β before it is trusted generally. I traced the **entire** β chain of the longest stretch (`n43→n44→n45→n46→n47`, L=5, total carve 80):
 
-If B1 pre-carves `16*L`, then at any point inside the stretch rsp is already `16*L` low. An exit from Bi unwinds what it was emitted to unwind — `16*i`, the sum of B1..Bi's *original* carves. For the final member `i == L` that is still correct; **for any earlier member it under-unwinds by `16*(L−i)` and corrupts the stack silently.** So a non-final stretch member must contain **no `add rsp` at all** — not merely no γ-exit.
+```
+n47_cmp_test_β:        add rsp,16  -> n46_coerce_numeric_β
+n46_coerce_numeric_β:  add rsp,16  -> n45_coerce_numeric_β
+n45_coerce_numeric_β:  add rsp,16  -> n44_var_β
+n44_var_β:             add rsp,16
+                       add rsp,16  -> n42_statement_begin_β      (16+16+16+32 = 80 ✅)
+```
 
-Applying that stricter-but-correct criterion, the hot loop yields **6 removable, not 10**. The row's stated criterion is measuring an upper bound that includes unsafe members.
+The total unwind is exactly the stretch's total carve, and — the load-bearing detail — **not one of these β boxes dereferences an `[rsp+K]` slot.** They only unwind and jump. So the *intermediate* rsp values, which the transform does change (at `n45_β` the original is 32-low where the transform is 64-low), are never observed. s249 is right, and the property that makes it right is "the β boxes are pure unwind-and-jump", which is worth stating explicitly because it is what a future stretch could violate. **A β box that reads a spine slot would break this transform silently**; the census should test for it rather than assume it.
 
-*(The offset-neutrality invariant itself checks out on the concrete case the row asked me to verify: `n2` reads `n1`'s slots at `[rsp+16]/[rsp+24]`, unchanged when `n1` pre-carves 32, and `n2`'s failure path already unwinds `add rsp,16` twice = the full 32. The transform is sound where it is safe — it is the safety envelope and the payoff that are the problem.)*
+⛔ **Correction to my own first pass.** I initially scored a stricter "single-exit" criterion requiring exactly one `jmp` per non-final member, and reported 6 removable. **That was over-conservative and the 6 is withdrawn.** `n45_coerce_numeric_α` and `n46_coerce_numeric_α` each contain two `jmp`s, but *both arms target the next box's α* — they are the converging arms of an internal branch, not a second exit. The correct hot-loop figure under a criterion that is both safe and accurate is **8 removable**, matching the row's own criterion; the row's 10 is still not reproducible, for the `n39`/`n50` `add rsp` reason in §2.
+
+The α-side constraint I described does stand: a non-final member must not itself move rsp, because its own exit unwinds the `16*i` it was emitted for and would under-unwind by `16*(L−i)`. That is what disqualifies `n39_binop_α` and `n50_binop_α`, and it is the same rule as Lon's, reached from the offset arithmetic.
+
+*(The offset-neutrality invariant checks out on the case the row named: `n2` reads `n1`'s slots at `[rsp+16]/[rsp+24]`, unchanged when `n1` pre-carves 32.)*
 
 ## 4. Projected payoff, three ways — all at or under the row's own abort floor
 
@@ -52,8 +64,8 @@ The row says: *"if it comes in under 2% say so and stop rather than pressing on.
 | assumption | removable | gain |
 |---|---|---|
 | row's price (0.17 cyc), row's count (10) | 10 | ~6% — *the row's projection* |
-| row's price (0.17 cyc), **safe** count (6) | 6 | ~3.6% |
-| **measured** price (~0 behind 2 stores), safe count (6) | 6 | **~0%** |
+| row's price (0.17 cyc), reproduced count (8) | 8 | ~4.8% |
+| **measured** price (~0 behind 2 stores), count (8) | 8 | **~0%** |
 
 The third row is the one built on measurement rather than assumption.
 
