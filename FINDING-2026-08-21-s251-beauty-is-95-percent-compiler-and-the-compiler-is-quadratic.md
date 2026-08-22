@@ -95,3 +95,30 @@ The `ARCH-PERF-TOOLING.md` §4 ranking was written for the *run* phase and stand
 2. Then the run-phase ranking as written: table path (s199, 91%) → inline concat/store (s200) → box fusion (s250) → kill the PLT → asm on what survives.
 
 Also worth noting for §4-item-4: the PLT tax is real but these top functions all live in `libscrip_rt.so`, so the *compiler itself* is paying cross-.so indirection on every one of these calls too.
+
+## 8. RESULT — TWO PASSES LANDED, 1.72× ON BEAUTY, THE QUADRATIC TERM SURVIVES
+
+| | beauty wall | beauty instructions | N=800 synthetic |
+|---|---|---|---|
+| s251 baseline | 1.8185 s | 26,205 M | 2,536.8 M |
+| after `8ffcd5ea` (optimizer `*_index_of` class) | 1.1399 s | 15,358 M | 1,143.9 M |
+| after `1a812667` (emitter RPO visited-set) | **1.0574 s** | **14,240 M** | **1,024.5 M** |
+| **cumulative** | **1.72×** | **1.84×** | **2.48×** |
+
+Correctness held at every step: beauty self-host fixed point in **both** modes, m3 byte-identical to SPITBOL `-bf`, corpus m3 339/341 and m4 338/341+1 SKIP (the standing reds exactly), gates `emit_no_lang` + `template_medium_invisible` rc=0.
+
+**The quadratic TERM is not gone.** Growth per doubling is still climbing — 2.36 → 2.58 → 2.89 → 3.23 — so O(N²) still dominates asymptotically; we removed constant factors and one of its sources, not the shape. vs SPITBOL beauty went 23.2× → **13.5× slower**.
+
+Remaining sites, all the same "linear scan for pointer membership" shape:
+- `emit.cpp:flat_beta_used_scan` — explicit `for a in operands: for k in n: if nodes[k] == operands[a]`
+- `emit.cpp:zd_plan` — `for _bi in n: for _bj <= _bi`
+- `emit.cpp:codegen_flat_chain_body` — the floater double-loop over `g_emit_cfg->n` (two nested full scans)
+- `lower_common.c:bb_src_of` (6.1%) and `__strcmp_avx2` (4.55%) — name lookups by string compare, a *different* class worth its own pass
+
+**Retired as not worth touching:** `pat_fold.c` (its `pf_run` is `{ (void)g; return 0; }` — the whole pass is dead code, a finding in itself), `region_report.c` and `scrip_ir.c:bb_index_of` (diagnostic `--dump-ir` paths, absent from every profile).
+
+## 9. PROTOCOL — ICON AND PROLOG ARE OUT OF THE WORKFLOW (Lon s251)
+
+Lon, in-chat: *"remove the fact that Icon or Prolog are even being checked in your work flow. Just quit running that script"*, and *"There is no Icon or Prolog work really possible now."* The blocking set is now **`test_corpus_snobol4.sh` + `test_gate_emit_no_lang.sh` + `test_gate_template_medium_invisible.sh` + the goal file's named gate**. `test_smoke_{icon,prolog,snocone,rebus}.sh` and `test_gate_icn_*.sh` are not to be run at all. ⛔ The scripts were NOT edited to return 0 — a lying test is the `make test` false-green trap. They stay truthful on disk; we stop running them. Reverts when SNOBOL4 is solid.
+
+Baseline-verified before the policy landed, for the record: Prolog smoke 3/5 and Snocone 4/5 were **already red on an unmodified tree**. The two Prolog reds were diagnosed to a precise mechanism before the campaign was dropped: a body goal of **arity 0** (`nl`, `true`, or a user `p.`) loses the head-variable bindings — `t(X) :- write(X), nl.` prints nothing while `t(X) :- write(X), write(y).` prints `3y`. `--dump-ir` shows the arity-0 case wiring a `SUSPEND` where the working sibling wires `MOVE_LABEL`, and leaving the `DISJUNCTION` off the emit spine ("unreached"). Independently, an unbound-variable query against a **multi-clause** predicate returns nothing (`f(a). f(b).` fails where `f(a).` alone works). Not fixed; recorded so the next Prolog session starts from the mechanism, not from scratch.
