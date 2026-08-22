@@ -205,6 +205,64 @@ with it. Metric to track: `ls_dispatch.store_dispatch / iterations`, currently 2
 
 ---
 
+## 7B. ⭐ THE COST MODEL — INSTRUCTIONS ARE FREE, POSITIONS ON THE DEPENDENCY CHAIN ARE NOT
+
+Lon pointed at **Proebsting, "Simple Translation of Goal-Directed Evaluation"** (`/home/resources/`, and `SCRIP/docs/8_*.pdf`)
+— the source paper for our four-port model — and named its two optimisations: **branch-to-branch elimination** (our trampolines)
+and **result copy propagation** (our spine-slot sharing). §5:
+
+> *"while the technique is simple, it suffers from generating many simple copies and many branches to branches. Propagating
+> copies and eliminating branches to branches (by branch chaining and re-ordering the code) optimizes the code well … The
+> result closely resembles code that would be produced from two generic `for` loops, which is exactly what one would hope for."*
+
+His per-operator run-time temporary **is** our ζ-spine slot, so his "simple copies" are our hand-off stores. Figure 1 → Figure 2
+collapses ~40 labelled chunks to 12 lines and copy propagation does the heavy lifting.
+
+### 7B.1 BOTH PASSES ALREADY EXIST HERE AS STUBS, AND THEY ALREADY COMPOSE
+
+| pass | file | what it recognised before s249 |
+|---|---|---|
+| copy propagation | `src/optimizer/copy_prop.c` | `cp_source()`: **two** cases — `COERCE_STRING(LIT_STRING)`, `COERCE_INTEGER(LIT_INTEGER)` |
+| branch-to-branch | `src/optimizer/branch_chain.c` | `bc_is_passthrough()`: **two** ops — `IR_SUCCEED`, `IR_GOTO`. No code re-ordering. |
+
+⭐ **And the box-deletion pipeline between them is already wired end to end:** `cp_run` redirects the consumer's operand edge →
+the copy node falls out of the reference set → it is turned into `IR_SUCCEED` → `bc_chase()` walks γ straight through it → the
+box never executes. **The "architectural rung" §7A implied was already built.** Widening `cp_source()` *is* the mechanism.
+s249 added the first new case (the null-concat identity, `979feb4a`), which deletes the whole box rather than just the call:
+−8 instructions, −2 loads, −4 stores per iteration.
+
+### 7B.2 AND IT BOUGHT 0.3% — HERE IS WHY, AND IT IS THE MOST USEFUL NUMBER IN THIS DOCUMENT
+
+Payload scaling — the same kernel with 0, 1, 2, 3 copies of `A = A + 1` in the loop:
+
+| payload | instr/it | cyc/it | Δcyc per statement | stores/it |
+|---|---|---|---|---|
+| 0 × | 84.14 | 19.55 | — | 16.03 |
+| 1 × | 112.16 | 28.36 | **+8.81** | 24.04 |
+| 2 × | 142.20 | 37.59 | **+9.23** | 32.05 |
+| 3 × | 172.21 | 44.22 | **+6.63** | 40.05 |
+
+| | instructions | cycles | **cyc/instr** |
+|---|---|---|---|
+| marginal `A = A + 1` statement | +30 | +8.8 | **0.30** |
+| the concat box copy propagation deleted | −8 | −0.16 | **0.02** |
+
+**Fifteen times cheaper per instruction.** The concat box was six `mov`s sitting **off** the value dependency chain with its
+operands already computed, and the out-of-order engine hid it completely. `A = A + 1` is three **serial store→load round trips**
+— load `A` from `[r9+40]`, store spine, load spine, add, store spine, load spine, store `[r9+40]` — at ~5 cycles of
+store-forwarding each. That chain *is* the 8.8 cycles.
+
+⭐⭐ **THE RULE FOR EVERYTHING THAT FOLLOWS: copy propagation pays when it coalesces a slot ON the value chain
+(`var → binop → assign`), and pays nothing beside it.** Count chain positions, not instructions, not stores, not branches.
+This reconciles every null result in §7A and is why the three cuts in §3 worked — they removed PLT calls, which are chain
+positions with a serialising register save/restore through memory on either side.
+
+Queued as rank-0 rung **`chain-slot-coalescing`**, ordered by chain position: `COERCE_NUMERIC` of a statically-numeric operand
+first, then `IR_VAR` with a single consumer and no side-effecting node between — the latter gated on a written-out safety
+argument, because SNOBOL4's left-to-right evaluation makes `f(x) + A` safe and `A + f(x)` unsafe.
+
+---
+
 ## 8. WHAT IS LEFT — 120 INSTRUCTIONS, AND THEY ARE ALL THE SAME SHAPE
 
 | box | Ir/iter | the waste |
