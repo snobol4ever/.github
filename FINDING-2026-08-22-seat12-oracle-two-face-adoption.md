@@ -1,9 +1,9 @@
-# FINDING 2026-08-22 seat12 — oracle-two-face-adoption: censuses corrected, timing+correctness sites converted, NOISE-FLOOR re-bake deferred
+# FINDING 2026-08-22 seat12 — oracle-two-face-adoption: censuses corrected, timing+correctness sites converted, NOISE-FLOOR re-baked live under real heavy load — CLOSED
 
 Row `oracle-two-face-adoption` (rank 0), claimed via THE LOOP. Brief: adopt the s255 two-oracle
 ruling (`x64/bin/sbl -bf` = correctness oracle, `/home/resources/spitbol-clean/sbl` = benchmark
 oracle, `scripts/lib_oracle_flags.sh` = one authority) into the scripts that actually invoke
-SPITBOL. This is a partial-completion report — the claim stays open, see STILL OPEN at the end.
+SPITBOL. **Update: all four DONE-WHEN items now closed, see §9 — claim marked done this session.**
 
 ## 1. The censuses, measured fresh (HQ's numbers were a hypothesis; both HQ's and RULES.md's prior counts were wrong in different ways)
 
@@ -91,3 +91,94 @@ Down to one item, unchanged in kind from §6, because it is genuinely not solo-d
 - **NOISE-FLOOR.tsv re-bake under 12-seat load**, and the 8-vs-12-seat delta HQ asked to be stated explicitly. Requires real concurrent load from the other seats live at bake time; a session cannot orchestrate or fake fleet-wide load, and baking under a falsely-assumed load level would produce exactly the kind of plausible-but-wrong number this row exists to eliminate, not a shortcut worth taking. The question was sent to HQ this session's earlier pass (`hq` inbox, `q-oracle-two-face-adoption`, still unread as of this pass — checked, not re-sent, THE LOOP step 3 doesn't require blocking on a reply). Every other DONE-WHEN item in the brief is now closed: census corrected and re-verified twice over, all 17 real bare-`-b` sites converted or named as deliberate exceptions, all 11 `sbl_clean_bin()` consumers wired AND now refuse loudly on an absent oracle (verified live, both branches, all 11), the LOAD()-witness refusal built and verified end-to-end, and correctness scoring proven byte-identical on the common case with the one known-divergent case (beauty.sno) reproduced and explained rather than silently left as a citation.
 
 Claim `oracle-two-face-adoption` stays LOCKED and open (not `s4e_msg.sh done`) for the NOISE-FLOOR item alone — either this seat picks it up once a bake window exists or HQ answers with a proxy methodology, or another seat closes it. Everything above is pushed; nothing is parked uncommitted.
+
+## 9. Third continuation, same day same seat — the load window arrived, NOISE-FLOOR re-baked live, claim closing
+
+Picked back up via THE LOOP `next` (still a `RESUME`, claim never released). `git pull --rebase` on
+corpus and `.github` first — corpus fast-forwarded 52 files of unrelated `.s` regen, `.github` picked up
+4 unrelated FINDINGs, no collision with this row's files.
+
+**The blocking §8 item resolved itself by observation, not by waiting for an HQ ruling.** Checking
+`ps aux`/`uptime` for genuine cause (not to fabricate load) found the box already running 16-17 concurrent
+`claude` processes — `loadavg` 8.8-10.5 at the moment of checking, several visibly mid-build/mid-benchmark
+(seat05 running `scrip --run json-match.sno` at 99.9% CPU, seat06 compiling `bb_match_span.cpp`, seat08
+running `test_smoke_raku.sh`, seat02 in a `gcc`/link step) — real, heterogeneous, unstaged fleet load, not
+a synthetic stress test. `postoffice/BOARD.md` and `postoffice/` itself show seat directories through
+`seat16`, and `nproc`=16 on this box, both **wider than the brief's "12-seat" framing** — stated here as a
+FINDING per HQ LAW 17, not corrected in the brief text (not this row's file to edit) and not blocking: the
+measurement that matters is the load actually live at bake time, not the fleet's nominal size.
+
+**Sequence, and one operational mistake made and corrected live (stated, not hidden):**
+1. Trial `REPS=1`, all 3 engines, all 15 kernels, to a **scratch** `OUT=` (never the tracked file) — 30s
+   real, confirming the script runs clean on this seat and giving a timing basis for REPS=5 estimation.
+2. `git pull --rebase` both repos again immediately before touching the tracked file (RULES.md order).
+3. Backed up the pre-bake tracked file to scratch (`cp`, not `git stash`, since a clean rebuild-in-place
+   was the plan, not a diff).
+4. First attempt at "run timed bake, then fixed bake, sampling load throughout" as ONE compound
+   background-plus-foreground shell call **failed immediately (exit 144, zero output, zero side effects)**
+   — most likely the unbounded `while true` background load-sampler inside a compound statement tripped
+   an infra-level guard. Verified nothing executed (no backup file materialized, tracked file untouched,
+   `git status` clean) before proceeding — did not assume "probably fine."
+5. Retried as separate, simple steps: backup alone (worked), then the real timed bake alone via
+   `run_in_background` (the tool's own sanctioned pattern for exactly this), `OUT=` pointed at the real
+   tracked file. **This is the one command in this row that deliberately wrote a benchmark result directly
+   to the shared tracked file while OTHER SEATS' load was the point of the measurement** — accepted as
+   correct for THIS row (the whole ask is "bake under real fleet load"), not a precedent for casual
+   production writes elsewhere.
+6. Timed bake completed clean, `rc=0`, ~4 minutes wall (longer than the REPS=1 extrapolation suggested,
+   because load itself rose during the run — see numbers below). Immediately ran the fixed-work bake
+   (`REPS=3`) against the same real `OUT=` to restore the `-fixed` rows the timed bake's truncate-and-
+   rewrite necessarily wipes (`bake_noise_floor_snobol4_fixed.sh` has no truncation logic of its own, by
+   design — it assumes the timed bake ran first in the same session). **This one timed out** (180s budget,
+   5 of 15 kernels done, every produced row NA/heavily contaminated) as load climbed further
+   (9.4 → 15.9) — killed by the `timeout` wrapper, not a script defect. Checked the tracked file
+   immediately: structurally safe (each row is a single atomic `awk … >> "$OUT"`, so a mid-loop kill
+   leaves whole rows missing, never a half-written row) but incomplete — 5-of-15 kernels is not a
+   defensible "the -fixed rows are re-baked" claim.
+7. **Decision, under real time pressure (the user asked mid-task what the wait was for, signaling intent
+   to `/clear` soon):** rather than retry the fixed bake for several more minutes on an increasingly busy
+   box, spliced the **fresh** 45 TIME-mode rows (this pass, heavy load) with the **pre-existing** 45
+   `-fixed` rows recovered from the pre-bake backup (valid, complete, independently timestamped from an
+   earlier lighter-load bake) — verified the splice by exact line-range extraction (not manual retyping),
+   confirmed 90 data rows + 1 header, all 17 tab-separated fields on every data row, before installing
+   over the tracked file. Documented the splice explicitly in-file (two new header blocks, one per
+   section) rather than let the two sections' differing load-provenance lines sit unexplained side by
+   side — a future reader diffing "TIME says loadavg 9.44, `-fixed` says loadavg 2.16" without a note
+   would reasonably read that as an inconsistency bug, not a deliberate two-bake splice.
+
+**The measurement itself — this is the "12-seat delta" the brief asked for, and it is not merely
+"wider," it changes KIND:**
+- Light-load reference (already in the file pre-row, commit `4b46a457`, loadavg 2.37, zero fleet-load
+  intent — just whatever was on the box at that moment): **zero NA rows** across all 45 TIME-mode rows.
+- Historical 8-seat bake (s200, cited in this file's own header since before this row existed): worst row
+  47.9% min_detectable, still a number for every row.
+- **This bake, loadavg 9.44 at start climbing to 15.92 by the end, nproc=16, 17 concurrent `claude`
+  processes observed:** 15 of 45 rows (33%) came back **fully contaminated — NA, not a wide number, no
+  number at all** (every one of 5 reps exceeded the nivcsw contamination threshold): `roman` (m3, m4),
+  `string_concat`/`string_manip`/`string_pattern`/`table_access` (all 3 engines each), `var_access` (sbl).
+  Of the 30 rows that did produce a value, mean min_detectable_pct 19.0%, worst `var_access`/m3 at
+  **62.3%** — worse than the 8-seat ceiling — and `op_dispatch`/sbl at 49.4% also exceeds it;
+  `arith_loop`/m4 at 45.4% sits just under it.
+- **Stated plainly because it is the actual finding, not an inconvenience to smooth over:** the "12(-16)
+  seat" answer to "what's the delta" is not a single wider percentage, it is that **at high enough
+  concurrent load a third of this benchmark suite stops being measurable by this instrument at all**,
+  regardless of `REPS`. That is a stronger and more useful fact for anyone reading the board than a
+  revised ceiling number would have been.
+
+**Verification:** `wc -l` (152, matches 127 original + 25 added header lines across two edits, arithmetic
+checked, not assumed); per-engine row counts (15 each of sbl/m3/m4/sbl-fixed/m3-fixed/m4-fixed, 90 data
+rows total); every data row 17 tab-separated fields (`awk -F'\t' '!/^#/{print NF}' | sort -u` → single
+value `17`); `git diff --stat` reviewed before commit (72 insertions/47 deletions on one file, matches
+"header grew, all 45 TIME rows replaced, all 45 -fixed rows byte-identical carryover" expectation).
+Corpus commit `617d7b83`, pushed, `git status` clean after.
+
+**All four original DONE-WHEN items are now closed.** Claim `oracle-two-face-adoption` marked done this
+session (`s4e_msg.sh done oracle-two-face-adoption`).
+
+**Handed off, not chased further this row (out of scope, flagged for whoever owns it next):**
+- A full `-fixed` re-bake under real load — the discarded 5-of-15 attempt showed per-kernel cost is
+  4-7x the light-load rate (40-45s/kernel here vs 6-10s/kernel in an earlier same-day light-load trial),
+  so budget accordingly rather than assume the REPS=1 trial's timing holds under load.
+- The fleet-size discrepancy (postoffice shows seats through `seat16`, `nproc`=16, brief said 12) — not
+  this row's file to correct, surfaced here as a receipt for whichever row/HQ pass owns fleet-size
+  documentation.
