@@ -146,6 +146,65 @@ The two failures (`160_pat_alt_inner_gen_resume`, `demo_treebank`) are pre-exist
 
 ---
 
+## 7A. ⛔ TWO PLAUSIBLE HYPOTHESES, BOTH MEASURED, BOTH FALSIFIED — DO NOT RE-SPEND THIS
+
+Hardware counters became available mid-session (`perf`; see §6). Two obvious next optimisations were prototyped at the `.s`
+level and measured before any compiler work. **Neither is worth building.** Both are recorded so nobody pays for them twice.
+
+### 7A.1 Fallthrough-`jmp` elision buys ZERO cycles
+
+The loop retires **30.0 branches per iteration out of 120 instructions** — one in four — and most are `jmp` to the
+immediately-following label, a box-to-box hand-off that should be fallthrough. The front-end argument is seductive: Zen4
+takes at most ~2 taken branches per cycle and every taken branch ends a fetch block, so 30 branches in 28 cycles looks like
+the cap. It is not.
+
+| | instr/it | **cyc/it** | br/it | IPC | wall |
+|---|---|---|---|---|---|
+| shipped | 120.16 | **28.26** | 30.03 | 4.25 | 0.58s |
+| 6 fallthrough `jmp`s elided | 114.16 | **28.23** | 24.03 | 4.04 | 0.59s |
+
+Six taken branches per iteration removed, **0.03 cycles saved**. The front end absorbs perfectly-predicted `jmp`s for free
+and dispatch width had slack. The IPC *drop* is arithmetic, not regression — fewer instructions in the same cycles.
+
+⛔ **A peephole for this would be pure cost: BOTH-MEDIUM work on the BINARY relocation stream, for nothing.**
+
+### 7A.2 Operand forwarding WITHOUT deleting the producing box buys ~1 cycle
+
+Rewriting six spine reads to read their global source directly (`[rsp+32]` → `[r9+32]`), instruction count held **identical**
+at 120.18, moved 28.8 → 28.1 and 28.7 → 27.5 cyc/it: **~3.4%**. Real but small, because it removes the *load-after-store
+dependency* and leaves the **store** in place. Store→load forwarding on this core is cheap; the store is not.
+
+### 7A.3 WHAT THE COUNTERS ACTUALLY SAY
+
+| | instr/it | cyc/it | **loads/it** | **stores/it** |
+|---|---|---|---|---|
+| before §3's cuts | 187.3 | 45.24 | 55.6 | 36.3 |
+| after | 131.6 | 30.92 | 35.1 | 30.7 |
+| Δ | −29.7% | −31.7% | **−36.9%** | −15.4% |
+
+**Half of every instruction in this loop is a memory access.** The cycle win tracked the LOAD reduction, not instruction
+count in general — which is exactly why 7A.1 failed and why §3's cuts succeeded (they removed a PLT call's argument
+marshalling and redundant tag/value reads, i.e. loads).
+
+⭐ **THE STRUCTURAL NUMBER.** Of the 28 stores per iteration (`ls_dispatch.store_dispatch` ÷ iterations, exact):
+
+| owner | stores/iter |
+|---|---|
+| `var` ×4 | 8 |
+| `lit_integer` ×2 | 4 |
+| `binop` ×2 | 4 |
+| `coerce_numeric` ×2 | 4 |
+| `cmp_test` | 2 |
+| `concat` (identity) | 2 |
+| **`assign` ×2 — the only semantically necessary stores** | **4** |
+| total | **28** |
+
+**24 of 28 stores exist solely so the next box can read the value back.** The correct next optimisation is therefore not
+"emit fewer instructions" — it is **delete hand-off boxes**. Each box removed takes ~6 instructions, 2 stores and 2 loads
+with it. Metric to track: `ls_dispatch.store_dispatch / iterations`, currently 28, floor 4.
+
+---
+
 ## 8. WHAT IS LEFT — 120 INSTRUCTIONS, AND THEY ARE ALL THE SAME SHAPE
 
 | box | Ir/iter | the waste |
