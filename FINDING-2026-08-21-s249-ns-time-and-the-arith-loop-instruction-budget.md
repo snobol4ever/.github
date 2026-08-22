@@ -411,6 +411,38 @@ for. Anything finer needs §7D's layout-swept protocol.
 
 ---
 
+## 7F. ⭐⭐⭐ THE BIGGEST WIN OF THE SESSION WAS A FOUR-CHARACTER FIX — getenv() ON EVERY CALL
+
+`string_manip` **0.29x → 0.61x** of sbl. `indirect_dispatch` **0.46x → 0.80x**. `eval_fixed` **0.59x → 0.91x**.
+
+**Found by measurement, not by reading.** Per-box callgrind of `string_manip` put the emitted boxes at **1.8%** of the cycle
+proxy — codegen was irrelevant — and `rt:getenv` at **22.6%**, 5.8M instructions and 86,132 branch misses, in a program that
+never calls the `getenv` builtin. `callgrind_annotate --separate-callers=1` named the caller: `getenv'rt_call_arr` and
+`getenv'rt_call_arr_impl`, **10,217 times each, 21.56% of the run**.
+
+```c
+static long _rspc = -1;
+if (_rspc < 0) { const char *ev = getenv("SCRIP_CALLARR_TRACE");
+                 _rspc = (ev && *ev && *ev != '0') ? 0 : -2; }
+if (_rspc >= 0) { ...trace... }
+```
+
+The sentinel for **trace OFF is −2**, and the cache guard is **`< 0`**. −2 is less than 0, so in the only case that ever
+occurs in production — the variable unset — the guard re-fires on every call and each one walks the whole environment doing
+`strcmp`. The idiom *reads* as a cached env probe and is one; it simply never caches. **Enabling the trace would have hidden
+the bug**, because then the sentinel is 0 and the guard finally holds.
+
+Four sites, all on paths every function and builtin call takes: `by_name_dispatch.c:4634`, `:4650`, `core.c:2326`, `:2364`.
+Guard changed `< 0` → `== -1`. Runtime swept for the same shape: **zero remaining**.
+
+⛔ **THE LESSON: a cached-env-probe with a NEGATIVE "off" sentinel under a `< 0` guard is a silent per-call cost that appears
+only when the feature is DISABLED.** Grep for the shape before adding another one.
+
+⭐ And the methodological point: the row we had spent the session *not* looking at was 98.2% runtime C and 1.8% emitted boxes.
+**Profile the row before optimising the compiler for it.**
+
+---
+
 ## 8. WHAT IS LEFT — 120 INSTRUCTIONS, AND THEY ARE ALL THE SAME SHAPE
 
 | box | Ir/iter | the waste |
