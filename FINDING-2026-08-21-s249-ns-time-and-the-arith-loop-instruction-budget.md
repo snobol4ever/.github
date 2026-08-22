@@ -321,6 +321,96 @@ run to confirm peak stack depth did not grow — the one regression throughput n
 
 ---
 
+## 7D. ⛔⛔ MEASUREMENT AUDIT — TWO OF THE NUMBERS ABOVE ARE NOISE READINGS. READ THIS BEFORE QUOTING §7A–§7C.
+
+Lon asked "are you sure of the accuracy and precision of your measurements?"  Re-measured properly, and **no**.
+
+⭐ **THE INSTRUMENT'S DETECTION LIMIT IS ±0.22 cyc/iteration ≈ 0.8%**, established the way it should have been first:
+six interleaved samples per arm, both orders, warm-up discarded.  `al_fixed` min 28.292 / mean 28.395 / max 28.504;
+`al_cp` min 28.315 / mean 28.406 / max 28.542 — **within-arm spread 0.212 and 0.228 cyc.**  Any delta below that is not
+a reading.  This project's own README says *"read NOISE-FLOOR.tsv before calling any difference real"*; that discipline was
+applied rigorously to the throughput benchmarks in §6 and then **not applied at all** to the perf cycle deltas in §7A–§7C.
+
+### CORRECTIONS
+
+| claim as first written | corrected |
+|---|---|
+| concat-box deletion "−0.16 cyc", "0.02 cyc/instr" | **UNMEASURABLE.** delta = −0.023 cyc at the min, i.e. the "faster" arm is fractionally slower. Effect is *< 0.028 cyc/instr*, an UPPER BOUND, not a measurement |
+| fallthrough-jmp elision "saved 0.03 cycles" | **BELOW DETECTION.** Effect is *< 0.037 cyc/branch*, an upper bound |
+| "15× cheaper per instruction" | **UNFOUNDED AS A RATIO** — one of the two terms was a noise reading |
+| spine carve "0.17 cyc" | **0.14 ± 0.015 cyc**, from an interleaved min-of-9 with warm-up discarded (the first run had no warm-up, fixed A-then-B order — a systematic bias favouring B — and 2–3 samples) |
+| clock "~4.9 GHz" | **4.624 GHz measured** (`cycles ÷ task-clock`). Every ns→cycle conversion above was 6% off |
+| payload scaling "0.30 cyc/instr" | deltas were +8.81, +9.23, **+6.63** — the third breaks the pattern and was under-flagged. Honest range **0.22–0.31** |
+
+Two further process faults, both mine: the fixed-count perf runs were made **without `SCRIP_NOHUGE=1`**, contrary to this
+project's own stated measurement condition; and the §7C stretch census ran against `.s` artifacts regenerated **before** the
+copy-prop commit `979feb4a` — stale, and a RULES.md handoff-step-4 violation.
+
+### WHAT SURVIVES, AND WHY THE CONCLUSIONS STILL STAND
+
+Above the noise floor by a wide margin, and defensible: the **+41.9%** headline (8 interleaved pairs, 1.375–1.451, ~50× the
+floor); the **instruction/load/store counts** (exact over 10⁸ iterations, and 120.16 measured agrees with callgrind's 120
+attributed); **+8.8 cyc per added statement** (40× the floor); the SPITBOL 320/321 equivalence; and the gate proven by
+stash-and-rerun.
+
+⭐ **THE QUALITATIVE FINDING IS UNCHANGED AND IS THE POINT: chain work is expensive and measurable, work beside the chain is
+below the noise floor.**  What is retracted is every precise cyc/instr figure for the cheap items — they are upper bounds and
+were presented as measurements.  §7C's projection for `spine-carve-coalescing` is therefore ~10 × 0.14 = **1.4 cyc of 28.4 ≈
+4.9%, only ~6× the detection limit** — it must be confirmed with interleaved min-of-N and may come in at half that.
+
+⛔ **THE RULE THIS BUYS: before quoting a cycle delta, measure the within-arm spread of the same two binaries interleaved, and
+refuse to report anything smaller.**  A point estimate below the spread is a story, not a result.
+
+---
+
+## 7E. WHERE THE REAL DEFICITS ARE — TABLES STRINGIFY INTEGER KEYS, AND N-D ACCESS DISPATCHES ONCE PER DIMENSION
+
+`table_access` profiles at **8.5% emitted boxes / 91.5% runtime C** — the exact inverse of `arith_loop`. Top: `c_rt_subscript_var`
+14.2% (43,788 D1 + 43,751 LL misses), `tbl_key_str` 9.1%, `_tbl_hash` 7.4%, `table_set_descr_keyown` 6.1%, `__strcmp_avx2` 4.8%,
+`rt_gcheap_alloc` 4.1%, `table_find_pair` 3.9%, `rt_agg_alloc` 3.8%, `rt_ws_strdup_c` 1.7%.
+
+⭐ **`aggregates.c:122 tbl_key_str()` converts EVERY table key to a string.** `DT_I` builds `"\001i"` plus decimal digits by
+repeated div/mod; the string is then hashed and collisions resolved with `strcmp`, and `table_set_descr_keyown` +
+`rt_ws_strdup_c` allocate to own it.
+
+Per-shape cost, store+load pair with an empty-loop baseline subtracted, SCRIP m3 vs `sbl -bf`:
+
+| shape | SCRIP | SPITBOL | |
+|---|---|---|---|
+| 1-D `a[1]` | **33 ns** | 43 ns | **SCRIP 1.3× FASTER — the plain array path is fine** |
+| 2-D `a[1,2]` | 73 ns | 44 ns | 1.66× slower |
+| table **int** key `t[1]` | 71 ns | 44 ns | 1.61× slower |
+| table **str** key `t['abc']` | 60 ns | 47 ns | 1.28× slower |
+| chained `t['a'][1]['x']` | 185 ns | 82 ns | 2.26× slower |
+
+⛔ **An integer key costs MORE than a string key (71 vs 60 ns)** — backwards, and the cleanest proof of the stringification.
+
+⭐ **Second defect: an N-dimensional access emits exactly N subscript dispatches.** Counted from the emitted `.s`, store+load:
+1-D = 2 calls (one per access), 2-D = 4 (two), 3-D = 6 (three). The address formula exists and is correct at
+`aggregates.c:59-73`; it simply sits behind one wasted dispatch per extra dimension.
+
+⛔⛔ **`a[1,2]` and `a[1][2]` ARE NOT THE SAME THING** (Lon, correcting HQ in-chat). `a[1,2]` is one subscript on an N-D array,
+where N dispatches is a defect. `a[1][2]` subscripts the **object returned by** `a[1]` — two lookups there are correct and
+unavoidable. Measured separately: chained `a[1][2]` store+load = 5 subscript calls + 3 `rt_deref` + 2 `rt_assign_var`. The
+185 ns three-level table figure above is a **chained** case, not an N-D one, and must not be scored against the N-D row.
+
+⛔ **Third, UNQUANTIFIED: `.NAME` has three representations and one is a string.** `descr.h:19,68-72` — `DT_N = 0x28`, `slen==2`
+a name-trap pointer, `slen==1` a pointer, `slen==0` carrying `.s`, a character string. A name held as a string resolves by
+lookup rather than by address. Lon flagged it; it is **not measured** and must be before anything is done about it.
+
+### 7E.1 WHY "WRITE IT ALL IN ASM" IS THE WRONG FIRST MOVE, AND THE DATA THAT SAYS SO
+
+The **1-D array path is already faster than SPITBOL while written in C.** Hand-writing a stringify-then-`strcmp` table in
+assembly would win perhaps 20%; deleting the stringification is worth several times that. Order that pays: (1) type-tagged
+hashing — hash a `DT_I` key from its integer value, compare descriptors, never build a string; (2) one dispatch per N-D access;
+(3) *then*, if the residue is the call boundary, emit the subscript fast path as a `bb_*` box through the `x86()` encoder —
+which is what "in asm" means in this architecture — but only once the algorithm underneath is right.
+
+⛔ The wall-clock `TIME()` figures in this section are single-run and are trustworthy only for the ~2× effects they are used
+for. Anything finer needs §7D's layout-swept protocol.
+
+---
+
 ## 8. WHAT IS LEFT — 120 INSTRUCTIONS, AND THEY ARE ALL THE SAME SHAPE
 
 | box | Ir/iter | the waste |
