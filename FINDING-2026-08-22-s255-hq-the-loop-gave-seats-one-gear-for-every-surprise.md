@@ -71,3 +71,43 @@ Propagated to `PROTOCOL.md`, `SEAT-CLAUDE.md`, all 8 seat `CLAUDE.md`, and HQ's 
 ## 4. THE GENERALISABLE POINT
 
 ⭐ **Before writing any "always / never / every session" rule, ask what the session must KNOW in order to obey it.** If the answer is a fact only the harness holds — when a session ends, when a context is cleared, when a user walks away — then the rule is decoration and its violations are not disobedience. Move it into the harness or drop it. ⛔ This is the second law in one session found to be defective in its *shape* rather than its content (see the main FINDING: one gear for every surprise). Both were written as exhortations where a mechanism was required.
+
+---
+
+# ADDENDUM 2 — THE BANNER'S SUCCESS WAS UNEARNABLE-PROOF: A SEAT THAT DID NOTHING PASSED IT
+
+**Lon, in-chat:** *"I never stopped a FLEET worker who's banner did not say SUCCESS after I prompted, 'show me the required banner.' So they lied."*
+
+## 1. THE SEATS DID NOT LIE — THE HEADLINE ANSWERED THE WRONG QUESTION
+
+`s4e_msg.sh banner` emitted **✅ SUCCESS** on `handoff_status.sh rc=0`, which means exactly *"working tree clean, nothing unpushed."* ⛔ **A seat that did absolutely nothing satisfies that trivially.** Doing nothing and doing everything produced the identical verdict, by construction — so a seat asked *"show me the required banner"* would answer SUCCESS whether or not it had earned it, and would be telling the truth about the only thing the banner measured.
+
+⛔ **THE PROOF WAS ON SCREEN THE SAME DAY AND HQ QUOTED IT APPROVINGLY WITHOUT SEEING IT.** Two seats created from nothing minutes earlier — no row, no commit, no FINDING — printed `✅ SUCCESS — seat5 — safe to /clear — ⚠ NOTHING ATTRIBUTABLE LANDED`, and HQ pasted that into chat as evidence the seats were ready. **seat6, which released `free-r11` having touched no code, would have printed the same thing.** The verdict was congratulating empty sessions all day.
+
+## 2. THE HONEST FACT WAS ALREADY COMPUTED — AND PUT IN THE WRONG PLACE
+
+This is the part that makes it a design defect rather than an oversight. One screen above the verdict, the script already does:
+
+```sh
+if [ "$cmts" -eq 0 ] && [ "$fnd" -eq 0 ]; then lvl="⚠ NOTHING ATTRIBUTABLE LANDED"
+```
+
+It **knew**. It counted the commits, counted the FINDINGs, correctly concluded nothing landed — and then appended that conclusion as **decoration on a SUCCESS headline**. The right fact was measured and rendered as a suffix to the wrong one. ⭐ **A measurement placed below the verdict it contradicts is not a safeguard; it is a footnote nobody reads.**
+
+## 3. CURE — THREE STATES, AND SUCCESS MUST BE EARNED
+
+| verdict | condition |
+|---|---|
+| **✅ SUCCESS** | work landed and is pushed |
+| **⚠ NOTHING LANDED** | tree clean and safe to `/clear`, but **zero commits and zero FINDINGs** — an empty session |
+| **⛔ FAILURE** | unpushed or dirty — do not `/clear` |
+
+⛔ **`rc` is deliberately UNCHANGED.** It still answers *"is it safe to /clear"* — a different question, and the one tooling consumes. The banner's **text** is what Lon reads, and that is now the thing that has to be earned. Landed SCRIP `261cafcb`; verified live — HQ with 17 commits and 4 FINDINGs prints SUCCESS.
+
+## 4. THE THIRD DEFECT OF THIS SHAPE IN ONE SESSION
+
+- **LAW 17** — the question rule gave seats one gear for every surprise.
+- **LAW 18** — the banner law required a session to know when it was ending.
+- **This one** — the banner's verdict measured tree cleanliness and called it success.
+
+⭐ **All three were confidently measuring the wrong thing, and all three read as correct until someone asked what the number actually meant.** ⛔ The pattern to hunt: *a rule or instrument whose output is trivially satisfiable by inaction.* If doing nothing passes, the check is not a check. Lon found this one by noticing that **every** answer was SUCCESS — a verdict that never says no is not a verdict, and uniformity across a fleet is itself the tell.
