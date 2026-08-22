@@ -15,6 +15,24 @@
 | the control plane | ⛔ failed on seven mechanisms | below |
 | the trend | ⛔ confusion grew FASTER than the fleet | rework/duplication FINDINGs: 2 on 08-19 → **11 (17% of the day) on 08-22**; ~40–45% of all 222 era FINDINGs are the fleet auditing its own lying instruments/briefs/queues, and the fraction ROSE with seat count; 08-21's SOLO WORK ORDER (`b44084ed`) is the system itself conceding coordination cost had exceeded fleet value for a day |
 
+## THE ACTUAL TIMELINE — TWO WAVES, MEASURED BY FILESYSTEM BIRTH TIMES, NOT REMEMBERED
+
+Routed same-day after Lon challenged the scope in-chat ("the FLEET only existed today … When did we create claude1 through claude8?") — the answer is `stat %w` on the seat roots, and it splits the experiment into waves neither of us was describing:
+
+| when (birth) | what | receipt |
+|---|---|---|
+| 08-18 23:40 | `/home/claude` (HQ root) | stat %w |
+| **08-19 13:29** | **`claude01`–`claude03` born**; postoffice seat01 mailbox 13:41 | stat %w; `6d15c961` same day: "workers = 6-8 claude.ai web seats on PAT" |
+| **08-19 18:36** | **`claude04`–`claude08` born** (same second — scripted batch); postoffice root 18:15 | stat %w |
+| 08-19→08-20 | **WAVE 1: the 4→8 fleet runs.** Peak output of the whole era is 08-20: ~240 code commits, 90 FINDINGs, seat1–seat8 attributions throughout | agent scans §1; s186/s189/s191 FINDINGs |
+| 08-21 | **SOLO WORK ORDER — fleet dark** (coordination cost judged to exceed fleet value); QUEUE.tsv rewritten 12:54 | `b44084ed`; stat %w QUEUE.tsv |
+| **08-22 13:54–13:56** | **WAVE 2 begins: `claude09`–`claude12` born**; mailboxes 14:00–14:03; ~14:30 zero-pad rename (phantom `claude01/` mailbox born here) | stat %w; `claims.bak.s255-rename` |
+| **08-22 16:05** | **`claude13`–`claude16` born** (same second); populated 16:25–17:10 | stat %w |
+| **08-22 17:34** | **HQ split: `claude_C` + `claude_P` born** | stat %w |
+| 08-22 evening | the acute collapse: +38 rows appended below a top-served picker, 29 msgs/15 questions unread from 21:01, 2 of 16 seats land nothing, boards 21:01–23:01 | postoffice scan §(b) |
+
+**So "the fleet failed" is really "the SECOND wave failed":** wave 1 (4→8) was the era's most productive stretch; one solo day followed; wave 2 (8→12→16 inside five hours, plus a namespace rename and an HQ split executed mid-flight) is where every acute mechanism below fired the same afternoon. The mechanisms existed in wave 1 too — s189/s191 prove it — but at 8 seats HQ could still outrun them by hand. At 16 it could not. That is the scaling law of this FINDING in one sentence: **the control-plane defects were constant; the seat count turned them fatal.**
+
 ## WHAT WENT WRONG — SEVEN MECHANISMS, ALL MEASURED
 
 1. **DISPATCH WAS A RACE, NOT AN ASSIGNMENT.** HQ mails "your row is X"; the seat runs `next`, which locks whatever is topmost-free — nothing binds the mail to the lock. Four messages record the race firing (`seat13-q-row-mismatch-json-alternate`, `seat13-q-next-locked-diag-reg-stmtno-not-json`, `seat16-seat16-row-conflict` — seat16's auto-lock on `ptx-shift-m4` was manufactured BY the race and then abandoned in place). seat13 lost its whole session to this plus a dead row (mechanism 5).
