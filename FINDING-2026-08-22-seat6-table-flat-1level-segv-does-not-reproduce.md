@@ -39,6 +39,17 @@ Built the matching 2-level ablation (`mem[num][wrd] = IDENT(mem[num][wrd]) 0` / 
 
 All three levels are check-value-correct (6469, matching SPITBOL's own CHECK-phase line in every case) and monotonically slower as levels are added — 168→96→24 is roughly consistent with the 7× deficit region s199 named, though this is 1 sample per level, m3 only, no oracle throughput denominator (blocked by the side discovery above), and **not** the rigorous per-mechanism decomposition (`table_access`-suite-style, nested-value-boxing vs re-lookup vs `IDENT()` guard measured separately) that row's own DONE-WHEN actually asks for. Handing off as a documented starting point, not a completed measurement — the oracle-timing blocker needs its own resolution (upstream SPITBOL, or a rebuilt `x64/bin/sbl`) before a citable ratio table is possible.
 
+## ⭐ ADDENDUM — THE ORACLE BUG ABOVE WAS FIXED UPSTREAM MID-SESSION; RE-RAN THE LADDER WITH REAL CROSS-ENGINE NUMBERS
+`x64` repo fast-forwarded to `ec80390e` during this session's own handoff (`bin/sbl` rebuilt, `osint/systm.c` reverted `zystm()` from milliseconds back to nanosecond `CLOCK_MONOTONIC` — independently confirms this FINDING's diagnosis almost exactly: coarse/wrong-unit `TIME()` colliding with the ns-scaled harness). Reconfirmed the oracle completes vanilla `claws5.sno` cleanly (1.1s, `iters: 120`) and re-rebuilt SCRIP pristine against the newest HEAD (`0f17fbf4`, picked up an unrelated `descr-stamp-fields` DT_x tag-compare conversion across 171 sites — both checked-in witnesses reconfirmed clean at this HEAD too). Re-ran all three levels against real `claws5.dat`, same `ZBUD=1000`/`ZFLR=20`, both engines now completing normally:
+
+| level | sbl iters/s | m3 iters/s | **m3:sbl** |
+|---|---:|---:|---:|
+| 1 (flat) | 112.0 | 149.6 | **1.34× FASTER** |
+| 2 | 162.4 | 85.6 | 0.53× |
+| 3 (original claws5) | 120.0 | 39.1 | 0.33× |
+
+All check=6469 both engines, all three levels. **Directional, not citable-final**: one sample per cell, no averaging (sbl's own iters bounced 112→162→120 level-to-level, which is single-run noise, not a real non-monotonic effect) — the sibling row should re-run this several times each before quoting it. Still, the shape is informative and new: level 1 replicates the earlier four-point ladder's "matcher alone is faster than SPITBOL" result almost exactly (1.34× here vs 1.35× there), and the degradation is monotonic and roughly multiplicative per added level (1→2 costs ~1.75×, 2→3 costs ~2.19×) rather than front-loaded at any one level — consistent with a per-level compounding mechanism (nested-value boxing + chained re-lookup + the `IDENT()` guard, as s199 named) rather than a one-time fixed cost. The absolute level-3 ratio (0.33×, SCRIP ~3× slower) differs from s199's originally quoted 0.17× (~6× slower) — plausibly measurement-condition drift (single-sample noise here, a since-fixed timing oracle there, or unrelated codegen movement across the intervening day) rather than a real change; not chased further, flagged for the sibling row owner to reconcile with a proper multi-run methodology.
+
 ## CORPUS: NO WORSE
 Zero SCRIP source touched (no codegen, no `.s` regen owed). Only additions: 2 new files in `corpus/probe/`. `test_smoke_snobol4.sh` reconfirmed 7/7 both modes at pristine HEAD before closing out.
 
