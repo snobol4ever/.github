@@ -188,3 +188,9 @@ Lon, in-chat: *"Organize all task by priority based on current knowledge of bott
 - `pt-group-defer` (*group defer = 59.4% of all treebank-match cycles) was at **rank 12** despite being a measured demo bottleneck. Promoted to rank 1.
 
 **The instruction-count argument behind the whole ranking** (FINDING s251 §2): SCRIP already beats SPITBOL on every microarchitectural axis — IPC 3.20 vs 2.33, mispredicts 0.14% vs 0.83%, frontend idle 4.93% vs 22.70%. It is **instruction-count bound**, so hand-written register-aware asm and box-level polish are capped near 1.4× and are the *last* mile. Rank 1 is therefore populated by rows that delete work (table path, PLT indirection, un-inlined calls, fused boxes), not rows that shave cycles off work that stays.
+
+---
+
+## 8. ⛔ THE SPITBOL SIDE OF EVERY NUMBER ABOVE WAS MEASURED AGAINST AN INSTRUMENTED ORACLE (seat2, 2026-08-22)
+
+Row `clean-oracle-build` built and verified a from-source, uninstrumented SPITBOL (`/home/resources/spitbol-clean/sbl`, authority in `scripts/lib_oracle_flags.sh`'s `sbl_clean_bin()`) and measured — callgrind Ir, matched `-bf` flags, cross-validated via an independent same-toolchain rebuild of the full instrumented fork tree agreeing to within 7 instructions of the checked-in binary — that the checked-in `x64/bin/sbl`'s monitor IPC bridge costs **~2.2-2.3x the instruction count** on both call-dense and arithmetic-only code, even with the monitor pipes unset. This lands almost exactly on a **withdrawn** 2.4x claim this same row's own brief said not to quote. Full methodology and the open question of whether it changes §7's "instruction-count bound, 1.4x ceiling" reading of FINDING s251: `FINDING-2026-08-22-seat2-clean-oracle-monitor-overhead.md`. **Not re-verified against beauty self-host or any full suite — flagging the question, not answering it.**
