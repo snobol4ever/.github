@@ -162,3 +162,29 @@ Wall clock on a boosting mobile CPU is noise; **callgrind's `Ir` total is exact 
 6. Only then start writing asm, with `llvm-mca -mcpu=znver4` in the loop.
 
 Findings route to `FINDING-*.md` as they land; the cursor for this campaign lives in `GOAL-SNOBOL4-100.md`.
+
+---
+
+## 7. QUEUE PRIORITY POLICY (Lon s251)
+
+Lon, in-chat: *"Organize all task by priority based on current knowledge of bottlenecks on benchmarks, demos, and beauty. Those three are most important to me as examples of speed"*, then: **"Put all performance items higher priority than all others."**
+
+`QUEUE.tsv` was re-ranked accordingly — 129 rows, **48 performance rows occupying ranks 0–4, above all 81 others**. Prior ordering is preserved in `QUEUE.tsv.bak.s251`.
+
+| rank | n | meaning |
+|---|---|---|
+| **0** | 15 | **PERF BLOCKER** — the program will not run, or the number it prints is a lie. Nothing downstream is measurable until these clear. |
+| **1** | 10 | **TOP RUNTIME LEVER** — measured, mode-4 runtime, largest known wins. |
+| **2** | 17 | **SECONDARY CODEGEN** — real but smaller or unmeasured. |
+| **3** | 4 | **PERF INFRASTRUCTURE** — makes every later row cheaper to work. |
+| **4** | 2 | **COMPILE-SIDE PERF** — pays into `CODE()`/`EVAL()` and the dev loop, *not* the m4 benchmark (Lon s251: *"If you measure compile time of the program that is not a benchmark"*), hence ranked below every runtime row. |
+| 5–8 | 81 | correctness · parser/feature · harness/hygiene · admin, relative order preserved. |
+| 99 | 1 | `beauty-fixed-point`, an explicit HOLD gate row, untouched. |
+
+**Rank 0 is deliberately not all "make it faster."** A benchmark that grades against the wrong oracle arm, a harness that adds a procedure boundary, an instrument with a permanent noise floor, a demo with no corpus row, and a `match_ms` that reports 11 minutes for a 3-byte parse are all ways of producing a *confident wrong number*. Those rank above optimization because optimizing against a false measurement is worse than not optimizing.
+
+**Two rows were re-scoped by this session's evidence:**
+- `chain-slot-coalescing` sat at rank 0 pursuing slot coalescing, which FINDING-2026-08-21-s250 **measured as negative**. Demoted to rank 2 pending re-scope; the successor `box-fusion` — the lever s250 actually named, and which was never queued — is filed at rank 1.
+- `pt-group-defer` (*group defer = 59.4% of all treebank-match cycles) was at **rank 12** despite being a measured demo bottleneck. Promoted to rank 1.
+
+**The instruction-count argument behind the whole ranking** (FINDING s251 §2): SCRIP already beats SPITBOL on every microarchitectural axis — IPC 3.20 vs 2.33, mispredicts 0.14% vs 0.83%, frontend idle 4.93% vs 22.70%. It is **instruction-count bound**, so hand-written register-aware asm and box-level polish are capped near 1.4× and are the *last* mile. Rank 1 is therefore populated by rows that delete work (table path, PLT indirection, un-inlined calls, fused boxes), not rows that shave cycles off work that stays.
