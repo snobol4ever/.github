@@ -1,14 +1,16 @@
-# FINDING s250 — SLOT COALESCING IS MEASURABLY NEGATIVE, AND BOX FUSION IS THE REAL LEVER
+# FINDING s250 — SLOT COALESCING CHANGES NOTHING COUNTABLE, AND BOX FUSION IS THE REAL LEVER
+**⛔⛔ TITLE CORRECTED BY §7, SAME DAY, BY THE AUTHOR. The original title read "SLOT COALESCING IS MEASURABLY NEGATIVE" and that claim is WITHDRAWN — SCRIP `134405a4` found a LAYOUT BIAS on this exact kernel whose within-configuration span (3.06 cyc/it) is THREE TIMES my +1.06 cyc arm-B delta. ⛔ READ §7 BEFORE CITING ANY CYCLE NUMBER IN §1, §4 OR §5 — the counts are solid, the cycles are not, and the row's disposition is unchanged.**
 
 **Session:** s250 (seat2, `/home/claude2`, Claude Opus 5) · **Date:** 2026-08-21 · **Queue row:** `chain-slot-coalescing` (rank 0)
 **Tree:** SCRIP `58fd2369`, clean · RT_OPT `-O0` · governor `performance` · perf shim `/home/claude/.tools/bin/perf`
 
-⛔ **NOTHING LANDED. This row is BLOCKED on a design call and the ask is filed (`hq/q-chain-slot-coalescing`).**
+⛔ **NOTHING LANDED. This row is BLOCKED on a design call and the asks are filed (`hq/q-chain-slot-coalescing`, `-2`, `-3`).**
 This document exists so the four experiments below are never paid for twice.
 
 ---
 
 ## 1. THE HEADLINE — THE ROW'S NAMED MECHANISM CANNOT ACHIEVE THE ROW'S OWN TARGET
+⛔ **§1's CYCLE COLUMN AND ITS "why B loses" MECHANISM ARE RETRACTED IN §7. Its instruction and store COLUMNS stand** — and they alone carry the conclusion, since the row's target is a counted quantity.
 
 The row is `chain-slot-coalescing` and its TARGET is *"coalesce the slots along `var -> binop -> assign` so a statement's
 descriptor makes ONE round trip instead of three."* **Coalescing the slots does not remove a single round trip, and measured
@@ -169,3 +171,53 @@ literals may not), never as a per-op exception list.
 
 **Recommended re-scope:** rename the row to **`chain-box-fusion`**, target the dead `bb_binop_gvar_arith_slot` arm, and gate it
 on §4.1. The sibling rank-0 row `spine-carve-coalescing` is unblocked and independently worth ~6% (s249 §7C.2).
+
+---
+
+## 7. ⛔⛔ RETRACTION, SAME DAY, BY THE AUTHOR — §1's HEADLINE IS NOT ESTABLISHED
+
+SCRIP `134405a4` (s249, landed after this document was written) measured a **LAYOUT BIAS on this exact kernel** and it
+retracts my headline along with three of s249's own claims. Padding the hot loop 0..63 bytes with nops — **IDENTICAL CODE** —
+moves one cell from 28.263 to 33.392 cyc/it, a **5.1 cycle span** with a clean period-32 signature; the **typical layout span
+within a single configuration is 3.06 cyc/it**. The rule it buys: *never quote a cycle delta on this kernel from a single pair
+of builds; sweep the layout, sample every residue of the alignment period, compare distributions. Anything under ~3 cyc needs
+the distribution or it is a story, not a result.* (Mytkowicz et al., "Producing Wrong Data Without Doing Anything Obviously Wrong".)
+
+**My arm B delta is +1.06 cyc/it. That is a THIRD of the layout span. IT IS NOT A RESULT.**
+
+⛔ **And my method does not rescue it.** §1 leans on "8 interleaved rounds, ranges DISJOINT". Interleaving A/B/C back-to-back in
+one loop controls for *drift over time* — thermal, governor, neighbours — and it does that well. **It does not sweep layout at
+all: each arm has ONE fixed code layout for the whole experiment.** Disjoint ranges therefore demonstrate that each arm's own
+layout is *stable*, which is exactly what a layout artifact looks like. This is the same trap s249 fell into by generalising
+from cell 111's flat region, and I fell into it independently three hours later.
+
+### What is RETRACTED
+- **"Slot coalescing is measurably NEGATIVE (+4.2%)"** — WITHDRAWN. Not established. The honest statement is **"no measurable
+  effect either way at this instrument's resolution."**
+- **"The spine's apparent redundancy is buying memory-level parallelism"** — WITHDRAWN. It was a mechanism invented to explain
+  an effect that is not established. Store-to-load forwarding on one address versus two may well behave that way; **this
+  experiment does not show it**, and no one should cite it.
+- **"Box fusion is −15.7%"** — DOWNGRADED, not withdrawn. −3.99 cyc/it is ~1.3× the layout span, the same evidential tier
+  s249 called *"probably real"* for CMPINT (−3.1 cyc, ~1× span), well short of the *"SOLID"* it reserved for NULLCAT
+  (−7.4 cyc, 2.4× span). **Quote it as "probably real, unconfirmed", never as −15.7%, until it is swept.**
+
+### What SURVIVES, because none of it is a cycle claim
+- **Instruction and store COUNTS are exact, deterministic, and layout-independent.** A and B are identical (112.24 vs 112.25
+  instr; 24.05 vs 24.05 stores) — so **coalescing provably cannot deliver the row's target of "one round trip instead of
+  three", by construction and with no appeal to timing.** C is −19 instructions and −7 stores and provably does.
+  ⭐ **The row's disposition is unchanged; only my reason for it is narrowed** — from "coalescing is slower" to "coalescing
+  changes nothing that can be counted, and the row's target is a counted quantity."
+- The `COERCE_NUMERIC` pairwise census (§3.1): 107 / 50 / **2 would MISCOMPILE** / 0 on `arith_loop`. Structural.
+- `IR_VAR` has no operands, so `cp_source` can never return for it (§3.2). Structural.
+- Fusion needs **no new IR kind**, and `bb_binop_gvar_arith()` + `bb_binop_gvar_arith_slot()` are both dead with zero call
+  sites (§4, cursor §4). Structural.
+- The §4.1 safety condition. Not empirical at all.
+
+### ⭐ WHAT THE NEXT SEAT MUST DO DIFFERENTLY
+Any re-measurement of arm C — and the DONE-WHEN's "below 28.4 cyc/iter" — **must sweep the layout**: 64 layouts covering every
+residue mod 64 exactly once, paired against the control, compared as distributions with a standard error, exactly as `134405a4`
+did for BINIMM (se 0.208, t = −1.78, p ≈ 0.08, and it *declined to claim the win*). The price list in §5 inherits this: every
+row in it under ~3 cyc is an upper bound, not a measurement, and s249 has already retracted three of its own on those grounds.
+
+⛔ **The row is still BLOCKED on the same design call, and the recommendation to re-scope to `chain-box-fusion` still stands** —
+it now rests on the instruction and store counts, which are solid, rather than on a cycle delta that is not.
