@@ -50,6 +50,7 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step (stale by design — trust the goal file's LIVE CURSOR) |
 |------|------|------|
+| **⛔⭐⭐⭐⭐⭐ CEO** ⬅ Lon 2026-08-22 s257: Fable seat ABOVE the two HQ — audit · arbitration · law custody · strategy; never briefs, never measures. Identity `ceo` | `GOAL-CEO.md` + `ARCH-FLEET-CEO.md` | CEO-0 done: fleet-v1 retrospective FINDING routed; fleet-v2 + task-baton designed; `PROTOCOL-V2-DRAFT.md` staged awaiting Lon's flip. |
 | **⛔⭐⭐⭐⭐ HQ-CORRECTNESS** ⬅ Lon 2026-08-22 s256: HQ SPLIT IN TWO. Owns "does it produce the right answer" — SNOBOL4 #1 · Icon #2 · Prolog #3. Root `/home/claude_C`, identity `hq_C` | `GOAL-HQ-COMPLETE.md` | C-0: MILESTONE 1 MODE-3 REGRESSED — beauty m3 emits 278 bytes vs the 40,971 fixed point; m4 still correct, so it is a BOTH-MEDIUM violation. |
 | **⛔⭐⭐⭐⭐ HQ-PERFORMANCE** ⬅ Lon 2026-08-22 s256. Owns "how many instructions" — same three, same priority. Root `/home/claude_P`, identity `hq_P` | `GOAL-HQ-PERFORM.md` | P-0: profile `roman` (67,170 Ir/iter vs SPITBOL 7,966). SCRIP WINS on scalar (1.1–1.5x), LOSES 2.8–8.4x on tables/strings/real programs. The 10x is not blocked on codegen. |
 | **⛔ SCRIP HQ (SUPERSEDED s256 — split into the two above; kept for its laws and history)** ⬅ Lon 2026-08-19: HQ designs rungs + dispatch briefs; Lon fires worker seats; fronts = the three ⭐100 goals | `GOAL-SCRIP-HQ.md` | HQ-1: M1 campaign ladder cut; DISPATCH BOARD D-1 (seeding fix) + D-2 (claws5) READY. |
