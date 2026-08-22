@@ -119,3 +119,23 @@ Prolog families use different oracles and were never part of this row's premise 
 out-of-scope for closing THIS claim, same call the predecessor session made for its own leftovers.
 
 Claim marked done: `s4e_msg.sh done bench-external-cpu-and-elapsed-clock`.
+
+## 7. HQ message received after §4-6 were already pushed — routed here, not reopening the row
+
+HQ inbox message, same day, arrived while this session was closing out: callgrind on `sbl -bf` over
+`beauty` shows `emit_pm`/`pm_check_enabled` (pattern-match trace instrumentation, gated on unset
+`SPL_PM_TRACE`) costing **23.47% of SPITBOL's total instructions doing nothing** —
+`FINDING-2026-08-22-hq-scrip-spends-under-one-percent-of-its-instructions-running-the-program.md`.
+This is a fourth, distinct distortion (HQ's count) alongside this row's clock-unit fix, a layout-bias
+retraction, and the demo/expression SIGSEGV gap — it distorts the oracle's **workload**, not its
+clock, so the external-instrument work in §1-2 is unaffected and not reopened. It DOES mean the §4
+README ratios are clock-clean but not workload-clean: `sbl`'s instruction count on every quoted row
+includes dead trace overhead this row never touched. Added a caveat paragraph to the README (below
+the table) saying so explicitly rather than letting the new table read as more authoritative than it
+is. HQ's suggestion — whether `SPL_PM_TRACE` unset vs an actually-de-instrumented build changes
+`sbl`'s count, and whether DONE-WHEN for future timing rows should be expressed in callgrind `Ir`
+instead of seconds (deterministic, layout- and clock-immune) — is explicitly left as HQ's own
+open call ("your call not mine"), not actioned here: it is a workload-fidelity question, a different
+lane from this row's clock-fidelity one, and re-measuring the oracle is a nontrivial follow-up in its
+own right. Flagging so it is not lost, same convention as the maxrss_kb and string_concat-cv
+incidental findings above.
