@@ -179,6 +179,18 @@ hq_C proved `160` + the json hang + `json-match-fence` were **one class** and pr
 - `nul-in-counted-strings-class-defect` (hq_C) — one rung left: `n11`, `CONVERT(table,'ARRAY')` on a NUL-bearing key raises **Error 235** where the oracle answers `3`.
 - seat04's census: **META 90.0** over 1952 rows. Weakest suites are `gimpel 40.5%` and `csnobol4_suite 47.5%`; `beauty_self` (weight **20**) is structurally UNSCR, so the score is over 93/113 effective weight — ⛔ **the flagship is not in the number.**
 
+### ⛔⭐ THE DOMINANT FAILURE MODE OF s264 — **THREE SEATS, THREE INSTRUMENTS, ONE TRAP: MEASURING ACROSS A MOVING TREE**
+
+With four workers and two HQs all pushing, the tree changed under everyone, and **three independent seats produced a wrong measurement the same way in one session.** None of them was careless; all three caught it themselves.
+
+1. **hq_P** ran a before/after where the two arms were **different trees** — `git pull --rebase` landed *between* the two corpus runs, so corpus1 (pre-rebase) was correctly RED and corpus2 (post-rebase) GREEN, and the delta got attributed to the only change they were conscious of, an `ARRAY(n)` edit. hq_C settled it in one command (`git merge-base --is-ancestor 3342581a a0859f7e` → NO; `3342581a` is `ce48e3bb`'s parent). ⛔ **RULES.md already said *re-prove your gate after a rebase*, and hq_P DID re-run the gate — and still subtracted a pre-rebase baseline from it. The rule as written closes only half the trap.**
+2. **seat04** scored `160_pat_alt_inner_gen_resume` RED after the cure. hq_C guessed "stale pin"; **hq_C was wrong** — seat04 checked and the `.ref` was oracle-minted 2026-07-11 and always correct. It was a build/commit race: the recheck ran against objects that had not yet picked up `3342581a`.
+3. **seat03** threw out an entire corpus board run for contamination by their own concurrent rebuild — caught before reporting.
+
+⭐ **THE RULE, hq_P's wording, adopted: a before/after pair is only a measurement if both arms are the SAME TREE plus the ONE change. Re-baseline after every pull.** Re-proving the gate tells you the *tree* is good; it does not stop you subtracting a stale *baseline* from it. Those are two different disciplines and the org only has a rule for one.
+
+⛔ **AND THE META-POINT: this is the cost of parallelism, and it is not free.** Four seats produced five cures today; they also produced three false measurements, every one of which took an HQ command to settle. Budget for that when sizing a fleet — the coordination is real work, not overhead.
+
 ### ⭐ THE METHOD NOTE, WORTH MORE THAN ANY SINGLE CURE
 
 **A class defined by a CODE IDIOM is searched with a grep; a class defined by a VALUE is searched with a LADDER.** The NUL brief named an idiom that does not exist in the tree (`grep -c` = 0) and a 1,286-call census whose top files contained neither real site. A 14-rung witness ladder plus one gdb backtrace found both in two files. Both ladders are banked and reusable: `corpus/probe/altgen` (7 rungs, 2 controls) and `corpus/probe/nul` (14 rungs). ⭐ **Every ladder carries PASSING CONTROLS** — that is what proves the instrument discriminates rather than merely reporting red.
