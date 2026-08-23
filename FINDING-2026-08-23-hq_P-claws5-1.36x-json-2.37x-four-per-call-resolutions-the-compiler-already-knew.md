@@ -7,12 +7,15 @@
 
 ## THE RESULT
 
-| workload | SPITBOL Ir/iter | SCRIP before | SCRIP after | gap before → after |
-|---|---|---|---|---|
-| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 1.693x → **1.362x** |
-| **json** (631,514-byte json.dat, REAL) | 70,808,401 | 232,405,141 | **167,757,920** | 3.282x → **2.369x** |
+⛔⛔⭐ **REPORTED IN THE FORM LON RULED THE SAME SESSION (s266 FACT RULE, `.github/RULES.md`): the multiple is `SPITBOL / SCRIP` — ONE divisor, so above 1 is FASTER and below 1 is SLOWER — and it carries the word.** All rows share one instrument, one input per row, one basis (SLOPE), one `RT_OPT` (`-O0`), one mode (m4) and one oracle; that is what makes them a table rather than a list.
 
-−19.6% and −27.8%. ⛔ Both still SLOWER than SPITBOL; Lon's target is 2–3x FASTER, i.e. claws5 ≤ 18.0M and json ≤ 35.4M. The roadmap to it is at the bottom, ranked on measured evidence rather than intuition.
+| workload | SPITBOL Ir/iter | SCRIP before | SCRIP after | before | **after** |
+|---|---|---|---|---|---|
+| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 0.590 SLOWER | **0.734 SLOWER** |
+| **json** (631,514-byte json.dat, REAL) | 70,808,401 | 232,405,141 | **167,757,920** | 0.305 SLOWER | **0.422 SLOWER** |
+| claws5 grammar only (`-match`) | 1,770,532 | 1,087,882 | 1,087,882 | 1.628 FASTER | 1.628 FASTER |
+
+−19.6% and −27.8% of our own instruction count. ⛔ Both arms are still **SLOWER** — 0.734 and 0.422 against a ruled target of **`2.000`–`3.000` FASTER**, i.e. claws5 ≤ 18.0M and json ≤ 35.4M Ir/iter. The roadmap to it is at the bottom, ranked on measured evidence rather than intuition.
 
 ## ⭐⭐ THE INSTRUMENT FIRST: json's REAL INPUT IS CALLGRIND-MEASURABLE, AND THE FINDING THAT SAID OTHERWISE WAS WRONG ABOUT THE MECHANISM
 
@@ -65,7 +68,7 @@ Every commit gated on a **`make pristine` EXIT=0** build: corpus **m3 359/1, m4 
 
 Object-file split of the slope, which is the number that decides strategy:
 
-| | claws5 49.0M | json 167.8M |
+| | claws5 49.0M (0.734 SLOWER) | json 167.8M (0.422 SLOWER) |
 |---|---|---|
 | **runtime `libscrip_rt.so`** | **77.8%** | **63.1%** |
 | emitted BB code | 17.2% | 32.5% |

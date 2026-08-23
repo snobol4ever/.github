@@ -30,12 +30,15 @@ work itself now.**
 
 **WHERE THEY STAND — callgrind Ir at fixed work, SLOPE method, RT_OPT=`-O0`, SCRIP m4 native vs `/home/resources/spitbol-bench-oracle/sbl -bf`, ⭐ BOTH ENGINES ON THE REAL CORPUS INPUT, output diffed against `.ref` on every arm:**
 
-| workload | SPITBOL Ir/iter | SCRIP s264 | SCRIP s266 | gap |
-|---|---|---|---|---|
-| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 1.693x → **1.362x slower** |
-| **json** (631,514-byte json.dat, REAL) | 70,808,401 | 232,405,141 | **167,757,920** | 3.282x → **2.369x slower** |
+⛔⛔⭐ **REPORTED IN THE RULED FORM (Lon s266 FACT RULE): the multiple is `SPITBOL / SCRIP`, one divisor, so ABOVE 1 IS FASTER AND BELOW 1 IS SLOWER, and it carries the word.** Every row below shares one instrument (callgrind Ir), one basis (SLOPE, not total), one `RT_OPT` (`-O0`), one mode (m4 native), one ζ selector (default cell-stack) and one oracle (`sbl_clean_bin() -bf`) — that is what makes them one table.
 
-−19.6% and −27.8% this session. ⛔ **STILL SLOWER. The target is 2-3x FASTER: claws5 ≤ 18.0M, json ≤ 35.4M.**
+| workload | SPITBOL Ir/iter | SCRIP s264 | SCRIP s266 | s264 | **s266** |
+|---|---|---|---|---|---|
+| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 0.590 SLOWER | **0.734 SLOWER** |
+| **json** (631,514-byte json.dat, REAL) | 70,808,401 | 232,405,141 | **167,757,920** | 0.305 SLOWER | **0.422 SLOWER** |
+| claws5 grammar only (`-match`, zero captures) | 1,770,532 | 1,087,882 | 1,087,882 | 1.628 FASTER | 1.628 FASTER |
+
+−19.6% and −27.8% of our own instruction count this session. ⛔ **STILL SLOWER: 0.734 and 0.422. LON'S TARGET IS `2.000`–`3.000` FASTER** — claws5 ≤ 18,0M and json ≤ 35.4M Ir/iter. ⭐ Read the third row against the first: the **pattern engine alone is already 1.628 FASTER**, so the whole deficit is the action + the runtime services, and on ONE scale that is now visible at a glance instead of hidden behind two reciprocal conventions.
 Landed and pushed at SCRIP `80a01c63` · `05f11c4c` · `e64adaeb`, corpus `1267f605f`. Every commit gated on a `make pristine` EXIT=0 build: corpus m3 359/1, m4 359/1 SKIP=0 (the one fail is the deliberate `demo_treebank` red in both modes), both required gates rc=0, RTX killswitch negative-tested.
 
 ⭐⭐ **FULL EVIDENCE, METHOD, THE SIX LANDED CURES AND THE RANKED NEXT RUNGS:** `FINDING-2026-08-23-hq_P-claws5-1.36x-json-2.37x-four-per-call-resolutions-the-compiler-already-knew.md`. **Start there, do not re-derive it.**
@@ -101,14 +104,18 @@ Build, run, profile, bisect — all of it. **And when a measurement becomes a DE
 
 Measured s256, identical fixed work, both engines, `make pristine` EXIT=0 at `2659558e`, **RT_OPT=`-O0`**, SCRIP mode-4 native binary (**compile excluded by construction** — Lon: *"Worry not about compile time. We are zooming on runtime."*):
 
-| workload | Ir/iter SCRIP | Ir/iter SPITBOL | verdict |
-|---|---|---|---|
-| `var_access` | 529 | 808 | **SCRIP 1.52x FASTER** |
-| `arith_loop` | 398 | 439 | **SCRIP 1.10x FASTER** |
-| `table_access` | 997,130 | 359,532 | 2.8x slower |
-| `string_manip` | 3,123 | 842 | 3.7x slower |
-| `roman` | **67,170** | 7,966 | ⛔ **8.4x slower** |
-| **beauty runtime** | 2,129,544,838 Ir | 228,082,817 Ir | ⛔ **9.34x slower** |
+⭐ **RESTATED s266 IN THE RULED FORM** (`SPITBOL / SCRIP`; above 1 FASTER, below 1 SLOWER). Pure arithmetic on the s256 numbers — `new = 1 / old` — nothing re-measured, and legitimate only because the old orientation WAS stated.
+
+| workload | Ir/iter SCRIP | Ir/iter SPITBOL | verdict | (was written) |
+|---|---|---|---|---|
+| `var_access` | 529 | 808 | **1.527 FASTER** | "1.52x FASTER" |
+| `arith_loop` | 398 | 439 | **1.103 FASTER** | "1.10x FASTER" |
+| `table_access` | 997,130 | 359,532 | 0.361 SLOWER | "2.8x slower" |
+| `string_manip` | 3,123 | 842 | 0.270 SLOWER | "3.7x slower" |
+| `roman` | **67,170** | 7,966 | ⛔ **0.119 SLOWER** | "8.4x slower" |
+| **beauty runtime** | 2,129,544,838 Ir | 228,082,817 Ir | ⛔ **0.107 SLOWER** | "9.34x slower" |
+
+⛔ **THIS TABLE IS WHY THE RULE EXISTS.** As written at s256 its verdict column ran in **two opposite directions**: rows 1–2 were `spitbol/scrip` and rows 3–6 were `scrip/spitbol`. Nothing in it could be ranked, summed or averaged, and the 1.52 sitting above the 2.8 read as though the first were the smaller number. On one scale the spread is what it always was — **1.527 down to 0.107, a 14x range** — and it is finally legible.
 
 ⭐ **THE SHAPE, AND IT IS THE WHOLE STRATEGY: SCRIP is good at exactly what real programs don't do, and bad at exactly what they do.** Scalar and register-resident work — the BB codegen — genuinely beats SPITBOL. Tables, strings, and whole realistic programs lose by 3–8x.
 
