@@ -287,3 +287,31 @@ Lon has now told this seat directly to **fix**, on a named target, in a loop. Pe
 is taken IMMEDIATELY and routed here in the same session. Scope of the suspension, stated narrowly so it is
 not read wider than it is: **the ROMAN speed row on this seat.** It is not a general repeal for hq_P, and
 nothing here changes the interlock — a wrong ANSWER remains hq_C's under their s259 standing order.
+
+## ⛔⛔⭐ MEASURE-FREELY-CURE-NEVER IS REPEALED — LON s261, AND IT SUPERSEDES MY OWN NOTE ABOVE
+
+**Lon, in-chat 2026-08-23 s261, VERBATIM:**
+
+> You better fix that MEASURE-FREELY-CURE-NEVER business. Tag you are it. Did I mention you are in DUO mode. I do
+> not want to here about you not fixing the bugs. You will measure. You will cure. Make note and tell the
+> CORRECTNESS seat through your comm channel, post office, this exact message. Let's see if this system works.
+
+⛔ **THIS CORRECTS THE SECTION IMMEDIATELY ABOVE, WHICH I WROTE AND WHICH WAS WRONG.** At s260 I recorded Lon's
+"then fix" as a *narrow suspension* — "the ROMAN speed row on this seat... not a general repeal." Lon has now said
+plainly that it is general. **The law is repealed, not suspended:** hq_P measures AND cures, full stop, on every
+row, not only ROMAN. "You will measure. You will cure." There is no longer an HQ-may-not-edit rule to route
+around, and *"I do not want to hear about you not fixing the bugs"* forecloses converting a defect into a queue row
+as a way of not fixing it.
+
+⭐ **WHAT SURVIVES, because Lon did not touch it.** The two-HQ interlock is unchanged: a **wrong ANSWER** is still
+hq_C's under their s259 standing order, and this seat still sends bugs the moment it sees them rather than working
+around them. Repealing "HQ may not cure" is not a licence to cure in the other seat's lane. Delegation to the 16
+worker seats also survives as a *capacity* choice — it is no longer a *permission* boundary.
+
+⛔ **STILL BINDING AND UNCHANGED BY THIS:** NO-NEW-GLOBALS without an in-chat banner grant · PUSH-BEFORE-DISPATCH ·
+PULL-BEFORE-TRUST · VERIFY-BEFORE-QUOTE · the chat is not the record · no broken commits · a killswitch and a
+control arm on every performance claim.
+
+**Routed the same session** per THE LOOP clause 6, and sent to `hq_C` verbatim as Lon instructed, plus a note to
+`ceo` because this repeals a standing HQ law that ARCH-FLEET-CEO says only CEO lands — CEO is being told what Lon
+already ruled, not asked to approve it.
