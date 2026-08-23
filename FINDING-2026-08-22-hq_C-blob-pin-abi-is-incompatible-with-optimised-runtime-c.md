@@ -69,4 +69,22 @@ Earlier the same session I tested `-ffixed-r14 -ffixed-r15`, saw the witness sti
 
 The alternative is to stop pinning across the C boundary — reload the pins from their C-side mirrors on every re-entry, which `rtx_match.S` already does for Σ via `rt_match_ctx_restore`.
 
-**The decisive experiment — the whole runtime built with the four pins reserved — is running; its result belongs in this file.** Whichever way it lands, the question is now well-posed instead of a mystery, and it is a *design* question rather than a bug hunt.
+## ⭐ THE DECISIVE EXPERIMENT HAS LANDED, AND IT CUTS BOTH WAYS
+
+**All 261 runtime objects built at `-O2 -ffixed-rbx -ffixed-r13 -ffixed-r14 -ffixed-r15`:**
+
+| target | result |
+|---|---|
+| `161_pat_defer_fn_nested_match` (703 bytes) | ✅ **PASSES** — matches the oracle |
+| beauty self-host, m3 **and** m4 | ⛔ **278 bytes** — unchanged |
+
+**So reserving the pins build-wide is CONFIRMED as the cure for the witness class and REFUTED as sufficient for Milestone 1.** Beauty still requires `rt.c` and `pattern_match.c` at full `-O0`, which pin reservation does not deliver.
+
+⭐ **The load-bearing conclusion: there are TWO INDEPENDENT MECHANISMS, and this experiment is what separates them.**
+
+1. **The pin conflict** — real, understood, reproducible, fixable by reserving the four registers in every TU reachable from emitted code. It accounts for the 17-line witness.
+2. **A second, unidentified optimisation defect in `rt.c` + `pattern_match.c`** — not the pins (reserved build-wide, beauty unchanged), not UB (UBSan silent), not a single pass (four `-fno-` flags tried), not the directly-called functions. **This is what still breaks Milestone 1 and it is the open question.**
+
+⛔ **This retires the "one defect class, two doors" framing for good.** Two doors, two different rooms. Anyone resuming should chase mechanism 2 in those two files with the pins already reserved, so the pin noise is out of the way — a strictly cleaner starting position than this session began with.
+
+⛔ **And the `-ffixed` build contract, while probably correct on its own merits, MUST NOT be sold as fixing `-O2`.** It fixes one of the two things wrong with `-O2`. Shipping it and declaring the optimised arm healthy would be the false-green trap, one level up.
