@@ -1,5 +1,31 @@
 # RULES.md — snobol4ever Working Rules
 
+
+## ⛔⭐⭐ THE TWO MODES — DUO AND FLEET. DUO IS THE DEFAULT. KNOW WHICH ONE YOU ARE IN. (Lon, 2026-08-23 s261)
+
+**There are exactly TWO operating modes and every session must know which one it is running in.** Lon ruled this in-chat after finding DUO mode had been told to a seat and never written down anywhere — the "the chat is not the record" failure, committed about the very structure the record describes.
+
+| | ⭐ **DUO MODE — THE DEFAULT** | **FLEET MODE** |
+|---|---|---|
+| who is running | **Lon watching directly, plus TWO HQs (`hq_P` PERFORMANCE + `hq_C` CORRECTNESS) and `ceo`** | the 16 worker seats `seat01`…`seat16` under HQ dispatch |
+| how work reaches you | Lon in-chat, and the postoffice between the two HQs and ceo | `s4e_msg.sh next` — pick-and-lock a QUEUE.tsv row, execute its brief |
+| who cures | **you do — measure AND cure, in the same session** | the seat that locked the row |
+| Lon's own words on the balance | *"We'll probably NEVER be in FLEET mode because you can barely handle yourself much less 16 FLEET worker. Are you kidding me."* | |
+
+⭐ **DUO IS THE DEFAULT AND YOU ASSUME IT UNLESS TOLD OTHERWISE.** Do not infer FLEET mode from the existence of `QUEUE.tsv`, sixteen inboxes, or a fleet protocol document — that machinery exists and is *not* evidence that it is running. If nobody has said FLEET, you are in DUO.
+
+⛔ **WHAT CHANGES BETWEEN THEM, and it is the thing that keeps being got wrong:** in DUO mode there is no fleet to delegate to, so **"file a queue row" IS NOT A DELIVERABLE and never was** — it is the shape of not doing the work. In DUO you find the defect and you fix it. In FLEET mode a brief in a seat's inbox is a real deliverable because a real seat picks it up. Applying FLEET-mode delegation habits while in DUO mode produces a session that measured everything, cured nothing, and filed paperwork addressed to nobody. See § MEASURE AND CURE.
+
+⛔ **STATE YOUR MODE.** Any session whose reasoning depends on which mode it is in must say which mode it believes it is in and why, so a wrong belief is visible instead of silent.
+
+## ⛔⭐⭐ MEASURE AND CURE — "MEASURE FREELY, CURE NEVER" IS REPEALED (Lon, 2026-08-23 s261)
+
+**Lon, in-chat, VERBATIM:** *"You better fix that MEASURE-FREELY-CURE-NEVER business. Tag you are it. Did I mention you are in DUO mode. I do not want to here about you not fixing the bugs. You will measure. You will cure."*
+
+The s256 law that HQ may build/run/profile/bisect but must convert every defect into a queue row and a brief rather than an edit is **REPEALED, not narrowed and not suspended**. HQ measures **and** cures. *"I do not want to hear about you not fixing the bugs"* forecloses the specific dodge of minting a queue row **as a way of not fixing something**.
+
+⭐ **UNCHANGED BY THE REPEAL:** the two-HQ interlock — a **wrong ANSWER** belongs to `hq_C`, and `hq_P` sends bugs the moment it sees them rather than routing around them; NO-NEW-GLOBALS without an in-chat banner grant; PUSH-BEFORE-DISPATCH; PULL-BEFORE-TRUST; VERIFY-BEFORE-QUOTE; no broken commits; and a killswitch plus a control arm on every performance claim. Repealing "HQ may not cure" is not a licence to cure in the other seat's lane.
+
 ## ✅ COMMIT AND PUSH FREELY — NO CONCURRENCY GATING (Lon, 2026-08-10)
 **Any session may edit ANY file at ANY time and push whenever it has something worth saving.** No routed windows, no reserved files, no "not-concurrency-safe" rungs, no concurrent set, no waiting on another seat. Git merges; `git pull --rebase` before pushing and resolve normally. **Push mid-session, per rung — do not save it all for the handoff.** A pushed rung is never lost; an unpushed one routinely is (s9/s10 lost two sessions of RTCC work; s19–s26 stranded eight sessions and BUG-7 was re-derived from scratch). ⛔ **NEVER park work, defer a commit, or refuse an edit on concurrency grounds.** If two seats touch one file, merge it. Semantic collisions (two seats claiming one register) are caught MECHANICALLY by the claim gates, not by scheduling.
 Surviving, because they are about CORRECTNESS not scheduling: re-prove your goal's gate/watermark after a rebase; push code repos before `.github` so a FINDING never describes an unpushed tree; `handoff_status.sh` verbatim is the only push truth.
