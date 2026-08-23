@@ -1,6 +1,6 @@
 # FINDING — an ARBNO that EXTENDS double-fires an enclosing deferred capture; this is `demo_calculator-2`'s wrong answer
 
-**Seat:** hq_C · **Date:** 2026-08-23 s261 · **Status:** root-caused to the instruction, witness minted and oracle-refed, **NOT cured** (the fix needs a ζ slot — see § The fix).
+**Seat:** hq_C · **Date:** 2026-08-23 s261 · **Status:** ⭐ **CURED** — SCRIP `ba628703`. Root-caused, witness minted and oracle-refed, fix landed and regression-verified. See § THE CURE at the end.
 
 ## The defect, in one line
 
@@ -101,3 +101,35 @@ The cure is a **per-instance pend mark**, and the placement is not the obvious o
 ⛔ **An attempt was made and REVERTED.** I patched the `frameless` arm first, and the witness did not move — because, as above, it never uses that arm. Left in, it would have cost two memory operations per iteration of every frameless ARBNO for zero correctness benefit, in exactly the code `hq_P` is optimising. Reverted rather than kept as "harmless".
 
 **Next step for whoever takes it:** establish the unit size and neighbour of a `frame_slot_scan` grant, and either prove `AFCQ(8)` is owned by this node or take a grant for one more quad. Writing into an unproven activation-frame slot is the silent-corruption class and must not be done on inference.
+
+
+---
+
+## ⭐⭐ THE CURE — LANDED, SCRIP `ba628703`
+
+Three instructions on the **ARBNO-FRAME** arm, and the middle one is the whole subtlety:
+
+| port | instruction | why |
+|---|---|---|
+| **α** | `mov AFCQ(8), r12` | bank the pend cursor before any instance runs |
+| **PAIR(2)**, after progress is recorded | `mov AFCQ(8), r12` | ⭐ **RE-BANK: this instance committed.** Its entries must SURVIVE the next retry |
+| **β**, before `jmp PAIR(0)` | `mov r12, AFCQ(8)` | roll back exactly the abandoned attempt |
+
+⛔ **Rolling back to the α mark on every recede would have been wrong** — it wipes entries from instances that legitimately completed, and `calculator-2`'s inner `MUL` fires once per ARBNO instance. The mark has to *advance as each instance commits*. That is why this is three instructions and not two.
+
+### Slot ownership — proven, not inferred
+
+`frame_slot_off()` (`emit.cpp:2239`) is `-(base + 16 * idx)` — **16 bytes of stride per slot index** — and `frame_slot_scan` advances `k += zdp_scratch_cell(m) ? 2 : 1`, so a node claiming a scratch cell takes two indices. The ARBNO node therefore owns its full 16-byte slot; the FRAME arm uses only bytes 0–7 (`AFC(0)`, `AFC(4)`). **`AFCQ(8)` is this node's own memory**, and `AFCQ` already existed as the quad accessor (`x86_asm.h:971`). **No new global, no new grant, no ζ-plan change.**
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| witness `rty_arbno_extend_double_fires_cond_capture` | `P P A P A` | ✅ `P P P A` — byte-matches its oracle ref |
+| `calculator-2` vs its pin (non-timing lines) | **1944** | ✅ **0** |
+| `1+2*3` · `10-2*3` · `20-3*4` · `1+2*3*4` | 9 · 24 · 68 · 4 | ✅ 7 · 4 · 8 · 25 |
+| corpus | m3 357/359 · m4 355/359+2SKIP | **unchanged, identical fail set** |
+| `test_gate_emit_no_lang` · `test_gate_template_medium_invisible` | | ✅ PASS |
+| seat11's `rty_arbno_leftctx_cond` | passing | ✅ **still passing** — sibling defect, not a re-opening of that row |
+
+`.s` artifacts regenerated across benchmark / feature / demo / programs / crosscheck trees.
