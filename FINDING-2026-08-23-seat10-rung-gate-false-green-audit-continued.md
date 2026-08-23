@@ -27,7 +27,8 @@ cured all 31 and pinned them in `scripts/test_gate_gates_can_say_no.sh` as a per
 live this session: 31/31 REFUSED on an empty tree, 0 vacuous — still true at time of writing).
 
 Two gaps remained, neither previously touched:
-1. **Batch H** — 15 `bench_*`/`board_*` scripts seat16's own FINDING named as undelivered ("Outstanding"). Now 15/15 audited.
+1. **Batch H** — 15 `bench_*`/`board_*` scripts seat16's own FINDING named in its own closing section as
+   not-yet-delivered. Now 15/15 audited.
 2. **The 56 `test_gate_*.sh` scripts** that had grown to 101 total (vs the 89 seat16 audited) and were never
    mentioned by name anywhere in seat16's FINDING or the V2-5 pinned list. By direct enumeration against this
    document's own content: **29 of 56 audited, 27 remain** (see "Coverage status" at the end — 14 of the 27 are
@@ -47,8 +48,9 @@ verified clean in SCRIP before and after every batch. Work was fanned out across
 explicitly forbidden from spawning further sub-agents (seat16's own FINDING recorded a fork mis-nesting into 6
 unauthorized general-purpose agents; this session hit the same "Fork is not available inside a forked worker"
 error repeatedly from the **top level** while dispatching against a system-wide-busy 19-session FLEET-16 run —
-confirmed via the harness's own agent roster, not assumed — so some planned coverage did not launch and is
-named as outstanding below rather than silently dropped).
+confirmed via the harness's own agent roster, not assumed — so some planned coverage did not launch via a
+fork and was instead completed directly by this session's main thread, per the "Coverage status" section
+below).
 
 ## NEW CANNOT-SAY-NO — confirmed by live injection or exhaustive static proof, ranked
 
@@ -68,6 +70,13 @@ named as outstanding below rather than silently dropped).
 | `board_sno15_ident.sh` | structurally cannot fail | Full file read (71 lines) + `grep -n exit`: exactly one exit statement in the whole file, a setup guard (missing `lib_oracle_flags.sh`). Nothing is keyed to the pass/fail counters; the last statement is an unconditional `echo`, always rc 0. | **HIGH** — the script's own header documents "13 broken demo-board programs" historically under this exact board, i.e. it has already reported DIVERGE/HANG/CRASH rows while exiting 0. |
 | `test_gate_fz_release.sh` | SKIP-as-success on missing prerequisites | `[ -x "$SCRIP" ] || { echo SKIP; exit 0; }` and `[ -d "$FZ" ] || { echo SKIP; exit 0; }` — structurally identical to seat16's already-convicted TIER2 siblings (`test_gate_zeta_no_arena.sh`, `test_gate_rbp_census_ratchet.sh`, `test_gate_sn7_beauty_self_host.sh`), all cured under V2-5; this one was never migrated. Confirmed by direct code reading, not independently re-injected (the class is proven elsewhere many times over). Dormant today (scrip built, corpus/probe/fz exists) but fires on any fresh/unbuilt seat. | **MODERATE** — a known, already-cured-elsewhere class recurring in one gate the cure missed; not in the V2-5 pinned worklist so nothing prevents regression. |
 | `test_gate_port_functions.sh` | zero-work-scanned reads as green (missing-dir variant) | `find` over `src/templates`/`src/emitter` with no existence check. Scratch root with neither directory present: `find` prints "No such file or directory" to stderr ×2, script continues, `total=0`, "OK: all port operations route through the four port functions.", exit 0. Same root-cause class as the historically-convicted MEDIUM_* "grepped a deleted directory" incident. | **MODERATE** — `GOAL-SRC-REORG.md` is a currently active goal, so a src/ reorg landing mid-flight is a real, not hypothetical, trigger. |
+| `test_gate_no_bb_bin_t.sh` | zero-work-scanned reads as green (missing-dir) | `find src/emitter ...` no existence check. Scratch copy, no src/ tree: `find` errors to stderr, loop runs 0 times, `total=0`, "OK: bb_bin_t abolished (zero live code references).", exit 0. | **MEDIUM** — same root-cause class as the historically-convicted MEDIUM_* deleted-directory incident. |
+| `test_gate_no_brokered.sh` | zero-work-scanned reads as green (missing-dir) | `find "$ROOT/src" ...` no existence check. Same injection: `total=0`, "OK: emit-side brokered convention abolished...", exit 0. | **MEDIUM** — identical shape to the sibling above. |
+| `test_gate_rbx_quarantine.sh` | zero-work-scanned reads as green (missing-dir, quieter) | 4 `grep -rn ... src/ 2>/dev/null` arms, no existence check — `2>/dev/null` swallows even the "No such file" stderr, quieter than the find-based siblings. Scratch copy, no src/ tree: all 4 arms report 0, "GATE PASS: rbx quarantined (4 arms)...", exit 0. | **MEDIUM** — same class, no visible error at all makes it slightly easier to miss. |
+| `test_gate_ir_field_discipline.sh` | ratchet-vs-missing-baseline (a variant worse than plain zero-work) | This is a RATCHET (`HARD <= TARGET`, default 119), not a hard-zero gate — a missing `$SRC` producing HARD=0 doesn't just look clean, it looks like a huge fabricated improvement (0 <= 119). Scratch copy, no src/ tree: all three P1/P2/P3 scans report 0, "PASS (<= TARGET=119): discipline held — no NEW field overloading.", exit 0. | **MEDIUM-HIGH** — the ratchet framing makes a missing scan look like *progress*, not just cleanliness. |
+| `test_gate_sm_dead.sh` | ratchet-vs-missing-baseline | Same shape as ir_field_discipline (MAX=1 ratchet). Scratch copy, no src/ tree: `count=0`, "OK: SM execution surface <= MAX...", exit 0. | **MEDIUM** |
+| `test_gate_stage2_isolation.sh` | zero-work-scanned reads as green (missing-dir, `\|\| true`-masked) | `grep -rPn ... src/ ... \|\| true` under `set -euo pipefail` — the `\|\| true` is needed to tolerate a legitimate zero-matches result but also swallows a genuinely-missing src/. Scratch copy, no src/ tree: `violations=0`, "OK stage2 isolation firewall: all references... are qualified", exit 0. | **MEDIUM** |
+| `test_gate_call2bb_stub_regime.sh` | SKIP-as-success on missing prerequisite | `[ ! -x "$SCRIP" ] && { echo SKIP; exit 0; }` — the same already-cured-elsewhere TIER2 class (test_gate_zeta_no_arena.sh etc. under V2-5; test_gate_fz_release.sh found earlier this session), never migrated here. `SCRIP=/nonexistent/scrip`: "SKIP scrip not built", exit 0. | **MEDIUM** — dormant today (scrip built), fires on any fresh/unbuilt seat. |
 | `test_gate_template_medium_invisible.sh` | informational-until-a-flag-nothing-ever-passes (partial) | Its FIRST check (raw-byte-producer / medium-branch census across all `src/templates/*.cpp`) is honestly self-labeled "Informational WIP baseline; --strict enforces zero" — but across every real invocation found (`grep -rn "test_gate_template_medium_invisible.sh" scripts/*.sh` → `test_gate_icn_var.sh`, `test_gate_icn_scan.sh`; plus `/home/resources/postoffice/tasks/rung-E3-xa-flat.task.md`'s own DONE-WHEN, which calls it as one of two live gates guarding that rung's closure) **none pass `--strict`**. The xa_flat DONE-WHEN's primary check (a direct `grep` for `r1[01]` registers) still correctly gates the rung's main concern even without `--strict` on the secondary check, and that row is `STATE -> SUPERSEDED` as of today — so this is not live-blocking anything right now, but it is a second confirmed real-world call site relying on the non-enforcing arm, not just the two report-scraping ones. Live, unmodified, on the real tree right now: default invocation reports 8 real hits in `xa_flat.cpp`, prints the WIP disclaimer, exits 0; `--strict` on the identical tree correctly exits 1. The gate's SECOND check (the BOTH-MEDIUM ratchet over `bb_*.cpp` specifically) is NOT gated behind `--strict` and does enforce unconditionally (currently 0/0, clean) — so the gate as a whole is not vacuous, only its broader, older half is. | **MODERATE** — RULES.md cites this gate's `--strict` arm as enforced ("Gates: greps == 0; scripts/test_gate_template_medium_invisible.sh --strict green"), which is easy to misread as "continuously checked"; it is not, in any real invocation path. The 8 live `xa_flat.cpp` hits are not a new defect — they belong to the already-active `rung-E3-xa-flat` row (seat06, OPEN on today's BOARD) — this is a finding about the *gate's* enforcement, not a new code bug. |
 
 ## Structural finding, not live-triggered today (recorded, lower priority)
@@ -88,6 +97,7 @@ named as outstanding below rather than silently dropped).
 | `test_gate_sno_pat_reg.sh` | If `src/templates/bb_match_*.cpp` ever globbed to zero files, both tiers would read 0/pass — not tested live because the template family being empty is practically implausible. | Low priority; flagged for completeness only. |
 | `test_gate_pl_no_new_global.sh` | Real, live-confirmed defect, but the injection proved a **false RED**, not a false green: with none of its 8 target paths present in a scratch tree, `PL_FILES` comes back empty, and `grep -rhoE ... $PL_FILES` with `$PL_FILES` empty silently falls back to scanning the current directory, reporting fabricated violations against nothing real. The same root cause could in principle also produce a false CLEAN in a cwd with zero `g_*` text, but that direction was not demonstrated. | Add `[ -n "$PL_FILES" ] || exit 2` before the grep, drop `-r` (targets are already explicit). |
 | `test_gate_rtcc_block_coverage.sh` | The per-register round-trip census (one of the gate's own stated 3-part invariant) is computed and printed but not wired into the FAIL verdict. Self-disclosed in the gate's own text as a deliberate division of labor with sibling gates — not independently injected to confirm. | A human familiar with the RTCC rollout should confirm the split is intentional. |
+| `test_gate_ec_uni_complete.sh` | The M1-oracle-vs-baseline sub-check (one of several EC-UNI-21 close criteria) prints CONVERGED/DRIFTED/UNKNOWN but never sets a fail flag on DRIFTED or UNKNOWN — the file's final verdict comes only from its other, earlier checks, which were time-boxed out of this pass and not individually audited. | If this sub-check is meant to gate "close," an M1 regression here goes unreported by name; needs a full read of all ~164 lines, not just the M1-oracle section. |
 
 **Incidental, unrelated to false-green (flagged per seat16's convention so it isn't mistaken for audit fallout):**
 `test_gate_pl_gz2.sh` produced a genuine, pre-existing, unprompted RED on a plain live run — "hello m4 .s lacks
@@ -110,7 +120,27 @@ mechanisms, explicitly disclosed methodology) · `test_gate_wreg_claim_binary.sh
 analysis) · `test_gate_pl_no_value_stack.sh` check 1 (recursive forbidden-pattern grep, no floor issue) ·
 `test_gate_rtcc_callee_class.sh` · `test_gate_rtcc_noclob_injection.sh` (self-contained positive+negative
 control, "worth copying" tier — same bucket as `pl_gz7.sh`'s CORRUPT-PROOF block) · `test_gate_rtx_ctor_armed.sh`
-(three-arm control/trap/repair, verified live: A=ARMED B=DISARMED C=ARMED exactly as designed).
+(three-arm control/trap/repair, verified live: A=ARMED B=DISARMED C=ARMED exactly as designed) ·
+`test_gate_end_only_program.sh` · `test_gate_fb_adopt_one_predicate.sh` · `test_gate_instr_budget.sh` ·
+`test_gate_oracle_bf_capable.sh` · `test_gate_postoffice_identity.sh` (18/18 self-injected assertions, its own
+"worth copying" precedent) · `test_gate_em8_snocone_native_emit.sh` (lower-confidence, not independently
+re-injected) · `test_gate_fleet_protocol_e2e.sh` (hq_P's verification, cited not repeated).
+
+Currently, genuinely RED for real, unrelated reasons — not audit fallout, per the established convention for
+noting this so a fresh run isn't misread: `test_gate_preflight_complete.sh` (5 unanswered baton questions + an
+unpushed repo), `test_gate_s4e_picker_v2.sh` (3 failed v1-compat assertions), and `test_gate_runtime_isolation.sh`
+(8 real, currently-unlicensed `src/runtime/` → `src/parser/` includes — `resolution.c`, `by_name_dispatch.c`,
+`unification.c`, `rt_runtime.c` reaching into `parser/prolog/pl_cell*.h` and `parser/raku/re.h`; not chased
+further, belongs wherever `GOAL-RUNTIME-REORG.md`/`GOAL-SRC-REORG.md` work is tracked). `test_gate_rtx_killswitch_sets.sh`
+(explicit `[ "$total" -eq 0 ] && { echo "GATE FAIL: zero programs matched..."; exit 1; }` floor, citing its own
+s220 precedent — a positive example) · `test_gate_zpop_whitelist.sh` (an empty program-set naturally trips a
+real EMIT FAIL via the unexpanded-glob mechanism, verified live) · `test_gate_bb_one_box.sh` (hardcoded
+per-file manifests with `[ -f "$f" ] || { FAIL; }` on every entry — a positive example, same shape as
+`test_gate_udc.sh`'s per-witness existence checks) · `test_gate_udc.sh` (missing witness dir cascades to a
+real 33-failure verdict, verified live) · `test_gate_me6_reentry_hazard.sh` (missing scrip → exit 127, a real
+refusal even if not a designed UNPROVEN code) · `test_gate_ir_tmp_slots.sh` (missing binary is `FAIL...exit 1`,
+not SKIP — already correctly designed, matching the good pattern `test_gate_m1_self_host_fixed_point.sh`'s
+wrapper documents fixing).
 
 Minor, non-blocking note: `board_sno_apps.sh`'s header claims "FIVE whole-application demos" but only 4 `run`
 calls exist — a stale count, not a correctness issue.
@@ -127,39 +157,64 @@ this document doesn't already show.
 **The never-mentioned `test_gate_*.sh` pool is 57 scripts, not 56** (101 total today minus the 44 mentioned
 anywhere in seat16's FINDING or the V2-5 pinned list — `comm -23`, computed, not retyped). Of those 57:
 
-**33 audited by name**: `test_gate_baton_donewhen_runnable`, `icn_global_no_nv_m3`, `icn_local_no_nv`,
-`icn_one_reg_frame`, `icn_rbp_census_ratchet`, `icn_semicolon_required`, `icn_tag_single_source`,
-`icn_zcells_gva`, `raku_zframe`, `kw_direct`, `kw_static`, `m1_self_host_fixed_point`, `queue_is_an_index`,
-`template_medium_invisible`, `pascal_m3`, `pascal_m4`, `sno_pat_reg`, `rtx_ctor_armed`, `rtcc_block_coverage`,
-`rtcc_callee_class`, `rtcc_noclob_injection`, `pl_gz2`, `pl_gz3`, `pl_gz4`, `pl_gz5a`, `pl_gz5b`, `pl_gz5c`,
-`pl_gz6`, `pl_gz6b`, `pl_no_new_global`, `pl_no_value_stack`, `fz_release`, `port_functions`. The last two were
-found by this same session's interrupted first pass (real, filed, evidenced rows already existed for them —
-`fz-release-skip-as-success.task.md`, `port-functions-empty-src-false-ok.task.md`) but had been mislabeled
-"never dispatched" in this document's own previous revision; folded back in here.
+⚠️ **SECOND CORRECTION (seat10, third pass):** the previous revision's "10 never dispatched to anyone,
+attempts failed at launch" claim was ITSELF wrong, caught by cross-referencing against this session's own two
+completed fork reports directly (both delivered in full to this session's main thread earlier — not re-derived
+or assumed) rather than trusting a summary written mid-audit. All 10 had, in fact, already been dispatched and
+assessed. This is exactly the disease this audit exists to catch, applied recursively to the audit's own
+bookkeeping — recorded rather than quietly fixed, since a correction that erases its own history is as
+unverifiable as the error it replaces.
 
-**24 remain, in two buckets, and 33 + 14 + 10 = 57 (checked, not assumed):**
-- **14 dispatched, in flight, not yet returned**: `test_gate_ir_field_discipline`, `ir_tmp_slots`, `no_bb_bin_t`,
-  `no_brokered`, `sm_dead`, `stage2_isolation`, `runtime_isolation`, `rbx_quarantine`, `zpop_whitelist`,
-  `rtx_killswitch_sets`, `bb_one_box`, `call2bb_stub_regime`, `me6_reentry_hazard`, `udc`. A background fork
-  has been running this group for 10+ minutes under heavy system-wide FLEET-16 load; will be folded in as an
-  addendum on return, or left for the next session if this one ends first.
-- **10 never dispatched to anyone**: `test_gate_ec_uni_complete`, `em8_snocone_native_emit`, `end_only_program`
-  (may already be resolved — cross-reference `FINDING-2026-08-22-seat05-end-only-program-aborts-witnesses-cleared-and-gated.md`
-  before re-auditing from scratch), `fb_adopt_one_predicate`, `fleet_protocol_e2e` (hq_P already adversarially
-  poked at this once and could not break it — a fresh angle would be needed, not a repeat), `instr_budget`,
-  `oracle_bf_capable`, `postoffice_identity`, `preflight_complete`, `s4e_picker_v2`. Attempts to dispatch these
-  this session failed at launch (system-wide agent-spawn capacity), not from any finding about the scripts
-  themselves — genuinely untouched, named here so the gap is visible rather than silently dropped.
+**43 audited by name** (33 from the previous revision, plus 10 corrected in here): `test_gate_baton_donewhen_runnable`,
+`icn_global_no_nv_m3`, `icn_local_no_nv`, `icn_one_reg_frame`, `icn_rbp_census_ratchet`, `icn_semicolon_required`,
+`icn_tag_single_source`, `icn_zcells_gva`, `raku_zframe`, `kw_direct`, `kw_static`, `m1_self_host_fixed_point`,
+`queue_is_an_index`, `template_medium_invisible`, `pascal_m3`, `pascal_m4`, `sno_pat_reg`, `rtx_ctor_armed`,
+`rtcc_block_coverage`, `rtcc_callee_class`, `rtcc_noclob_injection`, `pl_gz2`, `pl_gz3`, `pl_gz4`, `pl_gz5a`,
+`pl_gz5b`, `pl_gz5c`, `pl_gz6`, `pl_gz6b`, `pl_no_new_global`, `pl_no_value_stack`, `fz_release`,
+`port_functions`, and now also: `end_only_program` (CAN-SAY-NO — self-manufactures its own witness, runs
+unconditionally regardless of corpus state), `fb_adopt_one_predicate` (CAN-SAY-NO — fails closed if
+`emit_heap_fb_adopt` vanishes), `instr_budget` (CAN-SAY-NO by structural reading — real FAIL(2)/FAIL(1) paths,
+not executed live given valgrind cost), `oracle_bf_capable` (CAN-SAY-NO — live run, 10 oracle paths examined,
+0 bad, already V2-5-migrated), `postoffice_identity` (CAN-SAY-NO — live run, 18/18 self-injected assertions
+passed, a "worth copying" precedent in its own right), `preflight_complete` (CAN-SAY-NO — live-verified
+exit=1, currently genuinely RED for unrelated real reasons: 5 unanswered baton questions + an unpushed repo,
+not audit fallout), `s4e_picker_v2` (CAN-SAY-NO — live-verified exit=1, currently genuinely RED for unrelated
+real reasons: 3 failed v1-compat assertions, not audit fallout), `em8_snocone_native_emit` (CAN-SAY-NO,
+lower-confidence — sound aside from the standard scrip/RT_DIR SKIP-as-0 guards already known elsewhere, not
+independently re-injected), `fleet_protocol_e2e` (CAN-SAY-NO — verified 11/11 PASS by hq_P in
+`FINDING-2026-08-22-hq_P-v2-5-thirty-one-gates-can-now-say-no.md`), and `ec_uni_complete` (UNCERTAIN, not
+CAN-SAY-NO — see the UNCERTAIN table below; counted here as "assessed," not as "clean").
 
-## Rows filed this session (16 total, QUEUE.tsv ranks 0-4)
+**COVERAGE NOW COMPLETE: 57/57.** The remaining 14 (`test_gate_ir_field_discipline`, `ir_tmp_slots`,
+`no_bb_bin_t`, `no_brokered`, `sm_dead`, `stage2_isolation`, `runtime_isolation`, `rbx_quarantine`,
+`zpop_whitelist`, `rtx_killswitch_sets`, `bb_one_box`, `call2bb_stub_regime`, `me6_reentry_hazard`, `udc`) —
+the original core-IR/runtime-isolation fork assignment, never actually delivered in that fork's returned
+report despite its extensive other work — were audited directly by this session's main thread rather than
+re-dispatched to another fork, given repeated fleet-wide capacity strain earlier in the session. Result: 7
+NEW CONFIRMED CANNOT-SAY-NO (added to the ranked table above), 7 CAN-SAY-NO (including two genuinely
+well-designed positive examples worth citing elsewhere, and one — `runtime_isolation` — currently red for a
+real, unrelated reason). 43 + 14 = 57, arithmetic checked, not assumed. Batch H remains 15/15 (its own
+re-verification fork, mentioned above as not-yet-returned, was not chased further given this same capacity
+strain — if it surfaces later, fold in as an addendum, but it is not blocking: the original 3-fork pass was
+already rigorous and injection-based).
 
-`m1-fixedpoint-arm-validation` (rank 0, HIGHEST — new this pass) · `donewhen-decorated-noop-evasion` (rank 1,
-HIGH) · `em-beauty-subsystems-empty-driver-glob`, `pascal-m3-empty-corpus-false-pass`,
+This row's discovery-and-rank mandate (its own NEXT block: "DISCOVER and RANK only; each confirmed
+false-green becomes its own row") is now substantially complete: every `test_gate_*.sh` this session could
+identify as previously unaudited has been assessed, and every confirmed CANNOT-SAY-NO has a filed row. Curing
+the 23 filed rows is deliberately out of this row's scope, per that same NEXT block.
+
+## Rows filed this session (23 total, QUEUE.tsv ranks 0-4)
+
+`m1-fixedpoint-arm-validation` (rank 0, HIGHEST) · `donewhen-decorated-noop-evasion` (rank 1, HIGH) ·
+`em-beauty-subsystems-empty-driver-glob`, `pascal-m3-empty-corpus-false-pass`,
 `pascal-m4-empty-corpus-false-pass`, `icn-rbp-census-empty-dir-false-ok`,
 `icn-one-reg-frame-empty-dir-false-ratchet`, `board-sno15-ident-no-exit-path`,
-`port-functions-empty-src-false-ok` (rank 2, HIGH) · `raku-zframe-rc127-conflated-with-bomb`,
-`board-patterns-2mode-empty-corpus-silent`, `bench-scrip-only-no-exit-statement`,
-`bench-sno-match4-progs-space-evasion`, `bench-sno-rtx-empty-dir-all-missing-ok`,
-`fz-release-skip-as-success` (rank 3, MODERATE) · `wreg-claim-binary-no-slab-floor` (rank 4, LOW — structural,
-not currently live-triggered). All 16 verified indexed in `QUEUE.tsv` with a matching task baton
-(`test_gate_queue_is_an_index.sh` green at 127 rows, 0 bad-arity, 0 missing-baton, 0 prose).
+`port-functions-empty-src-false-ok`, `no-bb-bin-t-missing-dir-false-ok`, `no-brokered-missing-dir-false-ok`,
+`rbx-quarantine-missing-src-false-pass`, `ir-field-discipline-missing-src-ratchet-lie`,
+`sm-dead-missing-src-ratchet-lie`, `stage2-isolation-missing-src-false-ok` (rank 2, HIGH/MEDIUM-HIGH) ·
+`raku-zframe-rc127-conflated-with-bomb`, `board-patterns-2mode-empty-corpus-silent`,
+`bench-scrip-only-no-exit-statement`, `bench-sno-match4-progs-space-evasion`,
+`bench-sno-rtx-empty-dir-all-missing-ok`, `fz-release-skip-as-success`,
+`call2bb-stub-regime-skip-as-success` (rank 3, MODERATE) · `wreg-claim-binary-no-slab-floor` (rank 4, LOW —
+structural, not currently live-triggered). All 23 verified indexed in `QUEUE.tsv` with a matching task baton
+(`test_gate_queue_is_an_index.sh` green at 150 rows, 0 bad-arity, 0 missing-baton, 0 prose).
