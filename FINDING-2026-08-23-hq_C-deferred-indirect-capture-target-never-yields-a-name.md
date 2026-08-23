@@ -1,9 +1,24 @@
 # FINDING — a deferred `$()` capture target is lowered to a DEREF, so it can never yield a name; and the obvious cure needs a `RETURN` landing thunks do not have
 
 **Seat:** `hq_C` (HQ-CORRECTNESS) · **Session:** s265 · **Date:** 2026-08-23
-**Row:** `deferred-indirect-capture-target` — MINTED, **NOT CURED**, blocking the inline arm of the Λ/λ front
+**Row:** `deferred-indirect-capture-target` — ⭐ **CURED s265 (SCRIP `P . *(...)` commit). This file's original verdict of NOT CURED is SUPERSEDED, and is kept below rather than deleted because the two reverted attempts are the reason the third one is shaped the way it is.**
 **Origin:** `ceo` → `hq_C`, postoffice `bug-deferred-indirect-target`, measured at CEO s264 on Lon's order
-**Status of the tree:** ⛔ **NOTHING LANDED.** Two compiler edits were built, measured, and **reverted**. The compiler is unchanged; what landed is three witness programs with oracle refs.
+**Status at first writing:** ⛔ NOTHING LANDED — two compiler edits built, measured, reverted.
+**Status now:** ✅ **CURED.** Both arms byte-identical to `sbl -bf` in m3 **and** m4; the three probes pass; corpus 359/360 both modes, both emit gates rc=0, pristine.
+
+## ⭐ THE CURE (added after the fact — read the diagnosis below first, it is why this shape)
+
+The discrimination **cannot be re-derived at run time**: a name string and an ordinary string are the same bytes. That is precisely why the strict `by_name` gate must stay exactly as strict as it is — it is what correctly fails `. *("dum" "my")`. So the **lowerer carries the fact it already knows**, in the callee name, the same way the varname already carries `*`:
+
+- `sno_expr_collect_nm()` mints an **`EXPRNM$`** thunk for a name-yielding deferred target
+- that thunk lowers the **INNER** expression, so it returns the **name string** rather than the deref
+- `rt_dcap_pump` treats an `EXPRNM$` callee as by-name and stores through it
+
+⛔ **Chosen over the `"*$"` varname prefix this document proposed, and the reason matters:** three *other* sites in `pattern_match.c` (888, 956, 1008) decode that same `*` for deferred **pattern** evaluation, and a two-character prefix would have broken all three. A distinct thunk **name** leaves `varname + 1` a valid callee everywhere, so **exactly one** site changed instead of six. The design in § THE DESIGN THAT SHOULD WORK was sound in mechanism and wrong in carrier.
+
+⛔ **A REGRESSION WAS CAUGHT IN FLIGHT AND IS WORTH THE INK.** The first dedup guard excluded *every* `want_name` entry from thunk sharing. That broke `140_pat_eval_double_fn_trick` and `141_pat_eval_double_fn_arbno` (corpus −2, caught by the gate, not by review). Only `EXPRNM$` thunks lower differently; `wn` thunks lower identically and were always safe to share. ⭐ **The broad guard is the one that looks more conservative, and it is the one that breaks things.**
+
+⭐ **The `$` arm was cured by the same change, unexpectedly.** I had expected immediate assignment to need a second fix at a second site; it routes through the same pump. Recorded because I predicted otherwise.
 
 ## THE DIVERGENCE, REDUCED
 
