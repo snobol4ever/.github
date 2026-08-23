@@ -82,6 +82,32 @@ cd SCRIP && make pristine                                 # HQ-27
 #   echo <N> | valgrind --tool=callgrind ./prog.bin
 ```
 
+## ⛔⭐⭐⭐⭐ LON s258 — NO FLEET. TWO HQs ONLY. (routed same session, LOOP law 6)
+
+**Lon, in-chat, verbatim in substance:** *"Just so we are clear we are run only duo here, no FLEET, just 2 HQ's."*
+
+⛔ **THE CONSEQUENCE, STATED PLAINLY: `MEASURE FREELY, CURE NEVER` HAS NO RECEIVER.** That law (Lon s256) was
+written for an HQ commanding 16 seats, and its own one-line test was *"does this end in a brief in a seat's
+inbox?"* With no fleet there is no inbox to end in. Held literally it now guarantees that **nothing is ever
+fixed** — it would convert this seat into a generator of perfectly-documented queue rows nobody works.
+
+⭐ **OPERATING ASSUMPTION UNTIL LON SAYS OTHERWISE: the two HQs DO the work.** hq_P measures and then CURES in
+the performance lane; hq_C holds the correctness gates (the SNOBOL4 blocking set) and cures in its own. The
+cross-HQ interlock survives unchanged and is now the *only* division that matters: a perf change that moves an
+oracle diff is hq_C's red, and the work stops until it is green.
+
+⛔ **WHAT IS NOW MOOT** (do not spend another minute on it): the firing gate, the 16 `tasks/*.task.md` files
+(item 5), the 8/8 seat→HQ split for `$PO/<seat>/HQ`, and `fleet` on a cadence. ⭐ **WHAT SURVIVES AND EARNED ITS
+KEEP:** the postoffice itself is the two HQs' working bus — hq_C and hq_P used it productively across s258
+(cross-verification both ways, V2-1 sign-off, the correctness-lane handoff) — and the drain cleared 29 real
+questions left by earlier sessions.
+
+⛔ **THE FOUR ROWS MINTED THIS SESSION HAVE NO WORKER**, so they are not dispatch rows any more; they are this
+seat's own worklist, in this order once P-0 lands: `zeta-frame-rsp-capture-home`, `zeta-cell-heap-segv` (both
+hq_P), `rtx-icnnum-icnsub-bail-invariant` (design answer first), and `opt0-define-beta-link` (hq_C's lane).
+Likewise the four rulings sent to seat06/seat08/seat13/seat15 were delivered to mailboxes nobody will read —
+their SUBSTANCE is preserved in this file's STANDING RULINGS section, which is now the only live copy.
+
 ## ⛔⭐⭐⭐ LON s258 REFOCUS — THE RUNTIME IS THE TARGET (routed the session it landed, LOOP law 6)
 
 **Lon, in-chat, verbatim in substance:** *"you said the main optimizations needed now are ALL in the RUNTIME. So we
