@@ -101,6 +101,7 @@ Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip, Pascal) produces t
 | Lon says | Meaning |
 |----------|---------|
 | "here we go" | Session starting |
+| **"Go."** | ⭐ Lon s257, the fleet-v2 universal prompt: orient from THIS root's CLAUDE.md standing orders, resume the sovereign file's LIVE CURSOR / your task's NEXT block, execute, banner fires itself. Works identically at CEO, HQ, and seat — Lon never needs to remember state; the files carry it. |
 | "perform hand off" | End of session — update goal state, commit, push per RULES.md |
 | "perform emergency hand off" | Same, note breakage |
 | "grand master reorg" | HQ system work |
