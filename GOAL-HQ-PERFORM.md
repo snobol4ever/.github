@@ -240,7 +240,28 @@ speed up his programs."*
   `c-to-bb-unledgered-scrip-c-57` · `vstack-residue-rt-h` · `const-graph-marginal-over-watermark` ·
   `bb-fixup-rank-85-dirty-templates`.
 
-### ⭐ NEXT RUNG — MEASURED, NOT GUESSED (same callgrind run as the roman number)
+### ⭐⭐ ROMAN IS ANSWERED, AND IT IS **ONE NODE** — supersedes the two-buckets reading below
+`FINDING-2026-08-22-hq_P-roman-is-one-defer-site-54-percent.md`. **~54.2% of every instruction roman executes
+is a single deferred pattern node** — the bare `T` in `'0,1I,…' T BREAK(',') . T`, emitted as the one site
+`n44_match_defer`. Our entire emitted code is **12.96%**.
+⛔ **The "two independent buckets" reading earlier in this cursor was WRONG and is corrected here.** Plain
+`callgrind_annotate` hid it: `NV_GET_fn`'s caller resolved to a bare address `0x488dfe0`. With
+**`--separate-callers=2`** the chain names itself — `NV_GET_fn' … 'rt_defer_nv_read` at **19.35%**, and **~92%
+of all `NV_GET_fn` cost arrives through `rt_defer_nv_read`.** The name lookup is not competing with the defer
+pipeline; it **is** what the defer pipeline does.
+⭐ **Mechanism:** `rt_defer_nv_read(const char *name)` ends in `NV_GET_fn(name)` — every deferred re-read goes
+through the global name table by hash+`strcmp`. `&ANCHOR = 0` makes the match unanchored, so the pattern
+retries at every start position and re-reads `T` **by name** each time: **2,807,622 calls at N=20000, 140 per
+iteration**, for a pattern with exactly ONE deferred variable.
+⭐ **This is why the memo bought only 17%** — it made each lookup cheaper (hash→`strcmp`) without touching the
+**count**. ⛔ Do not cure by memoising harder; that ceiling is reached.
+- **NARROW row minted, rank 0, `defer-nv-read-by-pointer-not-name`** — keep the deferral, kill the by-name
+  resolution (resolve to `vrblk`/slot once at node build, follow a pointer). **No semantic ruling needed**,
+  worth most of the 25.3% `NV_GET_fn`+`strcmp` cost. DONE-WHEN demands 10% against ~25% available.
+- **WIDE — hq_C's call, deliberately NOT minted here:** don't defer a bare `TT_VAR` (`lower_snobol4.c:1398`).
+  Worth up to the full 54%. ⛔ Hard case: `T` is also the capture target, so it genuinely varies mid-match.
+
+### the earlier per-function view (kept — still true, now understood as ONE chain, not two)
 | bucket | share | note |
 |---|---|---|
 | **variable-name lookup** | **36.5%** | `NV_GET_fn` 21.04% (**still #1 — the memo did NOT dethrone it**) · `__strcmp_avx2` 10.91% (substantially the memo's OWN validation cost) · `NV_SET_fn` 4.58% |

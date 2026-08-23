@@ -51,12 +51,14 @@ announces itself on stderr, because a deliberate report-only run is legitimate a
 
 ## ⛔ FIVE GATES ARE NOW RED. NONE OF THEM IS A REGRESSION.
 
-Each was **already broken**; the gate was the thing that was broken about it. All five are now queue rows —
+Each was **already broken**; the gate was the thing that was broken about it. Four are new queue rows and the
+fifth already had one (`rtcc-r9-gvarq-collision-bb-define`, rank 0) — this seat's evidence was **merged into that
+row rather than filed as a second one**, and the duplicate it briefly created was removed. All five are rows —
 **MEASURE FREELY, CURE NEVER** — and **none is in the blocking set**.
 
 | row | what was hiding | witness |
 |---|---|---|
-| `rtcc-r9-gvarq-collision` | uncleared **r9 = RT_GVA_VA** collision, same class as the s6/s7 fibonacci SIGSEGV | collision class is exactly `bb_define.cpp`, which both writes r9 and reads GVARQ |
+| `rtcc-r9-gvarq-collision-bb-define` (existing row — evidence **merged**, not duplicated) | uncleared **r9 = RT_GVA_VA** collision, same class as the s6/s7 fibonacci SIGSEGV | collision class is exactly `bb_define.cpp`, which both writes r9 and reads GVARQ |
 | `c-to-bb-unledgered-scrip-c-57` | a **NEW** C→BB transfer outside the sanctioned MAIN sites | `src/driver/scrip.c:57`, `icn_zf_main_call` |
 | `vstack-residue-rt-h` | **VSX is not complete** and the gate said it was | TOTAL=1 live reference, `src/runtime/rt/rt.h` |
 | `const-graph-marginal-over-watermark` | gate printed `GATE RED`, exited 0 on the next line | MARGINAL=146 lines/site vs watermark 136 |
