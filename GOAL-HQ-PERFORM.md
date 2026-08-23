@@ -548,6 +548,56 @@ the other, it is a workload-shape win, not a design win — say so and keep the 
 open-addressing probe loop is a far better ASM target than a pointer chase, so the ASM step gets easier, not
 harder, by waiting.
 
+## ⛔⛔⛔⭐ RUNG W — DELETE THE WORKSPACE ISLAND (Lon s262, ORDERED: *"Let's get that arena deleted. NOW!!!!!"*)
+
+**Lon, verbatim:** *"I know not of a workspace island, and so I am tempted to have you delete it. We have plenty of
+islands. We are living in a tropical paradise of mmaps. So not sure what the malfunction is but a long time ago all
+memory allocation were to be placed into GC HEAP, except a very few exceptions, R12, and EXECUTABLE SLAB, etc."*
+
+⛔ **THE ORDER IS RIGHT AND THE ISLAND IS AN UNSANCTIONED SECOND ARENA.** `ZC_WSI_MB` is **1024** — a 1 GB `mmap`
+reserved at first use, bump-allocated from both ends (`g_wsi_ws` upward for `HB_WS`, `g_wsi_wss` downward for
+`HB_WSS`), never freed, never collected. ⭐ Note `HB_WSC` **already** allocates from the GC heap
+(`gc_heap.c:257`), so a workspace variant on the sanctioned arena already exists and works — the island is not
+load-bearing by design, it is a leftover.
+
+### ⛔ WHY IT IS NOT A ONE-LINE CHANGE — VERIFIED, NOT ASSUMED
+1. **The GC is MARK–COMPACT and it MOVES blocks.** `gc_collect_ex` ends in
+   `memmove((void *)livef[i], (void *)h, sz)` with `g_hp_top = dest`. Anything on the GC heap relocates unless
+   pinned.
+2. ⛔⛔ **TWO SHIPPED CACHES HOLD RAW POINTERS FOREVER, AND BOTH ARE SOUND ONLY BECAUSE ISLAND BLOCKS NEVER MOVE.**
+   The s258 `NV_t` memo (`core.c` `_var_find_cached`) caches `NV_t *` keyed on a name pointer; its written soundness
+   argument is literally *"an NV_t comes from rt_ws_alloc … the GC marks HB_WS blocks but never moves or frees
+   them."* The s261 defer cell cache (`g_sno_defer_cells`) caches `DESCR_t *` — `&e->val` — on the same basis.
+   **Move `NV_t` and both hand back dangling pointers after the first compaction.** This is a memory-corruption
+   class, not a perf regression: it would pass a corpus run and fail later, elsewhere, under GC pressure.
+3. ⛔ **PINNING AT BIRTH DOES NOT WORK.** `HBF_PIN` is *cleared at the start of every collection*
+   (`gc_heap.c:575`: `h->flags &= ~(HBF_MARK | HBF_PIN)`) and re-established during marking from the conservative
+   stack scan. A pin set by the allocator survives exactly zero collections.
+
+### ⭐ THE CHANGE, IN THREE PARTS — the collector already anticipates it
+1. **`gc_heap.c` allocators:** `rt_ws_alloc_c` and the `wss` arm call `rt_gcheap_alloc(HB_WS/HB_WSS, n)` instead of
+   carving the island. Keep the block TYPES so every type-based GC arm (`:358` mark-stack push, `:373` cons scan,
+   `:606` root scan, `:636` pin census) keeps working untouched.
+2. **`gc_collect_ex` relocation test:** treat `HB_WS`/`HB_WSS` as **permanently live and non-relocatable** —
+   i.e. extend `if (h->flags & HBF_PIN)` at `:636–637` to `|| h->type == HB_WS || h->type == HB_WSS`. ⭐ **That line
+   ALREADY counts `HB_WS` pins (`pws++`), so the collector was written expecting HB_WS blocks to appear on the GC
+   heap and be pinned.** This reproduces the island's exact semantics — never moves, never freed — inside the one
+   sanctioned arena, which is what makes it safe rather than merely smaller.
+3. **Delete the island itself:** `g_wsi_base/_ws/_wss/_end/_blocks`, `rt_wsi_init`, the `[WSI]` report and
+   exhaustion abort, and `ZC_WSI_MB` from `zeta_choices.h`.
+
+### ⛔ WHAT MUST BE PROVEN BEFORE IT LANDS, because a corpus pass is NOT evidence here
+The failure mode is a stale pointer after a compaction, and the corpus does not force compactions. **Run the
+kernels under `SCRIP_GC_STRESS=<small N>`** (gc_heap.c honours it, forcing a collection every N allocations) and
+diff every `check:` line — `table_access` 250500, `table_variety` 381880, `roman` 1102, `mixed_workload` 12100.
+⭐ **`table_variety` is the right witness** because its keys are workspace strings reachable only from table pairs.
+Also A/B `SCRIP_NV_MEMO=0`: if the memo OFF arm is green and ON is red, the relocation hazard is exactly what bit.
+
+⛔ **NOT LANDED THIS SESSION AND THE REASON IS RUNWAY, NOT DISAGREEMENT.** hq_P s262 reached ~96% of context after
+the TABLE work; starting a memory-corruption-class edit with no room left to run `SCRIP_GC_STRESS` verification is
+how the bug ships. Everything needed is above — the three edit points, the two caches that constrain them, and the
+verification that distinguishes a real fix from a green corpus.
+
 ## LIVE CURSOR — hq_P
 
 **s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
