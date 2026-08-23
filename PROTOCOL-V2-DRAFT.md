@@ -23,14 +23,16 @@ Strict order, every HQ session: **1 DRAIN** (answer every pending seat question 
 ## STATUS AGAINST THE ROLLOUT LADDER (measured 2026-08-22 s258)
 
 - **V2-1** picker + `assign` + assigned-first `next` — ✅ LANDED (SCRIP `93d3ef16`), gate `test_gate_s4e_picker_v2.sh` 18/18, cross-verified and signed off by hq_P.
-- **V2-2** queue-as-index + batons + DONE sweep — ⚠ **PARTIAL**: sweep ✅ (113 rows moved, `sweep` subcommand keeps it clean); batons **11 of 77 live rows**; QUEUE.tsv still carries multi-KB prose per row.
+- **V2-2** queue-as-index + batons + DONE sweep — ✅ **LANDED** (hq_C, SCRIP `c4429b44`). Sweep ✅ (113 rows moved, `sweep` keeps it clean). **All 84 live rows now have a baton**; QUEUE.tsv is rank·topic·owner·state only — **122,187 → 4,237 bytes, 29× smaller**, widest field 40 chars (was 3,921). 33 converted rows had a PROSE completion test; their batons carry a DONE-WHEN that deliberately refuses and says why — those rows were never closable by measurement and now that is visible instead of latent. Owner is `unassigned`, not guessed: the old queue had no owner column, so the information does not exist. Enforced continuously by `test_gate_queue_is_an_index.sh` (4 fields · a baton per row · no field over 64 chars), which FAILS on the pre-V2-2 queue and returns UNPROVEN on an empty postoffice.
 - **V2-3** banner refusal on stale inbox — ✅ LANDED (hq_P, `8e2fb884`).
 - **V2-4** identity asserted + mailbox census + `.msg.*` sweep — ✅ LANDED, cross-verified by hq_C (18/18 live, 15 failures pre-patch).
 - **γ ENFORCEMENT** (not originally a numbered rung, and the largest hole found) — ✅ LANDED (`aa583ad8`): `done` verifies the DONE-WHEN. Gate `test_gate_fleet_protocol_e2e.sh`, 11 checks, the first test of the whole seat LOOP rather than one subcommand.
 - **V2-5** gate honesty — ✅ **LANDED** (hq_P, `e88e77db`), **cross-verified by hq_C**. `scripts/lib_gate.sh` gives every gate three exit codes — **0 CLEAN · 1 VIOLATION · 2 UNPROVEN** — so *"I checked and it is clean"* and *"I could not check"* can never share an exit code again, and strictness is the default (`grep -rn -- --strict scripts/` had proved nothing ever passed the old opt-in flag; a flag no caller passes is a disabled gate). Verified by removing `./scrip` and re-running: converted gates return 2, not 0. `test_gate_gates_can_say_no.sh` is a **meta-gate** that executes all 31 against an empty scratch root — REFUSED=31, VACUOUS=0 — so the class cannot silently regrow.
 - **V2-6** Lon's flip — pending; this file is the source the postoffice copy is written from.
 
-⭐ **ALL FIVE NUMBERED RUNGS PLUS γ-ENFORCEMENT ARE NOW LANDED AND CROSS-VERIFIED IN BOTH DIRECTIONS.** What remains before V2-6 is V2-2's baton conversion (11 of 77 live rows) — and Lon's flip itself.
+⭐⭐ **PRE-FLIGHT IS COMPLETE. ALL SIX RUNGS ARE LANDED AND CROSS-VERIFIED IN BOTH DIRECTIONS** — V2-1 · V2-2 · V2-3 · V2-4 · V2-5 · plus the γ-enforcement neither HQ had a rung for. **The only thing standing between this draft and live law is V2-6: Lon's flip.**
+
+⭐ **A LATE ADDITION TO γ, from hq_P source-reading hq_C's own work:** `done` accepted any non-empty string as a criterion, so `DONE-WHEN: true` closed a row having verified nothing — the vacuous-gate defect V2-5 had just removed from 31 gates, alive inside the command that certifies completion. Now refused two ways: an explicit no-op list, and a **vacuity probe** that re-runs the criterion in an empty directory (hq_P's own V2-5 method, borrowed). A criterion that passes with nothing to examine is not examining anything.
 
 ## THE MECHANICS (V2-1…V2-5 must be landed before flip)
 
