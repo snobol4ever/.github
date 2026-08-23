@@ -206,46 +206,58 @@ target — an Icon row therefore has no sanctioned instrument. Topic `escalate-i
 
 ## LIVE CURSOR — hq_P
 
-**s258 (2026-08-22) — PHASE 0 PREFLIGHT: THIS SEAT'S HALF IS LANDED AND PUSHED.**
+**s258 (2026-08-22) — P-0 ANSWERED AND THE FIRST CURE LANDED. Sovereign question moved 6.58x → measurably better; exact `-O2` number PENDING (command below).**
 
-- ✅ **V2-3 + V2-4 landed** at SCRIP `8e2fb884`, gated by `scripts/test_gate_postoffice_identity.sh` — 18 checks,
-  **negative-injection proven: 15 of them fail against the pre-patch script.** Identity canonicalised then
-  ASSERTED (no mailbox ⇒ exit 3, never a fresh directory); every implicit `mkdir -p` on a mailbox path deleted;
-  `.msg.*` orphan sweep; `/home/claude` → `ceo`; `fleet` census by mailbox with a MAIL column; HQ banner refuses
-  the ✅ on inbox mail older than 30 min; board line carries oldest-unanswered age + row topic.
-- ✅ **Drain complete: legacy `hq` inbox 29 → 0.** 7 answered (perf lane), 7 forwarded to hq_C with original text
-  verbatim, 15 archived as read. The 46-hour orphaned message was delivered to seat08 by the sweep's first live
-  run. Phantom `claude01/` retired (messages archived, not re-delivered — seat01 had already acked them).
-- ✅ **Rows minted:** `zeta-frame-rsp-capture-home` · `zeta-cell-heap-segv` (rank 0, hq_P) · `opt0-define-beta-link`
-  (rank 1, hq_C, cross-HQ interlock).
-- ✅ **CROSS-VERIFICATION OF hq_C COMPLETE — BOTH RUNGS SIGNED OFF.** V2-2 purge: **PASS** (audited every row in
-  `QUEUE.done.tsv` against its claim — 0 swept whose claim lacked a `DONE` marker). V2-1: **FAIL at first
-  measurement, PASS after hq_C pushed.** First pass, against `origin/main`, a rank-5-first / rank-0-second queue
-  served **rank 5** and `assign` printed usage — the code was in hq_C's tree but **uncommitted**, while `QUEUE.tsv`
-  line 3 already told 16 seats the picker was rank-sorted. hq_C pushed (`646b8047`, `93d3ef16`); re-verified on the
-  merged tree — rank inversion serves rank 0 then rank 3, `assign` dispatches ASSIGNED→RUNNING with a doorbell, and
-  refuses both an unrowed topic and another seat's row. hq_C's `test_gate_s4e_picker_v2.sh` 18/18; my
-  `test_gate_postoffice_identity.sh` still 18/18 after the rebase. `QUEUE.tsv` line 3 stays **computed** rather than
-  restored to a status claim, so it cannot rot again.
+### ✅ LANDED AND PUSHED
+- **Preflight V2-3 + V2-4** (SCRIP `8e2fb884`, `3f951354`) — identity asserted not globbed, `.msg.*` orphan sweep,
+  `/home/claude`→`ceo`, census by mailbox with a MAIL column, HQ drain refusal, board age+topic. Gate
+  `test_gate_postoffice_identity.sh` **18/0 current vs 3/15 pre-patch**, subject redirectable via `S4E_MSG_BIN`.
+- **Legacy `hq` drained 29 → 0**; phantom `claude01/` retired; a 46-hour orphan delivered. `fleet` shows **Q=0**.
+- **hq_C cross-verified BOTH WAYS** — V2-1 ✅ (rank inversion, assign-beats-free, both refusals), V2-2 ✅ (0 rows
+  swept without a `DONE` marker). hq_C signed off my V2-4 and caught a real defect in my gate (hardcoded subject).
+- ⭐ **RUNG P-0 ANSWERED** — `FINDING-2026-08-22-hq_P-roman-is-44-percent-variable-name-lookup-not-registers.md`.
+  `roman` `-O2` **50,648 Ir/iter vs clean SPITBOL 7,966 = 6.36x** (m4), output verified `check: 1102` both engines.
+  **NO linear scan anywhere — every Ir/call 20–80.** The defect was call COUNT: 159 variable lookups and 250
+  `strcmp` per iteration. Emitted code is only **11.8%**; the gap is entirely runtime services.
+- ⭐ **FIRST CURE LANDED** (SCRIP `db8f96d6`) — the NV_* memo, SPITBOL's `vrblk` discipline applied to `NV_t`.
+  Corpus **m3 357/2, m4 355/2+2SKIP**, identical to the killswitch control; both blocking gates green.
+  ⛔ **Its killswitch caught an unsound first draft (335/22 vs 355/2)** — name pointers are NOT stable (the runtime
+  passes stack buffers) and inserts can shadow. Cured with `strcmp` validation + a generation counter at **all three**
+  insertion sites. **NEW GLOBALS granted by Lon in-chat s258.**
 
-- ⛔ **BEAUTY NUMBERS ARE FROZEN PENDING hq_C's C-0 VERDICT.** hq_C measures C-0 as **not reproducing at HEAD**
-  (classic beauty self-hosts to its fixed point in both m3 and m4; confirmation control building). Until that lands
-  at a named HEAD, the inherited **2,129,544,838 Ir beauty runtime and the 9.34x it anchors are MEASURED-BUT-SUSPECT**
-  and this seat publishes no beauty ratio. Re-take it myself at the named commit rather than inherit it. Costs P-0
-  nothing — `roman` was already the first target for exactly this reason.
-- ⛔ **MY OWN GATE HAD THE BLIND-INSTRUMENT DEFECT** (hq_C caught it): hardcoded subject ⇒ their injection was a
-  no-op and it said 18/18 over the wrong binary. Fixed `3f951354` (`S4E_MSG_BIN` override, subject printed, exit 2
-  if missing); now **18/0 current vs 3/15 pre-patch**, matching hq_C independently. ⭐ Rule for V2-5's 31 gates:
-  negative-injection is proven by a gate whose **subject can be redirected by someone other than its author**.
+### ⛔ THE ONE THING OWED — 5 MINUTES, DO IT FIRST
+The `-O2` re-measure of the **hardened** memo. The 25.2% / 39,255 Ir-per-iter figure in circulation belongs to the
+**unsound draft**; the shipped version pays a `strcmp` per hit, so the real number is lower and is **not yet taken**.
+An `-O2 pristine` was in flight when the session ended (a partially-built `out/` may be on disk — rebuild, do not trust it).
+```bash
+cd /home/claude_P/SCRIP && RT_OPT="-O2 -g -fno-strict-aliasing -fwrapv -fno-omit-frame-pointer" make pristine
+cd ../corpus/benchmarks/snobol4 && echo 20000 | valgrind --tool=callgrind ./…/scrip roman.sno   # must print check: 1102
+# baseline to beat: 1,049,108,015 Ir (52,455/iter, 6.58x).  Publish with RT_OPT, never without.
+```
 
-**⭐ NEXT ACTION, in order:**
-1. **RUNG P-0 — profile `roman`.** Unchanged and still the sovereign question: callgrind at fixed N, top functions by
-   **Ir WITH call counts and Ir-per-call** — Ir-per-call is the signature that exposes a linear scan, which is exactly
-   how `bb_ab_slot_for` was caught at 22,089 Ir per procedure call. Then check whether the same function dominates
-   beauty runtime; if it does, **one cure moves both.** Row `perf-roman-8x` is rank 0 and FREE.
-2. **`s4e_msg.sh fleet` on a cadence** — now that it can actually see both HQs and shows mail age, there is no excuse
-   for a row sitting 115 minutes unnoticed.
+### ⭐ NEXT RUNG — ONE CALL SITE WORTH 29.8%
+`c_rt_defer_close` 11.60% + `rt_defer_run_all` 8.40% + `rt_defer_get_pat_dtp` 6.26% + `rt_dfx_push` 3.58%, each called
+**exactly 1,403,811 times** (70/iteration) — one fixed pipeline, now **larger than our emitted code (15.77%)**.
+`roman.s` has **exactly one** defer site, `n44_match_defer`: the bare `T` in `'0,1I,…' T BREAK(',') . T`, re-read at
+every unanchored start position.
+⛔ **CORRECTNESS FIRST, AND IT IS hq_C's CALL.** §7 of `REFERENCE-SPITBOL-BEAUTY-CONSTRUCTS.md`: deferral is what
+`*expr` MEANS; a bare variable is evaluated at construction. `lower_snobol4.c:1398` lowers `case TT_VAR:` straight to
+`IR_MATCH_DEFER`. If a pattern assigns the variable mid-match (beauty's `NRETURN` idiom), SPITBOL matches the
+already-built pattern and we would not. Answers agree today (`check: 1102`), so it is conservative deferral, not a
+wrong answer. **No unilateral change from this seat.**
+⭐ Three mechanisms already in the tree bypass the defer and none reaches this case: `cx->pre[]`
+(`lower_snobol4.c:1399`, consumed :1842 → `PATV$n`, `pat_static=1`) · `SCRIP_PAT_INLINE`+`sno_fz_tree()` (needs a
+pattern value; `T` holds a string) · ⭐ **`&user_defined_constants` (Lon s258)** — `lower_snobol4.c:1393` folds a
+sealed `&NAME` via `sno_const_val`/`sno_const_pat` against `g_sno_seal[]` and never reaches `IR_MATCH_DEFER`.
+⛔ It cannot help `roman`'s `T` (capture target, genuinely varies, sealing → error 341); **it pays on variables
+assigned once and thereafter only read — beauty's `*Expr0…*Expr17` grammar is the textbook case.**
 
-⛔ **Seat→HQ ownership (`$PO/<seat>/HQ`) is IMPLEMENTED but NOT POPULATED.** `ask` resolves `$S4E_HQ` → that file →
-legacy `hq`, so questions still land in `hq/` — which is now drained and visible in the census, so nothing rots. The
-8/8 split between hq_C and hq_P is a joint decision and should be written the session Lon fires the wave.
+### ⛔ STANDING CONSTRAINTS
+- **NO BEAUTY NUMBER AT `-O2`.** hq_C measured C-0 reopening at `-O2` (both media 278 bytes, md5 `1c75f97d`,
+  byte-identical to the pre-cure failure) while `-O0` self-hosts correctly at 40,971. The inherited
+  **2,129,544,838 Ir figure is VOID if it was taken at `-O2`**. Date every beauty number by commit AND RT_OPT.
+- **No perf claim may cite a ζ-storage comparison** while `zeta-frame-rsp-capture-home` / `zeta-cell-heap-segv` are red.
+- Rows owned here: those two (rank 0) + `rtx-icnnum-icnsub-bail-invariant` (rank 2, design answer before any edit).
+  `opt0-define-beta-link` is hq_C's via the interlock. **No fleet — these are this seat's own worklist (Lon s258).**
+- Open with `ceo`: `escalate-icon-checks-vs-icon-target` (SNOBOL4-FIRST forbids the Icon gates; PLAN gives Icon a
+  numeric target — an Icon row therefore has no sanctioned instrument).
