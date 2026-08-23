@@ -60,6 +60,8 @@ LINKS: <goal file § rung> · ARCH/FINDINGs
 
 **Why this is a fix and not a hope, from v1's own data:** every subsystem moved from prose to computation stopped lying and STAYED stopped (banner after the Stop hook, MEDIUM ratchet once computed, handoff after `handoff_status.sh`); every subsystem left as prose kept lying to the end. The models did not become more honest in between — the statements became checkable. It is the only mechanism ever observed to work here, so v2 applies it to every information channel the fleet has. And "behind Lon's back" ends the same way: Lon's dashboard (banner, board, fleet) is computed end-to-end, never passing through model prose, and the CEO audit loop exists to spot-recompute DONE claims so a surviving falsehood has a half-life measured in sessions, not weeks.
 
+⭐ **AUDIT COROLLARY (proposed hq_C s264, landed CEO s264): a recompute inherits the blindness of what it recomputes.** Faithful re-execution of a vacuous check produces a faithful vacuous result — so an audit samples the instrument's ability to say NO (negative injection, or a live observed refusal) before crediting its YES. Evidence: CEO-1 recomputed the firing-gate Q=0 check "green" while its grep matched a string `fleet` never emits — a check with no failure path, faithfully re-run, faithfully worthless.
+
 ## THE SIX MECHANICAL LAWS (each inverts a measured v1 failure; LAW 0 governs them all)
 
 1. **NO HAND-TYPED VERDICTS.** Done = DONE-WHEN exit 0 · push truth = `handoff_status.sh` · fleet state = `s4e_msg.sh fleet` · banner = Stop hook. Every v1 subsystem that became computed stopped lying; every one that stayed prose kept lying. Corollary: gates must pass a negative-injection test (they can say NO) before a DONE-WHEN may cite them.
