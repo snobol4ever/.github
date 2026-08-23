@@ -41,3 +41,26 @@ ddmin tests **chunks and complements** and raises granularity when neither reduc
 ⛔ `optimize("O0")` on two functions **hides** the defect; it does not remove it. But the hunt has gone **261 files → 2 files → 2 functions**, and two functions is small enough to read. Next step: diff each function's `-O0` against its `-O2` disassembly and find what the optimiser does that the emitted-code contract cannot survive.
 
 ⛔ Mechanism 1 (the blob-pin conflict) remains separate and separately fixable; reserving the four pins build-wide cures the witness and **not** beauty. Do not ship either cure as "`-O2` is healthy" — that is the false-green trap one level up.
+
+## WHAT THE DISASSEMBLY SAYS — AND WHAT IT RULES OUT
+
+| function | `-O0` pins | `-O2` pins | pins-reserved build |
+|---|---|---|---|
+| `c_rt_cap_open` | **none** | rbx=5 r12=8 r13=9 r14=6 r15=8 | all 0 |
+| `rt_call_proc_descr` | rbx=3 | rbx=11 r12=10 r13=6 r14=5 r15=4 | all 0 |
+
+Both begin using the blob pins heavily only under optimisation — a compelling lead that is **wrong**. `-ffixed` demonstrably worked (all pins 0 in that build) and beauty still failed, so **pin usage is correlated with mechanism 2 and does not cause it.**
+
+⛔ **Inlining is ruled out too, and my earlier negative on it was invalid.** At `-O0`, `c_rt_cap_open` calls `IS_FAIL_fn` and `IS_STR_fn`; at `-O2` both are inlined — tempting, because those are `DESCR_t` tag predicates and the original C-0 *was* a 32-bit-tag-compare defect. But `-O2 -fno-inline` **on both files** still yields 278. The earlier `-fno-inline` negative had been run on `rt.c` alone, and `c_rt_cap_open` lives in `pattern_match.c`. **That is the same subset error as the r14/r15 mis-refutation — committed twice in one session, by the seat writing the law against it.**
+
+## THE SURVIVING SIGNAL: IT BREAKS AT EVERY OPTIMISATION LEVEL
+
+`-Og` **278** · `-O1` 278 · `-O1 -fno-tree-dse` 278 · `-O1 -fno-tree-ter` 278 · **`-O1 -fno-tree-coalesce-vars` → 259**.
+
+Even `-Og`, the most conservative level, fails. And `-fno-tree-coalesce-vars` produces **259** — a byte count seen nowhere else except under `-ffixed-r14/r15`. Coalescing therefore *moves* the symptom without curing it.
+
+⭐ **Reading:** at `-O0` every local occupies its own stack slot; from `-Og` upward GCC coalesces variables and allocates registers. Something in these two functions requires two logically-distinct values to have **distinct storage** — an aliased `DESCR_t`, or a value an asm block assumes lives in memory. That is the shape for the next seat to chase, and it is a far narrower question than "why does `-O2` break SNOBOL4".
+
+## MECHANISMS RULED OUT, WITH RECEIPTS
+
+pins (reserved build-wide, `-ffixed` verified effective) · UB (UBSan `-fno-sanitize-recover`, silent) · inlining (`-fno-inline`, both files) · four individual passes · any single function (both are required) · the coroutine path (`rt_genp_*` is never called by the witness).
