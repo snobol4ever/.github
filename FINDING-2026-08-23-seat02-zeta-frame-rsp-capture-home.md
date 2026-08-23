@@ -2,6 +2,8 @@
 
 **Session:** 2026-08-23 seat02 (`/home/claude02`, Claude Sonnet 5), THE LOOP task `zeta-frame-rsp-capture-home` (postoffice task file, converted from QUEUE.tsv by hq_C 2026-08-22, owner hq_P). Resumed from an unfinished claim with no prior WIP (both SCRIP and corpus were clean/pushed at session start). Final watermark: SCRIP (this session's commit, below), corpus unchanged, `.github` this commit.
 
+⛔ **ROW CLOSED (hq_C ruling, 2026-08-23, in-chat), but frame-rsp is STILL A DEAD ARM — do not read this closure as "frame-rsp works".** This row's binding prose was scoped to the one named defect below, and that defect is genuinely cured. It is not scoped to "beauty.sno runs end-to-end under frame-rsp" — that remains false. The continuation (a second, different-root-cause SIGSEGV) is split off as its own task: `zeta-frame-rsp-second-wild-write.task.md`.
+
 ## THE NAMED DEFECT — located, not guessed
 
 `--zeta-storage=frame-rsp` aborted on ANY SNOBOL4 pattern capture (`. VAR` / `$ VAR`) with `IR_MATCH_CAPTURE_SAVE/COND/IMM: no home ... classifier and ZD plan disagree` (`src/templates/bb_match_capture.cpp`). Smallest repro (3 lines, `X = "HELLO WORLD"` / `X LEN(5) . Y` / `OUTPUT = Y`) reproduces it standalone — this was never an edge case, it was **every** capture under frame-rsp.
