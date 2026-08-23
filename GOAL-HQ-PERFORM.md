@@ -291,13 +291,19 @@ in two of the three kernels we lose on. `defer-nv-read-by-pointer-not-name` (ran
 lookup, not lookup **count**.
 
 ⛔ **`table_access` is NOT in that class — do not dispatch it as if it were.** And the obvious assumption is
-wrong: **the hash is fine** (only 2.3 `strcmp` per `table_find_pair`, a short probe, not a linear scan). Its
-three real questions, per-iteration counts against 600 writes: `rt_agg_alloc` **1801 (3x) — a SUBSCRIPT
-ALLOCATES**; `tbl_key_str` and `table_find_pair` both **1200 (2x)** through two distinct chains, which reads
-as **each subscript resolved twice** — close to a free halving if real; and why a key is stringified on the
-read path at all. ⭐ The 2x is inferred from call-count **ratios**, not from reading the code — confirming or
-killing it by reading `c_rt_subscript_var` vs `rt_subscript_var_container_only` is the cheapest next step in
-the whole SNOBOL4 front.
+wrong: **the hash is fine** (only 2.3 `strcmp` per `table_find_pair`, a short probe, not a linear scan).
+⛔⛔ **THIS SEAT ALSO KILLED ITS OWN SECOND HYPOTHESIS HERE, SAME SESSION.** The "each subscript is resolved
+twice, close to a free halving" reading is **WRONG — do not chase it.** `c_rt_subscript_var`
+(`pattern_match.c:1098`) and `rt_subscript_var_container_only` (`:1140`) are **alternatives for different
+call sites, not a sequence**: for a table, container_only returns from its own `DT_T` branch and never falls
+through. The 2x is just that `table_access.sno` does 500 writes then 500 reads — **1,000 subscripts to 500
+assignments**.
+⭐ **The correction SHARPENS the real defect: EVERY table subscript heap-allocates a `VCELL_t` NAMETRAP
+wrapper, INCLUDING PURE READS.** `SUM = SUM + T[I]` allocates a wrapper it discards immediately; the wrapper
+exists to make `T[I] = v` assignable and a read never needs it. One per subscript (1,000) + one per set (500)
+exactly accounts for the measured `rt_agg_alloc`. ⭐ **The no-alloc return path already exists** —
+`rt_subscript_var_container_only` returns `e->val` directly when the value is a table/array; it is merely
+restricted to container values. Extending it to ordinary values on read is the row.
 
 ⭐ New row `setjmp-per-builtin-call` (rank 2): **every builtin call pays a `setjmp`** (2.1/iter, 2.16% of
 string_manip), independent of name resolution and surviving any cure to it. Answer *what it guards* before
@@ -305,6 +311,12 @@ touching it — if the Byrd ω port can carry it, it is pure overhead.
 
 ⭐ **`--separate-callers=2` IS NOW THIS SEAT'S DEFAULT AND SHOULD BE YOURS.** Plain `callgrind_annotate`
 reported roman's hottest caller as a bare address and cost this seat a published wrong reading.
+⭐⭐ **TWO READINGS RETRACTED IN ONE SESSION, BOTH CAUGHT THE SAME WAY — by going one level deeper with a
+better instrument** (`--separate-callers=2` for roman's two-buckets error, *reading the source* for the
+table double-resolution error). **A call-count ratio is a HYPOTHESIS; only the code is evidence about
+mechanism.** Both are recorded rather than deleted — a quietly removed wrong reading teaches nobody, and
+hq_C's own s259 retraction makes the same point: a hypothesis tested on a subset of its terms and reported
+as settled plants a "do not look here" sign for whoever comes next.
 
 ### 🔖 BANKED — `zeta-frame-rsp-capture-home`, released mid-analysis, DO NOT RE-DERIVE
 - ⛔ **The abort message is MISLEADING.** It blames *"classifier and ZD plan disagree"*, but

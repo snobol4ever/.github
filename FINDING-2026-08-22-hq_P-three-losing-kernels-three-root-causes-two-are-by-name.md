@@ -71,9 +71,11 @@ Per-iteration call counts against **600 table writes/iter**:
 `rt_agg_alloc` ← `c_rt_subscript_var` — i.e. a table SUBSCRIPT allocates.** A read that allocates is a defect
 independent of how fast the table itself is.
 
-⛔ **`tbl_key_str` and `table_find_pair` each run at exactly 2x the write count**, through two distinct
-chains (`c_rt_subscript_var` ← `rt_subscript_var` **and** `rt_subscript_var_container_only`). That shape says
-**each subscript is being resolved twice**, once per path. If that is real it is close to a free halving.
+⛔⛔ **THE "RESOLVED TWICE" READING WAS MINE AND IT IS WRONG. KILLED SAME SESSION — see the correction
+section at the foot of this file.** `tbl_key_str` and `table_find_pair` run at 2x the *assignment* count
+because the kernel performs **two subscripts per assignment** (one read, one write), not because either is
+resolved twice. There is no free halving here. The **allocation** finding above is unaffected and is now
+source-confirmed.
 
 `__strcmp_avx2` at 2.3 per `table_find_pair` is **not** a long linear scan — the probe is short. ⭐ So the
 table's *lookup* is not obviously the problem; the **stringification, the double resolution, and the
@@ -99,6 +101,43 @@ codegen is not what loses.
   tree* would need re-measuring.
 - `table_access` at N=100 carries proportionally more startup than the others; the shares of the small
   entries are therefore softer than roman's. The large entries are unaffected.
-- The "resolved twice" reading of `table_find_pair` at 2x is inferred **from call-count ratios**, not from
-  reading the subscript path. ⭐ It is the single most valuable thing to confirm or kill first, and it is
-  cheap: read `c_rt_subscript_var` and `rt_subscript_var_container_only` and see whether both run per access.
+- (The "resolved twice" limit noted here originally has since been **resolved by killing the hypothesis** —
+  see the correction below. It is left in the record rather than deleted, because the flag is what led to it.)
+
+## ⛔ CORRECTION, SAME SESSION — this seat killed its own hypothesis
+
+The limit flagged above was checked immediately rather than left standing, and **the hypothesis did not
+survive**. Recorded in full, because a wrong reading that is quietly deleted teaches nobody.
+
+**What was claimed:** `tbl_key_str` and `table_find_pair` running at 2x the assignment count meant each
+subscript was resolved twice through two chains — "close to a free halving if real."
+
+**What the source says.** `c_rt_subscript_var` (`pattern_match.c:1098`) and
+`rt_subscript_var_container_only` (`:1140`) are **alternatives for different call sites, not a sequence**.
+For a table, `rt_subscript_var_container_only` returns from its own `DT_T` branch and **never** falls through
+to `rt_subscript_var`; only its array branch does. Each function does its own `tbl_key_str` +
+`table_find_pair` **exactly once**.
+
+**What the kernel says.** `table_access.sno` per pass: 500 writes `T[I] = I * 2`, then 500 reads
+`SUM = SUM + T[I]`. **1,000 subscripts to 500 assignments.** That *is* the 2:1 ratio, entirely and
+innocently. (The uniform 1.2 factor between predicted and measured counts is the harness's inner `ZBL`
+batching, not a per-access effect — it cancels out of every ratio.)
+
+⭐ **The correction makes the surviving finding SHARPER, not weaker.** With one `VCELL_t` per subscript
+(1,000) plus one per set (500), `rt_agg_alloc` at ~1,500 scaled to the measured 1,801 is **exactly accounted
+for**. So the real, now source-confirmed defect is:
+
+⛔ **EVERY table subscript allocates a `VCELL_t` NAMETRAP wrapper — including the 500 pure READS.**
+`SUM = SUM + T[I]` heap-allocates a wrapper it discards immediately. The wrapper exists to make
+`T[I] = v` assignable; a read never needs it.
+
+⭐ **The no-allocation return path already exists in the tree.** `rt_subscript_var_container_only` returns
+`e->val` **directly, with no `rt_agg_alloc`**, when the value is a table or array. The mechanism is proven;
+it is simply restricted to container-valued entries. Extending "return the value directly when the caller
+only reads it" to ordinary values is the row — and it is a far better-posed row than the one this correction
+replaces.
+
+**Method note.** This is the second reading this seat has had to retract in one session (the first being
+roman's "two independent buckets"), and both were caught the same way: by going one level deeper with a
+better instrument — `--separate-callers=2` for the first, and *reading the source* for this one. A call-count
+ratio is a **hypothesis**; only the code is evidence about mechanism.
