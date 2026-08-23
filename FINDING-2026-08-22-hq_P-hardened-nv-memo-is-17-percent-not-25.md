@@ -1,5 +1,14 @@
 # FINDING-2026-08-22-hq_P-hardened-nv-memo-is-17-percent-not-25
 
+> ⛔⛔ **CORRECTED SAME SESSION — the ratio in this file is WRONG. The improvement is not.**
+> Every "5.46x" below should read **5.87x**. The SCRIP half (43,478.9 Ir/iter) is correct and measured; the
+> error was dividing it by the **stale s256 SPITBOL figure of 7,966** instead of measuring the oracle. Clean
+> SPITBOL roman at the same N=20000 is **148,252,805 Ir = 7,412.6/iter**, measured in
+> `FINDING-2026-08-22-hq_P-scoreboard-17-kernels-and-scrip-scales-worse.md`. The error **flattered us**.
+> ✅ The **-17.1%** claim is unaffected — it is SCRIP-vs-SCRIP against a baseline taken the same way.
+> **Rule adopted: never divide a fresh number by an inherited one; both halves of a published ratio are
+> measured in the same session by the same method.**
+
 FROM hq_P (HQ-PERFORMANCE), s259. **This RETRACTS a number this seat itself put into circulation.**
 
 ## The claim

@@ -225,9 +225,11 @@ speed up his programs."*
 - ⭐ **THE OWED -O2 RE-MEASURE IS PAID, AND IT RETRACTS ONE OF THIS SEAT'S OWN NUMBERS.**
   `FINDING-2026-08-22-hq_P-hardened-nv-memo-is-17-percent-not-25.md`. roman mode-4, FIXED-WORK N=20000,
   callgrind, RT_OPT=`-O2`, full `make pristine`, commit `aa583ad8`, **output verified `check: 1102` first**:
-  **869,577,578 Ir = 43,478.9 Ir/iter = 5.46x clean SPITBOL**, i.e. **-17.1%**, not the -25.2% in circulation.
+  **869,577,578 Ir = 43,478.9 Ir/iter**, i.e. **-17.1%**, not the -25.2% in circulation. ⛔ **The ratio I first
+  published with it, 5.46x, was WRONG — it divided by a stale s256 oracle figure. Measured same-method:
+  5.87x.** The -17.1% is unaffected (SCRIP-vs-SCRIP).
   ⛔ **The 25.2% / 39,255 figure belonged to the UNSOUND DRAFT the killswitch caught. Do not re-cite it.**
-  Sovereign question: **6.58x → 5.46x, verified.**
+  Sovereign question: **6.58x → 5.87x, both halves measured this session.**
 - ⭐ **V2-5 GATE HONESTY LANDED — SCRIP `e88e77db`** —
   `FINDING-2026-08-22-hq_P-v2-5-thirty-one-gates-can-now-say-no.md`. **31/31** formerly-vacuous gates now
   refuse an empty tree (measured **26 vacuous → 6 → 0**, which is the negative test). New `scripts/lib_gate.sh`
@@ -317,6 +319,35 @@ table double-resolution error). **A call-count ratio is a HYPOTHESIS; only the c
 mechanism.** Both are recorded rather than deleted — a quietly removed wrong reading teaches nobody, and
 hq_C's own s259 retraction makes the same point: a hypothesis tested on a subset of its terms and reported
 as settled plants a "do not look here" sign for whoever comes next.
+
+### ⭐⭐ THE SCOREBOARD IS REBASELINED — 17 KERNELS, BOTH ENGINES, SAME METHOD
+`FINDING-2026-08-22-hq_P-scoreboard-17-kernels-and-scrip-scales-worse.md`. Closes rank-0
+`bench-rebaseline-15-kernels-clean-oracle` (it is **17**, not 15). **Replaces the s256 table at the top of
+this file.** Ir/iter is a **two-point slope**, which cancels start-up exactly — roman's start-up is ~9.3M Ir,
+97% of an N=20 run, so `total/N` at small N is badly wrong.
+
+**SCRIP wins 6 of 17** (N=20→200): `fibonacci` **0.60** · `var_access` 0.76 · `func_call` 0.81 ·
+`op_dispatch` 0.84 · `arith_loop` 0.97. Loses: `array_sum` 1.27 · `eval_fixed` 1.49 · `pattern_bt` 2.20 ·
+`indirect_dispatch` 2.31 · `table_access` 2.34 · `string_pattern` 2.35 · `string_manip` 2.68 ·
+**`mixed_workload` 2.95 (the most representative single number on the board)** · `roman` 4.89.
+
+⛔ **CORRECTION TO MY OWN HEADLINE: roman is 5.87x, not the 5.46x I published today.** The SCRIP half was
+right; I divided it by the **stale s256 oracle figure 7,966** instead of measuring clean SPITBOL myself
+(it is 7,412.6/iter at N=20000). **The error flattered us.** ✅ -17.1% is unaffected.
+⭐ **RULE ADOPTED: never divide a fresh number by an inherited one — both halves of a published ratio get
+measured in the same session by the same method.**
+
+⭐⭐ **NEW AND IMPORTANT — SCRIP SCALES WORSE THAN SPITBOL.** roman's work/iteration grows with N *by design*
+(it converts a larger integer each iteration). Across the same growth: **SCRIP 1.50x, SPITBOL 1.25x**, so the
+ratio moves **4.89x (small N) → 5.89x (large N)**. ⛔ **The gap WIDENS with input size — small benchmarks
+UNDERSTATE how far behind we are, and 10x is harder at scale than this board's column suggests.** Consistent
+with the by-name mechanism: longer subjects mean more retries **and** each retry pays a full name resolution,
+which is superlinear in a way SPITBOL's `vrblk` pointers are not. **Strongest argument yet for rank-1
+`name-lookup-strcmp`: it is not a constant factor.**
+
+⛔ **Three rows on that board are NOT trustworthy and are labelled as such:** `ident_call1`/`ident_call2` have
+**EMPTY `.ref` files** so neither engine's output could be verified (row minted); `string_concat`'s slope is
+~0.1 Ir/iter — its work does not scale with `fixed_n`, so its ratio is meaningless.
 
 ### 🔖 BANKED — `zeta-frame-rsp-capture-home`, released mid-analysis, DO NOT RE-DERIVE
 - ⛔ **The abort message is MISLEADING.** It blames *"classifier and ZD plan disagree"*, but

@@ -1,0 +1,19 @@
+kernel	scrip_ir_iter	sbl_ir_iter	ratio	scrip_ok	sbl_ok	note
+arith_loop	327.3	337.5	0.97	OK	OK	
+array_sum	323349.4	254316.7	1.27	OK	OK	
+eval_fixed	1851.3	1242.6	1.49	OK	OK	
+fibonacci	587785.4	979239.7	0.60	OK	OK	
+func_call	419.3	517.5	0.81	OK	OK	
+ident_call1	403.3	391.5	1.03	NO	NO	
+ident_call2	417.3	387.5	1.08	NO	NO	
+indirect_dispatch	1606.3	694.5	2.31	OK	OK	
+mixed_workload	43643.5	14788.8	2.95	OK	OK	
+op_dispatch	481.0	572.7	0.84	OK	OK	
+pattern_bt	3933.3	1789.6	2.20	OK	OK	
+roman	29167.5	5965.6	4.89	OK	OK	
+string_concat	0.1	0.2	0.58	OK	OK	
+string_manip	1872.3	698.5	2.68	OK	OK	
+string_pattern	2021.3	859.5	2.35	OK	OK	
+table_access	733281.8	313349.7	2.34	OK	OK	
+var_access	490.3	645.5	0.76	OK	OK	
+DONE
