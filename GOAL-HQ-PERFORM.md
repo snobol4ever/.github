@@ -15,6 +15,28 @@
 | **oracle** | **`/home/resources/spitbol-clean/sbl`** — the s255 benchmark oracle. ⛔ NEVER time against `x64/bin/sbl`: not because its clock is wrong (HQ measured both at ~1.0e9 ticks/sec, both nanoseconds) but because it is **2.30x handicapped** by monitor hooks |
 | **authority** | `scripts/lib_oracle_flags.sh` — `sbl_clean_bin()` for timing, `sbl_lang_flags()` → `-bf` for grading |
 
+## ⛔⛔ LON s259 REVOKED "CURE NEVER" — **THERE IS NO FLEET. THIS SEAT IS THE ONLY ONE WORKING.**
+Verbatim in substance: *"You are the only one working. There is no FLEET."* and, on being told a 25% win was
+"dispatched": *"do you mean you told God about it? Or you did something about? … And why is it is not done?"*
+⛔ **"Dispatched" means a row in a TSV and a task file. Nobody is working it. Nothing is fixed.** Stop using
+the word as if it were an action. **CURE NEVER presumes a fleet to delegate to; there isn't one. HQ does the
+work itself now.** The old law is kept below only as history.
+
+### ⭐ START HERE NEXT SESSION — THE EDIT POINT IS FOUND, DO NOT RE-DERIVE IT
+Worth **~25% of roman** and needs **no semantic ruling** (row `defer-nv-read-by-pointer-not-name`, rank 0).
+- `rt_defer_nv_read(const char *name)` (`pattern_match.c:862`) ends in `NV_GET_fn(name)` — a by-name
+  resolution on **every** deferred re-read. **140 per iteration** on a pattern with ONE deferred variable,
+  because `&ANCHOR = 0` retries at every start position.
+- ⭐ **The cacheable thing exists already:** `NV_GET_fn` (`core/core.c`) resolves through
+  **`_var_find_cached(name)` → `NV_t *e`**. Cache **that pointer** in the defer read path, keyed on the call
+  site's name POINTER, and repeat reads skip the hash+`strcmp` entirely.
+- ⛔ **USE THE s258 HARDENING OR REPEAT ITS BUG:** name pointers are **NOT stable** (the runtime passes stack
+  buffers) and inserts can shadow — so `strcmp` validation **plus a generation counter**, exactly as the
+  shipped `NV_*` memo does at all three insertion sites. The killswitch caught the unsound first draft at
+  **335/22 vs 355/2**; run it.
+- **Verify before believing:** `make pristine` → `test_corpus_snobol4.sh` (expect m3 355/4, m4 354/3+2SKIP at
+  `-O2`) → killswitch A/B → re-measure roman `check: 1102` first, then Ir.
+
 ## ⛔ THE LAW BOTH HQs SHARE: MEASURE FREELY, CURE NEVER
 
 Build, run, profile, bisect — all of it. **The moment a measurement becomes a DEFECT it becomes a row and a brief, never an edit.**
