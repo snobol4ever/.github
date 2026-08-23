@@ -148,6 +148,42 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s264 (2026-08-23) — FLEET OF 4, HANDOFF. Lon in-chat: *"You are running concurrently with a FLEET of 4 workers."* — that invoked FLEET for this run; DUO remains the default between runs (routed by ceo onto ARCH-FLEET-CEO.md's mode line).**
+
+### ⭐ THE BOARD MOVED. MEASURED PRISTINE AT SCRIP `540e3a00`, BOTH EMIT GATES rc=0
+
+| | start of s264 | **end of s264** |
+|---|---|---|
+| corpus m3 | 357/359 FAIL=2 | ✅ **359/360 FAIL=1** |
+| corpus m4 | 355/359 FAIL=2 SKIP=2 | ✅ **358/360 FAIL=1 SKIP=1** |
+
+**The only survivor is `demo_treebank`** (deliberate, seat03, and it is staying red on purpose — see below). ⛔ The denominator is **360**, not 359 (`a0859f7e` added a test).
+
+### CURED THIS SESSION
+
+1. **hq_C — the counted-string cset family** (`1f281ace`). Lon's ruling (*"any C function to manipulate strings is INVALID since the NUL character problem"*). `rt_coerce_str_d` carried **two defects on one line**: it tested `v.s[0]` for emptiness, so a NUL-leading string read as empty and raised *"argument is not a string"* (Error 69/59/151); and it overwrote a correct `slen` with `strlen()`, which is why `SPAN` failed **silently** instead. One line, two defects, four symptoms. BREAK/ANY/SPAN/NOTANY now all oracle-identical. `cset_resolve` had the same truncation and is fixed with it.
+2. **hq_C — a measurement instrument that was lying** (`540e3a00`). `probes_misc` had no `norm=ms`, so 12 programs scored DIFF on **timing noise alone**. ⛔ This is the IDENTICAL defect that scored the benchmark suite 0/17 at s261 — s261 fixed the symptom in one suite and nobody asked which other suites fed the same harness. **They were the same bug in two places and only one was closed.**
+3. **seat01 — generator resume under alternation** (`3342581a`). Cured `160_pat_alt_inner_gen_resume` AND the `json` demo. ⛔⛔ **AND THE REAL FINDING IS ORGANISATIONAL: the fix already existed, at s190, behind `SCRIP_ALT_TAIL` default OFF, and was never flipped** — while its sibling `sno_seq_tail()` (same mechanism) has been default-on the whole time. hq_C re-derived the defect from scratch at s264 not knowing it was solved. ⭐ **"Cured but not landed" is a state this org does not track, and it cost a full re-derivation.**
+4. **seat02 — `porter-m4-duplicate-label`**: already cured at `b7d88465`; verified independently anyway, then **swept the class** (all 1971 non-lon programs compiled to m4 and `as`-checked, 0 hits).
+5. **seat04 — `132_pat_fence_eps_recur_shallow`** (`4aec6e9f`). A bodiless `DEFINE` made mode-4 fabricate `FN__makeP`, a symbol nothing emits. Fixed to the `rt_ab_undef_fn_stub` idiom already used one function up. The last m4 SKIP is gone.
+
+### ⛔ WHERE hq_C WAS WRONG, RECORDED RATHER THAN QUIETLY DROPPED
+
+hq_C proved `160` + the json hang + `json-match-fence` were **one class** and predicted all three would fall to one cure. **Only two did.** Measured at HEAD: `json` **PASS/PASS** · `json-match` **TIMEOUT** · `json-match-fence` **TIMEOUT** (it moved DIFF→TIMEOUT, which is a *change of symptom*, not obviously an improvement). ⭐ The narrowing is sharp and is the row's value: `[1,2]` hangs, `[1]` completes, and **json.sno passes the same witness on the same grammar — the only structural difference is captures.** So the residual lives in the **capture-FREE** path, which is the opposite of where anyone would look. Row minted: `json-match-capture-free-hang`.
+
+### OPEN, WITH OWNERS
+
+- `json-match-capture-free-hang` — FREE, briefed with the bisection above.
+- `demo_treebank` / `vlist-expr-alternation` (seat03) — ⭐ **STAYING RED ON PURPOSE, and hq_C ruled it so.** The TT_VLIST lowering was NOT missing (it landed at `b7d88465` behind `SCRIP_VLIST_ALT`, default off); the true blocker is `zd_plan` (`emit.cpp:2388`), whose run-walker follows only γ edges, so a node reachable only by an ω edge is never claimed and its address collides. seat03's prototype makes the SIGSEGV **probabilistic instead of certain** (crash vs silent wrong write depending on environment layout) — **a worse safety profile than the status quo**, correctly gated default-off and written up rather than shipped. A named red beats a silent wrong answer.
+- `x64-execfile-writer` — ⛔ **BLOCKED** pending Lon on scope (routed via ceo). Not a config flip: `main.c:86` calls `malloc_empty()`, declared at `sproto.h:92`, **defined nowhere in either SPITBOL tree**. ceo verified by recompute and landed hq_C's four-condition ORACLE-SWAP PROCEDURE into RULES.md § Oracles as law.
+- `nul-in-counted-strings-class-defect` (hq_C) — one rung left: `n11`, `CONVERT(table,'ARRAY')` on a NUL-bearing key raises **Error 235** where the oracle answers `3`.
+- seat04's census: **META 90.0** over 1952 rows. Weakest suites are `gimpel 40.5%` and `csnobol4_suite 47.5%`; `beauty_self` (weight **20**) is structurally UNSCR, so the score is over 93/113 effective weight — ⛔ **the flagship is not in the number.**
+
+### ⭐ THE METHOD NOTE, WORTH MORE THAN ANY SINGLE CURE
+
+**A class defined by a CODE IDIOM is searched with a grep; a class defined by a VALUE is searched with a LADDER.** The NUL brief named an idiom that does not exist in the tree (`grep -c` = 0) and a 1,286-call census whose top files contained neither real site. A 14-rung witness ladder plus one gdb backtrace found both in two files. Both ladders are banked and reusable: `corpus/probe/altgen` (7 rungs, 2 controls) and `corpus/probe/nul` (14 rungs). ⭐ **Every ladder carries PASSING CONTROLS** — that is what proves the instrument discriminates rather than merely reporting red.
+
+
 **s264 (2026-08-23) — FLEET MODE, 4 WORKERS. Lon in-chat, verbatim: *"You are running concurrently with a FLEET of 4 workers."* ⛔ This OVERRIDES the DUO default recorded below and in CLAUDE.md; it is Lon's word, this session, and it is why seats exist again.**
 
 **CURED AND PUSHED HERE (SCRIP `1f281ace`):** the **cset-argument family** was wrong for `CHAR(0)`. `rt_coerce_str_d` — the coercion every pattern primitive funnels through — tested `v.s[0]` for emptiness, so a NUL-leading string read as empty and raised *"argument is not a string"* (Error 69 BREAK · 59 ANY · 151 NOTANY); the same line then overwrote a correct `slen` with `strlen()`, which is why `SPAN` returned a **silent** no-match instead. One line, two defects, four symptoms. `cset_resolve` had the same truncation and is fixed with it. Corpus **m3 358/360 · m4 357/360 +1 SKIP**, fail set unchanged by name, both emit gates rc=0. ⛔ **The denominator is 360, not 359** (`a0859f7e` added a test). Receipts: FINDING-2026-08-23-hq_C-counted-strings-cset-family-cured-at-two-funnels.md.
