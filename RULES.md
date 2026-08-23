@@ -18,9 +18,9 @@
 
 ⛔ **STATE YOUR MODE.** Any session whose reasoning depends on which mode it is in must say which mode it believes it is in and why, so a wrong belief is visible instead of silent.
 
-## ⛔⭐⭐ MEASURE AND CURE — "MEASURE FREELY, CURE NEVER" IS REPEALED (Lon, 2026-08-23 s261)
+## ⛔⭐⭐ MEASURE AND CURE — YOU FIND IT, YOU FIX IT (Lon, 2026-08-23 s261)
 
-**Lon, in-chat, VERBATIM:** *"You better fix that MEASURE-FREELY-CURE-NEVER business. Tag you are it. Did I mention you are in DUO mode. I do not want to here about you not fixing the bugs. You will measure. You will cure."*
+**Lon, in-chat:** *"… Tag you are it. Did I mention you are in DUO mode. I do not want to here about you not fixing the bugs. You will measure. You will cure."*
 
 The s256 law that HQ may build/run/profile/bisect but must convert every defect into a queue row and a brief rather than an edit is **REPEALED, not narrowed and not suspended**. HQ measures **and** cures. *"I do not want to hear about you not fixing the bugs"* forecloses the specific dodge of minting a queue row **as a way of not fixing something**.
 

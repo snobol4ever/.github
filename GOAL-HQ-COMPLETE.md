@@ -15,11 +15,16 @@
 | **verdict** | byte-identical to the oracle, or **named RED with a witness**. There is no third state |
 | **flagship** | **beauty self-host = the fixed point** — output byte-identical to `beauty.sno` itself (Lon s117; all md5 pins VOID, the checked-in file is its own oracle) |
 
-## ⛔ THE LAW BOTH HQs SHARE: MEASURE FREELY, CURE NEVER
+## ⛔⛔⛔ THE LAW BOTH HQs SHARE: **YOU MEASURE *AND* YOU CURE**
 
-Lon s256: *"you can build and test and do, but when you find BUGS you delegate."* Build, run, diff, bisect, profile — all of it. **The moment a measurement becomes a DEFECT it becomes a row and a brief, never an edit.** HQ's output is rungs; a fix taken at HQ is a fix the fleet did not learn.
+⭐ **Lon s259:** *"… Tag you are it. Did I mention you are in DUO mode. I do not want to here about you not fixing the bugs. You will measure. You will cure."* Build, run, diff, bisect, profile — and when a measurement becomes a **defect, fix it**.
 
-## ⛔⛔⛔ RUNG C-0 — **STILL OPEN.** CURED AT `-O0`, BROKEN AT `-O2` (measured 2026-08-22, hq_C)
+⛔ The s256 delegate-only rule this replaced was written for an HQ commanding 16 seats, and its own test was *"does this end in a brief in a seat's inbox?"* **In DUO there is no inbox to end in** — held literally it guaranteed nothing was ever fixed. ⭐ The bug stops with the seat that finds it. The one-line test: **did this turn change the CODE, or only the record?** See § DUO MODE below.
+
+
+## ⛔⛔⛔ RUNG C-0 — **PARKED BY LON s258** (was "STILL OPEN"). CURED AT `-O0`, BROKEN AT `-O1` **AND** `-O2` (measured 2026-08-22, hq_C)
+
+⛔ **PARKED, NOT SOLVED, AND NOT TO BE WORKED:** both culprits (`c_rt_cap_open`, `rt_call_proc_descr`) are C runtime slated for ASM replacement. **Reaffirmed by Lon 2026-08-23 s261, verbatim: *"Do NOT fix -O2 bug for BEAUTY. Do not care. Next."*** ⭐ The heading said STILL OPEN for three sessions after it was parked; the body below is kept because its measurements are sound and whoever writes that ASM needs them.
 
 ⛔⛔ **LON CALLED THIS FROM MEMORY AND HE WAS RIGHT** — in-chat: *"The problem as I remember was with -O2 and beauty self host did not work."* **MEASURED AT `3f951354`:**
 
@@ -106,9 +111,9 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 | a bug you find | ⭐ **you fix it** | a row + a brief |
 | entered by | **assume it** | only when Lon says so explicitly |
 
-### ⛔⛔⛔ "MEASURE FREELY, CURE NEVER" IS **DEAD** — REVOKED, NOT SUSPENDED
+### ⛔⛔⛔ YOU MEASURE **AND** YOU CURE
 
-**Lon, verbatim:** *"You better fix that MEASURE-FREELY-CURE-NEVER business. Tag you are it. Did I mention you are in DUO mode. I do not want to here about you not fixing the bugs. You will measure. You will cure."*
+**Lon:** *"… Tag you are it. Did I mention you are in DUO mode. I do not want to here about you not fixing the bugs. You will measure. You will cure."*
 
 ⭐ **"Tag you are it": the bug stops with the seat that finds it.** Earlier this file recorded the revocation as *"HQ's reading, marked as such"* — that hedge is now void. Lon has said it outright, twice. Mirrored into `CLAUDE.md`'s MODES section (which is UNVERSIONED — this root is not a git repo — so **this file is the durable copy**).
 
@@ -123,7 +128,7 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 **The five rules, each inverting a mistake made today:**
 1. **A question from Lon IS an assignment.** He asked "did we rid ourselves of r10/r11" twice; I answered twice with a measurement and moved on. Asking again is not curiosity, it is escalation.
 2. **NEVER ask permission for work already asked for.** I found `free-r11` held by a seat that does not exist and said *"say the word and I'll reclaim it."* There is no word coming. Reclaim it.
-3. **MEASURE FREELY / CURE NEVER IS DEAD IN DUO.** Its whole basis was a fleet that learns from briefs. There is no learner. I cure.
+3. **I CURE.** The delegate-only rule's whole basis was a fleet that learns from briefs. There is no learner.
 4. **A row is a note to my future self, not a handoff.** Minting a baton and moving on = the work did not happen.
 5. **Never block on CEO.** It has never run this session. Route decisions there and *keep going*.
 
@@ -135,7 +140,7 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 **hq_C and hq_P are the only sessions running. There are no seats.** What this changes, and it is most of the operating model:
 
-1. ⭐ **MEASURE FREELY, CURE NEVER IS SUSPENDED FOR THIS SEAT — HQ CURES NOW.** That law's stated reason was *"a fix taken at HQ is a fix the fleet did not learn."* With no fleet there is no learner, and the law would mean **nothing gets fixed at all**. Lon has already put this seat in a curing role in the same session (*"Fix that BUILD problem"*), which is the reading in practice. ⛔ This is HQ's reading of two Lon statements, not a third Lon statement — it is marked as such, and Lon can overturn it in one line.
+1. ⭐ **HQ CURES NOW.** The delegate-only rule's stated reason was *"a fix taken at HQ is a fix the fleet did not learn."* With no fleet there is no learner, and the law would mean **nothing gets fixed at all**. Lon has already put this seat in a curing role in the same session (*"Fix that BUILD problem"*), which is the reading in practice. ⛔ This is HQ's reading of two Lon statements, not a third Lon statement — it is marked as such, and Lon can overturn it in one line.
 2. **The batons are a two-person worklist, not a dispatch queue.** `/home/resources/postoffice/tasks/*.task.md` keep their full value — GOAL, a DONE-WHEN that is a command, QA and an evidence LEDGER — but nobody is coming to pick them up. hq_C works them directly, newest evidence appended as before.
 3. **All 7 seat assignments have been RELEASED** (`claims.released.hq_C-s258-duo/`). ⛔ This was not cosmetic: a claimed row **hides itself from the picker**, so leaving work assigned to a seat that is not running would have fenced it off from the only two sessions that exist.
 4. ⛔ **CORRECTED BY LON THE SAME SESSION — THE FLEET PROTOCOL IS NOT DORMANT, IT IS THE ENABLER.** hq_C had written the control plane off as "dormant, no further investment" on hearing "duo only". Lon, in-chat: *"I am saying get the FLEET protocol working, or we can not blast development later"* and *"We will be doing massive work on Icon and Prolog etc as we go. We want the system working."* So the duo is the CURRENT staffing, not the destination: the fleet returns for the Icon/Prolog work, and the protocol must be finished and proven BEFORE it does. ⭐ Outstanding, in priority order: **V2-5 gate honesty** (31 of 105 gates cannot say NO — at 16 seats that closes rows on false green at scale, and LAW 1's DONE-WHEN rule depends on it), **V2-2 queue-as-index** (11 of 77 live rows converted to batons; rows still carry multi-KB prose), then V2-6 (Lon's flip; `PROTOCOL-V2-DRAFT.md` is staged and structurally complete).
@@ -166,7 +171,9 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 2. **`rtcc-r9-gvarq-collision-bb-define` (rank 0)** — live uncleared r9/GVARQ collision; `test_gate_rtcc_claimed_regs --strict` is RED and was red before tonight.
 3. **`160_pat_alt_inner_gen_resume`** — the only non-deliberate standing corpus red.
 4. ⛔ **Icon and Prolog are NOT now** (Lon s258); their oracles are absent from this box regardless.
-## LIVE CURSOR — hq_C
+## ⛔ SUPERSEDED CURSOR — s258 (kept for its measurements, NOT the live cursor)
+
+⛔ **THIS IS NOT THE LIVE CURSOR.** The live one is above, at s259/SCRIP `53819b4a`. This file carried **two** sections both titled `LIVE CURSOR — hq_C`, in a file whose whole premise is *trust the LIVE CURSOR at the top* — so a reader scrolling to the last one got the older state. Demoted 2026-08-23 s261. Its `161-o2-red` content is retained because RUNG C-0 is PARKED, not solved, and the ddmin result is the map for the ASM rewrite.
 
 **s258 (2026-08-22) — HANDOFF. Every claim below carries the command that produced it.**
 

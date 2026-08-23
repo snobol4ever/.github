@@ -15,12 +15,12 @@
 | **oracle** | **`/home/resources/spitbol-clean/sbl`** — the s255 benchmark oracle. ⛔ NEVER time against `x64/bin/sbl`: not because its clock is wrong (HQ measured both at ~1.0e9 ticks/sec, both nanoseconds) but because it is **2.30x handicapped** by monitor hooks |
 | **authority** | `scripts/lib_oracle_flags.sh` — `sbl_clean_bin()` for timing, `sbl_lang_flags()` → `-bf` for grading |
 
-## ⛔⛔ LON s259 REVOKED "CURE NEVER" — **THERE IS NO FLEET. THIS SEAT IS THE ONLY ONE WORKING.**
+## ⛔⛔ LON s259: THIS SEAT MEASURES **AND** CURES — **THERE IS NO FLEET. THIS SEAT IS THE ONLY ONE WORKING.**
 Verbatim in substance: *"You are the only one working. There is no FLEET."* and, on being told a 25% win was
 "dispatched": *"do you mean you told God about it? Or you did something about? … And why is it is not done?"*
 ⛔ **"Dispatched" means a row in a TSV and a task file. Nobody is working it. Nothing is fixed.** Stop using
-the word as if it were an action. **CURE NEVER presumes a fleet to delegate to; there isn't one. HQ does the
-work itself now.** The old law is kept below only as history.
+the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
+work itself now.**
 
 ### ⭐ START HERE NEXT SESSION — THE EDIT POINT IS FOUND, DO NOT RE-DERIVE IT
 Worth **~25% of roman** and needs **no semantic ruling** (row `defer-nv-read-by-pointer-not-name`, rank 0).
@@ -37,9 +37,9 @@ Worth **~25% of roman** and needs **no semantic ruling** (row `defer-nv-read-by-
 - **Verify before believing:** `make pristine` → `test_corpus_snobol4.sh` (expect m3 355/4, m4 354/3+2SKIP at
   `-O2`) → killswitch A/B → re-measure roman `check: 1102` first, then Ir.
 
-## ⛔ THE LAW BOTH HQs SHARE: MEASURE FREELY, CURE NEVER
+## ⛔ THE LAW BOTH HQs SHARE: **YOU MEASURE *AND* YOU CURE** (Lon s259)
 
-Build, run, profile, bisect — all of it. **The moment a measurement becomes a DEFECT it becomes a row and a brief, never an edit.**
+Build, run, profile, bisect — all of it. **And when a measurement becomes a DEFECT, fix it.** The bug stops with the seat that finds it.
 
 ## ⭐⭐⭐ RUNG P-0 — THE MAP IS ALREADY DRAWN. START FROM IT, DO NOT RE-DERIVE IT
 
@@ -108,7 +108,7 @@ cd SCRIP && make pristine                                 # HQ-27
 
 **Lon, in-chat, verbatim in substance:** *"Just so we are clear we are run only duo here, no FLEET, just 2 HQ's."*
 
-⛔ **THE CONSEQUENCE, STATED PLAINLY: `MEASURE FREELY, CURE NEVER` HAS NO RECEIVER.** That law (Lon s256) was
+⛔ **THE CONSEQUENCE, STATED PLAINLY: A DELEGATE-ONLY RULE HAS NO RECEIVER.** That rule (Lon s256) was
 written for an HQ commanding 16 seats, and its own one-line test was *"does this end in a brief in a seat's
 inbox?"* With no fleet there is no inbox to end in. Held literally it now guarantees that **nothing is ever
 fixed** — it would convert this seat into a generator of perfectly-documented queue rows nobody works.
@@ -230,7 +230,7 @@ target — an Icon row therefore has no sanctioned instrument. Topic `escalate-i
 
 **s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
 
-⭐ **THIS SEAT MEASURES *AND* CURES.** MEASURE-FREELY-CURE-NEVER is REPEALED (Lon s261 — see the section above and
+⭐ **THIS SEAT MEASURES *AND* CURES.** (Lon s261 — see the section above and
 `RULES.md` §§ THE TWO MODES / MEASURE AND CURE). **We are in DUO MODE and DUO IS THE DEFAULT**: Lon watching, two
 HQs, ceo. There is no fleet to delegate to, so **filing a queue row is not a deliverable — it is the shape of not
 doing the work.**
@@ -329,7 +329,7 @@ roman `check: 1102` **before** believing any Ir number.
 Rinse, repeat."** Also ruled the same message: this seat runs in **DUO mode** — hq_P (PERFORMANCE) alongside
 hq_C (CORRECTNESS) and ceo.
 
-⭐ **This SUSPENDS "MEASURE FREELY, CURE NEVER" for the ROMAN row.** That law (Lon s256) said HQ may build,
+⭐ **This SUSPENDS the delegate-only rule for the ROMAN row.** That rule (Lon s256) said HQ may build,
 run, profile and bisect but must convert every defect into a queue row and a brief rather than an edit.
 Lon has now told this seat directly to **fix**, on a named target, in a loop. Per RULES.md/THE LOOP clause 6
 (*"IF LON TELLS YOU SOMETHING THAT CONTRADICTS YOUR BRIEF, LON WINS — THEN YOU MUST TELL HQ"*), the override
@@ -337,11 +337,11 @@ is taken IMMEDIATELY and routed here in the same session. Scope of the suspensio
 not read wider than it is: **the ROMAN speed row on this seat.** It is not a general repeal for hq_P, and
 nothing here changes the interlock — a wrong ANSWER remains hq_C's under their s259 standing order.
 
-## ⛔⛔⭐ MEASURE-FREELY-CURE-NEVER IS REPEALED — LON s261, AND IT SUPERSEDES MY OWN NOTE ABOVE
+## ⛔⛔⭐ YOU MEASURE **AND** YOU CURE — LON s261, AND IT SUPERSEDES MY OWN NOTE ABOVE
 
-**Lon, in-chat 2026-08-23 s261, VERBATIM:**
+**Lon, in-chat 2026-08-23 s261:**
 
-> You better fix that MEASURE-FREELY-CURE-NEVER business. Tag you are it. Did I mention you are in DUO mode. I do
+> … Tag you are it. Did I mention you are in DUO mode. I do
 > not want to here about you not fixing the bugs. You will measure. You will cure. Make note and tell the
 > CORRECTNESS seat through your comm channel, post office, this exact message. Let's see if this system works.
 

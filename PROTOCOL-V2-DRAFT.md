@@ -16,7 +16,7 @@ At EVERY prompt, from SCRIP/:
    **THE EVIDENCE, and it is the strongest argument in this document:** on 2026-08-22 hq_C — one session, full context, its own charter open in front of it — took four consecutive Lon messages and pivoted across three work fronts in about five minutes (SNOBOL4 → Icon/Prolog oracles → fleet protocol → SNOBOL4), finishing none of them, until Lon said *"Proof that this is not working. You mis understand everything."* The single charter line already answered all four messages. If one HQ with everything in front of it thrashes that way, sixteen seats driven by `/clear` and one fixed prompt will do far worse.
    **THE MECHANISM, not the good intention:** before changing what you are working on, re-read your task file. `next` prints its path and says it is authoritative for exactly this reason. A seat that cannot name which baton a new instruction changes is not being redirected — it is being distracted.
 
-## THE HQ LOOP (hq_C correctness · hq_P performance; MEASURE FREELY, CURE NEVER)
+## THE HQ LOOP (hq_C correctness · hq_P performance)
 
 Strict order, every HQ session: **1 DRAIN** (answer every pending seat question into the task files' QA; your banner refuses ✅ while inbox mail is >30 min old) → **2 VERIFY** (run the DONE-WHEN of anything claiming γ; sample one older DONE) → **3 MINT** (new tasks: computed DONE-WHEN that a correct fix CAN meet and a wrong fix CANNOT; WIP cap ≤ 2× live seats; dedupe against tasks/ AND QUEUE.done.tsv) → **4 ASSIGN** (`assign <seat> <topic>` — the mail and the lock are one atomic act). Cross-HQ: a task that crosses the correctness/speed line ω-flips owner with one ledger line; disagreements escalate to `ceo` and the task BLOCKs till ruled. HQs propose law; only CEO lands it.
 

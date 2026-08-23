@@ -81,7 +81,7 @@ ceiling, and we have hit it.
 
 ## ⛔ WHAT THIS SEAT IS NOT DOING
 
-**MEASURE FREELY, CURE NEVER.** No edit is proposed here and none was made. Two reasons this one is
+**Under the s256 delegate-only rule then in force:** no edit is proposed here and none was made. Two reasons this one is
 emphatically not hq_P's to cure:
 
 1. **The correctness question is hq_C's and it is genuinely open.** §7 of

@@ -7,7 +7,7 @@
 ## ⛔ WHY THIS SEAT CURED INSTEAD OF BRIEFING
 
 **Lon, in-chat s260: "Target ROMAN. Run in a loop. Find the biggest bottleneck, then fix. Rinse, repeat."** That
-overrides MEASURE-FREELY-CURE-NEVER for this row, per THE LOOP clause 6. Routed to `GOAL-HQ-PERFORM.md` § LON
+overrides the s256 delegate-only rule for this row, per THE LOOP clause 6. Routed to `GOAL-HQ-PERFORM.md` § LON
 OVERRIDE s260 the moment it landed. Scope is the ROMAN speed row on this seat, not a general repeal.
 
 ## The result

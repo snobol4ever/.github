@@ -93,7 +93,7 @@ codegen is not what loses.
 - `table_access` does **not** belong to that class and must not be dispatched as if it did. Its row wants
   three separate questions: why does a subscript allocate, why is each subscript resolved twice, and why is a
   key stringified on the read path.
-- ⛔ **No cure is proposed or attempted here.** MEASURE FREELY, CURE NEVER.
+- ⛔ **No cure is proposed or attempted here** (the s256 delegate-only rule was in force).
 
 ## Honest limits
 

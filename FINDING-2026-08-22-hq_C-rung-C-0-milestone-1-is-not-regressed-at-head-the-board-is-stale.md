@@ -109,7 +109,7 @@ Reds: `160_pat_alt_inner_gen_resume` (standing front red, both modes) · `demo_t
 
 ⛔ The long-quoted `339/341` is stale, and so is seat3's `320/321` — **the denominator is 359.** Cite this one, or measure your own.
 
-## WHAT MUST HAPPEN NEXT (rows, not edits — MEASURE FREELY, CURE NEVER)
+## WHAT MUST HAPPEN NEXT (rows, not edits — under the s256 delegate-only rule in force at the time)
 
 1. **`rung-m1-m3-regression` is redirected, not closed by fiat.** Its NEXT block no longer says "bisect 66 commits"; it says run the DONE-WHEN, confirm, and correct the board. A seat re-firing the old brief would have spent a full session bisecting a cured defect with a probe that reads BAD at every step.
 2. **Retract owed-ruling item (v) properly.** seat07 was right that it read stale — but stale in the *opposite* direction from what anyone assumed: M1 is not broken, it is fixed.

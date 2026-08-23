@@ -6,22 +6,22 @@
 
 **DUO is the default and is where the project actually operates:** Lon watching, `hq_C`, `hq_P`, `ceo`, and **no seats**. Lon, verbatim: *"There are two modes and you better know which mode you are in. And the DEFAULT is DUO mode... We'll probably NEVER be in FLEET mode."* Read everything below as the contingency design, and enter it only on Lon's explicit word.
 
-⛔ **In DUO, "MEASURE FREELY, CURE NEVER" (the hq_C/hq_P row in the table below) is REVOKED — the HQs measure AND cure.** That law's own test was *"does this end in a brief in a seat's inbox?"*, and in DUO there is no inbox to end in. What survives from this document in DUO: LAW 0 (provenance), LAW 1 (no hand-typed verdicts), the baton format as a note-to-self, and the postoffice as the hq_C↔hq_P↔ceo bus.
+⛔ **In DUO, the s256 delegate-only rule (the hq_C/hq_P row in the table below) is REVOKED — the HQs measure AND cure.** That rule's own test was *"does this end in a brief in a seat's inbox?"*, and in DUO there is no inbox to end in. What survives from this document in DUO: LAW 0 (provenance), LAW 1 (no hand-typed verdicts), the baton format as a note-to-self, and the postoffice as the hq_C↔hq_P↔ceo bus.
 
 ## THE ORG CHART — THREE TIERS, EACH EXACTLY ONE LOOP
 
 | tier | model | cadence | THE ONE LOOP | forbidden |
 |---|---|---|---|---|
 | **CEO** (`ceo`, `/home/claude`) | Fable | rare; Lon fires it | audit closed tasks by sample · arbitrate hq_C↔hq_P · custody of law (RULES/PROTOCOL; HQs propose, CEO lands) · strategy with Lon | triaging seat questions · writing briefs · measuring · any code |
-| **hq_C** (`/home/claude_C`) · **hq_P** (`/home/claude_P`) | Opus 5 (Max) — Lon s257 | at Lon's prompt | **drain → verify → mint → assign**, in that order (below) | curing (MEASURE FREELY, CURE NEVER, s256) · amending law · working the twin's tasks |
+| **hq_C** (`/home/claude_C`) · **hq_P** (`/home/claude_P`) | Opus 5 (Max) — Lon s257 | at Lon's prompt | **drain → verify → mint → assign**, in that order (below) | curing (delegate-only, s256 — FLEET only) · amending law · working the twin's tasks |
 | seats 01–16 | Sonnet 5 — 8 active + 8 reserve (Lon s257; reserves fire only per the scale rule) | Lon's /clear + fixed prompt | `next` → execute the task's NEXT block → suspend or finish | picking work without a task file · hand-typed verdicts |
 
 **Why a CEO exists:** every protocol amendment of the v1 era was a duty being stripped OUT of HQ after it failed holding five at once (s256 revoked the coding lane, then split C from P). The CEO tier finishes that motion: the residual cross-cutting duties (law, arbitration, audit) go UP into a rare expensive session, and each HQ is left holding exactly one question — *is it right* (hq_C) / *how many instructions* (hq_P). The v1 free-r10 inversion was HQ ruling DONE on prose; the CEO's audit loop (re-run sampled DONE-WHENs) is the tier that catches that class in minutes.
 
 ## ⭐⭐ TWO OPERATING MODES — DUO AND FLEET (Lon, 2026-08-22 s259, in-chat to CEO, verbatim in substance: *"they run in two modes: (1) DUO where it is only 2 HQ's and a CEO, and (2) with a FLEET"*)
 
-- **DUO** — 2 HQs + CEO, no seats fired. MEASURE FREELY, CURE NEVER is **SUSPENDED**: the HQs do the work themselves (Lon s259 to hq_P, verbatim in substance: *"You are the only one working. There is no FLEET"* — routed GOAL-HQ-PERFORM.md). "Dispatched" is not an action in DUO — a row nobody will work is a row the owning HQ works.
-- **FLEET** — seats are fired. CURE NEVER re-binds on both HQs in full (a fix is a baton + `assign`, never an HQ edit); the seat loop, firing gate, and abort/shrink criteria of GOAL-CEO.md apply.
+- **DUO** — 2 HQs + CEO, no seats fired. the delegate-only rule is **SUSPENDED**: the HQs do the work themselves (Lon s259 to hq_P, verbatim in substance: *"You are the only one working. There is no FLEET"* — routed GOAL-HQ-PERFORM.md). "Dispatched" is not an action in DUO — a row nobody will work is a row the owning HQ works.
+- **FLEET** — seats are fired. the delegate-only rule re-binds on both HQs in full (a fix is a baton + `assign`, never an HQ edit); the seat loop, firing gate, and abort/shrink criteria of GOAL-CEO.md apply.
 - The mode is **Lon's declaration in-chat**, routed here when it changes — never inferred from seat activity. Mode as of 2026-08-22 s259: **DUO**, and Lon s259 in-chat: *"We'll probably stay in DUO the entire time"* — so DUO is the STANDING mode, FLEET the exception he may never invoke; the wave-3 machinery stays ready but nothing is planned around firing it.
 
 ## ⭐⭐⭐ THE BATON — A TASK IS A GENERATOR WHOSE FRAME OUTLIVES ITS ACTIVATION

@@ -54,7 +54,7 @@ announces itself on stderr, because a deliberate report-only run is legitimate a
 Each was **already broken**; the gate was the thing that was broken about it. Four are new queue rows and the
 fifth already had one (`rtcc-r9-gvarq-collision-bb-define`, rank 0) — this seat's evidence was **merged into that
 row rather than filed as a second one**, and the duplicate it briefly created was removed. All five are rows —
-**MEASURE FREELY, CURE NEVER** — and **none is in the blocking set**.
+**rows, not edits, under the s256 delegate-only rule** — and **none is in the blocking set**.
 
 | row | what was hiding | witness |
 |---|---|---|
