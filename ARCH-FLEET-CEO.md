@@ -6,9 +6,9 @@
 
 | tier | model | cadence | THE ONE LOOP | forbidden |
 |---|---|---|---|---|
-| **CEO** (`ceo`) | Fable | rare; Lon fires it | audit closed tasks by sample · arbitrate hq_C↔hq_P · custody of law (RULES/PROTOCOL; HQs propose, CEO lands) · strategy with Lon | triaging seat questions · writing briefs · measuring · any code |
-| **hq_C** (`/home/claude_C`) · **hq_P** (`/home/claude_P`) | Opus | at Lon's prompt | **drain → verify → mint → assign**, in that order (below) | curing (MEASURE FREELY, CURE NEVER, s256) · amending law · working the twin's tasks |
-| seats 01–16 | Opus/Sonnet | Lon's /clear + fixed prompt | `next` → execute the task's NEXT block → suspend or finish | picking work without a task file · hand-typed verdicts |
+| **CEO** (`ceo`, `/home/claude`) | Fable | rare; Lon fires it | audit closed tasks by sample · arbitrate hq_C↔hq_P · custody of law (RULES/PROTOCOL; HQs propose, CEO lands) · strategy with Lon | triaging seat questions · writing briefs · measuring · any code |
+| **hq_C** (`/home/claude_C`) · **hq_P** (`/home/claude_P`) | Opus 5 (Max) — Lon s257 | at Lon's prompt | **drain → verify → mint → assign**, in that order (below) | curing (MEASURE FREELY, CURE NEVER, s256) · amending law · working the twin's tasks |
+| seats 01–16 | Sonnet 5 — 8 active + 8 reserve (Lon s257; reserves fire only per the scale rule) | Lon's /clear + fixed prompt | `next` → execute the task's NEXT block → suspend or finish | picking work without a task file · hand-typed verdicts |
 
 **Why a CEO exists:** every protocol amendment of the v1 era was a duty being stripped OUT of HQ after it failed holding five at once (s256 revoked the coding lane, then split C from P). The CEO tier finishes that motion: the residual cross-cutting duties (law, arbitration, audit) go UP into a rare expensive session, and each HQ is left holding exactly one question — *is it right* (hq_C) / *how many instructions* (hq_P). The v1 free-r10 inversion was HQ ruling DONE on prose; the CEO's audit loop (re-run sampled DONE-WHENs) is the tier that catches that class in minutes.
 
