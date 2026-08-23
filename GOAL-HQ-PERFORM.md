@@ -206,58 +206,66 @@ target — an Icon row therefore has no sanctioned instrument. Topic `escalate-i
 
 ## LIVE CURSOR — hq_P
 
-**s258 (2026-08-22) — P-0 ANSWERED AND THE FIRST CURE LANDED. Sovereign question moved 6.58x → measurably better; exact `-O2` number PENDING (command below).**
+**s259 (2026-08-22) — THE OWED NUMBER IS PAID AND RETRACTED DOWNWARD; V2-5 LANDED; DUO WITH hq_C IS NOW LON-ORDERED.**
+
+### ⛔⭐ LON OVERRIDE, ROUTED THE SAME SESSION (protocol law 6)
+Lon, in-chat, mid-session, contradicting the row this seat had just locked. Verbatim in substance:
+*"Ensure you get the FLEET protocol complete before we continue... When done with FLEET protocol continue on
+ROMAN like before and run duo with the other HQ. Y'all can talk back and forth. He'll fix you bugs and you can
+speed up his programs."*
+- **Priority order is now: fleet protocol FIRST, then roman.** Same ruling hq_C received independently
+  (*"get the FLEET protocol working, or we can not blast development later"*).
+- **The duo is the staffing and it has a division: hq_C cures, hq_P measures.** The fleet returns for
+  Icon/Prolog; the protocol must be finished and PROVEN before it does.
+- ⛔ `next` had locked `zeta-frame-rsp-capture-home`. Lon's redirect wins, so **the claim was RELEASED** (not
+  parked silently) and the analysis banked below so the row is not re-derived from scratch.
+- Sent to hq_C as `duo-v2-5-taken`. **This block is the routing.**
 
 ### ✅ LANDED AND PUSHED
-- **Preflight V2-3 + V2-4** (SCRIP `8e2fb884`, `3f951354`) — identity asserted not globbed, `.msg.*` orphan sweep,
-  `/home/claude`→`ceo`, census by mailbox with a MAIL column, HQ drain refusal, board age+topic. Gate
-  `test_gate_postoffice_identity.sh` **18/0 current vs 3/15 pre-patch**, subject redirectable via `S4E_MSG_BIN`.
-- **Legacy `hq` drained 29 → 0**; phantom `claude01/` retired; a 46-hour orphan delivered. `fleet` shows **Q=0**.
-- **hq_C cross-verified BOTH WAYS** — V2-1 ✅ (rank inversion, assign-beats-free, both refusals), V2-2 ✅ (0 rows
-  swept without a `DONE` marker). hq_C signed off my V2-4 and caught a real defect in my gate (hardcoded subject).
-- ⭐ **RUNG P-0 ANSWERED** — `FINDING-2026-08-22-hq_P-roman-is-44-percent-variable-name-lookup-not-registers.md`.
-  `roman` `-O2` **50,648 Ir/iter vs clean SPITBOL 7,966 = 6.36x** (m4), output verified `check: 1102` both engines.
-  **NO linear scan anywhere — every Ir/call 20–80.** The defect was call COUNT: 159 variable lookups and 250
-  `strcmp` per iteration. Emitted code is only **11.8%**; the gap is entirely runtime services.
-- ⭐ **FIRST CURE LANDED** (SCRIP `db8f96d6`) — the NV_* memo, SPITBOL's `vrblk` discipline applied to `NV_t`.
-  Corpus **m3 357/2, m4 355/2+2SKIP**, identical to the killswitch control; both blocking gates green.
-  ⛔ **Its killswitch caught an unsound first draft (335/22 vs 355/2)** — name pointers are NOT stable (the runtime
-  passes stack buffers) and inserts can shadow. Cured with `strcmp` validation + a generation counter at **all three**
-  insertion sites. **NEW GLOBALS granted by Lon in-chat s258.**
+- ⭐ **THE OWED -O2 RE-MEASURE IS PAID, AND IT RETRACTS ONE OF THIS SEAT'S OWN NUMBERS.**
+  `FINDING-2026-08-22-hq_P-hardened-nv-memo-is-17-percent-not-25.md`. roman mode-4, FIXED-WORK N=20000,
+  callgrind, RT_OPT=`-O2`, full `make pristine`, commit `aa583ad8`, **output verified `check: 1102` first**:
+  **869,577,578 Ir = 43,478.9 Ir/iter = 5.46x clean SPITBOL**, i.e. **-17.1%**, not the -25.2% in circulation.
+  ⛔ **The 25.2% / 39,255 figure belonged to the UNSOUND DRAFT the killswitch caught. Do not re-cite it.**
+  Sovereign question: **6.58x → 5.46x, verified.**
+- ⭐ **V2-5 GATE HONESTY LANDED — SCRIP `e88e77db`** —
+  `FINDING-2026-08-22-hq_P-v2-5-thirty-one-gates-can-now-say-no.md`. **31/31** formerly-vacuous gates now
+  refuse an empty tree (measured **26 vacuous → 6 → 0**, which is the negative test). New `scripts/lib_gate.sh`
+  (three exit codes: 0 CLEAN / 1 VIOLATION / **2 UNPROVEN**) and `scripts/test_gate_gates_can_say_no.sh`.
+  **Strict is now the default**; nothing in the repo had ever passed `--strict`.
+  Blocking set re-proven: `emit_no_lang` 0, `template_medium_invisible` 0, `test_corpus_snobol4` 0
+  (m3 355/4, m4 354/3+2SKIP). hq_C's `test_gate_fleet_protocol_e2e.sh` **11/11** on this tree.
+- **FIVE gates are now correctly RED — all pre-existing live defects, none in the blocking set, all minted as
+  rows, none cured here** (MEASURE FREELY, CURE NEVER): `rtcc-r9-gvarq-collision` ·
+  `c-to-bb-unledgered-scrip-c-57` · `vstack-residue-rt-h` · `const-graph-marginal-over-watermark` ·
+  `bb-fixup-rank-85-dirty-templates`.
 
-### ⛔ THE ONE THING OWED — 5 MINUTES, DO IT FIRST
-The `-O2` re-measure of the **hardened** memo. The 25.2% / 39,255 Ir-per-iter figure in circulation belongs to the
-**unsound draft**; the shipped version pays a `strcmp` per hit, so the real number is lower and is **not yet taken**.
-An `-O2 pristine` was in flight when the session ended (a partially-built `out/` may be on disk — rebuild, do not trust it).
-```bash
-cd /home/claude_P/SCRIP && RT_OPT="-O2 -g -fno-strict-aliasing -fwrapv -fno-omit-frame-pointer" make pristine
-cd ../corpus/benchmarks/snobol4 && echo 20000 | valgrind --tool=callgrind ./…/scrip roman.sno   # must print check: 1102
-# baseline to beat: 1,049,108,015 Ir (52,455/iter, 6.58x).  Publish with RT_OPT, never without.
-```
+### ⭐ NEXT RUNG — MEASURED, NOT GUESSED (same callgrind run as the roman number)
+| bucket | share | note |
+|---|---|---|
+| **variable-name lookup** | **36.5%** | `NV_GET_fn` 21.04% (**still #1 — the memo did NOT dethrone it**) · `__strcmp_avx2` 10.91% (substantially the memo's OWN validation cost) · `NV_SET_fn` 4.58% |
+| **defer pipeline** | **26.9%** | `c_rt_defer_close` 10.47 · `rt_defer_run_all` 7.59 · `rt_defer_get_pat_dtp` 5.65 · `rt_dfx_push` 3.23 — down from the 29.8% predicted |
+| our emitted code | 13.4% | |
 
-### ⭐ NEXT RUNG — ONE CALL SITE WORTH 29.8%
-`c_rt_defer_close` 11.60% + `rt_defer_run_all` 8.40% + `rt_defer_get_pat_dtp` 6.26% + `rt_dfx_push` 3.58%, each called
-**exactly 1,403,811 times** (70/iteration) — one fixed pipeline, now **larger than our emitted code (15.77%)**.
-`roman.s` has **exactly one** defer site, `n44_match_defer`: the bare `T` in `'0,1I,…' T BREAK(',') . T`, re-read at
-every unanchored start position.
-⛔ **CORRECTNESS FIRST, AND IT IS hq_C's CALL.** §7 of `REFERENCE-SPITBOL-BEAUTY-CONSTRUCTS.md`: deferral is what
-`*expr` MEANS; a bare variable is evaluated at construction. `lower_snobol4.c:1398` lowers `case TT_VAR:` straight to
-`IR_MATCH_DEFER`. If a pattern assigns the variable mid-match (beauty's `NRETURN` idiom), SPITBOL matches the
-already-built pattern and we would not. Answers agree today (`check: 1102`), so it is conservative deferral, not a
-wrong answer. **No unilateral change from this seat.**
-⭐ Three mechanisms already in the tree bypass the defer and none reaches this case: `cx->pre[]`
-(`lower_snobol4.c:1399`, consumed :1842 → `PATV$n`, `pat_static=1`) · `SCRIP_PAT_INLINE`+`sno_fz_tree()` (needs a
-pattern value; `T` holds a string) · ⭐ **`&user_defined_constants` (Lon s258)** — `lower_snobol4.c:1393` folds a
-sealed `&NAME` via `sno_const_val`/`sno_const_pat` against `g_sno_seal[]` and never reaches `IR_MATCH_DEFER`.
-⛔ It cannot help `roman`'s `T` (capture target, genuinely varies, sealing → error 341); **it pays on variables
-assigned once and thereafter only read — beauty's `*Expr0…*Expr17` grammar is the textbook case.**
+**63.4% of every instruction roman executes is in two runtime buckets and NEITHER IS CODEGEN.** The memo
+turned a hash into a `strcmp`; the next rung is to **stop doing the lookup at all**, not to make it cheaper
+again. ⛔ The defer half is hq_C's call (roman has exactly ONE defer site, `n44_match_defer`); no unilateral
+change from this seat.
+
+### 🔖 BANKED — `zeta-frame-rsp-capture-home`, released mid-analysis, DO NOT RE-DERIVE
+- ⛔ **The abort message is MISLEADING.** It blames *"classifier and ZD plan disagree"*, but
+  `cap_anchor_of()` at `emit.cpp:973` is a **stub that returns 0**, so `havehome()` reduces to `op_zres`
+  alone and the entire ζ-STANDING arm of that test is **dead code**.
+- `--zeta-storage=frame-rsp` routes through `rt_zeta_storage_set` to **`rt_zeta_port_set_mode(ZC_PORT_CSTACK)`**,
+  and `x86_fc_on()` is hardcoded to `port == ZC_PORT_FORTH` — so **every forth-cell mechanism switches off
+  together** under frame-rsp. `zeta_storage.c` never consults the storage mode at all.
+- ⭐ Reading: this is an **UNIMPLEMENTED config**, not a misclassification. ⛔ **Do not cure it by widening
+  the classifier.** NOT proven — no binary was available before the redirect. `SCRIP_CAP_DIAG=1` prints
+  `zres`/`anchor`/`frame_off` per capture node and is the instrument to finish it with.
 
 ### ⛔ STANDING CONSTRAINTS
-- **NO BEAUTY NUMBER AT `-O2`.** hq_C measured C-0 reopening at `-O2` (both media 278 bytes, md5 `1c75f97d`,
-  byte-identical to the pre-cure failure) while `-O0` self-hosts correctly at 40,971. The inherited
-  **2,129,544,838 Ir figure is VOID if it was taken at `-O2`**. Date every beauty number by commit AND RT_OPT.
-- **No perf claim may cite a ζ-storage comparison** while `zeta-frame-rsp-capture-home` / `zeta-cell-heap-segv` are red.
-- Rows owned here: those two (rank 0) + `rtx-icnnum-icnsub-bail-invariant` (rank 2, design answer before any edit).
-  `opt0-define-beta-link` is hq_C's via the interlock. **No fleet — these are this seat's own worklist (Lon s258).**
-- Open with `ceo`: `escalate-icon-checks-vs-icon-target` (SNOBOL4-FIRST forbids the Icon gates; PLAN gives Icon a
-  numeric target — an Icon row therefore has no sanctioned instrument).
+- **NO BEAUTY NUMBER AT `-O2`** (roman at `-O2` is fine and was verified this session; hq_C has localised the
+  `-O2` defect to **two files of 261**, `rt.c` + `pattern_match.c`).
+- No perf claim may cite a ζ-storage comparison while `zeta-frame-rsp-capture-home` / `zeta-cell-heap-segv` are red.
+- Open with `ceo`: `escalate-icon-checks-vs-icon-target`.
+- ⚠️ `test_gate_fb_predicate_tripwire.sh` times out at 100 s on the real tree (exit 124). Pre-existing, not V2-5 fallout.
