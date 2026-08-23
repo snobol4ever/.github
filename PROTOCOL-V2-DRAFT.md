@@ -9,13 +9,26 @@ At EVERY prompt, from SCRIP/:
 2. `bash scripts/s4e_msg.sh next` — serves, in order: ⭐ tasks ASSIGNED to you → your unfinished claim → rank-sorted FREE tasks. It prints the task file path `/home/resources/postoffice/tasks/<topic>.task.md`. Read GOAL + NEXT (⭐ not the whole ledger). Execute NEXT exactly.
 3. Work. NON-BLOCKING default unchanged (v1 LAW 17): a surprising number is a ledger line, not a stop. ⭐ Questions go in the task file's QA section AND a doorbell to your owning HQ (`ask`); if the answer gates ALL remaining work, set state BLOCKED and take `next` again — the task leaves the picker until HQ answers in the file and re-FREEs it.
 4. ⭐ SUSPEND IS THE HANDOFF: before you stop (or whenever a rung lands), append PROVEN/DISPROVEN lines with receipts and REWRITE the NEXT block so any seat resumes without you. The Stop-hook banner flags a RUNNING task whose NEXT you never touched.
-5. DONE = the task's DONE-WHEN command exits 0 AND `handoff_status.sh` COMPLETE. `done <topic>`, `board`, `next` again. Banner stays automatic and computed — never hand-type a verdict.
+5. DONE = the task's DONE-WHEN command exits 0 AND `handoff_status.sh` COMPLETE. `done <topic>`, `board`, `next` again. Banner stays automatic and computed — never hand-type a verdict. ⭐ **AND THIS IS NOW ENFORCED, NOT REQUESTED (s258):** `done` reads DONE-WHEN from the baton, RUNS it, and REFUSES on non-zero — the claim is untouched and the row stays open. A baton with no DONE-WHEN cannot be closed at all. Overrides exist for a criterion proven wrong, but they are loud and written into the claim (`S4E_DONE_OVERRIDE="why"`). ⛔ Weakening a DONE-WHEN to make it pass is the false-green trap the rule exists to stop; fix the criterion in the file and say so in the LEDGER.
 6. Clone trouble: unchanged from v1 — disposable clone, SAVE-BEFORE-RECLONE, no destructive git, ever.
 7. Lon's word beats every file, and the override routes back the same session — unchanged.
+8. ⭐⭐ **A NEW MESSAGE DOES NOT RE-PLAN THE SESSION (added s258, from a MEASURED failure by hq_C itself).** An instruction arriving mid-session does exactly one of three things: it **updates a task file** (then re-read the baton and continue), it **is a new task** (then it is minted and ranked like any other, not started on the spot), or it **is context** (then it changes nothing you are doing). ⛔ It never silently re-orders the standing priority — that lives in the charter, and for hq_C it is *SNOBOL4 #1, Icon #2, Prolog #3, always*.
+   **THE EVIDENCE, and it is the strongest argument in this document:** on 2026-08-22 hq_C — one session, full context, its own charter open in front of it — took four consecutive Lon messages and pivoted across three work fronts in about five minutes (SNOBOL4 → Icon/Prolog oracles → fleet protocol → SNOBOL4), finishing none of them, until Lon said *"Proof that this is not working. You mis understand everything."* The single charter line already answered all four messages. If one HQ with everything in front of it thrashes that way, sixteen seats driven by `/clear` and one fixed prompt will do far worse.
+   **THE MECHANISM, not the good intention:** before changing what you are working on, re-read your task file. `next` prints its path and says it is authoritative for exactly this reason. A seat that cannot name which baton a new instruction changes is not being redirected — it is being distracted.
 
 ## THE HQ LOOP (hq_C correctness · hq_P performance; MEASURE FREELY, CURE NEVER)
 
 Strict order, every HQ session: **1 DRAIN** (answer every pending seat question into the task files' QA; your banner refuses ✅ while inbox mail is >30 min old) → **2 VERIFY** (run the DONE-WHEN of anything claiming γ; sample one older DONE) → **3 MINT** (new tasks: computed DONE-WHEN that a correct fix CAN meet and a wrong fix CANNOT; WIP cap ≤ 2× live seats; dedupe against tasks/ AND QUEUE.done.tsv) → **4 ASSIGN** (`assign <seat> <topic>` — the mail and the lock are one atomic act). Cross-HQ: a task that crosses the correctness/speed line ω-flips owner with one ledger line; disagreements escalate to `ceo` and the task BLOCKs till ruled. HQs propose law; only CEO lands it.
+
+## STATUS AGAINST THE ROLLOUT LADDER (measured 2026-08-22 s258)
+
+- **V2-1** picker + `assign` + assigned-first `next` — ✅ LANDED (SCRIP `93d3ef16`), gate `test_gate_s4e_picker_v2.sh` 18/18, cross-verified and signed off by hq_P.
+- **V2-2** queue-as-index + batons + DONE sweep — ⚠ **PARTIAL**: sweep ✅ (113 rows moved, `sweep` subcommand keeps it clean); batons **11 of 77 live rows**; QUEUE.tsv still carries multi-KB prose per row.
+- **V2-3** banner refusal on stale inbox — ✅ LANDED (hq_P, `8e2fb884`).
+- **V2-4** identity asserted + mailbox census + `.msg.*` sweep — ✅ LANDED, cross-verified by hq_C (18/18 live, 15 failures pre-patch).
+- **γ ENFORCEMENT** (not originally a numbered rung, and the largest hole found) — ✅ LANDED (`aa583ad8`): `done` verifies the DONE-WHEN. Gate `test_gate_fleet_protocol_e2e.sh`, 11 checks, the first test of the whole seat LOOP rather than one subcommand.
+- **V2-5** gate honesty — ⛔ **NOT DONE. This is the last real blocker.** 31 of 105 audited gates cannot say NO (seat16, injection-proven), two of them measured to be hiding live defects. At 16 seats a gate that cannot fail closes rows on false green at scale, and LAW 1's DONE-WHEN rule is only as good as the gates it cites.
+- **V2-6** Lon's flip — pending; this file is the source the postoffice copy is written from.
 
 ## THE MECHANICS (V2-1…V2-5 must be landed before flip)
 
