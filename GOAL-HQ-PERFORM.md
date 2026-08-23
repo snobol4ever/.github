@@ -62,6 +62,16 @@ work itself now.**
 4. **By-name builtin dispatch scaffolding, ~370 Ir/call** — the bid is already resolved at compile time and passed in `bidlen`, yet the preamble re-derives the dtax probe including a `memcmp` that is redundant when the slot was indexed BY bid. Class-wide, no per-op filter needed.
 5. ⛔ **`_tbl_grow`'s allocation floor is STILL not to be touched blind** — `aggregates.c:342`'s floor-1-vs-floor-4 measurement stands, Ir and cache-misses disagree in opposite directions, and Ir is the only instrument here.
 
+⭐⭐ **LON'S s264 PAT$/EXPR$ DIRECTIVE — MEASURED s266, AND THE ANSWER IS THAT THE COMPILER IS ALREADY DOING THAT WORK.** Relayed by ceo: *"The PAT$ and EXPR% lookups could be slowing things down. They should be addressed. The compiler needs to do the extra work, not the runtime."* Measured on json (631 KB, slope, `-O0`, m4):
+
+| what | Ir/iter | share of json |
+|---|---|---|
+| PAT$/EXPR$ **by-name** work — snapshot-seed `snprintf("%s$V%ld")` + `NV_GET_fn` | 1,069,620 | **0.64%** |
+| `_var_hash` + `_var_bucket_find` (the by-name FALLBACK) | **0** | **0.00%** |
+| `rt_patv_defer_get_pat_dtp` + `rt_patv_defer_run_all` + `patv_slot` | 17,989,664 | **10.72%** |
+
+⭐ **The `PAT$n$Vk` names reach the runtime as 34 emitted call-site literals but the lookup they would drive is NEVER TAKEN in steady state** — the compiler-built snapshot hits every time, which is why `_var_hash` and `_var_bucket_find` have a per-iteration slope of exactly zero. claws5 uses none of it at all (zero `PAT$` call sites). ⛔ **So the directive's goal is already met, and the 10.72% sitting in the functions Lon named is NOT the name — it is the `-O0` call scaffolding around a three-load snapshot read** (`rt_patv_defer_get_pat_dtp` costs 46 Ir to do four loads and three compares). **That is next rung 2 below, and it is an ASM port, not a by-name cure.** ⭐ The one real by-name residue worth taking is the 0.64%: the snapshot seed rebuilds `PAT$n$Vk` with `snprintf` per slot per match, and the compiler already knows every one of those names — hand it the vector instead. Small, safe, unstarted.
+
 ⛔ **TWO DEFECTS ROUTED TO hq_C, unchanged and unaffected by this work:** (a) `rt_dcap_pump` floods `CORRUPT CAPTURE ENTRY refused … target 'seg'` on stderr for the real json.dat in **BOTH m3 and m4** (`jdec`'s escape path) — stdout's census is byte-correct so it does not block a number, but it is a live wrong-answer risk on string CONTENT, which the census cannot see; (b) `SCRIP_GC_STRESS=7` SIGSEGV on the 5-byte witness `[1,2]`.
 
 ⛔ **RE-BASELINE AFTER EVERY PULL.** Twice this session a `git pull --rebase` moved both numbers by ~0.6% before I touched anything. A before/after pair is only a measurement if both arms are the same tree plus the one change.
