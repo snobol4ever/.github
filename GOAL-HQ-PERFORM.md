@@ -273,3 +273,17 @@ at 335/22 vs 355/2). Verify: `make pristine` → corpus (m3 355/4, m4 354/3+2SKI
 roman `check: 1102` **before** believing any Ir number.
 ⛔ **The WIDE cure (don't defer a bare `TT_VAR`, `lower_snobol4.c:1398`, up to 54%) is hq_C's ruling, not ours.**
 
+
+## ⛔⭐ LON OVERRIDE s260 — THIS SEAT IS CURING, NOT ONLY MEASURING
+
+**Lon, in-chat 2026-08-22 s260, verbatim: "Target ROMAN. Run in a loop. Find the biggest bottleneck, then fix.
+Rinse, repeat."** Also ruled the same message: this seat runs in **DUO mode** — hq_P (PERFORMANCE) alongside
+hq_C (CORRECTNESS) and ceo.
+
+⭐ **This SUSPENDS "MEASURE FREELY, CURE NEVER" for the ROMAN row.** That law (Lon s256) said HQ may build,
+run, profile and bisect but must convert every defect into a queue row and a brief rather than an edit.
+Lon has now told this seat directly to **fix**, on a named target, in a loop. Per RULES.md/THE LOOP clause 6
+(*"IF LON TELLS YOU SOMETHING THAT CONTRADICTS YOUR BRIEF, LON WINS — THEN YOU MUST TELL HQ"*), the override
+is taken IMMEDIATELY and routed here in the same session. Scope of the suspension, stated narrowly so it is
+not read wider than it is: **the ROMAN speed row on this seat.** It is not a general repeal for hq_P, and
+nothing here changes the interlock — a wrong ANSWER remains hq_C's under their s259 standing order.
