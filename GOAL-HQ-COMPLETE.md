@@ -126,6 +126,31 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s258 → s259 (2026-08-22/23) HANDOFF. Every line carries the command behind it.**
+
+### ⭐ r10/r11 ARE NOW USABLE FOR stmt#/BB-node# — VIA THE VENEER, NOT ERADICATION
+
+**Lon ruled the method:** *"Just add R10 and R11 to the RTCC VENEER."* Correct, and far cheaper than what this seat was doing.
+
+- **RTCC veneer extended** (SCRIP `53819b4a`): `RTCC_C_R10`/`RTCC_C_R11` added to the mask and to `RTCC_C_ALL`; save+restore emitted in **both media** at the slots `rtcc.h` had already reserved (`rtccb+56`, `+64`; `RTCC_GPR_COUNT` was already 9). **Measured: 71 save/restore pairs each on roman.**
+- **Mask table updated** for the five symbols that clobber them — `rt_cmp_d` (r10+r11), `rt_cap_match_begin`/`rt_cap_pop`/`rt_cap_top`/`rt_match_ctx_restore` (r10). `test_gate_rtcc_callee_class` PASSES.
+- **Emitted code is clear of r10/r11 as scratch**: templates went 20/48 sites → **0/0** (the one remaining "r10" is a comment string). Targets chosen by measured liveness, not convenience — `rcx` would have produced `mov [rcx+0], rcx` because `creg` is passed as rcx; `rdi` overlapped 0 of 17 r11 sequences where `rdx` overlapped 4.
+- ⛔ **Runtime `.S` still uses them as scratch** (r10 ≈ 97 instruction lines, r11 ≈ 56) — **and that is now FINE**, because the veneer saves across the call. Eradicating them there is no longer required and the ABI working set stays nine registers.
+- ⛔ **A bug I introduced and the gate caught:** substituting r10→r8 at four `rtx_match.S` sites made three declared non-clobbering leaves write r8 without declaring it, which would have had the veneer drop a live slot. **Reverted.** Do not sed hand-written asm.
+
+### CORRECTNESS STATE, MEASURED AT SCRIP `53819b4a`
+
+- **Corpus (`-O0`, the dev arm): m3 357/359 · m4 355/359 + 2 SKIP.** Reds: `160_pat_alt_inner_gen_resume`, `demo_treebank` (deliberate), `132_pat_fence_eps_recur_shallow` + `demo_porter` (compile SKIP). **Unmoved across every change tonight.**
+- **Milestone 1 holds at `-O0` in both media**; ⛔ **BROKEN at `-O1`/`-O2` — PARKED by Lon** (both culprits are C runtime slated for ASM replacement). `161-o2-red` is PARKED, not discarded; the storage-assumption note in its baton matters for whoever writes that ASM.
+- All 17 benchmark kernels correct at `-O0` **and** `-O2`, zero arm delta.
+
+### NEXT, IN ORDER
+1. **`jstring-escape-dcap-pump-segv` (rank 0)** — ⭐ diagnosed further tonight and it is NOT the reported plain SEGV: a 4-byte input `"\t"` gives **heap exhaustion (512 MB) then abort**, because after the deferred `*estr` re-enters and pushes a second dcf frame, the outer frame's entry is read with **`len=480251808`**. Line 650 guards `len < 0` but not absurd positive. ⛔ The heap death MASKS a 458 MB out-of-bounds `memcpy` at line 652. Fix: bound `len` against the subject (`Σlen`) — line 912 already does exactly that check elsewhere, so the invariant exists and is simply not applied here.
+2. **`rtcc-r9-gvarq-collision-bb-define` (rank 0)** — live uncleared r9/GVARQ collision; `test_gate_rtcc_claimed_regs --strict` is RED and was red before tonight.
+3. **`160_pat_alt_inner_gen_resume`** — the only non-deliberate standing corpus red.
+4. ⛔ **Icon and Prolog are NOT now** (Lon s258); their oracles are absent from this box regardless.
+## LIVE CURSOR — hq_C
+
 **s258 (2026-08-22) — HANDOFF. Every claim below carries the command that produced it.**
 
 ### THE CORRECTNESS STATE, MEASURED AT SCRIP `751557a9`
