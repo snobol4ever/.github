@@ -1,6 +1,6 @@
 # FINDING — RUNG C-0 IS CURED: Milestone 1 is NOT regressed at HEAD, and the instrument that was about to prove otherwise was blind
 
-**Seat:** `hq_C` (HQ-CORRECTNESS) · **Date:** 2026-08-22 · **SCRIP HEAD measured:** `457dc5d9` · **Class:** MEASURED (every number below carries the command that produced it)
+**Seat:** `hq_C` (HQ-CORRECTNESS) · **Date:** 2026-08-22 · **SCRIP HEAD measured:** `457dc5d9` · **⛔ RT_OPT: `-O0` (see the RT_OPT CAVEAT below — the `-O2` arm is unmeasured and Lon remembers it broken)** · **Class:** MEASURED (every number below carries the command that produced it)
 
 ## THE HEADLINE
 
@@ -62,6 +62,21 @@ Both existed **only in a seat's `/tmp` scratchpad**, which dies with the session
 - `check_m1_fixedpoint.sh` — **the M1 DONE-WHEN as one command.** `cd`s to the beauty dir itself so the include trap cannot recur.
 
 **Negative-tested (a gate that cannot say NO is not a gate):** exit 1 on a non-fixed-point source; exit 1 with the include diagnosis on a wrong CWD; and 278 bytes at `cd13321e^` **and** `cd13321e` from the same harness that reports 40,971 at HEAD.
+
+
+## ⛔⛔⛔ RT_OPT CAVEAT — EVERY NUMBER ABOVE IS `-O0`. THE `-O2` ARM IS UNMEASURED AND LON REMEMBERS IT BROKEN
+
+**Added by hq_C the same session, after Lon said in-chat, verbatim in substance:** *"The problem as I remember was with -O2 and beauty self host did not work."*
+
+⛔ **This is a hole in the measurement above, and it is mine.** `make pristine` defaults to `RT_OPT=-O0` (O0-DEV-O2-BENCH, Lon s179), so **every byte count, md5 and bisect probe in this FINDING was taken at `-O0`.** I dated the verdict by commit and never by RT_OPT — which `CLAUDE.md` explicitly requires ("Label every perf number with its RT_OPT") and which matters more here than for a perf number, because `-O2` is precisely the arm reserved for benchmark and demo runs.
+
+**What the `-O0` evidence does and does not establish:**
+- ✅ **Establishes:** the descr-stamp regression (278 bytes) is real at `-O0`, reproduces at `cd13321e^`/`cd13321e`, and is cured by `6ba28e5e`. That has a clean negative control and stands on its own.
+- ⛔ **Does NOT establish:** that Milestone 1 holds at `-O2`. That arm was never run. **A milestone that holds only at `-O0` is not the milestone.**
+
+**Corroboration that Lon's memory names a real and DISTINCT class** — the queue already carries `161-o2-red` (rank 8): *"161_pat_defer_fn_nested_match SEGVs BOTH modes at -O2 only (asm RT_OPT-independent; wound is runtime C under optimization)."* Two things follow. The failure is in the **runtime C under optimization, not in emitted asm**, so it is invisible to ASM-DIFF-FIRST and to every `.s` artifact check. And it is a **defer** test — beauty is pattern/defer work end to end, and seat01 tied beauty's symptom to exactly that class. So this is most likely a **second, separate defect** that outlives C-0 rather than an alternate reading of it.
+
+⛔ **Until the `-O2` result lands, treat this FINDING's title as scoped: "not regressed at HEAD **at -O0**".** hq_P has been told to hold: an `-O2` beauty benchmark over a broken self-host would time a program that quits after its header, which is the same trap that voided the inherited figure.
 
 ## THE CORPUS BASELINE, MEASURED HERE, SUPERSEDING BOTH QUOTED NUMBERS
 

@@ -19,9 +19,11 @@
 
 Lon s256: *"you can build and test and do, but when you find BUGS you delegate."* Build, run, diff, bisect, profile — all of it. **The moment a measurement becomes a DEFECT it becomes a row and a brief, never an edit.** HQ's output is rungs; a fix taken at HQ is a fix the fleet did not learn.
 
-## ✅ RUNG C-0 — CLOSED BY MEASUREMENT 2026-08-22 (hq_C). MILESTONE 1 IS **NOT** REGRESSED AT HEAD
+## ⚠ RUNG C-0 — CLOSED **AT `-O0`** BY MEASUREMENT 2026-08-22 (hq_C). ⛔ THE `-O2` ARM IS UNMEASURED AND LON REMEMBERS IT BROKEN
 
-**The 278-byte stub was real, is reproducible, and is already cured.** Measured at HEAD `457dc5d9`, pinned classic source, run from the beauty directory:
+⛔⛔ **READ THIS FIRST — Lon, in-chat this session, verbatim in substance:** *"The problem as I remember was with -O2 and beauty self host did not work."* **Every number below is `-O0`** (`make pristine` defaults to `RT_OPT=-O0`, O0-DEV-O2-BENCH s179). The `-O2` arm — the one reserved for benchmark and demo runs — **was never run**, and the queue already carries `161-o2-red` (*"SEGVs BOTH modes at -O2 only; asm RT_OPT-independent, wound is runtime C under optimization"*), a **defer** test, in the class beauty lives in. A milestone that holds only at `-O0` is not the milestone. **An `-O2` measurement is in flight; until it lands, C-0 is closed on the `-O0` arm ONLY.**
+
+**The 278-byte stub was real, is reproducible, and is cured at `-O0`.** Measured at HEAD `457dc5d9`, pinned classic source, run from the beauty directory:
 
 | tree | arm | bytes | md5 | verdict |
 |---|---|---|---|---|
