@@ -95,6 +95,23 @@ ls x64/bin/sbl /home/resources/spitbol-clean/sbl; command -v icont iconx swipl g
 cd SCRIP && make pristine                    # HQ-27: required before any gate verdict
 ```
 
+## ⛔⭐⭐⭐⭐ TWO MODES. **DEFAULT = DUO.** MEASURE **AND** CURE. (Lon s259)
+
+**Lon, verbatim:** *"There are two modes and you better know which mode you are in. And the DEFAULT is DUO mode. You know why. We'll probably NEVER be in FLEET mode because you can barely handle yourself much less 16 FLEET worker."*
+
+| | **DUO — THE DEFAULT** | **FLEET — exceptional** |
+|---|---|---|
+| who exists | Lon watching · `hq_C` · `hq_P` · `ceo` | + 16 seat workers |
+| who does the work | ⭐ **the two HQs, themselves** | HQs dispatch, seats execute |
+| a bug you find | ⭐ **you fix it** | a row + a brief |
+| entered by | **assume it** | only when Lon says so explicitly |
+
+### ⛔⛔⛔ "MEASURE FREELY, CURE NEVER" IS **DEAD** — REVOKED, NOT SUSPENDED
+
+**Lon, verbatim:** *"You better fix that MEASURE-FREELY-CURE-NEVER business. Tag you are it. Did I mention you are in DUO mode. I do not want to here about you not fixing the bugs. You will measure. You will cure."*
+
+⭐ **"Tag you are it": the bug stops with the seat that finds it.** Earlier this file recorded the revocation as *"HQ's reading, marked as such"* — that hedge is now void. Lon has said it outright, twice. Mirrored into `CLAUDE.md`'s MODES section (which is UNVERSIONED — this root is not a git repo — so **this file is the durable copy**).
+
 ## ⛔⛔⛔ DUO MODE — THE OPERATING RULE FOR THIS SEAT. READ IT BEFORE ANYTHING ELSE.
 
 **There are exactly TWO sessions: `hq_C` (me, correctness) and `hq_P` (performance). No seats. No fleet. No CEO running.**

@@ -2,6 +2,12 @@
 
 **Opened 2026-08-22 s257 by Lon in-chat, verbatim in substance:** *"I can not afford you Fable to HQ so I need you to be CEO of the two HQ. Then I'll switch back to Opus."* And the design key, Lon's own: *"a task … must be a re-entrant task of sorts that can be RESUMED. Ha! Just like one of our generators in Icon."* Evidence basis: `FINDING-2026-08-22-hq_P-fleet-v1-retrospective-the-fleet-worked-the-control-plane-did-not.md` (read it first — every law below inverts a measured v1 failure). Law text staged in `PROTOCOL-V2-DRAFT.md`; the live postoffice `PROTOCOL.md` is untouched until Lon flips it.
 
+## ⛔⭐ MODE NOTICE (Lon s259) — **THIS DOCUMENT DESCRIBES FLEET MODE, WHICH IS NOT THE DEFAULT**
+
+**DUO is the default and is where the project actually operates:** Lon watching, `hq_C`, `hq_P`, `ceo`, and **no seats**. Lon, verbatim: *"There are two modes and you better know which mode you are in. And the DEFAULT is DUO mode... We'll probably NEVER be in FLEET mode."* Read everything below as the contingency design, and enter it only on Lon's explicit word.
+
+⛔ **In DUO, "MEASURE FREELY, CURE NEVER" (the hq_C/hq_P row in the table below) is REVOKED — the HQs measure AND cure.** That law's own test was *"does this end in a brief in a seat's inbox?"*, and in DUO there is no inbox to end in. What survives from this document in DUO: LAW 0 (provenance), LAW 1 (no hand-typed verdicts), the baton format as a note-to-self, and the postoffice as the hq_C↔hq_P↔ceo bus.
+
 ## THE ORG CHART — THREE TIERS, EACH EXACTLY ONE LOOP
 
 | tier | model | cadence | THE ONE LOOP | forbidden |
