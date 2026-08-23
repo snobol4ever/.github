@@ -595,6 +595,47 @@ the other, it is a workload-shape win, not a design win — say so and keep the 
 open-addressing probe loop is a far better ASM target than a pointer chase, so the ASM step gets easier, not
 harder, by waiting.
 
+## ⛔⛔⭐⭐⭐ RUNG P — THE PIN PATH (Lon s262: *"Completely remove the PIN path. Let's see what breaks."*)
+
+⭐ **READ THIS BEFORE REMOVING ANYTHING: THE PIN PATH ALREADY REMOVES ITSELF WHENEVER IT CAN.** `gc_heap.c:582`
+computes `pz` and the type-based pin at `:633` is gated on `!pz`:
+`pz = (cons_stack == 0 && !legacy_env && nforeign == 0 && !rt_scan_active() && !g_scrip_coexpr_live &&
+rt_value_trail_mark() == 0 && g_gc_rpin_n == 0 && g_gc_rrng_n == 0)` — i.e. **pinning is skipped exactly when the
+collector is PRECISE.** It is not a design preference; it is a fallback for imprecision.
+
+⛔⛔ **AND THAT HAS A CONSEQUENCE NOBODY HAS WRITTEN DOWN: IF `pz` CAN BE 1, GC-HEAP BLOCKS ALREADY RELOCATE.** The
+s258 `NV_t` memo and the s261 defer cell cache hold raw pointers forever and their soundness argument is *"never
+moves"* — that guarantee is coming from **the island**, not from the collector. On the GC heap it does not exist
+today. So the island is not merely an unsanctioned arena (RUNG W); it is currently the **only** thing making two
+shipped caches sound. **Delete it without providing the guarantee elsewhere and both caches become dangling-pointer
+generators**, in a way a green corpus will not show.
+
+### ⭐ THE THREE-DECISION CORE, so the removal is surgical rather than exploratory
+`gc_collect_ex` (~`:636`) is one three-way branch per block:
+```
+if      (h->flags & HBF_PIN)  { h->fwd = (uint64_t)h;    nlive++; npin++; }   /* pinned: stays put   */
+else if (h->flags & HBF_MARK) { h->fwd = (uint64_t)dest; dest += h->size; }   /* live:   relocates   */
+else                            h->fwd = 0;                                   /* dead                */
+```
+Pins enter from two places only: **type-based** at `:633` (marked `HB_ZBLK`/`HB_WSC`/`HB_PLJ`/`HB_AGG*`, gated on
+`!pz`) and **conservative stack scanning** at `:364`/`:376` (`gc_mark_blk(h, HBF_PIN)` for a word on the C stack
+that *might* be a pointer). ⛔ **The second kind is not optional and must not be removed blind** — it is precisely
+what stops the collector relocating a block a live C frame holds a raw pointer into. Removing it does not surface
+as a test failure; it surfaces as corruption later, elsewhere, under GC pressure.
+
+### 🔲 THE EXPERIMENT LON ASKED FOR, in the safe order
+1. **Force `pz = 1`** behind an env killswitch (`SCRIP_GC_NOPIN`) — this removes only the TYPE-based pin, keeping
+   conservative-stack pins. Run the four kernels under `SCRIP_GC_STRESS` (forces collections) and diff every
+   `check:` — `table_access` 250500, `table_variety` 381880, `roman` 1102, `mixed_workload` 12100 — plus the corpus.
+   ⭐ **If that is green, the type-based pin is dead weight and can go**, and the answer cost one flag.
+2. **Only then** consider the conservative-stack pin, and only with a precise root map — that is a collector
+   redesign, not a deletion.
+3. ⭐ **AND THE PAYOFF IS RUNG W:** replace "pinned" with a **permanent, never-cleared** `HBF_IMMOBILE 0x0008`
+   (`flags` is `uint16_t` with **only 3 of 16 bits used**, and `:575` clears just `MARK|PIN`, so a new bit survives
+   collections **for free**), set at birth for `HB_WS`/`HB_WSS`, honoured in the relocation test and treated as
+   always-live. That gives the island's exact guarantee inside the one sanctioned arena — which is what lets the
+   island be deleted **and** the two caches stay sound.
+
 ## ⛔⛔⛔⭐ RUNG W — DELETE THE WORKSPACE ISLAND (Lon s262, ORDERED: *"Let's get that arena deleted. NOW!!!!!"*)
 
 **Lon, verbatim:** *"I know not of a workspace island, and so I am tempted to have you delete it. We have plenty of
