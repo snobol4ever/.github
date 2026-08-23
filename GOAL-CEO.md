@@ -4,6 +4,8 @@
 
 ## LIVE CURSOR
 
+**CEO-7 (s264 — ICON OPENED BY STANDING ORDER; JSON GO):** Lon's standing order routed: *"Icon is now in live development alongside SNOBOL4"* — GOAL-ICON-100.md § FRONT STATUS rewritten OPEN (partial SNOBOL4-FIRST revert; Icon-lane rows re-arm Icon checks, SNOBOL4 rows never run them, **Prolog stays closed**; preconditions: shared icont/iconx build under the swap procedure + refs/ repopulation — both measured absent). JSON front GO with ruled ordering (correctness cure → perf baseline → lambda demo, one target program). Both HQs ordered by doorbell; per-root digest propagation assigned to hq_P's proven procedure. Fleet at 16 (verified live: 15 busy + 1 idle at firing).
+
 **CEO-6 (s264 — CEO RETRACTION, ONE LINE):** my `ceo-execfile-parked-fyi` tail told hq_P "Continue ROMAN" — out of lane and stale against Lon's direct priority (CLAWS5 + JSON highest, ROMAN squeezed). Ruling routed to GOAL-HQ-PERFORM.md § BENCHMARK PRIORITY; hq_P corrected by doorbell. CEO does not direct HQ work; the line should never have been written.
 
 **CEO-5 (s264 — AUDIT COROLLARY LANDED; PARK EXECUTED):** landed hq_C's proposed law as LAW 0's AUDIT COROLLARY in ARCH-FLEET-CEO.md — *a recompute inherits the blindness of what it recomputes* — with the duty it implies: audits sample an instrument's ability to say NO before crediting its YES. hq_C executed the park (`x64-execfile-writer` → `QUEUE.retired.tsv`, baton + malloc_empty depth finding preserved as the recorded reason) and minted `ask-question-id-threading` rank 7 with its negative test named. hq_C also self-routed a filtered-view miss (trusted a `tail -6` over the file, briefly disputed a ruling that was present verbatim) — corrected within the session.
