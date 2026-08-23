@@ -226,6 +226,149 @@ answer (can an xmm packing satisfy `SCAN_SIMPLE_INT` without touching `rsp`), no
 ⭐ Escalated to `ceo`: SNOBOL4-FIRST says never run the Icon check scripts, PLAN.md s257 gives Icon a ruled numeric
 target — an Icon row therefore has no sanctioned instrument. Topic `escalate-icon-checks-vs-icon-target`.
 
+## ⛔⛔⭐⭐ LON s262 FACT RULE — NO `-O2` BUILDS. EVER. (routed the moment it landed, LOOP law 6)
+
+**Lon, in-chat, verbatim in substance:** *"I doubt we'll ever need to build an -O2 again. We won't be using C code
+in the end. So why depend on something we can never have. We are writing RT call in ASM, except a few large
+algorithms. I gues make a FACT RULE. NO -O2 builds. We want to get on with business not wait an hour to see 30%
+increase. Quit it. And do not do it again."*
+
+⛔ **`RT_OPT` is `-O0`. Development, benchmarks, demos — all of it.** Never pass `RT_OPT="-O2 …"`, never build an
+`-O2` RT_TAG, never quote an `-O2` number as the current state. Authority: `RULES.md` § NO `-O2` BUILDS.
+
+⭐ **THE SECOND REASON IS THE ONE THAT MATTERS, AND IT IS A STRATEGY CORRECTION FOR THIS HQ.** Cost is real (9m30
+vs 1m40 per template-touching rebuild, paid on every arm of a measure-and-cure loop, and this seat burned ~30
+minutes of s262 on exactly that). But the load-bearing reason is that **`-O2` grades a compiler we are deleting**:
+the RT is moving to register-aware ASM (`src/runtime/rtx/*.S`, `GOAL-RTCC.md`), C surviving only for a few large
+algorithms. An `-O2` profile ranks gcc's inlining decisions over code that will not exist, and **a campaign aimed
+at that artifact optimises the wrong thing.** ⛔ It also cuts the other way and in our favour: at `-O0` the *real*
+cost of every C-side call boundary is visible instead of inlined away, which is precisely the cost the ASM rewrite
+exists to remove.
+
+⛔ **THE LADDER RESETS. The s260/s261 roman table (80,371,475 → 35,130,646 Ir, −56.3%) is an `-O2` ladder and is
+NOT comparable to an `-O0` arm.** Re-baseline at `-O0` and never subtract across the two. The cures themselves
+stand — they are code, not numbers — but their *sizes* were measured on an arm we no longer build.
+
+⭐ **AND THE `-O2`-ONLY REDS GO AWAY BY CONSTRUCTION:** `161_pat_defer_fn_nested_match`, `demo_porter`,
+`demo_calculator_1` are unreachable now. Lon s261: *"Do NOT fix -O2 bug for BEAUTY. Do not care. Next."*
+
+## ⭐⭐⭐ RUNG LADDER — ROMAN SPEED (opened s262 on Lon's order: *"Make sure as we keep adding task in our discussion you are makeing rungs and steps. They keep piling up."*)
+
+⛔ **THE STANDING ORDER THIS LADDER SERVES (Lon s262, verbatim):** *"Target roman.sno program. In a loop find the
+largest bottleneck then fix. Rinse and repeat."* Every rung below was MEASURED before it was opened, and carries the
+number that opened it. ⛔ **No rung is entered from a hunch — the profile names it or it does not exist.**
+
+### ✅ LANDED s262 (all pushed, corpus green on every arm, `check: 1102` verified before any Ir was believed)
+
+| # | rung | Ir/iter | Δ | commit |
+|---|---|---|---|---|
+| — | `-O0` baseline (new basis, see R-0) | 21,968 | — | — |
+| R-1 | bake the builtin id at the call site | 21,019 | −4.32% | `083d106f` |
+| R-2 | `bn_replace` reads its own descriptor fields | 20,747 | −1.29% | `083d106f` |
+| R-3 | `is_protected_pat_name` lead guard · `_var_init` flag read inline | 20,588 | −0.77% | `69030b07` |
+| R-4 | `strcmp(fn,"SNO$NOFAIL")` first-char guard | 20,487 | −0.49% | `cb743fe9` |
+| R-5 | ⭐ BENCH SWITCHES: `SCRIP_DIAG_REGS=0` + `SCRIP_RTCC_VENEER=3` | **19,950** | −2.62% | switches, no code |
+
+**Cumulative −9.38%. Marginal Ir/iter 17,079 → 16,468; vs the clean oracle 2.36x → 2.29x.**
+
+### ⭐ R-0 — THE MEASUREMENT BASIS CHANGED, AND EVERY OLDER RATIO IS ON THE WRONG BASIS
+Two corrections landed together and both are permanent:
+1. ⛔ **`-O2` IS GONE** (Lon s262 fact rule, above). The s260/s261 ladder is an `-O2` ladder; never subtract across.
+2. ⭐ **QUOTE THE SLOPE, NOT THE QUOTIENT.** A single fixed-work run bills startup *and* `harness.inc`'s
+   unconditional 200-iteration check phase to the per-iteration figure. Measure at **two** N and take the slope:
+   `(Ir@6000 − Ir@2000) / 4000`. On this seat that is the difference between **2.71x** (divide the totals) and
+   **2.36x** (the slope) — our startup is ~3.6M Ir of dynamic-linker relocation against a 34 MB `libscrip_rt.so`.
+   ⛔ Both engines must be measured the same way; SPITBOL's own slope is **7,204 Ir/iter**.
+   ⛔ **CAVEAT, STATED SO NOBODY OVER-READS IT:** `ROMAN(7000)` is `MMMMMMM` and `ROMAN(1200)` is `MCC`, so later
+   iterations do more work and the slope is the *average over iterations 2001..6000*, not a constant. The RATIO is
+   sound — identical range, both engines — but neither absolute is a per-iteration constant.
+
+### 🔲 R-6 — THE BENCH RECIPE MUST BECOME A NAMED THING, NOT TWO ENV VARS IN A COMMIT MESSAGE
+`SCRIP_DIAG_REGS=0` suppresses the `mov r10,<stmt>` / `mov r11,<node>` telemetry stamps (0.54%); with the stamps
+gone the RTCC veneer no longer has anything to protect in r10/r11, so `SCRIP_RTCC_VENEER=3` drops those two
+save/reload pairs (a further 0.73%). ⛔ **THE COUPLING IS NOT AUTOMATIC AND MUST NOT BE MADE SO:** `emit.cpp:2757`
+(the s195 frameless-blob arm) loads r10/r11 with the γ/ω port pair for real, and is *not* gated by the diag switch.
+Corpus is **green on the pair** (m3 357/359, m4 355/359 + 2 SKIP, fail-set identical) — that is measured evidence
+over 359 programs, **not** a proof that no future arm keeps r10/r11 live across a call. Step: one documented
+benchmark mode, plus a gate that fails if a diag-off build still emits an r10/r11 stamp.
+
+### 🔲 R-7 — WHOLE-PROGRAM `.s → .s` OPTIMIZER (Lon s262: *"let's make it a whole program optimizer and just see how far we can take it as a maximum expectation"*)
+`tools/scrip_peep.c` exists and is standalone by design — CLAUDE.md makes **m3 ≡ m4 output a design invariant**, and
+a post-emission pass leaves it untouched because the compiler still emits identical code in both media.
+⭐ **THE MAXIMUM EXPECTATION IS MEASURED, NOT ESTIMATED.** Every *executed* emitted instruction at N=6000,
+categorised: real work **79.7%** · conditional branch **11.3%** · unconditional `jmp` **7.5%** · call 1.4%. Inside
+"real work": frame spill+reload 12.4% of emitted (3.65% of program), reg←reg 7.3%, reg←imm 7.7%, `lea` 6.6%,
+global-via-rip 5.4%, GOT load 2.9%.
+⛔ **SO THE CEILING IS ~7–8% OF THE PROGRAM AND A REALISTIC FIRST CUT IS 2–3%** — jump elimination ≤2.2%, copy
+propagation ~1%, veneer dead-store ~1%, GOT CSE/LICM ~0.6%, register allocation the rest and by far the hardest.
+For scale: five runtime cures on ONE day bought 9.4%. ⭐ **BUT THE CEILING RISES AS THE RUNTIME SHRINKS** — it is
+computed at `-O0` where emitted code is only 29.5% of Ir; when the RT moves to ASM, emitted code's share grows and
+this number grows with it. That is the argument for building it *after* the RT rewrite, not instead of it.
+⛔ **OPEN DEFECT IN THE TOOL, FOUND AND NOT YET FIXED:** the `inline-single-use` rule (the literal-into-operator
+fold) splices a block body into its single jump site and marks the original dead, but the output stage re-emits the
+label of every dead line — so the spliced label appears twice and `as` refuses the file
+(`symbol '.Lx328_0' is already defined`). Needs a distinct "removed including label" state. **Measured before the
+bug bit: 4 sites, 47 instructions (1.6% static).** The other four rules fire **zero** times on roman: there are 7
+`rtccb@GOTPCREL` loads in the file but never two in one basic block, and zero adjacent store-reload pairs — the
+emitter is already tight *locally*, and every redundancy that exists is loop-invariant or cross-block.
+
+### 🔲 R-8 — LITERAL FOLDING INTO THE OPERATOR BOX (Lon s262: *"add the literal folding into the operator BB. Unless it does not pay."*)
+⛔⛔ **ANSWERED, END TO END, AND THE ANSWER IS NO: BUILT IT, RAN IT, MEASURED −0.006%.** The rule
+(`inline-single-use` in `tools/scrip_peep.c`) is written and correct; on roman it fires **2 sites, 31 instructions
+(1.06% static)** and moves **2,509 Ir of 40,312,368 — six thousandths of one per cent.** `check: 1102` verified.
+That is the whole answer to *"unless it does not pay"*: it does not.
+⛔ **AND IT COST A WRONG ANSWER TO GET RIGHT, WHICH IS THE PART WORTH KEEPING.** The first version counted whole-file
+symbol references to prove a box had one predecessor, and inlined it. roman printed **`check: 441`**. A symbol count
+proves nobody NAMES the label; it says nothing about the block physically above running off its end into it — and
+Byrd-box wiring lays boxes out contiguously, so **falling in is the common case, not the exotic one.** FALLTHROUGH IS
+AN UNNAMED REFERENCE. The rule now refuses unless the previous instruction-bearing line ends in `jmp` or `ret`; that
+guard is what dropped it from 4 sites to 2. ⭐ The rig refusing to print an Ir number for anything but `check: 1102`
+is the only reason this was caught in seconds instead of shipping as a 1.6% "win".
+
+**The supporting census stands: literal boxes are 0.71% of the program** (2.4% of emitted),
+by attributing every emitted instruction to its box kind — `match_defer` **34.4%**, `match_begin` **27.6%**,
+`match_end` 6.6%, `define` 6.2%, `call` 4.5%, `lit_string`+`lit_integer` **2.4%**. roman's literal boxes are the
+*setup* statements and execute 1–2 times each. ⭐ This is a direct confirmation of the **s258 box-fusion ruling**
+below, whose re-entry condition is *(a) roman within 2x of clean SPITBOL, or (b) emitted-box Ir > 50%*. Today:
+**2.28x** and **29.5%**. ⛔ Neither is green — but (a) is close, and it was 6.58x when the ruling was written.
+
+### 🔲 R-9 — `REPLACE` AS AN ASM RT CALL (Lon s262: *"So REPLACE should and can be an optimized ASM RT call, maybe?"*)
+⛔ **ANSWER: yes eventually, but the ceremony was the cost and most of it is already gone in C.** `bn_replace` was
+**480 Ir/call** of which the translate loop `buf[i] = map[sv[i]]` was **45**. R-2 removed 129 (three `VARVAL_fn` and
+three `sv_len` calls — at `-O0` every `static inline` is a real call and `DESCR_t` is 16 bytes by value). What
+remains is ~246: the 4-slot map cache validated with two `memcmp` PLT hops (~40), `rt_ws_alloc_c` (~60), the loop
+(45), `BSTRVAL` (17). An ASM `bn_replace` plausibly reaches ~100 ⇒ **~3.5%**. ⛔ It needs `bn_replace` un-`static`ed
+and renamed `c_bn_replace` to fit the existing `RTX_FUNC`/`RTX_GATE` shape in `rtx_str.S`.
+⛔ **DO NOT "FIX" THE ALLOCATOR AS PART OF IT:** `rt_ws_alloc_c` (workspace island, never freed, 60 Ir) vs
+`rt_str_alloc` (GC heap, ASM fast path, 38 Ir) — `bn_dupl` and `bn_trim` use the workspace too, so it is the family
+convention, and changing it is an allocation-policy decision with GC consequences.
+
+### 🔲 R-10 — ⭐ THE BIG ONE: THE UNANCHORED RETRY *COUNT*, NOT ITS COST
+`&ANCHOR = 0` makes `'0,1I,2II,…' T BREAK(',') . T` rescan from every start position: **388,828 retry trips at
+N=6000 = 63 per iteration**, at ~16 emitted instructions per trip, to advance one character. ⛔ **The prize is the
+trip COUNT.** SPITBOL's first-character prescan finds the next candidate position with a byte scan instead of
+re-entering the box chain. This is the goal file's own lesson restated — *hand-written assembly makes a linear scan
+a faster linear scan*. It also explains why `match_defer` (34.4%) and `match_begin` (27.6%) own two thirds of
+emitted code.
+⛔ **AND WHY I DID NOT JUST HOIST THE LOOP:** five of the 16 look invariant, but `bb_match_begin.cpp` installs
+`L(13)` into `rtccb+248` (`match_beta_cont`) **inside** the loop and restores it at `L(1)`; hoisting changes
+behaviour if the pattern chain writes that slot. Not a free win and not a thing to rule on from a profile.
+
+### 🔲 R-11 — SMALL, NAMED, EACH WITH ITS NUMBER
+- `dtax_off()` — a non-inlined `getenv` memo called 31,002 times, **0.57%**. Removing the call needs a file-scope
+  cached flag, i.e. **a new global**, which needs Lon's in-chat banner grant. Not taken without one.
+- `rt_sxt_break` — one-line body, **0.51%**. Inlining it into `NV_SET_fn` means redeclaring `g_sxt_fr`, whose struct
+  is file-local to `gc_heap.c` with `_Static_assert`s pinning its layout for `rtx_str.S`. Refused: a second
+  definition to keep in sync with an asm file is not worth 0.51%.
+- Startup — **~3.6M Ir**, dominated by `_dl_relocate_object` against a **34 MB** `libscrip_rt.so`. Invisible in the
+  slope, but it is 8.7% of an N=2000 run and it is what makes the quotient basis lie.
+
+### 🔲 R-12 — SENT TO hq_C, NOT OURS: THE GVA STORE BYPASSES EVERY NAME-BASED GUARD
+`ARB = 1` is not refused. It compiles to `mov qword ptr [r9 + 0], rax  # ARB` — a direct GVA cell store that never
+calls `NV_SET_fn`, so the protected-pattern-name guard (the tree's **only** `core_runtime_error(42)` site) never
+runs. The class is bigger than the witness: **every** name-based guard living in `NV_SET_fn` is bypassed for every
+GVA-eligible variable. Topic `gva-store-bypasses-protected-pat-name-guard-READABLE`.
+
 ## LIVE CURSOR — hq_P
 
 **s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
