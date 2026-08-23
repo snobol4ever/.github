@@ -394,6 +394,24 @@ judgement, and inventing one I cannot justify is the false green this rung exist
 a baton with a *working* one (V2-2) · and a criterion containing a backspace looked like one containing a
 word boundary (mine). Same disease every time.
 
+### ⭐ SHARED ORACLES + THE FIRING GATE (Lon s259, two in-chat rulings — routed per law 6)
+*"everyone should be using the shared /home/resources"* and *"two SPITBOL versions … one pristine with minimal
+patches and the other with IPC tracing and the whole enchilada."* **Executed:** `x64` promoted to
+`/home/resources/x64`; every root's `x64/` is now a **symlink** to it — **19 roots** (16 seats + hq_C + hq_P +
+ceo), each verified clean before being touched, **smoke-verified 19/19**, ~1.0 GB duplication removed.
+⛔ This corrected my own earlier move in the same session (I had cloned x64 into the 8 roots missing it).
+⛔⛔ **TRAP FOUND: `spitbol-clean/sbl` ≠ `spitbol-clean/bin/sbl`.** The `bin/` one — byte-identical to
+`spitbol-fork-rebuilt/bin/sbl` and `spitbol-upstream/bin/sbl` — **does not support `-f`**, so under the
+MANDATORY `-bf` it rejects EVERY program. Inherent to SPITBOL's layout: a tree ships `bin/sbl` as the
+**bootstrap**, `make spitbol` writes the product to the **top level**. In our `x64/` fork `bin/sbl` IS the
+product. ⛔ **`RULES.md:65` directs benchmarking at `spitbol-upstream`, which is the trap** — code right, rule
+text wrong; raised with hq_C/ceo, not edited unilaterally. Detail: `/home/resources/ORACLES.md` +
+`FINDING-2026-08-22-hq_P-shared-oracles-and-the-bin-sbl-trap.md`.
+⭐ **FIRING GATE NOW: `fleet` Q=0 ✅ · every seat root passes oracle preflight ✅ (was 8/16, now 19/19) · both
+HQ cursors pushed ✅.** Baton criteria: **85/85 runnable** (gate `test_gate_baton_donewhen_runnable.sh` PASSES)
+after hq_C authored the last 13 and hq_P made **18 seat-root-hardcoded criteria root-relative** — they named
+`/home/claude_C`, so a seat would have graded its own row against hq_C's tree, a false GREEN not a deadlock.
+
 ### ⛔ STANDING CONSTRAINTS
 - **NO BEAUTY NUMBER AT `-O2`** (roman at `-O2` is fine and was verified this session; hq_C has localised the
   `-O2` defect to **two files of 261**, `rt.c` + `pattern_match.c`).
