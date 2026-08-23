@@ -442,6 +442,39 @@ magnitude artifact of one kernel whose "iteration" is a 512-bucket allocation pl
 equal-weight view TABLE/ARRAY is **6.0%**, behind emitted code (16.5%), variable-access-by-name (16.2%) and the
 pattern engine (12.2%). Both views are in `FINDING`/README; quote both or neither.
 
+## ⭐⭐ RUNG T-2 — WHAT THE ORACLES DO ABOUT HASHING (Lon s262: *"Look CSNOBOL4 and SPITBOL for some ideas on how to hashing."*)
+
+**Read, not assumed. Both oracles independently do the same thing, and we do not.**
+
+⭐ **CSNOBOL4** (`lib/hash.c`) uses **Bob Jenkins' 1997 hash**, and Phil Budne's own comment carries the idea:
+*"Only look at the first 12 (if len >= 12), and last 11. MAINBOL hashes ALL strings, so the inputs can be long, and
+you can waste a lot of your time hashing them."* He also records WHY he moved off his previous scheme — a sum of the
+first and last four characters — *"LOCA1 (variable lookup) is a hot-spot, and expanding hash table size with the old
+sum was pointless, since the range of hash values was small."*
+
+⭐ **SPITBOL** (`sbl.min`) has a dedicated `hashs` opcode and a tuning constant with the same idea stated as law:
+**`e_hnw equ 6 words`** — *"the maximum number of words of a string name which participate in the string hash
+algorithm. larger values give a better hash at the expense of taking longer to compute the hash. there is some
+optimal value."* Six words ≈ 48 bytes. Its variable table is **`e_hnb equ 127 bucket headers`**, deliberately odd.
+
+⛔ **OURS IS UNBOUNDED.** `_tbl_hash` (aggregates.c:78) is djb2 over the WHOLE string, and so is the variable table's
+`_var_hash`. A long key costs O(n) on **every** lookup, which is precisely the waste both oracles engineered away.
+⭐ **AND NOTE WHAT THE BUCKET COUNTS SAY:** SPITBOL runs **127** variable buckets against our **512**
+(`VAR_BUCKETS`) and **256** (`TABLE_BUCKETS`), and still spends only **3.97%** in variable access where s258 measured
+us at 45.5%. **Bucket count was never our problem — representation was.** That is the same conclusion the typed-key
+cure just demonstrated by measurement.
+
+### 🔲 THE ROW, AND THE ONE THING THAT MAKES IT NOT A ONE-LINER
+Bounding the string hash means changing **two files that must stay bit-identical**: `_tbl_hash` in `aggregates.c`
+AND the copy **inlined into `rtx_icnsub.S`** at `.Lsub_hash_init` (line ~348), which carries
+`#define TBL_HASH_SEED 5381 /* _tbl_hash: djb2-xor, aggregates.c:78 */` and walks the chain itself for DT_S
+subscripts. If the two disagree, the assembly lands in a different bucket than the C and lookups silently miss.
+⛔ **NOT DONE THIS SESSION, AND THE REASON IS HONEST RATHER THAN CAUTIOUS: the current 17-kernel field cannot
+validate it.** Table keys in `table_access` are integers (now hashed as integers), and every string key in the
+corpus is short, so a bounded hash would measure ~0 and a break would show up only as a silent miss somewhere the
+benchmarks do not look. **The row wants a witness first** — a kernel with long string keys — and then the coupled
+C+ASM change, gated by a test that hashes the same key through both paths and compares.
+
 ## LIVE CURSOR — hq_P
 
 **s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
