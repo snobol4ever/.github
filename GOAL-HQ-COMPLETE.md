@@ -109,13 +109,33 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
-**s258 (2026-08-22): C-0 is REOPENED on the `-O2` arm, the control plane is repaired, the build is fixed — and the fleet is gone. The cursor moves to WORK IT MYSELF.**
+**s258 (2026-08-22) — HANDOFF. Every claim below carries the command that produced it.**
 
-**Done this session, each with a command behind it:** C-0 measured CURED at HEAD (both media) and HQ's own prime suspect disproven · the M1 probe rescued out of a seat's disposable `/tmp` into `.github/probes/m1-bisect/`, made portable, and its **own** blindness (the `-INCLUDE`/CWD trap) found and fixed · **V2-1 landed and pushed** (SCRIP `93d3ef16`: rank-sorted picker, `assign`-is-the-lock, `sweep`; gate `test_gate_s4e_picker_v2.sh` 18/18, negative-tested three ways) · **queue purged** (113 DONE rows swept to `QUEUE.done.tsv`, blank-line landmine gone, 4 dead locks released, every brief pointer verified) · **hq inbox drained** — all 10 seats with open questions answered · **hq_P's V2-4 cross-verified and signed off** (18/18 live, 15 failures against pre-patch) · **9 task batons minted** in `/home/resources/postoffice/tasks/`, every DONE-WHEN a command and every one demonstrated able to say NO.
+### THE CORRECTNESS STATE, MEASURED AT SCRIP `751557a9`
 
-**NEXT, in order — ⛔ DUO MODE: these are jobs to DO, not briefs to dispatch. ⭐ AND LON RULED THE SEQUENCE (s258): SNOBOL4 **this minute**; the FLEET PROTOCOL finished so development can be blasted later; Icon and Prolog massively but NOT NOW.**
-1. ⛔⛔⛔ **RUNG C-0 ON THE `-O2` ARM. Nothing outranks it and it is now this seat's own hands.** The `-O2` failure is byte-identical to the pre-cure `-O0` failure, so it is the same 32-bit-tag-compare class surviving optimisation. ⭐ **Free narrowing already banked: `RT_OPT` already carries `-fno-strict-aliasing` AND `-fwrapv`, so the two commonest UB-under-optimisation causes are ALREADY EXCLUDED.** ⭐ **`-O1` IS ALREADY DONE AND IT FAILS** (278 / `1c75f97d`, identical), so the boundary is `-O0`→`-O1` and the suspect set is `-O1`'s passes, not `-O2`'s. Next probes, cheapest first: **`-fsanitize=undefined` at `-O0`** (highest yield — UB is exploitable at `-O1` even where `-O0` happens to work, and the two commonest causes are already excluded by the existing flags, so what remains is the interesting kind); then `-O1 -fno-<pass>` bisection over `pattern_match.c`/`rt*.c`; then `-Og` as a sanity point. ⭐ Each arm now costs 0–1s to switch back to, so this is finally affordable — that is what the build fix bought.
-2. **`161-o2-red` is almost certainly the same defect** (`161_pat_defer_fn_nested_match` SEGVs both modes at `-O2` only; *"wound is runtime C under optimization"*). Treat them as one investigation until proven otherwise — a second witness for the same bug is worth more than a second bug.
-3. **`rtcc-r9-gvarq-collision-bb-define`** — live uncleared r9/GVARQ collision in `bb_define.cpp`, which the rtcc gate reports green over because `--strict` is invoked nowhere.
-4. ⛔ **Still owed by Lon:** SNOBOL4-FIRST vs the s255 bootstrap ruling. HQ reads it as a sequence — **a reading, not Lon's word** — and the Icon/Prolog oracles are absent from this box regardless.
-5. ⛔ **Every correctness verdict from here names its RT_OPT.** The C-0 misfire was one arm of a two-arm axis reported without the axis.
+| | `-O0` (dev arm) | `-O1` | `-O2` (bench arm) |
+|---|---|---|---|
+| beauty M1 self-host, m3 **and** m4 | ✅ 40,971 / `6f1671c0` | ⛔ 278 | ⛔ 278 |
+| `161_pat_defer_fn_nested_match` (17 lines) | ✅ oracle | ⛔ **SEGV** | ⛔ wrong answer, rc=0 |
+| corpus | m3 357/359 · m4 355/359+2SKIP | — | m3 355/359 · m4 354/359+2SKIP |
+| 15 benchmark programs | ✅ 15/15 | — | ✅ 15/15 (zero arm delta) |
+
+⭐ **THE WHOLE OPTIMISATION DEFECT IS TWO FILES OF 261** — `src/runtime/rt/rt.c` and `src/runtime/pattern_match.c`, found by two automated file-level bisections with bounds confirmed first. De-optimise exactly those two and beauty self-hosts in both media at `-O2` and the corpus returns to the `-O0` baseline **exactly**: `bash scripts/build_o2_working_snobol4.sh`. ⛔ **That is a WORKAROUND — it hides UB, it does not remove it.** Non-additive: `rt.c` alone leaves beauty at 614 bytes; `pattern_match.c` alone fixes neither. One defect class, two doors. Row: **`161-o2-red`, rank 0**, baton `tasks/161-o2-red.task.md`. Next probe: `-fsanitize=undefined` on exactly those two files. ⛔ **REFUTED, do not re-run:** the r14/r15 blob-pin hypothesis — `-ffixed-r14 -ffixed-r15` at `-O2` does not cure it and makes beauty worse (SEGV, 259 bytes).
+
+### WHAT LANDED THIS SESSION
+
+- **Milestone 1 finally has a gate.** `grep '40971\|6f1671c0' scripts/*.sh` returned NOTHING — the property the project is measured by was undefended, which is why C-0 needed a hand bisect. `test_gate_m1_self_host_fixed_point.sh`, negative-tested three ways (fails at `-O2`, passes at `-O0`, fails on an absent binary instead of skipping green).
+- **`done` now computes the verdict.** It appended the DONE marker unconditionally and never ran the DONE-WHEN — LAW 1 violated inside the tool written to enforce it. Now it runs the baton's criterion and refuses on non-zero. Override is loud and recorded.
+- **`test_gate_fleet_protocol_e2e.sh`** — the first test of the whole seat LOOP (α→β→γ→ω) rather than one subcommand. The picker gate and the identity gate were both green over the `done` hole all session because neither ran a lifecycle.
+- **V2-1** (rank-sorted picker, `assign`-is-the-lock, `sweep`) + **queue purge** (113 rows swept, 4 dead locks freed, dups deduped) — cross-verified and signed off by hq_P; I cross-verified and signed off their V2-3/V2-4.
+- **The build.** `RT_OBJDIR`/`.so` are keyed by a hash of `RT_OPT`+`ZCFLAGS`, so arms coexist and switching costs **0–1s instead of 9m30** — and a silent wrong build (no flag stamp: `RT_OPT="-O2" make` after `-O0` did nothing and returned `-O0`) is now structurally impossible. `make buildinfo` prints what you are actually linking. `pristine` also removes `./scrip`, which it never did.
+- **hq inbox drained** — 10 seats answered, `fleet` shows **Q=0 on every row**.
+
+### NEXT, IN ORDER
+
+1. ⛔⛔ **`161-o2-red` (rank 0).** `-fsanitize=undefined` on `rt.c` + `pattern_match.c`. The 17-line witness replaces the 40KB one — three behaviours at three optimisation levels.
+2. **V2-5 gate honesty — the last protocol blocker.** seat16's **31 injection-proven** can't-say-no gates is the authoritative number; my syntactic scan finds only 4, and injection is the stronger test. Two are confirmed hiding live defects.
+3. **V2-2 is partial** — 11 batons of 77 live rows; QUEUE.tsv still carries multi-KB prose.
+4. **`rtcc-r9-gvarq-collision-bb-define` (rank 0)** — live uncleared r9/GVARQ collision in `bb_define.cpp`; `--strict` is invoked nowhere in the repo.
+5. ⛔ **Every correctness verdict names its RT_OPT.** The C-0 misfire was one arm of a two-arm axis reported without the axis.
+6. **Icon and Prolog are coming and are NOT now** (Lon s258). Their oracles are absent from this box; install before staffing either front.
