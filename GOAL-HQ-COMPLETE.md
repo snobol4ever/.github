@@ -72,7 +72,7 @@ Full receipts: `FINDING-2026-08-22-hq_C-rung-C-0-milestone-1-is-not-regressed-at
 | front | state (measured by hq_C at HEAD `457dc5d9`, 2026-08-22) |
 |---|---|
 | **SNOBOL4 #1** | ✅ **M1 fixed point HOLDS in both media** (C-0 closed above). **Corpus baseline, measured here — cite this or measure your own:** `m3 PASS=357 FAIL=2` · `m4 PASS=355 FAIL=2 SKIP=2` (**359 total**). ⛔ The old `339/341` AND seat3's `320/321` are both stale — the denominator is 359. Reds: `160_pat_alt_inner_gen_resume` (standing, both modes, now a row) · `demo_treebank` (deliberate) · `132_pat_fence_eps_recur_shallow` (compile SKIP) · **`demo_porter` (compile SKIP — seat13's m4 duplicate-label defect, corpus-visible, now a row)**. Receipt: `bash scripts/test_corpus_snobol4.sh`. |
-| **Icon #2** | Oracles **ABSENT** — `command -v icont iconx` returns nothing. ⛔ An Icon board run here grades against nothing and prints plausible red. seat08's rung-A2 register-liveness analysis is complete and banked, and is HELD, not lost. |
+| **Icon #2** | ✅ **Oracle BUILT s266** — Arizona icont/iconx at `/home/resources/icon-master/bin/`, symlinked `/home/resources/icon-build` (scripts' default `ORACLE_BIN`), `SCRIP/refs/{icon,jcon}-master` repopulated, smoke-verified. Lon s266: *"Take us to 100% SNOBOL4 and 100% Icon"* — Icon is IN SCOPE, superseding the s258 "not now". seat08's rung-A2 register-liveness analysis is banked, HELD, not lost. |
 | **Prolog #3** | Oracles **ABSENT** — no `swipl`, no `gprolog`. Same rule: no oracle, no verdict. |
 
 ⛔ **RULING OWED BY LON, ASKED AND STILL UNANSWERED:** SNOBOL4-FIRST says *do not even run* the Icon/Prolog checks, while the s255 bootstrap ruling puts them on the road. HQ reads that as a SEQUENCE, not a contradiction — **that is HQ's reading, not Lon's word. Confirm before staffing Icon or Prolog.**
@@ -147,6 +147,32 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 5. **Escalation is unchanged:** hq_C ↔ hq_P directly, `ceo` for arbitration, Lon overrides anyone.
 
 ## LIVE CURSOR — hq_C
+
+**s266 (2026-08-23, Fable) — LON: "Tag you are it. Take us to 100% SNOBOL4 and 100% Icon." DUO. BENCHMARKS 33/33 BOTH MODES — THE SUITE'S FIRST ALL-GREEN.**
+
+### ⭐ CURED: one class, three symptoms — pattern blobs with ≥2 choice nodes had no safe records and no resume (SCRIP `d6eafac3`, corpus `0ac12b122`)
+
+- **`json-match` + `json-match-fence` TIMEOUT** (the last 2 benchmark reds, row `json-match-capture-free-hang`) — CURED, byte-identical to `sbl -bf` on the real input.
+- **Static stored patterns silently wrong at nc≥2** (`SCRIP_PAT_INLINE=0`, witness c03) — a class NOBODY had reported, found by generalizing the witness.
+- Root: `blob_choice_rbp_scan` admits rbp records only at `nc==1` (one shared slot), so ≥2-choice blobs fell to the FLAT `[rsp+N]` record seat04 proved drift-broken; AND the blob's β entry resumed only nc==1 fence-free graphs — everything else answered total failure to re-entry. ⭐ The runtime tree conversion MANUFACTURES the second choice node: `dtp_rcp_tree` rewrites `ARBNO(X)` → `ALT('', SEQ(X, *ARB$n))`. ⭐ And the trigger discriminator was ONE TOKEN: `$name` in pattern position reroutes the whole pattern through the runtime builders — json-match's `$' '` vs json.sno's named variables is the entire difference.
+- Cure: per-node 2-cell frame slots for every unsealed MATCH_ALTERNATE in a ≥2-choice blob (`choice_frame_candidate`, `sn4_choice_rbp_off_nd`; nc==1 legacy path byte-identical; killswitch `SCRIP_CHOICE_RBP_MULTI=0`) + blob β resumes at the TAIL (unique γ-exit node — body_root is the ENTRY, the wrong end), fence-tolerant except a fence AT the tail (β→ω IS commit semantics). ⛔ The "two ALT admissions must not be merged" ruling respected; seat04's measured-broken fence-relax untouched.
+- Witness ladder banked: `corpus/probe/choice_records/c01..c08`, oracle-minted refs, controls included. Evidence: FINDING-2026-08-23-hq_C-multi-choice-blob-records-and-tail-resume-cure-json-match-family.md.
+
+### BOARD, PRISTINE AT `d6eafac3`: corpus m3 360/361 · m4 360/361 SKIP=0 (`demo_treebank` only, deliberate) · benchmarks **33/33 m3 · 33/33 m4** · M1 fixed point both media · both emit gates rc=0. ⛔ Denominator is now 361.
+
+### ALSO THIS SESSION
+- **Lon's sys-perf ruling executed** (SCRIP `f8fac73d`): `scripts/util_perf_context.sh` — CPU-vs-wall attribution (`run`/`watch`/`stamp`), WAIT-BOUND numbers refused; hq_P notified (their bench lane). A TIMEOUT verdict now carries user≈wall proof (a starved false TIMEOUT is user≪wall).
+- **Icon oracle BUILT and wired**: `/home/resources/icon-master/bin/{icont,iconx}` (Arizona 9.5, built s266), symlinked at `/home/resources/icon-build` (the scripts' default `ORACLE_BIN`) and `SCRIP/refs/{icon,jcon}-master` repopulated. The Icon front's "oracles ABSENT" line in the standing board is STALE as of s266.
+- Queue hygiene: 7 rung-E/A rows parked SUPERSEDED (r10/r11 veneer ruling s259 made them moot — seat13's 3-for-3 pattern confirmed); `opt0-residual-two-defects` minted at rank 4 from seat06's report (SCRIP_OPT=0 is emergency-only, not on the 100% path).
+
+### NEXT, IN ORDER
+1. **Icon board baseline** — `scorecard_icon.sh run` now that the oracle exists (watermark to beat: m3 247/16/30 · m4 243/20/30 at s247). Then the N-0..N-7 ladder per GOAL-ICON-100.md.
+2. **`demo_treebank` / `vlist-expr-alternation`** — the last corpus red; blocker is `zd_plan`'s γ-only run-walker (ω-reachable nodes unclaimed). seat03's `SCRIP_ZD_VLIST_OMEGA` prototype judged unsafe; needs the real design.
+3. `json-alternate-af-spin` + `json-match-capture-free-hang` rows — close via computed `done` (DONE-WHENs re-tested at pristine HEAD this session).
+4. The reentrant-dcf-push root defect (the bounds guard only names it) — `jstring-escape-dcap-pump-segv`.
+5. seat04's census weak suites: gimpel 40.5%, csnobol4_suite 47.5% — the road to "ALL SNOBOL4 at 100%" runs through them.
+
+## LIVE CURSOR — hq_C (s265, superseded by s266 above)
 
 **s265 (2026-08-23) — LON ORDERED THE BENCHMARK HARNESS INVERTED, AND IT IS INVERTED. DUO.**
 
