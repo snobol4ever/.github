@@ -16,7 +16,7 @@
 
 - **DUO** — 2 HQs + CEO, no seats fired. MEASURE FREELY, CURE NEVER is **SUSPENDED**: the HQs do the work themselves (Lon s259 to hq_P, verbatim in substance: *"You are the only one working. There is no FLEET"* — routed GOAL-HQ-PERFORM.md). "Dispatched" is not an action in DUO — a row nobody will work is a row the owning HQ works.
 - **FLEET** — seats are fired. CURE NEVER re-binds on both HQs in full (a fix is a baton + `assign`, never an HQ edit); the seat loop, firing gate, and abort/shrink criteria of GOAL-CEO.md apply.
-- The mode is **Lon's declaration in-chat**, routed here when it changes — never inferred from seat activity. Mode as of 2026-08-22 s259: **DUO**.
+- The mode is **Lon's declaration in-chat**, routed here when it changes — never inferred from seat activity. Mode as of 2026-08-22 s259: **DUO**, and Lon s259 in-chat: *"We'll probably stay in DUO the entire time"* — so DUO is the STANDING mode, FLEET the exception he may never invoke; the wave-3 machinery stays ready but nothing is planned around firing it.
 
 ## ⭐⭐⭐ THE BATON — A TASK IS A GENERATOR WHOSE FRAME OUTLIVES ITS ACTIVATION
 
