@@ -27,8 +27,10 @@ Strict order, every HQ session: **1 DRAIN** (answer every pending seat question 
 - **V2-3** banner refusal on stale inbox — ✅ LANDED (hq_P, `8e2fb884`).
 - **V2-4** identity asserted + mailbox census + `.msg.*` sweep — ✅ LANDED, cross-verified by hq_C (18/18 live, 15 failures pre-patch).
 - **γ ENFORCEMENT** (not originally a numbered rung, and the largest hole found) — ✅ LANDED (`aa583ad8`): `done` verifies the DONE-WHEN. Gate `test_gate_fleet_protocol_e2e.sh`, 11 checks, the first test of the whole seat LOOP rather than one subcommand.
-- **V2-5** gate honesty — ⛔ **NOT DONE. This is the last real blocker.** 31 of 105 audited gates cannot say NO (seat16, injection-proven), two of them measured to be hiding live defects. At 16 seats a gate that cannot fail closes rows on false green at scale, and LAW 1's DONE-WHEN rule is only as good as the gates it cites.
+- **V2-5** gate honesty — ✅ **LANDED** (hq_P, `e88e77db`), **cross-verified by hq_C**. `scripts/lib_gate.sh` gives every gate three exit codes — **0 CLEAN · 1 VIOLATION · 2 UNPROVEN** — so *"I checked and it is clean"* and *"I could not check"* can never share an exit code again, and strictness is the default (`grep -rn -- --strict scripts/` had proved nothing ever passed the old opt-in flag; a flag no caller passes is a disabled gate). Verified by removing `./scrip` and re-running: converted gates return 2, not 0. `test_gate_gates_can_say_no.sh` is a **meta-gate** that executes all 31 against an empty scratch root — REFUSED=31, VACUOUS=0 — so the class cannot silently regrow.
 - **V2-6** Lon's flip — pending; this file is the source the postoffice copy is written from.
+
+⭐ **ALL FIVE NUMBERED RUNGS PLUS γ-ENFORCEMENT ARE NOW LANDED AND CROSS-VERIFIED IN BOTH DIRECTIONS.** What remains before V2-6 is V2-2's baton conversion (11 of 77 live rows) — and Lon's flip itself.
 
 ## THE MECHANICS (V2-1…V2-5 must be landed before flip)
 
