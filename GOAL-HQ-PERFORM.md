@@ -82,6 +82,60 @@ cd SCRIP && make pristine                                 # HQ-27
 #   echo <N> | valgrind --tool=callgrind ./prog.bin
 ```
 
+## ⛔⭐⭐⭐ LON s258 REFOCUS — THE RUNTIME IS THE TARGET (routed the session it landed, LOOP law 6)
+
+**Lon, in-chat, verbatim in substance:** *"you said the main optimizations needed now are ALL in the RUNTIME. So we
+should refocus. Is not the task rewrite RT in highly optimized register aware ASM with R10 and R11 and no RTCC
+VENEER. And TABLE and ARRAY rewritten. That was supposed to happen today, but that was a fiasco."*
+
+⭐ **THE REFOCUS IS ACCEPTED AND IT IS THIS FILE'S OWN RULING** — *the 10x is not blocked on codegen; every remaining
+multiple lives in the runtime services the emitted code calls out to.* Two design questions (box-fusion, a standalone
+peephole) were allowed to pull focus off it in one session; that stops here. **The named work is the standing goal:**
+`GOAL-RTCC.md` (veneer at every C-RT boundary, claim the caller-saved GPRs as VM globals) plus a TABLE/ARRAY rewrite.
+
+⛔ **AND THE FIASCO IS NAMED, because it was a DISPATCH failure, not a technical one.** The fleet-day moved beauty
+runtime 2.26x and moved `roman` 1.01x, `arith_loop` 0.99x, `string_manip` 1.00x — one workload, because the one real
+win cured by-name resolution, which the flagship does constantly and the kernels barely at all. Meanwhile seat08's
+`rung-A2-rtx-icon-family` ended with a **complete register-liveness analysis of all 5 files and ZERO code touched**.
+hq_P's s258 ruling refused only `rtx_icnnum.S`/`rtx_icnsub.S` (bail-safety invariant, unverifiable by a corpus that
+exercises error paths thinly); `rtx_icnrel.S` (13 sites) and `rtx_icnvar.S` (11 sites) were LOW RISK and *ready as
+analysed* and should have landed anyway. **A row that produces an analysis and no diff is a row that did not run.**
+
+## ⛔ THE ONE FORK THE PROFILE MUST SETTLE BEFORE WEEKS ARE SPENT — registers vs algorithms
+
+Lon's task list bundles two different cures with very different ceilings, and **Ir-per-call separates them**:
+
+- **call-boundary work** (free r10/r11, drop the RTCC veneer, hand-ASM the leaves) pays off when the top functions show
+  **LOW Ir-per-call and HUGE call counts**. Bounded: a spill/reload pair is ~2 instructions; hand-ASM over `-O2` C
+  typically buys 1.2–2x on hot leaves. It optimises **the cost of CROSSING INTO** the runtime.
+- **data-structure / engine work** (TABLE, ARRAY, the pattern engine) pays off when the top functions show **HIGH
+  Ir-per-call**. Unbounded, and the precedent is in this file: `bb_ab_slot_for` at **22,089 Ir per procedure call** was
+  a linear scan. It optimises **what happens once INSIDE**. ⛔ Hand-written assembly makes a linear scan a faster
+  linear scan.
+
+⛔ **AND THE MEASUREMENT TRAP THAT WOULD SEND US THE WRONG WAY:** `RT_OPT` defaults to `-O0`. Profiling the runtime at
+`-O0` and concluding *"the C runtime is slow, rewrite it in ASM"* measures **the compiler flag, not the language** —
+`-O0` C runs 2–4x slower than `-O2`. Every RT-vs-ASM comparison is `-O2` only (O0-DEV-O2-BENCH).
+
+## ⭐ HYPOTHESIS FROM THE WORKLOAD SOURCES (hq_P s258 — marked HYPOTHESIS per LAW 0; the profile confirms or kills it)
+
+Derived by reading the two kernels, arithmetic shown so anyone can recompute it:
+
+- **`table_access` is not measuring lookup.** `T = TABLE(512)` sits **inside** the loop, so each iteration is one
+  512-bucket allocation plus 500 stores and 500 fetches. **997,130 Ir ÷ ~1000 ops ≈ 997 Ir per operation**, against
+  SPITBOL's ~360. Both are far too high for a hashed store, which points at **allocation strategy** (eager zeroing of
+  512 buckets vs lazy) rather than hashing — and neither registers nor hand-ASM touch that.
+- **`roman` is a pattern-engine workload, not a dispatch workload.** ~4 recursion levels × (2 pattern matches +
+  1 `REPLACE`) ≈ 12 string/pattern operations per iteration ⇒ **67,170 ÷ 12 ≈ 5,600 Ir per pattern operation**, against
+  SPITBOL's ~660. 5,600 instructions to match a pattern against a ≤40-character string is not a register-pressure
+  number.
+- **It unifies the losers:** `roman` 8.4x, `string_manip` 3.7x, beauty 9.34x are all pattern/string; the two winners,
+  `var_access` 1.52x and `arith_loop` 1.10x, touch neither engine.
+
+**If this holds, the highest-value RT target is the pattern/string engine and the allocator, with the call-boundary
+work second.** If the profile shows low Ir-per-call and enormous call counts instead, Lon's ordering is right as
+written and the veneer/register work leads. ⛔ **Nobody spends a week on either until the profile says which.**
+
 ## ⭐ STANDING RULINGS FROM THIS SEAT (routed here the session they were made — the chat is not the record)
 
 ### ⛔ RULING s258 — BOX-FUSION RUNG 1 IS ON HOLD, WITH A COMPUTED RE-ENTRY CONDITION
