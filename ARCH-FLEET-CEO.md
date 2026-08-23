@@ -12,6 +12,12 @@
 
 **Why a CEO exists:** every protocol amendment of the v1 era was a duty being stripped OUT of HQ after it failed holding five at once (s256 revoked the coding lane, then split C from P). The CEO tier finishes that motion: the residual cross-cutting duties (law, arbitration, audit) go UP into a rare expensive session, and each HQ is left holding exactly one question — *is it right* (hq_C) / *how many instructions* (hq_P). The v1 free-r10 inversion was HQ ruling DONE on prose; the CEO's audit loop (re-run sampled DONE-WHENs) is the tier that catches that class in minutes.
 
+## ⭐⭐ TWO OPERATING MODES — DUO AND FLEET (Lon, 2026-08-22 s259, in-chat to CEO, verbatim in substance: *"they run in two modes: (1) DUO where it is only 2 HQ's and a CEO, and (2) with a FLEET"*)
+
+- **DUO** — 2 HQs + CEO, no seats fired. MEASURE FREELY, CURE NEVER is **SUSPENDED**: the HQs do the work themselves (Lon s259 to hq_P, verbatim in substance: *"You are the only one working. There is no FLEET"* — routed GOAL-HQ-PERFORM.md). "Dispatched" is not an action in DUO — a row nobody will work is a row the owning HQ works.
+- **FLEET** — seats are fired. CURE NEVER re-binds on both HQs in full (a fix is a baton + `assign`, never an HQ edit); the seat loop, firing gate, and abort/shrink criteria of GOAL-CEO.md apply.
+- The mode is **Lon's declaration in-chat**, routed here when it changes — never inferred from seat activity. Mode as of 2026-08-22 s259: **DUO**.
+
 ## ⭐⭐⭐ THE BATON — A TASK IS A GENERATOR WHOSE FRAME OUTLIVES ITS ACTIVATION
 
 v1's unit of work was a queue row + claim lock + static brief. Measured: the LOCK was sound (0 death-strands) — what was lost was everything else: the ASSIGNMENT (dispatch-vs-`next` race, seat13's dead session), the WORKING STATE (died with the seat's context; the era produced ZERO per-session handoff artifacts), and the CORRECTIONS (in-place row edits and marooned mail the holder never saw). Lon's generator insight names the cure exactly: **give the task a ζ that outlives the activation.**
