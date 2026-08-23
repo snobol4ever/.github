@@ -82,6 +82,78 @@ cd SCRIP && make pristine                                 # HQ-27
 #   echo <N> | valgrind --tool=callgrind ./prog.bin
 ```
 
+## ⭐ STANDING RULINGS FROM THIS SEAT (routed here the session they were made — the chat is not the record)
+
+### ⛔ RULING s258 — BOX-FUSION RUNG 1 IS ON HOLD, WITH A COMPUTED RE-ENTRY CONDITION
+Asked by **seat06 and seat15 independently, on the same row, after three prior escalations that never landed.**
+Their measurements are ACCEPTED IN FULL and are why the row survives: seat15 — `(ASSIGN,BINOP,LIT_INTEGER,VAR)`
+same-name self-update is the most frequent ≥3-box chain in real BM-4 grammars (**45/765 stmts, 5.9%**), and the
+dead templates `bb_binop_gvar_arith[_slot].cpp` stop at an operand slot without folding back into the GVA cell,
+so wiring them as-is buys 3→2 boxes, not s250's 4→1. seat06 — on `arith_loop.sno` emitted-box share is **29.18%**
+of Ir and the fusion-target statement alone is **4.49–15.11%** of kernel Ir, two instruments agreeing to within
+3%; and the old **0.64% demotion basis was beauty self-host, which is COMPILE-dominated** and therefore the wrong
+denominator. All of that stands.
+
+⛔ **It still waits, and one number decides it:** `arith_loop` is **398 Ir/iter SCRIP vs 439 SPITBOL — already
+1.10x FASTER**, and `var_access` 1.52x faster. The buckets that LOSE are `roman` 8.4x, `string_manip` 3.7x,
+`table_access` 2.8x, beauty runtime 9.34x. Box fusion is further box-template tuning on **the one bucket already
+winning**. Grant it its best case, the full 15.11%, and `arith_loop` goes 1.10x → ~1.29x while `roman` stays 8.4x
+adrift of a 2–3x product target — and the cost is a NEW optimizer pass plus a new fused op+literal IR opcode plus
+a completed write-back arm, spent on the winning bucket while the losing buckets have not been profiled once.
+That is this HQ's founding lesson restated: *a fleet optimizing whatever the flagship happens to stress is not a
+performance campaign* — and neither is one optimizing the kernel that already wins.
+
+⭐ **RE-ENTRY, COMPUTED, so nobody asks a fourth time.** Box-fusion rung 1 fires the moment EITHER **(a)** `roman`'s
+Ir/iter comes within **2x** of clean SPITBOL — the runtime-services gap is closed and emitted code becomes the top
+bucket — OR **(b)** a fixed-work callgrind profile of whichever workload is then furthest from its PLAN.md TARGET
+shows **emitted-box Ir > 50%** of total. Both are commands. Either green ⇒ dispatch without further debate.
+
+### ⛔ RULING s258 — NO PERF CLAIM MAY CITE A ζ-STORAGE COMPARISON WHILE THE AXIS IS RED
+Of the four `ZC_STORAGE` configs: `frame-r12` retired, `frame-rsp` **aborts on beauty**, `cell-heap` **SIGSEGVs on
+roman**, `cell-stack` (the default) solid. **One working arm.** A config delta measured against a crashing arm is
+not a measurement. Rows `zeta-frame-rsp-capture-home` + `zeta-cell-heap-segv` (both rank 0, hq_P) lift this.
+Evidence: `FINDING-2026-08-22-hq_P-the-zeta-ab-axis-has-one-working-arm.md`.
+
+### ⛔ RULING s258 — THE `rtx_icnnum.S` BAIL-SAFETY INVARIANT IS NOT NEGOTIABLE FOR A REGISTER-LIBERATION ROW
+seat08's `rung-A2-rtx-icon-family`: land `rtx_icnrel.S` (13 sites) and `rtx_icnvar.S` (11 sites), both LOW RISK and
+ready as analysed, plus `rtx_icnagg.S`'s single spill with the matching `add rsp` before **all three** exits. Refuse
+`rtx_icnnum.S` and `rtx_icnsub.S` on this row. Reason: a bail is an **error path**, the corpus exercises error paths
+thinly, so a green corpus would NOT be evidence that multi-exit `rsp` bookkeeping is safe — a blind instrument, and
+no DONE-WHEN may rest on one. Split to row `rtx-icnnum-icnsub-bail-invariant`, whose first deliverable is a DESIGN
+answer (can an xmm packing satisfy `SCAN_SIMPLE_INT` without touching `rsp`), not an edit.
+⭐ Escalated to `ceo`: SNOBOL4-FIRST says never run the Icon check scripts, PLAN.md s257 gives Icon a ruled numeric
+target — an Icon row therefore has no sanctioned instrument. Topic `escalate-icon-checks-vs-icon-target`.
+
 ## LIVE CURSOR — hq_P
 
-**Opened s256. First action: RUNG P-0 — profile `roman` and find what 67,170 instructions per iteration are being spent on.** Report the top functions by Ir **with call counts and Ir-per-call** — Ir-per-call is the signature that exposes a linear scan, which is exactly how `bb_ab_slot_for` was caught at 22,089 Ir per procedure call. Then check whether the same function dominates beauty runtime; if it does, **one cure moves both.** ⛔ Second action: **`bash SCRIP/scripts/s4e_msg.sh fleet` on a cadence** — the old HQ never did, and two rows sat 115 and 83 minutes with zero output unnoticed.
+**s258 (2026-08-22) — PHASE 0 PREFLIGHT: THIS SEAT'S HALF IS LANDED AND PUSHED.**
+
+- ✅ **V2-3 + V2-4 landed** at SCRIP `8e2fb884`, gated by `scripts/test_gate_postoffice_identity.sh` — 18 checks,
+  **negative-injection proven: 15 of them fail against the pre-patch script.** Identity canonicalised then
+  ASSERTED (no mailbox ⇒ exit 3, never a fresh directory); every implicit `mkdir -p` on a mailbox path deleted;
+  `.msg.*` orphan sweep; `/home/claude` → `ceo`; `fleet` census by mailbox with a MAIL column; HQ banner refuses
+  the ✅ on inbox mail older than 30 min; board line carries oldest-unanswered age + row topic.
+- ✅ **Drain complete: legacy `hq` inbox 29 → 0.** 7 answered (perf lane), 7 forwarded to hq_C with original text
+  verbatim, 15 archived as read. The 46-hour orphaned message was delivered to seat08 by the sweep's first live
+  run. Phantom `claude01/` retired (messages archived, not re-delivered — seat01 had already acked them).
+- ✅ **Rows minted:** `zeta-frame-rsp-capture-home` · `zeta-cell-heap-segv` (rank 0, hq_P) · `opt0-define-beta-link`
+  (rank 1, hq_C, cross-HQ interlock).
+- ⛔ **CROSS-VERIFICATION OWED BACK TO ME, and it is the firing gate's open item: V2-1 IS NOT LANDED.** Measured
+  against `origin/main` in a throwaway postoffice — a rank-5-first / rank-0-second queue served **rank 5**, and
+  `assign` printed usage. hq_C has the code but it was **uncommitted**. V2-2's purge PASSES (0 rows swept without
+  a `DONE` marker). Reported with receipts; `QUEUE.tsv` line 3 rewritten from a status claim into a command the
+  reader runs. **V2-1 stays UNVERIFIED until hq_C pushes and I re-run the rank-inversion + assign-beats-free tests.**
+
+**⭐ NEXT ACTION, in order:**
+1. **Re-run the V2-1 negative tests the moment hq_C pushes** (rank inversion served in rank order; `assign` outranks
+   topmost-free). Nothing else in the firing gate is blocked on me.
+2. **RUNG P-0 — profile `roman`.** Unchanged and still the sovereign question: callgrind at fixed N, top functions by
+   **Ir WITH call counts and Ir-per-call** — Ir-per-call is the signature that exposes a linear scan, which is exactly
+   how `bb_ab_slot_for` was caught at 22,089 Ir per procedure call. Then check whether the same function dominates
+   beauty runtime; if it does, **one cure moves both.** Row `perf-roman-8x` is rank 0 and FREE.
+3. **`s4e_msg.sh fleet` on a cadence** — now that it can actually see both HQs and shows mail age, there is no excuse
+   for a row sitting 115 minutes unnoticed.
+
+⛔ **Seat→HQ ownership (`$PO/<seat>/HQ`) is IMPLEMENTED but NOT POPULATED.** `ask` resolves `$S4E_HQ` → that file →
+legacy `hq`, so questions still land in `hq/` — which is now drained and visible in the census, so nothing rots. The
+8/8 split between hq_C and hq_P is a joint decision and should be written the session Lon fires the wave.
