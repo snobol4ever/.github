@@ -14,17 +14,17 @@
 1. V2-1 picker: rank-sorted free rows + `s4e_msg.sh assign <seat> <topic>` + assigned-first `next` (kills the dispatch race and the rank-blind burying).
 2. Queue purge: 112 DONE rows → `QUEUE.done.tsv`; blank line at :145 deleted; seat13/seat14 dead locks released; dup rows (`diag-reg-*`) pruned; every surviving brief pointer verified.
 3. V2-3 banner: HQ ✅-refusal while inbox mail >30 min unread; board line gains oldest-unanswered age + row topic.
-4. V2-4 identity assert + census-by-mailbox (unblinds hq_C/hq_P); deliver the marooned messages (claude01 ×2, `.msg.b1QC4J`); retire the phantom mailbox.
+4. V2-4 identity assert + census-by-mailbox (unblinds hq_C/hq_P); deliver the marooned messages (claude01 ×2, `.msg.b1QC4J`); retire the phantom mailbox; **remap `/home/claude` → identity `ceo` (Lon s257) and retire the legacy `hq` mailbox after the HQs drain its 29-message backlog.**
 5. Convert ONLY the top ~16 dispatchable rows to `tasks/*.task.md` (8 per HQ), each DONE-WHEN demonstrated able to say NO. Not all 55 — no ocean-boiling.
 **Firing gate:** `fleet` shows 0 unanswered questions; every seat root to be used passes the oracle preflight (absent-oracle false-FAIL class); both HQ cursors pushed.
 
-**PHASE 1 — THE RUN: 8 seats (4 per HQ), one day.** Dispatch by `assign` only (no self-pick day 1). HQs run drain→verify→mint→assign strictly. CEO audits twice (sampled DONE-WHEN re-runs). Lon reads computed banners/board only, fires /clear, spot-audits at will.
+**PHASE 1 — THE RUN: ⛔ AMENDED BY LON s257 mid-proposal, in-chat: "let's make that /home/claude [CEO]. 2 HQ's. And 16 FLEET members." — 16 seats (8 per HQ), superseding CEO's 8-first recommendation (recorded, not re-argued).** The mitigation that makes 16 safe is the FIRING GATE: no seat fires until preflight is green AND a ready task file exists for it (16 task files, 8 per HQ, SNOBOL4-first per both charters). Dispatch by `assign` only (no self-pick day 1). HQs run drain→verify→mint→assign strictly. CEO audits twice (sampled DONE-WHEN re-runs) from its ruled root `/home/claude`. Lon reads computed banners/board only, fires /clear, spot-audits at will. At 16 seats the abort criteria below are not decoration — they are what shrinks the fleet mechanically before starvation replays wave 2.
 
 **TARGETS, measured exactly as the scorecard FINDING (defined BEFORE the run, per LAW 0):** commit→row traceability >70% (was 34%) · median question-wait <30 min (was 45m–1h51m) · rework share of FINDINGs <15% (wave-2 day: 17%) · corpus watermark net-positive on stable denominator · zero re-dispatch of landed work · retractions ≤ wave-1 rate.
 
 **ABORT/SHRINK, mechanical:** >6 unanswered questions for 30 min → HQs stop minting and drain (banner enforces) · 2 dispatch mismatches → halt, fix picker, resume · any seat 2h with no ledger delta → its task re-FREEs via β and reassigns (the baton working as designed).
 
-**SCALE RULE:** 8 seats until two consecutive days green vs targets, then +4, never mid-day, never simultaneous with a namespace change or an HQ restructuring (wave 2's compounding error). ⏱ Note: the Claude Code 50% weekly-limit promotion currently ends Aug 31 — the cheap window for wave 3 is the next ~9 days.
+**SCALE RULE (amended by Lon s257 — 16 is the ruled size):** the surviving half of the rule: never grow or restructure mid-day, and never simultaneously with a namespace change or an HQ reorganization (wave 2's compounding error). If the abort criteria shrink the fleet, re-growing to 16 waits for the next day's green preflight. ⏱ Note: the Claude Code 50% weekly-limit promotion currently ends Aug 31 — the cheap window for wave 3 is the next ~9 days.
 
 ## SESSION SETUP
 
