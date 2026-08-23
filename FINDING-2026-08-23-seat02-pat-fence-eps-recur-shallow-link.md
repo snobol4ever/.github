@@ -1,0 +1,51 @@
+# FINDING — the last SNOBOL4 board SKIP was two stacked defects in the same DEFINE-registration glue: an orphaned FN__&lt;name&gt; symbol, then (found only once the first was fixed) a PIE-unsafe fallback reference landed by a concurrent seat
+
+**Session:** 2026-08-23 seat02 (`/home/claude02`, Claude Sonnet 5), THE LOOP row `pat-fence-eps-recur-shallow-link`, dispatched by hq_C off my own out-of-fence observation while closing `porter-m4-duplicate-label` earlier the same session. Pristine per HQ-27 throughout, re-proven after two rebases. Final watermark: SCRIP `3e4591fe` (my commits, rebased twice — `e5bf0397` then `3e4591fe`), corpus `e0675d42` (regen commits, rebased), `.github` this commit.
+
+## BUG 1 — an orphaned DEFINE name never got a linkable FN__&lt;name&gt; symbol
+
+`132_pat_fence_eps_recur_shallow.sno` carries a vestigial `DEFINE('makeP()')` with no matching `makeP` label anywhere in the source — the FENCE/epsilon-recursion pattern under test uses `*P` (deferred pattern-variable evaluation), never `*makeP()`. Real SPITBOL, and SCRIP's own mode-3 (`--run`), tolerate this. Mode-4 (`--compile`) did not: `bb_define_bind()`'s statement-level registration glue (`src/templates/bb_define.cpp`, compiled once per `DEFINE(...)` statement regardless of whether its target has a body) unconditionally took `FN__<name>`'s address to hand to `rt_define_site`, but nothing ever *defined* `FN__makeP` — `as` refused the program with "undefined reference to `FN__makeP`", reported by the corpus board as `SKIP(compile/link)`.
+
+**Root cause, traced not guessed:** two independent representations of "this DEFINE'd function" exist and were never reconciled — (1) the statement-level `IR_DEFINE` node, always present regardless of whether a body exists, and (2) the proc-table entry (`s2->proc_table[]`, populated by LOWER only when a valid entry label backs the name). A diagnostic dump at the exact point mode-4's SNOBOL4 driver walks procs showed `proc_count=3` — `main`, `PAT$0`, `PAT$1` — `makeP` is not there at all, not present-with-a-null-entry as the baton's own hypotheses (a re-emitted box, a reused node id) suggested. Mode-4's per-proc emission loop only ever walks `proc_table[]`, so an orphaned name gets no `FN__<name>` label from that path, while `bb_define_bind`'s reference is unconditional.
+
+Two false starts along the way, both worth recording: eight textually-identical `if (idx<0 ‖ …‖ !entry) continue;` guards in `scrip.c` all looked like the culprit from static reading, but empirical `fprintf` tracing proved plain SNOBOL4 compiles never reach that code at all — they take an earlier, separate `is_sno_bb`-gated branch that does its own thing entirely. And walking `bbg->all[]` for `IR_DEFINE` nodes segfaulted on the first attempt: two of the three DEFINE nodes present are "sr_citizen" role-marker nodes whose `.ival` (an integer 1 or 2) and `.sval` (a string pointer) are the same union storage — printing `.sval` on a role-marker node dereferences the bit pattern of a small integer as a pointer. `ir_define_sr_citizen()` (`src/contracts/IR.h:191`) is the existing, correct filter.
+
+**Cure (`src/driver/scrip.c`, +13 lines):** a one-line helper (`ir_define_plain_name`) plus a loop, right after mode-4's `.text` header, that mints a minimal stub for every non-sr_citizen `IR_DEFINE` node whose name has no `proc_table` entry — checked by *name*, not node identity, so no orphaned DEFINE gets special-cased:
+
+```
+FN__<name>:
+  call rt_ab_undef_fn_stub@PLT
+  ud2
+```
+
+`rt_ab_undef_fn_stub` (`src/runtime/rt/rt.c:477`) is the pre-existing, already-exported "undefined function" trap (SPITBOL error 22). Dead code for every current witness; it exists so the reference `bb_define_bind` always emits has something to resolve against. A duplicate-name guard prevents the exact class of bug just fixed in the sibling row `porter-m4-duplicate-label` from recurring here.
+
+This alone took the corpus board's `132` from `SKIP` to a real `.o`/link/run/diff pass under the row's own DONE-WHEN (`gcc -no-pie`).
+
+## BUG 2 — found only after Bug 1 was fixed: a concurrent seat's own fix for the same defect used a PIE-unsafe relocation
+
+Rebasing mid-session picked up commit `4aec6e9f` — **a different seat, same session, same identity, independently diagnosing the identical `132_pat_fence_eps_recur_shallow.sno` symptom** and fixing it a different way: instead of guaranteeing `FN__<name>` always exists (this row's approach), they redirected `bb_define_bind`'s TEXT-mode fallback (`blbl`, used when `_.lbl_t0` is empty — no lowered body) from the fabricated `FN__<name>` straight to the real, exported `rt_ab_undef_fn_stub`. Sound instinct, same diagnosis — but rendered through `x86("lea", "r9", "[rip+__]", ...)`, which the `x86_load_ro` encoder always turns into a raw PC32-relative `lea r9,[rip+rt_ab_undef_fn_stub]`. That is correct only for a *local* symbol (a label in the same TEXT file); `rt_ab_undef_fn_stub` lives in a separate shared object (`libscrip_rt.so`), so a raw `lea` there is a relocation the PIE linker cannot satisfy: `relocation R_X86_64_PC32 against symbol 'rt_ab_undef_fn_stub' can not be used when making a PIE object`. `gcc`'s own default is PIE — this is exactly what the corpus board's real runner (`test_corpus_snobol4.sh`, which links with no `-no-pie`) hit, even though the row's own manual DONE-WHEN (which explicitly passes `-no-pie`) never surfaced it.
+
+Confirmed via a clean before/after swap (not guessed): reverting only this one line while keeping Bug 1's fix reproduces the exact same PIE failure; restoring it clears it.
+
+**Cure (`src/templates/bb_define.cpp`, 1 line changed):** keep the existing `lea` for the `lbl_t0`-set (local label) case; route the fallback case through the already-established `x86_load_got` helper (the same GOT-relative idiom this file already uses for `g_monitor_bin` and other cross-DSO C symbols) instead. BINARY medium is untouched — both encoders bake the identical raw pointer for BINARY; only the TEXT rendering differs.
+
+## VERIFICATION
+
+- DONE-WHEN (compile 132, `as`, `gcc -no-pie` link, run, diff vs `.ref`) — passes, byte-identical, after both fixes.
+- Also verified under the corpus runner's own default (PIE) link, not just `-no-pie` — link exit 0, correct output, after Bug 2's fix.
+- Both sibling witnesses (`133`/`134`, deep/stress, no DEFINE at all) — unaffected throughout.
+- Own corpus baseline (`test_corpus_snobol4.sh`), reproduced repeatedly across two rebuilds and two rebases: final state **m3 359/1, m4 359/1/0 SKIP (360 total)** — the only red is `demo_treebank` (seat03's row; `160_pat_alt_inner_gen_resume` closed by seat01 mid-session, unrelated to this row).
+- Class-level link sweep (own script, corrected mid-session to link *without* `-no-pie` once Bug 2 was understood — the `-no-pie` version of the sweep is exactly what let Bug 2 slip past the first pass): all ~1985 non-`programs/lon/` `.sno` files compiled, assembled, and linked. Zero hits attributable to either of this row's changes.
+- `test_gate_no_c_to_bb.sh` (STRICT FAIL), `test_gate_rtcc_block_coverage.sh` (FAIL): reproduce identically on a `git stash`ed clean tree — pre-existing, unrelated. `test_gate_template_medium_invisible.sh --strict` also fails, but its own output attributes 100% of it to `xa_flat.cpp` (0 sites in `bb_*.cpp`, where both fixes live) — pre-existing, unrelated.
+- Six `.s` regen scripts, run twice (once per commit), RULES.md order: only `util_regen_crosscheck_s_artifacts.sh` found real deltas — `132_pat_fence_eps_recur_shallow.s` (first +3 lines for the new stub, then +2/-1 once Bug 2's fix changed the fallback's own addressing mode) and, incidentally, a from-scratch regen of `crosscheck/strings/tbl_counted_string_keys.s` (a backlog gap from an unrelated earlier commit, caught by the same sweep, not caused by this row).
+
+## OUT OF SCOPE — flagged, not fixed
+
+- **`corpus/probe/setexit/se_*.sno`, `corpus/programs/csnobol4-suite/setexit7.sno`**: `undefined reference to LBL__H` / `LBL__eh35` etc., from a `.rodata` GVA name table. Confirmed the label (`H`, a real `SETEXIT(.H)` handler target) exists with real code — a different symbol class (`LBL__` GOTO-label aliasing), its own gap.
+- **`corpus/programs/gimpel/{BAL,TRY-defining}...`**: `BAL`/`TRY` in `BAL_driver.sno` **are** present in `proc_table` (confirmed via targeted diagnostic, `in_proctable=1`) with what should be a real body, so this row's own fix correctly declines to stub them — yet the *normal* per-proc emission path still doesn't produce their `FN__` symbols. A separate, deeper pre-existing gap in multi-`DEFINE`/`-INCLUDE` file handling.
+- **`corpus/probe/ab_expr_define.sno` (and, found by the same signature, `gimpel/{FASTBAL,FPROFILE,TPROFILE,ONCE,GPM}{,_driver}.sno`)**: `undefined symbol <name>_α ... PIE object`. `ab_expr_define.sno` is a *pre-existing, already-documented* witness (its own header comment names the mechanism precisely): `DEFINE(...)` evaluated in **expression position** (`DIFFER(DEFINE(...))`) is hoist-registered by the lowerer for the legacy call path, but the AB activation block — which mints the `<name>_α` label — is only minted on the *statement*-position path. `bb_define.cpp`'s separate M4-ALPHA-SEAL block references `<name>_α` the same raw-`lea` way Bug 2 fixed for `rt_ab_undef_fn_stub`, so the same PIE-relocation failure shows up wherever the activation block is missing for this different, already-tracked reason. Confirmed pre-existing (identical failure with and without both of this row's fixes). Not this row's mechanism — the real cure is in whatever mints the AB block for expression-position DEFINEs (`lower_snobol4.c` territory per the witness's own comment), not the emitter.
+
+## OUTCOME
+
+Two files, two commits: `src/driver/scrip.c` (+13 lines) and `src/templates/bb_define.cpp` (1 line). Corpus m4: **357/360+1SKIP → 359/360+0SKIP**, better than the row's own stated target (`358/360+0SKIP`) because seat01 independently closed the other red mid-session. Both repos pushed after rebase; gates re-proven post-rebase per RULES.md each time. Three out-of-scope discoveries routed to HQ rather than silently chased, one of them (the `_α`/PIE class) a genuinely new, class-level lead for whoever owns expression-position DEFINE or the AB activation mechanism next.
