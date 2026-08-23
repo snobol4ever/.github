@@ -475,6 +475,42 @@ corpus is short, so a bounded hash would measure ~0 and a break would show up on
 benchmarks do not look. **The row wants a witness first** — a kernel with long string keys — and then the coupled
 C+ASM change, gated by a test that hashes the same key through both paths and compares.
 
+## ⛔⭐⭐ RUNG T-3 — TABLE KEYS LEAK. THE GC HEAP HOLDS THE TABLE; THE WORKSPACE ISLAND HOLDS THE KEY, FOREVER.
+
+**Lon s262:** *"Is the TABLE algorithm using GC HEAP? Or malloc/free?"* ⭐ **Neither, and the answer is two arenas
+with different lifetimes — which is the defect.**
+
+- `TBBLK_t` and `TBPAIR_t` → `rt_agg_alloc` → `rt_gcheap_alloc(HB_AGGV+kind)` → **the GC heap. Collectable.**
+- `e->key`, the key string → `rt_ws_strdup_c` → `rt_ws_alloc_c` → **the WORKSPACE ISLAND, a pure bump allocator that
+  is never freed and never collected.** `gc_heap.c`'s own comment: *"the GC marks HB_WS blocks but never moves or
+  frees them"* — the very property the s258 `NV_t` memo relies on for soundness.
+
+⭐ **MEASURED, `SCRIP_ALLOC_HIST=1` on `table_access` (type 205 = `HB_WS`):**
+
+| N | WS allocations | WS bytes | peak RSS |
+|---|---:|---:|---:|
+| 1,500 | 760,001 | 4.4 MB | 227 MB |
+| 12,000 | 6,010,001 | 34.8 MB | 596 MB |
+| 30,000 | — | — | 596 MB |
+
+**760,001 ≈ 500 keys × 1,500 iterations — exactly ONE permanent workspace allocation per key insert.** The GC heap
+types (206/207/208) *are* reclaimed, which is why peak RSS plateaus at 596 MB whether N is 12,000 or 30,000. ⛔ But
+the island grows monotonically at **~2.9 KB per iteration** and `ZC_WSI_MB` is **1024**, so a table-heavy program
+aborts with `[WSI] workspace island exhausted` at roughly **350,000** table-building iterations. ⛔ **I predicted
+exhaustion at N≈30,000 from the RSS slope and was WRONG — the run completed cleanly. RSS was tracking the
+collectable heap, not the island. The allocation histogram is what settled it; the RSS curve could not.**
+
+### 🔲 THE ROW — and it is the same cure as the perf win, not a separate one
+The key string exists only to populate `TBPAIR_t.key`, which iteration, sorting, CONVERT, the set operators and
+`rtx_icnsub.S`'s DT_S arm read. ⭐ **After the s262 typed-key cure, lookups no longer need it at all** — hashing and
+equality both run off `key_descr`. So for every non-`DT_S` key the string is written once, leaked forever, and read
+only by code that already has `key_descr` sitting beside it. **Dropping `e->key` for non-string keys removes 750,000
+permanent allocations on this kernel AND the last stringify on the insert path.** For `DT_S` the key IS the string
+and `rtx_icnsub.S` walks it, so that case keeps its pointer — and can share the value's storage rather than
+strdup'ing a second copy.
+⛔ **This is a leak, i.e. a behaviour question, so hq_C should see it — but the cure lives in the table rewrite that
+is already this seat's row (RUNG T), so it is not being handed over, only reported.**
+
 ## LIVE CURSOR — hq_P
 
 **s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
