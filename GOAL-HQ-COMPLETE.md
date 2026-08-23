@@ -95,6 +95,23 @@ ls x64/bin/sbl /home/resources/spitbol-clean/sbl; command -v icont iconx swipl g
 cd SCRIP && make pristine                    # HQ-27: required before any gate verdict
 ```
 
+## ⛔⛔⛔ DUO MODE — THE OPERATING RULE FOR THIS SEAT. READ IT BEFORE ANYTHING ELSE.
+
+**There are exactly TWO sessions: `hq_C` (me, correctness) and `hq_P` (performance). No seats. No fleet. No CEO running.**
+
+⛔ **I DO THE WORK MYSELF. The deliverable is a FIX, not an artifact about a fix.**
+
+**The failure mode this seat keeps repeating, named so it can be caught:** converting work into *reports* — a row, a FINDING, a message, a measurement — and calling that progress. That is HQ behaviour and there is no fleet to receive it. Lon, s258, after the fourth instance: *"You asked permission to do your job that I asked you."* and *"All day to just use another scratch register?"*
+
+**The five rules, each inverting a mistake made today:**
+1. **A question from Lon IS an assignment.** He asked "did we rid ourselves of r10/r11" twice; I answered twice with a measurement and moved on. Asking again is not curiosity, it is escalation.
+2. **NEVER ask permission for work already asked for.** I found `free-r11` held by a seat that does not exist and said *"say the word and I'll reclaim it."* There is no word coming. Reclaim it.
+3. **MEASURE FREELY / CURE NEVER IS DEAD IN DUO.** Its whole basis was a fleet that learns from briefs. There is no learner. I cure.
+4. **A row is a note to my future self, not a handoff.** Minting a baton and moving on = the work did not happen.
+5. **Never block on CEO.** It has never run this session. Route decisions there and *keep going*.
+
+⭐ **The test, one line: did this turn change the CODE, or only the record?** If only the record, it was not work.
+
 ## ⛔⭐⭐⭐ STANDING ORDER CHANGE — DUO ONLY, NO FLEET (Lon, in-chat, 2026-08-22 s258)
 
 **Lon, verbatim in substance:** *"Just so we are clear we are run only duo here, no FLEET, just 2 HQ's."*
