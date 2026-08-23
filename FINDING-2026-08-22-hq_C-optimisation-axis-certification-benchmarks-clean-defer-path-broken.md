@@ -64,3 +64,27 @@ At `-O0` GCC never allocates r14/r15 in the matcher, so the pins survive by acci
 My first certification run reported **0/17 OK in both arms**. That was not 17 broken benchmarks; it was my comparison. These programs are **time-based by default** and print nondeterministic `iters:`/`ns:`/`ms:` lines, while each `.ref` holds only the deterministic `check:` value — so a full-stdout diff can never match. A complete, plausible, entirely false all-FAIL table, produced by the seat that spent the day warning others about exactly that.
 
 ⭐ **What caught it: 0/17 in BOTH arms is not the shape a real defect makes.** A genuine optimisation bug is selective. **A result too uniform to be interesting is evidence about the instrument, not the subject** — the same lesson as *"BAD as expected"* is not a measurement, arriving from the opposite direction.
+
+## ⭐⭐⭐ LOCALISED: THE WHOLE OPTIMISATION DEFECT IS TWO FILES OUT OF 261
+
+Two automated file-level bisections over every runtime object (bounds confirmed before each: all-`-O0` passes, all-`-O2` fails):
+
+| bisect | target | rounds | culprit |
+|---|---|---|---|
+| #1 | `161_pat_defer_fn_nested_match` | 8 | **`src/runtime/rt/rt.c`** |
+| #2 | beauty self-host (rt.c already at `-O0`) | 8 | **`src/runtime/pattern_match.c`** |
+
+**With 259 of 261 objects at `-O2` and only those two at `-O0`:**
+
+```
+161 witness  : fail calls=1 match2 calls=2      = oracle  ✅
+beauty m3    : 40,971 bytes  md5 6f1671c0...    FIXED POINT ✅
+beauty m4    : 40,971 bytes  md5 6f1671c0...    FIXED POINT ✅
+corpus       : m3 PASS=357 FAIL=2 · m4 PASS=355 FAIL=2 SKIP=2
+```
+
+That corpus line **is the `-O0` baseline exactly** — both `-O2`-only reds (`161_pat_defer_fn_nested_match`, `demo_porter` m3) are gone, and nothing else moved.
+
+⛔ **THIS IS A WORKAROUND, NOT A FIX, AND MUST NOT BE SHIPPED AS ONE.** De-optimising two files hides real undefined behaviour rather than removing it; the same UB can resurface through any other file that inlines the offending code. What it buys is (a) a usable optimised build today and (b) a hunt narrowed from 261 files to 2. The real fix is in `rt.c` and `pattern_match.c`, and `-fsanitize=undefined` on exactly those two is the obvious next probe.
+
+⭐ Note the interaction is **non-additive**: `rt.c` alone fixes the 17-line witness but leaves beauty broken (614 bytes — a third distinct signature, after 278 plain and 259 under `-ffixed-r14/r15`); `pattern_match.c` alone fixes neither. Beauty needs both. Whatever this is, it is one defect class reachable through two files, not two independent bugs.
