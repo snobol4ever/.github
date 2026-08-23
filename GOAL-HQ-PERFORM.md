@@ -31,14 +31,19 @@ work itself now.**
 |---|---|---|---|
 | claws5 grammar only (`-match`) | 1,087,882 | 1,770,532 | ⭐ **SCRIP 1.63x FASTER** |
 | claws5 full | **61,233,041** (was 74,294,806) | 36,477,603 | 2.04x → **1.68x** |
-| json (400 nested 1-member objects) | 8,474,055 | 1,949,584 | ⛔ **4.35x** |
+| json (400 nested 1-member objects) | **8,110,738** (was 8,474,055) | 1,949,584 | ⛔ **4.16x** |
 
 ⭐⭐ **THE FINDING THAT REDIRECTS CLAWS5 WORK, AND IT IS ALREADY PAID FOR: THE PATTERN ENGINE ALREADY BEATS SPITBOL BY 1.63x.** 98.5% of claws5 is the deferred action + the 3-level TABLE build. ⛔ Do not open claws5 looking for a pattern-engine campaign — that subsystem is our best one on this workload. Full evidence, method and the three landed cures: `FINDING-2026-08-23-hq_P-claws5-is-not-a-pattern-problem-and-json-is-4x-not-2x.md`. Landed and pushed at SCRIP `ce48e3bb`, gates green (corpus m3 358/2, m4 357/2+1SKIP — standing reds only).
 
-**START HERE, IN THIS ORDER — all three found, none needs a semantic ruling:**
-1. ⭐ **JSON `ARRAY(n)` is re-parsed from a STRING on every call.** `sno_array_from_proto` (`by_name_dispatch.c:7122`) receives the bounds as a text prototype and runs `strchr` + `strtol` per call — **4,405 `strtol` calls per 11 json iterations, measured**, for arrays that are ONE element long. With `array_new` this is **14.7% of json**, on an input holding zero JSON arrays (the cost is the per-object key-order array). Pass integers, not text.
-2. **By-name builtin dispatch** — ~9.2% of claws5, ~9.5% of json. `IDENT()` pays ~237 Ir of dispatch machinery before doing its one-instruction job. ⛔ The cure MUST be class-wide: NO-PER-OP-FILTER (Lon 2026-08-20) forbids an exception list of hot builtins.
-3. **`table_set_descr_d` 253 Ir/call · `table_find_pair_d` 79 Ir/call** — the remaining table cost, both `-O0` C/ASM, the natural GOAL-RTCC targets.
+⭐⭐ **json NO LONGER HANGS.** At SCRIP `3a644af1` it parses the REAL 631 KB benchmark input to `check: 1264/1050/4754/2108/1/2791/1946/10` — identical to the SPITBOL oracle and to the committed `json.ref`. corpus m3 359/1, m4 358/1+1SKIP; `corpus/probe/altgen` 2/7 → 7/7; `160_pat_alt_inner_gen_resume` GREEN. ⛔ **The mechanism is UNEXPLAINED and this seat does NOT claim the cure** — 160 contains zero ARRAY calls. It survives `SCRIP_GC_STRESS` off/25/7/1, so it is not obvious masking, but hq_C/seat01 own the row and must confirm before it is called closed.
+
+**START HERE, IN THIS ORDER — all found, none needs a semantic ruling:**
+1. ⛔ **Get real json.dat callgrind-measurable.** Under valgrind json dies before its check line on the 631 KB input and N=1 == N=3 in Ir (395,206,490 vs 395,206,511 m3) — quit early, not fast. It is correct OUTSIDE valgrind. Until this is fixed the only quotable json ratio is the 400-nested-object workload. SPITBOL's real-input slope IS measurable: **70,808,448 Ir/iter**.
+2. **By-name builtin dispatch** — ~9.2% of claws5, ~9.5% of json. `IDENT()` pays ~237 Ir of dispatch before doing its one-instruction job. ⛔ The cure MUST be class-wide: NO-PER-OP-FILTER (Lon 2026-08-20) forbids an exception list of hot builtins.
+3. **`table_set_descr_d` 253 Ir/call · `table_find_pair_d` 79 Ir/call** — remaining table cost, both `-O0` C/ASM, the natural GOAL-RTCC targets.
+4. **`array_new` is still 7.55% of json** at ~1,766 Ir per call for ONE-element arrays — two `rt_ws_alloc` calls plus a fill loop. Next allocator rung.
+
+⛔ **TWO DEFECTS ROUTED TO hq_C, both newly reachable because json runs at all now:** (a) m3/m4 divergence — m4 floods `rt_dcap_pump: CORRUPT CAPTURE ENTRY` on real json.dat and never answers, m3 is correct; (b) `SCRIP_GC_STRESS=7` SIGSEGV on the 5-byte witness `[1,2]` (passes off/25/1).
 
 ⛔ **DO NOT "FIX" `_tbl_grow`'s ALLOCATION FLOOR WITHOUT AN INSTRUMENT THAT SEES BOTH.** It fires on 10,520 of 17,973 claws5 inserts (59%) and raising the floor is the obvious Ir win — but `aggregates.c:342` records that floor 1 vs floor 4 was **already measured on CLAWS5** and floor 4 LOST on cache misses (499K vs 375K) while winning 1.6% Ir. Ir and cache-misses disagree in opposite directions, our only instrument is Ir, and hardware counters are recorded unusable here. Lowering Ir there could flatter the published number and cost real time.
 

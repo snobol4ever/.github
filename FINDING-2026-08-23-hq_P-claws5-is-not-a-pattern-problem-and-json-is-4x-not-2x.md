@@ -46,3 +46,25 @@ Fixed cost cross-checks unchanged across the change (5,110,059 → 5,109,193), w
 2. **By-name builtin dispatch** — ~9.2% of claws5, ~9.5% of json. `IDENT()` costs ~237 Ir of dispatch machinery before it does its one-instruction job. ⛔ The cure must be **class-wide**: NO-PER-OP-FILTER (Lon 2026-08-20) forbids an exception list of hot builtins.
 3. `table_set_descr_d` at 253 Ir/call and `table_find_pair_d` at 79 Ir/call are the remaining table cost; both are `-O0` C/ASM and are the natural GOAL-RTCC targets.
 4. json's realistic (multi-member) numbers stay blocked on seat01's altgen row.
+
+
+---
+
+## ⛔⛔ ADDENDUM, SAME SESSION (s264, SCRIP `3a644af1`) — A SELF-CORRECTION, AN UNEXPLAINED UNBLOCK, AND TWO NEW DEFECTS
+
+### 1. ⛔ SELF-CORRECTION: "ARRAY creation is 14.7% of json" WAS WRONG
+I read that off the function-level profile. It is mostly the **five ONE-TIME startup arrays** (`vs`/`ks` are `ARRAY(262144)`), not per-iteration cost. `ARRAY(n)` with an integer bound did snprintf → strchr/strtol → strdup, a full round trip through text for bounds we already had; `sno_array_from_proto` then refilled every element AFTER `array_new` had already laid down NULVCL — a second pass over 524,288 descriptors at startup. Cured (calls `array_new(1,n)` directly):
+- json **N=1: 30,944,003 → 21,989,356 Ir (−29%)** — almost all of it startup
+- json **slope: 8,474,055 → 8,110,738 Ir/iter (−4.3%)**, gap **4.35x → 4.16x**
+**The honest per-iteration number is 4.3%, not 14.7%.** `->proto` is no longer stored; `agg_prototype()` already reconstructs it lazily and all four `PROTOTYPE()` forms were negative-tested against `x64/bin/sbl -bf`.
+
+### 2. ⭐⭐ json NO LONGER HANGS — AND I AM NOT CLAIMING THE CURE
+With that commit the standing front red goes GREEN: corpus **m3 358/2 → 359/1, m4 357/2 → 358/1+1SKIP**, `corpus/probe/altgen` goes **2/7 → 7/7**, and `json.sno` parses the **REAL 631 KB benchmark input** to `check: 1264/1050/4754/2108/1/2791/1946/10` — byte-identical to the SPITBOL oracle AND to the committed `json.ref`.
+⛔ **I cannot explain the mechanism and the row is not mine.** `160_pat_alt_inner_gen_resume` contains **zero** `ARRAY` calls, so there is no direct path from this edit to that test. Either it cures a heap corruption whose downstream symptom was the alternation failure, or it is allocation-timing masking. **Evidence against fragile masking:** 160 passes at `SCRIP_GC_STRESS` off / 25 / 7 / 1, all four. hq_C and seat01 own the row and the mechanism is theirs to confirm before anyone calls it closed.
+
+### 3. ⛔ TWO NEW DEFECTS FOUND, BOTH ROUTED TO hq_C (correctness lane)
+- **m3/m4 DIVERGENCE on real json.dat.** mode-3 answers correctly; the mode-4 native binary floods `rt_dcap_pump: CORRUPT CAPTURE ENTRY refused — len=2054018274 saved_delta=2240949032 end=4294967306 exceeds subject length 371 (target 'seg', frame depth 2)` and never produces the check line. Reachable only now that json runs at all.
+- **`SCRIP_GC_STRESS=7` SIGSEGV.** json on the 5-byte witness `[1,2]` dumps core at stress 7; passes at off / 25 / 1.
+
+### 4. ⛔ INSTRUMENT GAP — REAL json.dat IS NOT YET CALLGRIND-MEASURABLE
+Under valgrind, json on the 631 KB input dies before printing its check line, and **N=1 and N=3 return the same Ir** (395,206,490 vs 395,206,511 in m3; 33,534,491 vs 33,534,552 in m4) — the signature of a program that quit early, not a fast one. It runs correctly OUTSIDE valgrind. So the only quotable json ratio remains the 400-nested-object workload above. ⛔ Do not publish a real-input json ratio until this is resolved; SPITBOL's own real-input slope IS measurable and is **70,808,448 Ir/iter** (N=1 74,783,170, N=3 216,400,066) for whoever gets SCRIP's arm working.
