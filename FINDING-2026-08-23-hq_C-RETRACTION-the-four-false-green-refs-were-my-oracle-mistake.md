@@ -52,3 +52,33 @@ That is SPITBOL refusing a dialect it does not speak. **I read a wrong-oracle er
 **Check which dialect the oracle speaks before grading a corpus with it.** A wrong-oracle error stream is not evidence about the program under test. The failure was mine twice over: I inverted a verdict, and I shipped it to a peer who banked it without re-deriving it — which is the reasonable thing for a peer to do, and is exactly why shipping an unverified claim is expensive.
 
 Related: `FINDING-2026-08-20-s188-the-oracle-flag-is-a-language-switch-and-b-manufactures-the-crashes-it-is-blamed-for.md` — the same class, and it already said the flag is a *language switch*. I had the answer on disk and did not apply it.
+
+---
+
+## ⭐ MEASURED: the surviving defect, quantified (added same session)
+
+I said above that no count would be quoted until I ran it. Here it is. Every `.sno`/`.ref` pair in `corpus/programs/csnobol4-suite` run against **both** oracles — csnobol4 (native) and `sbl -bf` (what the scorecard actually uses) — 120 gradeable pairs:
+
+| class | count | meaning |
+|---|---|---|
+| **`SPITBOL_WRONG_ORACLE`** | **30** | **csnobol4 reproduces the `.ref` exactly; SPITBOL does not** — graded false-RED today |
+| `both_agree` | 47 | both oracles reproduce the `.ref` — graded correctly |
+| `neither_matches` | 41 | see the honesty note below |
+
+⛔ **The 30 are the exposure**, and the program names carry the story — they are CSNOBOL4 extensions SPITBOL does not have:
+
+`8bit2 alis case1 conv2 digits err float func2 function include labelcode label line loaderr maxint openi openo ord popen2 popen pow scanerr setexit2 setexit4 setexit5 setexit7 sleep space update vdiffer`
+
+`include`, `popen`/`popen2`, `setexit2/4/5/7`, `openi`/`openo`, `loaderr`, `maxint`, `labelcode`, `vdiffer` — a suite of dialect features, graded by an oracle that does not speak the dialect.
+
+⚠️ **Honesty note on the 41**, because inflating a bucket is how the original error happened: my sweep is **cruder than the scorecard** — it fed `/dev/null` to stdin and set no `SETL4PATH` include path, where `scorecard_snobol4.sh` uses `stdin_for` and `sc_libpath`. Of the 41: **1** has an input file I did not supply, **9** use `-INCLUDE` against the absent `corpus/programs/modules/`, and **31** are unexplained by this sweep's limitations. ⛔ **The 31 are NOT claimed as defects** — they are unexplained by *this measurement*, which is a statement about my sweep, not about the corpus.
+
+### The cure, and the blocker that stops it being a one-line edit
+
+**Cure:** grade `csnobol4-suite` against csnobol4, not SPITBOL.
+
+⛔ **Blocked, and named rather than worked around:**
+1. `scripts/lib_oracle_flags.sh` — the single authority for oracle selection — has **zero csnobol4 awareness**. It exposes `sbl_lang_flags`, `sbl_clean_bin`, `sbl_correctness_bin`; there is no `csnobol4_bin()` to call.
+2. **csnobol4 is not in this root.** It lives at `/home/claude/csnobol4/snobol4` (the retired root) and is not on `PATH`. This root is deliberately slim (SCRIP, corpus, .github). Wiring the board to a binary outside the root re-opens the **absent-oracle false-FAIL class** that CLAUDE.md warns about in three separate sessions — trading 30 false reds for a whole-suite false red is not a cure.
+
+⭐ So the real shape is: add a `csnobol4_bin()` resolver to `lib_oracle_flags.sh` with the same `assert`-and-refuse-loudly discipline the SPITBOL resolvers already have, decide where the shared csnobol4 oracle lives (`/home/resources/`, beside the other shared oracles, matching the s255 two-oracle ruling's pattern), and only then point the `csnobol4_suite` row at it. That is an oracle-topology decision, not a scorecard tweak, which is why it is written down here rather than committed.
