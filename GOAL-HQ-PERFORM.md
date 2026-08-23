@@ -511,6 +511,43 @@ strdup'ing a second copy.
 ⛔ **This is a leak, i.e. a behaviour question, so hq_C should see it — but the cure lives in the table rewrite that
 is already this seat's row (RUNG T), so it is not being handed over, only reported.**
 
+## 🔲 RUNG T-4 — CONTIGUOUS BUCKETS: THE TRADE-OFF, SIZED BEFORE IT IS BUILT
+
+**Lon s262:** *"You might consider the trade offs of the copying versus lookup speed. Create a buffer which doubles
+and fills as needed, then keep the values/pointers or whatever contiguous in memory. Let's see if that helps or
+hurts."* ⭐ **The instrument to answer it now exists: `corpus/benchmarks/snobol4/table_variety.sno`** (2.43x),
+alongside `table_access` (2.26x). Two kernels, different key mixes — enough to catch a change that helps one and
+hurts the other.
+
+### What we have now, and what it costs
+Buckets are **linked chains of individually `rt_agg_alloc`'d `TBPAIR_t`** (48 bytes each). `TABLE_BUCKETS` is a
+compile-time **256**, never resized. On `table_access` that is **500 separate heap allocations per table**, one
+pointer chase per chain step, and 48-byte nodes scattered across the arena.
+
+### The trade-off, stated honestly in both directions
+- ⭐ **Contiguous wins on ALLOCATION and LOCALITY, which is the bigger term here.** One doubling array per table (or
+  one per bucket) replaces 500 allocations with ~9 reallocs; entries share cache lines instead of being chased.
+  `rt_agg_alloc` was **7.09%** of `table_access`'s marginal profile — that is the part contiguity attacks directly.
+- ⛔ **Contiguous loses on INSERT if the array is kept SORTED**: an ordered insert shifts on average half the
+  bucket, and Lon's binary search needs the order. With chains averaging **~2 entries** (500 keys / 256 buckets)
+  the shift is free and the binary search is also worth nothing — **both effects are invisible until the bucket
+  count and the table size are decoupled.** That is why this rung and the resize question are ONE rung.
+- ⭐ **The version that dodges the sort entirely is OPEN ADDRESSING**: one contiguous entry array for the whole
+  table, hash → probe, no per-entry allocation, no chains, no shifting, and the doubling buffer Lon describes is
+  exactly the growth policy. It also **deletes the `TBPAIR_t.next` field**, which is 8 of its 48 bytes.
+  ⛔ **BUT `rtx_icnsub.S` RTX-26 walks the CHAIN in assembly** (`.Lsub_hash_init`, `TBPAIR_KEY 0`, `next@40`, pinned
+  by `_Static_assert` in `rtx_init.c`). Open addressing retires that walk, so the ASM arm must be rewritten or
+  disabled in the same change — it cannot be left pointing at a `next` pointer that no longer exists.
+
+### DONE-WHEN, computed rather than argued
+Land it only if **both** `table_access` and `table_variety` improve, with `check: 250500` and `check: 381880`
+verified, corpus fail-set byte-identical, and a killswitch A/B on the same binary. ⛔ **If it helps one and hurts
+the other, it is a workload-shape win, not a design win — say so and keep the number.**
+
+⭐ **And do it in Lon's order:** *"once you have an algorithmically superior design, then REWRITE it in ASM."* The
+open-addressing probe loop is a far better ASM target than a pointer chase, so the ASM step gets easier, not
+harder, by waiting.
+
 ## LIVE CURSOR — hq_P
 
 **s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
