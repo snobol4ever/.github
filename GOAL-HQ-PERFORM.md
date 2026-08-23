@@ -258,6 +258,21 @@ roman**, `cell-stack` (the default) solid. **One working arm.** A config delta m
 not a measurement. Rows `zeta-frame-rsp-capture-home` + `zeta-cell-heap-segv` (both rank 0, hq_P) lift this.
 Evidence: `FINDING-2026-08-22-hq_P-the-zeta-ab-axis-has-one-working-arm.md`.
 
+⭐ **PARTIAL LIFT, seat04, 2026-08-23 — `zeta-cell-heap-segv` CURED, `zeta-frame-rsp-capture-home` STILL RED, so
+the ban lifts for ONE comparison and stays in force for the other.** Root cause was one shape repeated 8 times:
+`zd_plan()` (the ζ-SPINE cell-planning pass) and 7 downstream consumers in `emit.cpp`/`x86_asm.h` gated on
+`x86_port_mode() == ZC_PORT_FORTH` exclusively, so `cell-heap` (port `ZC_PORT_HEAP`) got zero spine-cell coverage
+— not a heap-lifetime bug, a "nobody told this gate HEAP exists" bug. Widened all 8 to admit `ZC_PORT_HEAP`
+alongside `FORTH`; additive by construction, confirmed inert for the default arm (5 of 6 `.s` regen scripts
+`changed=0`, the sixth's one delta traced to an unrelated pre-landed commit). `cell-stack` vs `cell-heap` is now
+a valid perf comparison on roman (both exit 0, `check:` line byte-identical); **`cell-stack` vs `frame-rsp`
+STAYS BANNED** — frame-rsp maps to `ZC_PORT_CSTACK`, a ninth value none of those 8 sites admit, confirmed still
+producing the identical bomb, untouched by this fix on purpose (that row's surface, beauty.sno, is bigger and
+deserves its own from-scratch verification rather than an inherited guess). **Also found, unrelated, flagged not
+fixed:** `test_gate_instr_budget.sh` FAILs beauty's Ir budget (2,607,784,844 vs pinned 2,215,545,392) — confirmed
+pre-existing on unmodified HEAD via `git stash` + pristine rebuild, zero relation to ζ-storage. Full account:
+`FINDING-2026-08-23-seat04-zeta-cell-heap-segv-eight-forth-only-gates.md`.
+
 ### ⛔ RULING s258 — THE `rtx_icnnum.S` BAIL-SAFETY INVARIANT IS NOT NEGOTIABLE FOR A REGISTER-LIBERATION ROW
 seat08's `rung-A2-rtx-icon-family`: land `rtx_icnrel.S` (13 sites) and `rtx_icnvar.S` (11 sites), both LOW RISK and
 ready as analysed, plus `rtx_icnagg.S`'s single spill with the matching `add rsp` before **all three** exits. Refuse
