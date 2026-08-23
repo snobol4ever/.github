@@ -273,6 +273,39 @@ turned a hash into a `strcmp`; the next rung is to **stop doing the lookup at al
 again. ⛔ The defer half is hq_C's call (roman has exactly ONE defer site, `n44_match_defer`); no unilateral
 change from this seat.
 
+### ⭐⭐ ALL THREE LOSING KERNELS PROFILED — THREE ROOT CAUSES, AND **TWO ARE THE SAME CLASS**
+`FINDING-2026-08-22-hq_P-three-losing-kernels-three-root-causes-two-are-by-name.md`. Same rail throughout:
+mode-4, FIXED-WORK, `-O2`, SCRIP `e88e77db`, `--separate-callers=2`, **every output diffed against `.ref`
+before any number was read**.
+
+| kernel | N | verified | Ir/iter | root cause | rooted share |
+|---|---|---|---|---|---|
+| `roman` | 2,000 | `check: 1102` | 40,186 | one deferred node re-reads a var **by name** | **~54%** |
+| `string_manip` | 20,000 | `check: 43` | 2,138 | builtins dispatched **by name** | **~59%** |
+| `table_access` | 100 | `check: 250500` | **905,108** | key stringify + double resolve + **alloc on read** | ~40% |
+
+⭐ **THE CLASS: SCRIP resolves at RUN TIME, every operation, what the compiler already knew.** Two of three.
+`name-lookup-strcmp` **re-ranked 4 → 1** on this evidence — it is not a cleanup row, it is the dominant cost
+in two of the three kernels we lose on. `defer-nv-read-by-pointer-not-name` (rank 0) is **one instance**.
+⛔ Do not cure by memoising harder — the NV_* memo already did that and returned 17% because it cut cost per
+lookup, not lookup **count**.
+
+⛔ **`table_access` is NOT in that class — do not dispatch it as if it were.** And the obvious assumption is
+wrong: **the hash is fine** (only 2.3 `strcmp` per `table_find_pair`, a short probe, not a linear scan). Its
+three real questions, per-iteration counts against 600 writes: `rt_agg_alloc` **1801 (3x) — a SUBSCRIPT
+ALLOCATES**; `tbl_key_str` and `table_find_pair` both **1200 (2x)** through two distinct chains, which reads
+as **each subscript resolved twice** — close to a free halving if real; and why a key is stringified on the
+read path at all. ⭐ The 2x is inferred from call-count **ratios**, not from reading the code — confirming or
+killing it by reading `c_rt_subscript_var` vs `rt_subscript_var_container_only` is the cheapest next step in
+the whole SNOBOL4 front.
+
+⭐ New row `setjmp-per-builtin-call` (rank 2): **every builtin call pays a `setjmp`** (2.1/iter, 2.16% of
+string_manip), independent of name resolution and surviving any cure to it. Answer *what it guards* before
+touching it — if the Byrd ω port can carry it, it is pure overhead.
+
+⭐ **`--separate-callers=2` IS NOW THIS SEAT'S DEFAULT AND SHOULD BE YOURS.** Plain `callgrind_annotate`
+reported roman's hottest caller as a bare address and cost this seat a published wrong reading.
+
 ### 🔖 BANKED — `zeta-frame-rsp-capture-home`, released mid-analysis, DO NOT RE-DERIVE
 - ⛔ **The abort message is MISLEADING.** It blames *"classifier and ZD plan disagree"*, but
   `cap_anchor_of()` at `emit.cpp:973` is a **stub that returns 0**, so `havehome()` reduces to `op_zres`
