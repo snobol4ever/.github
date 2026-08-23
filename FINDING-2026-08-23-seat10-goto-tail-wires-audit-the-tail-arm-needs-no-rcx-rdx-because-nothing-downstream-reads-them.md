@@ -13,7 +13,7 @@ The row (seat3 s190, deliberately not taken when landing `beauty-return-pair-shi
 
 ## 2. WHY, STRUCTURALLY (not just empirically)
 
-`x86_return_floater()`/`x86_freturn_floater()` (`x86_asm.h:1760-1769`, `x86_srf_floater`) — the RETURN/FRETURN mechanism every `:(RETURN)` compiles into — load their landing address from a **fixed stack slot**:
+`x86_return_floater()`/`x86_freturn_floater()` (`x86_srf_floater`, `x86_asm.h` — line 1760 as of SCRIP `a71d3034`, re-verified against a rebuilt binary after a same-session upstream sync moved it to :1792, mechanism byte-identical) — the RETURN/FRETURN mechanism every `:(RETURN)` compiles into — load their landing address from a **fixed stack slot**:
 ```
 rcx = qword ptr [rsp + 16]      # NOT the live rcx register
 rsp = qword ptr [rsp + 8]
@@ -29,7 +29,7 @@ The complementary half: a transferee that reaches no explicit transfer at all "f
 Constructed and diffed against `/home/resources/x64/bin/sbl -bf` (live oracle, verified alive first):
 1. Mainline goto to a label with no `:(...)`, falling through to the next mainline statement — MATCH.
 2. From inside a **normally CALLed** activation (`f('ADD')`), an internal computed goto to `LADD` (no `:(RETURN)`) falling through first to another mainline statement, then off the true end of the program — MATCH, both `SCRIP_GOTO_TAIL=1` (default) and `=0`, and in mode-4 (compiled, linked, run). **Checked in** as `corpus/probe/igt/igt_computed_goto_falloff.{sno,ref}` — this is witness (2), the sharpest of the three and the one that mirrors the existing `igt_computed_goto*` family's shape (proc entered normally, computed goto internally) with the one deliberate difference being the *absence* of `:(RETURN)`.
-3. Regression lock re-verified: `igt_computed_goto_end.sno` (the NULL-resolve/`main_γ` fallback landing) and the whole `igt_*` family plus `216_indirect_goto_computed` all still PASS. Broad crosscheck corpus re-run: **355/357 m3, 353/357 m4**, identical to the pre-existing baseline — the 2 fails/skips (`160_pat_alt_inner_gen_resume`, `demo_treebank`, `132_pat_fence_eps_recur_shallow`, `demo_porter`) are named, pre-existing, unrelated (see `GOAL-SNOBOL4-100.md`'s `blob-resume-refusals` lane and the `vlist-expr-alternation` row). Zero new reds.
+3. Regression lock re-verified: `igt_computed_goto_end.sno` (the NULL-resolve/`main_γ` fallback landing) and the whole `igt_*` family plus `216_indirect_goto_computed` all still PASS — including a second full pass after a large same-session upstream sync (SCRIP `6ba28e5e`→`a71d3034`, 304 files, unrelated to this row) landed and was rebuilt from scratch (`bb_goto_deferred.cpp` itself untouched since s190's `a26e7b61`). Also confirmed the family's two ORIGINAL red witnesses (`igt_computed_goto[_pre].sno`, checked in red per law 0d) correctly still FAIL under `SCRIP_GOTO_TAIL=0` — the harness discriminates, not a rubber stamp. Broad crosscheck corpus: **355/357 m3, 353/357 m4** before the sync (2 pre-existing named fails/skips: `160_pat_alt_inner_gen_resume`, `demo_treebank`, `132_pat_fence_eps_recur_shallow`, `demo_porter`) → **360/361 both modes** after (only `demo_treebank` remains — the other three were closed by unrelated concurrent rows in the same pull, not this one). Zero new reds either side of the sync.
 
 ## 4. ⭐ A DIFFERENT, ARM-INDEPENDENT DEFECT FOUND ALONG THE WAY, NOT FIXED HERE — NOT MINE TO CHASE
 
