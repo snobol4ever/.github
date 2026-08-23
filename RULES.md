@@ -12,7 +12,7 @@
 | who cures | **you do — measure AND cure, in the same session** | the seat that locked the row |
 | Lon's own words on the balance | *"We'll probably NEVER be in FLEET mode because you can barely handle yourself much less 16 FLEET worker. Are you kidding me."* | |
 
-⭐ **DUO IS THE DEFAULT AND YOU ASSUME IT UNLESS TOLD OTHERWISE.** Do not infer FLEET mode from the existence of `QUEUE.tsv`, sixteen inboxes, or a fleet protocol document — that machinery exists and is *not* evidence that it is running. If nobody has said FLEET, you are in DUO.
+⭐ **DUO IS THE DEFAULT AND YOU ASSUME IT UNLESS TOLD OTHERWISE.** Do not infer FLEET mode from the existence of `QUEUE.tsv`, sixteen inboxes, or a fleet protocol document — that machinery exists and is *not* evidence that it is running. If nobody has said FLEET, you are in DUO. ⭐ **"TOLD" INCLUDES THE ROUTED RECORD (added s266, after a restarted HQ assumed DUO during a live 16-seat run): the CURRENT MODE line at the top of `ARCH-FLEET-CEO.md` § TWO OPERATING MODES is the maintained authority — check it at orientation BEFORE assuming; assume DUO only if that line is absent or older than Lon's word to you.**
 
 ⛔ **WHAT CHANGES BETWEEN THEM, and it is the thing that keeps being got wrong:** in DUO mode there is no fleet to delegate to, so **"file a queue row" IS NOT A DELIVERABLE and never was** — it is the shape of not doing the work. In DUO you find the defect and you fix it. In FLEET mode a brief in a seat's inbox is a real deliverable because a real seat picks it up. Applying FLEET-mode delegation habits while in DUO mode produces a session that measured everything, cured nothing, and filed paperwork addressed to nobody. See § MEASURE AND CURE.
 
