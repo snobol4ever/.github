@@ -22,20 +22,27 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐ START HERE NEXT SESSION — THE EDIT POINT IS FOUND, DO NOT RE-DERIVE IT
-Worth **~25% of roman** and needs **no semantic ruling** (row `defer-nv-read-by-pointer-not-name`, rank 0).
-- `rt_defer_nv_read(const char *name)` (`pattern_match.c:862`) ends in `NV_GET_fn(name)` — a by-name
-  resolution on **every** deferred re-read. **140 per iteration** on a pattern with ONE deferred variable,
-  because `&ANCHOR = 0` retries at every start position.
-- ⭐ **The cacheable thing exists already:** `NV_GET_fn` (`core/core.c`) resolves through
-  **`_var_find_cached(name)` → `NV_t *e`**. Cache **that pointer** in the defer read path, keyed on the call
-  site's name POINTER, and repeat reads skip the hash+`strcmp` entirely.
-- ⛔ **USE THE s258 HARDENING OR REPEAT ITS BUG:** name pointers are **NOT stable** (the runtime passes stack
-  buffers) and inserts can shadow — so `strcmp` validation **plus a generation counter**, exactly as the
-  shipped `NV_*` memo does at all three insertion sites. The killswitch caught the unsound first draft at
-  **335/22 vs 355/2**; run it.
-- **Verify before believing:** `make pristine` → `test_corpus_snobol4.sh` (expect m3 355/4, m4 354/3+2SKIP at
-  `-O2`) → killswitch A/B → re-measure roman `check: 1102` first, then Ir.
+### ⭐ LIVE CURSOR — s264 (hq_P). LON'S STANDING TASK: **CLAWS5 AND JSON, FASTER THAN SPITBOL. THOSE TWO ONLY.**
+*"Get CLAWS and JSON demos working faster than SPITBOL. Concentrate on just those two."* (Lon, in-chat s264.)
+
+**WHERE THEY STAND — callgrind Ir at fixed work, SLOPE method (startup/link/compile removed from BOTH engines), RT_OPT=`-O0`, SCRIP m4 native vs `/home/resources/spitbol-bench-oracle/sbl -bf`:**
+
+| workload | SCRIP Ir/iter | SPITBOL Ir/iter | gap |
+|---|---|---|---|
+| claws5 grammar only (`-match`) | 1,087,882 | 1,770,532 | ⭐ **SCRIP 1.63x FASTER** |
+| claws5 full | **61,233,041** (was 74,294,806) | 36,477,603 | 2.04x → **1.68x** |
+| json (400 nested 1-member objects) | 8,474,055 | 1,949,584 | ⛔ **4.35x** |
+
+⭐⭐ **THE FINDING THAT REDIRECTS CLAWS5 WORK, AND IT IS ALREADY PAID FOR: THE PATTERN ENGINE ALREADY BEATS SPITBOL BY 1.63x.** 98.5% of claws5 is the deferred action + the 3-level TABLE build. ⛔ Do not open claws5 looking for a pattern-engine campaign — that subsystem is our best one on this workload. Full evidence, method and the three landed cures: `FINDING-2026-08-23-hq_P-claws5-is-not-a-pattern-problem-and-json-is-4x-not-2x.md`. Landed and pushed at SCRIP `ce48e3bb`, gates green (corpus m3 358/2, m4 357/2+1SKIP — standing reds only).
+
+**START HERE, IN THIS ORDER — all three found, none needs a semantic ruling:**
+1. ⭐ **JSON `ARRAY(n)` is re-parsed from a STRING on every call.** `sno_array_from_proto` (`by_name_dispatch.c:7122`) receives the bounds as a text prototype and runs `strchr` + `strtol` per call — **4,405 `strtol` calls per 11 json iterations, measured**, for arrays that are ONE element long. With `array_new` this is **14.7% of json**, on an input holding zero JSON arrays (the cost is the per-object key-order array). Pass integers, not text.
+2. **By-name builtin dispatch** — ~9.2% of claws5, ~9.5% of json. `IDENT()` pays ~237 Ir of dispatch machinery before doing its one-instruction job. ⛔ The cure MUST be class-wide: NO-PER-OP-FILTER (Lon 2026-08-20) forbids an exception list of hot builtins.
+3. **`table_set_descr_d` 253 Ir/call · `table_find_pair_d` 79 Ir/call** — the remaining table cost, both `-O0` C/ASM, the natural GOAL-RTCC targets.
+
+⛔ **DO NOT "FIX" `_tbl_grow`'s ALLOCATION FLOOR WITHOUT AN INSTRUMENT THAT SEES BOTH.** It fires on 10,520 of 17,973 claws5 inserts (59%) and raising the floor is the obvious Ir win — but `aggregates.c:342` records that floor 1 vs floor 4 was **already measured on CLAWS5** and floor 4 LOST on cache misses (499K vs 375K) while winning 1.6% Ir. Ir and cache-misses disagree in opposite directions, our only instrument is Ir, and hardware counters are recorded unusable here. Lowering Ir there could flatter the published number and cost real time.
+
+⛔ **json's REALISTIC numbers stay blocked on hq_C/seat01's altgen row** (`160_pat_alt_inner_gen_resume`): a generator in the first arm of an alternation is never resumed when the continuation fails, so `ARBNO(sep item)` never terminates and json hangs on any multi-member input. Verified independently here at `a0859f7e` pristine — ladder `corpus/probe/altgen` 2 pass / 5 red, json m3 rc=124. ⭐ The single-member-nesting workload above is the way to keep measuring json meanwhile; it never reaches a second ARBNO iteration.
 
 ## ⛔ THE LAW BOTH HQs SHARE: **YOU MEASURE *AND* YOU CURE** (Lon s259)
 
