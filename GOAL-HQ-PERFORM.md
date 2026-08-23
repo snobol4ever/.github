@@ -228,242 +228,48 @@ target — an Icon row therefore has no sanctioned instrument. Topic `escalate-i
 
 ## LIVE CURSOR — hq_P
 
-**s259 (2026-08-22) — THE OWED NUMBER IS PAID AND RETRACTED DOWNWARD; V2-5 LANDED; DUO WITH hq_C IS NOW LON-ORDERED.**
+**s259 (2026-08-22) — ✅ PRE-FLIGHT COMPLETE, 8/8, COMPUTED BY A GATE. V2-6 (Lon's flip) is the only rung left.**
 
-### ⛔⭐ LON OVERRIDE, ROUTED THE SAME SESSION (protocol law 6)
-Lon, in-chat, mid-session, contradicting the row this seat had just locked. Verbatim in substance:
-*"Ensure you get the FLEET protocol complete before we continue... When done with FLEET protocol continue on
-ROMAN like before and run duo with the other HQ. Y'all can talk back and forth. He'll fix you bugs and you can
-speed up his programs."*
-- **Priority order is now: fleet protocol FIRST, then roman.** Same ruling hq_C received independently
-  (*"get the FLEET protocol working, or we can not blast development later"*).
-- **The duo is the staffing and it has a division: hq_C cures, hq_P measures.** The fleet returns for
-  Icon/Prolog; the protocol must be finished and PROVEN before it does.
-- ⛔ `next` had locked `zeta-frame-rsp-capture-home`. Lon's redirect wins, so **the claim was RELEASED** (not
-  parked silently) and the analysis banked below so the row is not re-derived from scratch.
-- Sent to hq_C as `duo-v2-5-taken`. **This block is the routing.**
+### ✅ PRE-FLIGHT — `bash SCRIP/scripts/test_gate_preflight_complete.sh` (exit 0), re-checkable in ONE command
+Phase 0: V2-1 picker · V2-2 queue purge (0 malformed, 0 blank) · V2-3 banner · V2-4 identity ·
+**V2-2 batons: 86/86 DONE-WHENs runnable, top-16 DEMONSTRATED able to say NO.**
+Firing gate: **fleet Q=0** · **every seat resolves a `-bf`-capable oracle** · **hq_P repos clean and pushed.**
+⭐ **Four things "85 batons exist" was hiding, each invisible to the one before:** 34 criteria were PROSE
+(permanently uncloseable) · 18 hardcoded `/home/claude_C` (a seat would grade its own row against hq_C's tree
+— a false GREEN) · 9 `cd`-ed away from the root so they could only exit **127** (⛔ **my own regression from
+fixing the previous layer**) · **8 of 16 seat dirs had NO ORACLE**, which would have printed false all-FAIL
+tables across half the fleet.
 
-### ✅ LANDED AND PUSHED
-- ⭐ **THE OWED -O2 RE-MEASURE IS PAID, AND IT RETRACTS ONE OF THIS SEAT'S OWN NUMBERS.**
-  `FINDING-2026-08-22-hq_P-hardened-nv-memo-is-17-percent-not-25.md`. roman mode-4, FIXED-WORK N=20000,
-  callgrind, RT_OPT=`-O2`, full `make pristine`, commit `aa583ad8`, **output verified `check: 1102` first**:
-  **869,577,578 Ir = 43,478.9 Ir/iter**, i.e. **-17.1%**, not the -25.2% in circulation. ⛔ **The ratio I first
-  published with it, 5.46x, was WRONG — it divided by a stale s256 oracle figure. Measured same-method:
-  5.87x.** The -17.1% is unaffected (SCRIP-vs-SCRIP).
-  ⛔ **The 25.2% / 39,255 figure belonged to the UNSOUND DRAFT the killswitch caught. Do not re-cite it.**
-  Sovereign question: **6.58x → 5.87x, both halves measured this session.**
-- ⭐ **V2-5 GATE HONESTY LANDED — SCRIP `e88e77db`** —
-  `FINDING-2026-08-22-hq_P-v2-5-thirty-one-gates-can-now-say-no.md`. **31/31** formerly-vacuous gates now
-  refuse an empty tree (measured **26 vacuous → 6 → 0**, which is the negative test). New `scripts/lib_gate.sh`
-  (three exit codes: 0 CLEAN / 1 VIOLATION / **2 UNPROVEN**) and `scripts/test_gate_gates_can_say_no.sh`.
-  **Strict is now the default**; nothing in the repo had ever passed `--strict`.
-  Blocking set re-proven: `emit_no_lang` 0, `template_medium_invisible` 0, `test_corpus_snobol4` 0
-  (m3 355/4, m4 354/3+2SKIP). hq_C's `test_gate_fleet_protocol_e2e.sh` **11/11** on this tree.
-- **FIVE gates are now correctly RED — all pre-existing live defects, none in the blocking set, all minted as
-  rows, none cured here** (MEASURE FREELY, CURE NEVER): `rtcc-r9-gvarq-collision` ·
-  `c-to-bb-unledgered-scrip-c-57` · `vstack-residue-rt-h` · `const-graph-marginal-over-watermark` ·
-  `bb-fixup-rank-85-dirty-templates`.
+### ✅ ASSET ROOT — ONE clone, no symlinks, no copies (Lon s259)
+`S4A="${S4E_ASSETS:-… || echo /home/resources}"` — changed **only the fallback** in the 54 scripts that
+already had the override. ONE real `snobol4ever/x64` at `/home/resources/x64` (57M, was ~1.1G over 19 copies);
+**zero symlinks**; seats carry only `.github`/`SCRIP`/`corpus` (D-17b). Renamed by role because the old names
+lied: `spitbol-pristine` (0 modified files) · `spitbol-bench-oracle` (4 — NOT clean).
+⛔ **Trap cured:** three binaries here reject `-f`, so under the mandatory `-bf` they reject EVERY program.
+`lib_oracle_flags.sh` now REFUSES a `-f`-incapable binary (`sbl_bf_capable`/`sbl_assert_bf`); gated by
+`test_gate_oracle_bf_capable.sh`. ⛔ **`RULES.md:65` still names the trap — needs ceo/Lon, not us.**
 
-### ⭐⭐ ROMAN IS ANSWERED, AND IT IS **ONE NODE** — supersedes the two-buckets reading below
-`FINDING-2026-08-22-hq_P-roman-is-one-defer-site-54-percent.md`. **~54.2% of every instruction roman executes
-is a single deferred pattern node** — the bare `T` in `'0,1I,…' T BREAK(',') . T`, emitted as the one site
-`n44_match_defer`. Our entire emitted code is **12.96%**.
-⛔ **The "two independent buckets" reading earlier in this cursor was WRONG and is corrected here.** Plain
-`callgrind_annotate` hid it: `NV_GET_fn`'s caller resolved to a bare address `0x488dfe0`. With
-**`--separate-callers=2`** the chain names itself — `NV_GET_fn' … 'rt_defer_nv_read` at **19.35%**, and **~92%
-of all `NV_GET_fn` cost arrives through `rt_defer_nv_read`.** The name lookup is not competing with the defer
-pipeline; it **is** what the defer pipeline does.
-⭐ **Mechanism:** `rt_defer_nv_read(const char *name)` ends in `NV_GET_fn(name)` — every deferred re-read goes
-through the global name table by hash+`strcmp`. `&ANCHOR = 0` makes the match unanchored, so the pattern
-retries at every start position and re-reads `T` **by name** each time: **2,807,622 calls at N=20000, 140 per
-iteration**, for a pattern with exactly ONE deferred variable.
-⭐ **This is why the memo bought only 17%** — it made each lookup cheaper (hash→`strcmp`) without touching the
-**count**. ⛔ Do not cure by memoising harder; that ceiling is reached.
-- **NARROW row minted, rank 0, `defer-nv-read-by-pointer-not-name`** — keep the deferral, kill the by-name
-  resolution (resolve to `vrblk`/slot once at node build, follow a pointer). **No semantic ruling needed**,
-  worth most of the 25.3% `NV_GET_fn`+`strcmp` cost. DONE-WHEN demands 10% against ~25% available.
-- **WIDE — hq_C's call, deliberately NOT minted here:** don't defer a bare `TT_VAR` (`lower_snobol4.c:1398`).
-  Worth up to the full 54%. ⛔ Hard case: `T` is also the capture target, so it genuinely varies mid-match.
+### ⭐ SPEED — stated without flattery
+roman, `-O2`, fixed work, output verified `check: 1102`, **both engines measured the same way this session**:
+**7.08x slower → 5.87x slower = 1.21x faster, −17.1% Ir.** That gain is the **s258** `NV_*` memo — **this
+session landed NO speed cure.** Target is **10x FASTER**; we are **59x** away.
+⛔ **A cure was tried, MEASURED WORSE, and REVERTED:** replacing libc `strcmp` on the memo hit path with an
+inline byte loop moved `strcmp` 10.91%→3.63% but `NV_GET_fn` **21.04%→32.59%**, net **+7.7%**
+(43,479→46,819 Ir/iter). Baseline restored exactly. ⛔ **AVX2 `strcmp` beats a naive loop even on
+one-character names — do not start there again.**
+⭐ **THE 54%:** one deferred node (the bare `T`) is **54.2%** of roman; our emitted code is **12.96%**.
+Scoreboard: SCRIP wins **6 of 17** (`fibonacci` 0.60); `mixed_workload` **2.95x** is the fair single number.
+⛔ **SCRIP SCALES WORSE** — per-iteration cost grows **1.50x** where SPITBOL's grows **1.25x**, so the gap
+**WIDENS** with input size and small benchmarks understate the deficit.
 
-### the earlier per-function view (kept — still true, now understood as ONE chain, not two)
-| bucket | share | note |
-|---|---|---|
-| **variable-name lookup** | **36.5%** | `NV_GET_fn` 21.04% (**still #1 — the memo did NOT dethrone it**) · `__strcmp_avx2` 10.91% (substantially the memo's OWN validation cost) · `NV_SET_fn` 4.58% |
-| **defer pipeline** | **26.9%** | `c_rt_defer_close` 10.47 · `rt_defer_run_all` 7.59 · `rt_defer_get_pat_dtp` 5.65 · `rt_dfx_push` 3.23 — down from the 29.8% predicted |
-| our emitted code | 13.4% | |
+### ⭐ NEXT SESSION STARTS AT THE EDIT, NOT THE ANALYSIS
+`defer-nv-read-by-pointer-not-name` (rank 0), ~25% of roman, **no semantic ruling needed**. Edit point,
+already located: `rt_defer_nv_read` (`pattern_match.c:862`) ends in `NV_GET_fn(name)` — 140 by-name
+resolutions per iteration. `NV_GET_fn` resolves via **`_var_find_cached(name)` → `NV_t *e`**; cache **that
+pointer** in the defer read path, keyed on the call site's name pointer.
+⛔ Name pointers are **NOT stable** — use `strcmp` validation **plus the generation counter**, exactly as the
+shipped memo does at all three insertion sites, and **run the killswitch** (it caught the unsound s258 draft
+at 335/22 vs 355/2). Verify: `make pristine` → corpus (m3 355/4, m4 354/3+2SKIP at `-O2`) → killswitch A/B →
+roman `check: 1102` **before** believing any Ir number.
+⛔ **The WIDE cure (don't defer a bare `TT_VAR`, `lower_snobol4.c:1398`, up to 54%) is hq_C's ruling, not ours.**
 
-**63.4% of every instruction roman executes is in two runtime buckets and NEITHER IS CODEGEN.** The memo
-turned a hash into a `strcmp`; the next rung is to **stop doing the lookup at all**, not to make it cheaper
-again. ⛔ The defer half is hq_C's call (roman has exactly ONE defer site, `n44_match_defer`); no unilateral
-change from this seat.
-
-### ⭐⭐ ALL THREE LOSING KERNELS PROFILED — THREE ROOT CAUSES, AND **TWO ARE THE SAME CLASS**
-`FINDING-2026-08-22-hq_P-three-losing-kernels-three-root-causes-two-are-by-name.md`. Same rail throughout:
-mode-4, FIXED-WORK, `-O2`, SCRIP `e88e77db`, `--separate-callers=2`, **every output diffed against `.ref`
-before any number was read**.
-
-| kernel | N | verified | Ir/iter | root cause | rooted share |
-|---|---|---|---|---|---|
-| `roman` | 2,000 | `check: 1102` | 40,186 | one deferred node re-reads a var **by name** | **~54%** |
-| `string_manip` | 20,000 | `check: 43` | 2,138 | builtins dispatched **by name** | **~59%** |
-| `table_access` | 100 | `check: 250500` | **905,108** | key stringify + double resolve + **alloc on read** | ~40% |
-
-⭐ **THE CLASS: SCRIP resolves at RUN TIME, every operation, what the compiler already knew.** Two of three.
-`name-lookup-strcmp` **re-ranked 4 → 1** on this evidence — it is not a cleanup row, it is the dominant cost
-in two of the three kernels we lose on. `defer-nv-read-by-pointer-not-name` (rank 0) is **one instance**.
-⛔ Do not cure by memoising harder — the NV_* memo already did that and returned 17% because it cut cost per
-lookup, not lookup **count**.
-
-⛔ **`table_access` is NOT in that class — do not dispatch it as if it were.** And the obvious assumption is
-wrong: **the hash is fine** (only 2.3 `strcmp` per `table_find_pair`, a short probe, not a linear scan).
-⛔⛔ **THIS SEAT ALSO KILLED ITS OWN SECOND HYPOTHESIS HERE, SAME SESSION.** The "each subscript is resolved
-twice, close to a free halving" reading is **WRONG — do not chase it.** `c_rt_subscript_var`
-(`pattern_match.c:1098`) and `rt_subscript_var_container_only` (`:1140`) are **alternatives for different
-call sites, not a sequence**: for a table, container_only returns from its own `DT_T` branch and never falls
-through. The 2x is just that `table_access.sno` does 500 writes then 500 reads — **1,000 subscripts to 500
-assignments**.
-⭐ **The correction SHARPENS the real defect: EVERY table subscript heap-allocates a `VCELL_t` NAMETRAP
-wrapper, INCLUDING PURE READS.** `SUM = SUM + T[I]` allocates a wrapper it discards immediately; the wrapper
-exists to make `T[I] = v` assignable and a read never needs it. One per subscript (1,000) + one per set (500)
-exactly accounts for the measured `rt_agg_alloc`. ⭐ **The no-alloc return path already exists** —
-`rt_subscript_var_container_only` returns `e->val` directly when the value is a table/array; it is merely
-restricted to container values. Extending it to ordinary values on read is the row.
-
-⭐ New row `setjmp-per-builtin-call` (rank 2): **every builtin call pays a `setjmp`** (2.1/iter, 2.16% of
-string_manip), independent of name resolution and surviving any cure to it. Answer *what it guards* before
-touching it — if the Byrd ω port can carry it, it is pure overhead.
-
-⭐ **`--separate-callers=2` IS NOW THIS SEAT'S DEFAULT AND SHOULD BE YOURS.** Plain `callgrind_annotate`
-reported roman's hottest caller as a bare address and cost this seat a published wrong reading.
-⭐⭐ **TWO READINGS RETRACTED IN ONE SESSION, BOTH CAUGHT THE SAME WAY — by going one level deeper with a
-better instrument** (`--separate-callers=2` for roman's two-buckets error, *reading the source* for the
-table double-resolution error). **A call-count ratio is a HYPOTHESIS; only the code is evidence about
-mechanism.** Both are recorded rather than deleted — a quietly removed wrong reading teaches nobody, and
-hq_C's own s259 retraction makes the same point: a hypothesis tested on a subset of its terms and reported
-as settled plants a "do not look here" sign for whoever comes next.
-
-### ⭐⭐ THE SCOREBOARD IS REBASELINED — 17 KERNELS, BOTH ENGINES, SAME METHOD
-`FINDING-2026-08-22-hq_P-scoreboard-17-kernels-and-scrip-scales-worse.md`. Closes rank-0
-`bench-rebaseline-15-kernels-clean-oracle` (it is **17**, not 15). **Replaces the s256 table at the top of
-this file.** Ir/iter is a **two-point slope**, which cancels start-up exactly — roman's start-up is ~9.3M Ir,
-97% of an N=20 run, so `total/N` at small N is badly wrong.
-
-**SCRIP wins 6 of 17** (N=20→200): `fibonacci` **0.60** · `var_access` 0.76 · `func_call` 0.81 ·
-`op_dispatch` 0.84 · `arith_loop` 0.97. Loses: `array_sum` 1.27 · `eval_fixed` 1.49 · `pattern_bt` 2.20 ·
-`indirect_dispatch` 2.31 · `table_access` 2.34 · `string_pattern` 2.35 · `string_manip` 2.68 ·
-**`mixed_workload` 2.95 (the most representative single number on the board)** · `roman` 4.89.
-
-⛔ **CORRECTION TO MY OWN HEADLINE: roman is 5.87x, not the 5.46x I published today.** The SCRIP half was
-right; I divided it by the **stale s256 oracle figure 7,966** instead of measuring clean SPITBOL myself
-(it is 7,412.6/iter at N=20000). **The error flattered us.** ✅ -17.1% is unaffected.
-⭐ **RULE ADOPTED: never divide a fresh number by an inherited one — both halves of a published ratio get
-measured in the same session by the same method.**
-
-⭐⭐ **NEW AND IMPORTANT — SCRIP SCALES WORSE THAN SPITBOL.** roman's work/iteration grows with N *by design*
-(it converts a larger integer each iteration). Across the same growth: **SCRIP 1.50x, SPITBOL 1.25x**, so the
-ratio moves **4.89x (small N) → 5.89x (large N)**. ⛔ **The gap WIDENS with input size — small benchmarks
-UNDERSTATE how far behind we are, and 10x is harder at scale than this board's column suggests.** Consistent
-with the by-name mechanism: longer subjects mean more retries **and** each retry pays a full name resolution,
-which is superlinear in a way SPITBOL's `vrblk` pointers are not. **Strongest argument yet for rank-1
-`name-lookup-strcmp`: it is not a constant factor.**
-
-⛔ **Three rows on that board are NOT trustworthy and are labelled as such:** `ident_call1`/`ident_call2` have
-**EMPTY `.ref` files** so neither engine's output could be verified (row minted); `string_concat`'s slope is
-~0.1 Ir/iter — its work does not scale with `fixed_n`, so its ratio is meaningless.
-
-### 🔖 BANKED — `zeta-frame-rsp-capture-home`, released mid-analysis, DO NOT RE-DERIVE
-- ⛔ **The abort message is MISLEADING.** It blames *"classifier and ZD plan disagree"*, but
-  `cap_anchor_of()` at `emit.cpp:973` is a **stub that returns 0**, so `havehome()` reduces to `op_zres`
-  alone and the entire ζ-STANDING arm of that test is **dead code**.
-- `--zeta-storage=frame-rsp` routes through `rt_zeta_storage_set` to **`rt_zeta_port_set_mode(ZC_PORT_CSTACK)`**,
-  and `x86_fc_on()` is hardcoded to `port == ZC_PORT_FORTH` — so **every forth-cell mechanism switches off
-  together** under frame-rsp. `zeta_storage.c` never consults the storage mode at all.
-- ⭐ Reading: this is an **UNIMPLEMENTED config**, not a misclassification. ⛔ **Do not cure it by widening
-  the classifier.** NOT proven — no binary was available before the redirect. `SCRIP_CAP_DIAG=1` prints
-  `zres`/`anchor`/`frame_off` per capture node and is the instrument to finish it with.
-
-### ⛔⛔ V2-2 CROSS-VERIFIED — 34 OF 85 BATONS WERE PERMANENTLY UNCLOSEABLE (preflight, Lon s259)
-hq_C's baton conversion is complete in **form** — 85 batons, all with a `DONE-WHEN` line, none blank, none
-the no-op `true`. **Not in substance.** 34 of 85 (**40%**) carried **PROSE** in the DONE-WHEN field (25 fail
-`bash -n`; 9 begin with the literal word `STEP`/`FIRST`). `done` refuses any non-zero exit — correctly, that
-is LAW 1 — so a prose criterion **can never exit 0 either** and those rows **can never be closed by anyone**,
-however correct the work. With 16 seats about to fire that is a deadlock on 40% of the queue.
-⭐ **Root cause is ONE mapping:** old `QUEUE.tsv` column 4 was `first-step-AND-done-when`, prose-plus-criterion
-by design; the conversion moved it verbatim into a **command** field.
-⭐ **Now computable and ratcheted:** `scripts/test_gate_baton_donewhen_runnable.sh` (SCRIP `4a3ba055`), the
-companion to hq_C's e2e gate. ⛔ It **never executes** a DONE-WHEN (running 85 would build and profile the
-tree); it checks no-op criteria, `bash -n` parseability, first-word resolution after `VAR=val` prefixes, and
-**control characters**.
-⛔⛔ **THAT CONTROL-CHARACTER CHECK EXISTS BECAUSE I MADE THE BUG.** Criteria authored through python's
-`re.sub` had their `\b` word boundaries turned into literal **BACKSPACE bytes** by replacement-escape
-processing. They parsed, their first word resolved, `grep` matched nothing, `! grep` returned 0 — **criteria
-that could only ever say YES.** Caught by discrimination-testing my own work, not by reading it.
-⭐ **21 criteria authored so far, 34 → 13.** All existence-guarded first, because `! grep -q <missing-file>`
-returns **SUCCESS** and is vacuous wherever the path does not resolve. Each proven **two-sided**: says NO on
-the real tree, YES on a clean positive control, refuses when files are absent. Original prose preserved
-verbatim under `## NEXT` and **still binding**; every authored command is labelled
-**necessary-not-sufficient**.
-⛔ **13 REMAIN UNCLOSEABLE and are deliberately NOT papered over** — their criteria need the row owner's
-judgement, and inventing one I cannot justify is the false green this rung exists to remove:
-`autobug-dead-child-false-agree` · `beauty-suite-ref-provenance` · `compiler-quadratic-residue` ·
-`conformance-sweep-spitbol-manual` · `csnobol4-residue-six` · `fix-dispatch-bus-two-failure-modes` ·
-`kalah-crlf-parse-failure` · `opsyn-evalpat-residue` · `parser-acceptance-harness` ·
-`probe-error-paths-vs-oracle` · `recover-stripped-design-rationale` · `rung-seat-claude-reconcile` ·
-`trace-dump-permissive`.
-⭐ **PREFLIGHT STATE: V2-1 ✅ · V2-2 ⛔ 13 rows short · V2-3 ✅ · V2-4 ✅ · V2-5 ✅ · V2-6 = Lon's flip.**
-⭐ **THE PATTERN, FOUR LAYERS DEEP NOW: PRESENCE IS NOT PROOF.** An empty gate looked like a clean gate
-(V2-5) · an empty `.ref` looked like a passing `.ref` (`ident_call`) · a baton *with* a DONE-WHEN looked like
-a baton with a *working* one (V2-2) · and a criterion containing a backspace looked like one containing a
-word boundary (mine). Same disease every time.
-
-### ⭐ SHARED ORACLES + THE FIRING GATE (Lon s259, two in-chat rulings — routed per law 6)
-*"everyone should be using the shared /home/resources"* and *"two SPITBOL versions … one pristine with minimal
-patches and the other with IPC tracing and the whole enchilada."* **Executed:** `x64` promoted to
-`/home/resources/x64`; every root's `x64/` is now a **symlink** to it — **19 roots** (16 seats + hq_C + hq_P +
-ceo), each verified clean before being touched, **smoke-verified 19/19**, ~1.0 GB duplication removed.
-⛔ This corrected my own earlier move in the same session (I had cloned x64 into the 8 roots missing it).
-⛔⛔ **TRAP FOUND: `spitbol-clean/sbl` ≠ `spitbol-clean/bin/sbl`.** The `bin/` one — byte-identical to
-`spitbol-fork-rebuilt/bin/sbl` and `spitbol-upstream/bin/sbl` — **does not support `-f`**, so under the
-MANDATORY `-bf` it rejects EVERY program. Inherent to SPITBOL's layout: a tree ships `bin/sbl` as the
-**bootstrap**, `make spitbol` writes the product to the **top level**. In our `x64/` fork `bin/sbl` IS the
-product. ⛔ **`RULES.md:65` directs benchmarking at `spitbol-upstream`, which is the trap** — code right, rule
-text wrong; raised with hq_C/ceo, not edited unilaterally. Detail: `/home/resources/ORACLES.md` +
-`FINDING-2026-08-22-hq_P-shared-oracles-and-the-bin-sbl-trap.md`.
-⭐ **FIRING GATE NOW: `fleet` Q=0 ✅ · every seat root passes oracle preflight ✅ (was 8/16, now 19/19) · both
-HQ cursors pushed ✅.** Baton criteria: **85/85 runnable** (gate `test_gate_baton_donewhen_runnable.sh` PASSES)
-after hq_C authored the last 13 and hq_P made **18 seat-root-hardcoded criteria root-relative** — they named
-`/home/claude_C`, so a seat would have graded its own row against hq_C's tree, a false GREEN not a deadlock.
-
-### ✅ PRE-FLIGHT COMPLETE — every Phase-0 item and every firing-gate condition, VERIFIED NOT ASSUMED (s259)
-| Phase 0 (`GOAL-CEO.md`) | state |
-|---|---|
-| 1. V2-1 picker (rank-sorted + `assign` + assigned-first `next`) | ✅ cross-verified s258 |
-| 2. Queue purge (DONE rows swept · blank line :145 · dead locks · dup rows) | ✅ **0 malformed rows measured** |
-| 3. V2-3 banner (HQ ✅-refusal on stale inbox · board age+topic) | ✅ hq_P, cross-verified by hq_C |
-| 4. V2-4 identity assert · census-by-mailbox · marooned mail · `ceo` remap | ✅ hq_P, cross-verified by hq_C |
-| 5. Top ~16 dispatchable rows batoned, **each DONE-WHEN demonstrated able to say NO** | ✅ **16/16 demonstrated** |
-| **Firing gate** | |
-| `fleet` shows 0 unanswered questions | ✅ **Q=0 every mailbox** |
-| every seat root passes the oracle preflight | ✅ **19/19 smoke-verified** (was **8/16**) |
-| both HQ cursors pushed | ✅ |
-
-⭐ **Item 5 was NOT met by "85 batons exist".** Measured: 34 carried prose (uncloseable), then 18 hardcoded
-`/home/claude_C` (a seat would have graded its own row against **hq_C's tree** — a false GREEN), then 9 more
-`cd`-ed away from the root and used a root-relative path, so they could only ever exit **127**. Each layer was
-invisible to the one before. Now **86/86 runnable** and the **top 16 demonstrated to say NO** — `says-YES=0`,
-`command-not-found=0`. Ratchet: `test_gate_baton_donewhen_runnable.sh`.
-⛔ **The 127 class was MY OWN regression** — my `/home/claude_C` strip did not account for an earlier `cd`.
-Cured with a **root-capture idiom** (`R="$PWD"; … "$R/SCRIP/scrip"`) so a `cd` cannot invalidate the paths.
-⛔ **My first demonstration script counted 127 as a legitimate NO** and hid it. A criterion must be checked for
-*why* it says no.
-⭐ **Two live findings fell out of actually running them:** `json-alternate-af-spin` **REPRODUCES** (rc=124,
-20 bytes out — the spin is real and current); `jstring-escape-dcap-pump-segv`'s SEGV **did not reproduce** on
-the minimal witness (`rc=0`, sensible output) — that row may be **STALE**; flagged to hq_C, not closed here.
-⛔ **V2-6 (Lon's flip) is the only rung left, and it is Lon's.**
-
-### ⛔ STANDING CONSTRAINTS
-- **NO BEAUTY NUMBER AT `-O2`** (roman at `-O2` is fine and was verified this session; hq_C has localised the
-  `-O2` defect to **two files of 261**, `rt.c` + `pattern_match.c`).
-- No perf claim may cite a ζ-storage comparison while `zeta-frame-rsp-capture-home` / `zeta-cell-heap-segv` are red.
-- Open with `ceo`: `escalate-icon-checks-vs-icon-target`.
-- ⚠️ `test_gate_fb_predicate_tripwire.sh` times out at 100 s on the real tree (exit 124). Pre-existing, not V2-5 fallout.
