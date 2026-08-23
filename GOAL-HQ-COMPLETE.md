@@ -148,6 +148,32 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s261 (2026-08-23) — TWO WRONG ANSWERS CURED, THE BENCHMARK SUITE UNBLOCKED. All numbers below measured on a `make pristine` tree (HQ-27); an earlier board self-reported ⛔ STALE BINARY and those numbers were discarded, not quoted.**
+
+### ⭐ CURED THIS SESSION
+
+1. **`calculator-2` — ARBNO extension double-fired a deferred capture** (SCRIP `ba628703`). An ARBNO that EXTENDS after an enclosing `. *FN()` capture's first success fired the action TWICE; the abandoned attempt's pend entry was never retracted and `rt_dcap_pump` replayed it. Cure is three instructions on the **ARBNO-FRAME** arm: bank `r12` at α, **RE-BANK at PAIR(2) when an instance commits**, restore at β. ⛔ The re-bank is the subtlety — rolling back to the α mark on every recede wipes instances that legitimately completed. Slot ownership **proven**: `frame_slot_off()` strides 16B/index, the arm uses bytes 0–7, so `AFCQ(8)` is the node's own memory. No new global, no grant. **1944 diff lines → 0.** FINDING-2026-08-23-hq_C-arbno-extension-double-fires-deferred-captures.md.
+2. **Protected pattern names were silently assignable** (SCRIP `d40c1d8c`, lead from hq_P). `ARB = 1` landed and the program ran on. A GVA-eligible name stores via a direct cell write that never calls `NV_SET_fn`, bypassing its guard. Cured in **`gva_name_eligible()`** — the single admission funnel, beside the exclusion list that already exists for the same reason. ⛔ NOT the three call sites; that is the per-call-site filter RULES.md forbids. Oracle says the refusal is **RUN time** (statement 2, after earlier output), which is what routing back through `NV_SET_fn` gives. All seven names verified.
+3. **The benchmark suite was grading 0 of 17** (SCRIP `1c0d2aad`). `harness.inc` grew a full-resolution `ns:` line; the `norm=ms` filter deletes measurement lines BY NAME and never learned it, so every pin mismatched. **0.0% → 100.0%.**
+
+### BOARD, MEASURED PRISTINE
+
+| suite | before | after |
+|---|---|---|
+| benchmarks | 0/17 · 0.0% | **17/17 · 17/17 · 100.0%** |
+| demos | 18/23 · 17/23 · 76.1% · UNSCR 1 | **19/23 · 18/23 · 80.4% · UNSCR 0** |
+| corpus (`-O0`) | m3 357/359 · m4 355/359+2SKIP | **unchanged, identical fail set** |
+
+### NEXT, IN ORDER
+1. **`json` + `json-match` — TIMEOUT/TIMEOUT at 90s.** Two of the four remaining demo reds. Likely the open `json-alternate-af-spin` row. **Unexamined by me — no depth estimate.**
+2. **`json-match-fence` — DIFF.** Unexamined.
+3. **`porter` — m4-only ASM_FAIL** (duplicate-label). The single row separating m4's 18 from m3's 19.
+4. **`160_pat_alt_inner_gen_resume`** — the only non-deliberate crosscheck red.
+5. ⛔ **The NV_SET_fn guard-bypass CLASS is OPEN.** Protected-names was one instance; nobody has audited what other name-based guards live there and are bypassed for GVA-eligible variables.
+6. ⛔ **`expression.sno` moved** to `programs/snobol4/oracle-unrunnable/` (Lon) — 15 absent includes, `sbl rc=139`, ungradeable.
+7. ⛔ **NO `-O2` BUILDS is a fact rule (Lon s262).** The `-O2`-only reds are unreachable by construction; `FINDING-...-calculator-1-is-an-O2-split...` keeps its verdict (**53819b4a CLEARED, do not revert**) but its defect is moot.
+
+
 **s258 → s259 (2026-08-22/23) HANDOFF. Every line carries the command behind it.**
 
 ### ⭐ r10/r11 ARE NOW USABLE FOR stmt#/BB-node# — VIA THE VENEER, NOT ERADICATION
