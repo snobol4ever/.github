@@ -19,9 +19,18 @@
 
 Lon s256: *"you can build and test and do, but when you find BUGS you delegate."* Build, run, diff, bisect, profile — all of it. **The moment a measurement becomes a DEFECT it becomes a row and a brief, never an edit.** HQ's output is rungs; a fix taken at HQ is a fix the fleet did not learn.
 
-## ⚠ RUNG C-0 — CLOSED **AT `-O0`** BY MEASUREMENT 2026-08-22 (hq_C). ⛔ THE `-O2` ARM IS UNMEASURED AND LON REMEMBERS IT BROKEN
+## ⛔⛔⛔ RUNG C-0 — **STILL OPEN.** CURED AT `-O0`, BROKEN AT `-O2` (measured 2026-08-22, hq_C)
 
-⛔⛔ **READ THIS FIRST — Lon, in-chat this session, verbatim in substance:** *"The problem as I remember was with -O2 and beauty self host did not work."* **Every number below is `-O0`** (`make pristine` defaults to `RT_OPT=-O0`, O0-DEV-O2-BENCH s179). The `-O2` arm — the one reserved for benchmark and demo runs — **was never run**, and the queue already carries `161-o2-red` (*"SEGVs BOTH modes at -O2 only; asm RT_OPT-independent, wound is runtime C under optimization"*), a **defer** test, in the class beauty lives in. A milestone that holds only at `-O0` is not the milestone. **An `-O2` measurement is in flight; until it lands, C-0 is closed on the `-O0` arm ONLY.**
+⛔⛔ **LON CALLED THIS FROM MEMORY AND HE WAS RIGHT** — in-chat: *"The problem as I remember was with -O2 and beauty self host did not work."* **MEASURED AT `3f951354`:**
+
+| arm | `-O0` | `-O2` |
+|---|---|---|
+| m3 | ✅ 40,971 / `6f1671c0` FIXED POINT | ⛔ **278 / `1c75f97d`** |
+| m4 | ✅ 40,971 / `6f1671c0` FIXED POINT | ⛔ **278 / `1c75f97d`** |
+
+⭐ **The `-O2` output is BYTE-IDENTICAL to the PRE-CURE `-O0` output** — the same failure, not a similar one. `6ba28e5e` cures the 32-bit-tag-compare class at `-O0` and NOT at `-O2`, matching `161-o2-red`'s note *"asm RT_OPT-independent; wound is runtime C under optimization."* `m3 ≡ m4` still holds **within** each arm: this is an optimisation-level split, not a medium split. **⛔ DO NOT BENCHMARK BEAUTY AT `-O2` — it quits after its header and will time gloriously.**
+
+⛔ **HQ ERROR TO LEARN FROM:** one arm of a two-arm axis was measured and reported without the axis. Every number was true; the SCOPE was missing, and a true number with a missing scope reads as a general claim. Cost and blindness were the same defect — nobody re-ran `-O2` because it cost 9m30 and was discarded on every switch. Now 0–1s (flag-keyed build cache, SCRIP `6c3f081c`).
 
 **The 278-byte stub was real, is reproducible, and is cured at `-O0`.** Measured at HEAD `457dc5d9`, pinned classic source, run from the beauty directory:
 
@@ -78,15 +87,27 @@ ls x64/bin/sbl /home/resources/spitbol-clean/sbl; command -v icont iconx swipl g
 cd SCRIP && make pristine                    # HQ-27: required before any gate verdict
 ```
 
+## ⛔⭐⭐⭐ STANDING ORDER CHANGE — DUO ONLY, NO FLEET (Lon, in-chat, 2026-08-22 s258)
+
+**Lon, verbatim in substance:** *"Just so we are clear we are run only duo here, no FLEET, just 2 HQ's."*
+
+**hq_C and hq_P are the only sessions running. There are no seats.** What this changes, and it is most of the operating model:
+
+1. ⭐ **MEASURE FREELY, CURE NEVER IS SUSPENDED FOR THIS SEAT — HQ CURES NOW.** That law's stated reason was *"a fix taken at HQ is a fix the fleet did not learn."* With no fleet there is no learner, and the law would mean **nothing gets fixed at all**. Lon has already put this seat in a curing role in the same session (*"Fix that BUILD problem"*), which is the reading in practice. ⛔ This is HQ's reading of two Lon statements, not a third Lon statement — it is marked as such, and Lon can overturn it in one line.
+2. **The batons are a two-person worklist, not a dispatch queue.** `/home/resources/postoffice/tasks/*.task.md` keep their full value — GOAL, a DONE-WHEN that is a command, QA and an evidence LEDGER — but nobody is coming to pick them up. hq_C works them directly, newest evidence appended as before.
+3. **All 7 seat assignments have been RELEASED** (`claims.released.hq_C-s258-duo/`). ⛔ This was not cosmetic: a claimed row **hides itself from the picker**, so leaving work assigned to a seat that is not running would have fenced it off from the only two sessions that exist.
+4. **V2-1's `assign`/rank-sorted picker is correct, landed, cross-verified — and now dormant.** It is not wasted (it is there the moment a fleet returns) but it earns nothing today, and no further investment goes into fleet control-plane work. The wave-3 firing gate, the 16-seat plan, and the CEO audit loop are moot while the duo runs.
+5. **Escalation is unchanged:** hq_C ↔ hq_P directly, `ceo` for arbitration, Lon overrides anyone.
+
 ## LIVE CURSOR — hq_C
 
-**s258 (2026-08-22) closed RUNG C-0 by measurement and repaired the control plane. The cursor moves to DISPATCH.**
+**s258 (2026-08-22): C-0 is REOPENED on the `-O2` arm, the control plane is repaired, the build is fixed — and the fleet is gone. The cursor moves to WORK IT MYSELF.**
 
 **Done this session, each with a command behind it:** C-0 measured CURED at HEAD (both media) and HQ's own prime suspect disproven · the M1 probe rescued out of a seat's disposable `/tmp` into `.github/probes/m1-bisect/`, made portable, and its **own** blindness (the `-INCLUDE`/CWD trap) found and fixed · **V2-1 landed and pushed** (SCRIP `93d3ef16`: rank-sorted picker, `assign`-is-the-lock, `sweep`; gate `test_gate_s4e_picker_v2.sh` 18/18, negative-tested three ways) · **queue purged** (113 DONE rows swept to `QUEUE.done.tsv`, blank-line landmine gone, 4 dead locks released, every brief pointer verified) · **hq inbox drained** — all 10 seats with open questions answered · **hq_P's V2-4 cross-verified and signed off** (18/18 live, 15 failures against pre-patch) · **9 task batons minted** in `/home/resources/postoffice/tasks/`, every DONE-WHEN a command and every one demonstrated able to say NO.
 
-**NEXT SESSION, in order:**
-1. ⭐ **ASSIGN, do not let seats self-pick.** Nine batons are ready. `bash SCRIP/scripts/s4e_msg.sh assign <seat> <topic>` — that is what V2-1 was built for, and day-1 self-pick is what the firing gate forbids.
-2. **Rank-0 first:** `rtcc-r9-gvarq-collision-bb-define` (live r9/GVARQ collision, gate reported green over it) and `jstring-escape-dcap-pump-segv` (4-byte repro, SIGABRT at HEAD).
-3. **`rung-m1-m3-regression` is now a 20-minute confirm-and-correct job, not a bisect.** Whoever takes it corrects `board_beauty_m1.sh`'s stale red too.
-4. ⛔ **Still owed by Lon and still unanswered:** SNOBOL4-FIRST (do not even RUN Icon/Prolog checks) versus the s255 bootstrap ruling that puts them on the road. HQ reads it as a sequence — **that is a reading, not Lon's word.** Do not staff Icon or Prolog until Lon rules AND the oracles are installed.
-5. Run `bash SCRIP/scripts/s4e_msg.sh fleet` on a cadence.
+**NEXT, in order — ⛔ DUO MODE: these are jobs to DO, not briefs to dispatch:**
+1. ⛔⛔⛔ **RUNG C-0 ON THE `-O2` ARM. Nothing outranks it and it is now this seat's own hands.** The `-O2` failure is byte-identical to the pre-cure `-O0` failure, so it is the same 32-bit-tag-compare class surviving optimisation. ⭐ **Free narrowing already banked: `RT_OPT` already carries `-fno-strict-aliasing` AND `-fwrapv`, so the two commonest UB-under-optimisation causes are ALREADY EXCLUDED.** Next probes, cheapest first: `-O1` (if clean, the culprit is an `-O2`-only pass); then `-fsanitize=undefined` on the runtime; then `-O2 -fno-<pass>` bisection over `pattern_match.c`/`rt*.c`. ⭐ Each arm now costs 0–1s to switch back to, so this is finally affordable — that is what the build fix bought.
+2. **`161-o2-red` is almost certainly the same defect** (`161_pat_defer_fn_nested_match` SEGVs both modes at `-O2` only; *"wound is runtime C under optimization"*). Treat them as one investigation until proven otherwise — a second witness for the same bug is worth more than a second bug.
+3. **`rtcc-r9-gvarq-collision-bb-define`** — live uncleared r9/GVARQ collision in `bb_define.cpp`, which the rtcc gate reports green over because `--strict` is invoked nowhere.
+4. ⛔ **Still owed by Lon:** SNOBOL4-FIRST vs the s255 bootstrap ruling. HQ reads it as a sequence — **a reading, not Lon's word** — and the Icon/Prolog oracles are absent from this box regardless.
+5. ⛔ **Every correctness verdict from here names its RT_OPT.** The C-0 misfire was one arm of a two-arm axis reported without the axis.

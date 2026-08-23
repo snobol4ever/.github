@@ -1,4 +1,6 @@
-# FINDING — RUNG C-0 IS CURED: Milestone 1 is NOT regressed at HEAD, and the instrument that was about to prove otherwise was blind
+# FINDING — RUNG C-0: cured at `-O0`, ⛔ **STILL BROKEN AT `-O2`** — and the instrument that was about to prove otherwise was blind
+
+> ⛔ **TITLE RETRACTED IN PART.** This finding first read "Milestone 1 is not regressed at HEAD". That is true **only at `-O0`**. At `-O2` beauty self-host emits 278 bytes in both media. See "THE `-O2` RESULT LANDED" below. Lon called this from memory before it was measured.
 
 **Seat:** `hq_C` (HQ-CORRECTNESS) · **Date:** 2026-08-22 · **SCRIP HEAD measured:** `457dc5d9` · **⛔ RT_OPT: `-O0` (see the RT_OPT CAVEAT below — the `-O2` arm is unmeasured and Lon remembers it broken)** · **Class:** MEASURED (every number below carries the command that produced it)
 
@@ -64,19 +66,35 @@ Both existed **only in a seat's `/tmp` scratchpad**, which dies with the session
 **Negative-tested (a gate that cannot say NO is not a gate):** exit 1 on a non-fixed-point source; exit 1 with the include diagnosis on a wrong CWD; and 278 bytes at `cd13321e^` **and** `cd13321e` from the same harness that reports 40,971 at HEAD.
 
 
-## ⛔⛔⛔ RT_OPT CAVEAT — EVERY NUMBER ABOVE IS `-O0`. THE `-O2` ARM IS UNMEASURED AND LON REMEMBERS IT BROKEN
 
-**Added by hq_C the same session, after Lon said in-chat, verbatim in substance:** *"The problem as I remember was with -O2 and beauty self host did not work."*
+## ⛔⛔⛔ THE `-O2` RESULT LANDED: C-0 IS **OPEN**. LON'S MEMORY WAS CORRECT AND THIS FINDING'S TITLE IS RETRACTED
 
-⛔ **This is a hole in the measurement above, and it is mine.** `make pristine` defaults to `RT_OPT=-O0` (O0-DEV-O2-BENCH, Lon s179), so **every byte count, md5 and bisect probe in this FINDING was taken at `-O0`.** I dated the verdict by commit and never by RT_OPT — which `CLAUDE.md` explicitly requires ("Label every perf number with its RT_OPT") and which matters more here than for a perf number, because `-O2` is precisely the arm reserved for benchmark and demo runs.
+**Measured, SCRIP `3f951354`, `RT_OPT="-O2 -g -fno-strict-aliasing -fwrapv -fno-omit-frame-pointer" make pristine`, pinned classic source, run from the beauty directory:**
 
-**What the `-O0` evidence does and does not establish:**
-- ✅ **Establishes:** the descr-stamp regression (278 bytes) is real at `-O0`, reproduces at `cd13321e^`/`cd13321e`, and is cured by `6ba28e5e`. That has a clean negative control and stands on its own.
-- ⛔ **Does NOT establish:** that Milestone 1 holds at `-O2`. That arm was never run. **A milestone that holds only at `-O0` is not the milestone.**
+| arm | RT_OPT | bytes | md5 | verdict |
+|---|---|---|---|---|
+| m3 | `-O0` | 40,971 | `6f1671c0757729992ae01a6bdf16f081` | ✅ FIXED POINT |
+| m4 | `-O0` | 40,971 | `6f1671c0757729992ae01a6bdf16f081` | ✅ FIXED POINT |
+| **m3** | **`-O2`** | **278** | **`1c75f97d1907f92f4c0a8a3ef49eb9ee`** | ⛔ **Parse Error on START** |
+| **m4** | **`-O2`** | **278** | **`1c75f97d1907f92f4c0a8a3ef49eb9ee`** | ⛔ **Parse Error on START** |
 
-**Corroboration that Lon's memory names a real and DISTINCT class** — the queue already carries `161-o2-red` (rank 8): *"161_pat_defer_fn_nested_match SEGVs BOTH modes at -O2 only (asm RT_OPT-independent; wound is runtime C under optimization)."* Two things follow. The failure is in the **runtime C under optimization, not in emitted asm**, so it is invisible to ASM-DIFF-FIRST and to every `.s` artifact check. And it is a **defer** test — beauty is pattern/defer work end to end, and seat01 tied beauty's symptom to exactly that class. So this is most likely a **second, separate defect** that outlives C-0 rather than an alternate reading of it.
+**Milestone 1 holds at `-O0` and is broken at `-O2`. A milestone that holds only in the development arm is not the milestone.**
 
-⛔ **Until the `-O2` result lands, treat this FINDING's title as scoped: "not regressed at HEAD **at -O0**".** hq_P has been told to hold: an `-O2` beauty benchmark over a broken self-host would time a program that quits after its header, which is the same trap that voided the inherited figure.
+⭐ **THE SHARPEST FACT IN THIS FINDING: the `-O2` output is BYTE-IDENTICAL to the pre-cure `-O0` output.** Same 278 bytes, same md5 `1c75f97d…`. Not a similar failure — **the same failure**. So `6ba28e5e`'s cure of the 32-bit-tag-compare class **holds at `-O0` and does not hold at `-O2`**, which matches the standing `161-o2-red` row's own note exactly: *"asm RT_OPT-independent; wound is runtime C under optimization."* The emitted code is not the suspect; the runtime C is either being miscompiled or is exercising UB that `-O2` is entitled to exploit. Note also that `m3 ≡ m4` still holds *within* each arm — this is not a medium split, it is an optimisation-level split.
+
+**Confirmed twice, independently of the first measurement:** after the flag-keyed build cache landed, a clean A/B on one tree gave `-O0` → FIXED POINT, switch to `-O2` (0s) → 278 bytes, switch back to `-O0` (1s) → FIXED POINT.
+
+## ⛔ MY ERROR, NAMED — IT IS THE CLASS LAW 0 EXISTS TO CATCH, COMMITTED BY THE SEAT ENFORCING LAW 0
+
+I ran **one arm of a two-arm axis and reported the result without the axis.** `make pristine` defaults to `RT_OPT=-O0`; I never passed `-O2`; I dated the verdict by commit and never by RT_OPT, which `CLAUDE.md` explicitly requires. Every individual number in the original finding was true and reproducible. **The scope was missing — and a true number with a missing scope reads as a general claim.** That is LAW 0 species (2) EXPIRY, produced not by time passing but by a dimension nobody stated.
+
+It also went unnoticed because the `-O2` arm was *expensive*: 9m30 per rebuild, thrown away on every switch. **Cost and blindness were the same defect** — nobody re-ran `-O2` because nobody could afford to. That is now fixed (`Makefile` flag-keyed cache: an `-O2` switch costs 0–1s), which is why this finding and the build finding belong to one session.
+
+⭐ **PROPOSED LAW (one line, for CEO to land or reject):** *a correctness verdict must name every configuration axis it was taken on, and a verdict on one arm of a selectable axis is a verdict about that arm ONLY, never about the product.* We already require RT_OPT labels on **perf** numbers; this extends it to **correctness**, where it matters more — a perf number with the wrong flag is merely wrong, while a correctness verdict with the wrong flag closes a milestone that is still broken.
+
+## WHAT REMAINS TRUE FROM THE ORIGINAL FINDING
+
+Unchanged and still load-bearing: the descr-stamp regression is real at `-O0`, reproduces at `cd13321e^` and `cd13321e`, is cured by `6ba28e5e` **at `-O0`**, HQ's prime-suspect *commit* is disproven while its *mechanism* is confirmed, the rescued probes are correct, the `-INCLUDE`/CWD blindness was real, and the corpus baseline (m3 357/359, m4 355/359+2 SKIP, denominator 359) stands — **all of it at `-O0`.**
 
 ## THE CORPUS BASELINE, MEASURED HERE, SUPERSEDING BOTH QUOTED NUMBERS
 
