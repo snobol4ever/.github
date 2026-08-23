@@ -61,7 +61,7 @@ LINKS: <goal file § rung> · ARCH/FINDINGs
 
 Every hq_P task that edits code names the hq_C gate set it must keep green (the SNOBOL4 blocking set minimum); a perf win that moves an oracle diff is hq_C red — the task ω-flips owner instead of shipping. Neither HQ overrules the other; disputes are one message to `ceo` (inbox exists) and the task sits BLOCKED till ruled. Lon overrides anyone; the override routes back the same session (LOOP law 6 unchanged).
 
-## ROLLOUT LADDER (mint as tasks; ⛔ do NOT hot-patch the live control plane mid-fleet — v1's mid-flight rename is what forked the phantom mailbox)
+## ROLLOUT LADDER (⛔ do NOT hot-patch the live control plane mid-fleet — v1's mid-flight rename is what forked the phantom mailbox. Amended Lon s257: V2-1…V2-4 are PREFLIGHT, executed by hq_C+hq_P themselves with cross-verification, per the division in GOAL-CEO.md Phase 0; V2-5 stays fleet work; V2-6 stays Lon's flip)
 
 - **V2-1** `s4e_msg.sh`: rank-sorted picker + `assign` + assigned-first `next` (+ negative tests: rank inversion served in order; assign wins over topmost-free).
 - **V2-2** queue split: index-only QUEUE.tsv + one `tasks/<topic>.task.md` per live row (HQ-owned conversion, 55 live rows) + DONE sweep to `QUEUE.done.tsv`.
