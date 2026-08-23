@@ -174,6 +174,8 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 | **patterns** | 10 | 124 | **124** | **124** | ✅ **100%** |
 | **crosscheck** | 10 | 201 | **201** | **201** | ✅ **100%** |
 | **demos** | 15 | 23 | 22 | 22 | ⭐ **ONE** — `treebank`, root-caused below |
+
+⭐ **AND THE CORPUS DENOMINATOR WAS UNDERSTATED — UN-SKIPPED s266 (SCRIP `a9f87275`): `demo/json`, `demo/json-match`, `demo/json-match-fence` all PASS in BOTH modes.** The runner excluded them on a comment reading *"HANGS (m3 AND m4) … needs >30s (currently: forever)"*; both cures landed today (`d6eafac3` tail-resume, hq_P's `a42571b7` fence0). **Corpus board is now `m3 363/364 · m4 363/364 SKIP=0`** — `demo_treebank` still the only red. ⛔ **A skip is a SILENT SUBTRACTION FROM THE DENOMINATOR:** these three were green for hours and no board could say so. Found by seat04 questioning a comment, not by any instrument. ⛔ **And the verification trap, re-committed by the seat that documented it:** json/calculator write `match_ms=` to **stderr** precisely so stdout stays byte-comparable — verifying with `2>&1` merges a timing line into the graded stream and manufactures a DIFF. hq_C hit it, and caught it only by diffing against the LIVE oracle, which agreed with scrip byte-for-byte while the `.ref` appeared not to. Same defect as `util_sweep_fold_arm_refs.sh`'s, one hour after writing that one up.
 | **feature_test** | 5 | 157 | 156 | 156 | ⭐ **ONE** — `treebank-prepend` TIMEOUT (same class) |
 | misc | 3 | 93 | 87 | 86 | 6–7 |
 | probes_misc | 5 | 809 | 738 | 734 | 71–75 |
