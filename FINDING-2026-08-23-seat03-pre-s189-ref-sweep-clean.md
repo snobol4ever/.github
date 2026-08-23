@@ -1,6 +1,28 @@
-# FINDING 2026-08-23 (seat03) — row `pre-s189-ref-sweep`: full-corpus sweep for folding-arm-contaminated `.ref` pins, ZERO found beyond the one hq_C already fixed
+# FINDING 2026-08-23 (seat03) — row `pre-s189-ref-sweep`: full-corpus sweep for folding-arm-contaminated `.ref` pins
 
-## HEADLINE
+## ⛔⛔⛔ CORRECTION (seat03, same day, after hq_C's negative-control catch) — READ THIS FIRST
+
+**The original title of this doc claimed "ZERO found." That claim was UNSUPPORTED — the sweep script (v1)
+was blind to its own target defect.** hq_C proved this with a negative-control test: restored the historical
+folded pin (`root=JOBJ`) into `json.ref`, re-ran `util_sweep_fold_arm_refs.sh`, and it reported
+`CASE-ONLY-DIVERGENCE: 0` — identical to the clean run. **An instrument that reports the same answer whether
+or not the defect is present is not measuring the defect.** Root cause: v1 captured the oracle with `2>&1`,
+merging stderr into the comparison stream; `json.sno` (this row's own witness) deliberately writes
+`match_ms=0` to stderr so stdout stays byte-comparable, so v1's merge corrupted the comparison for every file
+that writes anything to stderr — including the one file that mattered. v1 also lacked the DEMO-directory
+family-`.input` mapping (`calculator-1`/`calculator-2`/`treebank-alloc` all draw from ONE shared
+`calculator.input`/`treebank.input`, a convention `scorecard_snobol4.sh`'s `stdin_for()` already encodes),
+which fed several real programs `/dev/null` and buried them in a dismissed "other-diff" bucket instead of
+grading them correctly. **v2 fixes both, ADDS A MANDATORY POSITIVE-CONTROL SELF-TEST that refuses to report
+anything if it can't first prove it can detect a fabricated copy of the row's own historical defect, and
+NEVER dismisses the other-diff bucket as a category** — hq_C's sharpest point: "other-diff is not out of
+scope — it is where the signal hides." Full corrected methodology, numbers, and — found ONLY because the
+bucket was triaged instead of dismissed — a second, real, in-scope defect (`&CASE`'s default value) below.
+**The rest of this document is the corrected record; the original "ZERO found" HEADLINE below is superseded
+by the RESULT section's corrected numbers and the `&CASE` finding — left in place, not deleted, because the
+retraction is itself evidence of how this class of instrument fails silently.**
+
+## HEADLINE (ORIGINAL, NOW SUPERSEDED — see CORRECTION above and RESULT below for what actually holds)
 
 hq_C's `FINDING-2026-08-23-hq_C-benchmark-corpus-was-a-harness-not-a-program.md` found a `DATATYPE()` bug
 (`by_name_dispatch.c:5202` upper-cased programmer-defined type names) that had been invisible for months
@@ -64,44 +86,94 @@ solve (`atn.sno` needs something this sweep's stdin/cwd handling doesn't provide
 statement; `diag2.sno` hits an unrelated parse error at line 232; `genc.sno` is a translator tool expecting
 a command-line filename argument) — none show any relationship to case-folding.
 
-## RESULT
+## RESULT (v2, corrected script, self-test-verified)
 
 ```
-programs-with-ref: 1625   oracle-match: 1457   CASE-ONLY-DIVERGENCE: 0   other-diff: 74   skip: 94
+programs-with-ref: 1628   oracle-match: 1509   CASE-ONLY-DIVERGENCE: 0   other-diff: 27   skip: 92
 ```
 
-wall-clock 27s. The 74 "other-diff" and 94 "skip" files are NOT folding-arm artifacts (verified: none match
-the upper-case-both-sides-and-compare test) — they are a mix of already-tracked defects (e.g.
+wall-clock ~70s, positive-control self-test PASSED (proves the instrument can still detect a fabricated
+`root=JOBJ`-shaped fixture before this number is trusted). Every one of the 27 "other-diff" files was
+individually read and diffed this time — none dismissed by category:
+
+- **`kw_defaults.sno`, `kw_direct_read.sno` — REAL, IN-SCOPE, CONFIRMED (see next section).** Not
+  case-only-text, so the automated CASE-ONLY detector correctly does not (and structurally cannot) flag
+  them, but they are the SAME root defect class the row exists to find.
+- **`claws5_call.sno`, `claws5_cap.sno`** (`probe/callout/`) — confirmed clean once fed
+  `corpus/benchmarks/snobol4/demo/claws5.dat` (their own header comment: *"runner redirects
+  `<family>.dat`"*) — manually verified matching (modulo the already-handled `iters:`/`ns:`/`ms:` lines).
+  This sweep's stdin resolution intentionally does not reach across directories (a same-name `.dat` in an
+  unrelated probe directory would be a worse bug than the one being chased), so these two remain in
+  `other-diff` by construction, not because anything is wrong with the pin.
+- **22 `programs/csnobol4-suite/*.sno`** — the historical upstream SPITBOL test-suite source (unmodified
+  since `snobol4-1.4.1`). Heterogeneous, individually-read causes, none case-only: missing `END` statements,
+  programs expecting a command-line filename argument (`genc.sno`), `&DUMP`-triggered variable-state dumps
+  this sweep's plain invocation doesn't trigger the same way the original authors' harness did (`a.sno`,
+  `dump.sno`), floating-point formatting (`float.sno`), and — the one worth naming specifically —
+  `case1.sno`, which is not a simple correctness witness at all: it is an explicit, self-described test of
+  historical `-case`/`-CASE`/`-case N` IN-FILE compiler directives (mid-source fold-mode toggles, a
+  Catspaw-era feature, "5/25/94 -plb"), so "does a bare `sbl -bf` run match this `.ref`" is not even the
+  right question to ask of it — its divergence is real but orthogonal to this row's command-line-arm
+  question. Four of the 22 (`atn`, `diag1`, `diag2`, `genc`) were additionally cross-validated against the
+  canonical `scorecard_snobol4.sh oracle` harness (identical RC/byte-count both ways), confirming these are
+  pre-existing invocation gaps, not an artifact of this sweep's own harness.
+- **`BALREV_driver.sno`** (`programs/gimpel/`) — one extra trailing blank line in the fresh oracle run vs.
+  the pin, with no `.input` present (fed `/dev/null`); not further root-caused, not case-only.
+
+None of the 27 show the case-only signature. **skip (92)** is dominated by the already-documented
+`cn_*` `&USER_DECLARED_CONSTANTS` probes (self-documented `ORACLE_FAIL BY CONSTRUCTION` in their own source
+comments, confirmed empirically) and other SCRIP-only-extension or already-tracked-elsewhere programs (e.g.
 `demo_treebank`, seat03's own deliberate red from `vlist-expr-alternation`; the open
-`json-match-capture-free-hang` timeout row), self-documented SCRIP-only extensions (`cn_*`
-`&USER_DECLARED_CONSTANTS` probes), and historical csnobol4-suite programs with invocation requirements
-(argv, multi-file assembly) beyond a simple stdin-fed single-file run. None were individually fixed or
-changed here — per the brief's own instruction, a `.ref` may legitimately record behaviour `sbl` itself
-fails on, and this sweep's job was to find the ONE specific signature (case-only divergence), not to
-triage every pre-existing divergence in the corpus.
+`json-match-capture-free-hang` timeout row) — not individually re-triaged file-by-file this session (v1's
+proven blindness was in the comparison logic that ALSO gates the match/other-diff split, not in the
+oracle-liveness gate reused unchanged from `scorecard_snobol4.sh`, so this bucket carries lower risk of
+hiding the same defect — but it has not been given the same exhaustive treatment as other-diff and a future
+session should not assume it has).
 
-## METHODOLOGY ARTIFACT LEFT FOR WHOEVER TOUCHES THIS NEXT
+## ⭐⭐ A SECOND, REAL DEFECT — FOUND ONLY BECAUSE THE BUCKET WAS TRIAGED, NOT DISMISSED
 
-`corpus/programs/snobol4/demo/json.sno` (already fixed) shows exactly one line of drift against a bare
-`sbl -bf` re-derivation: an extra trailing `match_ms=0` line the pinned `.ref` doesn't have. Not a folding
-issue (confirmed: it's an extra line, not a case change, and disappears from the "other-diff" bucket's
-concern once you notice it's timing instrumentation) — flagged here rather than chased, since it's outside
-this row's scope and the file's correctness (the part hq_C's row cured) is otherwise confirmed intact.
+`&CASE` — SPITBOL's OWN case-folding-mode keyword — has a DIFFERENT default value depending on which oracle
+arm reads it: `sbl -b` (folding) reports `&CASE` unset-default as `1`; `sbl -bf` (the mandated arm) reports
+`0`. **`probe/kw/kw_defaults.ref` and `probe/kw/kw_direct_read.ref` are both pinned to `1`** — minted under
+the wrong arm, the identical defect class as `json.ref`, just manifesting as a DIGIT rather than a folded
+letter, which is exactly why the automated CASE-ONLY detector (upper-case-both-sides-and-compare) cannot and
+does not catch it — `"1"` upper-cased is still `"1"`. **Confirmed live: `SCRIP --run` on both witnesses
+currently prints `CASE=1`/`case=1` too** — SCRIP currently agrees with the wrong-arm pin, so this is not
+merely a stale ref, it is a currently-invisible SCRIP correctness defect masked by it, structurally identical
+to how `json.ref` masked the `DATATYPE()` bug for months. Scope confirmed narrow: `grep -rl '&CASE'` across
+the whole corpus (excluding `programs/lon/`) finds 7 files; the other 5 all set `&CASE` explicitly
+(`&CASE = 0`/`&CASE = 1`) rather than reading its default, so they are unaffected. **Not fixed here** — unlike
+`json.ref`, fixing this means first deciding what SCRIP's `&CASE`-read default *should* be (0, matching
+`-bf`, seems clearly correct given RULES.md's blanket case-sensitivity mandate, but the runtime change and
+whatever currently reads `&CASE`'s default internally is unscoped by this row) and then re-minting both refs
+— proposed as its own follow-up row, per the same split hq_C already used for `vlist-expr-alternation`'s
+Defect B, rather than force it through here without a ruling.
+
+## THE METHODOLOGY ARTIFACT WAS NOT A FOOTNOTE, IT WAS v1's ROOT CAUSE
+
+The original version of this doc noted, as an aside, that `corpus/programs/snobol4/demo/json.sno` prints an
+extra trailing `match_ms=0` line on stderr that the pinned `.ref` (stdout only) doesn't have, and moved on.
+**That line is the entire reason v1 of this sweep was blind.** hq_C's negative-control catch traced it
+exactly there. Left as a lesson: a "huh, minor, unrelated" observation during a sweep is sometimes the whole
+bug in the sweep itself — worth a second look before filing it as a footnote, especially when it touches the
+comparison mechanism rather than the thing being compared.
 
 ## WHAT WOULD REOPEN THIS ROW
 
-`scripts/util_sweep_fold_arm_refs.sh` (new, this session) packages the Phase 2 method and is the row's own
-DONE-WHEN (`pre-s189-ref-sweep.task.md`). Re-run it after any future `.ref` mint/update; a nonzero
-CASE-ONLY-DIVERGENCE count is new work — investigate each hit with its own witness (which arm minted the
-old pin, re-derive from `-bf`, diff), never blanket-overwrite.
+`scripts/util_sweep_fold_arm_refs.sh` (v2, this session) packages the corrected method, runs a mandatory
+positive-control self-test before reporting anything, and is the row's own DONE-WHEN
+(`pre-s189-ref-sweep.task.md`). Re-run it after any future `.ref` mint/update; a nonzero
+CASE-ONLY-DIVERGENCE count is new work, and so is the self-test failing outright (the instrument itself is
+broken again). Investigate each hit with its own witness (which arm minted the old pin, re-derive from
+`-bf`, diff), never blanket-overwrite. The `&CASE` finding above is also unresolved and worth its own row.
 
 ## RECEIPTS
 
-SCRIP `a0ebc660` (this session's own commit adds `scripts/util_sweep_fold_arm_refs.sh` on top), corpus
-`90dbbb895` (unmodified by this row — zero `.ref` files changed). Oracle: `/home/resources/x64/bin/sbl -bf
--d512m -i64m` throughout (the ONE correctness arm, `lib_oracle_flags.sh`), matching
-`scorecard_snobol4.sh`'s own `sbl_flags()`. `corpus/programs/lon/` excluded by construction in the sweep
-script itself (`-not -path "$CORPUS/programs/lon/*"`), never walked, never read into this transcript or any
-output file. Full sweep output + the four cross-validation runs against `scorecard_snobol4.sh oracle`
-captured this session; `util_sweep_fold_arm_refs.sh` is re-runnable by anyone to reproduce the 1625/1457/
-0/74/94 result.
+SCRIP (this session's commits add `scripts/util_sweep_fold_arm_refs.sh`, both v1 and the v2 correction, on
+top of `a0ebc660`), corpus unmodified by this row — zero `.ref` files changed, zero fixes applied. Oracle:
+`/home/resources/x64/bin/sbl -bf -d512m -i64m` throughout (the ONE correctness arm, `lib_oracle_flags.sh`),
+matching `scorecard_snobol4.sh`'s own `sbl_flags()`. `corpus/programs/lon/` excluded by construction in the
+sweep script itself (`-not -path "$CORPUS/programs/lon/*"`), never walked, never read into this transcript
+or any output file. v1's false-clean result (1625/1457/**0**/74/94) and v2's corrected, self-test-verified
+result (1628/1509/**0**/27/92) are both in this doc's history on purpose — the retraction is the evidence.
+`util_sweep_fold_arm_refs.sh` is re-runnable by anyone to reproduce the v2 result and its own self-test.
