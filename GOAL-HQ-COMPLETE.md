@@ -148,6 +148,50 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s265 (2026-08-23) — LON ORDERED THE BENCHMARK HARNESS INVERTED, AND IT IS INVERTED. DUO.**
+
+### ⭐ THE ORDER, VERBATIM IN SUBSTANCE
+
+*"the system does NOT have the stand alone program and has all that WRAPPER actually in the SOURCE CODE. And there is NO REF files. So REVAMP the benchmark harness to have the `*.sno` file look like and BE the REAL program application that can be run stand alone, and you can make temporary versions you build on the fly with WHATEVER WRAPPERs you need."* · *"Do not use the HUGE files for the REF files. Use the INPUT versions which are small for that reason."* · *"we should have three options I would think."*
+
+### DONE — SCRIP `a0ebc660`, corpus `90dbbb895`, both pushed
+
+| | before | **after** |
+|---|---|---|
+| benchmark `.sno` | the wrapper: `ZBODY(ZKN)` + `-INCLUDE 'harness.inc'`, **no `END`**, not runnable standalone | the **application**: own `END`, own real output, no include, runs under `scrip` / `sbl -bf` / csnobol4 |
+| `.ref` | 16 pinned `check: <n>` (a harness artifact) · **2 had none at all** | **33/33** minted from `sbl -bf` on the SMALL `.input`, verified m3 **and** m4 |
+| the wrapper | baked into the source, one shape | `scripts/bench_wrap.sh` builds it on the fly, **three modes** |
+| scorecard `benchmarks` | 17/17 on `check:` lines, `norm=ms` | **18/18 m3 · 18/18 m4 · 100.0%** on real output, norm dropped |
+
+**Three options, as ruled: STANDALONE** (no wrapper — `perf`/`time`/callgrind the real app, graded while timed) · **`--mode=time`** (budget, count iterations) · **`--mode=iter --n=N`** (exact count, no deadline).
+
+⭐ **MODE 3 WAS UNREACHABLE FOR EVERY DATA-DRIVEN BENCHMARK AND NOBODY HAD SAID SO.** The fixed-work gate was `fixed_n = INPUT`, a stdin read — but porter/json/claws5/calculator/treebank read their *corpus* from stdin, so it could never see a count. They were time-based-only by construction. `bench_wrap.sh` **bakes** `fixed_n`, which is what makes instruction-counting reachable on exactly the two rows hq_P is profiling. Told hq_P; they had hit it independently and hand-built the same workaround.
+
+### ⛔ THE CORRECTNESS DEFECT IT UNCOVERED — CURED
+
+**`DATATYPE()` upper-cased programmer-defined type names.** `DATATYPE(jobj(...))` → `JOBJ` where the `-bf` oracle says `jobj`; `MiXeD` → `MIXED`. Root cause `by_name_dispatch.c:5202`: the fold was applied to the WHOLE result — right for the built-in spellings the function stores lowercase internally, wrong for a name the user declared in a `DATA` prototype. It also truncated names past 31 chars through a `static char ub[32]`. Cured at the single site; m3 and m4 byte-identical to the oracle.
+
+### ⭐⭐ THE RUNG THAT OUTLIVES THIS SESSION — **A `.ref` MINTED AGAINST THE WRONG ORACLE ARM AGREES WITH THE BUG FOREVER**
+
+`corpus/programs/snobol4/demo/json.ref` pinned `root=JOBJ` — minted against `sbl -b` (folding ON), the arm **s189 outlawed**. So the pin agreed with SCRIP's bug, the demos suite graded green, and every instrument aimed at it was blind. It was not found by grading. It was found by **re-deriving the pin from the correct authority and diffing.** ⛔ **Any pin older than s189 is suspect by construction** — sweep unminted, needs a row. hq_P recorded the identical rung independently and, against their own interest, that the two values sat side by side in their own transcript unread: *"printing two things is not diffing them."*
+
+### GATES, PRISTINE, ON THE MERGED TREE (after rebasing onto seat02's `3e4591fe`)
+
+corpus **m3 359/360 · m4 359/360 SKIP=0** — only `demo_treebank` (seat03, deliberate). ⭐ The m4 SKIP is **gone**: seat02's `132_pat_fence_eps_recur_shallow` link fix landed. Both emit gates rc=0.
+
+### OPEN, WITH OWNERS
+
+- `json-match-capture-free-hang` — FREE. Still the only benchmark red: 31/33 pass both modes, these 2 TIMEOUT. Untouched by this work.
+- **pre-s189 ref sweep** — FREE, unminted. Any `.ref` whose spelling can only have come from the folding arm.
+- ⛔ **`always_inline` on the `core/core.h` tag predicates is a `hq_C` row now** (hq_P handed it over with a reproducer). Folding a one-line tag test cannot change what it computes, yet it breaks THREE deferred-capture tests and costs **100x wall time** — that is a live descriptor the collector stops seeing once it is no longer spilled to memory. Precise-roots territory. hq_P dropped it rather than committing it.
+- ⛔ **`ce48e3bb` (hq_P's landed `descr.h` `always_inline` sweep) is UNDER SUSPICION but KEPT** — same mechanism, gated green twice, no evidence against it, worth 2.6% on claws5. **If any capture or GC red appears near it, revert it FIRST and re-measure.** Ruled jointly with hq_P; they will not defend the 2.6%.
+- `demo_treebank` / `vlist-expr-alternation` (seat03) — staying red on purpose, unchanged.
+- The 15 `benchmarks/snobol4/demo/` programs are graded by `util_mint_bench_refs.sh` but are **not** in the scorecard (`-maxdepth 1`). Adding them moves the denominator and the weights, and ⛔ **the weights are Lon's knob.**
+
+**Evidence:** `FINDING-2026-08-23-hq_C-benchmark-corpus-was-a-harness-not-a-program.md`
+
+## LIVE CURSOR — hq_C (s264, superseded by s265 above)
+
 **s264 (2026-08-23) — FLEET OF 4, HANDOFF. Lon in-chat: *"You are running concurrently with a FLEET of 4 workers."* — that invoked FLEET for this run; DUO remains the default between runs (routed by ceo onto ARCH-FLEET-CEO.md's mode line).**
 
 ### ⭐ THE BOARD MOVED. MEASURED PRISTINE AT SCRIP `540e3a00`, BOTH EMIT GATES rc=0
