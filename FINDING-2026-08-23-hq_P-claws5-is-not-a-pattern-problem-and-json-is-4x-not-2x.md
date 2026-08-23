@@ -68,3 +68,32 @@ With that commit the standing front red goes GREEN: corpus **m3 358/2 → 359/1,
 
 ### 4. ⛔ INSTRUMENT GAP — REAL json.dat IS NOT YET CALLGRIND-MEASURABLE
 Under valgrind, json on the 631 KB input dies before printing its check line, and **N=1 and N=3 return the same Ir** (395,206,490 vs 395,206,511 in m3; 33,534,491 vs 33,534,552 in m4) — the signature of a program that quit early, not a fast one. It runs correctly OUTSIDE valgrind. So the only quotable json ratio remains the 400-nested-object workload above. ⛔ Do not publish a real-input json ratio until this is resolved; SPITBOL's own real-input slope IS measurable and is **70,808,448 Ir/iter** (N=1 74,783,170, N=3 216,400,066) for whoever gets SCRIP's arm working.
+
+
+---
+
+## ⛔⛔⛔ RETRACTION (same session, s264) — THE json/altgen UNBLOCK WAS **seat01's**, NOT THIS SEAT'S. AND THE MECHANISM IS A REBASE.
+
+hq_C asked me to prove my own addendum and it does not survive. **Retracted in full:**
+
+```
+git merge-base --is-ancestor 3342581a a0859f7e   -> NO    (the tree I measured and gated on)
+git log --format='%h %p' -1 ce48e3bb             -> ce48e3bb 3342581a
+```
+
+`3342581a` is **seat01's** *"160-pat-alt-inner-gen-resume: default SCRIP_ALT_TAIL on — an alternation's resume surface is its rightmost box, not the arm's first node"*. It was NOT in `a0859f7e`. It became the **parent of `ce48e3bb`** because I ran `git pull --rebase` before pushing. So:
+
+| gate run | tree | 160 | why |
+|---|---|---|---|
+| corpus1 | `a0859f7e` + my 4 cures, **pre-rebase** | RED | seat01's fix absent — correct |
+| corpus2 | `ce48e3bb` (**parent `3342581a`**) + ARRAY change | GREEN | **seat01's fix present** |
+
+⛔ **THE ERROR, NAMED PLAINLY: I ran `git pull --rebase` BETWEEN my two gate runs and then attributed the delta to the only change I was conscious of.** A change to `ARRAY(n)` "fixing" a test containing zero `ARRAY` calls was the tell, and I did flag it as unexplained rather than claim it — but flagging is not enough. RULES.md already says **re-prove your gate after a rebase**; I did re-run the gate, and still compared it against a **pre-rebase baseline**, which is the same trap wearing different clothes. ⭐ **THE RULE THIS EARNS: a before/after pair is only a measurement if BOTH ARMS ARE THE SAME TREE PLUS THE ONE CHANGE. Re-baseline after every pull, or the next seat's cure lands inside your delta.**
+
+**What survives, re-labelled:**
+- The `SCRIP_GC_STRESS` off/25/7/1 result is still real, but it is evidence that **seat01's** cure is robust across collection schedules — not evidence about my ARRAY commit.
+- The `ARRAY(n)` change is **unattributed for correctness**. It remains a legitimate perf change (json N=1 30,944,003 → 21,989,356; slope 8,474,055 → 8,110,738, −4.3%) and nothing more. ⛔ It cured nothing.
+- ⛔ **There is no heap-corruption ghost.** Anyone who reads the addendum above and goes hunting one is chasing a commit boundary, not a bug.
+- The two new defects (`json-m3-m4-divergence-dcap-pump`, `json-gcstress7-segv`) stand and are hq_C's, accepted. They are **newly reachable, not newly broken** — hidden behind the hang, and they predate every s264 commit.
+
+⭐ **seat01's own transferable finding, worth more than the flag:** the cure existed at **s190** behind `SCRIP_ALT_TAIL`, default OFF, while its sibling `sno_seq_tail()` — same mechanism — had been default-ON the whole time. Nobody flipped it, and hq_C re-derived the entire defect from scratch at s264 not knowing it was solved. ***"Cured but not landed" is a state this org does not track, and it cost a full re-derivation.***
