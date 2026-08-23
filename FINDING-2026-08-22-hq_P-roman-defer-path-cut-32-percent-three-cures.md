@@ -78,3 +78,63 @@ reuses rather than shadows) and the two hazards (stack-buffer pointer keys; shad
 ⭐ **A per-site slot already exists — `g_sno_defer_cells[4096]`** — currently allocated only when `ci >= 0`, which
 requires a GVA-eligible name and so never fires for a `PATV$` site. Extending `ci` to merged sites would give this
 cure a home **without a new global**.
+
+
+---
+
+# ⭐⭐⭐ s261 CONTINUATION — ROMAN IS NOW −56.3%, SIX CURES, AND THE DEFER PATH MAKES NO CALL AT ALL
+
+Lon s261: *"So keep on slicing those times... Keep squeing."* Two more cures landed on top of the three above.
+
+| arm | Ir @ N=2000 | Ir/iter | Δ | check |
+|---|---|---|---|---|
+| session baseline `f4657712` | 80,371,475 | 40,186 | — | 1102 ✓ |
+| `97ef3c3a` FAIL-strcmp guard | 77,638,799 | 38,819 | −3.40% | 1102 ✓ |
+| `454b5190` one resolution, not two | 62,788,744 | 31,394 | −19.1% | 1102 ✓ |
+| `f8081604` drop the unobservable dfx frame | 54,315,629 | 27,157 | −13.5% | 1102 ✓ |
+| `a16598a2` ⭐ SPITBOL's vrblk discipline — cache the cell | 47,143,490 | 23,571 | −13.2% | 1102 ✓ |
+| `84aaef7e` ⭐⭐ inline the read into emitted code, no call | **35,130,646** | **17,565** | **−26.7%** | 1102 ✓ |
+| **cumulative** | | | **−56.3%** | |
+
+**vs the clean benchmark oracle (7,966 Ir/iter, recorded s258): 6.58x → 2.21x.**
+
+## The last two cures, and why the second one is the shape that matters
+
+**Cure 4 — stop looking the name up.** `NV_GET_fn` + its `strcmp` was 19.2%, and callgrind's *line* annotation
+showed the lookup was not the cost — the **ceremony** was: prologue 1,214,530 Ir, a non-inlined `_var_init()`
+call 462,184 Ir to test one flag, memo index 770,115, memo key/generation check 1,271,736, validation strcmp
+2,376,240. You cannot make a lookup cheap enough. `NV_PTR_fn` already returns the stable cell — core.c's own memo
+comment carries the proof — so each site caches a **self-validating (key, cell) pair**: a slot collision misses
+and re-resolves, it can never hand one site another's cell. **`NV_GET_fn` disappeared from the profile entirely.**
+
+**Cure 5 — stop making the call.** What was left was the *wrapper*: an `xfer_enter/leave` push-pop of r13/r14/r15,
+an `rtccb` save/restore of r8/r9, a PLT call and a branch chain — **~120 Ir to "read a cell and compare one
+byte."** The emitted box now does the common case in ~18 instructions with no call. ⛔ It **cannot answer
+differently, only sooner**: every other case — cold slot, shared slot, non-string, multi-character, a pattern, an
+unevaluated expression — falls through to the *unchanged* call.
+
+⭐ **THE REGISTER MAP WAS VERIFIED, NOT ASSUMED, AND THAT IS THE METHOD POINT.** Earlier the same day this seat
+asserted a register/name mapping in this same box and was wrong (the deferred name is `PATV$0`, not `T`). So the
+claim was sourced from emitted code that *provably* scans the subject: `bb_match_break` emits
+`movsxd rcx, r14d / cmp ecx, r15d / movzx esi, byte ptr [r13+rcx]`, fixing **r13 = subject, r14d = cursor,
+r15d = length**. The inline arm reuses that exact idiom rather than a second guess.
+
+## ⛔ Controls, and one that would have been fake
+
+Every arm is killswitch-controlled: `SCRIP_DEFER_MERGE=0` (runtime) and `SCRIP_DEFER_INLINE=0`. **`DEFER_INLINE`
+is an EMIT-time switch**, so toggling it on an already-baked binary does nothing — the OFF arm was **re-compiled**
+(48,166,519 Ir, check 1102). A control that cannot actually disable the thing it controls is not a control.
+
+## ⛔ A latent hazard this seat introduced and then closed
+
+The cell-pair cache lives in the upper half of the existing `g_sno_defer_cells`; the DTP cache allocates from the
+bottom with a bound of 4096. **A program with enough DTP sites would have written a DTP into a word read back as a
+cell address.** Bound tightened to 2048. Named because it was mine and it was live for two commits.
+
+## ⛔ demo_calculator_1 — a NEW corpus red, and it is NOT from this work
+
+Sent to hq_C as a wrong answer under their standing order, with the bisect that rules this seat out: identical
+failure with `SCRIP_DEFER_INLINE=0`, with `SCRIP_DEFER_INLINE=0 SCRIP_DEFER_MERGE=0`, and with this seat's entire
+working tree **stashed** and rebuilt at HEAD `3970f54a`. It appeared on the first corpus run after a rebase whose
+codegen commit was `53819b4a` (RTCC veneer, r10/r11 protected) — **named as a suspect, not a culprit; not
+bisected onto.** That same commit also costs roman **+795,000 Ir (+1.7%)**, measured.
