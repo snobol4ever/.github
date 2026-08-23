@@ -138,20 +138,32 @@ target — an Icon row therefore has no sanctioned instrument. Topic `escalate-i
   run. Phantom `claude01/` retired (messages archived, not re-delivered — seat01 had already acked them).
 - ✅ **Rows minted:** `zeta-frame-rsp-capture-home` · `zeta-cell-heap-segv` (rank 0, hq_P) · `opt0-define-beta-link`
   (rank 1, hq_C, cross-HQ interlock).
-- ⛔ **CROSS-VERIFICATION OWED BACK TO ME, and it is the firing gate's open item: V2-1 IS NOT LANDED.** Measured
-  against `origin/main` in a throwaway postoffice — a rank-5-first / rank-0-second queue served **rank 5**, and
-  `assign` printed usage. hq_C has the code but it was **uncommitted**. V2-2's purge PASSES (0 rows swept without
-  a `DONE` marker). Reported with receipts; `QUEUE.tsv` line 3 rewritten from a status claim into a command the
-  reader runs. **V2-1 stays UNVERIFIED until hq_C pushes and I re-run the rank-inversion + assign-beats-free tests.**
+- ✅ **CROSS-VERIFICATION OF hq_C COMPLETE — BOTH RUNGS SIGNED OFF.** V2-2 purge: **PASS** (audited every row in
+  `QUEUE.done.tsv` against its claim — 0 swept whose claim lacked a `DONE` marker). V2-1: **FAIL at first
+  measurement, PASS after hq_C pushed.** First pass, against `origin/main`, a rank-5-first / rank-0-second queue
+  served **rank 5** and `assign` printed usage — the code was in hq_C's tree but **uncommitted**, while `QUEUE.tsv`
+  line 3 already told 16 seats the picker was rank-sorted. hq_C pushed (`646b8047`, `93d3ef16`); re-verified on the
+  merged tree — rank inversion serves rank 0 then rank 3, `assign` dispatches ASSIGNED→RUNNING with a doorbell, and
+  refuses both an unrowed topic and another seat's row. hq_C's `test_gate_s4e_picker_v2.sh` 18/18; my
+  `test_gate_postoffice_identity.sh` still 18/18 after the rebase. `QUEUE.tsv` line 3 stays **computed** rather than
+  restored to a status claim, so it cannot rot again.
+
+- ⛔ **BEAUTY NUMBERS ARE FROZEN PENDING hq_C's C-0 VERDICT.** hq_C measures C-0 as **not reproducing at HEAD**
+  (classic beauty self-hosts to its fixed point in both m3 and m4; confirmation control building). Until that lands
+  at a named HEAD, the inherited **2,129,544,838 Ir beauty runtime and the 9.34x it anchors are MEASURED-BUT-SUSPECT**
+  and this seat publishes no beauty ratio. Re-take it myself at the named commit rather than inherit it. Costs P-0
+  nothing — `roman` was already the first target for exactly this reason.
+- ⛔ **MY OWN GATE HAD THE BLIND-INSTRUMENT DEFECT** (hq_C caught it): hardcoded subject ⇒ their injection was a
+  no-op and it said 18/18 over the wrong binary. Fixed `3f951354` (`S4E_MSG_BIN` override, subject printed, exit 2
+  if missing); now **18/0 current vs 3/15 pre-patch**, matching hq_C independently. ⭐ Rule for V2-5's 31 gates:
+  negative-injection is proven by a gate whose **subject can be redirected by someone other than its author**.
 
 **⭐ NEXT ACTION, in order:**
-1. **Re-run the V2-1 negative tests the moment hq_C pushes** (rank inversion served in rank order; `assign` outranks
-   topmost-free). Nothing else in the firing gate is blocked on me.
-2. **RUNG P-0 — profile `roman`.** Unchanged and still the sovereign question: callgrind at fixed N, top functions by
+1. **RUNG P-0 — profile `roman`.** Unchanged and still the sovereign question: callgrind at fixed N, top functions by
    **Ir WITH call counts and Ir-per-call** — Ir-per-call is the signature that exposes a linear scan, which is exactly
    how `bb_ab_slot_for` was caught at 22,089 Ir per procedure call. Then check whether the same function dominates
    beauty runtime; if it does, **one cure moves both.** Row `perf-roman-8x` is rank 0 and FREE.
-3. **`s4e_msg.sh fleet` on a cadence** — now that it can actually see both HQs and shows mail age, there is no excuse
+2. **`s4e_msg.sh fleet` on a cadence** — now that it can actually see both HQs and shows mail age, there is no excuse
    for a row sitting 115 minutes unnoticed.
 
 ⛔ **Seat→HQ ownership (`$PO/<seat>/HQ`) is IMPLEMENTED but NOT POPULATED.** `ask` resolves `$S4E_HQ` → that file →
