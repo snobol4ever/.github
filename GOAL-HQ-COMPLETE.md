@@ -165,12 +165,50 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 - **Icon oracle BUILT and wired**: `/home/resources/icon-master/bin/{icont,iconx}` (Arizona 9.5, built s266), symlinked at `/home/resources/icon-build` (the scripts' default `ORACLE_BIN`) and `SCRIP/refs/{icon,jcon}-master` repopulated. The Icon front's "oracles ABSENT" line in the standing board is STALE as of s266.
 - Queue hygiene: 7 rung-E/A rows parked SUPERSEDED (r10/r11 veneer ruling s259 made them moot — seat13's 3-for-3 pattern confirmed); `opt0-residual-two-defects` minted at rank 4 from seat06's report (SCRIP_OPT=0 is emergency-only, not on the 100% path).
 
+### ⭐⭐ SNOBOL4 NEAR-100 BOARD — MEASURED s266 (Lon asked which suites are "a couple away"). SCRIP `205c6aca`, provenance-stamped, 4 jobs / 16 cores, peak load 7.66 (NOISY, not contended)
+
+| suite | w | N | m3 | m4 | away from X/X |
+|---|---|---|---|---|---|
+| **beauty_suite** | 15 | 17 | **17** | **17** | ✅ **100%** |
+| **bb_probes** | 10 | 188 | **188** | **188** | ✅ **100%** |
+| **patterns** | 10 | 124 | **124** | **124** | ✅ **100%** |
+| **crosscheck** | 10 | 201 | **201** | **201** | ✅ **100%** |
+| **demos** | 15 | 23 | 22 | 22 | ⭐ **ONE** — `treebank`, root-caused below |
+| **feature_test** | 5 | 157 | 156 | 156 | ⭐ **ONE** — `treebank-prepend` TIMEOUT (same class) |
+| misc | 3 | 93 | 87 | 86 | 6–7 |
+| probes_misc | 5 | 809 | 738 | 734 | 71–75 |
+| **META** | **73** | | | | **98.2** |
+
+⛔ `beauty_self` (w=20) scores 0.0 with N=0 — the ORACLE cannot run beauty (`sbl rc=139`), so the flagship is UNSCR and outside the number, exactly as seat04's census warned. ⭐ **Answer to Lon: FOUR suites are already X/X, and TWO more are ONE program away — and both of those are the SAME defect.**
+
+### ⭐⭐ THE LAST CORPUS RED IS NOT A TREEBANK BUG — IT IS `(A , B)` SELECTION (root-caused s266, corpus `718139e70`)
+
+`demo_treebank` and `feature_test/treebank-prepend` both die on the SPITBOL **selection expression** `(A , B)` (value of A if A succeeds, else B). SCRIP's default lowering (`lower_snobol4.c:727`) lowers **arm 1 only**, so a failing A yields **null**. treebank's `ListInsert4` does `ARRAY('0:' (IDENT(a(x)) 0, size*2-1))` → `ARRAY('0:')` → Error 164, then 235 one call later. **4-line witness:** `x = 'nn'; OUTPUT = 'a=' (IDENT(x) 0, 5)` — oracle `a=5`, scrip prints nothing.
+- ⭐ **`SCRIP_VLIST_ALT=1 SCRIP_ZETA_STORAGE=frame-rsp` is BYTE-CORRECT on every rung** — the defect is cell-stack-specific, and frame-rsp is the working reference. ⛔ **cell-heap is ALSO wrong now**; the in-tree comment claiming it was fine is STALE.
+- ⭐ **The asm names the mechanism, so the `zd_plan` framing can be retired as incomplete:** arm-1's recede runs through `n6_lit_string_β` — the enclosing CONCAT's left operand, *outside* the vlist — and pops its cell. **The failure path pops a cell belonging to an expression that already succeeded.** `SCRIP_ZD_VLIST_OMEGA=1` fires (it deletes exactly those pops) and is STILL wrong. Fix shape: catch the arm-failure edge AT THE VLIST BOUNDARY and restore the spine there; sound because the value rides the named `VLIST$n` variable.
+- Ladder banked `corpus/probe/vlist_select/` — 5 rungs + **2 passing controls**. Row re-briefed, assigned seat03. Evidence: FINDING-2026-08-23-hq_C-treebank-is-really-the-comma-selection-expression.md.
+
+### ICON BASELINE — FIRST MEASUREMENT SINCE THE ORACLE EXISTED (s266)
+
+| suite | | | vs s247 watermark |
+|---|---|---|---|
+| rungs_m3 | 232/293 | 79.2% | ⛔ **−15** (was 247) |
+| rungs_m3_cells | 232/293 | 79.2% | — |
+| rungs_m4 | 218/293 | 74.4% | ⛔ **−25** (was 243) |
+| smoke | 28/28 | 100% | ✅ |
+| crosscheck | 4/4 | 100% | ✅ |
+| gates | 8/10 | 80% | — |
+
+⛔ **META prints 69.0 and that number is WRONG — do not quote it.** `bench_correct` scored **0/1 at w=15**, but 23 `.icn` benchmarks exist and the suite hit the scorecard's own `timeout 900` — **a timeout scored as a zero.** Recomputed over the suites that actually measured (Σw=80): **META 82.0**. ⭐ Same class as the `probes_misc`/benchmark `norm=ms` defects: an instrument reporting a number it never measured. Fixing the cap (or making the suite report PARTIAL instead of 0) is owed before any Icon board is quoted.
+⛔ **31 m3 FAILs, and NO Icon-frontend commit exists since s247** (`git log src/lower/lower_icon.c src/parser/icon/` is empty) — so the −15/−25 is **collateral from shared emitter/template/runtime work** done during the SNOBOL4-FIRST blackout (25 template commits since s264 alone). That is the predictable cost of the "do not even run the Icon checks" order, now visible and now measurable. Fail set is dominated by `rung36_jcon_*` (24 of 31) plus `rung03_suspend_gen*` (4) — the N-2 generator-frame class the goal file already predicts.
+
 ### NEXT, IN ORDER
-1. **Icon board baseline** — `scorecard_icon.sh run` now that the oracle exists (watermark to beat: m3 247/16/30 · m4 243/20/30 at s247). Then the N-0..N-7 ladder per GOAL-ICON-100.md.
-2. **`demo_treebank` / `vlist-expr-alternation`** — the last corpus red; blocker is `zd_plan`'s γ-only run-walker (ω-reachable nodes unclaimed). seat03's `SCRIP_ZD_VLIST_OMEGA` prototype judged unsafe; needs the real design.
-3. `json-alternate-af-spin` + `json-match-capture-free-hang` rows — close via computed `done` (DONE-WHENs re-tested at pristine HEAD this session).
-4. The reentrant-dcf-push root defect (the bounds guard only names it) — `jstring-escape-dcap-pump-segv`.
-5. seat04's census weak suites: gimpel 40.5%, csnobol4_suite 47.5% — the road to "ALL SNOBOL4 at 100%" runs through them.
+1. **`vlist-expr-alternation`** (seat03, assigned) — closes BOTH near-100 suites at once; 4-line witness + frame-rsp reference in hand.
+2. **Icon rungs_m3 back to 247+** — bisect the shared-emitter collateral (no Icon commits exist, so `git bisect` over the emitter range with `test_icon_all_rungs.sh` is exact). Then N-1/N-6 rows (minted s266).
+3. **Fix `bench_correct`'s timeout-as-zero** before quoting any Icon META.
+4. `json-fence0-static-release-leak` — cured on hq_P's tree, awaiting their push; hq_C re-verifies the composition against `probe/choice_records/c04..c06`.
+5. gimpel 40.5% / csnobol4_suite 47.5% triage rows (minted s266) — the remaining bulk on the road to ALL-SNOBOL4-100.
+6. `beauty_self` is UNSCR because the oracle SIGSEGVs on beauty — the flagship is outside every META. Needs its own instrument (the M1 fixed-point gate IS that instrument; wire it into the scorecard).
 
 ## LIVE CURSOR — hq_C (s265, superseded by s266 above)
 
