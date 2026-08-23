@@ -25,21 +25,35 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐ LIVE CURSOR — s264 (hq_P). LON'S STANDING TASK: **CLAWS5 AND JSON, FASTER THAN SPITBOL. THOSE TWO ONLY.**
-*"Get CLAWS and JSON demos working faster than SPITBOL. Concentrate on just those two."* (Lon, in-chat s264.)
+### ⭐ LIVE CURSOR — s266 (hq_P). LON'S STANDING TASK: **CLAWS5 AND JSON, FASTER THAN SPITBOL BY 2-3x. THOSE TWO ONLY.**
+*"Get CLAWS5 and JSON SNOBOL4 working faster than SPITBOL by 2x-3x. The theory SPITBOL is a thread-code interpreter."* (Lon, in-chat s266.)
 
-**WHERE THEY STAND — callgrind Ir at fixed work, SLOPE method (startup/link/compile removed from BOTH engines), RT_OPT=`-O0`, SCRIP m4 native vs `/home/resources/spitbol-bench-oracle/sbl -bf`:**
+**WHERE THEY STAND — callgrind Ir at fixed work, SLOPE method, RT_OPT=`-O0`, SCRIP m4 native vs `/home/resources/spitbol-bench-oracle/sbl -bf`, ⭐ BOTH ENGINES ON THE REAL CORPUS INPUT, output diffed against `.ref` on every arm:**
 
-| workload | SCRIP Ir/iter | SPITBOL Ir/iter | gap |
-|---|---|---|---|
-| claws5 grammar only (`-match`) | 1,087,882 | 1,770,532 | ⭐ **SCRIP 1.63x FASTER** |
-| claws5 full | **61,233,041** (was 74,294,806) | 36,477,603 | 2.04x → **1.68x** |
-| json (400 nested 1-member objects) | **8,110,738** (was 8,474,055) | 1,949,584 | ⛔ **4.16x** |
+| workload | SPITBOL Ir/iter | SCRIP s264 | SCRIP s266 | gap |
+|---|---|---|---|---|
+| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 1.693x → **1.362x slower** |
+| **json** (631,514-byte json.dat, REAL) | 70,808,401 | 232,405,141 | **167,757,920** | 3.282x → **2.369x slower** |
 
-⭐⭐ **THE FINDING THAT REDIRECTS CLAWS5 WORK, AND IT IS ALREADY PAID FOR: THE PATTERN ENGINE ALREADY BEATS SPITBOL BY 1.63x.** 98.5% of claws5 is the deferred action + the 3-level TABLE build. ⛔ Do not open claws5 looking for a pattern-engine campaign — that subsystem is our best one on this workload. Full evidence, method and the three landed cures: `FINDING-2026-08-23-hq_P-claws5-is-not-a-pattern-problem-and-json-is-4x-not-2x.md`. Landed and pushed at SCRIP `ce48e3bb`, gates green (corpus m3 358/2, m4 357/2+1SKIP — standing reds only).
+−19.6% and −27.8% this session. ⛔ **STILL SLOWER. The target is 2-3x FASTER: claws5 ≤ 18.0M, json ≤ 35.4M.**
+Landed and pushed at SCRIP `80a01c63` · `05f11c4c` · `e64adaeb`, corpus `1267f605f`. Every commit gated on a `make pristine` EXIT=0 build: corpus m3 359/1, m4 359/1 SKIP=0 (the one fail is the deliberate `demo_treebank` red in both modes), both required gates rc=0, RTX killswitch negative-tested.
 
-⭐⭐ **json NO LONGER HANGS — AND THE CURE IS seat01's `3342581a` (`SCRIP_ALT_TAIL` default ON), NOT THIS SEAT'S.** json parses the real 631 KB `json.dat` to `check: 1264/1050/4754/2108/1/2791/1946/10`, identical to the SPITBOL oracle and the committed `json.ref`; corpus m3 359/1, m4 358/1+1SKIP; altgen ladder 7/7.
-⛔ **RETRACTED: this seat briefly recorded that unblock against its own ARRAY commit.** `3342581a` was not in `a0859f7e` but IS the parent of `ce48e3bb` — a `git pull --rebase` between two gate runs absorbed it. ⭐ **THE RULE IT EARNS: a before/after pair is only a measurement if BOTH ARMS ARE THE SAME TREE PLUS THE ONE CHANGE — re-baseline after every pull.** The `ARRAY(n)` change is unattributed for correctness; it is a perf change worth 4.3%/iter and nothing more. There is no heap-corruption ghost to chase.
+⭐⭐ **FULL EVIDENCE, METHOD, THE SIX LANDED CURES AND THE RANKED NEXT RUNGS:** `FINDING-2026-08-23-hq_P-claws5-1.36x-json-2.37x-four-per-call-resolutions-the-compiler-already-knew.md`. **Start there, do not re-derive it.**
+
+⭐⭐ **THE INSTRUMENT CHANGED AND THE OLD NOTE IS RETRACTED: json's REAL 631 KB INPUT IS CALLGRIND-MEASURABLE.** s264 recorded it as not measurable ("N=1 and N=3 return the same Ir … quit early, not fast"). The observation was right, the diagnosis was wrong: it is a **valgrind stack overflow**, silent because the truncated run still printed a plausible check line. `valgrind --main-stacksize=4000000000` and it runs to completion answering `check: 1264/1050/4754/2108/1/2791/1946/10`. ⛔ **The 400-nested-single-member-object proxy is RETIRED — never quote it again.** And json NO LONGER HANGS at all (seat01's `3342581a`), so no correctness row blocks a json number.
+
+⭐⭐⭐ **THE ONE FACT THAT DECIDES STRATEGY, MEASURED BY OBJECT FILE:** the runtime is **77.8% of claws5 and 63.1% of json**; emitted BB code is 17.2% / 32.5%. **SPITBOL has NO emitted code at all and still wins — so the entire remaining multiple lives in RUNTIME SERVICES, not in codegen.** Do not open a codegen campaign on these two demos.
+
+**NEXT RUNGS, RANKED ON MEASURED SELF-COST (full table in the FINDING):**
+1. ⭐⭐ **`table_set_descr_d` in asm — 9.3% of claws5.** ⛔ It needs the HASH FACTORED OUT of `table_find_pair_d` into a callable `rt_tbl_hkey_d` first: an update-only fast path built on the existing find was costed and is a NET LOSS (claws5 is ~62% inserts, each paying the hash twice). Factoring it also cheapens the find, which is itself 14.7% of claws5.
+2. **`rt_patv_defer_get_pat_dtp` in asm — 6.5% of json**, 46 Ir/call for four loads and three compares: the `-O0` `DESCR_t`-by-value tax, the identical shape just removed from the table read.
+3. **`NV_SET_fn` — 5.1% claws5 / 5.2% json at 139 Ir/call.** ⛔ An asm port is BLOCKED by NO-NEW-GLOBALS (the memo arrays are file-statics in core.c with no exported cell): either cure it in C or bring Lon the banner ask.
+4. **By-name builtin dispatch scaffolding, ~370 Ir/call** — the bid is already resolved at compile time and passed in `bidlen`, yet the preamble re-derives the dtax probe including a `memcmp` that is redundant when the slot was indexed BY bid. Class-wide, no per-op filter needed.
+5. ⛔ **`_tbl_grow`'s allocation floor is STILL not to be touched blind** — `aggregates.c:342`'s floor-1-vs-floor-4 measurement stands, Ir and cache-misses disagree in opposite directions, and Ir is the only instrument here.
+
+⛔ **TWO DEFECTS ROUTED TO hq_C, unchanged and unaffected by this work:** (a) `rt_dcap_pump` floods `CORRUPT CAPTURE ENTRY refused … target 'seg'` on stderr for the real json.dat in **BOTH m3 and m4** (`jdec`'s escape path) — stdout's census is byte-correct so it does not block a number, but it is a live wrong-answer risk on string CONTENT, which the census cannot see; (b) `SCRIP_GC_STRESS=7` SIGSEGV on the 5-byte witness `[1,2]`.
+
+⛔ **RE-BASELINE AFTER EVERY PULL.** Twice this session a `git pull --rebase` moved both numbers by ~0.6% before I touched anything. A before/after pair is only a measurement if both arms are the same tree plus the one change.
 
 ## ⭐⭐ INSTRUMENT CHANGE **LANDED AND TESTED HERE** (Lon s265; SCRIP `a0ebc660` + corpus `90dbbb895`) — THREE MODES, AND WALL-CLOCK IS PERMITTED AGAIN
 Lon, relayed: *"now he can run the app and time wall clock and perf values, and enjoy a TIME based or an ITERATION based benchmark harness. Yeah baby. We should have three options I would think."*
