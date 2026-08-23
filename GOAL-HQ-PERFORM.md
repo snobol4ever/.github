@@ -9,6 +9,7 @@
 
 ## ⭐⭐⭐ BENCHMARK PRIORITY (Lon, 2026-08-23 s264, in-chat to CEO, verbatim in substance): **CLAWS5 + JSON ARE HIGHEST — ROMAN IS SQUEEZED**
 *"CLAWS5 and JSON are highest priority, since we squeezed ROMAN pretty good. JSON is the DE-SERIALIZER and has the balance of PARSE plus creating ALL VARYING objects. And CLAWS5 for the 3-level TABLE GAUNTLET."* ⛔ This supersedes ANY "continue ROMAN" — explicitly including the tail of CEO's own s264 message `ceo-execfile-parked-fyi`, which was CEO speaking past its lane and past its knowledge; Lon's word governs and CEO has retracted the line. ROMAN's landed gains stand (arms labeled as always); the front is now **CLAWS5** (3-level TABLE gauntlet) and **JSON** (deserializer: parse + varying-object creation balance).
+⭐ **s264 addendum (Lon, in-chat to CEO, verbatim in substance):** *"The PAT$ and EXPR% lookups could be slowing things down. They should be addressed. The compiler needs to do the extra work, not the runtime."* Anchors (CEO grep, s264): the synthetic-name family — `PAT$<n>` / salted `PAT$<n>F<n>` minted at `lower_snobol4.c:1741`, `EXPR$` at `lower_snobol4.c:88` — still carries by-name work downstream (`strncmp("PAT$",…)` sites: lower ×1, `emit.cpp` ×2; *"the PAT$n$V global is stage-2 marshalling"*, `bb_match_defer.cpp:100`). Same class as the `.VAR` → `IR_LIT_NAME` cure that took 12.8% out of json: resolve synthetics at COMPILE time; the runtime does zero by-name work on them.
 
 ## THE ONE QUESTION THIS HQ OWNS
 
