@@ -360,6 +360,40 @@ which is superlinear in a way SPITBOL's `vrblk` pointers are not. **Strongest ar
   the classifier.** NOT proven — no binary was available before the redirect. `SCRIP_CAP_DIAG=1` prints
   `zres`/`anchor`/`frame_off` per capture node and is the instrument to finish it with.
 
+### ⛔⛔ V2-2 CROSS-VERIFIED — 34 OF 85 BATONS WERE PERMANENTLY UNCLOSEABLE (preflight, Lon s259)
+hq_C's baton conversion is complete in **form** — 85 batons, all with a `DONE-WHEN` line, none blank, none
+the no-op `true`. **Not in substance.** 34 of 85 (**40%**) carried **PROSE** in the DONE-WHEN field (25 fail
+`bash -n`; 9 begin with the literal word `STEP`/`FIRST`). `done` refuses any non-zero exit — correctly, that
+is LAW 1 — so a prose criterion **can never exit 0 either** and those rows **can never be closed by anyone**,
+however correct the work. With 16 seats about to fire that is a deadlock on 40% of the queue.
+⭐ **Root cause is ONE mapping:** old `QUEUE.tsv` column 4 was `first-step-AND-done-when`, prose-plus-criterion
+by design; the conversion moved it verbatim into a **command** field.
+⭐ **Now computable and ratcheted:** `scripts/test_gate_baton_donewhen_runnable.sh` (SCRIP `4a3ba055`), the
+companion to hq_C's e2e gate. ⛔ It **never executes** a DONE-WHEN (running 85 would build and profile the
+tree); it checks no-op criteria, `bash -n` parseability, first-word resolution after `VAR=val` prefixes, and
+**control characters**.
+⛔⛔ **THAT CONTROL-CHARACTER CHECK EXISTS BECAUSE I MADE THE BUG.** Criteria authored through python's
+`re.sub` had their `\b` word boundaries turned into literal **BACKSPACE bytes** by replacement-escape
+processing. They parsed, their first word resolved, `grep` matched nothing, `! grep` returned 0 — **criteria
+that could only ever say YES.** Caught by discrimination-testing my own work, not by reading it.
+⭐ **21 criteria authored so far, 34 → 13.** All existence-guarded first, because `! grep -q <missing-file>`
+returns **SUCCESS** and is vacuous wherever the path does not resolve. Each proven **two-sided**: says NO on
+the real tree, YES on a clean positive control, refuses when files are absent. Original prose preserved
+verbatim under `## NEXT` and **still binding**; every authored command is labelled
+**necessary-not-sufficient**.
+⛔ **13 REMAIN UNCLOSEABLE and are deliberately NOT papered over** — their criteria need the row owner's
+judgement, and inventing one I cannot justify is the false green this rung exists to remove:
+`autobug-dead-child-false-agree` · `beauty-suite-ref-provenance` · `compiler-quadratic-residue` ·
+`conformance-sweep-spitbol-manual` · `csnobol4-residue-six` · `fix-dispatch-bus-two-failure-modes` ·
+`kalah-crlf-parse-failure` · `opsyn-evalpat-residue` · `parser-acceptance-harness` ·
+`probe-error-paths-vs-oracle` · `recover-stripped-design-rationale` · `rung-seat-claude-reconcile` ·
+`trace-dump-permissive`.
+⭐ **PREFLIGHT STATE: V2-1 ✅ · V2-2 ⛔ 13 rows short · V2-3 ✅ · V2-4 ✅ · V2-5 ✅ · V2-6 = Lon's flip.**
+⭐ **THE PATTERN, FOUR LAYERS DEEP NOW: PRESENCE IS NOT PROOF.** An empty gate looked like a clean gate
+(V2-5) · an empty `.ref` looked like a passing `.ref` (`ident_call`) · a baton *with* a DONE-WHEN looked like
+a baton with a *working* one (V2-2) · and a criterion containing a backspace looked like one containing a
+word boundary (mine). Same disease every time.
+
 ### ⛔ STANDING CONSTRAINTS
 - **NO BEAUTY NUMBER AT `-O2`** (roman at `-O2` is fine and was verified this session; hq_C has localised the
   `-O2` defect to **two files of 261**, `rt.c` + `pattern_match.c`).
