@@ -1,4 +1,6 @@
 # FINDING: CLAWS5 is NOT a pattern problem (the engine already WINS 1.63x); the loss is entirely the action + TABLE build — and JSON is a 4.35x problem, not a 2x one
+> ⛔⛔⭐ **s266 CORRECTION BANNER — THE TABLES BELOW PREDATE THE ONE-AXIS-ONE-WORD FACT RULE AND VIOLATE IT.** They print `SCRIP 1.63x FASTER` beside `2.04x slower` **in one table**: two divisors and two vocabularies down one column, so the rows cannot be ranked against each other. Converted (`SPITBOL / SCRIP`, above 1 faster, below 1 slower): grammar-only **1.628**, full claws5 **0.490** at the time, json **0.230** on the **400-nested-object PROXY** — ⛔ and that proxy is RETIRED; json's real 631 KB figure is a different workload and the two may never share a grid. Current numbers, correctly formed: `FINDING-2026-08-23-hq_P-claws5-1.36x-json-2.37x-four-per-call-resolutions-the-compiler-already-knew.md`. Rule: `.github/RULES.md` § FACT RULES. **Left unedited below as the record of what was measured; read the numbers, not the form.**
+
 
 **Seat:** hq_P · **Date:** 2026-08-23 (s264) · **Tree:** SCRIP `ce48e3bb` (cures landed and pushed) from `a0859f7e`
 **Instrument:** callgrind Ir at FIXED WORK, SCRIP **mode-4 native binary** vs `/home/resources/spitbol-bench-oracle/sbl -bf -d512m -i64m -s16m`, **RT_OPT=`-O0`** (FACT RULE — no `-O2` builds, ever).
