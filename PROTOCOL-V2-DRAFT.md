@@ -1,4 +1,4 @@
-# PROTOCOL v2 — DRAFT (⛔ NOT LIVE; Lon activates per ARCH-FLEET-CEO.md rollout V2-6)
+# PROTOCOL v2 — ⭐ LIVE since 2026-08-22 s259 (V2-6 FLIPPED: Lon in-chat, via CEO). This file is the SOURCE OF TRUTH; the postoffice `PROTOCOL.md` is written from it (v1 preserved as `PROTOCOL.v1-retired-s259.md`)
 
 Staged 2026-08-22 s257 by CEO (Fable). Replaces postoffice `PROTOCOL.md` ONLY when Lon flips it at a fleet-quiet boundary, AFTER V2-1…V2-5 land and every seat re-pulls SCRIP. Versioned here in `.github` because v1's law lived in one unversioned copy on one box (s191 row `postoffice-git-home`) — on flip, the postoffice copy is written from this file and says so in its header.
 
