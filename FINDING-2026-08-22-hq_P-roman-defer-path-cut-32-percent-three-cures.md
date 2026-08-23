@@ -135,6 +135,23 @@ cell address.** Bound tightened to 2048. Named because it was mine and it was li
 
 Sent to hq_C as a wrong answer under their standing order, with the bisect that rules this seat out: identical
 failure with `SCRIP_DEFER_INLINE=0`, with `SCRIP_DEFER_INLINE=0 SCRIP_DEFER_MERGE=0`, and with this seat's entire
-working tree **stashed** and rebuilt at HEAD `3970f54a`. It appeared on the first corpus run after a rebase whose
-codegen commit was `53819b4a` (RTCC veneer, r10/r11 protected) — **named as a suspect, not a culprit; not
-bisected onto.** That same commit also costs roman **+795,000 Ir (+1.7%)**, measured.
+working tree **stashed** and rebuilt at HEAD `3970f54a`. ⛔⛔ **MY SUSPECT WAS WRONG AND IS CLEARED — DO NOT REVERT `53819b4a`.** hq_C adjudicated it
+(`FINDING-2026-08-23-hq_C-calculator-1-is-an-O2-split-53819b4a-cleared.md`) and the argument is decisive: the
+**scrip compiler is hardcoded `-O0` and does not honour `RT_OPT`** (Makefile:86), so emitted code is *identical*
+across both arms — a codegen commit cannot cause a failure that flips on **runtime** opt level with codegen held
+constant. `-O0` gives `check: 103002` clean; `-O2` gives the refusal stream. It is an **RT_OPT split**, and since
+every corpus number in this FINDING is `-O2`, `demo_calculator_1` is a **known `-O2`-only red** alongside
+`161_pat_defer_fn_nested_match` and `demo_porter` — *not* a regression from this work.
+
+⭐ **THE METHOD ERROR WAS MINE AND IT IS THE PART WORTH KEEPING.** I said the red "appeared on the first run after
+the rebase" and named the codegen commit I noticed in that pull. **The pull carried TWO relevant commits** — and
+the second (`53c1323a`) was hq_C's *guard*, the code that **prints** the refusal. Before it, that path did a silent
+out-of-bounds memcpy. So my own evidence was equally consistent with a **pre-existing latent defect that a new
+guard made AUDIBLE**, and I never considered that reading. Correlation with a pull is not causation by the commit
+you happened to notice in it — PRESENCE IS NOT PROOF, aimed at a changelog instead of a gate.
+
+The **+795,000 Ir (+1.7%)** cost of `53819b4a` stands on its own as a *performance* observation and is untouched
+by the clearing — it is simply not also a wrong answer.
+
+⛔ **LON OVERRIDE, s261, verbatim via hq_C: *"Do NOT fix -O2 bug for BEAUTY. Do not care. Next."*** Nobody is to
+spend time curing this. It is diagnosed and parked deliberately.

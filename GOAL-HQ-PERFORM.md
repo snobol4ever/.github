@@ -228,6 +228,55 @@ target — an Icon row therefore has no sanctioned instrument. Topic `escalate-i
 
 ## LIVE CURSOR — hq_P
 
+**s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
+
+⭐ **THIS SEAT MEASURES *AND* CURES.** MEASURE-FREELY-CURE-NEVER is REPEALED (Lon s261 — see the section above and
+`RULES.md` §§ THE TWO MODES / MEASURE AND CURE). **We are in DUO MODE and DUO IS THE DEFAULT**: Lon watching, two
+HQs, ceo. There is no fleet to delegate to, so **filing a queue row is not a deliverable — it is the shape of not
+doing the work.**
+
+### ✅ ROMAN — `bash /tmp/.../rig/roman_ir.sh <tag> 2000` (rig is scratch; rebuild it from the recipe below)
+| arm | Ir @ N=2000 | Ir/iter |
+|---|---|---|
+| baseline `f4657712` | 80,371,475 | 40,186 |
+| `97ef3c3a` FAIL-strcmp guard | 77,638,799 | 38,819 |
+| `454b5190` one resolution, not two | 62,788,744 | 31,394 |
+| `f8081604` drop the unobservable dfx frame | 54,315,629 | 27,157 |
+| `a16598a2` cache the cell (SPITBOL vrblk) | 47,143,490 | 23,571 |
+| `84aaef7e` **inline the read into emitted code** | **35,130,646** | **17,565** |
+
+**−56.3% cumulative. vs the clean oracle (7,966 Ir/iter): 6.58x → 2.21x.** `check: 1102` on every arm.
+Killswitches: `SCRIP_DEFER_MERGE=0` (runtime) · `SCRIP_DEFER_INLINE=0` (⛔ **EMIT-time — must be re-COMPILED,
+toggling it on a baked binary proves nothing**). Full detail:
+`FINDING-2026-08-22-hq_P-roman-defer-path-cut-32-percent-three-cures.md` (extended with the s261 continuation).
+
+### ⭐ NEXT ROW — NAMED, SIZED, AND IT HAS A WORKED EXAMPLE
+**`NV_SET_fn` is ~8% of roman and it is the SAME by-name defect on the WRITE side** (`rt_dcap_pump` 3.82% ·
+below-main 1.87% · `rt_match_replace` 1.43% · its strcmp 1.10%). The read-side cure is already worked twice —
+`a16598a2` caches the stable cell per site in a **self-validating (key,cell) pair** (a slot collision misses and
+re-resolves; it can never hand one site another's cell), and `84aaef7e` then removes the call entirely. Apply the
+same shape to the store path. After that the defer cluster is no longer #1 — **our own emitted code is, at 21.4%**.
+
+### ⛔ THREE THINGS THE NEXT SESSION MUST NOT RE-DERIVE
+1. **`demo_calculator_1` is a known `-O2`-ONLY red, NOT a regression.** hq_C adjudicated it: the compiler is
+   hardcoded `-O0` and ignores `RT_OPT`, so codegen is identical across arms — it is an RT_OPT split.
+   **`53819b4a` is CLEARED; do not revert it.** ⛔ Lon: *"Do NOT fix -O2 bug for BEAUTY. Do not care. Next."*
+   The `-O2` fail-set is `160_pat_alt_inner_gen_resume` · `161_pat_defer_fn_nested_match` · `demo_treebank` ·
+   `demo_porter` · `demo_calculator_1`; m3 354/359, m4 353/359 + 2 SKIP.
+2. **VERIFY REGISTER MAPS, DO NOT ASSUME THEM.** This seat asserted one in `bb_match_defer` and was wrong (the
+   hot deferred name is `PATV$0`, a compiler-generated marshalling variable, **not `T`**). The inline arm's map is
+   sourced from `bb_match_break`'s emitted scan — `movsxd rcx,r14d / cmp ecx,r15d / movzx esi,byte ptr [r13+rcx]`
+   ⇒ **r13 = subject, r14d = cursor, r15d = length.**
+3. **`g_sno_defer_cells` is now SHARED:** lower half (< 2048) = the DTP cache (`ci`), upper half = the merged
+   arm's (key,cell) pairs at `2048 + msite*2`. The `ci` bound was tightened 4096 → 2048 for exactly this reason.
+
+### RIG RECIPE (scratch is not durable — rebuild it)
+`./scrip --compile -o r.s corpus/benchmarks/snobol4/roman.sno` → `gcc -no-pie r.s -o r -Lout -lscrip_rt -lm -lpthread`
+→ `valgrind --tool=callgrind --separate-callers=2 ./r <<< 2000`. ⛔ **REFUSE to print an Ir number unless the
+output is exactly `check: 1102`** — a broken program is fast.
+
+---
+
 **s259 (2026-08-22) — ✅ PRE-FLIGHT COMPLETE, 8/8, COMPUTED BY A GATE. V2-6 (Lon's flip) is the only rung left.**
 
 ### ✅ PRE-FLIGHT — `bash SCRIP/scripts/test_gate_preflight_complete.sh` (exit 0), re-checkable in ONE command
