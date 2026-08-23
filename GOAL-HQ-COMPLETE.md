@@ -19,30 +19,35 @@
 
 Lon s256: *"you can build and test and do, but when you find BUGS you delegate."* Build, run, diff, bisect, profile — all of it. **The moment a measurement becomes a DEFECT it becomes a row and a brief, never an edit.** HQ's output is rungs; a fix taken at HQ is a fix the fleet did not learn.
 
-## ⛔⛔⛔ RUNG C-0 — MILESTONE 1 MODE-3 IS REGRESSED. THIS IS #1 AND NOTHING OUTRANKS IT
+## ✅ RUNG C-0 — CLOSED BY MEASUREMENT 2026-08-22 (hq_C). MILESTONE 1 IS **NOT** REGRESSED AT HEAD
 
-**Measured s256, reproduced independently four times** (seat04, seat06, seat09, HQ):
+**The 278-byte stub was real, is reproducible, and is already cured.** Measured at HEAD `457dc5d9`, pinned classic source, run from the beauty directory:
 
+| tree | arm | bytes | md5 | verdict |
+|---|---|---|---|---|
+| `cd13321e^` **and** `cd13321e` | m3 | **278** | `1c75f97d…` | ⛔ Parse Error on START |
+| `457dc5d9` (HEAD) | m3 | **40,971** | `6f1671c0757729992ae01a6bdf16f081` | ✅ FIXED POINT |
+| `457dc5d9` (HEAD) | m4 | **40,971** | `6f1671c0757729992ae01a6bdf16f081` | ✅ FIXED POINT |
+
+**m3 ≡ m4 holds; the DESIGN-INVARIANT violation is closed.** The live *converted* beauty (41,492 B) also self-hosts to its own fixed point. The cure is inside `cd13321e..457dc5d9`.
+
+```bash
+bash .github/probes/m1-bisect/check_m1_fixedpoint.sh both     # exit 0 at HEAD — this IS the M1 DONE-WHEN
 ```
-beauty m3 self-host  ->  278 bytes.   The fixed point is 40,971.
-                          It prints its own "Parse Error" and stops.
-```
 
-- **m4 still reproduces the fixed point** (md5 `6f1671c0757729992ae01a6bdf16f081`). So **m3 ≢ m4, and that is a DESIGN INVARIANT violation** — a BOTH-MEDIUM defect by definition. m3 is BINARY, m4 is TEXT: **start at the medium-split mechanisms, do not bisect blind.**
-- **seat04 bisected to `62017f8a`** (`descr-stamp-fields`: split `DESCR_t` tag into `v`/`mod_op`/`src_node`/`slen`), reconfirmed at HEAD.
-- ⭐ **HQ HYPOTHESIS, UNMEASURED, FALSIFY FREELY:** `62017f8a` turned `DTYPE_t v` (a 4-byte enum owning bits 0-31) into `uint8 v + uint8 mod_op + uint16 src_node`. Offsets did not move. What changed is that **bits 8-31 stopped being part of `v`** — and the tree reads that word at MIXED WIDTHS. `rtx_match.S:768` byte-compares; `rtx_match.S:946` and `rtx_arith.S:78` DWORD-test against `DT_NOTSTR_MASK`; `rtx_abi.inc:63` states the rule outright (*"STRING tests are 32-BIT ONLY"*); `descr.h:41` asserts an invariant that holds **only while those bits are zero**. Anything dirtying them makes a **string test as not-a-string** — and beauty is pure string work parsing SNOBOL4, so it fails first and loudest.
-- **Corroborating witness:** with `SCRIP_DESCR_STAMP=1` the same mask class loses `LGT` and `LEQ` on `060_pred_operand_edge.sno`. Stamping is **default OFF**, so if beauty breaks with it off, something else is dirtying those bits — **find what.**
-- Rows: `rung-m1-m3-regression` (seat01) · `rung-descr-stamp-notstr-mask` (seat12). Same class — make them talk.
+⛔ **HQ'S OWN PRIME SUSPECT IS DISPROVEN, and is recorded rather than deleted so nobody re-derives it.** The mixed-width `DT_NOTSTR_MASK` hypothesis (`62017f8a` split `DTYPE_t v`, bits 8–31 stopped belonging to `v`, a string test reads as not-a-string) made `cd13321e rung-descr-stamp-notstr-mask` the obvious cure. **It is not:** `cd13321e` emits 278 bytes, byte-identical to its parent. The narrowing may still be correct work; what is false is that it cured C-0.
 
-⛔ **A CORRECTNESS TRAP THIS HQ MUST NOT FALL INTO:** a broken program is FAST. Any beauty timing taken in m3 today looks spectacular while doing almost nothing. **Verify the output before believing any number** — yours or a seat's.
+⛔⛔ **AND THE INSTRUMENT BUILT TO CHASE C-0 WAS ITSELF BLIND — this is the transferable half.** `beauty.sno` pulls **16 `-INCLUDE` files resolved against the working directory**. Run the pinned source anywhere but the beauty dir and every arm emits **zero bytes** (`cannot open include 'global.inc'`). seat01 caught a first corruption in the HQ-spec probe and fixed it correctly; the corrected probe kept the same defect through a different door, and its own smoke test recorded *"reads BAD as expected (rc=1, empty output)"* — when the real symptom is **278 bytes**, not 0. A `git bisect run` over it would have marked **every** commit BAD and converged, fast and confidently, on nothing. ⭐ **"BAD as expected" is not a measurement — it is a prediction that matched a number nobody compared. A probe must assert the SHAPE of the failure it expects, not merely its polarity.**
+
+Full receipts: `FINDING-2026-08-22-hq_C-rung-C-0-milestone-1-is-not-regressed-at-head-the-board-is-stale.md`. Instruments (rescued from a seat's `/tmp`, made portable, negative-tested): `.github/probes/m1-bisect/`.
 
 ## THE STANDING CORRECTNESS BOARD
 
-| front | state (measured s256) |
+| front | state (measured by hq_C at HEAD `457dc5d9`, 2026-08-22) |
 |---|---|
-| **SNOBOL4 #1** | m3 M1 REGRESSED (C-0). Standing reds: `160_pat_alt_inner_gen_resume`, `demo_treebank` (deliberate), `132_pat_fence_eps_recur_shallow` (compile SKIP). ⛔ Corpus totals in old briefs (`339/341`) are STALE — seat3 measured `320/321` and `319/321+1skip`. **Measure your own baseline and cite it.** |
-| **Icon #2** | Oracles **ABSENT** — `icont`/`iconx` are not installed here. ⛔ An Icon board run today grades against nothing and prints plausible red. **Install the oracle before staffing any Icon row.** `GOAL-ICON-100.md` R-0 is default-arm resurrection. |
-| **Prolog #3** | Oracles **ABSENT** — no `swipl`, no `gprolog`. Smoke 3/5 pre-existing. Same rule: no oracle, no verdict. |
+| **SNOBOL4 #1** | ✅ **M1 fixed point HOLDS in both media** (C-0 closed above). **Corpus baseline, measured here — cite this or measure your own:** `m3 PASS=357 FAIL=2` · `m4 PASS=355 FAIL=2 SKIP=2` (**359 total**). ⛔ The old `339/341` AND seat3's `320/321` are both stale — the denominator is 359. Reds: `160_pat_alt_inner_gen_resume` (standing, both modes, now a row) · `demo_treebank` (deliberate) · `132_pat_fence_eps_recur_shallow` (compile SKIP) · **`demo_porter` (compile SKIP — seat13's m4 duplicate-label defect, corpus-visible, now a row)**. Receipt: `bash scripts/test_corpus_snobol4.sh`. |
+| **Icon #2** | Oracles **ABSENT** — `command -v icont iconx` returns nothing. ⛔ An Icon board run here grades against nothing and prints plausible red. seat08's rung-A2 register-liveness analysis is complete and banked, and is HELD, not lost. |
+| **Prolog #3** | Oracles **ABSENT** — no `swipl`, no `gprolog`. Same rule: no oracle, no verdict. |
 
 ⛔ **RULING OWED BY LON, ASKED AND STILL UNANSWERED:** SNOBOL4-FIRST says *do not even run* the Icon/Prolog checks, while the s255 bootstrap ruling puts them on the road. HQ reads that as a SEQUENCE, not a contradiction — **that is HQ's reading, not Lon's word. Confirm before staffing Icon or Prolog.**
 
@@ -71,4 +76,13 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
-**Opened s256. First action: RUNG C-0.** Verify the M1 m3 regression yourself (do not inherit it), then supervise `rung-m1-m3-regression` to a cure. ⛔ Second action, and it is not optional: **run `bash SCRIP/scripts/s4e_msg.sh fleet` on a cadence.** The old HQ never did, and two table rows sat 115 and 83 minutes with zero output while nobody noticed — a claimed row also HIDES itself from the picker, so a stalled seat blocks everyone else from the row too.
+**s258 (2026-08-22) closed RUNG C-0 by measurement and repaired the control plane. The cursor moves to DISPATCH.**
+
+**Done this session, each with a command behind it:** C-0 measured CURED at HEAD (both media) and HQ's own prime suspect disproven · the M1 probe rescued out of a seat's disposable `/tmp` into `.github/probes/m1-bisect/`, made portable, and its **own** blindness (the `-INCLUDE`/CWD trap) found and fixed · **V2-1 landed and pushed** (SCRIP `93d3ef16`: rank-sorted picker, `assign`-is-the-lock, `sweep`; gate `test_gate_s4e_picker_v2.sh` 18/18, negative-tested three ways) · **queue purged** (113 DONE rows swept to `QUEUE.done.tsv`, blank-line landmine gone, 4 dead locks released, every brief pointer verified) · **hq inbox drained** — all 10 seats with open questions answered · **hq_P's V2-4 cross-verified and signed off** (18/18 live, 15 failures against pre-patch) · **9 task batons minted** in `/home/resources/postoffice/tasks/`, every DONE-WHEN a command and every one demonstrated able to say NO.
+
+**NEXT SESSION, in order:**
+1. ⭐ **ASSIGN, do not let seats self-pick.** Nine batons are ready. `bash SCRIP/scripts/s4e_msg.sh assign <seat> <topic>` — that is what V2-1 was built for, and day-1 self-pick is what the firing gate forbids.
+2. **Rank-0 first:** `rtcc-r9-gvarq-collision-bb-define` (live r9/GVARQ collision, gate reported green over it) and `jstring-escape-dcap-pump-segv` (4-byte repro, SIGABRT at HEAD).
+3. **`rung-m1-m3-regression` is now a 20-minute confirm-and-correct job, not a bisect.** Whoever takes it corrects `board_beauty_m1.sh`'s stale red too.
+4. ⛔ **Still owed by Lon and still unanswered:** SNOBOL4-FIRST (do not even RUN Icon/Prolog checks) versus the s255 bootstrap ruling that puts them on the road. HQ reads it as a sequence — **that is a reading, not Lon's word.** Do not staff Icon or Prolog until Lon rules AND the oracles are installed.
+5. Run `bash SCRIP/scripts/s4e_msg.sh fleet` on a cadence.
