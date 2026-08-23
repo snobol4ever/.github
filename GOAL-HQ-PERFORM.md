@@ -4,6 +4,9 @@
 
 **Seat root:** `/home/claude_P` · **postoffice identity:** `hq_P` · **twin:** `GOAL-HQ-COMPLETE.md` (`/home/claude_C`, `hq_C`)
 
+## ⭐⭐⭐ BENCHMARK PRIORITY (Lon, 2026-08-23 s264, in-chat to CEO, verbatim in substance): **CLAWS5 + JSON ARE HIGHEST — ROMAN IS SQUEEZED**
+*"CLAWS5 and JSON are highest priority, since we squeezed ROMAN pretty good. JSON is the DE-SERIALIZER and has the balance of PARSE plus creating ALL VARYING objects. And CLAWS5 for the 3-level TABLE GAUNTLET."* ⛔ This supersedes ANY "continue ROMAN" — explicitly including the tail of CEO's own s264 message `ceo-execfile-parked-fyi`, which was CEO speaking past its lane and past its knowledge; Lon's word governs and CEO has retracted the line. ROMAN's landed gains stand (arms labeled as always); the front is now **CLAWS5** (3-level TABLE gauntlet) and **JSON** (deserializer: parse + varying-object creation balance).
+
 ## THE ONE QUESTION THIS HQ OWNS
 
 **How many instructions does it take?** Correctness belongs to `hq_C`. ⛔ But **a wrong answer is never a fast answer**: before any number is published, the program's OUTPUT must be verified. beauty mode-3 emits 278 bytes today instead of 40,971 — timing it would show a spectacular speedup for a program that quits after its header.
