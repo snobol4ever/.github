@@ -75,3 +75,29 @@ This is the whole of `demo_calculator-2`'s red on the demos board — a 1944-lin
 | `20-3*4` | 8 | 68 | `(20-3)*4` |
 
 ⭐ It **presents** as an operator-precedence bug, and that reading is wrong in an instructive way: precedence here is structural in the SNOBOL grammar (`T` nested inside `X`), and the match structure is correct. What is wrong is that a deferred action fires early against the shared operand stack, so the arithmetic regroups. A trace of the firing order is what settled it — `PSH PSH ADD PSH MUL` against the oracle's `PSH PSH PSH MUL ADD`.
+
+
+---
+
+## ⭐ FIX DESIGNED AND LOCALISED (added same session, after an attempt that was reverted)
+
+The cure is a **per-instance pend mark**, and the placement is not the obvious one:
+
+- **α** — bank `r12` into the ARBNO cell.
+- **PAIR(2), after progress is recorded** — re-bank `r12`. ⛔ **This step is what makes it correct.** Rolling back to the α mark on every recede would wipe entries from instances that *legitimately completed* — `calculator-2`'s inner `MUL` fires once per ARBNO instance and must keep every one. The mark has to advance as each instance commits.
+- **β, before `jmp PAIR(0)`** — restore `r12` from the cell, discarding exactly the abandoned attempt's entries.
+
+### ⛔ Where it is blocked — measured, not assumed
+
+`SCRIP_ARBNO_DIAG=1` on the witness reports **`ARBNO-FRAME` for both ARBNO nodes** — never `FRAMELESS`. That is not incidental: `bb_match_arbno()` selects `ARBNO-FRAME` when `op_arbno_body_defer_unsafe`, and **a deferred capture in the body is precisely what makes it defer-unsafe.** So this defect always lands on the FRAME arm, and:
+
+| arm | cell | free quad? |
+|---|---|---|
+| `bb_match_arbno_frameless` | `sub rsp,16`, uses `[rsp+0]`/`[rsp+4]` only | ✅ **`[rsp+8]` is free** — but this arm can never carry the defect |
+| **`bb_match_arbno_frame`** | rbp-relative `op_arbno_frame_off`, uses `AFC(0)`/`AFC(4)` | ⛔ **unproven** — the slot comes from the shared `frame_slot_scan`/`frame_slot_off` activation-frame allocator (`emit.cpp:2345`), which also serves `fence_frame_slot` and `leaf_frame_slot` by index. Whether bytes 8–15 belong to this node or its neighbour is not established. |
+
+⭐ `AFCQ()` (`x86_asm.h:971`) already exists as the **quad** accessor for this cell, so quad-width access there is anticipated by the contract — the open question is ownership, not addressability.
+
+⛔ **An attempt was made and REVERTED.** I patched the `frameless` arm first, and the witness did not move — because, as above, it never uses that arm. Left in, it would have cost two memory operations per iteration of every frameless ARBNO for zero correctness benefit, in exactly the code `hq_P` is optimising. Reverted rather than kept as "harmless".
+
+**Next step for whoever takes it:** establish the unit size and neighbour of a `frame_slot_scan` grant, and either prove `AFCQ(8)` is owned by this node or take a grant for one more quad. Writing into an unproven activation-frame slot is the silent-corruption class and must not be done on inference.
