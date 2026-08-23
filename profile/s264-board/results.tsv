@@ -1,0 +1,1952 @@
+beauty_self	programs/snobol4/demo/beauty/beauty.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=139
+beauty_suite	programs/snobol4/beauty_suite/fence_driver.sno	PASS	PASS	0	1	
+beauty_suite	programs/snobol4/beauty_suite/assign_driver.sno	PASS	PASS	0	1	
+beauty_suite	programs/snobol4/beauty_suite/counter_driver.sno	PASS	PASS	0	1	
+beauty_suite	programs/snobol4/beauty_suite/case_driver.sno	PASS	PASS	0	1	
+beauty_suite	programs/snobol4/beauty_suite/global_driver.sno	PASS	PASS	0	0	
+beauty_suite	programs/snobol4/beauty_suite/match_driver.sno	PASS	PASS	0	0	
+beauty_suite	programs/snobol4/beauty_suite/Gen_driver.sno	PASS	PASS	0	0	
+beauty_suite	programs/snobol4/beauty_suite/ReadWrite_driver.sno	PASS	PASS	0	1	pin-only fatal-report
+beauty_suite	programs/snobol4/beauty_suite/semantic_driver.sno	PASS	PASS	0	1	
+beauty_suite	programs/snobol4/beauty_suite/Qize_driver.sno	PASS	PASS	0	1	
+beauty_suite	programs/snobol4/beauty_suite/omega_driver.sno	PASS	PASS	0	1	
+beauty_suite	programs/snobol4/beauty_suite/stack_driver.sno	PASS	PASS	0	0	
+beauty_suite	programs/snobol4/beauty_suite/ShiftReduce_driver.sno	PASS	PASS	0	0	
+beauty_suite	programs/snobol4/beauty_suite/TDump_driver.sno	PASS	PASS	0	0	
+beauty_suite	programs/snobol4/beauty_suite/trace_driver.sno	PASS	PASS	0	0	pin-only fatal-report
+beauty_suite	programs/snobol4/beauty_suite/tree_driver.sno	PASS	PASS	0	1	pin-only fatal-report
+beauty_suite	programs/snobol4/beauty_suite/XDump_driver.sno	PASS	PASS	0	1	
+demos	programs/snobol4/demo/arithmetic.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/calculator-1.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/calculator-2-match-fence.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/calculator-2-match.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/calculator-1-match-fence.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/calculator-2.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/claws5-match-fence.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/claws5-match.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/counter.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/claws5.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/hello.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/calculator-1-match.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/json-match-fence.sno	DIFF	DIFF	0	1	
+demos	programs/snobol4/demo/pattern_test.sno	PASS	PASS	0	1	
+demos	programs/snobol4/demo/roman.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/treebank-alloc.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/treebank-match-fence.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/treebank-match.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/treebank.sno	RC1	RC1	0	0	pin-only
+demos	programs/snobol4/demo/wordcount.sno	PASS	PASS	0	0	
+demos	programs/snobol4/demo/porter.sno	PASS	PASS	0	1	
+demos	programs/snobol4/demo/json-match.sno	TIMEOUT	TIMEOUT	90	90	
+demos	programs/snobol4/demo/json.sno	TIMEOUT	TIMEOUT	90	91	
+benchmarks	benchmarks/snobol4/arith_loop.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/eval_fixed.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/fibonacci.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/array_sum.sno	PASS	PASS	1	1	
+benchmarks	benchmarks/snobol4/ident_call1.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/indirect_dispatch.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/ident_call2.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/func_call.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/mixed_workload.sno	PASS	PASS	0	1	
+benchmarks	benchmarks/snobol4/pattern_bt.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/op_dispatch.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/roman.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/string_concat.sno	PASS	PASS	0	1	
+benchmarks	benchmarks/snobol4/string_manip.sno	PASS	PASS	0	1	
+benchmarks	benchmarks/snobol4/table_access.sno	PASS	PASS	1	0	
+benchmarks	benchmarks/snobol4/string_pattern.sno	PASS	PASS	0	1	
+benchmarks	benchmarks/snobol4/table_variety.sno	PASS	PASS	1	1	
+benchmarks	benchmarks/snobol4/var_access.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/c5.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/c4.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/c6.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/c4b.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/c7.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/f1.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A03.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A10.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A08.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A07.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/A09.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/B01.sno	PASS	PASS	1	0	
+bb_probes	probe/bb/probes/A11.sno	PASS	PASS	1	0	
+bb_probes	probe/bb/probes/A12.sno	PASS	PASS	1	0	
+bb_probes	probe/bb/probes/A13.sno	PASS	PASS	1	0	
+bb_probes	probe/bb/probes/B02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D03.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D07.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D11.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D08.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D10.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D09.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/F02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/F01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D13.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/D12.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/F03.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/F05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/F04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/F06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/fa_loop.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/f6d.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/fence_probe.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/fa_deepfail.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G00.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G02.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/G03.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/G04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G07.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G08.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G09.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G10.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G11.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G13.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G12.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G14.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G15.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G16.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G17.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G18.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G19.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G20.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G21.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G22.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G23.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G24.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G25.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G26.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/G27.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H03.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H07.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/H08.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/H10.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/H09.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/H11.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H12.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H14.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H13.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H15.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H16.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H17.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H18.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H19.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H20.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H21.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H22.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H23.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H24.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H26.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H25.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H27.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H28.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H30.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H29.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/H31.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L03.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L07.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L08.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L09.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/L11.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/L10.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/L12.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L13.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L14.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L15.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L16.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L17.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L18.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L19.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/L20.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N03.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N07.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N08.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N09.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N10.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N11.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N12.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N13.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N14.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N15.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N16.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N17.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N18.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N19.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N20.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N21.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N23.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/N22.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/N24.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N25.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N26.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N27.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N28.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N29.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N31.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N30.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N32.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/N33.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/t1m.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/t1x2.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/t6m.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X01.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes_x01_witness_s39/X01W2_bare_nested_2char.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes_x01_witness_s39/X01W1_bare_nested.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes_x01_witness_s39/X01W3_lit_prefix_outside.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes_x01_witness_s39/X01W4_lit_suffix_outside.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes_x01_witness_s39/X01W5_lit_sibling_inside_arm.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes_x01_witness_s39/X01W6_null_lit_sibling_inside.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes_x01_witness_s39/X01W7_len0_sibling_inside.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X02.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X03.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X04.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X05.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X06.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X08.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X07.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X09.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X10.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/X12.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/probes/X11.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/t1.sno	PASS	PASS	0	1	
+bb_probes	probe/bb/test_sno_alt_d5.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/test_sno_alt_d0.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/test_sno_call2bb_1.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/test_sno_call2bb_2.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/test_sno_stmt_frame_1.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/test_sno_stmt_frame_2.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/test_sno_stmt_frame_3.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/witness_wreg_s39/W01_stored_pattern_defer_len_capture.sno	PASS	PASS	0	0	
+bb_probes	probe/bb/probes/zleak_matchbegin_stfh.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/038_pat_literal.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/040_pat_notany.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/039_pat_any.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/041_pat_span.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/045_pat_rpos.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/043_pat_len.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/042_pat_break.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/044_pat_pos.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/048_pat_rem.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/049_pat_arb.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/047_pat_rtab.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/046_pat_tab.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/053_pat_alt_commit.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/052_pat_arbno.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/051_pat_alt_three.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/050_pat_alt_two.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/057_pat_fail_builtin.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/056_pat_star_deref.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/054_pat_arbno_alt.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/055_pat_concat_seq.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/058_pat_fence_keyword.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/060_pat_fence_fn_fail.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/059_pat_fence_fn_basic.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/061_pat_fence_fn_seal.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/064_pat_fence_fn_capture.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/063_pat_fence_fn_optional.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/062_pat_fence_fn_outer.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/064_replace_multi_arm.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/067_pat_fence_fn_vs_kw.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/065_pat_fence_fn_decimal.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/066_pat_fence_fn_nested.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/068_pat_fence_fn_three_way.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/068_pat_fence_fn_via_var.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/070_pat_arbno_star_var_digits.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/069_pat_fence_fn_full_match.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/071_pat_star_var_concat.sno	PASS	PASS	0	1	pin!=live
+patterns	crosscheck/patterns/072_pat_star_var_alt_backtrack.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/073_pat_star_var_capture.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/074_pat_star_var_cursor.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/075_pat_arbno_star_backtrack.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/101_pat_fence_falls_through.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/102_pat_fence_complete_fail.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/100_pat_fence_two_alts_first.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/103_pat_fence_in_concat.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/105_pat_fence_empty.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/106_pat_fence_with_capture.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/104_pat_fence_seals_back_in_concat.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/107_pat_fence_nested.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/110_pat_fence_via_var_then_extra.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/109_pat_fence_via_var_seal_blocks_retry.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/108_pat_fence_via_var_basic.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/111_pat_fence_via_var_falls_to_outer.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/113_pat_fence_via_var_two_with_seal_retry.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/112_pat_fence_via_var_two_in_concat.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/114_pat_fence_via_var_in_paren_alt.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/115_pat_fence_via_var_recursive.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/116_pat_arbno_of_fence_inline.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/117_pat_arbno_of_star_var_fence.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/118_pat_arbno_of_star_var_fence_seal_blocks.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/119_pat_arbno_of_fence_via_var_via_outer.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/121_pat_calc_op_dispatch.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/120_pat_calc_add.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/122_pat_calc_seal_prefix.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/123_pat_regex_alt_class.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/125_pat_json_literal.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/124_pat_regex_keyword_seal.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/126_pat_json_number.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/127_pat_json_keyvalue.sno	PASS	PASS	0	0	pin!=live
+patterns	crosscheck/patterns/128_pat_recursive_grammar_right_rec.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/129_pat_arbno_star_var_fence_with_alts.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/130_pat_two_star_fence_concat_outer.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/131_pat_boolean_expr_grammar.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/132_pat_fence_eps_recur_shallow.sno	PASS	ASM_FAIL	0	0	
+patterns	crosscheck/patterns/133_pat_fence_eps_recur_deep.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/134_pat_fence_eps_recur_stress.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/135_pat_balanced_parens_shallow.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/136_pat_balanced_parens_deep.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/137_pat_balanced_mixed.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/138_pat_calc_paren_expr.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/139_pat_calc_paren_deep.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/140_pat_eval_double_fn_trick.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/141_pat_eval_double_fn_arbno.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/142_pat_arbno_fence_arbno.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/143_pat_regex_quantified_class.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/144_pat_json_nested_array.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/145_pat_left_assoc_via_arbno_fence.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/146_pat_fence_alt_with_capture.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/147_pat_fence_through_unevaluated.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/148_pat_arbno_star_var_fence_short.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/149_pat_arbno_star_var_fence_outer_pre_match.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/150_pat_star_var_fence_alts_no_arbno.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/151_pat_arbno_inline_fence_backtrack.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/152_pat_json_keyvalue_renamed.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/153_pat_operand_edge_matrix.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/154_pat_construction_time_hoist.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/155_pat_cap_output_order.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/156_pat_cap_alt_abandon_pop.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/158_pat_cap_arbno_each_iter.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/157_pat_cap_arb_alt_keep.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/159_pat_cap_reyield_discard.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/162_pat_arbno_null_body_guard.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/161_pat_defer_fn_nested_match.sno	PASS	PASS	0	1	
+patterns	crosscheck/patterns/163_pat_arbno_inner_alt_trace.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/164_pat_arbno_nested.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/165_pat_arbno_defer_var_body.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/166_pat_arbno_cond_assign_commit.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/167_pat_arbno_depth_20k.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/170_pat_abort_kills_match.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/171_pat_abort_no_anchor_advance.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/172_pat_fail_forces_retry.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/173_pat_fence_kw_blocks_backup.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/174_pat_bal_manual_example.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/175_pat_bal_generator_retry.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/176_pat_bal_balanced_forms.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/177_pat_bal_unbalanced_rejected.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/178_pat_recursive_star_list_zs2.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/179_pat_arbno_defer_recursive_list.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/180_pat_arbno_defer_nonrecursive.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/181_pat_arbno_defer_tail_stressors.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/183_pat_arbno_defer_recursive_carry.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/182_pat_arbno_defer_windowed_leaf.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/184_pat_cond_assign_defer_double_fire.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/185_pat_cond_assign_defer_seq_minimal.sno	PASS	PASS	0	0	
+patterns	crosscheck/patterns/160_pat_alt_inner_gen_resume.sno	SIG11	SIG11	2	1	
+crosscheck	crosscheck/arith_new/025_arith_multiply.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith_new/023_arith_add.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith_new/024_arith_subtract.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith/fileinfo.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith_new/027_arith_exponent.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith_new/026_arith_divide.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith_new/028_arith_unary_minus.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith_new/029_arith_precedence.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith_new/030_arith_remdr.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/010_assign_integer.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/009_assign_string.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/arith/triplet.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/012_assign_null.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/014_assign_indirect_dollar.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/011_assign_chain.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/013_assign_overwrite.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/016_assign_to_output.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/capture/059_capture_dollar_deferred.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/capture/058_capture_dot_immediate.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/assign/015_assign_indirect_var.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/capture/062_capture_replacement.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/capture/063_capture_null_replace.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/capture/061_capture_in_arbno.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/capture/060_capture_multiple.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/capture/064_capture_conditional.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/capture/065_capture_then_arbno.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/capture/066_capture_then_fenced_arbno.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/concat/017_concat_two_strings.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/concat/018_concat_three_strings.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/concat/021_concat_in_assignment.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/concat/020_concat_integer_string.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/concat/019_concat_var_string.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control_new/031_goto_unconditional.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control_new/032_goto_loop_count.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/concat/022_concat_multipart.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control/expr_eval.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control_new/034_goto_failure.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control_new/033_goto_success.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control_new/035_goto_both_branches.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control_new/036_goto_skip_to_end.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/control_new/037_goto_nested_labels.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/data/091_array_create_access.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/data/092_array_loop_fill.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/data/093_table_create_access.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/data/094_data_define_access.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/data/095_data_field_set.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/data/096_data_datatype_check.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/060_pred_operand_edge.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/083_define_simple_return.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/085_define_two_args.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/084_define_loop_call.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/086_define_locals.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/088_define_recursive_fib.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/functions/087_define_freturn.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/functions/089_define_in_pattern.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/090_define_entry_label.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/functions/097_define_capture_return_d2probe.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/200_gc_churn_live_anchor.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/201_gc_live_globals.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/202_gc_array_strings.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/203_gc_table_string_keys.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/204_gc_recursive_frames.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/205_gc_data_records.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/206_gc_pattern_capture.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/207_gc_indirect_names.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/208_gc_shared_alias.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/209_gc_big_strings.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/211_gc_name_ref.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/210_gc_deep_nesting.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/212_gc_args_in_flight.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/hello/empty_string.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/hello/hello.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/hello/literals.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/hello/multi.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/076_builtin_ident.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/coverage/coverage_sno_nodes.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=139
+crosscheck	crosscheck/keywords/077_builtin_differ.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/078_builtin_gt.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/214_gc_exhaustion_live_set.sno	PASS	PASS	1	0	
+crosscheck	crosscheck/keywords/079_builtin_lt_le_ge.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/081_builtin_datatype.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/080_builtin_eq_ne.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/082_keyword_stcount.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/gc/213_gc_exhaustion_churn.sno	PASS	PASS	1	0	
+crosscheck	crosscheck/keywords/097_keyword_alphabet.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/098_keyword_anchor.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/099_keyword_rw.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/keywords/099_lexical_compare.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/library/test_case.sno	PASS	PASS	0	0	pin-only
+crosscheck	crosscheck/keywords/100_roman_numeral.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/library/test_math.sno	PASS	PASS	0	0	pin-only
+crosscheck	crosscheck/output/001_output_string_literal.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/library/test_stack.sno	PASS	PASS	0	0	pin-only
+crosscheck	crosscheck/library/test_string.sno	PASS	PASS	0	0	pin-only
+crosscheck	crosscheck/output/002_output_integer_literal.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/output/003_output_real_literal.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/output/004_output_empty_string.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/output/005_output_multiline.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/output/006_output_keyword_alphabet.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/output/008_output_double_quoted.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/output/007_output_null_var.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rung10/1010_func_recursion.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1013_func_nreturn.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1011_func_redefine.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1012_func_locals.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1014_func_freturn.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1015_opsyn.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1016_eval.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1017_arg_local.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1018_apply.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1020_code_label_transfer.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1019_eval_string.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1021_code_direct_goto.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung10/1022_eval_fail.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung11/1111_array_default.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung11/1110_array_1d.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung11/1112_array_multi.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung11/1113_table.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung11/1114_item.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung11/1115_data_basic.sno	PASS	PASS	0	0	pin-only fatal-report
+crosscheck	crosscheck/rung11/1116_data_overlap.sno	PASS	PASS	0	0	pin-only fatal-report
+crosscheck	crosscheck/rung2/210_indirect_ref.sno	PASS	PASS	0	0	pin-only fatal-report
+crosscheck	crosscheck/rung2/211_indirect_assign.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung2/212_indirect_array.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung2/213_indirect_name.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung2/214_indirect_goto.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung2/215_indirect_goto_cond.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung2/217_direct_goto.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung2/216_indirect_goto_computed.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung2/218_direct_goto_cond.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rung2/219_direct_goto_mixed.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rung3/310_concat_strings.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rung3/311_concat_numeric.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rung3/312_concat_null.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung4/411_arith_unary.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung4/410_arith_int.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung4/412_arith_real.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung4/413_arith_mixed.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung4/414_remdr.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung8/810_replace.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung8/811_size.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung8/812_dupl.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung8/813_reverse.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung8/814_trim.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung8/815_lpad.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung8/816_rpad.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/910_convert.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/911_datatype.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/912_num_pred.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/913_integer_pred.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/915_llt.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/914_lgt.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/916_leq.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/917_lne.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/918_lge.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rung9/919_lle.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW01/W01_pat_lit_anchor.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW01/W01_pat_lit_basic.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW01/W01_pat_lit_fail.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW02/W02_seq_basic.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW02/W02_seq_fail_propagate.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW02/W02_seq_nested.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW03/W03_alt_both_fail.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rungW03/W03_alt_basic.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rungW03/W03_alt_second.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/rungW04/W04_arbno_backtrack.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW04/W04_arbno_zero.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW04/W04_arbno_basic.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW05/W05_any.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW05/W05_break.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW05/W05_breakx.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW05/W05_notany.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW05/W05_span.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW06/W06_len.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW06/W06_pos.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW06/W06_rpos.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW06/W06_tab.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW07/W07_capt_chain.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW07/W07_capt_cur.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW07/W07_capt_cond.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW07/W07_capt_fail.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/rungW07/W07_capt_imm.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/065_builtin_size.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/066_builtin_substr.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/067_builtin_replace.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/068_builtin_trim.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/069_builtin_dupl.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/070_builtin_reverse.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/071_builtin_ucase.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/073_builtin_lpad.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/072_builtin_lcase.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/074_builtin_rpad.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/075_builtin_integer_test.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/cross.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/tbl_counted_string_keys.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/076_builtin_substr_bounds.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/strings/word1.sno	PASS	PASS	0	1	
+crosscheck	crosscheck/strings/word3.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/word2.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/word4.sno	PASS	PASS	0	0	
+crosscheck	crosscheck/strings/wordcount.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/linker/net/ancestor/ancestor_main.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+feature_test	/home/claude04/SCRIP/test/linker/net/greet_main.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+feature_test	/home/claude04/SCRIP/test/polyglot_tri_main.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+feature_test	/home/claude04/SCRIP/test/linker/net/greet_lib.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/demo/claws5.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith/fileinfo.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/023_arith_add.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/024_arith_subtract.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/025_arith_multiply.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/026_arith_divide.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/027_arith_exponent.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/028_arith_unary_minus.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/029_arith_precedence.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith_new/030_arith_remdr.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/arith/triplet.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/009_assign_string.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/010_assign_integer.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/011_assign_chain.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/012_assign_null.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/013_assign_overwrite.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/014_assign_indirect_dollar.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/015_assign_indirect_var.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/assign/016_assign_to_output.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/capture/058_capture_dot_immediate.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/capture/059_capture_dollar_deferred.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/capture/060_capture_multiple.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/capture/061_capture_in_arbno.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/capture/062_capture_replacement.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/capture/063_capture_null_replace.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/capture/064_capture_conditional.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/concat/017_concat_two_strings.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/concat/018_concat_three_strings.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/concat/019_concat_var_string.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/concat/020_concat_integer_string.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/concat/021_concat_in_assignment.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/concat/022_concat_multipart.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control/expr_eval.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control_new/031_goto_unconditional.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control_new/032_goto_loop_count.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control_new/033_goto_success.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control_new/034_goto_failure.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control_new/035_goto_both_branches.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control_new/036_goto_skip_to_end.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/control_new/037_goto_nested_labels.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/data/091_array_create_access.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/data/092_array_loop_fill.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/data/093_table_create_access.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/data/094_data_define_access.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/data/095_data_field_set.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/data/096_data_datatype_check.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/083_define_simple_return.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/084_define_loop_call.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/coverage/coverage_sno_nodes.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=231
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/085_define_two_args.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/086_define_locals.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/087_define_freturn.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/088_define_recursive_fib.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/089_define_in_pattern.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/functions/090_define_entry_label.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/hello/empty_string.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/hello/hello.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/hello/literals.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/hello/multi.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/076_builtin_ident.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/077_builtin_differ.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/078_builtin_gt.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/079_builtin_lt_le_ge.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/080_builtin_eq_ne.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/081_builtin_datatype.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/082_keyword_stcount.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/097_keyword_alphabet.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/098_keyword_anchor.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/099_lexical_compare.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/keywords/100_roman_numeral.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/library/test_case.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/library/test_math.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/library/test_stack.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/001_output_string_literal.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/library/test_string.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/002_output_integer_literal.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/003_output_real_literal.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/004_output_empty_string.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/005_output_multiline.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/006_output_keyword_alphabet.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/007_output_null_var.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/output/008_output_double_quoted.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/038_pat_literal.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/039_pat_any.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/040_pat_notany.sno	PASS	PASS	1	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/041_pat_span.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/042_pat_break.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/043_pat_len.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/044_pat_pos.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/045_pat_rpos.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/046_pat_tab.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/047_pat_rtab.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/048_pat_rem.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/049_pat_arb.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/050_pat_alt_two.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/051_pat_alt_three.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/052_pat_arbno.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/053_pat_alt_commit.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/054_pat_arbno_alt.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/055_pat_concat_seq.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/056_pat_star_deref.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/057_pat_fail_builtin.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/zb_act_arbno_in_define.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/patterns/zb_arena_collection_grow.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1010_func_recursion.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1011_func_redefine.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1012_func_locals.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1013_func_nreturn.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1014_func_freturn.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1015_opsyn.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1016_eval.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1017_arg_local.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung10/1018_apply.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung11/1110_array_1d.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung11/1111_array_default.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung11/1112_array_multi.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung11/1113_table.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung11/1114_item.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung11/1115_data_basic.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung11/1116_data_overlap.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung2/210_indirect_ref.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung2/211_indirect_assign.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung2/212_indirect_array.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung3/310_concat_strings.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung3/311_concat_numeric.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung3/312_concat_null.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung4/410_arith_int.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung4/411_arith_unary.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung4/412_arith_real.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung4/413_arith_mixed.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung4/414_remdr.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung8/810_replace.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung8/811_size.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung8/812_dupl.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung9/910_convert.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung9/911_datatype.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung9/912_num_pred.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung9/913_integer_pred.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/rung9/914_lgt.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/065_builtin_size.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/066_builtin_substr.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/067_builtin_replace.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/068_builtin_trim.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/069_builtin_dupl.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/070_builtin_reverse.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/071_builtin_ucase.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/072_builtin_lcase.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/073_builtin_lpad.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/074_builtin_rpad.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/075_builtin_integer_test.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/cross.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/word1.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/word2.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/word3.sno	PASS	PASS	0	1	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/word4.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/snobol4/strings/wordcount.sno	PASS	PASS	0	0	
+feature_test	/home/claude04/SCRIP/test/demo/treebank-prepend.sno	TIMEOUT	TIMEOUT	20	20	
+probes_misc	probe/ab_argcount.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_freturn.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_defer_call.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_nret_lvalue.sno	RC1	COMPILE_FAIL	0	0	
+probes_misc	probe/ab_goto_out.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_name_alias.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_nret_restore.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_undef_call.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+probes_misc	probe/ab_recurse.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_redefine.sno	DIFF	DIFF	0	0	
+probes_misc	probe/ai/ai_joint_rule.sno	PASS	PASS	0	0	
+probes_misc	probe/altdepth/alt_captarm_defer_red.sno	PASS	PASS	0	0	
+probes_misc	probe/alt/alt_defer_recur_af.sno	PASS	PASS	0	0	
+probes_misc	probe/altgen/g01_arbno_bare.sno	PASS	PASS	0	0	
+probes_misc	probe/altgen/g02_arbno_parens.sno	PASS	PASS	0	0	
+probes_misc	probe/altgen/g04_arbno_alt_lit.sno	DIFF	DIFF	0	0	
+probes_misc	probe/altgen/g03_arbno_alt_ws.sno	DIFF	DIFF	0	0	
+probes_misc	probe/altgen/g06_arb_alt.sno	DIFF	DIFF	1	0	
+probes_misc	probe/altgen/g05_arbno_alt_nodefer.sno	DIFF	DIFF	1	0	
+probes_misc	probe/altgen/g07_arbno_lead_alt.sno	DIFF	DIFF	0	0	
+probes_misc	probe/arb1.sno	PASS	PASS	0	0	
+probes_misc	probe/arbdef1.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnofence/nf1.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnofence/nf3.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnofence/nf2.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arb_inline_green.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnofence/nf4.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arbno_alt_inline_red.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arbno_defer_altarg_red.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arbno_lit_stored_green.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arbno_defer_stored_red.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arbno_var_inline_green.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arbno_var_stored_red.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/defer_star_arb_red.sno	PASS	PASS	0	0	
+probes_misc	probe/arbnostore/arb_stored_red.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1_apply_builtin_target.sno	PASS	PASS	0	1	
+probes_misc	probe/arbnostore/span_stored_green.sno	PASS	PASS	0	1	
+probes_misc	probe/b1/b1_apply_snodef_varname.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1_apply_snodef_target.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1_apply_snodef_zeroarg.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_capname_abandon_once.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_capname_call_return.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_capname_call_nreturn.sno	PASS	PASS	0	0	
+probes_misc	probe/ab_expr_define.sno	PASS	SIG11	0	2	
+probes_misc	probe/b1/b1c_capname_var_target.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_cross_medium_concat_seam.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_e_plain.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_m_plain.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_eval_fn_pattern_retreat.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1c_patvalued_formal_retreat.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1_direct_snodef_call.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1_eval_pattern_defer_call.sno	PASS	PASS	0	0	
+probes_misc	probe/b1/b1_opsyn_binary_snodef.sno	PASS	PASS	0	0	
+probes_misc	probe/b2c/b2c_eval_pat_release.sno	PASS	PASS	0	0	
+probes_misc	probe/benchharness/probe_deflocal.sno	PASS	PASS	0	0	
+probes_misc	probe/benchharness/probe_defwrap.sno	PASS	PASS	0	0	
+probes_misc	probe/benchharness/probe_toplevel.sno	PASS	PASS	0	0	
+probes_misc	probe/bfn/bfn_break_lit_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/bfn/bfn_break_var_nl.sno	PASS	PASS	0	0	
+probes_misc	probe/bfn/bfn_break_var_q.sno	PASS	PASS	0	1	
+probes_misc	probe/bfn/bfn_inline_ctl.sno	PASS	PASS	0	1	
+probes_misc	probe/bfn/bfn_transplant_parse.sno	PASS	PASS	0	1	
+probes_misc	probe/bfn/cap_min_call.sno	PASS	PASS	0	0	
+probes_misc	probe/bfn/cap_min_name.sno	PASS	PASS	0	0	
+probes_misc	probe/claws5/claws5_dcap_call_green.sno	PASS	PASS	0	0	
+probes_misc	probe/claws5/claws5_dcap_call_noncap_green.sno	PASS	PASS	0	0	
+probes_misc	probe/claws5/claws5_dcap_call_red.sno	PASS	PASS	0	0	
+probes_misc	probe/claws5/claws5_spine_drift_k4_green.sno	PASS	PASS	0	0	
+probes_misc	probe/claws5/claws5_spine_drift_k5_red.sno	PASS	PASS	0	0	
+probes_misc	probe/claws5_table_flat1.sno	PASS	PASS	0	0	
+probes_misc	probe/clobarm/clob_altarm_arm2direct_red.sno	PASS	PASS	0	0	
+probes_misc	probe/clobarm/clob_altarm_blobvar_red.sno	PASS	PASS	0	1	
+probes_misc	probe/clobarm/clob_altarm_samevar_red.sno	PASS	PASS	0	0	
+probes_misc	probe/clobarm/clob_altarm_trueinline_grn.sno	PASS	PASS	0	0	
+probes_misc	probe/clobarm/clob_altarm_varcross_red.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_alt_eval_order.sno	PASS	PASS	0	0	
+probes_misc	probe/altdepth/alt_twochoice_defer_red.sno	SIG11	PASS	4	0	
+probes_misc	probe/cn/cn_alt_leaf_flat_grn.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_alt_leaf_flat_red.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_alt_leaf_lit_red.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_arbno_static_classic.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_arbno_static.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_bare_const_pos.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_clear_user_var.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_const_chain_classic.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_const_chain.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_const_compose_all.sno	PASS	PASS	1	0	pin-only fatal-report
+probes_misc	probe/cn/cn_const_compose_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_const_compose_leaf.sno	DIFF	DIFF	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_cset_const.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_defer_const.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_defer_pushcounter_capture.sno	PASS	PASS	0	0	pin-only
+probes_misc	probe/cn/cn_eval_fails_not_aborts.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_indirect_is_ordinary_var.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_indirect_rewrite.sno	PASS	PASS	0	0	
+probes_misc	probe/cn/cn_indirect_seal.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_namespace_split.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_nest_alt_defer.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_t1_eval.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_t1_eval_undecl.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_t1_scalar_fold.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_t2_eval_boundary.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_t2_inline_and_recurse.sno	PASS	PASS	0	1	pin-only fatal-report
+probes_misc	probe/cn/cn_udc_declare.sno	PASS	PASS	0	1	pin-only fatal-report
+probes_misc	probe/cn/cn_udc_reopen.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/cn/cn_var_cset_fold.sno	PASS	PASS	0	0	pin-only fatal-report
+probes_misc	probe/dcap/dcap_freturn_target_ok_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/dcap/dcap_freturn_target.sno	PASS	PASS	0	0	
+probes_misc	probe/dc_nest2.sno	PASS	PASS	0	0	
+probes_misc	probe/dc_nest3.sno	PASS	PASS	0	0	
+probes_misc	probe/callout/claws5_call.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/callout/claws5_cap.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/dc_nest_bt.sno	PASS	PASS	0	0	
+probes_misc	probe/dc_recur.sno	PASS	PASS	0	0	
+probes_misc	probe/dc_sib_bt.sno	PASS	PASS	0	0	
+probes_misc	probe/define/dyn_define_1.sno	RC1	COMPILE_FAIL	0	0	
+probes_misc	probe/deferclob/deferclob_stmt_alt_red.sno	PASS	PASS	0	0	
+probes_misc	probe/deferclob/deferclob_stmt_standalone_grn.sno	PASS	PASS	0	0	
+probes_misc	probe/defval/defval_bare_predicate_red.sno	PASS	PASS	0	0	
+probes_misc	probe/defval/defval_bare_red.sno	PASS	PASS	0	0	
+probes_misc	probe/defval/defval_chain3_red.sno	PASS	PASS	0	0	
+probes_misc	probe/defval/defval_bare_starred_red.sno	PASS	PASS	0	0	
+probes_misc	probe/defval/defval_ctl_in_concat_green.sno	PASS	PASS	0	0	
+probes_misc	probe/defval/defval_ctl_in_patfn_green.sno	PASS	PASS	0	0	
+probes_misc	probe/defval/defval_ctl_plain_green.sno	PASS	PASS	0	0	
+probes_misc	probe/diag_regs_witness.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_arbno_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_arbno_defer_cap.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_cap_defer_alt_var.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_arbno_defer.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_cap_defer_alt_var_span.sno	PASS	PASS	0	1	
+probes_misc	probe/dv/dv_cap_defer_bare.sno	PASS	PASS	1	0	
+probes_misc	probe/dv/dv_defer_cond.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_cap_defer_xdump_proto.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_defer_imm.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_defer_nested.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_defer_two.sno	PASS	PASS	0	0	
+probes_misc	probe/dv/dv_nreturn_imm.sno	RC1	RC1	0	0	
+probes_misc	probe/dv/dv_value_imm.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/altcap_v1.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/altcap_v2.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/altcap_v3.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/altcap_v4.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_cap_after_bal.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_cap_after_varlen.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_disc_arbno_star_fence_poisoned.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_disc_arbno_star_fence_positive.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_inline_control.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_alt_ctl_nopend.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_alt_first_arm.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_alt_second_arm.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_blocked_fencefn.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_dies_on_backtrack.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_fire_order.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_group_noalt.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_survives_fence1.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_pend_survives_fencefn.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_span_var_arg_2char_wronganswer.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_span_var_arg_hang.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_stored_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_stored_varref.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_varref_bare_dropped.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/earn0_varref_blob_hang.sno	PASS	PASS	0	1	
+probes_misc	probe/earn0/earn0_varref_cat_dropped.sno	PASS	PASS	0	1	
+probes_misc	probe/earn0/earn0_varref_strvar_control.sno	PASS	PASS	0	1	
+probes_misc	probe/earn0/l3_arb_pred.sno	PASS	PASS	0	1	
+probes_misc	probe/earn0/l3_break_clean.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/l3_breakx_clean.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/l3_rem_clean.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/l3_rtab_clean.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/l3_span_clean.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/l3_tab_clean.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/l4_span_varg_hang.sno	PASS	PASS	0	0	
+probes_misc	probe/earn0/s68_goto_control.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_code_back_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_beauty_shape.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_defer_int_lead.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_defer_int_lit.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_defer_str_lit.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_fn_beauty_shape.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_fn_noeval.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_fn_literal.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_fn_sum_1_2.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_fn_sum_10_20.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_fn_sum_1_5.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_fn_var.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_min_arith.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_pad_alias_0.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_pad_alias_1.sno	PASS	PASS	0	1	
+probes_misc	probe/eval/ev_pat_builtin.sno	PASS	PASS	0	1	
+probes_misc	probe/eval/ev_pat_defer_call.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_pat_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/fence_arbno_top.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_pat_var.sno	PASS	PASS	0	0	
+probes_misc	probe/frame/frame_alt_two_instances.sno	PASS	PASS	0	0	
+probes_misc	probe/fencedef1.sno	PASS	PASS	0	0	
+probes_misc	probe/frame/frame_recursive_list.sno	PASS	PASS	0	0	
+probes_misc	probe/frame/frame_cross_blob_alt.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_code_end_label_ctl.sno	PASS	SIG4	0	1	
+probes_misc	probe/fuzz/fz_abort_arbno_stackcap_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_abort_fence1_stackcap_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/eval/ev_code_end_terminates.sno	PASS	SIG11	0	2	
+probes_misc	probe/fuzz/fz_diff_01.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_diff_07.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_diff_08.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fz_diff_13.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fz_diff_20.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fz_diff_22.sno	PASS	PASS	0	1	
+probes_misc	probe/fuzz/fz_hang_04.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_hang_06.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_abort_05.sno	SIG6	SIG6	3	5	
+probes_misc	probe/fuzz/fz_abort_25.sno	SIG6	SIG6	4	5	
+probes_misc	probe/fuzz/fz_hang_16.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_hang_21.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_arbno_fence_seal.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_arbno_nofence_control.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_capture_span_bare_control.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_capture_span_control.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_capture_span_noalt_control.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_capture_span_red.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_nested_alt_control.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_abort_fence1_stackcap.sno	SIG6	SIG6	5	5	
+probes_misc	probe/fuzz/fzr_07_breakx_alt_fence.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_07_control_lit_arm1.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_07_control_lit_arm2.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_08_alt_nested_bal.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fzr_08_control_unnested.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_13_alt_of_arbno.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fzr_13_control_arm1_alone.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_20_alt_arm_bal_extend.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fzr_20_control_no_alt.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_22_control_first_elem.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_22_control_single_arbno.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fzr_22_nested_arbno_not_first.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_red_m1a_arbno_defer_fencenull.sno	SIG11	SIG11	1	1	
+probes_misc	probe/fuzz/fz_red_m1b_arbno_defer_blob.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fz_red_m2a_fence_cap_gen.sno	PASS	SIG11	0	1	
+probes_misc	probe/fuzz/fz_red_m2b_fence_cap_nullalt.sno	SIG11	SIG11	2	1	
+probes_misc	probe/fuzz/fz_red_m2_breach_m3only.sno	SIG11	PASS	1	0	
+probes_misc	probe/fuzz/fz_red_m2_breach_m4only.sno	PASS	SIG11	0	1	
+probes_misc	probe/fuzz/fz_red_m2c_cap_around_defer.sno	SIG11	SIG4	1	2	
+probes_misc	probe/fuzz/fz_red_m3_arbno_nullalt_gen.sno	SIG11	SIG11	1	1	
+probes_misc	probe/fuzz/fz_red_m4a_blob_alt_fence_defer.sno	SIG11	SIG11	1	1	
+probes_misc	probe/fuzz/fz_red_m4b_blob_defer_fence.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_red_m4c_blob_defer_arbno_fence.sno	SIG11	SIG11	1	2	
+probes_misc	probe/fuzz/fz_segv_02.sno	SIG11	SIG11	1	1	
+probes_misc	probe/fuzz/fz_segv_03.sno	SIG11	SIG11	1	1	
+probes_misc	probe/fuzz/fz_segv_09.sno	SIG11	SIG11	1	2	
+probes_misc	probe/fuzz/fz_segv_10.sno	PASS	SIG11	0	1	
+probes_misc	probe/fuzz/fz_segv_14.sno	SIG11	SIG4	1	1	
+probes_misc	probe/fuzz/fz_segv_15.sno	SIG11	SIG11	1	1	
+probes_misc	probe/fuzz/fz_hang_11.sno	TIMEOUT	TIMEOUT	20	20	
+probes_misc	probe/fuzz/fz_segv_17.sno	SIG11	SIG11	2	2	
+probes_misc	probe/fuzz/fz_segv_18.sno	SIG11	SIG4	2	2	
+probes_misc	probe/fuzz/fz_hang_12.sno	TIMEOUT	TIMEOUT	20	20	
+probes_misc	probe/fuzz/fz_segv_24.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fuzz/fz_segv_19.sno	SIG11	SIG11	2	2	
+probes_misc	probe/fwctx/fwctx_standalone_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/fw/fw_arbno_double_commit.sno	PASS	PASS	0	0	
+probes_misc	probe/fw/fw_ctl_no_break.sno	PASS	PASS	0	0	
+probes_misc	probe/fw/fw_ctl_no_span.sno	PASS	PASS	0	0	
+probes_misc	probe/fw/fw_full_shape.sno	PASS	PASS	0	0	
+probes_misc	probe/fw/fw_min_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/fw/fw_min_vars.sno	PASS	PASS	0	0	
+probes_misc	probe/fw/fw_stmt_skeleton.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_min_nested_alt_red.sno	TIMEOUT	TIMEOUT	20	21	
+probes_misc	probe/fz/fz1_span_fence_span.sno	PASS	PASS	0	1	
+probes_misc	probe/fz/fz2_cut_family.sno	PASS	PASS	0	0	
+probes_misc	probe/fz/fz3_capture_across_fence.sno	PASS	PASS	0	0	
+probes_misc	probe/fuzz/fz_segv_23.sno	SIG11	SIG11	2	2	
+probes_misc	probe/fz/fz4_group_capture_chain.sno	PASS	PASS	0	0	
+probes_misc	probe/fz/fz5_two_cuts_one_group.sno	PASS	PASS	0	0	
+probes_misc	probe/fz/fz6_cut_on_fail_path.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/BALREV.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+probes_misc	probe/gimpel/BLANKS.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+probes_misc	probe/gimpel/DIFF.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+probes_misc	probe/fz/fz7_replace_across_cut.sno	PASS	PASS	0	0	
+probes_misc	probe/fz/fz8_arbno_after_cut.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_cassign_array_elt_loud.sno	RC1	COMPILE_FAIL	0	0	
+probes_misc	probe/gimpel/gim_break_value_drops_prefix.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_blanks_min_wrong.sno	DIFF	DIFF	0	0	
+probes_misc	probe/gimpel/gim_defer_cassign_array_elt.sno	DIFF	DIFF	0	0	
+probes_misc	probe/gimpel/gim_defer_cassign_indirect.sno	DIFF	DIFF	0	0	
+probes_misc	probe/gimpel/gim_double_include_hang_A.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+probes_misc	probe/gimpel/gim_defer_cassign_simple_control.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_defer_pred_in_pattern_segv.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_double_include_once_control.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_eval_silent_success.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_fortput_m4_only_segv.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+probes_misc	probe/gimpel/gim_goto_function_call_parse.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+probes_misc	probe/gimpel/gim_indirect_read_third_operand.sno	DIFF	DIFF	0	0	
+probes_misc	probe/gimpel/gim_name_of_field_store.sno	DIFF	DIFF	0	0	
+probes_misc	probe/gimpel/gim_omitted_arg_shift.sno	DIFF	DIFF	0	0	
+probes_misc	probe/fwctx/fwctx_conjunction.sno	PASS	PASS	0	1	pin-only
+probes_misc	probe/gimpel/gim_real_literal_parse.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+probes_misc	probe/gimpel/gim_real_print_precision.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_not_op_no_template.sno	SIG6	COMPILE_FAIL	2	2	
+probes_misc	probe/gimpel/gim_span_param_pattern_wrong.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_span_self_rebind_control.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_span_self_rebind_wrong.sno	DIFF	DIFF	0	0	
+probes_misc	probe/gimpel/gim_or_single_alternative_crash.sno	SIG11	SIG11	3	3	
+probes_misc	probe/gimpel/OR.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+probes_misc	probe/ident_differ_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/igt/igt_computed_goto_end.sno	PASS	PASS	0	0	
+probes_misc	probe/igt/igt_computed_goto_pre.sno	PASS	PASS	0	0	
+probes_misc	probe/igt/igt_computed_goto.sno	PASS	PASS	0	0	
+probes_misc	probe/igt/igt_direct_goto_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/igt/igt_inline_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/indirect/indirect_name_boundary.sno	PASS	PASS	0	0	
+probes_misc	probe/indirect/indirect_name_datatypes.sno	PASS	PASS	0	0	
+probes_misc	probe/indirect/indirect_nul_prefix_name.sno	DIFF	DIFF	0	1	
+probes_misc	probe/indirect/indirect_pattern_operand.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_bare_names_null.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_bare_shadow.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_datatypes.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_defaults.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_direct_read.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_errtext_string.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_errtype_signal.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_maxlngth_floor.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_pattern_family.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_protected_write.sno	PASS	PASS	0	1	
+probes_misc	probe/kw/kw_range_value.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_trim_effect.sno	PASS	PASS	0	0	pin!=live
+probes_misc	probe/gimpel/gim_seq_code_loop_in_function.sno	SIG11	SIG11	3	3	
+probes_misc	probe/kw/kw_trim_lazy_seed.sno	PASS	PASS	0	0	pin!=live
+probes_misc	probe/kw/kw_write_not_constant.sno	PASS	PASS	0	0	
+probes_misc	probe/kw/kw_unset_datatype.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_arb_nonterm.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_break_nonterm.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_len_pure.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_len_nonterm.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_lit_len.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_pos.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_rtab_nonterm.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_rem_nonterm.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_span_nonterm.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_span_concat.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_tab_linear3.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_span_span_double.sno	PASS	PASS	0	0	
+probes_misc	probe/l3/l3_spl_VACUOUS_terminal_trap.sno	PASS	PASS	0	1	
+probes_misc	probe/l3/l3_spl_tab_nonterm.sno	PASS	PASS	0	1	
+probes_misc	probe/leafsib/leafsib_arb_flat_red.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_arb_flat_grn.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_arb.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_bal_flat_grn.sno	PASS	PASS	0	0	
+probes_misc	probe/gimpel/gim_tab_defer_no_template.sno	SIG6	COMPILE_FAIL	3	2	
+probes_misc	probe/leafsib/leafsib_bal.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_bal_flat_red.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_break.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_breakx.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_rem.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_rtab.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_span.sno	PASS	PASS	0	0	
+probes_misc	probe/leafsib/leafsib_tab.sno	PASS	PASS	0	0	
+probes_misc	probe/leafwide/ctl_bal_solo.sno	PASS	PASS	0	0	
+probes_misc	probe/leafwide/ctl_span_constcs_alt.sno	PASS	PASS	0	0	
+probes_misc	probe/leafwide/ctl_spanvar_alt_inline.sno	DIFF	DIFF	0	0	
+probes_misc	probe/leafwide/ctl_spanvar_solo.sno	PASS	PASS	0	0	
+probes_misc	probe/leafwide/leafwide_span_dyncs_alt.sno	PASS	PASS	0	0	
+probes_misc	probe/leafwide/leafwide_bal_alt.sno	PASS	PASS	0	0	
+probes_misc	probe/m1eval/m1e_eval_defer1_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/leafwide/leafwide_spanvar_alt.sno	PASS	PASS	0	0	
+probes_misc	probe/m1eval/m1e_eval_chained_defer_red.sno	DIFF	DIFF	0	0	
+probes_misc	probe/m1/m1_alt_arm1_cap.sno	PASS	PASS	0	0	
+probes_misc	probe/m1eval/m1e_eval_selfassign_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_alphabet_unreached_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_alt_arm_eager_call_inline_control.sno	PASS	PASS	0	1	
+probes_misc	probe/m1/m1_alt_arm2_capfn_var.sno	PASS	PASS	0	1	
+probes_misc	probe/m1/m1_alt_arm2_cap.sno	PASS	PASS	0	1	
+probes_misc	probe/m1/m1_alt_cap_outside_control.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_alt_arm_eager_call_order.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_alt_arm_eager_call.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_arbno_nested_defer_grn.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_alt_cap_stored.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_arbno_capture_call_bracket.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_cat_cap_control.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_arbno_nested_defer_red.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_beauty_arbno_defer_min.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_defer_chain_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_defer_ALT.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_defer_chain.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_defer_LEN0.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_defer_SPAN.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_defer_x_thunk_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_define_return_m3.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_defer_x_thunk.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_gen_flush_shape.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_include_sort_loop_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_include_sort_loop.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_indir_name_output_fn.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_indir_name_output.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_inline_ALT.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_kw_subject_zres_spill.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_nret_cap.sno	RC1	COMPILE_FAIL	0	0	
+probes_misc	probe/m1/m1_nodefer_ALT.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_nret_defer.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_nret_lval.sno	PASS	PASS	0	1	
+probes_misc	probe/m1/m1_nret_value.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_replace_pos_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_repl_r1.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_repl_r2.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_repl_r3.sno	PASS	PASS	0	0	
+probes_misc	probe/m1/m1_trailing_ws.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+probes_misc	probe/m1/m1_repl_r4.sno	PASS	PASS	0	0	
+probes_misc	probe/m4alpha/m4a_defer_call_no_dot.sno	PASS	PASS	0	0	
+probes_misc	probe/m4alpha/m4a_dot_defer_call_arity0.sno	PASS	PASS	0	0	
+probes_misc	probe/m4alpha/m4a_dot_defer_call_arity1.sno	PASS	PASS	0	0	
+probes_misc	probe/m4alpha/m4a_dot_defer_call_arity2.sno	PASS	PASS	0	0	
+probes_misc	probe/m4alpha/m4a_dot_defer_expr.sno	PASS	PASS	0	0	
+probes_misc	probe/m4alpha/m4a_dot_defer_var.sno	PASS	PASS	0	0	
+probes_misc	probe/m4alpha/m4a_manual_p136_nreturn_push.sno	PASS	PASS	0	0	
+probes_misc	probe/math/math_atan.sno	PASS	PASS	0	0	
+probes_misc	probe/math/math_cos.sno	PASS	PASS	0	0	
+probes_misc	probe/math/math_chop.sno	PASS	PASS	0	0	
+probes_misc	probe/math/math_ln.sno	PASS	PASS	0	0	
+probes_misc	probe/math/math_exp.sno	PASS	PASS	0	0	
+probes_misc	probe/math/math_remdr_real.sno	PASS	PASS	0	1	
+probes_misc	probe/math/math_real_precision.sno	PASS	PASS	0	1	
+probes_misc	probe/math/math_sin.sno	PASS	PASS	0	0	
+probes_misc	probe/math/math_sqrt.sno	PASS	PASS	0	0	
+probes_misc	probe/m3m4div/alpha_scan_pollution.sno	PASS	PASS	0	1	
+probes_misc	probe/math/math_tan.sno	PASS	PASS	0	0	
+probes_misc	probe/meetbomb/meetbomb_barematch_red.sno	PASS	PASS	0	0	
+probes_misc	probe/meetbomb/meetbomb_nomatch_grn.sno	PASS	PASS	0	0	
+probes_misc	probe/mon/mon_return_contract.sno	PASS	PASS	0	0	
+probes_misc	probe/mon/mon_define_call_min.sno	PASS	PASS	0	0	
+probes_misc	probe/mrbp/cs0_nul_producers.sno	PASS	PASS	0	0	
+probes_misc	probe/mrbp/mrbp_result_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/mrbp/cs0_nul_subject.sno	PASS	PASS	0	0	
+probes_misc	probe/mrbp/mrbp_result_control.sno	PASS	PASS	0	0	
+probes_misc	probe/mrbp/mrbp_result_value.sno	PASS	PASS	0	0	
+probes_misc	probe/mrbp/mrbp_shallow_len.sno	PASS	PASS	0	0	
+probes_misc	probe/mv_arbno_callcap.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_alt_builtin_call_infn.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_alt_call_build_order.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_alt_call_infn_matched_infn.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_call_as_pattern_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_call_as_pattern_compound.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_call_as_pattern_qmark.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_ctl_alt_call_infn_built_only.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_call_as_pattern.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_ctl_alt_call_toplevel_var.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_ctl_alt_nocall_infn.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_ctl_call_hoisted_infn.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_ctl_eager_call_alt_toplevel.sno	PASS	PASS	0	1	
+probes_misc	probe/mv/mv_ctl_eager_call_concat_fnloop.sno	PASS	PASS	0	1	
+probes_misc	probe/mv/mv_ctl_fnloop_call_as_pattern.sno	PASS	PASS	0	1	
+probes_misc	probe/mv/mv_eager_call_in_alt_fnloop.sno	PASS	PASS	0	0	
+probes_misc	probe/mv_valheld_cap.sno	PASS	PASS	0	0	
+probes_misc	probe/mv/mv_icase_reduced.sno	PASS	PASS	0	0	
+probes_misc	probe/mwseg/mwseg_flatfn_capture_table.sno	PASS	PASS	0	0	
+probes_misc	probe/mwseg/mwseg_recfn_capture_novar.sno	PASS	PASS	0	0	
+probes_misc	probe/mwseg/mwseg_recfn_capture_table.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/mon_fn_plain.sno	PASS	PASS	0	0	
+probes_misc	probe/mwseg/mwseg_recfn_table_nopat.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nr_defer_concat.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nr_defer_min.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nr_defer_recur.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nret_cond_defer_call.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nret_cond_nondeferred.sno	RC1	COMPILE_FAIL	0	0	
+probes_misc	probe/nret/nret_cond_stored_blob.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nret_control_plain_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nret_imm_defer_call.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nret_lvalue_plain.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nret_name_op_return.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nr_eval_direct_CONTROL.sno	PASS	PASS	0	0	
+probes_misc	probe/nret/nr_eval_opsyn_CRASH.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n01_size.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n02_table_keys.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n03_ident.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n04_concat_size.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n05_reverse.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n06_dupl.sno	PASS	PASS	0	1	
+probes_misc	probe/nul/n07_replace.sno	PASS	PASS	0	1	
+probes_misc	probe/nul/n08_pat_len.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n10_pat_lit.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n09_pat_break.sno	RC1	RC1	0	0	
+probes_misc	probe/nul/n11_array_key.sno	RC1	RC1	0	0	
+probes_misc	probe/nul/n13_trim.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n12_output_bytes.sno	PASS	PASS	0	0	
+probes_misc	probe/nul/n14_substr_pat.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/b_noargs.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/a_reg_only.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/d_unary.sno	RC1	COMPILE_FAIL	0	0	
+probes_misc	probe/opsyn/ctl_call2.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/c_trace.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/e_bare.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/f_apply.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_bin_amp.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_bin_at.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_bin_pct.sno	DIFF	DIFF	0	0	
+probes_misc	probe/opsyn/opsyn_builtin_target.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+probes_misc	probe/opsyn/opsyn_bin_pound.sno	DIFF	DIFF	0	0	
+probes_misc	probe/opsyn/opsyn_bin_tilde.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_control_nopsyn.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_int.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_kind_selector.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_noeval.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_pat.sno	PASS	PASS	0	0	
+probes_misc	probe/opsyn/opsyn_unary_target.sno	RC1	COMPILE_FAIL	0	0	
+probes_misc	probe/opsyn/opsyn_rebind_twice.sno	PASS	DIFF	0	0	
+probes_misc	probe/os1_runtime_k.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/cset32_all5.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/pt0_3layer_mixed.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/pt0_any_before_seam.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt0_any_noseam_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt0_len_var_retreat.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt0_len_var.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt0_lit_any_func.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt0_notany_after_seam.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_func_layered.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_func_tab.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_pos_rpos_func.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_retreat_2layer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_retreat_3layer_bare.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_retreat_3layer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_updown_mix.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_var_3layer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/pt1_var_tab_1layer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc0f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc1b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc1b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc1b_var2.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptc1b_var3.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptc1f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc1f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc1f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc1f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc2f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc3f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc4b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc4b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc4b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc4b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc4f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc4f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc4f_var2.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptc4f_var3.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptc5b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc5b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc5b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc5b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc5f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc5f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc5f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc5f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc6f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7f_code.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc7f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc8b_fn2.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptc8b_fn3.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptc8b_var2.sno	PASS	PASS	1	0	
+probes_misc	probe/passthru/ptc8b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc8f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc8f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc8f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc8f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9b_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9b_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9b_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9b_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9f_fn2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9f_fn3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9f_var2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptc9f_var3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptct_seam_tail.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_alttop_nofence_ctl.sno	DIFF	DIFF	0	0	
+probes_misc	probe/passthru/ptw_min_arb_cond_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arb_immed_inline_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arb_immed_retry.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arb_immed_stored.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_alt_fence_L1.sno	DIFF	DIFF	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_altsib_3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_altsib_5.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_altsib_fst_ctl.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptw_min_arbno_altsib_ladder.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptw_min_arbno_altsib_nonempty.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_altsib_snd_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_bodydefer_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_defernonrec_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_fence_defer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_fence_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_fence_lit.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_gap_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_bodyplain_wrong.sno	DIFF	DIFF	0	3	
+probes_misc	probe/passthru/ptw_min_arbno_nofence.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_nonnullarm_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_nullalt_ctl_nonnull.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_nullalt_ctl_order.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_nullalt_falseaccept.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_tail_ctl_notail.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_tail_ctl_span.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_tail_falseaccept_nodefer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_tail_falseaccept.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_argpat_arbno.sno	DIFF	DIFF	0	1	
+probes_misc	probe/passthru/ptw_min_argpat_span_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_argpat_var_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_argpat_viavar_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_atp_inline_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_atp_stored_red.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_code_fn_seeded.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_code_fn.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_compose_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_compose_nocap.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_compose.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_cw_fnfence.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptw_min_arbno_mutualrec_wrong.sno	DIFF	DIFF	2	3	
+probes_misc	probe/passthru/ptw_min_cw_fnrec2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_cw_fnrecfence.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_cw_fnrec.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer1_arbno_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer1_hang_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_arbno.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_arbno_altrec_falsereject.sno	DIFF	DIFF	3	3	
+probes_misc	probe/passthru/ptw_min_defer2_depth9.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_evalbuilt.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_floor.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_pp_L0.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_pp_L1.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_pp_L2.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_pp_L3.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_epsshift4_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_epsshift6.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_epsshift8.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_epsshift_distinct.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_fence_alttop.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptw_min_fence_left_altresume.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_fncat_arbno.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_fncat_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_fncat_two.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_man_p87_stored.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_nullalt_retreat_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_nullalt_retreat_falsereject.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_opsyn_elem.sno	DIFF	DIFF	0	0	
+probes_misc	probe/passthru/ptw_min_opsyn_evalpat.sno	DIFF	DIFF	0	0	
+probes_misc	probe/passthru/ptw_min_opsyn_named_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_poison_eval.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_refusal.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_rseal_arbno.sno	DIFF	DIFF	0	0	
+probes_misc	probe/passthru/ptw_min_rseal_commands.sno	DIFF	DIFF	0	0	
+probes_misc	probe/passthru/ptw_min_rseal_unsealed_ctl.sno	DIFF	DIFF	0	0	
+probes_misc	probe/passthru/ptw_min_segv.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_span_immed_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_varcat.sno	PASS	PASS	0	1	
+probes_misc	probe/passthru/ptx_bare_mid_2layer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptx_bare_mid_3layer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptx_shift_alt_arms_2layer.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptx_shift_alt_arms.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptx_shift_chain_3layer.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_ctl_selfref_alt_once_ok.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_ctl_selfref_alt_unrolled_ok.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_ctl_selfref_noalt_ok.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_ctl_snap_accum_unrolled.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_selfref_alt_cycle.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_selfref_toplevel_alt_cycle.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_snap_alias_loop_infn.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_snap_alias_loop_main.sno	PASS	PASS	0	0	
+probes_misc	probe/pb/pb_stale_snapshot_value.sno	PASS	PASS	0	0	
+probes_misc	probe/pb_snapshot_imm.sno	PASS	PASS	0	0	
+probes_misc	probe/pb_stitch_compose.sno	PASS	PASS	0	0	
+probes_misc	probe/pb_stitch_defer.sno	PASS	PASS	0	0	
+probes_misc	probe/pb_stitch_snapshot.sno	PASS	PASS	0	0	
+probes_misc	probe/prechain/pc_dind.sno	PASS	PASS	0	1	
+probes_misc	probe/prechain/pc_v1_plain.sno	PASS	PASS	1	0	
+probes_misc	probe/prechain/pc_v3_noguard.sno	PASS	PASS	0	0	
+probes_misc	probe/prechain/pc_v6_guard_len_plain.sno	PASS	PASS	0	0	
+probes_misc	probe/prechain/pc_v7_all_lit.sno	PASS	PASS	0	0	
+probes_misc	probe/prechain/pc_v8_two_arith.sno	PASS	PASS	0	0	
+probes_misc	probe/prechain/pc_v9_guard_first_lit.sno	PASS	PASS	0	0	
+probes_misc	probe/preord/pre_assign_ctx_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/preord/pre_guard_right_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/preord/pre_guard_then_unsafe.sno	PASS	PASS	0	0	
+probes_misc	probe/preord/pre_ident_guard.sno	PASS	PASS	0	0	
+probes_misc	probe/preord/pre_unsafe_then_guard.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+probes_misc	probe/preord/pre_safe_right_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/proto/proto_excess_arg.sno	PASS	PASS	0	0	
+probes_misc	probe/proto/proto_faces.sno	PASS	PASS	0	0	
+probes_misc	probe/proto/proto_table.sno	PASS	PASS	0	0	
+probes_misc	probe/pt_inline_1_full.sno	PASS	PASS	0	0	
+probes_misc	probe/pt_inline_1_hand.sno	PASS	PASS	0	0	
+probes_misc	probe/pt_inline_1.sno	PASS	PASS	0	0	
+probes_misc	probe/ptj/ptj2_number_leading_digit_segv.sno	PASS	PASS	0	1	
+probes_misc	probe/ptj/ptj3_forward_defer_wrong_answer.sno	PASS	PASS	0	0	
+probes_misc	probe/redef/redef_lastwins.sno	DIFF	DIFF	0	0	
+probes_misc	probe/redef/redef_twice.sno	PASS	PASS	0	0	
+probes_misc	probe/repldef1.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_arbno_extend_double_fires_cond_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_arbno_leftctx_cond.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_arbno_leftctx_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_arbno_leftctx_stored.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_arbno_noleft_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_break_nogen_ctl.sno	PASS	PASS	0	1	
+probes_misc	probe/retry/rty_deadlit_arb_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fail_arb_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fail_bal_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fail_bal_stored_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fail_span_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fence_arbno_defer.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fence_arbno_inline_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fence_arbno_stored_1iter.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fence_arbno_stored.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fence_capdefer_both_segv.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fence_capdefer_left_ctl.sno	PASS	PASS	0	1	
+probes_misc	probe/retry/rty_fence_capdefer_plainleft.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_fence_capdefer_right_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/retry/rty_nofence_stored_ctl.sno	PASS	PASS	0	0	
+probes_misc	probe/rtcc/rtcc_span_gva_defer.sno	PASS	PASS	0	0	
+probes_misc	probe/rtx11_dynvar_include.sno	PASS	PASS	0	0	
+probes_misc	probe/rtx11_dynvar_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/rtx_func_11_include.sno	PASS	PASS	0	0	
+probes_misc	probe/rtx_func_11_inc.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+probes_misc	probe/rtx_func_11_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/seam/seam_defer_rightmost_red.sno	PASS	PASS	0	0	
+probes_misc	probe/seam/seam_det_both_sides_red.sno	PASS	PASS	0	1	
+probes_misc	probe/seam/seam_det_rightmost_red.sno	PASS	PASS	0	0	
+probes_misc	probe/seam/seam_gen_rightmost_green.sno	PASS	PASS	0	0	
+probes_misc	probe/setexit/se_errlimit_survives.sno	RC1	RC1	0	0	
+probes_misc	probe/setexit/se_notrap_failexit.sno	PASS	PASS	0	0	
+probes_misc	probe/setexit/se_oneshot.sno	DIFF	ASM_FAIL	0	0	
+probes_misc	probe/setexit/se_rearm.sno	DIFF	ASM_FAIL	0	0	
+probes_misc	probe/setexit/se_reset_null.sno	DIFF	DIFF	0	0	
+probes_misc	probe/setexit/se_retval.sno	PASS	PASS	0	0	
+probes_misc	probe/setexit/se_trap_fires.sno	DIFF	ASM_FAIL	0	0	
+probes_misc	probe/setexit/se_trap_lastno.sno	RC1	ASM_FAIL	0	0	
+probes_misc	probe/setexit/se_trap_undef.sno	PASS	PASS	0	0	
+probes_misc	probe/subscript/sub_container_only.sno	PASS	PASS	0	0	
+probes_misc	probe/subscript/sub_positive_control.sno	PASS	PASS	0	0	
+probes_misc	probe/subscript/sub_shapes.sno	PASS	PASS	0	0	
+probes_misc	probe/table_nested/chain_incr_d1.sno	DIFF	DIFF	0	1	pin!=live
+probes_misc	probe/table_nested/chain_incr_d2.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/table_nested/chain_incr_d3.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/table_nested/chain_read_d1.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/gimpel/gim_double_include_hang.sno	TIMEOUT	TIMEOUT	20	20	
+probes_misc	probe/table_nested/chain_read_d2.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/table_nested/chain_read_d3.sno	DIFF	DIFF	0	1	pin!=live
+probes_misc	probe/table_nested/claws5_l1.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/table_nested/claws5_l2.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/table_nested/ident_guard_d1.sno	DIFF	DIFF	1	1	pin!=live
+probes_misc	probe/unload/un_never.sno	PASS	PASS	0	0	
+probes_misc	probe/unload/un_ret.sno	PASS	PASS	0	0	
+probes_misc	probe/unload/un_self_exec.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+probes_misc	probe/unload/un_var_survives.sno	PASS	PASS	0	0	
+probes_misc	probe/uw2.sno	PASS	PASS	0	0	
+probes_misc	probe/uw3.sno	PASS	PASS	0	0	
+probes_misc	probe/table_nested/value_type_tbl.sno	DIFF	DIFF	1	0	pin!=live
+probes_misc	probe/vlist/vl_alt_first_ok.sno	PASS	PASS	0	0	
+probes_misc	probe/vlist/vl_alt_nested_cat.sno	DIFF	DIFF	0	0	
+probes_misc	probe/vlist/vl_alt_second.sno	DIFF	DIFF	0	0	
+probes_misc	probe/vlist/vlist_expr_alternation.sno	RC1	RC1	0	1	
+probes_misc	probe/w_cap_ay.sno	PASS	PASS	0	1	
+probes_misc	probe/w_cap_group.sno	PASS	PASS	0	0	
+probes_misc	probe/w_cap_inline.sno	PASS	PASS	0	0	
+probes_misc	probe/w_cap_novowel.sno	PASS	PASS	0	0	
+probes_misc	probe/w_cap_stored.sno	PASS	PASS	0	0	
+probes_misc	probe/w_cap_xxay.sno	PASS	PASS	0	0	
+probes_misc	probe/z4_arbno.sno	PASS	PASS	0	0	
+probes_misc	probe/z4_capture.sno	PASS	PASS	0	0	
+probes_misc	probe/z4_arith.sno	PASS	PASS	0	0	
+probes_misc	probe/z4_fib.sno	PASS	PASS	0	0	
+probes_misc	probe/zd5b/alt_litcat_control.sno	PASS	PASS	0	0	
+probes_misc	probe/zd5b/alt_span_concat_segv.sno	PASS	PASS	0	0	
+probes_misc	probe/z4_span.sno	PASS	PASS	0	0	
+probes_misc	probe/zd5b/alt_span_kwcat_nomatch.sno	PASS	PASS	0	0	
+probes_misc	probe/zd5b/alt_span_var_control.sno	PASS	PASS	0	0	
+probes_misc	probe/zd5b/alt_two_evals_nomatch.sno	PASS	PASS	0	0	
+probes_misc	probe/zd5b/noalt_span_concat_control.sno	PASS	PASS	0	0	
+probes_misc	probe/passthru/ptw_min_defer2_hang.sno	TIMEOUT	TIMEOUT	20	20	
+probes_misc	probe/ptj/ptj1_arbno_defer_nonterminating.sno	TIMEOUT	TIMEOUT	20	21	
+csnobol4_suite	programs/csnobol4-suite/8bit.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/alph.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/100func.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/alt1.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/alt2.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/any.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/a.sno	DIFF	DIFF	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/atn.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/base.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/bench.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+csnobol4_suite	programs/csnobol4-suite/bal.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/breakx.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/case1.sno	DIFF	DIFF	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/case2.sno	PASS	PASS	0	1	
+csnobol4_suite	programs/csnobol4-suite/cat.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/char.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/collect2.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/collect.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/comment.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/contin.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/conv2.sno	RC1	RC1	0	0	
+csnobol4_suite	programs/csnobol4-suite/convert.sno	RC1	RC1	0	0	
+csnobol4_suite	programs/csnobol4-suite/crlf.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/diag1.sno	RC1	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/8bit2.sno	RC1	RC1	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/digits.sno	PASS	PASS	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/dump.sno	DIFF	DIFF	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/end.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/err.sno	DIFF	DIFF	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/factor.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/fact.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/file.sno	RC1	RC1	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/float2.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/float.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/ftrace.sno	DIFF	DIFF	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/alis.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/fun1.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/fun2.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/func2.sno	RC1	RC1	0	1	
+csnobol4_suite	programs/csnobol4-suite/genc.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/function.sno	DIFF	DIFF	1	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/hello.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/include2.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/hide.sno	DIFF	DIFF	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/include3.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/include4.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/include.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/ind.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/json1.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/intval.sno	RC1	RC1	0	0	
+csnobol4_suite	programs/csnobol4-suite/diag2.sno	RC1	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/labelcode.sno	RC1	RC1	0	1	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/label.sno	DIFF	DIFF	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/len.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/lexcmp.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+csnobol4_suite	programs/csnobol4-suite/lgt.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/line2.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+csnobol4_suite	programs/csnobol4-suite/line.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/loaderr.sno	DIFF	DIFF	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/local.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/longline.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/longrec.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/loop.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/match2.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/match3.sno	PASS	PASS	0	1	
+csnobol4_suite	programs/csnobol4-suite/keytrace.sno	RC1	RC1	0	1	pin-only
+csnobol4_suite	programs/csnobol4-suite/match4.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/matchloop.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/match.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/maxint.sno	RC1	RC1	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/ndbm.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/noexec.sno	PASS	PASS	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/nqueens.sno	SIG11	SIG11	1	2	
+csnobol4_suite	programs/csnobol4-suite/openi.sno	TIMEOUT	TIMEOUT	20	20	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/openo.sno	PASS	PASS	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/ops.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/ord.sno	RC1	RC1	0	1	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/pad.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/popen2.sno	DIFF	DIFF	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/popen.sno	DIFF	DIFF	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/pow.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/preload1.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/preload2.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/openo2.sno	TIMEOUT	TIMEOUT	20	20	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/preload3.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/preload4.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/punch.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/random.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/repl.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/reverse.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/rewind1.sno	RC1	RC1	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/roman.sno	PASS	PASS	0	1	
+csnobol4_suite	programs/csnobol4-suite/setexit2.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/setexit3.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/setexit4.sno	DIFF	DIFF	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/scanerr.sno	RC1	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/setexit5.sno	RC1	RC1	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/setexit7.sno	RC1	ASM_FAIL	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/setexit6.sno	RC1	RC1	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/sleep.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/space2.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/space.sno	RC1	RC1	0	0	
+csnobol4_suite	programs/csnobol4-suite/spit.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/str.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/substr.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/setexit.sno	RC1	RC1	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/tab.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/time.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/sudoku.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/trace1.sno	DIFF	DIFF	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/trace2.sno	DIFF	DIFF	0	1	pin!=live
+csnobol4_suite	programs/csnobol4-suite/trim0.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/trim1.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/trfunc.sno	DIFF	DIFF	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/uneval2.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/t.sno	DIFF	DIFF	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/uneval.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/unsc.sno	PASS	PASS	0	0	
+csnobol4_suite	programs/csnobol4-suite/update.sno	RC1	RC1	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/vdiffer.sno	PASS	PASS	0	0	pin-only fatal-report
+csnobol4_suite	programs/csnobol4-suite/words1.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/words.sno	PASS	PASS	0	0	pin!=live
+csnobol4_suite	programs/csnobol4-suite/breakline.sno	RC1	RC1	0	0	pin-only
+csnobol4_suite	programs/csnobol4-suite/k.sno	RC1	RC1	0	0	pin-only
+gimpel	programs/gimpel/ARC_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/AGT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/ASM360_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/BAL_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/BALREV_driver.sno	PASS	PASS	0	0	pin!=live
+gimpel	programs/gimpel/BASE10_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/AI_driver.sno	SIG11	SIG11	1	4	
+gimpel	programs/gimpel/BCD_EBCD_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/BLANKS_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/BLEND_driver.sno	PASS	PASS	0	1	
+gimpel	programs/gimpel/BNORM_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/BREAKX_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/BRKREM_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/BSORT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/CARDPAK_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/AOPA_driver.sno	SIG11	SIG11	2	4	
+gimpel	programs/gimpel/CH_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/COMB_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/ASM_driver.sno	SIG6	COMPILE_FAIL	3	4	pin-only fatal-report
+gimpel	programs/gimpel/COUNT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/CRACK_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/DAY_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/DECOMB_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/DEXP_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/DEXTERN_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/DIFF_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/FASTBAL_driver.sno	RC1	ASM_FAIL	0	0	
+gimpel	programs/gimpel/FIND_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/FLD_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/FLOOR_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/FORTPUT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/FORTREAD_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/BASEB_driver.sno	SIG6	COMPILE_FAIL	4	4	
+gimpel	programs/gimpel/FRSORT_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+gimpel	programs/gimpel/FPROFILE_driver.sno	RC1	ASM_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/FTRACE_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/HEX_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/GPM_driver.sno	SIG11	ASM_FAIL	3	0	pin-only fatal-report
+gimpel	programs/gimpel/CATA_driver.sno	SIG11	SIG11	3	4	
+gimpel	programs/gimpel/COPYL_driver.sno	SIG11	SIG11	4	4	
+gimpel	programs/gimpel/INFINIP_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/INFINIP_lib_driver.sno	RC1	COMPILE_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/INORM_driver.sno	DIFF	DIFF	0	1	
+gimpel	programs/gimpel/INSERTB_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/INSERT_driver.sno	RC1	RC1	0	0	
+gimpel	programs/gimpel/INSULATE_driver.sno	DIFF	DIFF	0	0	pin-only fatal-report
+gimpel	programs/gimpel/HSORT_driver.sno	SIG11	SIG11	4	4	
+gimpel	programs/gimpel/LAST_driver.sno	PASS	PASS	0	1	
+gimpel	programs/gimpel/LEXGT_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/LIKE_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/LINEARIZ_driver.sno	RC1	RC1	0	0	
+gimpel	programs/gimpel/HYPHENAT_driver.sno	SIG6	COMPILE_FAIL	4	4	
+gimpel	programs/gimpel/LOG_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/L_ONE_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/LPAD_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/LPERM_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/IMAGE_driver.sno	SIG11	SIG11	4	5	
+gimpel	programs/gimpel/LSORT_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/L_TWO_driver.sno	RC1	COMPILE_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/MDY_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/MFREAD_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/IP_driver.sno	SIG6	COMPILE_FAIL	3	5	
+gimpel	programs/gimpel/LINE_driver.sno	SIG6	COMPILE_FAIL	4	4	
+gimpel	programs/gimpel/NOT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/ONCE_driver.sno	RC1	ASM_FAIL	0	0	
+gimpel	programs/gimpel/ONEWAY_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/ORBREAK_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/ORDER_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/OR_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/ORSORT_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/ORVISUAL_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/PAD_driver.sno	PASS	PASS	0	1	
+gimpel	programs/gimpel/PARAGRAP_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/PEEL_driver.sno	RC1	COMPILE_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/LPROG_driver.sno	SIG11	SIG11	4	3	
+gimpel	programs/gimpel/PERMS_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/PERMUTAT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/PHRASE_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/PHYSICAL_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/PLI_STMT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/POKER_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/POKEV_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/POL_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/PUSH_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/PUT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/QUEST_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/QUOTE_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/RAISE_driver.sno	PASS	PASS	0	1	
+gimpel	programs/gimpel/RAMM_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/RANDOM_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/RCHAR_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/MSORT_driver.sno	SIG6	COMPILE_FAIL	3	2	
+gimpel	programs/gimpel/READ_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/READL_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/REDEFINE_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/READRL_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/REORDER_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/REPL_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/RESOLUTI_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/REVERSE_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/REVL_driver.sno	RC1	RC1	0	0	
+gimpel	programs/gimpel/ROMAN_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/RPAD_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/ROTATER_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/RPOEM_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/RPERMUTE_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/RSEASON_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/RSEASON_lib_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/RSENTENC_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/RSELECT_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/RSTORY_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/RWORD_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/SKIM_driver.sno	PASS	PASS	0	1	
+gimpel	programs/gimpel/SNOPUT_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/SNOREAD_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/SPACING_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/SPELL_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/SQRT_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/SSORT_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/STACK_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/STATEF_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/STONE_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+gimpel	programs/gimpel/STRINGOU_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/SUBSTR_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/SWAP_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/SYSTEM_driver.sno	PASS	PASS	0	1	
+gimpel	programs/gimpel/TEMP_driver.sno	DIFF	DIFF	0	0	
+gimpel	programs/gimpel/TEST_driver.sno	RC1	COMPILE_FAIL	0	0	
+gimpel	programs/gimpel/TICTACTO_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/TIMEGC_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+gimpel	programs/gimpel/TIMER_driver.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+gimpel	programs/gimpel/TPROFILE_driver.sno	RC1	ASM_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/SEQ_driver.sno	SIG11	SIG11	2	1	
+gimpel	programs/gimpel/TR_driver.sno	SIG11	SIG11	2	2	
+gimpel	programs/gimpel/TREEREAD_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/TRIG_driver.sno	COMPILE_FAIL	COMPILE_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/TREE_driver.sno	SIG11	SIG11	2	2	
+gimpel	programs/gimpel/TSORT_driver.sno	RC1	RC1	0	0	
+gimpel	programs/gimpel/TUPLE_driver.sno	PASS	PASS	0	0	pin-only fatal-report
+gimpel	programs/gimpel/UPLO_driver.sno	PASS	PASS	0	0	
+gimpel	programs/gimpel/VISIT_driver.sno	RC1	COMPILE_FAIL	0	0	pin-only fatal-report
+gimpel	programs/gimpel/TRUNC_driver.sno	SIG11	SIG11	2	1	
+gimpel	programs/gimpel/PERM_driver.sno	SIG6	SIG6	12	6	
+gimpel	programs/gimpel/MINP_driver.sno	TIMEOUT	SIG6	20	17	
+misc	programs/aisnobol/BUILDLIB.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/aisnobol/HSORT.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/aisnobol/ENDING.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/aisnobol/ATN.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/aisnobol/SIR.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/aisnobol/KALAH.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/aisnobol/WANG.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/aisnobol/TEST.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/dotnet/asgn1.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/dotnet/1brc.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/dotnet/expr_parser_stub.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/dotnet/chap7.sno	PASS	PASS	0	0	
+misc	programs/dotnet/chap8_funcs.sno	PASS	PASS	0	0	
+misc	programs/dotnet/pattern_demo.sno	PASS	PASS	0	0	
+misc	programs/dotnet/SourceLines001.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=231
+misc	programs/dotnet/SourceLines002.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=139
+misc	programs/dotnet/SourceLines003.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=139
+misc	programs/dotnet/Test2.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=231
+misc	programs/dotnet/Test.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=231
+misc	programs/snobol4/bench/test_icon.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f01_core_labels_goto.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f02_string_ops.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f03_numeric.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f04_pattern_primitives.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f05_capture.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f06_builtins_predicates.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f07_keywords.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f08_data_array_table.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f09_functions.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f10_io_basic.sno	DIFF	DIFF	0	0	
+misc	programs/snobol4/feat/f11_io_file.sno	RC1	RC1	0	0	
+misc	programs/snobol4/feat/f12_load_unload.sno	DIFF	DIFF	0	0	
+misc	programs/snobol4/feat/f13_eval_code.sno	PASS	SIG11	0	1	
+misc	programs/snobol4/feat/f14_dyn_opt.sno	PASS	PASS	1	0	
+misc	programs/snobol4/feat/f14_opsyn.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f15_trace_dump.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/feat/f16_cli_switches.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f17_include.sno	PASS	PASS	0	0	
+misc	programs/snobol4/feat/f18_error_handling.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=231
+misc	programs/snobol4/feat/f19_real_numbers.sno	PASS	PASS	0	1	
+misc	programs/dotnet/code.sno	SIG11	SIG11	4	4	
+misc	programs/snobol4/feat/f20_alphabet_unicode.sno	PASS	PASS	0	0	
+misc	programs/snobol4/jvm_j3/dupl_test.sno	PASS	PASS	0	0	
+misc	programs/snobol4/jvm_j3/goto_f.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/snobol4/jvm_j3/input_test.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/snobol4/jvm_j3/goto_s.sno	PASS	PASS	0	0	
+misc	programs/snobol4/jvm_j3/remdr_test.sno	PASS	PASS	0	0	
+misc	programs/snobol4/linker/ancestor/ancestor_main.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/jvm_j3/size_test.sno	PASS	PASS	0	0	
+misc	programs/snobol4/linker/greet_main.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/linker/greet_lib.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_add_mul.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_chain_long.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_lassoc_div.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_lassoc.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_mixed_addsub.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_paren.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_pow_chain.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/arith_unary.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/assign_int.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/assign_mixed.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/assign_seq.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/assign_str.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/assign_var.sno	PASS	PASS	0	1	
+misc	programs/snobol4/parser/atom_id.sno	PASS	PASS	0	1	
+misc	programs/snobol4/parser/atom_int.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/binary_opsyn.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/atom_str.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/cf_bare_goto.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/snobol4/parser/cf_goto_computed.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/cf_goto_f.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/snobol4/parser/cf_goto_sf.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/snobol4/parser/blank_line.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/cf_goto_u.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/snobol4/parser/cf_label_bare.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/cf_label_only.sno	PASS	PASS	0	0	
+misc	programs/dotnet/palin.sno	TIMEOUT	TIMEOUT	20	20	
+misc	programs/snobol4/parser/concat_paren.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/concat_str.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/concat_two.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/cont_chain.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/cont_dot.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/cont_plus.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/defer_alt.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/defer_in_pat.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/defer_simple.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/fn_call_arith.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_expr_arg.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_in_pat.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_nested.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_one.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_str.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_three.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_two.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_call_zero.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/fn_define_labeled.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/fn_define_locals.sno	PASS	ASM_FAIL	0	0	
+misc	programs/snobol4/parser/fn_define_multi.sno	PASS	ASM_FAIL	0	0	
+misc	programs/snobol4/parser/fn_define_noargs.sno	PASS	ASM_FAIL	0	0	
+misc	programs/snobol4/parser/fn_define.sno	PASS	ASM_FAIL	0	0	
+misc	programs/snobol4/parser/fn_stmt.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/idx_in_assign_lhs.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/idx_multi.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/idx_nested.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/idx_simple.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/kw_fullscan.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/kw_lcase.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/kw_maxlngth.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/kw_ucase.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/mixed_comment_control.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_alt_in_pat.sno	PASS	PASS	1	0	
+misc	programs/snobol4/parser/pat_alt_paren.sno	PASS	PASS	0	0	
+misc	programs/dotnet/temp.sno	TIMEOUT	TIMEOUT	21	20	
+misc	programs/snobol4/parser/pat_alt_three.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_alt_two.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_any.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_arbno.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_break.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_cap_chain.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_cond.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_fence.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_immed.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_label_pat.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_len.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_notany.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_pos.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_repl_complex.sno	PASS	PASS	0	1	
+misc	programs/snobol4/parser/pat_repl_empty.sno	PASS	PASS	0	1	
+misc	programs/snobol4/parser/pat_repl.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_repl_with_goto.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_seq_three.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_seq_two.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_span.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/pat_with_goto.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/unary_assign.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/unary_indirect.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/semi_separator.sno	PASS	PASS	0	0	
+misc	programs/snobol4/parser/unary_not.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/smoke/beauty_compiled.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=1
+misc	programs/snobol4/parser/unary_name.sno	PASS	PASS	0	0	
+misc	programs/snobol4/smoke/expr_parser.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/smoke/empty_string.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=139
+misc	programs/snobol4/smoke/hello.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=139
+misc	programs/snobol4/smoke/null.sno	PASS	PASS	0	0	
+misc	programs/snobol4/smoke/multi.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=139
+misc	programs/snobol4/parser/cf_loop.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
+misc	programs/snobol4/parser/cf_label_assign.sno	ORACLE_FAIL	ORACLE_FAIL	0	0	sbl rc=0 fatal-report
