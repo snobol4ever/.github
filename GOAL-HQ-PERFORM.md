@@ -412,6 +412,33 @@ HQ cursors pushed ✅.** Baton criteria: **85/85 runnable** (gate `test_gate_bat
 after hq_C authored the last 13 and hq_P made **18 seat-root-hardcoded criteria root-relative** — they named
 `/home/claude_C`, so a seat would have graded its own row against hq_C's tree, a false GREEN not a deadlock.
 
+### ✅ PRE-FLIGHT COMPLETE — every Phase-0 item and every firing-gate condition, VERIFIED NOT ASSUMED (s259)
+| Phase 0 (`GOAL-CEO.md`) | state |
+|---|---|
+| 1. V2-1 picker (rank-sorted + `assign` + assigned-first `next`) | ✅ cross-verified s258 |
+| 2. Queue purge (DONE rows swept · blank line :145 · dead locks · dup rows) | ✅ **0 malformed rows measured** |
+| 3. V2-3 banner (HQ ✅-refusal on stale inbox · board age+topic) | ✅ hq_P, cross-verified by hq_C |
+| 4. V2-4 identity assert · census-by-mailbox · marooned mail · `ceo` remap | ✅ hq_P, cross-verified by hq_C |
+| 5. Top ~16 dispatchable rows batoned, **each DONE-WHEN demonstrated able to say NO** | ✅ **16/16 demonstrated** |
+| **Firing gate** | |
+| `fleet` shows 0 unanswered questions | ✅ **Q=0 every mailbox** |
+| every seat root passes the oracle preflight | ✅ **19/19 smoke-verified** (was **8/16**) |
+| both HQ cursors pushed | ✅ |
+
+⭐ **Item 5 was NOT met by "85 batons exist".** Measured: 34 carried prose (uncloseable), then 18 hardcoded
+`/home/claude_C` (a seat would have graded its own row against **hq_C's tree** — a false GREEN), then 9 more
+`cd`-ed away from the root and used a root-relative path, so they could only ever exit **127**. Each layer was
+invisible to the one before. Now **86/86 runnable** and the **top 16 demonstrated to say NO** — `says-YES=0`,
+`command-not-found=0`. Ratchet: `test_gate_baton_donewhen_runnable.sh`.
+⛔ **The 127 class was MY OWN regression** — my `/home/claude_C` strip did not account for an earlier `cd`.
+Cured with a **root-capture idiom** (`R="$PWD"; … "$R/SCRIP/scrip"`) so a `cd` cannot invalidate the paths.
+⛔ **My first demonstration script counted 127 as a legitimate NO** and hid it. A criterion must be checked for
+*why* it says no.
+⭐ **Two live findings fell out of actually running them:** `json-alternate-af-spin` **REPRODUCES** (rc=124,
+20 bytes out — the spin is real and current); `jstring-escape-dcap-pump-segv`'s SEGV **did not reproduce** on
+the minimal witness (`rc=0`, sensible output) — that row may be **STALE**; flagged to hq_C, not closed here.
+⛔ **V2-6 (Lon's flip) is the only rung left, and it is Lon's.**
+
 ### ⛔ STANDING CONSTRAINTS
 - **NO BEAUTY NUMBER AT `-O2`** (roman at `-O2` is fine and was verified this session; hq_C has localised the
   `-O2` defect to **two files of 261**, `rt.c` + `pattern_match.c`).
