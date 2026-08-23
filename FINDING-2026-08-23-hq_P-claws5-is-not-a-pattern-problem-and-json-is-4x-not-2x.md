@@ -97,3 +97,33 @@ git log --format='%h %p' -1 ce48e3bb             -> ce48e3bb 3342581a
 - The two new defects (`json-m3-m4-divergence-dcap-pump`, `json-gcstress7-segv`) stand and are hq_C's, accepted. They are **newly reachable, not newly broken** — hidden behind the hang, and they predate every s264 commit.
 
 ⭐ **seat01's own transferable finding, worth more than the flag:** the cure existed at **s190** behind `SCRIP_ALT_TAIL`, default OFF, while its sibling `sno_seq_tail()` — same mechanism — had been default-ON the whole time. Nobody flipped it, and hq_C re-derived the entire defect from scratch at s264 not knowing it was solved. ***"Cured but not landed" is a state this org does not track, and it cost a full re-derivation.***
+
+
+---
+
+## ⛔⭐ ADDENDUM 2 (s264, same session) — TWO INSTRUMENT LESSONS, AND A REVERTED CHANGE THAT IS WORTH MORE THAN THE 0.42% IT BOUGHT
+
+### A. ⛔ SELF-CORRECTION #2: `array_new` IS NOT A json LEVER. PROFILE THE **DELTA**, NEVER THE TOTAL.
+The cursor briefly named *"array_new is still 7.55% of json at ~1,766 Ir per call for ONE-element arrays"* as a rung. **Wrong, and wrong the same way the 14.7% claim was wrong.** Every hot-list I read came from an N=11 **total** profile, which carries process startup — and json's startup builds `vs`/`ks` at `ARRAY(262144)` each, so `array_new`'s fill loop over 536,576 descriptors swamps everything the iteration does. Differencing the N=1 and N=11 profiles gives the TRUE per-iteration cost, and it validates itself: `PROGRAM TOTALS` comes out at **8,110,738**, exactly the independently-computed slope.
+
+| per-iteration (N=11 minus N=1, ÷10) | Ir/iter | share |
+|---|---|---|
+| `try_call_builtin_by_name_bl` | 587,538 | 7.2% |
+| emitted `0x411fc7` | 581,600 | 7.2% |
+| emitted `0x406697'2` | 500,749 | 6.2% |
+| `patv_slot` | 294,784 | 3.6% |
+| `NV_SET_fn` | 253,700 | 3.1% |
+| `rt_call_arr_impl` | 218,564 | 2.7% |
+| `rt_call_arr_bl` | 187,734 | 2.3% |
+| **`array_new`** | **24,400** | **0.3%** |
+
+⭐ **THE RULE, AND IT IS THE SIBLING OF THE REBASE/BASELINE ONE: A TOTAL PROFILE IS NOT A PER-ITERATION PROFILE. Difference two N's, exactly as you difference two N's for the ratio — a hot-list read off a single run's totals attributes startup to the kernel.** I published a wrong rung off that mistake twice before catching it.
+⭐ **THE REAL CROSS-CUTTING LEVER IS CONFIRMED:** the by-name dispatch cluster (`try_call_builtin_by_name_bl` + `rt_call_arr_impl` + `rt_call_arr_bl` + `dtax_off`) is **≈12.7% of json per iteration** and ~9% of claws5. It is the one target that pays on BOTH of Lon's demos. `dat_find_type` is only 12,000 Ir/iter, so the dtax cache IS hitting — the cost is the dispatch scaffolding, not the datatype probe.
+
+### B. ⛔⛔ REVERTED: `always_inline` ON THE `core/core.h` PREDICATES BREAKS DEFERRED CAPTURE
+Same-tree A/B at `6f186c689` (stash / rebuild / measure / restore — both arms one tree, per the rule above):
+- **Perf:** claws5 66,341,613 → 66,061,435 (**−0.42%**), json 21,988,636 → 21,952,346 (−0.17%). Real but marginal.
+- ⛔ **Gate:** corpus m3 359/1 → **356/4**, three NEW reds — `058_capture_dot_immediate`, `059_capture_dollar_deferred`, `060_capture_multiple` — and **M3 wall time 4s → 402s**. Reverting and re-running the corpus on the identical tree returned 359/1 at 4s, so **the regression was mine, not the pull.** Change DROPPED, not committed.
+
+⭐ **WHY THIS IS A FINDING AND NOT JUST A FAILED PATCH, AND IT IS hq_C's CLASS:** inlining 14 one-line tag predicates cannot change what they compute. What it changes is **where descriptors live** — a real call forces them to memory; inlined, they stay in registers. Three DEFERRED-CAPTURE tests then fail and m3 slows 100x. That is the signature of a value the **GC's stack scan can no longer see or repair**, which is exactly the territory of the s263 no-pin rooted GC (precise roots, full slide, registered `(block,offset)` slots). ⛔ **The transferable warning: `always_inline` in this runtime is not a semantics-free optimisation — it can hide a live descriptor from the collector.**
+⛔ **AND IT PUTS MY OWN LANDED `descr.h` SWEEP UNDER SUSPICION.** That one (`ce48e3bb`) gated green twice, including a full corpus at 359/1, so there is no evidence against it — but it is the same mechanism, and if a capture/GC red ever appears near it, **that is the first thing to revert and re-measure.** Routed to hq_C as a class, not as a bug report.
