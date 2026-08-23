@@ -7,17 +7,17 @@
 
 ## THE RESULT
 
-⛔⛔⭐ **REPORTED IN THE FORM LON RULED THE SAME SESSION (s266 FACT RULE, `.github/RULES.md`): ONE AXIS, ONE WORD, DECLARED ONCE.** The multiple is `SPITBOL / SCRIP` — one divisor, **above 1 faster, below 1 slower** — and the word lives in the header, never both words down a column.
-**SHARED AXES:** callgrind **Ir**, **SLOPE** basis (N=k minus N=1 — no totals, no startup), **RT_OPT=`-O0`**, SCRIP **mode-4 native**, ζ **cell-stack**, oracle `/home/resources/spitbol-bench-oracle/sbl -bf -d512m -i64m -s16m`, every arm output-diffed against its `.ref`. Input is per-row; all three rows are throughput runs on the real corpus file, no grading `.input` run.
+⛔⛔⭐ **REPORTED IN THE RULED FORM (s266 FACT RULE, `.github/RULES.md`): THE UNIT IS `x`, A MULTIPLE, ON THE FASTER AXIS.** Multiple = `SPITBOL / SCRIP`; `2.00x` is twice SPITBOL's speed, `0.50x` half. The number is the direction — no word attached.
+**SHARED AXES:** callgrind **Ir**, **SLOPE** basis (N=k minus N=1 — no totals, no startup), **RT_OPT=`-O0`**, SCRIP **mode-4 native**, ζ **cell-stack**, oracle `/home/resources/spitbol-bench-oracle/sbl -bf -d512m -i64m -s16m`, every arm output-diffed against its `.ref`. Input is per-row; all three rows are throughput runs on the real corpus file.
 
-| workload | SPITBOL Ir/iter | SCRIP before | SCRIP after | **× FASTER than SPITBOL, before → after** |
+| workload | SPITBOL Ir/iter | SCRIP before | SCRIP after | **× vs SPITBOL, before → after** |
 |---|---|---|---|---|
-| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 0.590 → **0.734** |
-| **json** (631,514-byte json.dat) | 70,808,401 | 232,405,141 | **167,757,920** | 0.305 → **0.422** |
-| claws5 grammar only (`-match`) | 1,770,544 | 1,087,882 | 1,087,891 | 1.628 → **1.628** |
+| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 0.590x → **0.734x** |
+| **json** (631,514-byte json.dat) | 70,808,401 | 232,405,141 | **167,757,920** | 0.305x → **0.422x** |
+| claws5 grammar only (`-match`) | 1,770,544 | 1,087,882 | 1,087,891 | 1.628x → **1.628x** |
 
-−19.6% and −27.8% of our own instruction count. ⛔ **The ruled target is `2.000`–`3.000` on that column; we are at 0.734 and 0.422** — claws5 needs 18.0M Ir/iter and json 35.4M to reach 2.000.
-⛔ **`beauty` is NOT in this table and must never be added to it:** it is one shot, a whole-program TOTAL carrying process startup, and a total may not share a column with a slope. RUNG P-0 below carries it in its own grid for that reason.
+⭐ **24.3% faster** than we were on claws5 (instruction count −19.6%) and **38.5% faster** on json (−27.8%). ⛔ **The ruled target is `2.00x`–`3.00x`; we are at `0.734x` and `0.422x`** — another 2.72x on claws5 and 4.74x on json.
+⛔ **`beauty` is NOT in this table and must never be added to it:** one shot, a whole-program TOTAL carrying process startup, and a total may not share a column with a slope. RUNG P-0 carries it in its own grid for that reason.
 
 ## ⭐⭐ THE INSTRUMENT FIRST: json's REAL INPUT IS CALLGRIND-MEASURABLE, AND THE FINDING THAT SAID OTHERWISE WAS WRONG ABOUT THE MECHANISM
 
@@ -70,7 +70,7 @@ Every commit gated on a **`make pristine` EXIT=0** build: corpus **m3 359/1, m4 
 
 Object-file split of the slope, which is the number that decides strategy:
 
-| | claws5 49.0M (0.734 FASTER) | json 167.8M (0.422 FASTER) |
+| | claws5 49.0M (0.734x) | json 167.8M (0.422x) |
 |---|---|---|
 | **runtime `libscrip_rt.so`** | **77.8%** | **63.1%** |
 | emitted BB code | 17.2% | 32.5% |

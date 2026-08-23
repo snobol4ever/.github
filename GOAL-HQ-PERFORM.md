@@ -1,5 +1,8 @@
 # ⛔⭐⭐⭐⭐ GOAL-HQ-PERFORM — HEADQUARTERS FOR **SPEED**
 
+> ⛔⛔⭐ **READ THIS BEFORE YOU QUOTE ANY NUMBER IN THIS FILE — s266 FACT RULE, `.github/RULES.md` § FACT RULES.** **THE UNIT IS `x`, A MULTIPLE, ON THE FASTER AXIS: `reference / ours`.** `2.00x` is twice the reference's speed; `0.50x` is half. ⛔ **The words FASTER and SLOWER are NOT UNITS and never attach to a multiple** — `0.666 slower` is self-contradictory, because *slower* has its own multiple (`1.5x as slow`), so the phrase names two answers at once; `2x slower` is the same disease from the other side. ✅ Percentages, and only percentages, may take the word: *10% faster* = `1.10x`, *10% slower* = `0.90x`. ⭐ **The s266 sections below (LIVE CURSOR and RUNG P-0) are in the ruled form.** ⛔ **Everything older in this file is NOT** — it was written under the retired convention and still says things like "8.4x slower", "7.08x slower → 5.87x slower", "`-O0` C runs 2–4x slower". **Left unedited as the record of what was measured; read those numbers, never their form, and restate anything you carry forward as `1 / old` — which is legitimate only where the old orientation was stated.**
+
+
 **Opened 2026-08-22 s256 by Lon, in-chat, verbatim in substance:** *"the second HQ for SPEED PERFORMANCE for the same three and the same priority."* · The product promise is **TEN TIMES FASTER**.
 
 **Seat root:** `/home/claude_P` · **postoffice identity:** `hq_P` · **twin:** `GOAL-HQ-COMPLETE.md` (`/home/claude_C`, `hq_C`)
@@ -30,19 +33,20 @@ work itself now.**
 
 **WHERE THEY STAND — callgrind Ir at fixed work, SLOPE method, RT_OPT=`-O0`, SCRIP m4 native vs `/home/resources/spitbol-bench-oracle/sbl -bf`, ⭐ BOTH ENGINES ON THE REAL CORPUS INPUT, output diffed against `.ref` on every arm:**
 
-⛔⛔⭐ **REPORTED IN THE RULED FORM (Lon s266 FACT RULE): ONE AXIS, ONE WORD, DECLARED ONCE.** The multiple is `SPITBOL / SCRIP`, so **above 1 is faster, below 1 is slower**, and the word sits in the header — never both words down a column.
-**SHARED AXES (this is the line that makes it one grid):** callgrind **Ir**, **SLOPE** basis (N=11 minus N=1, ÷10 — no totals, no startup), **RT_OPT=`-O0`**, SCRIP **mode-4 native**, ζ **cell-stack** (default), oracle **`/home/resources/spitbol-bench-oracle/sbl -bf -d512m -i64m -s16m`**, every arm output-diffed against its `.ref`. Input is per-row and all three are throughput `.dat`/corpus runs — no grading `.input` run appears here.
+⛔⛔⭐ **REPORTED IN THE RULED FORM (Lon s266 FACT RULE): THE UNIT IS `x`, A MULTIPLE, ON THE FASTER AXIS.** Multiple = `SPITBOL / SCRIP`. `2.00x` is twice SPITBOL's speed, `0.50x` is half. **The number is the direction — no word is attached to it.**
+**SHARED AXES (the line that makes it one grid):** callgrind **Ir**, **SLOPE** basis (N=11 minus N=1, ÷10 — no totals, no startup), **RT_OPT=`-O0`**, SCRIP **mode-4 native**, ζ **cell-stack** (default), oracle **`/home/resources/spitbol-bench-oracle/sbl -bf -d512m -i64m -s16m`**, every arm output-diffed against its `.ref`. Input is per-row; all three are throughput runs on the real corpus file — no grading `.input` run appears here.
 
-| workload | SPITBOL Ir/iter | SCRIP at session start (tree `1c8f6bb8`) | SCRIP now (tree `2037a02f`) | **× FASTER than SPITBOL, start → now** |
+| workload | SPITBOL Ir/iter | SCRIP at session start (tree `1c8f6bb8`) | SCRIP now (tree `2037a02f`) | **× vs SPITBOL, start → now** |
 |---|---|---|---|---|
-| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 0.590 → **0.734** |
-| **json** (631,514-byte json.dat) | 70,808,401 | 232,405,141 | **167,757,920** | 0.305 → **0.422** |
-| claws5 grammar only (`-match`, zero captures) | 1,770,544 | 1,087,882 | 1,087,891 | 1.628 → **1.628** |
+| **claws5** (66,757-byte CLAWS5inTASA) | 35,979,478 | 60,935,438 | **49,020,916** | 0.590x → **0.734x** |
+| **json** (631,514-byte json.dat) | 70,808,401 | 232,405,141 | **167,757,920** | 0.305x → **0.422x** |
+| claws5 grammar only (`-match`, zero captures) | 1,770,544 | 1,087,882 | 1,087,891 | 1.628x → **1.628x** |
 
-⛔ **LON'S TARGET IS `2.000`–`3.000` ON THIS COLUMN.** We are at **0.734** and **0.422**. −19.6% and −27.8% of our own instruction count this session moved 0.590→0.734 and 0.305→0.422; the remaining distance is 2.7x on claws5 and 4.7x on json.
-⭐ Read row 3 against row 1 on the one scale: the **pattern engine alone is 1.628**, so the entire deficit is the deferred action plus the runtime services.
-⛔ **COLUMN LABELS ARE TREES, NOT SESSIONS, AND DELIBERATELY SO.** The "session start" column is this seat's OWN baseline measured at s266 on the pre-session tree — it is NOT what s264 published. s264 published claws5 61,233,041 and json **8,110,738**, and that json figure was the 400-nested-single-member-object PROXY, a different workload from the 631 KB document here. Heading that column "s264" (which an earlier revision of this file did) attributes this seat's measurements to a session that never took them and silently equates two different workloads.
-⛔ **claws5-match was re-measured on the current tree, not carried over.** An earlier revision of this table copied s264's 1.63 into the "now" column without measuring it; it happens to hold (1,087,891 / 1,770,544 = 1.628) but that was luck, not method.
+⛔ **THE RULED TARGET IS `2.00x`–`3.00x`. WE ARE AT `0.734x` AND `0.422x`** — claws5 needs another **2.72x** from here and json another **4.74x**.
+⭐ **What this session bought, as a percentage of what we were:** claws5 **24.3% faster** than at session start (instruction count −19.6%), json **38.5% faster** (−27.8%).
+⭐ Read row 3 against row 1 on the one scale: the **pattern engine alone is `1.628x`**, so the whole deficit is the deferred action plus the runtime services.
+⛔ **COLUMN LABELS ARE TREES, NOT SESSIONS, DELIBERATELY.** The "session start" column is this seat's OWN baseline, measured at s266 on the pre-session tree — it is NOT what s264 published. s264 published claws5 61,233,041 and json **8,110,738**, and that json figure was the 400-nested-single-member-object PROXY: a different workload from the 631 KB document here, and the two may never share a grid.
+⛔ **claws5-match was re-measured on the current tree, not carried over.** An earlier revision copied s264's figure into the "now" column without measuring it. It happens to hold (1,087,891 / 1,770,544 = 1.628x) — that was luck, not method.
 
 ⭐⭐ **FULL EVIDENCE, METHOD, THE SIX LANDED CURES AND THE RANKED NEXT RUNGS:** `FINDING-2026-08-23-hq_P-claws5-1.36x-json-2.37x-four-per-call-resolutions-the-compiler-already-knew.md`. **Start there, do not re-derive it.**
 
@@ -110,21 +114,23 @@ Measured s256, identical fixed work, both engines, `make pristine` EXIT=0 at `26
 ⭐ **RESTATED s266 IN THE RULED FORM.** Pure arithmetic on the s256 numbers (`new = 1 / old`) — nothing re-measured, legitimate only because the old orientation WAS stated.
 **SHARED AXES:** callgrind **Ir**, **per-iteration fixed-work** basis, **RT_OPT=`-O0`**, SCRIP **mode-4 native**, oracle `sbl -bf`, tree `2659558e`, `make pristine` EXIT=0. Five microbenchmark kernels, each on its own input, all throughput runs.
 
-| workload | Ir/iter SCRIP | Ir/iter SPITBOL | **× FASTER than SPITBOL** | (was written) |
+| workload | Ir/iter SCRIP | Ir/iter SPITBOL | **× vs SPITBOL** | (was written) |
 |---|---|---|---|---|
-| `var_access` | 529 | 808 | **1.527** | "1.52x FASTER" |
-| `arith_loop` | 398 | 439 | **1.103** | "1.10x FASTER" |
-| `table_access` | 997,130 | 359,532 | 0.361 | "2.8x slower" |
-| `string_manip` | 3,123 | 842 | 0.270 | "3.7x slower" |
-| `roman` | 67,170 | 7,966 | ⛔ **0.119** | "8.4x slower" |
+| `var_access` | 529 | 808 | **1.527x** | "1.52x FASTER" |
+| `arith_loop` | 398 | 439 | **1.103x** | "1.10x FASTER" |
+| `table_access` | 997,130 | 359,532 | 0.361x | "2.8x slower" |
+| `string_manip` | 3,123 | 842 | 0.270x | "3.7x slower" |
+| `roman` | 67,170 | 7,966 | ⛔ **0.119x** | "8.4x slower" |
 
-⛔ **AND A SEPARATE TABLE, BECAUSE IT IS A DIFFERENT BASIS AND MAY NOT SHARE A COLUMN WITH THE FIVE ABOVE.** beauty is **one shot** — it formats a document once, there is no iteration and therefore no slope. These are whole-program **TOTALS** with compile excluded, so they carry process startup that every row above has subtracted:
+⛔ **A SEPARATE TABLE, BECAUSE IT IS A DIFFERENT BASIS AND MAY NOT SHARE A COLUMN WITH THE FIVE ABOVE.** beauty is **one shot** — it formats a document once, there is no iteration and therefore no slope. These are whole-program **TOTALS** with compile excluded, so they carry the process startup every row above has subtracted:
 
-| workload | Ir TOTAL SCRIP | Ir TOTAL SPITBOL | **× FASTER than SPITBOL** | (was written) |
+| workload | Ir TOTAL SCRIP | Ir TOTAL SPITBOL | **× vs SPITBOL** | (was written) |
 |---|---|---|---|---|
-| beauty runtime (one shot, total) | 2,129,544,838 | 228,082,817 | ⛔ **0.107** | "9.34x slower" |
+| beauty runtime (one shot, total) | 2,129,544,838 | 228,082,817 | ⛔ **0.107x** | "9.34x slower" |
 
-⛔⛔ **THIS TABLE IS WHY THE RULE EXISTS, AND IT BROKE THE RULE TWICE.** (1) At s256 its verdict column ran in **two opposite directions** — rows 1–2 `spitbol/scrip`, rows 3–6 `scrip/spitbol` — so a 1.52 printed above a 2.8 read as the smaller number when it was the only winning row. (2) The first s266 restatement fixed the divisor and then published **`FASTER` and `SLOWER` down one column**, kept beauty's **TOTAL** in a column headed `Ir/iter` beside five **SLOPES**, and quoted `1.527 → 0.107` as "a 14x range" — ⛔ **there is no such range: its endpoints are on different bases.** The five kernels above span **1.527 → 0.119, a 12.8x range**, and that one is real.⭐ **THE SHAPE, AND IT IS THE WHOLE STRATEGY: SCRIP is good at exactly what real programs don't do, and bad at exactly what they do.** Scalar and register-resident work — the BB codegen — genuinely beats SPITBOL. Tables, strings, and whole realistic programs lose by 3–8x.
+⛔⛔ **THIS TABLE IS WHY THE RULE EXISTS, AND IT BROKE EVERY DRAFT OF IT IN TURN.** (1) At s256 the verdict column ran in **two opposite directions** — rows 1–2 `spitbol/scrip` ("1.52x FASTER"), rows 3–6 `scrip/spitbol` ("2.8x slower") — so a 1.52 printed above a 2.8 read as the smaller number when it was the only winning row. (2) The first s266 restatement fixed the divisor and then printed `FASTER` and `SLOWER` **down one column**, kept beauty's **TOTAL** in a column headed `Ir/iter` beside five **SLOPES**, and quoted `1.527 → 0.107` as "a 14x range" — ⛔ **no such range exists; its endpoints are on different bases.** (3) The second still used the words as UNITS, which is what Lon struck: `0.666 slower` names two answers at once, because *slower*'s own multiple is 1.5x. **The unit is `x`.** The five kernels span **`1.527x` → `0.119x`**, a 12.8x spread, and that one is real.
+
+⭐ **THE SHAPE, AND IT IS THE WHOLE STRATEGY: SCRIP is good at exactly what real programs don't do, and bad at exactly what they do.** Scalar and register-resident work — the BB codegen — genuinely beats SPITBOL. Tables, strings, and whole realistic programs lose by 3–8x.
 
 ⭐ **THE 10x IS NOT BLOCKED ON CODEGEN.** Emitted code already wins where measured directly. **Every remaining multiple lives in the RUNTIME SERVICES the emitted code calls out to.** Further box-template tuning improves the one bucket already winning. (⚠️ The older *"emitted code is 0.64% of Ir"* ranking remains true for the compile-dominated m3 beauty measurement it was taken on — it is not the general fact.)
 
