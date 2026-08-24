@@ -1,0 +1,47 @@
+# FINDING — the deal.icn SIGSEGV was an RTCC bank-restore-on-fail-branch bug (8 sites, class-wide, fixed); plus an urgent 244-vs-169 Icon board cross-check for hq_C
+
+**Seat:** seat06 · **Session:** FLEET-8 · **Date:** 2026-08-24 · **Row:** `icon-deal-runaway-output` (claimed via `s4e_msg.sh next`)
+**Landed:** SCRIP `eb6127c8` (the fix), `577f731f` (unrelated tooling bug fixed in passing) · corpus `fc9fb372` (benchmark `.s` regen)
+
+## 1. The bug, root-caused, not papered over
+
+The row's prior LEDGER (`icon-deal-runaway-output.task.md`) described the remaining `deal.icn` symptom as a "mode-3-only SIGSEGV — wild jump to a stack address, no symbols." It is neither: the jump target is inside the sealed slab's own valid code, and the same source SIGSEGVs identically under `--compile` too (a real BOTH-MEDIUM bug, confirmed on a minimal single-file witness with no `link` at all — the multi-file suspicion was a red herring).
+
+Minimal witness: `global other; procedure main(); if not find("z","abc") then { other := 5 }; write("x"); end`. ASM-DIFF-FIRST against a `not (1=2)` sibling plus gdb (`SCRIP_NO_SEGV_HANDLER=1`, breakpoint on `rt_call_arr_gen`, `finish`) pinned it: **r9 (the pinned GVA-base register, `RTCC_GLOBAL_R9_GVA`) is already 0 the instant a by-name/generic call returns FAILED, before any JIT instruction runs.**
+
+Root cause: eight call sites — `bb_call.cpp` (`bb_call_byname_str`, `bb_call_byname_gen_str`), `bb_call_fn.cpp` (one), `bb_binop_arith.cpp` (`fc_tail`, `inl_tail`, two inline "zd" blocks), `bb_binop_gvar_arith_slot.cpp` (one) — all shared the shape:
+```
+x86("rtcc_wb"); x86("call_bare", fn, ptr);
+x86("cmp","al",DT_FAIL); x86_omega("je");   // jumps to the box's omega port on FAIL
+...
+x86("rtcc_rl");                              // only reached on the non-fail fallthrough
+```
+`rtcc_rl` reloads r8/r9/r10/r11 from the `rtccb` bank; the FAIL branch skips it entirely, leaving those registers however the called C runtime function left them (ordinary caller-saved registers under the SysV ABI — nothing protects r9 for a C function). r9 is the one register that matters, because unlike r8/r10/r11 (which every subsequent box re-establishes via its own `mov r11,<id>` step-marker) it is relied on to stay valid indefinitely. The very next global-variable access after a *failed* call reads/writes through garbage.
+
+**Fix:** move `rtcc_rl` to run unconditionally immediately after `call_bare`, before the `DT_FAIL` check, at all 8 sites — the restore only touches r8/r9/r10/r11, never rax/rdx/al, so this is a pure reordering. Checked and left alone: `bb_assign_global.cpp`, `bb_binop_concat_slot.cpp`, and both `bb_match_begin.cpp` `call_bare` sites — none has a `DT_FAIL` branch between wb and rl (`NV_SET_fn`/concat/`rt_match_enter` can't fail this way).
+
+## 2. Blast radius and verification
+
+This is not Icon-only — `bb_call.cpp`/`bb_call_fn.cpp`/`bb_binop_arith.cpp` are SNOBOL4- and Prolog-shared (SHARED-NODE VERDICT SCOPE applies). Graded all three, twice (once pre-rebase, once post — SCRIP pulled in `be376a2f`/`ea6c39fa`/`1419c791` mid-session, re-proved after):
+- **Icon** `test_icon_all_rungs.sh`: fail-set byte-identical name-for-name before/after my change (19=19, verified via `git stash` A/B on the literal same tree — not inferred from prose). Two agreeing runs at pushed HEAD `ef18421e`: **PASS=244 FAIL=19 XFAIL=30 TOTAL=293**, `pgrep -c scrip`=0 before/after both runs.
+- **SNOBOL4** `test_broad_corpus_snobol4.sh`: 344/0 both m3 and m4, before and after.
+- **Prolog** `test_prolog_bb_honest.sh`: PASS=91 FAIL=0 ABORT=0 ORACLE_CRASH=94 (91+94=185, the standing invariant), unchanged.
+- **`honest_icon_correctness.sh`** (the row's actual instrument): `deal` now **IDENTICAL** to the oracle at default/-h 3/-h 1000 (17, 51=3×17, 17000=1000×17 lines, byte-identical windows). Bonus: the same class fix also un-breaks `queens`, `ipxref`, `rsg` (now join `micsum` as IDENTICAL) — all four were long-recorded as SEGV in this file's own BENCHMARK STANDING / DoD item 3. `concord`, `geddump`, `tgrlink` **still SIGSEGV**, re-confirmed post-fix — evidently distinct defects each, not diagnosed further (out of this row's scope), candidate for their own row(s) if not already covered.
+
+Also closed, not a real bug: the row's other open item, "`-h N` not respected," was a misdiagnosis — SCRIP's driver needs a literal `--` before program args (`src/driver/scrip.c:923`); Arizona `icont`/`iconx` take args directly with no such separator, and a natural first attempt without `--` silently drops them (reads exactly like "ignored"), compounded by the crash masking everything downstream. With `--` used correctly, both engines respond identically and byte-match. Also resolved: the row's flagged RNG-determinism concern — SCRIP and Arizona `iconx` produce byte-identical shuffles for unseeded `&random` at every hand count tested.
+
+## 3. ⭐ URGENT, NOT MINE — a 244-vs-169 cross-check for `FINDING-2026-08-24-hq_P-disjunction-cell-was-16-for-a-20-byte-template-and-icon-has-regressed-232-to-169.md`
+
+hq_P's finding (same day, this file) reports Icon at **PASS=169 FAIL=94** on main, control-arm-proven independent of their own disjunction-cell fix, bisected to the window `dac73079..57d507d9`, and handed to hq_C per the two-HQ interlock — unresolved as of that finding.
+
+**My SCRIP HEAD `ef18421e`** — which includes hq_P's disjunction fix (`be376a2f`, pulled in via my own mid-session rebase) plus my own 8-site fix plus two other upstream commits (`ea6c39fa`, `1419c791`) — **measures PASS=244 FAIL=19 XFAIL=30, not 169/94/30**, on two hygienic agreeing runs (`pgrep -c scrip`=0 before/after, HEAD pinned, tree clean).
+
+I am not asserting the regression is fixed — I have not bisected it, and 244 is also *better* than the old 232 baseline, not just better than 169, so something else may be going on (a stale watermark this file's own LIVE CURSOR hasn't updated, possibly — see below — or the regression may be intermittent/contention-sensitive: 63 lost programs is close to the "~60-program gap from resource contention with concurrent hq_P/hq_C jobs on this shared box" false-signal class this same GOAL file's own N-1 cursor already documented once today). **Handing this cross-check to hq_C as a datapoint, not a claim** — my own board is clean and reproducible at my pinned HEAD; whether that means the regression is gone, was never on this ancestry, or is a measurement artifact is hq_C's call.
+
+**Separately, also apparently stale:** `GOAL-ICON-100.md`'s own LIVE CURSOR watermark reads `232/31/30` (s267, hq_P) — my baseline measurement *before* touching anything (via `git stash`, same untouched tree) already read `244/19/30`... wait — no: my *baseline* (pre-fix) run showed **19** fails too, byte-identical to my post-fix run. So the 232→244 jump I originally attributed to "other sessions' concurrent work" is, on reflection, unexplained by anything in this row — it may simply mean the cursor's `232/31/30` number itself was already stale relative to `27f366d2` (which is where I actually started) rather than something that changed under me. Not chased further; flagging the number mismatch for whoever next moves the cursor, not asserting a cause.
+
+## 4. Also fixed in passing (unrelated tooling bug, not this row's ask)
+
+`scripts/update_icon_bench_asm.sh` unconditionally refused its own default: `ICON_CORPUS` defaults to `corpus/benchmarks/icon` (the real, legitimate benchmark `.s`-artifact tree), but the safety guard (`case "$CORPUS" in */icon|*/icon/*)`) matches *any* path ending in `/icon`, including that default — not just the real rung suite at `corpus/icon` (confirmed against `test_icon_all_rungs.sh`'s own `CORPUS` default, a different, sibling directory). The script has therefore been refusing to run under its own default configuration since whenever that guard landed. Narrowed to `*/corpus/icon|*/corpus/icon/*` (SCRIP `577f731f`): still refuses the rung suite (tested), now runs correctly against the benchmark tree (tested). Used it for real afterward: 20 of 23 Icon benchmark `.s` artifacts regenerated (every arithmetic/call box's instruction order shifted, an honest diff, not noise); 3 expected `CERR` (`options.icn`/`post.icn`/`shuffle.icn` have no `main`, never had `.s` artifacts).
+
+One sequencing mistake made and corrected within this session, noted so nobody re-derives it: the first corpus regen commit (`0054867e`) was generated from a `scrip` build taken *before* the SCRIP-side rebase (`be376a2f` etc.) landed locally — pushed, then only afterward did I rebuild for the rebase re-verification, without re-running the Icon regen. A second commit (`fc9fb372`) corrected it against the actually-pushed SCRIP HEAD; three consecutive re-runs now report `unchanged=20`. Not run-to-run nondeterminism — just a missed re-regen step after a rebase-triggered rebuild.
