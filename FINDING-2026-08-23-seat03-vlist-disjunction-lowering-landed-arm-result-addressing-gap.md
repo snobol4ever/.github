@@ -147,8 +147,15 @@ values need real stack discipline to avoid colliding with siblings — this is g
 but it means the arm's OWN result cell gets released before `dj` reads it, which the current shared-landing
 design was never built to handle.
 
-**Two candidate fixes, NEITHER attempted or verified — this needs its own dedicated session, not a rushed
-patch, per this row's own repeated lesson about not shipping silent-wrong-value fixes:**
+**UPDATE, same session: candidate direction (A) below WAS attempted in full** — see "SECOND ATTEMPT" further
+down. It works for the arm-result half of the problem (four bugs found and fixed there, all verified), but
+uncovered a FOURTH, deeper layer at `dj`'s own boundary that direction (A) alone does not resolve. Read that
+section before starting a third attempt; direction (B) (or making `dj` itself zd-armed, which the deeper layer
+now points at directly) is probably the more principled path forward.
+
+**Two candidate fixes, as originally written (before the second attempt above found direction A incomplete) —
+this needs its own dedicated session, not a rushed patch, per this row's own repeated lesson about not shipping
+silent-wrong-value fixes:**
 
 - **(A) Make the result read zd-relative instead of flat.** Change `flat_drive_match_alt`'s `IR_DISJUNCTION`
   branch to compute `op_parts_ival[j]` as a delta from `dj`'s own zd-depth to the result node's zd-depth
@@ -243,6 +250,115 @@ top-level code actually needs). Did not re-confirm this by measuring `v05`'s own
 row's ~20KB witness threshold — flagging the connection for whoever picks up either row rather than chasing it
 here, since conflating two rows' evidence in one FINDING is exactly the kind of provenance blur this project has
 been bitten by before.
+
+## SECOND ATTEMPT (same session, after the ADDENDUM below was written) — three MORE bugs found and fixed,
+## a FOURTH discovered and NOT fixed — reverted again, this is now a four-layer problem, not a one-line gap
+
+Went back in with all four pieces from the FINDING body above (host-recognition + admission, the arm-seed
+`_wzdepth` fix, the `gin`/`oin` override) PLUS a new attempt at the `disj_sigma_copy` addressing gap (candidate
+direction A). Full diffs below; all reverted again. **Do not reapply piecemeal without reading this whole
+section — each fix in isolation makes a DIFFERENT symptom visible, and it is easy to mistake "the symptom
+changed" for "it's fixed."**
+
+**Bug 3 (this round) — the arm-seed pop amount was absolute, not arm-relative, so it over-popped into
+preceding LIVE siblings.** The very first re-test (`corpus/probe/vlist_select/v01_select_min.sno`:
+`OUTPUT = 'a=[' (IDENT(x) 0, 5) ']'`) lost the LITERAL `'a=['` — not just the VLIST's own value. Root cause:
+when a VLIST is not the entire right-hand side of a statement but embedded inside a larger expression, whatever
+precedes it in the same run (here, the `'a=['` literal) has already done its own real `sub rsp` and is still
+live, waiting for the enclosing concat to read it later. My Bug-1-fixed `_wzdepth = zout[i]` (used as the real
+pop amount) is an ABSOLUTE depth from the run's own start — popping by that full amount from an arm member
+releases not just the arm's own accumulated cells but the preceding sibling's too. Fix: subtract the arm's own
+seed first — `_wzdepth = zout[i] - (zout[zarm[i]] - zd_k(nodes[zarm[i]]))`. Verified: `'a=['` survives with this
+fix; confirmed by hand-tracing the exact byte arithmetic against the emitted `.s` (documented in-session, not
+reproduced here for space — the `add rsp, 64` in `n16_lit_integer_α`'s exit correctly lands back at the
+disjunction's own resting depth, not the run's absolute zero, once this correction is in).
+
+**Bug 4 (this round) — `disj_sigma_copy`'s "does this arm have a value" gate treats ANY negative offset as
+"no value, skip the copy."** Direction A's negative zd-relative offsets (Bug 3 above makes them correctly
+negative — an arm's result sits below the landing's post-release rsp) get silently swallowed by the template's
+existing `IF(_.op_parts_ival[i] >= 0, ...)` gate, which predates this work and exists to skip genuinely
+resultless arms (a control-flow-only arm whose `sno_arm_result`/`icn_arm_result` filter returned `NULL`, so
+`rj` is a null pointer — a real, distinct case). Fixed by introducing an unambiguous sentinel
+(`ZD_DJ_NO_RESULT`, a `#define` in `emit.h` beside the file's existing byte/opcode constants, not a new
+variable) instead of overloading `-1`/sign, and changing the gate to `!= ZD_DJ_NO_RESULT`. Verified via asm:
+the copy code now emits (`mov rax, [rsp + -64]` / `[rsp + -16]` for the two arms in `v01`), and BOTH offsets were
+confirmed by hand to match exactly where each arm's own result write landed, given Bug 3's fix.
+
+**Bug 5 (this round, NOT FIXED, why this attempt was reverted again) — `dj` itself is flat-addressed, and flat
+addressing is only self-consistent when nothing precedes `dj` in the same run.** With bugs 1-4 all fixed and
+independently verified correct by hand-arithmetic (both offsets land exactly where expected), the VLIST's own
+value was STILL wrong. Traced fully: `dj` is dispatched through `flat_drive_match_alt`'s special host path
+(`emit.cpp` ~2976, a `continue` that bypasses the normal per-node zd-armed emission entirely), so `dj`'s own
+cell is ALWAYS written/read via its flat, permanent `op_off` — valid only when the real `rsp` equals the whole
+function's baseline (net zero real pushes) at the moment `dj`'s code executes. That is true when nothing
+precedes the VLIST in its run (`vl_alt_second.sno`'s case) but false the moment something does (`'a=['` in
+`v01`): at the point `dj`'s α runs, `'a=['` has already done a real `sub rsp,16` and is still live, so `rsp` is
+16 bytes off the function baseline, and `dj`'s `[rsp+80]` writes 16 bytes away from where `op_off=80` is
+*supposed* to mean. Meanwhile, the code that later CONSUMES `dj`'s value (the enclosing concat's own binop, an
+ordinary zd-armed node) reads it via a completely different, self-consistent mechanism — a zd-relative delta
+(`g_zd_read[]`, `zd_out[consumer] - zd_out[dj]`) that assumes `dj`'s value lives wherever the *delta* implies
+relative to the *current* rsp, not wherever the *flat* number implies relative to the *function baseline*.
+These two addressing conventions — `dj`'s own flat self-address, and the zd-relative delta everything else uses
+to reach it — only agree when PRE (whatever precedes `dj` in its run) is zero. Hand-verified the exact byte gap
+in `v01`: `dj`'s cell as written lands at `baseline+64`; the consumer's delta-computed read lands at
+`baseline-16`; the two disagree by exactly `PRE + (dj's own K) = 16+16 = 32`... (worked through several times
+this session; the exact arithmetic is reconstructable from `zd_out[dj]`, `zd_k(dj)`, and the consumer's own
+`zd_out`, but is NOT re-derived here — see the note below on why this needs a fresh pass, not a copied formula).
+
+**Why this is now a bigger question than "one more offset formula," and why I stopped rather than iterate a
+fifth time:** the pattern across bugs 3-5 is the same shape appearing at three different scopes (within an arm,
+across an arm boundary, and now at `dj`'s own boundary with its *enclosing* expression) — every one of them is
+some variant of "a flat/permanent address and a zd-relative/transient address disagree unless a specific
+depth-zero precondition holds, and VLIST is exactly the construct that violates that precondition by embedding
+inside larger expressions." Patching each occurrence as it's discovered has a real risk of converging on a
+CORRECT-LOOKING but actually-coincidental fix that only holds for the specific witnesses tested (the same
+failure mode EVIDENCE 2b already documented for the very first prototype this session inherited). The
+principled fix is almost certainly to make `dj` itself zd-armed — i.e., give it a real `sub`/`add rsp` around
+its own lifetime sized to its actual 32-byte footprint, so EVERY consumer (arms, `disj_sigma_copy`, and
+whatever encloses the VLIST) addresses it through the SAME convention — rather than patching the flat-address
+math to account for PRE at each of the (unknown number of) sites that touch it. That is a structural change to
+`flat_drive_match_alt`'s dispatch (shared with `IR_MATCH_ALTERNATE` — needs proving inert there too, the same
+diligence bugs 1-4 already went through) and deserves a fresh session's full attention, not the tail end of an
+already-long one running on hand-verified arithmetic that has already needed correcting three times tonight.
+
+**Full diffs for this round, all reverted, kept here so the next attempt starts from bugs 1-4 fixed rather than
+re-deriving them:**
+```c
+// emit.cpp, zd_plan's ZD5B block — host recognition + admission (bugs 1 unchanged from the ADDENDUM above, repeated for context):
+for (int r0 = 0; r0 < rl_main; r0++) { IR_t * env = nodes[run[r0]]; int is_dj = (int)env->op == IR_DISJUNCTION; if ((int)env->op != IR_MATCH_ALTERNATE && !is_dj) continue; int ei = run[r0];
+    int pairs2 = is_dj ? 2 * (int)IR_LIT(env).ival : env->n_operands;
+    for (int a = 0; a + 1 < pairs2; a += 2) { IR_t * c2 = env->operands[a]; int rl0 = rl; int bad = 0; int g2 = 0; int first = 1;
+        while (c2 && g2++ <= n) {
+            int ci = -1; for (int k = 0; k < n; k++) if (nodes[k] == c2) { ci = k; break; }
+            if (ci < 0 || claim[ci] >= 0) break;
+            if (bb_src_of(nodes[ci]) || emit_floater_kind(nodes[ci])) { bad = 1; break; }
+            { int aop = (int)nodes[ci]->op; int leaf = is_dj || (aop == IR_MATCH_LIT || /* ...unchanged whitelist... */ aop == IR_MATCH_BAL);
+              if (!leaf) { bad = 1; break; }
+              if (is_dj || nodes[ci]->n_operands > 0) { run[rl] = ci; rpos[ci] = rl; claim[ci] = hi; zarm[ci] = ei; if (first) { aent[ci] = 1; first = 0; } rl++; } }
+            c2 = zd_chase(c2->γ.node);
+        }
+        if (bad) { /* unchanged rollback */ }
+    } }
+
+// emit.cpp, consumption loop — gin/oin override AND the corrected (bug-3-fixed) arm-relative _wzdepth:
+{ if (zarm && zarm[i] >= 0) { if (gt == nodes[zarm[i]]) gin = 0; if (ot == nodes[zarm[i]]) oin = 0; } }
+int _wzdepth = (zarm && zarm[i] >= 0) ? (zout[i] - (zout[zarm[i]] - zd_k(nodes[zarm[i]]))) : (int)zd;
+
+// emit.cpp, flat_drive_match_alt — signature gains zd_on/zd_out (both already in-scope locals at the one call site):
+static void flat_drive_match_alt(IR_t **nodes, int n, int i, bb_label_t **lbls, bb_label_t **betas, bb_label_t **na_s, bb_label_t **na_f, bb_label_t ***fc_sig, bb_label_t *node_γ, bb_label_t *node_ω, bb_label_t *chain_ω, unsigned char *zd_on, int *zd_out) {
+// ...call site: flat_drive_match_alt(nodes, n, i, lbls, betas, na_s, na_f, fc_sig, node_γ, node_ω, &lbl_ω, zd_on, zd_out);
+
+// emit.cpp, IR_DISJUNCTION's op_parts_ival computation — arm-relative zd delta when the result is zd-armed, sentinel otherwise:
+int rk = -1; if (rj) for (int k = 0; k < n; k++) if (nodes[k] == rj) { rk = k; break; }
+int64_t rs = (rk >= 0 && zd_on[rk]) ? -(int64_t)(zd_out[rk] - (zd_out[i] - zd_k(nd))) : rj ? (int64_t)emit_binop_opnd_slot(rj) : (int64_t)ZD_DJ_NO_RESULT;
+g_emit.op_parts_ival[j] = rs;
+
+// emit.h, new named constant beside the file's existing opcode/frame #defines (NOT a variable):
+#define ZD_DJ_NO_RESULT  (-9000000000000000000LL)
+
+// bb_disjunction.cpp, disj_sigma_copy's gate:
+IF(_.op_parts_ival[i] != ZD_DJ_NO_RESULT, /* ...unchanged body... */)
+```
 
 ## RECEIPTS
 
