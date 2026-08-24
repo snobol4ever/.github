@@ -148,6 +148,41 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s269 (2026-08-23, Fable, FLEET-4) — PRE-STRIP REPAIRS DONE + THE SWITCH KEEP-LIST CERTIFIED. STRIP STILL HELD at the wave gate (hq_P's six-language scoreboard is the acceptance oracle and is not pinned). NOTHING DELETED.**
+
+### BOARD, PRISTINE AT SCRIP `b7c044aa`: corpus **m3 363/364 · m4 363/364 SKIP=0** (`demo_treebank` only — the vlist red, seat03's row) · `emit_no_lang` rc=0 · `template_medium_invisible` rc=0 · `bb_one_box` rc=0 (**was 36/36 FAIL**) · `rtx_unit` rc=0 (**was FAIL**). Matches hq_P's pinned corpus number exactly.
+
+### ⭐ CEO-11c STEP 1 DELIVERED — THE CERTIFIED SET-TODAY LIST IS **48**, NOT ~8 (`scripts/util_switch_census.sh`, reproducible)
+
+| | |
+|---|---|
+| read by `src/` (`getenv`) | **350** |
+| **certified SET-today (KEEP)** | **48** |
+| **UNSET (die, before keep-classes)** | **302** |
+| assigned ONLY in `.github`/`corpus` | **131 — PROSE, certifies nothing** |
+
+⛔ **The 6x error was in the deleting direction.** Report 13's ~8 was substring-level. ⛔ **Two traps, both hit on the first honest pass:** *prose is not a setting* (131 names appear only in FINDINGs/READMEs quoting a command line — grepping the org brain certifies documentation as configuration); *a comment is not a setting, but ARGV is* (3 of 50 were comment-only; `SCRIP_ZONE` is genuinely set through `test_gate_zdp_on_null.sh`'s `ENVS=("$@")` door, which no assignment regex can see). Both are defended against by construction in the census script.
+
+### ⭐⭐ CEO'S NAMED BORDERLINE IS ANSWERED WITHOUT ASKING LON — AND HALF THE FAMILY IS ALREADY ILLEGAL
+
+CEO asked whether the ~36 `SCRIP_ZD*` flags are one instrument or 36 leftovers. **They are not dump flags at all** — `ZD` is ζ-**depth planning**, not ζ-dump. Measured polarity of all 37 consumers: **26 kill-switches default-ON** (`e && *e=='0'` — can only ever *disable*, emit nothing) · **7 opt-in observers** (instruments) · **4 raw-value**. And the 26 live inside `zd_wants()` (`emit.cpp:2095–2140`) as `if (op == IR_CUT) { getenv("SCRIP_ZD_PL_CUT") … }` — **twenty-six per-op admission gates, which is Lon's NO-PER-OP-FILTER law broken verbatim** (`SCRIP_ZD_ONLY`/`SCRIP_ZD_SKIP` take op *lists*). The strip is removing a violation, not making a judgement call. **KEEP 9** (`ZD_CENSUS/DEPTH/DIAG/GAP/TOTAL`, `ZDLOCAL`, `ZDP_TEARDOWN`, `ZDP`, `ZDP_BOMB`) · **DELETE 28**. Whether the per-op *structure* survives the switches is a follow-on row.
+
+### ⭐ BOTH PRE-STRIP REPAIRS WERE THE SAME DEFECT CLASS: AN INSTRUMENT THAT CANNOT EXPRESS ITS OWN FAILURE
+
+- **`test_gate_bb_one_box.sh` — 36/36 FAIL for the whole template architecture's life.** Matcher tested `extern "C" void bb_*(`; every box now returns `std::string` (144 of them), so it scored 0 on every box file and its only hit was the one place it should have scored zero. Repaired to the discriminator its own header always named (`_str` = helper). Five listed files absent — **all five deliberately deleted by named commits, none a regression**. ⭐ Once it could see, it found a real violation: `bb_binop_relop.cpp` held **two** dispatched boxes → split to `bb_binop_relop_val.cpp` rather than an exception (RULES.md forbids exception lists). **Negative-tested 4 ways.**
+- **`test_rtx_unit` faildescr — a STALE GOLDEN, not an asm defect.** It printed asm and golden as **identical** and still said MISMATCH: `memcmp` compares 16 bytes, the report showed 3 fields. Byte-level printing named it in one run — offset 1, `mod_op`. `rtx_misc.S` stamps `MOD_OP_RT_FAILDESCR` (130) **deliberately**, landed by `descr-stamp-asm-mints` in **`6ba28e5e`, the same commit that cured Milestone 1**. An intentional feature was standing as an asm-vs-C differential red, behind which any genuine rtx regression would have been invisible. **Negative-tested 2 ways.**
+
+⭐ **Both are the M1-probe class again** — *"BAD as expected" is not a measurement; a check must assert the SHAPE of the failure it expects, not merely its polarity.* Third and fourth instances now on the record.
+
+### OPEN / NEXT
+1. ⛔ **HELD:** strip waves 1–7, pending hq_P's six-language scoreboard pin. Certified list is ready; `bomb_bytes`/`bomb_text` deletion is scoped to wave 1 (CEO ruled; ping CEO with the deleting commit hash so the RULES.md exception clause retires in the same window).
+2. `SCRIP_OPT` — DELETE-CANDIDATE **flagged, not taken**: row `opt0-residual-two-defects` is open against it; its only harness mention is a comment recording that `SCRIP_OPT=0` breaks the link.
+3. **CLI-flag twins are not switches** — `SCRIP_ZETA_STORAGE` is the env twin of the documented `--zeta-storage=`. Deleting the twin is correct; deleting the flag would remove product surface. Flagged to CEO.
+4. `sm_eval_subexpr` weak-abort landmine — minted as its own row per CEO, **not** to be fixed mid-strip.
+5. `vlist-expr-alternation` (seat03) — redirected this session to the `disj_sigma_copy` arm-result addressing gap; my old-mechanism fix correctly does not transplant to the new `IR_DISJUNCTION` lowering.
+
+## LIVE CURSOR — hq_C (s266, superseded by s269 above)
+
 **s266 (2026-08-23, Fable) — LON: "Tag you are it. Take us to 100% SNOBOL4 and 100% Icon." DUO. BENCHMARKS 33/33 BOTH MODES — THE SUITE'S FIRST ALL-GREEN.**
 
 ### ⭐ CURED: one class, three symptoms — pattern blobs with ≥2 choice nodes had no safe records and no resume (SCRIP `d6eafac3`, corpus `0ac12b122`)
