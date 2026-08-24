@@ -148,6 +148,33 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s270 (2026-08-24, Fable, FLEET-4) — ⭐ THE HOLD CAME OFF AND THE STRIP IS RUNNING. WAVES 1, 2, 3a, 3b LANDED AND PUSHED. THE PLATFORM AXIS IS GONE.**
+
+hq_P pinned the six-language baseline (`ab1c6b16`) and released this seat's hold; CEO ruled the two flags. Four waves landed, each its own commit with its own proof. Tree: SCRIP `69449f94`.
+
+| wave | commit | what | proof |
+|---|---|---|---|
+| 1 | `84b07d2d` | grep-provable dead code, 6 sites, −131 lines | board unchanged |
+| 2 | `5354dc0c` | 2 rt.c `ZC_FRAME` tautology guards | ⭐ **rt.o BYTE-IDENTICAL** |
+| 3a | `f2347178` | 95 never-taken `!PLATFORM_X86` guards, 74 files | 25/25 `.s` identical |
+| 3b | `69449f94` | remaining 102 sites + `g_platform`/`bb_platform_t`/all 5 macros deleted | ⭐ **325/325 `.s` identical** |
+
+**`PLATFORM_X86` in `src/`: 197 → 0.** ⭐ **The board did not move once across all four waves:** corpus **m3 363/364 · m4 363/364 · SKIP=0**, `demo_treebank` only — equal to hq_P's independent pin. Gates rc=0 throughout (`emit_no_lang`, `template_medium_invisible`, `bb_one_box`, `rtx_unit`, `no_handencoded_bytes`, `audit_m3_native_binary_arms`).
+
+⛔⛔ **WAVE 1's OWN "ZERO-RISK, GREP-PROVABLE" LIST WAS NOT.** The survey lists the `#error`-blocked ZC arms (`PROMOTE_ON`, `FRAME_DEAD5`, `STORAGE_FRAME_R12`) as wave-1 deletes. **They are TRIPWIRES, and `ZC_STORAGE_FRAME_R12` was never dead at all** (live read at `x86_asm.h:860`). `ZC_FRAME_DEAD5`'s guard protects a **measured 9-net-new-crash** config with **45 live `ZC_FRAME` refs** still standing — deleting the label while the arms remain *is* `ZR-RSPFB5-1`, the mistake that created the trap. **HELD to waves 4–5, where they collapse with their axes.** ⭐ A switch that is unreachable and a switch that GUARDS an unreachable config look identical to grep and are opposite facts.
+
+⭐ **Two more transferable rules banked this session:** (a) *"nothing calls it" ≠ "nothing depends on it"* — `bomb_bytes` was uncalled but a live gate **prescribed it as the remedy**; both scripts retargeted, logic untouched, rc=0. (b) *a clean build is not evidence that a mechanical source transform preserved meaning* — the brace-matching sweep **crashed** on `{`/`}` inside string literals, so the verdict was taken on OUTPUT (325/325 `.s` byte-identical), not on compilation. Fourth instance of *an instrument must express its own failure*.
+
+Receipts: `FINDING-2026-08-24-hq_C-strip-waves-1-3-landed-the-platform-axis-is-gone.md`.
+
+### OPEN / NEXT
+1. ⛔ **WAVE 4 — the ζ selector complex — IS THE ONE REAL HAZARD AND IS NOT MECHANICAL.** These are **runtime-constant branches, not dead `#if`s**; proof is m3≡m4 byte-diff of regenerated `.s`, not gates. CEO ruled the `--zeta-storage`/`--zeta-port`/`--zeta` CLI trio dies **with** the collapse — hard-error stubs per the `frame-r12` precedent, so an old command line fails loudly instead of silently no-opping. Then wave 5 (batched ZC), waves 6–7, then the `00-INDEX` dead-code carve.
+2. **Rows minted this session:** `icon-247-to-232-fifteen-program-gap` (rank 4) — a REAL, unattributed 15-program Icon regression between s247 and s267; the s247 number was **measured** (two agreeing runs), so the "old watermark was wrong" escape is closed. Surfaced by seat01 refusing to quietly re-baseline a stale DONE-WHEN.
+3. **Ruled for seat01, routed to `GOAL-ICON-100.md`:** N-1 ACCEPTED on no-regression-by-name; ⛔ **no DONE-WHEN may carry a bare absolute score** as its gate (it names the instrument and demands no-regression against a baseline the executing session measures itself); the Prolog wire-stack crossing is **attributed PZ-ladder progress**, callee side explicitly not done.
+4. **Flagged, not taken:** wave 3b consumed the JVM/JS/NET/WASM prologue/epilogue template bodies (backend content, but the same constant-false class wave 3 is defined by — raised to CEO rather than done silently) · `wasm_emit_data_segments_str` now unreferenced, left for Phase 2's `g_wasm_strtab` axis · `--target=jvm/js/wasm` never assigned `g_platform` even before this strip, a **pre-existing** CLI lie · `crosscheck/coverage/coverage_sno_nodes.s` is a checked-in golden for a program that **no longer compiles** (`FATAL lower_snobol4` GZ#5) — worth a row.
+
+## LIVE CURSOR — hq_C (s269, superseded by s270 above)
+
 **s269 (2026-08-23, Fable, FLEET-4) — PRE-STRIP REPAIRS DONE + THE SWITCH KEEP-LIST CERTIFIED. STRIP STILL HELD at the wave gate (hq_P's six-language scoreboard is the acceptance oracle and is not pinned). NOTHING DELETED.**
 
 ### BOARD, PRISTINE AT SCRIP `b7c044aa`: corpus **m3 363/364 · m4 363/364 SKIP=0** (`demo_treebank` only — the vlist red, seat03's row) · `emit_no_lang` rc=0 · `template_medium_invisible` rc=0 · `bb_one_box` rc=0 (**was 36/36 FAIL**) · `rtx_unit` rc=0 (**was FAIL**). Matches hq_P's pinned corpus number exactly.
