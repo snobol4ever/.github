@@ -93,6 +93,27 @@ the Milestone-1 self-host fixed point under Lon's new source — verified, not a
 
 table_access tracks seat01's same-day re-pin (`12,986,627` vs `12,986,443`) and array_sum holds (+0.08%).
 
+## ⭐ The clean A/B of the two beauty forms (ceo s271 task 1) — ONE tree, ONE sitting
+
+ceo measured classic `1,886,099,406` vs constants `2,177,847,305` but flagged the weakness himself: *"my two runs were
+hours apart with script commits between"*. Re-run properly — one pristine `-O0` build at SCRIP `22971235`, **no src change
+between arms**, each form fetched from git history, **all three verified self-host fixed points**:
+
+| form | lines | Ir | provenance |
+|---|---|---|---|
+| DECLARED_CONSTANT | 630 | 2,185,743,429 | corpus `8e309aa4` |
+| classic, frozen | 622 | 1,888,454,918 | corpus `1ce15a5ac`, the pre-BEAUTY-CN snapshot |
+| classic + Lon's 4-line edit | 618 | **1,897,159,187** | corpus `e63689fae` — what ships, and what is now pinned |
+
+⭐ **The multiple, faster axis, reference = the constants form: classic is `1.16x`.** As percentages **with the basis
+named**, because a percent without its basis is the trap: the constants form spends **+15.7% more** instructions than
+classic (percent *of classic*); equivalently classic spends **−13.6%** (percent *of the constants total*). ceo's
+across-trees reading of 1.15x / ~13% **agrees to 0.2%** — it was sound, and is now tight enough to pin.
+
+⛔ **Lon's 4-line edit is NOT resolvable by this instrument.** +0.46% against a workload whose own run-to-run jitter is
+~0.4%. It sits *at* the noise floor, so it must not be quoted as a cost in either direction — reporting it as a number
+would be reading three digits off an instrument that only has one here.
+
 ## ⛔ A REBASE IS A NEW TREE — and this session is the worked example
 
 My roman pin was measured, committed and **pushed** against `1177e66e`. The rebase onto `22971235` brought two runtime
