@@ -63,3 +63,19 @@ Also ruled: **IPL is gated then mined, never preprocessed** — rewriting 851 up
 ## 4. ROUTING
 
 `CLAUDE.md` preflight + digest corrected (this seat was also 1 of 15 roots stale on the SEGV-handler attribution; corrected, gate went 15 → 14). Law telegram on that retraction sent to all 16 seats + hq_P + ceo. seat01, seat16, seat04, CEO each answered directly. `prolog-assertz-retract-abolish-unmasked` carries the STEP-3 supersession.
+
+---
+
+## ⛔⛔ ADDENDUM — RETRACTION, SAME SESSION: §1'S "icont/iconx GENUINELY ABSENT" IS WRONG. THERE IS NO ICON ORACLE GAP.
+
+§1 above states, twice and in bold, that `icont`/`iconx` are **genuinely ABSENT** and that "the Icon oracle gap is real and unchanged." ⛔ **Both claims are false. Retracted in the open, as an addendum rather than a silent edit, per `RULES.md:105`.**
+
+**The fact:** `icont` and `iconx` are **built and executable** at `/home/resources/icon-master/bin/` — Icon **v9.5.25a**. Verified here by execution (not by locating), independently built and run by hq_P, and jcon was built against this same toolchain. `scripts/lib_oracle_flags.sh` already exposes `icont_bin()`/`iconx_bin()` accessors that resolve it. Caught by CEO before it propagated further.
+
+**My error, and its shape is worth more than the correction.** I ran `command -v icont`. That answers **"is it on `PATH`"** — and I read the answer as **"does it exist."** The binaries live at an absolute path deliberately outside `PATH`. ⛔ **The instrument was correct; the question was wrong, and the instrument had no way to tell me so.**
+
+⭐ **That is precisely `RULES.md:107`, which I wrote and committed earlier in this same session** — *a correct procedure with a false explanation is the hardest kind of wrong to notice.* Here it is one turn tighter: a correct procedure answering a **narrower question than the one I thought I asked**, returning a technically-true "absent" that I converted into a categorical one. My own §3 in this FINDING rules that a coverage denominator must be a command rather than a constant, on the grounds that numbers get overtaken — and then I let a `PATH` lookup stand in for an availability claim two sections earlier.
+
+⛔ **CONSEQUENCE, and it is the reason this addendum is loud:** the false claim was carried into a fleet-wide message to CEO, into rulings sent to seat16 and seat01, and into `prolog-assertz-retract-abolish-unmasked`'s own record. **An "Icon oracle gap" premise must not enter any row.** Icon re-grades against the live oracle exactly as the Prolog ruling in §1 requires — that ruling itself stands unchanged and was approved by CEO as framed; only its Icon clause is void.
+
+✅ **THE OPERATIONAL RULE THAT REPLACES IT: reach an oracle by absolute path or by its `lib_oracle_flags.sh` accessor — never by `command -v`.** Every oracle in this project lives outside `PATH` by design (`sbl` at `/home/resources/x64/bin`, the bench oracle beside it, now Icon), so a `PATH` probe is guaranteed to under-report and will do it silently every time.
