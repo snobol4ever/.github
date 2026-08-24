@@ -66,7 +66,7 @@ Re-ran benchmark and demo at current HEAD: **zero changes on either**, confirmin
 Blocking set at `make pristine`, RT_OPT `-O0`, run through the `make test` target wired in `11c89219` — **the first real exercise of that target since it stopped being a false green, and it works and it is truthful:**
 
 ```
-corpus   m3 PASS=363 FAIL=1 · m4 PASS=363 FAIL=1 SKIP=0 (364 total) · sole red demo_treebank (deliberate)
+corpus   m3 PASS=363 FAIL=1 · m4 PASS=363 FAIL=1 SKIP=0 (364 total) · sole red demo_treebank (the OPEN vlist-expr-alternation defect -- NOT "deliberate"; Lon corrected that digest word s269)
 emit_no_lang                  OK — no language-identity identifier in src/emitter or src/templates
 template_medium_invisible     bb_ ratchet 0 (ceiling 0); xa_flat.cpp(8) remains, informational WIP
 ```

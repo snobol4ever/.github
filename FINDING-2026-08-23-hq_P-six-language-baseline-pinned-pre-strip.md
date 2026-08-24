@@ -32,11 +32,19 @@ so the `x`-multiple FACT RULE has nothing to format; the speed column is a separ
 
 ---
 
+## ⛔⭐ CORRECTION, 2026-08-24 s269 (Lon in-chat to CEO, relayed to hq_P) — **`demo_treebank` IS NOT "DELIBERATE"**
+
+This FINDING is the README/announcement summary-table source, so the word is corrected **here first**. `demo_treebank` is the **last OPEN defect**, not a red left standing by design: root-caused as the `(A , B)` selection expression lowering **arm 1 only** (`lower_snobol4.c:727`; `FINDING-2026-08-23-hq_C-treebank-is-really-the-comma-selection-expression.md`), row **`vlist-expr-alternation`** rank 1, **FREE / unassigned** in QUEUE.tsv.
+
+⭐ **How the error worked, because it is a compression failure worth naming.** The true state was *"known red, knowingly left standing while its row is open."* That compressed to **"deliberate"** — which does not mean *we know about it*, it means **by design, nothing to fix**. The digest then propagated to three roots and into two CEO summaries to Lon before he caught it. **A word that survives compression can still invert the fact.** The strip's acceptance oracle depends on this row being read correctly: `363/364` is *one open bug away from clean*, never *clean with an intentional exception*.
+
+Every number in the table below is unaffected — this corrects a LABEL, not a measurement.
+
 ## THE TABLE
 
 | # | Language | Instrument | m3 (`--run`) | m4 (`--compile`) | Reds, and whose |
 |---|---|---|---|---|---|
-| 1 | **SNOBOL4** | `test_corpus_snobol4.sh` | **363 / 364** | **363 / 364** (0 SKIP) | `demo_treebank` only — **deliberate**, row `vlist-expr-alternation` |
+| 1 | **SNOBOL4** | `test_corpus_snobol4.sh` | **363 / 364** | **363 / 364** (0 SKIP) | `demo_treebank` only — ⛔ **OPEN defect, NOT "deliberate"** (see correction below), row `vlist-expr-alternation` rank 1 FREE |
 | 2 | **Icon** | `scorecard_icon.sh` | **META 69.0** / Σw=95 — full block below | | `bench_correct` 0/8 is the whole gap |
 | 3 | **Prolog** | `test_smoke_prolog.sh` | **3 / 5** | **3 / 5** | `clause`, `recursion` — pre-existing, matches ledger |
 | 4 | **Snocone** | `test_smoke_snocone.sh` | **4 / 5** | — | `procedure` (empty output) — pre-existing, matches ledger |
