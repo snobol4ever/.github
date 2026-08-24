@@ -24,6 +24,7 @@ T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 [ -x "$SCRIP" ]  || { echo "⛔ no scrip binary at $SCRIP — build first (make -C $ROOT/SCRIP)"; exit 2; }
 [ -f "$SRC" ]    || { echo "⛔ pinned source missing: $SRC"; exit 2; }
 [ -d "$BEAUTY" ] || { echo "⛔ beauty dir missing: $BEAUTY (the 16 .inc files live there)"; exit 2; }
+case "$ARM" in m3|m4|both) ;; *) echo "⛔ GATE UNPROVEN(2): unrecognized ARM '$ARM' — expected m3, m4, or both"; exit 2;; esac
 exp="$(md5sum "$SRC" | awk '{print $1}')"; bytes_exp="$(wc -c < "$SRC")"; rc=0
 report() { # $1=arm $2=outfile
   local got sz; got="$(md5sum "$2" 2>/dev/null | awk '{print $1}')"; sz="$(wc -c < "$2" 2>/dev/null || echo 0)"
