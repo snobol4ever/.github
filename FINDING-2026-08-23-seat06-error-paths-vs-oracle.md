@@ -35,13 +35,16 @@ the table, never a silent ceiling bump.
 | unterminated_string | SAME | both cleanly refuse to compile, comparable diagnosis |
 | duplicate_label | **SAME (fixed this session)** | was WRONG: SCRIP silently accepted two statements sharing a label, using whichever the parser wrote over the other. See CURE below |
 | missing_end | **SAME (fixed this session)** | was WRONG: SCRIP silently accepted a program with no END at all and ran whatever it parsed. See CURE below |
-| **deep_recursion** | **WRONG (unfixed)** | unbounded recursion raw-SIGSEGVs both m3 and m4 with **zero** diagnostic; oracle cleanly reports `ERROR 246 -- stack overflow` and exits 0 |
+| **deep_recursion** | **DEFENSIBLE (fixed 2026-08-24, FLEET seat02)** | was WRONG: raw SIGSEGV both m3 and m4 with zero diagnostic. See CURE 4 below |
 | huge_string | DEFENSIBLE | SCRIP enforces no MAXLNGTH-style string-length ceiling (oracle's default is ~4MB per the manual; SCRIP happily built 50MB). Judged a reasonable modern default, not an instability — no hang, no crash, just no artificial cap |
 
-**Agreement (SAME+DEFENSIBLE)/TOTAL = 11/12 = 91%** (updated 2026-08-24, seat04: `bad_type_arith`
-WRONG→DEFENSIBLE, see CURE 3). Strict SAME-only stays 6/12 = 50% (the cure lands as DEFENSIBLE, not
-SAME — `&ERRTYPE` still unpopulated, same residual gap as `bad_type_builtin`/`div_by_zero`). Original
-seat06 session: agreement moved 67%→83% (8/12→10/12) via CURE 1+2; strict SAME 33%→50% (4/12→6/12).
+**Agreement (SAME+DEFENSIBLE)/TOTAL, as of the original seat06 session (2026-08-23) = 10/12 = 83%.**
+Strict SAME-only = 6/12 = 50%. Before that session's two cures, agreement was 8/12 = 67%, strict SAME
+4/12 = 33% — CURE 1+2 moved both numbers. **UPDATE 2026-08-24: both remaining WRONG findings were cured
+by two different FLEET seats the same day — seat04 (`bad_type_arith`, CURE 3 below) and seat02
+(`deep_recursion`, CURE 4 below) — landed independently and merged cleanly at the git level. Agreement
+is now 12/12 = 100%.** Strict SAME-only stays 6/12 = 50% (both cures land as DEFENSIBLE, not SAME — see
+CURE 3/CURE 4 for why each). `WRONG_RATCHET` in `test_error_paths_vs_oracle.sh` is now 0.
 
 ## CURE 1 — duplicate labels now rejected (SCRIP `snobol4.y`/`snobol4.tab.c`)
 
@@ -173,20 +176,104 @@ next session that makes `binop_apply`/`rt_gvar_arith`/`IR_BINOP_GVAR_ARITH` reac
   rebased tree per the REBASE-BASELINE COROLLARY); incremental `make` used only for the earlier
   probe-and-iterate cycle, never for a number quoted above. `-O0` throughout (NO -O2 BUILDS fact rule).
 
-## Residual WRONG (1, minted as a follow-up task — not tractable to cure safely in this session)
+## Residual WRONG (0 — both original findings cured 2026-08-24, same day, two different FLEET seats)
 
-1. **`deep_recursion`** — task `recursion-stack-overflow-diagnostic.task.md`. Raw SIGSEGV with zero
-   diagnostic vs. the oracle's clean `ERROR 246`. Fixing this well means either a stack-depth guard on
-   the call path (hot path, same risk class `bad_type_arith` was) or a SIGSEGV handler that recognizes
-   a guard-page fault and reports cleanly (lower risk, and this project already has SIGSEGV-handler
-   infrastructure per `CSN_NO_SEGV_HANDLER`/`SCRIP_NO_SEGV_HANDLER` used for clean gdb backtraces —
-   worth the next session starting there rather than the call-path route).
+1. ~~`bad_type_arith`~~ — CURED (seat04, FLEET-4, task `arith-operand-type-check.task.md`), see CURE 3
+   above. Note for the record: the task brief's stack-overflow item (below) also independently named
+   `CSN_NO_SEGV_HANDLER`/`SCRIP_NO_SEGV_HANDLER` as existing SCRIP infrastructure — that claim does not
+   hold, see CURE 4's correction.
+2. ~~`deep_recursion`~~ — CURED (seat02, FLEET-4, task `recursion-stack-overflow-diagnostic.task.md`),
+   see CURE 4 below.
 
 Also worth a future look, not minted as their own rows (secondary observations, not this task's
 primary WRONG findings): the `&ERRTYPE` keyword is unpopulated on most failure paths except the
 subscript-operand-type case (235) — a real gap for any program that branches on `&ERRTYPE` after a
 `:F`, though every witness here still gets the *control flow* right; and the m3-vs-m4 stdout/stderr
 interleave-order difference on `undef_label_goto`.
+
+## CURE 4 — deep_recursion now reports cleanly instead of raw-SIGSEGVing (2026-08-24, FLEET seat02)
+
+**Mode:** FLEET (`s4e_msg.sh next` printed `MODE: FLEET-4`; row `recursion-stack-overflow-diagnostic`
+locked from `/home/resources/postoffice/tasks/recursion-stack-overflow-diagnostic.task.md`).
+
+Took the task brief's lower-risk option (a) — a SIGSEGV handler, additive, no touch to the recursive
+call path or any codegen/template/emit file. **Correction to the brief's premise, recorded here so the
+next reader doesn't repeat the search:** the brief (and this FINDING's own §Residual WRONG #2, and
+dozens of other `.github/FINDING-*.md` across many sessions back to at least s65) describe
+`CSN_NO_SEGV_HANDLER`/`SCRIP_NO_SEGV_HANDLER` as **existing** SCRIP infrastructure to "extend." A full
+`grep -rn` sweep of `SCRIP/src` (and the whole seat root) found **zero** implementation of either name,
+and zero `signal(SIG*` / `sigaction` install for SIGSEGV/SIGBUS anywhere in SCRIP — `CSN_NO_SEGV_HANDLER`
+is a **CSNOBOL4** (a different sibling repo) env var (`lib/init.c`'s `signal(SIGSEGV/SIGBUS, err_catch)`
+bypass, confirmed live in FINDING-2026-08-21-seat1 and FINDING-2026-08-22-s252), and
+`SCRIP_NO_SEGV_HANDLER` corresponds to no `getenv()` call anywhere in this repo. Setting it has always
+been a no-op; every "clean gdb backtrace" it was credited for was actually just gdb's ordinary
+ptrace-level signal interception (which happens before any inferior-side handler runs regardless, so
+the workflows those FINDINGs describe were never actually broken — only the causal attribution was).
+**This is not something to silently correct in RULES.md unilaterally** (HQ/Lon-owned FACT-RULE content,
+outside this row's lane) — flagged to HQ via `s4e_msg.sh ask` the same session; not chased further here.
+So option (a) became "install a new handler" rather than "extend an existing one" — same shape, same
+risk class (additive-only), just a corrected premise.
+
+**Implementation:** new file `SCRIP/src/runtime/rt/rt_stack_overflow.c`, added to `RT_PIC_SRCS` in
+`SCRIP/Makefile` right after `bbprof.c` (an existing, precedented sigaltstack+sigaction file in the same
+directory). Compiled into `libscrip_rt.so`, which both `--run` (m3) and any `--compile`d (m4) binary
+already link (per the Makefile's own s107-era comment: "For consistency, --run (mode-3) and --compile
+(mode-4) both use the same libscrip_rt.so") — one file covers both modes, no driver/scrip.c change.
+A `__attribute__((constructor))` installs a `sigaltstack` (a `malloc`'d, deliberately-never-freed
+64KB buffer — matches `bbprof.c`'s own altstack size precedent; **no new global variable**: the pointer
+lives only as a constructor-local, never stored anywhere, since `sigaltstack()` needs the memory to
+outlive the call but not a live C reference to it) and a `SIGSEGV` handler with `SA_SIGINFO|SA_ONSTACK`.
+The handler calls `pthread_getattr_np`+`pthread_attr_getstack` **fresh, at fault time** (not
+precomputed at startup) to get the CURRENT thread's stack bounds — deliberately fresh, not cached,
+because under `ulimit -s unlimited` the actually-mapped extent grows over the process's life and a
+startup-time snapshot would be stale for exactly the corpus programs (`claws5`/`treebank`, see below)
+that need it. If the fault address falls within 16MB below the reported stack floor AND the current
+RSP (read from the `ucontext_t`) is also in/near that same region, it's classified a stack overflow:
+write() an async-signal-safe message (`scrip: runtime error: ERROR 246 -- stack overflow (unbounded or
+too-deep recursion exhausted the call stack)`, reusing the oracle's own Appendix D error number) to
+stderr and `_exit(1)`. **Any other SIGSEGV** (the overwhelmingly common case — a real compiler/runtime
+bug) resets the handler to `SIG_DFL` and `raise()`s again, which — since the re-raise happens while the
+signal is still blocked inside the handler frame — stays pending until the handler returns, then
+delivers against the now-default disposition: the exact same raw crash, same rc=139, same core dump,
+as if this file did not exist. This is the part that had to be right: dozens of board scripts
+(`board_beauty_m1.sh`, `util_beauty_override.sh`, `test_census_m3_m4_divergence.sh`, …) classify a real
+bug by `rc -eq 139`, and this change must be invisible to every one of them.
+
+**Regression evidence.**
+- `deep_recursion.sno`: m3 (`--run`) and m4 (`--compile`→`as`→`gcc -no-pie`→run) both now print the
+  message above and exit 1, zero raw SIGSEGV, both pristine-built (`RT_OPT=-O0`, NO -O2 FACT RULE).
+- **Non-stack SIGSEGVs are unaffected — proven, not assumed:** a standalone `*(volatile int*)0 = 1;`
+  linked against the SAME patched `libscrip_rt.so` still dies "Segmentation fault (core dumped)" rc=139,
+  zero diagnostic printed — the handler correctly saw fault addr ≈0 is nowhere near the stack and fell
+  through to default.
+- **A genuine pre-existing crash is unaffected — proven by A/B, not inferred:** `test_smoke_prolog.sh`
+  showed 2 FAILs (`clause`, `recursion`) both before and after this change. Chased the `recursion`
+  witness (a trivial `count(3)` countdown, nowhere near stack-depth territory) with gdb: faults
+  executing at `pc=0x100000000000` with `rsp=0x7fffffff8fd8` (a healthy, barely-used stack pointer) —
+  a wild/corrupted call target in the Prolog SM interpreter, nothing to do with the stack. Confirmed by
+  a genuine A/B: `git stash` (reverting only this session's 3 changes), forced rebuild
+  (`rm out/libscrip_rt*.so out/rt_pic-f65f143e2f -rf && make libscrip_rt`), same rc=139 on the identical
+  witness — this Prolog defect pre-dates this session and is out of this row's lane (not chased
+  further; worth its own task if not already tracked — not confirmed either way this session).
+- **Legitimate large recursive/pattern-matching workloads under `ulimit -s unlimited` are unaffected:**
+  `corpus/demo/treebank/treebank.sno` against its pinned `treebank.ref` — byte-identical, rc=0. Also ran
+  it against the much larger `corpus/demo/claws5/VBGinTASA.dat` (the input the now-stale
+  `test_demo_full_3way.sh` pairs with treebank; that script's hardcoded paths predate a corpus reorg and
+  currently refuse with "No such file" for unrelated reasons — not this row's lane, not fixed here,
+  flagged in the `ask` to HQ) — completed rc=0, 100KB+ of matched output, no false "stack overflow".
+  This is the important case: `ulimit -s unlimited` means the kernel keeps growing the mapped stack
+  region on demand, so `pthread_getattr_np`'s fresh-at-fault-time read naturally tracks the *current*
+  extent rather than a stale guess, and a false positive here would require the recursion to be so deep
+  it collides with another mapping — at which point flagging it is arguably correct, not a regression.
+- Full suite, same pristine tree: `test_smoke_snobol4.sh` 7/7 both modes; `test_crosscheck_snobol4.sh`
+  323/323 both modes, 0 diverge; `test_smoke_icon.sh` 14/14 both modes. `test_error_paths_vs_oracle.sh`:
+  see the classification table + WRONG_RATCHET update above.
+
+**Classification: DEFENSIBLE, not SAME** — same asymmetry already accepted for `undef_label_goto`: both
+engines now detect and report the condition, but SCRIP exits rc=1 with a concise one-line diagnostic
+while the oracle exits rc=0 with its own multi-line fatal dump (`sbl_died()`'s recognized shape). No
+attempt made to match rc=0 or the oracle's dump format — DEFENSIBLE is the ceiling this table already
+established for "both detect+report, formats differ."
 
 ## LEDGER
 - [seat06·2026-08-23] Ran the sweep, cured 2/4 WRONG findings same-session (DUO mode), minted tasks for
@@ -195,5 +282,13 @@ interleave-order difference on `undef_label_goto`.
   (CURE 3 above): one-line `is_numeric_like()` guard in `rt_num_arith_impl`
   (`SCRIP/src/runtime/arithmetic.c`), reached from both the compile-time constant-folder
   (`src/optimizer/const_fold.c`) and the runtime ASM-fast-path fallback (`c_rt_add` etc. via
-  `src/runtime/rtx/rtx_arith.S`). `WRONG_RATCHET` 2→1. 1/2 residual WRONG findings from the original
-  sweep now remain (`deep_recursion`, unchanged, its own task).
+  `src/runtime/rtx/rtx_arith.S`). `WRONG_RATCHET` 2→1 at landing time (independently lowered to 0 the
+  same day once seat02's cure below merged in too).
+- [seat02·2026-08-24] FLEET mode, row `recursion-stack-overflow-diagnostic`. Cured `deep_recursion`
+  (CURE 4 above): new SIGSEGV handler in `libscrip_rt.so`. Rebased twice over other seats' concurrent
+  pushes (this one included) — final merged state: `WRONG_RATCHET` 0, agreement 100% (12/12). Corrected
+  a long-standing cross-session misattribution (`SCRIP_NO_SEGV_HANDLER` was never real SCRIP
+  infrastructure — see CURE 4) and flagged it to HQ rather than silently editing RULES.md. Also flagged
+  (not fixed): `test_demo_full_3way.sh`'s claws5/treebank paths are stale post-reorg; a pre-existing
+  Prolog `--run` crash on trivial recursion (`count/1`), unrelated to this row, confirmed pre-existing
+  via A/B (git stash + forced rebuild, identical rc=139 with and without this session's changes).
