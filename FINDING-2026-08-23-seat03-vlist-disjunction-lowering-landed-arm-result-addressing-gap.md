@@ -203,6 +203,47 @@ consecutive runs** — confirmed pre-existing flakiness, not a regression, by ru
 (`git stash`) back-to-back and observing numbers in the same noisy band (98/2/89). Did not chase the flakiness
 itself; out of scope for this row, flagged here so it isn't mistaken for something this session caused.
 
+## ADDENDUM — cross-validated against hq_C's `probe/vlist_select/` ladder (banked mid-session, after this
+## FINDING's main body was written)
+
+hq_C independently root-caused the OLD (pre-this-session) lowering's mechanism in parallel (message
+`vlist-root-caused-4-line-witness`: arm-1's recede pops the enclosing expression's cells via
+`n6_lit_string_beta` before reaching arm 2 — a real, precise diagnosis, but of the temp-var/`VLIST$n` mechanism
+this session's lowering change (above) has already replaced; the fix hq_C proposed, "catch the arm-failure edge
+at the VLIST boundary and restore the spine there," is written in terms of a spine cell and a named variable
+that no longer exist in the new `IR_DISJUNCTION` lowering, so it does not directly transplant — see the reply
+sent this session for the reconciliation). hq_C also banked a 7-witness oracle-backed ladder,
+`corpus/probe/vlist_select/{c01,c02,v01..v05}` (SCRIP commit `718139e70` on the corpus repo), and reported
+`SCRIP_VLIST_ALT=1 SCRIP_ZETA_STORAGE=frame-rsp` byte-correct on every rung **under the OLD lowering**.
+
+**Re-ran the full ladder against THIS session's new `IR_DISJUNCTION` lowering, both storage arms, mode 3:**
+
+| witness | cell-stack (default) | frame-rsp |
+|---|---|---|
+| c01_control_first_arm_succeeds | DIFFERS | **MATCH** |
+| c02_control_no_select | MATCH (no VLIST content) | MATCH |
+| v01_select_min | DIFFERS | **MATCH** |
+| v02_select_concat_and_assign | DIFFERS | **MATCH** |
+| v03_array_proto_via_select | DIFFERS | **MATCH** |
+| v04_listappend_growth | **SIGSEGV rc=139** | **MATCH** |
+| v05_treebank_pushlist_235 | **SIGSEGV rc=139** | `*** stack smashing detected ***`, rc=134 |
+
+**Two things this confirms, one thing it flags:** (1) The new lowering is corroborated independently — 6/7
+byte-correct under frame-rsp, including `v04`, which SIGSEGVs under cell-stack, is exactly consistent with this
+FINDING's own diagnosis above (the bug is cell-stack/zd_plan-specific; frame-rsp's addressing model never hits
+`disj_sigma_copy`'s flat-vs-transient mismatch the same way cell-stack's real push/pop does). (2) `v05`'s
+`stack smashing detected` under frame-rsp is a DIFFERENT failure signature than anything else in this doc, and
+is very likely NOT a new defect in this lowering: `v05` is the largest/most repetitive witness in the ladder
+(6291 bytes, simulating treebank's real growth pattern at scale), and a stack-canary trip on a large,
+statement-heavy top-level program under `--zeta-storage=frame-rsp` is exactly the signature of the
+**separate, already-root-caused** `zeta-frame-rsp-second-wild-write` row (this same session, earlier — see
+`FINDING-2026-08-23-seat03-frame-rsp-wild-write-root-cause-and-fix-plan.md`: frame-rsp's outer scope never
+reserves real stack space for its ZLS region, and the crash threshold scales with how much a program's
+top-level code actually needs). Did not re-confirm this by measuring `v05`'s own zeta region size against that
+row's ~20KB witness threshold — flagging the connection for whoever picks up either row rather than chasing it
+here, since conflating two rows' evidence in one FINDING is exactly the kind of provenance blur this project has
+been bitten by before.
+
 ## RECEIPTS
 
 Full session: `git pull --rebase` all three repos at start; `make pristine` before every measurement quoted.
