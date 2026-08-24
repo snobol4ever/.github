@@ -16,11 +16,29 @@
 
 Same denominators, same XFAIL count, same commit, same corpus, same machine, one sitting. ⛔ **A number quoted as "Icon is at N" is meaningless until it names which of these two produced it.**
 
-## ⛔ WHAT THIS DOES TO THE "REGRESSION"
+## ⛔⛔⛔ RESOLVED: **THERE IS NO 63-PROGRAM REGRESSION. ICON WENT UP BY 12.**
 
-The escalation that started this said **Icon regressed 232 → 169 on main**, and it came with a 23-commit SCRIP window and a prime suspect. The 169 is real — I reproduced it on my own pristine build before touching anything. **But the 232 baseline's instrument was never re-verified**, and there are now two instruments in play that differ by 75. ⛔ **Until the 232 is re-derived from a named command, "232 → 169" is not established as a regression at all** — a 232 from one instrument against a 169 from the other is an instrument swap wearing a regression's clothes.
+The escalation said **Icon regressed 232 → 169 on main**, with a 23-commit window and a prime suspect. The 169 is real — I reproduced it on my own pristine build. **The comparison is not.**
 
-⭐ This does **not** retract the concern. It relocates it. See NEXT.
+⭐ **`GOAL-ICON-100.md` names Icon's instrument explicitly, in three places, and it is `test_icon_all_rungs.sh`:**
+- §THE INSTRUMENT item 1: *"`test_icon_all_rungs.sh` **293/0/0** m3"* — the goal's definition of done
+- §BASELINE: *"m3 **`test_icon_all_rungs.sh`** = 247/16/30"*
+- §Session Setup: *"`bash scripts/test_icon_all_rungs.sh` … # fresh watermark FIRST"*
+
+**The s267 watermark of 232/31/30 is an `all_rungs` number.** `test_icon_rung_suite.sh` is not this goal file's instrument and never produced a baseline.
+
+⭐⭐ **So put both readings on the SAME instrument and the cliff disappears:**
+
+| instrument | s267 watermark | today (`be376a2f`) | delta |
+|---|---|---|---|
+| **`all_rungs`** (the goal file's own) | **232**/31/30 | **244**/19/30 | ⭐ **+12 — Icon IMPROVED** |
+| `rung_suite` (stricter, never a baseline) | *never run* | 169/94/30 | — |
+
+⛔ **The "63-program regression" was 232-from-one-instrument minus 169-from-the-other.** Nobody made a mistake of reasoning; hq_P stated in good faith that both readings were `rung_suite`, and the number they inherited as "hq_C's morning baseline" traces back through this goal file to `all_rungs`. **No SCRIP commit needs to be found, and the 23-commit window can be closed.**
+
+## ⭐ BUT DO NOT FILE THIS AS "ALL CLEAR" — THE REAL DEFECT IS THE OTHER WAY ROUND
+
+The instrument that says 244 is the one that **cannot see a crash**. So the correction is not "Icon is fine": it is that **Icon's sovereign instrument has been scoring dead programs green this whole time**, and the stricter suite that nobody baselined is the one telling the truth. See the measured tally below.
 
 ## THE THREE HYPOTHESES I KILLED, IN ORDER
 
@@ -82,8 +100,8 @@ This is the twin of hq_P's own lesson from the same day — *a control arm tells
 
 ## NEXT — routed to row `icon-regression-232-to-169` (rank 0)
 
-1. ⛔ **Re-derive the 232 with a named command before treating it as a baseline.** If it came from `all_rungs`, there is no 63-program regression and the row becomes the defect class in (3) instead. This is the first step and it is cheap.
-2. **Then, and only then**, screen the SCRIP window — with the SKIP-armed predicate in the baton (a timeout is not a FAIL; `27f366d2^` hangs).
+1. ✅ **DONE — the 232's provenance is established.** It is `all_rungs`, per `GOAL-ICON-100.md` §THE INSTRUMENT / §BASELINE / §Session Setup. On that instrument Icon reads **244 today against a 232 watermark: +12.** **There is no regression to bisect.**
+2. ⛔ **CLOSE THE SCRIP WINDOW — do not screen `dac73079..57d507d9`.** It was opened against a comparison that does not hold. `0f4231f8` is separately exonerated by direct measurement. Spending a session bisecting it would be work against a defect that was never there.
 3. ⭐ **DONE ABOVE — the 94 are characterised** (79 rc=1 · 13 SIGSEGV · 1 SIGABRT · 1 wrong answer). What remains is to read the 13 SIGSEGVs. **Those are the highest-value programs on the Icon board** and they should be triaged as crashes, not as suite entries. seat08's `generators.icn` SIGSEGV (reported this session, zero tables in source, unrelated to RTX-29) is very likely one of them — check before minting a duplicate row.
 4. **Fix the harness split.** Two instruments over one corpus, one of them structurally false-green, is a standing trap. Either `all_rungs` adopts the exit-code rule, or it is retired, or it prints a loud banner saying it does not check exit status. ⛔ It must not keep producing a quotable number that is 75 too high. ⭐ Given the tally above, the recommendation is **adopt the rule** — `all_rungs` is currently capable of scoring a segfault green, and no banner makes that safe.
 
