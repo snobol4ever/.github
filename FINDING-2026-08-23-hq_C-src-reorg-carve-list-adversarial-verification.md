@@ -295,6 +295,52 @@ same set through m3 and require the same verdicts. Any difference is a carve err
 
 ---
 
+## H. Reconciliation with report `13-switches.md` (landed `8f858f72`, after § G was written)
+
+Independent instruments, and they agree on the headline: **351 unique `getenv` env vars** — the same
+number from two different censuses. Their "~292 never set by any script" and my "295 named by nothing
+outside `src/`" are the same fact measured two ways; mine is the conservative bound, since *named* ⊇ *set*
+(mine is whole-word `grep -w` over `scripts/` + `Makefile`).
+
+**⛔ ONE DIRECT CONTRADICTION, and report 13 is wrong.** Its § 1 lists
+
+> `RS23_DIAG` … whole `rs23_diag.c` `#ifdef`-wrapped, **unreferenced by Makefile** → **DELETE** (~87 ln)
+
+and its § 6 puts that delete in **step 1, "zero-risk, grep-provable"**. It is not zero-risk: the file is
+**unreferenced by the Makefile and compiled by a script** — `scripts/build_scrip_rs23_diag.sh:35`
+(`-c "$SRC/driver/rs23_diag.c" -o "$OBJ/rs23_diag.o"`), consumed by `scripts/test_rs23_diag_capture.sh`.
+Report 13 checked only the Makefile. **`RS23_DIAG` must come off the step-1 list** — with it, so does the
+general inference that "Makefile-unreferenced ⇒ deletable": ✅ five of the 27 unbuilt files are live
+exactly this way (§ A). The same caveat applies to its § 5 note that *"all of `src/tools/` is
+unreferenced by the Makefile"* — true, and two of the five nevertheless have script builders (one of
+which is itself broken, § A).
+
+**Everything else of report 13's step 1 that I checked, ✅ holds:**
+
+| claim | verdict |
+|---|---|
+| `g_platform` is always X86 | ✅ assigned at exactly three sites, all `BB_PLATFORM_X86`: `emit.cpp:25` (initialiser), `:195`, `:204`. Nothing else ever writes it. |
+| `PLATFORM_X86` foldable at 193 sites | ✅ 193 total, 192 outside `emit.h` |
+| `PLATFORM_{JVM,NET,JS,WASM}` have no call sites | ⚠ **AMENDED — they have eight, and all eight are already dead.** Every non-X86 use is in `xa_epilogue.cpp` (9,10,14,20) and `xa_prologue.cpp` (9,23,30,44) — ✅ both files are dead `xa_` arms (§ C: `xa_prologue`/`xa_epilogue` have zero callers; `XA_PROLOGUE`/`XA_EPILOGUE` are never dispatched). |
+| `DYN_ENGINE_LINKED` and `IR_DEFINE_NAMES` have zero guard sites | ✅ **zero occurrences in all of `src/`.** The Makefile passes two `-D` flags that nothing reads (`Makefile:392,394,396`, `CRT`, `CXXRT`). Deleting them is inert. |
+| exactly one `#if 0` in `src/` | ✅ `src/tools/tmatch_proto.c:27` |
+
+⭐ **The two collapse jobs compose — sequence them.** Because the entire non-X86 `PLATFORM_*` family
+lives *only* inside the two dead `xa_` files, doing the § C `xa_` carve **first** deletes the last
+non-X86 consumer for free. After that carve, `PLATFORM_X86` is the only platform macro with any live
+use and all 192 of its sites are `if (PLATFORM_X86)` → always true — which turns report 13's step 3
+from "keep the X86 body, delete the other bodies across 145 files" into a pure guard strip.
+**Recommended order: carve (§ A–C) → fossil paths (§ F) → report 13 step 1 minus `RS23_DIAG` →
+step 2 → step 3 → the ζ complex.**
+
+Two smaller reconciliations: report 13 lists `ZC_STORAGE_FRAME_R12` as CLI-erroring, which is right and
+narrower than my § G.2 — `zeta_choices.h` `#error`s only on out-of-range, so `FRAME_R12` is
+compile-legal and rejected by the driver, while `ZC_COL_GC` / `ZC_FRAME_DEAD5` / `ZC_PROMOTE_ON` are the
+three genuine `#error` arms. And its `test_gate_instr_budget.sh:48` citation (cell-heap SIGSEGVs on
+roman, frame-rsp aborts beauty) is the affirmative evidence my § G.4 lacked: the losing ζ arms are not
+merely unexercised, they are **known broken** — which is why collapsing to the compiled default cannot
+lose a working configuration.
+
 ## Routing
 
 - Layout draft (deliverable 3): **`ARCH-SRC-LAYOUT-DRAFT-hq_C.md`**, same push.
