@@ -226,8 +226,9 @@ Measured s256, identical fixed work, both engines, `make pristine` EXIT=0 at `26
 
 1. ⛔ **`ms` IS CONSTANT BY CONSTRUCTION in TIME mode.** HQ's first table read 510–615 ms across fifteen unrelated workloads — that is the `ZBUD` budget, not a result. The real spread hides in `iters`: `arith_loop` 39,845,888 vs `table_access` 3,072, a **13,000x range** behind fifteen identical-looking times. This is the "plausible false table" `bench-harness-unmeasurable` was raised about.
 2. ⛔ **TIME-mode `iters` IS UNQUOTABLE ON A LOADED MACHINE.** With 16 seats building, back-to-back runs swung **2x** (`arith_loop` 46,137,344 then 18,874,368) — turning a real **1.10x into a flattering 4.88x**. The wall-clock table said SCRIP was 3–5x faster on its best kernels; deterministic Ir said 1.1–1.5x.
-3. ⭐ **EVERY PUBLISHED RATIO MUST BE FIXED-WORK Ir, AND EVERY NUMBER MUST CARRY ITS `RT_OPT`.** O0-DEV-O2-BENCH: `-O0` is the dev default, `-O2` passed explicitly for benchmark runs. A benchmark quoted without its RT_OPT is not comparable.
+3. ⭐ **EVERY PUBLISHED RATIO MUST BE FIXED-WORK Ir, AND EVERY NUMBER MUST CARRY ITS `RT_OPT`.** ⛔ **The "O0-DEV-O2-BENCH" clause that stood here is REPEALED and was contradicting this file's own § LON s262 FACT RULE eighty lines down** (`-O0` for development AND benchmarks AND demos; an `-O2` figure grades a gcc optimizer over runtime C we are deleting for register-aware ASM). The RT_OPT labelling duty survives unchanged and now reads `-O0` — a benchmark quoted without its RT_OPT is still not comparable.
 4. ⛔ **VERIFY THE OUTPUT BEFORE BELIEVING THE NUMBER.**
+5. ⛔⭐⭐ **TRANSCRIPTION IS WHERE PROVENANCE DIES — THE MEASUREMENT CAN BE RIGHT AND THE PUBLISHED TABLE STILL WRONG (hq_P s272, caught by `seat13`, not by HQ).** Rules 1–4 all guard the *measuring*. This one guards the *copying*, which is a separate failure with its own casualty list. **What happened:** hq_P minted `bench-6-kernels-below-oracle-cure` by lifting `seat13`'s table, whose header reads `m3:sbl  m4:m3  m4:sbl(deriv)` — and re-headed the **middle** column, a SCRIP-internal mode4-vs-mode3 ratio, as "× vs clean SPITBOL". The source was correct. hq_P's own chat reply carried the correct figures. **The error was introduced in the act of writing it down**, and it then *grew a conclusion*: a section reading "m3 is the whole story and m4 is nearly par", which is false (m4 is behind on all six, 0.30x–0.66x) and which would have sent a seat to explain an m3/m4 split that does not exist — i.e. to spend a row explaining why `m3 ≡ m4` works as designed. ⭐ **Two independent instances the same day across both HQs**: `hq_C` recorded the identical class (a conditional hypothesis about 13 SIGSEGVs losing its condition on being written down and becoming a count), and refuted it with its own later fix. **The rule:** ⛔ *when a number or claim is copied out of the place that produced it, its axis, its basis and its conditions are copied with it or it is not copied.* Corollaries, all paid for: **(a)** a column is re-headed only against the source's own header, never from memory; **(b)** a DERIVED figure stays labelled derived — `m4:sbl` here is `m3:sbl × m4:m3`, and a cure decision turning on it must **re-measure, not re-derive further**; **(c)** ratios that share a grid must share an axis — `m4:m3` shares none with the two oracle columns and may never sit in an unmarked column beside them; **(d)** retract in full and in plain words, in the file, rather than editing quietly — both HQs did this and it is the only reason the class is visible at all.
 
 ## WHAT ONE FLEET-DAY ACTUALLY BOUGHT — the honest baseline this HQ inherits
 
@@ -857,6 +858,48 @@ how the bug ships. Everything needed is above — the three edit points, the two
 verification that distinguishes a real fix from a green corpus.
 
 ## LIVE CURSOR — hq_P
+
+**s272 (2026-08-24) — ⛔ MODE IS `FLEET-12`, NOT DUO. INBOX-DRAIN SESSION: THREE BATON DEFECTS, ALL HQ's OWN, ALL FIXED.**
+
+⛔ **First, the mode.** The s261 entry below says "We are in DUO MODE and DUO IS THE DEFAULT" — **that is stale
+and must not be acted on.** `/home/resources/postoffice/MODE` reads **`FLEET-12`** (Lon, in-chat to CEO,
+2026-08-24 s272 evening: 4→8 midday, +4 more for the announcement push). ⭐ **The MODE file is the authority and
+it is machine-read** — by `s4e_inbox_hook.sh`, `s4e_msg.sh next` and `banner` since SCRIP `205c6aca`. ⛔ Never
+infer the mode from prose in a goal file, this one included. The s261 corollary that *"filing a queue row is not
+a deliverable"* is DUO-specific reasoning: in FLEET-12 there are twelve seats behind those rows, and minting a
+correct row **is** a deliverable — which is precisely what went wrong below.
+
+⭐ **This session drained the inbox and found that all three messages were reports of HQ's own defects.** Nothing
+was wrong with the seats' work; the defects were in what HQ wrote down and in what HQ failed to mint.
+
+1. ⛔ **A published baton table had a mislabelled column — caught by `seat13`.** Full writeup routed to
+   § HOW TO MEASURE, new **rule 5 (TRANSCRIPTION IS WHERE PROVENANCE DIES)**, because it is a class, not an
+   incident: hq_C recorded the identical failure the same day from the other direction. The `m4` column of
+   `bench-6-kernels-below-oracle-cure` was `m4:m3` re-headed as "× vs clean SPITBOL"; verified arithmetically on
+   all six rows against the source header before editing. **m4 is behind on all six (0.30x–0.66x), not "nearly
+   par"** — and the false framing that grew out of the mislabel is retracted in full in the baton.
+2. ⛔ **HQ minted the same six-kernel bundle TWICE** (`perf-tables-strings-runtime-bucket` off seat13's first,
+   unanswered ask; `bench-6-kernels-below-oracle-cure` off their second, without checking for the first). Both
+   sat **rank-1 FREE simultaneously** — two seats could have taken one bundle, the exact WIP-cap failure both
+   rows cite bundling as the cure for. Duplicate **PARKED** in the state column (load-bearing since s265 —
+   `next` skips anything not `FREE`), unique content folded into the survivor. ⭐ Note the corroboration: the
+   older row's numbers were the correct ones all along.
+3. ⛔⭐ **The Defect C cure row CEO ruled GO and named THIS SEAT owner of was NEVER MINTED** — `seat03` flagged
+   its absence three times and **two sessions stopped clean waiting on a row that did not exist**, while the
+   witness baton told them to "check whether hq_P has landed a Defect C fix". Now minted:
+   **`defect-c-zop-flat-regime-depth-compensate`**, rank 1, **`ASSIGNED:hq_P`** — ⛔ *not* `FREE`, because
+   `next` **does not filter by the owner column, only by state** (`s4e_msg.sh:399`), so an HQ-only row left FREE
+   is handed to the next seat that asks. Mechanism re-verified against `x86_asm.h:863` at mint time: the
+   regime-3/4 fallback emits a raw offset with no `x86_frame_off`/`_.op_zdepth` compensation, and the
+   compensated arm is guarded on `bump` being non-zero — **so `bump == 0`, the common case, falls through to the
+   broken arm.** Gate (icon-232-to-169) verified CLEARED against hq_C's s272 omega cure before minting.
+   ⛔ Binding on the cure, from seat03: **validation under at least two process environment sizes**, written into
+   the DONE-WHEN — a green run in one environment is not evidence when the overshoot can land in harmless
+   `envp` padding. `v01` was never a clean witness; all five share one defect.
+
+⭐ **The pattern worth keeping:** three seats each found an HQ error, and each routed it instead of working around
+it. `seat13` flagged two defects that were **outside the row it was closing**. That is the two-HQ/fleet interlock
+working in the direction that is easy to miss — upward.
 
 **s261 (2026-08-23) — ✅ ROMAN CUT 56.3%, SIX CURES, ALL PUSHED. THE DEFER PATH NOW MAKES NO CALL AT ALL.**
 
