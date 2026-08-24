@@ -39,8 +39,22 @@ else echo "⛔ TDUMP-M4 failed to compile/link"; rc=1; fi
 ( cd "$ROOT/SCRIP" && SCRIP="$SCRIP_BIN" timeout 3000s bash scripts/test_corpus_snobol4.sh > "$tmp/corpus.log" 2>&1 )
 m3line="$(grep -aE 'mode-3' "$tmp/corpus.log" | tail -1)"; m4line="$(grep -aE 'mode-4' "$tmp/corpus.log" | tail -1)"
 echo "   $m3line"; echo "   $m4line"
-printf '%s' "$m3line" | grep -qE 'PASS=364 +FAIL=0' || { echo "⛔ CORPUS-M3 is not 364/364"; rc=1; }
-printf '%s' "$m4line" | grep -qE 'PASS=364 +FAIL=0' || { echo "⛔ CORPUS-M4 is not 364/364"; rc=1; }
-[ "$rc" = 0 ] && echo "✅ DONE-WHEN MET — TDump_driver clean in both modes AND corpus 364/364 both modes" \
+# ⛔⛔ s272 hq_C — THE PINNED-DENOMINATOR DISEASE, CAUGHT BY CEO'S AUDIT AND FIXED HERE.
+# This probe asserted 'PASS=364 FAIL=0' and so went RED at HEAD for a reason that has nothing to do with
+# what it exists to watch: TDump_driver is GREEN in both modes, but the corpus's legitimate denominator
+# moved 364 -> 362 and the probe was still demanding the old one. A probe that pins a TOTAL reports a
+# regression every time the corpus legitimately changes size, and that is the false-RED twin of the
+# false-GREEN we spend all day hunting -- both are the instrument lying about the program.
+# ⭐ THE RULE, and it now binds every probe in this tree: ASSERT FAIL=0 AND SKIP=0 AND THE NAMED WITNESS.
+# NEVER ASSERT A DENOMINATOR. The witness is what the row is about; the total is bookkeeping that
+# belongs to whoever owns the corpus, not to this probe.
+for _m in 3 4; do
+    eval "_line=\"\$m${_m}line\""
+    [ -n "$_line" ] || { echo "⛔ CORPUS-M$_m: no mode-$_m summary line in the runner output -- refusing to grade"; rc=1; continue; }
+    printf '%s' "$_line" | grep -qE 'FAIL=0( |$)'  || { echo "⛔ CORPUS-M$_m has FAILures: $_line"; rc=1; }
+    printf '%s' "$_line" | grep -qE 'SKIP=[1-9]'   && { echo "⛔ CORPUS-M$_m has SKIPs (a skip is not a pass): $_line"; rc=1; }
+    printf '%s' "$_line" | grep -qE 'PASS=[1-9]'   || { echo "⛔ CORPUS-M$_m PASS=0 -- an empty corpus is not a green board: $_line"; rc=1; }
+done
+[ "$rc" = 0 ] && echo "✅ DONE-WHEN MET — TDump_driver clean in both modes AND corpus FAIL=0/SKIP=0 both modes (denominator deliberately NOT asserted)" \
               || echo "⛔ DONE-WHEN NOT MET"
 exit "$rc"
