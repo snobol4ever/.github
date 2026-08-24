@@ -478,3 +478,131 @@ flags) — four `fprintf` sites in `scrip.c`, one in `emit.cpp`'s `emit_jmp_entr
 `xa_flat.cpp`'s `xa_flat_class_c` (prints the exact bail reason as `[CLASS-C]`). All gated behind
 `getenv("SCRIP_FLOOR_DIAG")`; `git diff` of the behavioral condition logic itself (pre- vs post-session) is
 byte-identical — confirmed before commit.
+
+## ADDENDUM 4 [seat03, 2026-08-24, fresh session] — Parts A/B's causal claim REFUTED by hq_P; the TRUE mechanism is
+Defect C (hq_P, hardware-watchpoint-measured, independently verified here by reading the source); v02/v03 are now
+believed to be the SAME defect, not a separate third one — three sightings of one general class, not three bugs.
+
+### Parts A/B RETRACTED as causal — read hq_P's finding first
+
+`.github/FINDING-2026-08-24-hq_P-disjunction-cell-was-16-for-a-20-byte-template-and-icon-has-regressed-232-to-169.md`
+(landed SCRIP `52d001c7`/`be376a2f`) **refutes this file's own Addendum 3 Part A** with a controlled experiment, not
+just a disagreeing read: a one-build two-arm killswitch (`SCRIP_FLOOR_ALL`) forcing `g_flat_frame_floor` for *every*
+AOT graph gave **byte-identical SIGSEGV outcome** whether the floor applied or not. The floor/carve-bailing chain
+Part A traced (kind-3 `IR_DEFINE` → `g_flat_frame_floor` → `xa_flat_class_c()` bails → `EXPR$0` never carves) is
+real — the instrumentation numbers were not wrong — but it is **not what causes the crash**. It was a true fact about
+a box that doesn't matter, chased to a false causal conclusion. Filed here so nobody re-derives it: **do not re-open
+Parts A/B's fix direction (depth-forcing/un-forcing the kind-3 floor disjunct) — it is a dead end, proven twice now**
+(this file's own Part B disproved the fix by direct test; hq_P's Part-3-of-their-finding disproved the *mechanism*
+by controlled test, which is the stronger refutation).
+
+### The actual mechanism — Defect C, and I verified it by reading the code, not just trusting the finding
+
+hq_P caught the real write on a watchpoint: a **flat-regime box with no carve of its own** (their witness:
+`n169_lit_string_α`) emits a fixed offset **raw**, and that offset is only correct when `rsp` is sitting at the
+frame base — which it is not when the box is reached from inside a disjunction arm (or anything else) holding an
+outstanding carve. Confirmed by reading `src/templates/x86_asm.h:860-869` myself rather than taking it on faith:
+
+```c
+inline int x86_zop_regime(int off) { if (x86_zstorage() == ZC_STORAGE_FRAME_R12) return 1; if (x86_fc_hit(off)) return 2; return x86_fb_data() ? 3 : 4; }
+inline const char * x86_zop(int off, int q, int bump) {
+    ...
+    if (r == 2) { ... snprintf(..., off - _.op_fc_base + bump); }                                    // fc regime: compensated
+    else if (bump && !x86_fb_data() && !_.op_stmt_dyn) snprintf(..., x86_frame_off(off) + bump);      // "bump path": compensated
+    else { snprintf(..., off + ((x86_fb_data() || _.op_stmt_dyn) ? 0 : bump)); }                      // regime 3/4 fallback: RAW, no x86_frame_off()
+}
+```
+Regime 3/4's fallback branch fires whenever `bump==0` — the common case for a box whose template never learned it
+might be invoked from inside someone else's outstanding carve, so it never passes a nonzero `bump` to begin with.
+No `_.op_zdepth`/`x86_frame_off` compensation reaches this branch at all. **Worth flagging to whoever takes the
+cure:** `x86_ztos`/`ZTOS`/`ZTOSD` (the very next function in the same file, `x86_asm.h:871-878`) unconditionally
+computes `off + _.op_zdepth` — i.e. a *correctly zdepth-compensated* sibling primitive already exists a few lines
+away from the buggy path. Not established whether it's a drop-in substitute for the affected templates' use of
+`x86_zop`/`ZOP` (didn't trace every call site — that's real codegen-lane work), but it's a concrete starting point:
+either the affected templates should be calling `ZTOS` instead of `ZOP` for these offsets, or `ZOP`'s regime-3/4
+fallback should be doing what `x86_ztos` already does.
+
+⭐ **This defect class was already found and cured ONCE before, precedent worth reusing:** `bb_match_defer.cpp:63`'s
+own comment names this exact failure mode "Defect C" — *"both ends compute `[rsp#+op_off]` against WHATEVER rsp
+happens to be AT THAT POINT, sound only if the deferred target's own body never carves stack without self-releasing
+before jumping back... which the non-popping ζ-SPINE law... guarantees it does NOT."* The cure that comment
+describes, for `*P DEFER`'s own case: **establish an RBP activation frame at alpha instead of an RSP-relative
+watermark** — `rbp` doesn't move across a jmp-entry wire transfer (callee carves are rsp-relative, never touch
+`rbp`), so addressing through `rbp` is immune by construction to however much intervening carve state exists. That
+is a **working, already-shipped pattern** for solving exactly this problem for one box family; it may or may not
+generalize to the flat/regime-4 boxes hq_P found (`lit_string`, and see below, also `coerce_numeric`) — that
+generalization judgment is the design ruling hq_P is asking for, not something to guess at here.
+
+### ⭐⛔ v02/v03 are now believed to be the SAME defect, not a separate third one — correcting Addendum 3 Part C
+
+Addendum 3 Part C called v02/v03 "a genuinely separate, unlocated defect" because `SCRIP_FLOOR_DIAG` shows zero
+output for either (true, still true, floor-forcing really doesn't fire for them). **But Part A/B's floor-forcing
+chain is now known non-causal for v05/v06 too (see above) — so "doesn't share the floor mechanism" no longer
+implies "doesn't share the crash mechanism."** Defect C's actual precondition is just "a flat/regime-4 box reached
+from inside an outstanding carve" — floor-forcing was never a necessary ingredient, only an artifact of how v05/v06
+happen to reach their particular flat box. Re-examined v02/v03 this session against that corrected, broader
+precondition:
+
+- **Both source programs use the same `(cond A, B)` selection idiom that lowers through `IR_DISJUNCTION`** — grepped
+  the emitted `.s`: v02 has 4 `_disjunction_α` sites (`n5`,`n21`,`n31`,`n48`), v03 has 2 (`n24`,`n55`). All carve
+  `sub rsp, 32` (hq_P's fix already landed and applied — confirmed the 16-vs-20-byte MISS class is cured here, it
+  just isn't the thing that's crashing).
+- **hq_P's landed fix does NOT cure either program** — rebuilt current HEAD (`SCRIP` past `be376a2f`) and re-ran
+  both in mode 4: still SIGSEGV rc=139, unchanged. Expected, since that fix targets a different bug in the same
+  file.
+- **valgrind signature matches v05/v06's exactly in kind, though the discovery site differs:** v02 crashes at
+  `atexit → getenv("SCRIP_ZETA_TELEM") → rt_gcheap_report`, byte-for-byte the same call chain as v05/v06's crash.
+  v03 crashes *earlier*, mid-execution: `c_str_concat_d → rt_sxt_match → getenv`, reading through the same class of
+  corrupted pointer before `atexit` ever runs. Both valgrind reports: `Invalid read... Address 0x2/0x3 is not
+  stack'd, malloc'd or (recently) free'd` — a **tiny integer sitting where a valid pointer belongs**, the same
+  "descriptor word written through a stale/wrong offset" shape hq_P found (their case: value `2` clobbering
+  `environ[17]`).
+- **Direct gdb memory inspection on v02, not just signature-matching:** `environ[]` at the moment of SIGSEGV shows
+  **many** slots holding small integers (`1,2,3,7,9`) instead of valid string pointers, scattered through the array
+  rather than one isolated slot — consistent with v02's 4 separate disjunction sites each contributing an
+  independent stray write at a slightly different offset/depth, not one single-shot corruption.
+- **Caught one of the writes red-handed with a hardware watchpoint** (tried hardware first per hq_P's correction —
+  **it fired cleanly**, no software fallback needed; my first attempt watching a different, uncorrupted slot
+  correctly produced no trap, which is not evidence hardware watchpoints don't work here, just evidence I watched
+  the wrong address): the write to `environ[1]`'s slot (`0x7fffffffe1c0`, old value a valid pointer, new value `3`)
+  happens in **`n38_coerce_numeric_α`** — a *different* box family from hq_P's `lit_string_α` witness. This is
+  useful, not concerning: it says Defect C is not narrowly a disjunction-template or lit-string-template bug, it's
+  a property of the **regime-3/4 raw-offset path itself** (`x86_zop`'s fallback branch above), so it surfaces
+  through whichever flat box happens to be reached from inside an outstanding carve on a given program — disjunction
+  and lit_string for hq_P's witness, coerce_numeric (and probably others, not exhaustively catalogued) for v02.
+
+**Net correction to Addendum 3's REVISED DONE-WHEN SCOPE: the row most likely has ONE mechanism (Defect C), not
+three.** Not gdb-proven for v03 specifically (only valgrind-signature-matched; v02 got the direct watchpoint catch),
+and not proven that literally every affected box across v02/v03/v05/v06 is Defect C rather than some of them being
+a coincidentally-identical-looking second bug — but the evidence converges hard enough (same corruption shape, same
+discovery family, same `IR_DISJUNCTION`-carrying construct in source, same "landed disjunction-cell fix doesn't
+touch it" result) that whoever executes HQ's design-ruled cure should **re-test v02/v03/v05/v06 together as one
+batch**, not assume v02/v03 need separate, further root-causing first.
+
+### Lane note, and where this row stands
+
+`GOAL-CEO.md` (CEO-19, s271): **"Codegen lanes (wave 4, icon-n2) stay HQ-only per the collision evidence."** This
+row's remaining `DONE-WHEN` cannot be met without a change to `emit.cpp`/`x86_asm.h`'s regime-3/4 addressing (or an
+equivalent structural fix) — squarely a codegen lane. hq_P, an HQ seat, already reached the same wall this session
+("the cure... wants a design ruling... I stopped at the same wall you did") — this is not a case of a worker-seat
+row waiting on worker-seat effort; it is waiting on an HQ design decision that hasn't been made yet by anyone.
+Sent `send hq_P vlist-v02-v03-same-defect-c-plus-match-defer-precedent` and cc'd hq_C (queue custodian, two-HQ
+interlock) this session with this addendum's contents. Not calling `s4e_msg.sh done` — `DONE-WHEN` is unmet and
+will stay unmet until the codegen cure lands — but there is no further seat03-lane measurement action identified
+for this row right now; the honest state is "fully characterized pending an HQ ruling," not "in progress." Next
+session (mine or anyone's): check inbox / HQ board for a landed cure or a design ruling before spending more time
+re-deriving what's already nailed down here and in hq_P's finding.
+
+### RECEIPTS (this addendum)
+
+SCRIP `be376a2f` (pulled forward from `28d73dbf`; `git log -p` read directly to confirm the fc_geom/zd_k diff
+before relying on it). `.github` pulled to `fa2aff43` (hq_P's finding + CEO-19/CEO-18 context). No SCRIP/corpus
+source changes this session — measurement only, consistent with the lane note above. Ladder re-run in mode 4 on
+current HEAD: `v02`,`v03`,`v05`,`v06` all SIGSEGV rc=139 (unchanged by hq_P's landed fix, as hq_P's own finding
+already said for v05/v06 and is now confirmed here for v02/v03 too). gdb transcripts (environ address discovery,
+multi-slot corruption dump, `n38_coerce_numeric_α` watchpoint catch) run against `v02_select_concat_and_assign`
+built fresh from current HEAD at `/tmp/claude-1000/.../scratchpad/v02_select_concat_and_assign_bin` (scratch,
+not committed — rebuild from the corpus source + current SCRIP HEAD to reproduce). Hardware watchpoints tested and
+confirmed working in this container this session, corroborating hq_P's correction over this file's own Addendum
+2 claim and CLAUDE.md's blanket "hardware watchpoints do NOT work in this container" — that line is now known
+overbroad; software fallback is still fine when a hardware one doesn't fire, but try hardware first.
