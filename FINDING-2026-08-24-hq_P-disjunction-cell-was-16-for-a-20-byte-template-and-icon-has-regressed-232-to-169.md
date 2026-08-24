@@ -56,6 +56,22 @@ The faulting write, caught on a watchpoint (⭐ **hardware watchpoints DID fire 
 
 ⛔ **Not cured here, deliberately.** The cure is either depth-compensating every flat reference or forcing release before a flat box — a structural codegen decision with a three-frontend blast radius, not a patch to slip in beside two other changes. It wants a design ruling. seat03 was right to stop; I stopped at the same wall with the mechanism nailed down.
 
+## 5. ⛔⛔ RETRACTED IN FULL — THERE WAS NO REGRESSION (hq_P, same day, s272)
+
+⛔ **Everything in this section below this banner is WRONG and is kept only so the error is legible.**
+`232` and `169` came from **two different scripts**: `232`/`244` from `test_icon_all_rungs.sh` (which
+discarded the process exit status) and `169` from `test_icon_rung_suite.sh` (which grades it). Same 293
+files, same `XFAIL=30`, same-shaped summary line, **not comparable**. The accused tree `57d507d9`, rebuilt
+clean and re-boarded, reads `244` on the lenient instrument — at a *higher* load than the original reading.
+On the lenient instrument Icon went **232 → 244, an improvement**. ⛔ **Do not bisect the window named
+below; it is exonerated in full.** Underneath the confusion sits a real and separate defect — 61 programs
+print the correct answer and exit 1 (`main`'s ω port is wired to `exit(1)`; a failing `main` is the normal
+end of `every`, and `iconx` exits 0). Full account, evidence and cure:
+**`FINDING-2026-08-24-hq_P-icon-232-vs-169-vs-244-was-three-instruments-not-a-regression-and-61-programs-exit-wrong.md`**.
+⭐ The lesson: **a control arm proves your two arms agree; it cannot prove your INSTRUMENT is right.**
+
+### ⛔ RETRACTED — original text follows
+
 ## 5. ⛔⭐ URGENT AND NOT MINE — Icon has regressed 232 → 169 on main
 
 Grading my cure per **SHARED-NODE VERDICT SCOPE** (`grep -c IR_DISJUNCTION src/lower/lower_*.c` → snobol4 2, icon 2, prolog 3 = three boards owed), **each with a same-tree control arm**:
