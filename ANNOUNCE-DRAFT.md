@@ -17,6 +17,8 @@
 4. **The cascade:** why not write SNOBOL4 *in* SNOBOL4 (→ beauty, the self-host) → Snocone, because raw S4 syntax "is so ugly" → the realization that **Icon and Prolog are GDE and BB** — the same machine → cross-language calling → language code-switching. Not all implemented yet: the SCRIP cross-language compile + cross-language runtime is the vision.
 5. **The dream, stated:** "Jeff and my life's dream of writing a SNOBOL4 compiler. And a platform for all my favorite languages."
 
+**STORY MATERIAL (Lon s268, in-chat, verbatim in substance — the runtime-compilation thread):** *"We will allow ALL languages to have their own version of CODE and EVAL"* — Icon and Snocone for sure, Prolog's assertz already is it — which is why compiled programs link ONE library carrying the whole compiler; and the future shrink is self-hosted Snocone parsers + templates dynamically loaded via `*(EXPRESSION)`: *"How funny that a string value in the language will hold asm code that can run direct on the CPU. Kind of cool."* (Candidate closing beat for THE STORY: SNOBOL4's 1962 run-time code generation, EVAL/CODE, carried to native x86 across every language in one compiland.)
+
 ## ⭐⭐ THE SCOPE, RULED (Lon s267, in-chat, verbatim in substance — THE product definition)
 *"SCRIP is SEVEN LANGUAGES on FIVE PLATFORMS such that they can call each other and even co-exist in the same TRANSLATION UNIT, compiland."* Languages: SNOBOL4 · Snocone · Icon · Prolog · Rebus · Raku · Pascal. Platforms: x86-64 · JVM · .NET · JavaScript · WebAssembly. The polyglot `.scrip` demos (fenced per-language sections, one document) and the `family_net` cross-language linkage demo (SNOBOL4 parses → Prolog infers → Icon formats, real EXPORT/IMPORT) are the scope made visible.
 
