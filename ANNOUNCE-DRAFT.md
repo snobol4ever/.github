@@ -17,6 +17,9 @@
 4. **The cascade:** why not write SNOBOL4 *in* SNOBOL4 (→ beauty, the self-host) → Snocone, because raw S4 syntax "is so ugly" → the realization that **Icon and Prolog are GDE and BB** — the same machine → cross-language calling → language code-switching. Not all implemented yet: the SCRIP cross-language compile + cross-language runtime is the vision.
 5. **The dream, stated:** "Jeff and my life's dream of writing a SNOBOL4 compiler. And a platform for all my favorite languages."
 
+## ⭐⭐ THE SCOPE, RULED (Lon s267, in-chat, verbatim in substance — THE product definition)
+*"SCRIP is SEVEN LANGUAGES on FIVE PLATFORMS such that they can call each other and even co-exist in the same TRANSLATION UNIT, compiland."* Languages: SNOBOL4 · Snocone · Icon · Prolog · Rebus · Raku · Pascal. Platforms: x86-64 · JVM · .NET · JavaScript · WebAssembly. The polyglot `.scrip` demos (fenced per-language sections, one document) and the `family_net` cross-language linkage demo (SNOBOL4 parses → Prolog infers → Icon formats, real EXPORT/IMPORT) are the scope made visible.
+
 ## THE ARC FOR THE READMEs (ruled by Lon s267, correcting CEO's first frame)
 
 - **Then:** ALL backends + many frontends ALMOST COMPLETELY running — 120,000+ lines of duplicated, unmaintainable code. Capability proven; cost fatal.
