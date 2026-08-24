@@ -148,7 +148,7 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
-**s270 (2026-08-24, Fable, FLEET-4) — ⭐ THE HOLD CAME OFF AND THE STRIP IS RUNNING. WAVES 1, 2, 3a, 3b LANDED AND PUSHED. THE PLATFORM AXIS IS GONE.**
+**s270 (2026-08-24, Fable, FLEET-4) — ⭐ THE HOLD CAME OFF AND THE STRIP IS RUNNING. WAVES 1, 2, 3a, 3b, 4a LANDED AND PUSHED. THE PLATFORM AXIS IS GONE AND THE ζ SELECTOR IS ONE CONFIG.**
 
 hq_P pinned the six-language baseline (`ab1c6b16`) and released this seat's hold; CEO ruled the two flags. Four waves landed, each its own commit with its own proof. Tree: SCRIP `69449f94`.
 
@@ -158,6 +158,7 @@ hq_P pinned the six-language baseline (`ab1c6b16`) and released this seat's hold
 | 2 | `5354dc0c` | 2 rt.c `ZC_FRAME` tautology guards | ⭐ **rt.o BYTE-IDENTICAL** |
 | 3a | `f2347178` | 95 never-taken `!PLATFORM_X86` guards, 74 files | 25/25 `.s` identical |
 | 3b | `69449f94` | remaining 102 sites + `g_platform`/`bb_platform_t`/all 5 macros deleted | ⭐ **325/325 `.s` identical** |
+| 4a | `ad56bb88` | ⭐ **ζ selector collapsed to ONE config**; CLI trio retired as hard errors | ⭐ **325/325 `.s` identical** + negative test rc=2 ×3 |
 
 **`PLATFORM_X86` in `src/`: 197 → 0.** ⭐ **The board did not move once across all four waves:** corpus **m3 363/364 · m4 363/364 · SKIP=0**, `demo_treebank` only — equal to hq_P's independent pin. Gates rc=0 throughout (`emit_no_lang`, `template_medium_invisible`, `bb_one_box`, `rtx_unit`, `no_handencoded_bytes`, `audit_m3_native_binary_arms`).
 
@@ -167,8 +168,11 @@ hq_P pinned the six-language baseline (`ab1c6b16`) and released this seat's hold
 
 Receipts: `FINDING-2026-08-24-hq_C-strip-waves-1-3-landed-the-platform-axis-is-gone.md`.
 
+⛔⛔ **WAVE 4a's TRAP IS THE MOST TRANSFERABLE THING THIS SESSION PRODUCED — AND IT WOULD HAVE BEEN A RUNTIME FAULT, NOT A COMPILE ERROR.** `g_zeta_mode` looks exactly like dead residue of the deleted `rt_zeta_set_mode`, and **no compiler source reads it**. But `bb_call_fn.cpp:363` emits `lea r12, [rip + &g_zeta_mode]` — **generated code takes its ADDRESS and loads it at run time.** It is KEPT deliberately. ⭐ **A global read only by EMITTED code is invisible to every grep of the compiler's own sources: deleting it compiles perfectly and dies later, inside someone else's program.** The strip's core hazard, stated generally: *the compiler's sources are not the only reader of the compiler's symbols.* ⛔ Do not let a later sweep "finish the job".
+
 ### OPEN / NEXT
-1. ⛔ **WAVE 4 — the ζ selector complex — IS THE ONE REAL HAZARD AND IS NOT MECHANICAL.** These are **runtime-constant branches, not dead `#if`s**; proof is m3≡m4 byte-diff of regenerated `.s`, not gates. CEO ruled the `--zeta-storage`/`--zeta-port`/`--zeta` CLI trio dies **with** the collapse — hard-error stubs per the `frame-r12` precedent, so an old command line fails loudly instead of silently no-opping. Then wave 5 (batched ZC), waves 6–7, then the `00-INDEX` dead-code carve.
+1. **WAVE 4b:** the ~90 call sites whose `ZC_STORAGE`/`ZC_PORT` branches are now provably one-sided — harmless dead branches, so deferring them half-lands nothing. Then wave 5 (batched ZC), waves 6–7, then the `00-INDEX` dead-code carve. ⛔ Waves 4–5 are also where the three HELD tripwires (`ZC_FRAME_DEAD5`, `ZC_PROMOTE_ON`, `ZC_COL_GC`) finally collapse **with** their axes. ⛔ Also deferred with a reason: the emitted `g_zeta_mode != 2` comparison is now a one-sided branch **in generated code**; simplifying it changes emitted asm and forces a corpus-wide `.s` regen, so it needs its own byte-diff budget.
+1b. ⭐ **`CLAUDE.md`'s ζ-selector section was REWRITTEN this session** — it documented the retired flags as live A/B surface and would have sent the next session straight into a hard error.
 2. **Rows minted this session:** `icon-247-to-232-fifteen-program-gap` (rank 4) — a REAL, unattributed 15-program Icon regression between s247 and s267; the s247 number was **measured** (two agreeing runs), so the "old watermark was wrong" escape is closed. Surfaced by seat01 refusing to quietly re-baseline a stale DONE-WHEN.
 3. **Ruled for seat01, routed to `GOAL-ICON-100.md`:** N-1 ACCEPTED on no-regression-by-name; ⛔ **no DONE-WHEN may carry a bare absolute score** as its gate (it names the instrument and demands no-regression against a baseline the executing session measures itself); the Prolog wire-stack crossing is **attributed PZ-ladder progress**, callee side explicitly not done.
 4. **Flagged, not taken:** wave 3b consumed the JVM/JS/NET/WASM prologue/epilogue template bodies (backend content, but the same constant-false class wave 3 is defined by — raised to CEO rather than done silently) · `wasm_emit_data_segments_str` now unreferenced, left for Phase 2's `g_wasm_strtab` axis · `--target=jvm/js/wasm` never assigned `g_platform` even before this strip, a **pre-existing** CLI lie · `crosscheck/coverage/coverage_sno_nodes.s` is a checked-in golden for a program that **no longer compiles** (`FATAL lower_snobol4` GZ#5) — worth a row.

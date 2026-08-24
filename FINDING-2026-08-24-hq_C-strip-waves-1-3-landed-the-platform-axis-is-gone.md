@@ -15,6 +15,7 @@ session. CEO ruled the two flags. Waves 1, 2, 3a, 3b are landed, each its own co
 | 2 | `5354dc0c` | 2 rt.c `ZC_FRAME` tautology guards | ⭐ **rt.o BYTE-IDENTICAL** |
 | 3a | `f2347178` | 95 never-taken `!PLATFORM_X86` guards, 74 files | 25/25 `.s` identical |
 | 3b | `69449f94` | remaining 102 sites + the axis itself deleted | ⭐ **325/325 `.s` identical** |
+| 4a | `ad56bb88` | ζ selector collapsed to ONE config; CLI trio retired as hard errors | ⭐ **325/325 `.s` identical** + negative test |
 
 **`PLATFORM_X86` in `src/`: 197 → 0.** `bb_platform_t`, `g_platform` and all five `PLATFORM_*` macros are
 deleted — the axis is gone, not merely unused.
@@ -86,12 +87,33 @@ is a golden nobody can reproduce** — worth its own row.
    waves 1–2 (`b881142b`→`84b07d2d`, `d60993d0`→`5354dc0c`), so wave 2's message cites a hash that no
    longer exists. Later waves cite post-push hashes. Not rewritten (history rewrite is forbidden).
 
+## ⭐ WAVE 4a ALSO LANDED — AND ITS TRAP IS THE MOST TRANSFERABLE THING HERE
+
+The ζ selector is collapsed: `rt_zeta_storage_get()` / `rt_zeta_port_mode()` / `rt_zeta_mode()` return
+constants, the three setters and the env twins (`SCRIP_ZETA_STORAGE`, `SCRIP_ZETA_PORT`) are deleted,
+the mode-4 preamble bake sites are gone, and `--zeta-storage=` / `--zeta-port=` / `--zeta=` are
+**hard-error stubs, negative-tested rc=2** — so an old command line fails loudly instead of quietly
+compiling something else. Surviving config: storage `cell-stack`, port `forth`, ζ `zls2`.
+
+⛔⛔ **THE TRAP, AND IT WOULD HAVE BEEN A RUNTIME FAULT RATHER THAN A COMPILE ERROR.** `g_zeta_mode`
+looks exactly like dead residue of the deleted `rt_zeta_set_mode`, and **no compiler source reads it**.
+But `bb_call_fn.cpp:363` emits `lea r12, [rip + &g_zeta_mode]` — **generated code takes its ADDRESS and
+loads it at run time.** It must survive as a real object at a stable address though nothing may ever
+write it again. ⭐ **A global read only by EMITTED code is invisible to every grep of the compiler's own
+sources: deleting it compiles perfectly and dies later, inside someone else's program.** This is the
+sharpest instance yet of the strip's core hazard — *the compiler's sources are not the only reader of
+the compiler's symbols.*
+
+⛔ Consequence noted, deliberately not acted on: that emitted sequence compares `g_zeta_mode` against 2
+(`ZC_ZETA_ZH`) and the mode is now permanently 1, so it is a one-sided branch **in generated code**.
+Simplifying it would change emitted asm and force a corpus-wide `.s` regen — a later wave with its own
+byte-diff budget.
+
 ## NEXT
 
-**Wave 4 — the ζ selector complex — is the one real hazard in the ladder** and is not mechanical: these
-are **runtime-constant branches, not dead `#if`s**, so the proof is m3≡m4 byte-diff of regenerated `.s`,
-not gates. Per CEO's ruling the `--zeta-storage` / `--zeta-port` / `--zeta` CLI trio dies **with** the
-collapse, leaving hard-error stubs per the `frame-r12` precedent. Then wave 5 (batched ZC), waves 6–7,
-and the `00-INDEX` dead-code carve.
+**Wave 4b:** the ~90 call sites whose `ZC_STORAGE`/`ZC_PORT` branches are now provably one-sided. They
+are harmless dead branches, so deferring them half-lands nothing. Then wave 5 (batched ZC), waves 6–7,
+and the `00-INDEX` dead-code carve. ⛔ Waves 4–5 are also where the three HELD tripwires
+(`ZC_FRAME_DEAD5`, `ZC_PROMOTE_ON`, `ZC_COL_GC`) finally collapse **with** their axes.
 
 Related: `[[FINDING-2026-08-23-hq_C-switch-keep-list-certified-and-the-zd-family-is-a-per-op-filter]]`.
