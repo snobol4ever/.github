@@ -1,5 +1,21 @@
 # ⛔⭐⭐⭐ GOAL-PROLOG-100 — SCRIP PROLOG x86/x64 ALL THE WAY HOME: 100%, ONE PLAN, ONE FILE
 
+## ⛔⭐⭐⭐ LON DESIGN RULING, 2026-08-24 s273 — **PROLOG USES `DESCR`, NOT `Term`. ALLOCATIONS RIDE THE THREE ZETAS, IN ORDER. NOT THE HEAP.**
+
+**Lon, in-chat to hq_C, verbatim in substance:** *Prolog should not use `Term` at all, it should be using `DESCR`. It is out of whack design-wise. Things do not really need to live on the heap for our GDE stuff — look at Icon and SNOBOL4. The values for strings, yes. But we are using Byrd Boxes. **Any allocations better live on (1) the SPINE, (2) the ACTIVATION FRAME, (3) the STANDING (ROOT) ACTIVATION FRAME — IN THAT ORDER.** We use BB with RESULT and BB LOCALS. You can have as many RESULTS and LOCALS as needed at ALL THREE ZETAS. Tell Prolog to get with the program.*
+
+⭐ **THIS ANSWERS OPEN QUESTION 8 (PZ-1(a)). IT IS NO LONGER THE IMPLEMENTER'S CHOICE.** s273 retired the seed *gate* and briefly left the shape free; **this ruling closes the shape.** The three-way menu (retained spine cell / activation-frame slot / heap cell with a spine handle) is now **ordered, not optional**: **SPINE first, ACTIVATION FRAME second, STANDING (ROOT) ACTIVATION FRAME third.** ⛔ **The heap arm is struck** — it was never an equal option, and choosing it is now a defect, not a trade-off.
+
+⛔ **THE MEASURED STATE, verified by hq_C at s273 before routing this — Lon's read is exactly right:**
+- `src/parser/prolog/term.h` defines a **complete second value representation** parallel to `DESCR_t`: its own `TermTag` enum (`TERM_ATOM`/`VAR`/`COMPOUND`/`INT`/`FLOAT`/`REF`) and a tagged union carrying `atom_id`/`var_slot`/`{functor,arity,Term **args}`/`ival`/`fval`/`Term *ref`.
+- **448** `Term`/`Term_t`/`Term *` references across the Prolog frontend, `unification.c`, and `sync_monitor.c`.
+- It is **heap-allocated**: `Term **args = malloc(...)` at multiple sites; **23** malloc/free sites in `prolog_parse.c` alone.
+- **Only 2** Prolog-reachable files touch `DESCR_t` at all (`pl_cell.h`, `unification.c`).
+
+⭐ **WHY THIS IS THE WHOLE POINT AND NOT A CLEANUP:** SNOBOL4 patterns, Icon generators and Prolog backtracking are **three syntaxes over one machine** — the four-port Byrd box. A box carries its values in **BB RESULT and BB LOCALS**, and *"you can have as many RESULTS and LOCALS as needed at ALL THREE ZETAS."* A language that invents its own heap-allocated node type is **not on that machine** — it is a second machine wearing the first one's ports, which is why Prolog keeps needing bespoke frame work (`rt_jmp_frame_lexprep2`) that the other two never needed. ⛔ **Only string VALUES belong on the heap.** Structure does not.
+
+⛔ **STANDING INSTRUCTION TO hq_C (Lon: *"and you keep on him about it"*):** this is not a one-time telegram. **Every Prolog row this seat touches gets checked against this ruling**, and a Prolog change that adds `Term` surface or a new heap allocation is refused review until it is re-shaped onto the zetas. Recorded here so the obligation outlives any one session.
+
 ## ⛔⭐⭐ LON OVERRIDE, 2026-08-24 s273 — **SEED-FIRST IS RETIRED. PROLOG HAS LIBERTY.**
 
 **Lon, in-chat to hq_C, verbatim in substance:** *that is a silly standing rule — it came from when we were at ground zero. Give the Prolog seats liberty to get the work done.*
