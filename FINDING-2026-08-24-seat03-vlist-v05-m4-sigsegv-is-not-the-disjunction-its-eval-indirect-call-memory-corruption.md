@@ -308,6 +308,12 @@ over-adjusts `rsp` relative to what the disjunction box's offset was compiled ag
 
 ### RECEIPTS (this addendum)
 
+Reconfirmed after rebuilding against `0f4231f8` (Lon's direct commit, same day, landed mid-session: `RT_DCAP_ISLAND_BYTES`
+4MB→64MB, a DIFFERENT defect in the same `pattern_match.c`/`rt_dcap_pump` neighborhood — an `r12` bump-allocator
+overflow, not the `rsp`-relative static-offset desync this addendum documents). Both `v05_treebank_pushlist_235.sno`
+and `v06_defer_call_disjunction.sno` still SIGSEGV rc=139 in m4 at `0f4231f8`, unchanged — Lon's fix does not touch
+this defect, as expected given the different register/mechanism.
+
 SCRIP `1a9cc1bc` (unchanged from Addendum 1's receipts — investigation only this session too, zero source changes).
 `gdb -batch` under `SCRIP_NO_SEGV_HANDLER=1`, `set can-use-hw-watchpoints 0` (hardware watchpoints do not fire in this
 container — confirmed by way of hq_P's own warning, not independently re-discovered the hard way). `objdump -d -M intel`
