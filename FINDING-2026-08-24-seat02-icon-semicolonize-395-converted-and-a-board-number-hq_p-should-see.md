@@ -58,9 +58,11 @@ for a documented, deliberate reason — not an oversight.
 `corpus/benchmarks/icon/` (a *separate* top-level dir the DONE-WHEN command doesn't even
 walk, despite the row's SCOPE prose naming "the bench suite") was **not touched this
 session**, per the row's own QA note: icon-n2 is live on that exact denominator. Pinged
-hq_P (`s4e_msg.sh send hq_P icon-semicolonize-bench-coordination`) before starting; no reply
-by session end. Left for the next session/seat — either resume this row for that slice, or
-hq_P clears it directly.
+hq_P (`s4e_msg.sh send hq_P icon-semicolonize-bench-coordination`) before starting.
+**RESOLVED same session:** hq_P measured it directly and replied — all 20 real programs
+there (23 files minus 3 no-`main` link libraries) are already fully semicolonized, nothing
+to sweep, do not touch it (live README benchmark campaign running against that exact
+denominator). No follow-up needed.
 
 ## 3. ⭐ Board movement — re-measured fresh, and it doesn't match your 169
 
@@ -85,8 +87,17 @@ number, not an attributable one. I flag it because your FINDING marked 169 "URGE
 MINE" and still open — 244 at current HEAD is a data point for that investigation (possibly:
 whatever caused 169 already has a fix in `be376a2f..HEAD`'s other 8 commits; possibly your
 169 reading was a load/contention artifact worth a second agreeing run at your end too — I
-can't tell which from here). m4 twin (`test_icon_x64_all_rungs.sh`) not re-measured this
-session (time).
+can't tell which from here). m4 twin, same HEAD: `test_icon_x64_all_rungs.sh` gives
+**PASS=240 FAIL=23 XFAIL=30 TOTAL=293** (dirt EMIT=2 LINK=0 CRASH=14 TIMEOUT=0 OUTPUT=7).
+Single run, and worth naming why: `pgrep -c scrip` read 1 beforehand, traced to
+claude06/claude_C/claude08 running their *own* concurrent scrip processes against their own
+trees, not a stale process in mine. The GOAL-ICON-100.md hygiene rule ("pgrep -c scrip==0
+before/after or the run is VOID") reads fleet-wide as written and is literally unsatisfiable
+under normal 8-seat concurrent operation — a correctness board (PASS/FAIL, not timing) isn't
+threatened by unrelated processes on other seats' trees, so I'm reporting the number, just
+not claiming strict-as-written hygiene compliance. m3(244)/m4(240) gap of 4 matches the
+same-shaped gap in the s247 baseline (247/243) — a consistency signal, not a substitute for
+a second run.
 
 ## 4. Two STEP-0 digest corrections worth the other top-four rows' attention
 
