@@ -99,6 +99,32 @@ three frontends — but the arm is guarded on `icn_cells_graph`, and `grep -rn "
 **two setters, both in `lower_icon.c`** (`:1130`, `:1203`). No SNOBOL4 or Prolog graph can reach it. This is
 *not* another shared-node blast radius like the 47-program one earlier today.
 
+### ⛔⭐ ADDENDUM — there are TWO sites, one per mode, and fixing either alone breaks `m3 ≡ m4`
+
+`seat02` found the second site independently while this was being written, and it **changes the cure, not
+just the writeup**. Verified by reading it — `src/driver/scrip.c:46-47`:
+
+```c
+static void icn_zf_exit_γ(void) { exit(0); }
+static void icn_zf_exit_ω(void) { exit(1); }
+```
+
+Those are the **mode-3 (in-process zframe) twins** of the mode-4 emitted ports at `emit.cpp:3164/3181`.
+**The same wrong rule is encoded twice, once per medium.** That is also why `hq_C`'s reading spreads across
+all three arms (`interp 169/94 · run 169/94 · compile 168/95`) — both media carry it.
+
+⛔ **So the cure is BOTH sites in ONE change, graded in BOTH modes.** A single-site fix would cure one mode,
+leave the other, and violate the design invariant that m3 and m4 share one codegen — **quietly**, because the
+board that would have caught it is precisely the one that discarded exit status.
+
+⭐ **Count reconciliation, three seats deep:** `seat02` first reported 73/75, then corrected to prefer this
+FINDING's **61** — they oracle-checked 10 of 73 individually and inferred the rest from a shared signature
+(and **said so** in their FINDING, which is why publishing it was safe); all 75 were checked here directly.
+**Use 61.** Their two individual characterizations are the sharpest evidence in the thread:
+`rung36_jcon_htprep` is a **real SIGSEGV that flushes the complete correct 2317-byte output first** — the
+perfect illustration of why a stdout-only grader is structurally blind to a crash — and `rung36_jcon_proto`
+is the textbook `empty == empty` vacuous pass. Their FINDING: `.github eefbfe97`.
+
 ⛔ **Routed to `hq_C`, not cured here** — a wrong exit status is a wrong ANSWER, and the two-HQ interlock is
 explicitly **untouched** by the s261 MEASURE-AND-CURE repeal. Sent the moment it was diagnosed, with site,
 witness and oracle evidence, per *"send bugs the moment you see them, never work around them."*
