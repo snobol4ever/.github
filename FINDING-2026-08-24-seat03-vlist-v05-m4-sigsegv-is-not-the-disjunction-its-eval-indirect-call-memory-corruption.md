@@ -133,6 +133,50 @@ is still open.
    directly), so the fix almost certainly belongs in the EVAL runtime path (`runtime_eval.c`) or the
    pattern-capture pump (`pattern_match.c`/`aggregates.c`), not in this row's own VLIST/disjunction code.
 
+## ⭐ ADDENDUM (same session, after `valgrind --track-origins=yes`) — a strong structural match to hq_P's PROVEN Icon generator-frame defect, same session
+
+Ran `valgrind --track-origins=yes` on `v05_bin` per the recommendation above. **All five "uninitialised value"
+origins trace to the exact same place**: `rt_slab_get`/`rt_slab_region` (`rt_slab.c:29/51`) → `malloc`, called
+from either `_parse_define_spec` (at process-startup `DEFINE` registration) or `c_rt_str_alloc`/`c_str_concat_d`
+(GC-heap string allocation). This is the signature of a slab/GC allocator that does **not** zero fresh pages —
+normal, expected behavior for this class of allocator — so these five warnings are very likely **benign
+false-positive noise**, not the defect. **Correcting my own prior framing**: the `rt_define_tiny_ok` /
+`eval_cache_*` / `table_set_descr_d` leads named above are probably not where the real bug is; they were just
+the first "uninitialised value" reads valgrind happened to reach before the fatal one, not causally connected
+to it. Do not spend further time instrumenting those specific functions.
+
+**More useful from this run: valgrind reports ZERO "Invalid write" warnings anywhere before the fatal crash.**
+Memcheck normally catches an out-of-bounds or use-after-free WRITE directly, at the write site — it did not
+here. Combined with `grep -rn 'setenv\|putenv\|environ' src/runtime/` returning **zero hits** (this runtime
+never touches `environ` directly, ruling out "a real call computed the wrong value"), the corruption is not a
+bounds violation valgrind's shadow memory can see, and not a deliberate-but-wrong environ write. It has to be a
+write that is **in-bounds of some legitimately-mapped region valgrind considers valid, but at the wrong logical
+offset** — exactly the shape of the mechanism hq_P proved this same session for a related-but-distinct code
+path.
+
+⭐ **The connection**: `.github/FINDING-2026-08-24-hq_P-generator-frame-cannot-live-below-the-callers-rsp.md`
+(hq_P, s271, same day) proves — with a two-moment gdb memory read, not a guess — that an Icon `SUSPEND`
+generator's activation frame, when carved **below the caller's `rsp`** at the moment of yield, gets silently
+overwritten by the very next `call` the caller makes: *"Everything below a C stack pointer is scratch: the
+next call owns it."* No bounds violation, no crash at the overwriting write (it's a completely ordinary,
+in-bounds stack write from the overwriting call's own point of view) — the corruption only becomes visible
+much later, when something still holds a pointer into the now-reused region. **That is exactly v05's evidence
+shape**: no invalid write, a real value computed correctly (m3 prints the right answer), and a crash much later
+in unrelated code holding a stale pointer. `v05`'s crash chain runs through `eval_thunks_emit_from` — EVAL's
+runtime JIT-compilation of `epsilon . *push_list(...)`, an **indirect procedure call construction**, which per
+`src/runtime/rt/rt_coexpr.c:74/93/97/164/170` (`rt_gc_root_range_add`/`_del`, `stk_win`, `stk_guard`,
+`frame_copy`) plausibly shares the SAME low-level coroutine/activation-frame machinery hq_P's finding is about,
+carving some scratch/frame region relative to the CURRENT `rsp` at the moment EVAL's JIT'd chain runs — if that
+region is placed below `rsp` the same way the generator frame was, it would be silently reclaimed by
+`ListInsert`'s own subsequent recursive calls, corrupting something a much-later GC/string operation still
+points at, eventually reaching whatever `environ`-adjacent memory `getenv()` trips over at exit.
+
+**This is a hypothesis pointing at a proven mechanism, not itself proven for v05** — I have not repeated
+hq_P's two-moment gdb memory read against v05's own activation/EVAL path this session. Flagged directly to
+hq_P (`send hq_P vlist-v05-may-share-your-generator-frame-mechanism`) since they are the ones with the
+demonstrated method and the freshest context on this exact failure shape, rather than attempting to
+independently re-derive their technique against a much larger, harder-to-isolate witness.
+
 ## RECEIPTS
 
 SCRIP `1a9cc1bc` (post `0e57de3b` vlist cure + `9df28b03` tdump-regression fix), `make pristine` fresh build,
