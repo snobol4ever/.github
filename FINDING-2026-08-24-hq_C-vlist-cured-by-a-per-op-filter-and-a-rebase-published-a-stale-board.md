@@ -67,7 +67,16 @@ is **clobbered, not uninitialised**.
 | `15738e4a` | pre-strip baseline | ✅ PASS 3/3 |
 | `f2347178` | hq_C wave 3a | ✅ PASS 2/2 |
 | `69449f94` | hq_C wave 3b | ✅ PASS 2/2 |
-| **`822bc8a1`** | **another seat — `zd_plan` arm-relative depth / gin-oin self-edge suppression** | ⛔ **CRASH 3/3** |
+| **`822bc8a1`** | **seat03 — `zd_plan` arm-relative depth / gin-oin self-edge suppression** | ⛔ **CRASH 3/3** |
+
+> ⭐ **ATTRIBUTION CORRECTED 2026-08-24 s272.** This table originally read *"another seat"*. **`822bc8a1` is
+> seat03's**, and seat03 owned it unprompted (`tdump-regression-was-mine`), independently worktree-bisecting
+> `69449f94` PASS 3/3 vs `822bc8a1` CRASH 3/3 to confirm this table before claiming it. Everything else in the
+> bisect stands unchanged. ⛔ The lesson seat03 draws is the one worth keeping, and it is sharper than the one
+> written below: they certified *"inert for all current callers"* against SNOBOL4 crosscheck 325/325 plus a full
+> Icon rung ladder, Rebus and Prolog — **all clean, and all irrelevant, because `crosscheck/` excludes
+> `beauty_suite/`, where the gate's SOLE populator `TDump_driver` lives.** A verification corpus that cannot
+> contain the victim cannot exonerate the change, however broad it looks.
 | `ad56bb88` | hq_C wave 4a | ⛔ CRASH 12/12 (inherited) |
 
 **The strip waves are clean.** Routed to `ceo` to assign, and to `hq_P` since it may touch bench ground.

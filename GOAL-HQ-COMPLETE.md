@@ -148,7 +148,72 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
-**s271 (2026-08-24, Opus 5, FLEET-4) — ⭐⭐⭐ SNOBOL4 IS `364/364` IN BOTH MODES **ON `main`**, ZERO KNOWN REDS. THE LAST STANDING RED (`TDump_driver` r12 SIGSEGV) IS CURED AT SCRIP `9df28b03`.**
+**s272 (2026-08-24, Opus 5, FLEET-8) — ⭐⭐⭐ THE BOARD THAT CERTIFIES SNOBOL4 COULD NOT SAY NO. IT CAN NOW: rc=0 GREEN · rc=1 REAL FAILURE · rc=2 REFUSED. AND THE QUEUE IS SHAPED FOR 8 SEATS.**
+
+### ⛔⛔ THE CORRECTNESS BOARD HAD TWO FALSE-GREENS AT ONCE — CURED, SCRIP `9873fe6e`
+
+`test_corpus_snobol4.sh` is the primary SNOBOL4 correctness instrument and a member of the blocking set.
+**(1)** `run_test()` returned **silently** when a `.sno` or `.ref` did not resolve, so any of ~40 **hardcoded** demo
+rows could leave the board with no signal at all — not PASS, not FAIL, not SKIP. **(2)** The script's last
+statement was a `printf`, so it **exited 0 with any number of mode-4 failures**, though `CLAUDE.md` has always
+said mode-4 is the hard gate — the `make test` trap's exact shape, inside the blocking set.
+
+⭐ **NEGATIVE-TESTED IN BOTH DIRECTIONS**, pristine `-O0`, SCRIP `9873fe6e`, corpus `e6c0d6b72`, re-proven after
+the rebase that landed it: green **rc=0** (m3 362/362 · m4 362/362 · SKIP=0 · MISSING=0) · broken `$DEMO`
+**rc=2** with all 22 rows named · one wrong `.ref` **rc=1**, denominator held at 362.
+⛔⛔ **THE WHOLE BUG IN ONE ROW: the OLD script, on that same broken `$DEMO`, printed `PASS=340 FAIL=0` AND
+EXITED 0.** Reported by **seat04** (`q-corpus-demo-path-mismatch`); measured, cured and tested here.
+
+⛔ **THE FREQUENCY IS THE FINDING.** The demo paths were repointed **five times in one day** (`6ce46ebc`
+`dac73079` `843cacfb` `1177e66e` `50923f55`), and **every break was caught only because a human noticed the
+printed total had shrunk.** That is a person doing an instrument's job from memory — and it is why three
+different SNOBOL4 totals (360, 362, 364) were each measured green on 2026-08-24 as the corpus moved.
+⛔ **MY OWN s271 GUARD MISSED IT, AND THAT IS THE TRANSFERABLE PART:** it refuses when `$DEMO`/`$BEAUTY` is not a
+directory — written against the outage I had just seen. The next one was the subtree existing while the **files
+inside it** re-nested. **A guard written against the last outage checks for the last outage.**
+
+⭐ **THE RULE, and hq_P reached it the same day from the perf side** (a watermark re-pinned as a 2.20x "win" that
+was a two-day campaign plus a hand-edited workload): **an instrument must REFUSE or re-label when its basis moves
+— never quietly report a better number.** `FAIL=0` is not a verdict; `FAIL=0` over the expected denominator, with
+`MISSING=0`, is. Full receipts:
+`FINDING-2026-08-24-hq_C-the-snobol4-board-could-not-say-no-and-a-moved-file-was-invisible.md`.
+
+### ⭐ MEASURED BOARD — AND WHY IT IS **362**, NOT THE 364 THIS CURSOR CLAIMED AT s271
+
+**m3 PASS=362 FAIL=0 · m4 PASS=362 FAIL=0 · SKIP=0 · MISSING=0 · rc=0.** This **agrees with hq_P** (362 at corpus
+`e63689fae`). The s271 figure of 364 was true of the tree that produced it; the corpus has since shrunk
+legitimately. ⛔ **Do not treat 362 as a regression from 364, and do not "restore" the difference.**
+⭐ **hq_P's recommendation to ceo — that `CLAUDE.md` stop pinning a total at all and read `FAIL=0`/`SKIP=0` — is
+now MECHANICALLY SUPPORTED, and this seat endorses it**: with rc=2 in place, the board itself refuses when its
+denominator moves, so the pinned number is no longer the only thing standing between us and a silent shrink.
+⛔ ceo owns the denominator pin; this is a routed recommendation, not a change made here.
+
+### ⭐ QUEUE SHAPED FOR THE 8-SEAT FLEET (ceo `queue-shape-for-new-seats` + `mint-restoration-rows`)
+
+Four lanes are now the **top four served** (the picker is rank-sorted with a stable tie-break, so file order
+decides within a rank): `corpus-suites-consolidation` · `icon-corpus-semicolonize` · `strip-mechanical-carve` ·
+`instrument-repair-bundle`. Restoration rows minted at rank 2 — `snocone-` / `raku-` / `pascal-restore-prezeta`
+(Rebus rides on snocone) — and `beauty-comment-bug-witness` at rank 5. Six new batons written, two amended;
+every DONE-WHEN is `bash -n` clean, and every top-four baton carries ceo's **STEP 0** (fix your own root's
+`CLAUDE.md` digest — the permission-clean way to land the propagation that a cross-root write was refused for).
+⛔ **CORRECTION ROUTED TO ceo:** `corpus-suites-consolidation` was **rank 3**, not the rank 1 ceo believed —
+it sat behind ~25 rank-0 rows, so the picker would never have served it. ceo asked for it to be verified rather
+than trusted; it was, and it was wrong.
+
+### ⛔ THE OPEN TAIL — NAMED, NOT BURIED
+
+`vlist-v05-m4-sigsegv-m3-m4-divergence` (seat03 holds it) is **no longer where its brief pointed, twice over**.
+Both the disjunction-depth and the EVAL-JIT hypotheses were refuted by direct test; seat03 then **confirmed** by
+gdb watchpoint that a disjunction box writes a **statically-computed rsp-relative offset that overshoots into
+`environ[]`**, but only when reached via a deferred pattern-call pumped at match-end (`rt_dcap_pump`) rather than
+a direct call. ⭐ That reconciles with this row's own earlier v01 exoneration instead of contradicting it — v01's
+direct invocation never reaches the path. Witness minimised to 49 lines at `corpus/probe/vlist_select/v06`.
+**Still unlocated: which fixed-offset computation is wrong.** The lead is the AOT `--compile` analog in
+`emit.cpp`/`codegen_flat_chain_body`.
+
+---
+
+**s271 (2026-08-24, Opus 5, FLEET-4) — ⭐⭐⭐ SNOBOL4 IS `364/364` IN BOTH MODES **ON `main`**, ZERO KNOWN REDS. THE LAST STANDING RED (`TDump_driver` r12 SIGSEGV) IS CURED AT SCRIP `9df28b03`.** *(superseded by s272 above — that 364 described a corpus that has since legitimately shrunk to 362.)*
 
 ### ⭐⭐ LON'S NUMBER IS NOW MET ON `main`, NOT ONLY ON A CLEAN TREE
 
