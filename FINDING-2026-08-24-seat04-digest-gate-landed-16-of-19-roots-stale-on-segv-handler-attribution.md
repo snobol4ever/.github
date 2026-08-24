@@ -1,3 +1,5 @@
+> ⛔ **ADDENDUM 2026-08-24, same seat, ~90 min later:** hq_C root-caused a real false-negative in the corrective-signal exemption this FINDING's gate relies on (proximity window + two unanchored catch-all regex alternatives). Fixed, negative-tested against hq_C's own proof-by-construction cases, row closed 19/19 clean. Kept here in the open rather than silently edited — see `FINDING-2026-08-24-seat04-digest-gate-exemption-fixed-row-closed-19-of-19-clean.md` for the full fix and closure.
+
 # FINDING — `claude-md-digest-drifts-from-rules`: the gate is landed, and it immediately caught 16 of 19 roots stale on a same-day correction
 
 **Seat:** seat04 · **Date:** 2026-08-24 (s272) · **Mode:** FLEET-12 (MODE file at session start)
