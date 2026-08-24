@@ -368,3 +368,138 @@ consistency census, `emit.cpp:2542` — pre-existing tooling, not written this s
 both modes, `--dump-zeta` for slot-layout ground truth. Committed: `src/lower/lower_snobol4.c` (TT_VLIST
 rewrite + `sno_arm_result` helper), `src/emitter/emit.cpp` (SCRIP_ZD_VLIST_OMEGA deletion only — the ZD5B
 extension attempt and its two bug fixes are NOT committed, fully specified above for reconstruction).
+
+## THIRD ATTEMPT (new session, 2026-08-24) — hq_C's s269 ruling on the reconciliation actioned: bugs 1+2 LANDED
+## standalone; bugs 3+4 reapplied and reverified; Bug 5 pinned to EXACT byte arithmetic via live `.s` reading;
+## one new, concrete fix vector found (`op_zres`/`ZRES` — bb_disjunction.cpp never uses it, bb_lit_scalar.cpp
+## does) but its own wiring (where the real `sub rsp` actually gets emitted) not fully traced — reverted again
+## rather than guess on shared codegen infrastructure. Corrects one specific claim in hq_C's ruling.
+
+**hq_C's ruling (inbox, s269) accepted the recommendation to keep working the `disj_sigma_copy` addressing gap
+rather than revive the old mechanism — confirmed correct, see the RECONCILIATION section above.** hq_C also
+offered a specific hypothesis to verify, not trust: that `zd_wl_kind()` (emit.cpp, the function informally
+called `zd_wants()` in the ruling text — the real identifier is `zd_wl_kind`, `emit.cpp:2070`) returns 0 for
+`IR_DISJUNCTION` because its per-op arm (`emit.cpp:2128`) requires `pl_cells_graph`, which is false on the
+SNOBOL4 arm.
+
+**CORRECTION, verified both by reading and empirically:** that per-op arm is dead code for SNOBOL4. `zd_wl_kind`
+has an EARLIER blanket rule, `emit.cpp:2107`: `if (!(g_emit_cfg && (icn_cells_graph || pl_cells_graph))) return
+1;`. Grepped both flags' only setters (`lower_prolog.c:12`, gated `SCRIP_PL_CELLS=1`, default off;
+`lower_icon.c:1130/1203`, default ON unless `SCRIP_ICN_LEGACY=1 && SCRIP_ICN_CELLS!=1`) — SNOBOL4 sets neither,
+ever. So for SNOBOL4 this blanket rule fires FIRST and returns 1 UNCONDITIONALLY for `IR_DISJUNCTION`, never
+reaching the `pl_cells_graph`-gated arm at :2128 that hq_C's ruling quoted. **Confirmed empirically, not just by
+reading**: `SCRIP_VLIST_ALT=1 SCRIP_ZD_DIAG=1 ./scrip --run corpus/probe/vlist_select/v01_select_min.sno`
+shows `dj` IN the `[ZD]` trace — `i=6 IR_DISJUNCTION K=16 zout=32 gpop=0 wpop=16` — i.e. `zon[dj]=1` and
+`zout[dj]=32` (16 for the preceding `'a=['` literal's own K, plus dj's own K=16) TODAY, with no code changes at
+all. **The claim decision does NOT disagree between `dj` and its arms** (both evaluate "claimed" once ZD5B
+admits the arms) — this part of the hypothesis doesn't hold for SNOBOL4. (It DOES hold for Icon: `icn_cells_graph`
+defaults ON there, so Icon's `IR_DISJUNCTION` — built by `lower_alt` for `|` — DOES reach the :2128 arm, which
+requires `pl_cells_graph` and returns 0. Icon's arms are also never admitted by ZD5B, currently ALTERNATE-only.
+Both sides read "unclaimed" for Icon — self-consistent, which is exactly why Icon's existing `|` has never
+shown this bug. Any future fix must preserve that: it must not flip Icon's `zd_wl_kind(IR_DISJUNCTION)` to 1
+without also touching Icon's arm admission, or it would break Icon's currently-working "both unclaimed" case
+into a new "parent claimed alone" mismatch — precisely the shape being fixed for SNOBOL4.)
+
+**Where the real disagreement lives, found by re-reading `flat_drive_match_alt`'s dispatch (emit.cpp:2976) plus
+`bb_disjunction.cpp`'s `disj_sigma_copy`, then reapplying bugs 3+4 from the SECOND ATTEMPT above and reading the
+live `.s`:** the admission/claim layer (`zon[]`/`zout[]`, computed by `zd_plan`) is entirely separate from the
+addressing actually emitted for `dj`'s own value cell. `dj` is driven through `flat_drive_match_alt`
+(`emit.cpp:2976`, an unconditional per-op dispatch shared with `IR_MATCH_ALTERNATE`), whose `IR_DISJUNCTION`
+branch (`emit.cpp:1374`, `g_emit.op_off = drive_value_slot(nd)`) NEVER consults `zon[dj]`/`zout[dj]` — it always
+uses the flat, permanent ZLS slot number from `drive_value_slot`/`zls_off`, a totally different, EARLIER
+numbering scheme fixed at LOWER time by `ir_drive_slot_assign`, unrelated to `zd_plan`'s runtime depth
+accounting. `disj_sigma_copy` (`bb_disjunction.cpp:12`) writes the winning arm's value into that cell via
+`FRQ(_.op_off)`/`FRQ(_.op_off+8)` unconditionally — no branch on whether `dj` itself is claimed.
+
+**Reapplied bugs 3+4 (arm-relative `_wzdepth`, `op_parts_ival` sentinel + zd-relative delta) from the SECOND
+ATTEMPT verbatim** — they still apply cleanly and still work: reading the actual `--compile` output for
+`v01_select_min.sno` (`OUTPUT = 'a=[' (IDENT(x) 0, 5) ']'`, `x='nonnull'` so arm 1 fails, arm 2/value-5 wins)
+confirms the ARM side is now fully correct — `disj_sigma_copy`'s copy for arm index 1 reads
+`mov rax,[rsp+-16]` / `mov rax,[rsp+-8]`, and hand-tracing real rsp shows this lands EXACTLY where
+`n12_lit_integer_α` (the literal 5) wrote its descriptor, even though `n12` had already released its own cell
+with `add rsp,16` before jumping to the landing (data survives a release; the read is correctly computed
+relative to CURRENT rsp at the landing). Bugs 1-4 are genuinely solid — this is not new territory, just
+reverified.
+
+**Bug 5, pinned to exact byte arithmetic (new this session — no prior write-up had concrete numbers):** let R0 =
+rsp at statement-2 entry (`n4_statement_begin_α`). `n5` (`'a=['`) does `sub rsp,16` then writes at
+`[R0-16]`/`[R0-8]`. `dj`'s own zeroing writes at `[rsp+80]`/`[rsp+88]` with rsp still R0-16 (never touched by
+`dj`'s α) → absolute `R0+64`/`R0+72`. After arm 2 wins, `disj_sigma_copy` correctly finds the arm's value (per
+bugs 3+4 above) and copies it into `dj`'s cell — writing to `[rsp+80]`/`[rsp+88]`, rsp still R0-16 → **`dj`'s
+combined result physically lands at `R0+64`/`R0+72`.** Then `jmp n7_binop_α` (the enclosing concat): `sub
+rsp,16` → rsp=R0-32. It reads its "disjunction" operand at `[rsp+16]`/`[rsp+24]` = **`R0-16`/`R0-8`** — the
+zd-relative delta computed from `zout[]` (correct FOR a real push that never happened) — an **80-byte gap**
+from where `dj` actually wrote (`R0+64` vs `R0-16`). **Second, independent confirmation of the same root cause
+in the SAME two instructions:** `n7` also reads its OTHER operand, `n5`'s (`'a=['`) value, at
+`[rsp+32]`/`[rsp+40]` = `R0+0`/`R0+8` — but `n5` actually wrote at `R0-16`/`R0-8`, a **16-byte gap** — and 16 is
+exactly `dj`'s own `zd_k`. This is not a second bug; it is the SAME mechanism seen from the other side: `zd_plan`'s
+cumulative `zout[]` counts `dj`'s K=16 as if a real 16-byte push happened between `n5` and `n7`, because `dj` is
+claimed (`zon[dj]=1`) and carries a nonzero K — but `flat_drive_match_alt` never actually performs that push for
+`dj` itself. Every consumer downstream of `dj` in the same run — not just readers of `dj`'s OWN value — has its
+delta inflated by `dj`'s uncounted K. **Confirms, with numbers, exactly what the SECOND ATTEMPT's Bug 5 write-up
+described qualitatively** ("dj's own flat self-address, and the zd-relative delta everything else uses to reach
+it, only agree when PRE is zero") — PRE is not the only thing that must be zero; `dj`'s own K silently
+participating in the cumulative count while never being physically pushed is the general form of the same
+defect, and it corrupts BOTH cross-boundary reads (n5) and self reads (dj), by different amounts, from one
+uncounted push.
+
+**A concrete, more promising fix vector than "graft a manual sub/add rsp,"** found by comparing
+`bb_disjunction.cpp` against an ordinary value-producing template, `bb_lit_scalar.cpp` (:19-21):
+```c
+static inline const char * ls_rq(int w) { return _.op_zres ? ZRES(w) : FRQ(_.op_off + w); }
+static inline const char * ls_rd(int w) { return _.op_zres ? ZRESD(w) : FR(_.op_off + w); }
+```
+Ordinary templates already branch on `_.op_zres` (1 when the CURRENT node is zd-armed — set from the global
+`g_zd_arm`, itself set at `emit.cpp:3066` as `zd_on[i] && !(pl_cells_graph && !flat_all_zd)`, which resolves to
+plain `zd_on[i]` for SNOBOL4) to choose between `ZRES`/`ZRESD` (the real/local family, `x86_zref` in
+`x86_asm.h:880`) and `FRQ`/`FR` (the flat/permanent family, `x86_zop`). **`bb_disjunction.cpp` never checks
+`_.op_zres` at all** — it hardcodes `FRQ`/`FR` unconditionally, for BOTH its own value cell and (still, even
+after bugs 3+4) its `alt_i` control byte. This looks like the actual gap: the template was written before
+`IR_DISJUNCTION` could ever be zd-armed (true for every existing caller — Icon and Prolog both currently leave
+it unclaimed, per the correction above) and so never needed the branch every OTHER value-producing template
+already has.
+
+**Why this was NOT implemented this session (reverted again):** I could not close the loop on HOW the real
+`sub rsp`/`add rsp` actually gets emitted for an ordinary armed node, which I need to understand before trusting
+a change to `bb_disjunction.cpp`'s addressing. Specifically: (1) `x86_zref` (the function `ZRES`/`ZRESD` call)
+unconditionally formats its output as `"... ptr [rsp# + N]"` — literally including a `#` character — but I
+grepped the FULL compiled output of `v01.s` for the substring `rsp#` and found ZERO occurrences anywhere,
+including around `n5_lit_string_α`, a node I independently confirmed IS zd-armed (it emits a real `sub rsp,16`
+in the final asm). If `op_zres` were 1 for `n5` as `g_zd_arm`'s formula predicts, and `bb_lit_scalar` calls
+`ZRES`/`x86_zref` when `op_zres` is set, the output should contain `#` markers that get resolved somewhere
+downstream — I could not find that resolution site (grepped for the literal `#` character and for `rsp#`
+specifically across `emit.cpp` and `x86_asm.h`; the only `#` handling found is an unrelated inline-comment
+mechanism). (2) Separately, `DRIVE_FILL` (the macro `flat_drive_match_alt` and much of the ordinary per-op
+switch both funnel through, `emit.cpp:1277`) calls `walk_bb_node(nd, ...)`, but `DRIVE_FILL` itself is invoked
+FROM WITHIN `walk_bb_node_inner`'s own per-op switch statement (e.g. `emit.cpp:1443`) for the SAME `nd` — which
+reads as `walk_bb_node_inner` calling back into `walk_bb_node` for the node it is currently processing, and I
+could not determine what prevents this from being infinite recursion in the time I spent on it. Both of these
+say I do not yet have a correct model of this dispatcher, and `bb_disjunction.cpp`/`flat_drive_match_alt` are
+shared, per-op-filtered infrastructure (already flagged by hq_C as breaking the NO-PER-OP-FILTER law) that also
+serves Icon's and Prolog's existing, currently-correct `IR_DISJUNCTION` use — exactly the kind of surface where
+this row has already paid for guessing (EVIDENCE 2b, three prior reverts). Reverted rather than ship a change to
+addressing-family selection I can't fully explain.
+
+**One risk explicitly ruled out this round, worth recording so the next session doesn't have to re-derive it:**
+`dj`'s REAL footprint is 32 bytes (hq_P's "24-vs-32" finding) but `zd_k(dj)`(with operands)`=16` — naively giving
+`dj` a real `sub rsp,16` would under-allocate by 16 bytes relative to what `--dump-zeta` shows is actually
+granted, risking corruption of whatever's pushed on top. **This is avoidable, not a blocker**: `alt_i`
+(`op_off+16`) is read ONLY inside `bb_disjunction()`'s own template (the β and φ blocks) — no external consumer
+ever reads it — so it can stay exactly as-is, flat/`FR(op_off+16)`, permanently. Only the 16-byte VALUE cell
+(`op_off+0`/`op_off+8`) needs to move to real/local addressing, and 16 bytes IS `zd_k(dj)` exactly — no K-size
+conflict if the fix is scoped to the value only.
+
+**Recommendation for whoever picks this up next:** resolve the `op_zres`/`rsp#` puzzle FIRST, before touching
+`bb_disjunction.cpp` — instrument with a one-line `fprintf(stderr, ...)` in `ls_rq`/`x86_zref`/`x86_zop_regime`
+on a known-simple zd-armed witness (a bare `x = 1 + 2` is enough, no VLIST needed) to see `op_zres`'s actual
+value and which regime branch actually fires, rather than continuing to trace it by reading. Once the real
+sub/add-rsp emission site is understood, the fix is very likely: make `disj_sigma_copy`'s value write (and
+whatever reads `dj`'s value as an operand elsewhere) branch on `_.op_zres` exactly like `ls_rq`/`ls_rd` do,
+leaving `alt_i` flat. Bugs 1-4's diffs (this file, above) still apply cleanly and are unchanged from the SECOND
+ATTEMPT — start from those already reapplied, not re-derived a third time.
+
+**State at handoff:** only bugs 1+2 are committed (SCRIP, standalone, see task file LEDGER for hash) — inert for
+all current callers, reverified 325/325 SNOBOL4 + 4/4 Icon after a fleet rebase landed underneath them this
+session (unrelated `g_platform` strip work, `SCRIP` `69449f94`). The is_dj admission extension and bugs 3+4 are
+NOT committed — fully reapplied, reverified against bugs 1-4's own prior evidence, then reverted again, exactly
+per this row's established discipline. `SCRIP_VLIST_ALT` still default OFF. DONE-WHEN still RED.
