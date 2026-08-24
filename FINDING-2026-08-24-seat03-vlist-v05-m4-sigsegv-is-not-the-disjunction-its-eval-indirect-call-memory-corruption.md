@@ -292,14 +292,28 @@ over-adjusts `rsp` relative to what the disjunction box's offset was compiled ag
 
 ### NOT established — the actual next step
 
-- **Which specific fixed-offset computation is wrong is not yet located.** The one analogous "fixed offset into an ancestor's
-  flat frame" logic found this session is `g_flat_frame_floor` / `zls_g_region` inside `eval_thunks_emit_from`
-  (`runtime_eval.c:180-184`) — but that is the EVAL-at-runtime registration path, and this witness does not touch EVAL at
-  all (refuted above), so the AOT `--compile`-path analog (almost certainly somewhere in `emit.cpp` /
-  `codegen_flat_chain_body`, or wherever a chain's disjunction box's `0x6f0`-style constant gets computed) has not been
-  located. That is the concrete, scoped next step — find where THIS box's offset constant is computed for the AOT path, and
-  why the `*EXPR$0`-thunk/`rt_dcap_pump`/match-end invocation route produces a different effective `rsp` than a direct call
-  does at the point that box executes.
+- **Which specific fixed-offset computation is wrong is not yet located, but the AOT-path analog IS found — narrower than
+  it was an hour ago.** `runtime_eval.c:180-184`'s `g_flat_frame_floor`/`zls_g_region` logic (EVAL-at-runtime registration —
+  does not apply, this witness has no EVAL) turns out to have an **identical AOT `--compile`-path counterpart, duplicated
+  FOUR times** in `src/driver/scrip.c` (lines 1278, 1467, 1663, 1793 — byte-for-byte the same block each time): it sets
+  `g_flat_frame_floor` from **`main`'s own `zls_g_region`** whenever the proc being registered is either an `LBL__`-prefixed
+  label proc, or its entry IR node is `IR_GOTO_DEFERRED` (or `IR_DEFINE` with `ival==3`). `zls_g_region`/`g_flat_frame_floor`
+  are then consulted repeatedly in `emit.cpp` (at least lines 2345-2346, 2803-2806, 3154, 3280-3313, 3396-3411) to decide a
+  chain's "flat frame" layout/floor. **Not yet confirmed**: whether `EXPR$0`'s own IR entry is actually classified
+  `IR_GOTO_DEFERRED` (plausible by name/shape, not verified by instrumenting the lowerer or by reading `lower_snobol4.c`'s
+  four `IR_GOTO_DEFERRED`-emitting sites, 797/807/819/1929, against what an `*E` pattern lowers to) — if it is, the
+  hypothesis writes itself: the floor is pinned to `main`'s region on the assumption that a `GOTO_DEFERRED`-shaped chain
+  always executes "in place" relative to `main`'s own frame (true for an ordinary jump-wired label/goto), but `EXPR$0`
+  reached via `rt_dcap_pump`'s C-level `rt_call_proc_descr` call is several REAL, C-ABI, register-passing call frames
+  removed from `main` by the time it runs (`rt_match_end_all` → `c_rt_dcap_end_ok_open` → `rt_dcap_pump` →
+  `rt_call_proc_descr` → `rt_proc_enter`), so `main`'s region is not actually where its runtime `rsp` sits. Two cheap
+  instrumentation attempts this session came up empty and are recorded so they are not retried as-is: `SCRIP_STF_DEBUG=1`
+  at compile time produced zero `[STF]` lines for this witness (the gated fprintf at `emit.cpp:3411` never fires — its own
+  `_stf`/`_stfj` condition is false here, for a reason not chased further), and `SCRIP_RTPAT_DIAG=1` at run time produced
+  zero `[RTPAT-DIAG]` lines (`bb_pat_build.cpp:104`'s gate isn't reached on this witness's call path either). Whoever
+  picks this up next should instrument `g_flat_frame_floor`'s four `scrip.c` write sites and its `emit.cpp` read sites
+  directly (a one-line `fprintf(stderr, ...)` on write, gated by proc name, is probably faster than chasing an existing
+  diagnostic flag that turns out not to cover this path) rather than repeat these two dead ends.
 - **No fix attempted.** Per this row's own repeated lesson (RULES.md, and this file's own LEDGER), do not ship a fix ahead of
   locating the actual offset-computation defect — the mechanism is now precisely characterized (down to the exact instruction
   and address) but the ROOT arithmetic error (which side is wrong, and why) is not yet found.
