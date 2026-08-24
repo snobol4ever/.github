@@ -68,3 +68,24 @@ RTX-26's own precedent (`.Lsub_table:`, line 351-363, already stood down with a 
 ## 6. Repro file
 
 Saved at `/tmp/claude-1000/-home-claude08/dd97d012-f281-4386-a20c-2b1a8ea75af9/scratchpad/mincheck5.icn` (scratch, not committed — reproduced inline in §1 above, five lines, no dependencies).
+
+## 7. RESOLUTION (seat08, same day, 2026-08-24, after Lon/HQ ruling)
+
+**hq_C ruled (s272): apply the stand-down.** Exactly §5's recommendation — mirror RTX-26's own s262 precedent, verbatim in shape: a hard `jmp .Lsub_bail` as the first live instruction after `.Lsub_table_int:`, old itoa+chain-walk body kept below, dead, for reference. Do not attempt to make the arm correct against the current table layout; the C fallback this bails to is already the correct, already-existing behavior (same ruling as RTX-26). Graded on all three frontends with a same-tree control arm per the shared-node verdict scope rule, since the machinery this arm falls into is the same shared dead code RTX-26 already stood down.
+
+**Safety of the jump, verified before applying (not assumed):** both `.Lsub_table` (RTX-26) and `.Lsub_table_int` (RTX-29) are reached at the identical `sub rsp, 88` frame depth from the one shared dispatch prologue (`rtx_icnsub.S:212-230`, `.Lsub_table` at line 224, `.Lsub_table_int` at line 230, no stack adjustment between them) — the bail restores `[rsp+0..24]` as the caller's original pre-`rt_deref` arguments and tail-jumps to `c_rt_subscript_var`, which is exactly as valid from either label.
+
+**Measured, control vs. treatment, same rebased tree (`git stash`, not two separate pulls — the rebase-baseline corollary's "same tree plus the one change" satisfied structurally), pristine `-O0` builds, repeated three times end-to-end as the fleet pushed concurrently underneath this row:**
+
+| check | before (control) | after (treatment) |
+|---|---|---|
+| 5-line repro (§1), 3-5 reruns each build | SIGSEGV, rc=139, 3/3 | clean, rc=0, correct output `1 2 3 4 5`, 0/5 crashes (5/5 runs) |
+| SNOBOL4 corpus (`test_corpus_snobol4.sh`) | PASS=338 FAIL=0 both modes | PASS=338 FAIL=0 both modes — **identical** |
+| Icon smoke (`test_smoke_icon.sh`) | 14/14 both modes | 14/14 both modes — **identical** |
+| Prolog smoke (`test_smoke_prolog.sh`) | 3/5, fails={clause,recursion} all 3 modes | 3/5, same fail-set all 3 modes — **identical** |
+
+SNOBOL4 confirms zero regression at 338/338 rather than the row's originally-expected 362/362 — traced to a pre-existing, unrelated demo-corpus path fossil that shrinks the script's own denominator by 22, identically on the control arm too, so provably not this defect or this fix. Not a new finding: `test_corpus_snobol4.sh`'s own header shows hq_C's s272 audit already mid-fixing exactly this class of stale nested-path fossil the same session (seat04's sibling `INC` fix, `9960787d`, landed the same day); no message sent, would be noise atop an already-in-progress cleanup.
+
+**Landed:** SCRIP `3fce9831` (source fix), corpus `5ae0f05a` (regenerated `.s` artifacts — the runtime-sink regen chain's diffs traced entirely to concurrent seats' already-origin template commits catching up to current compiler output, never to this change, which is structurally invisible to any caller's emitted bytes). Full receipts, LEDGER, and the rewritten `DONE-WHEN` are in the task file (`audit-rtx29-icon-table-int-chain-walk-post-s262.task.md`).
+
+**§4's noted-but-not-chased `rc=1` on an otherwise-correct run:** independently fixed the same session by another seat's unrelated commit (`e8fc3bdc`, "a failing main is NORMAL termination and exits 0, not 1") — confirmed in passing during this row's final re-verification pass (post-fix repro now exits `rc=0`, was `rc=1` on earlier builds this same session, before that commit landed). Coincidental timing, not caused by or dependent on this row's fix.
