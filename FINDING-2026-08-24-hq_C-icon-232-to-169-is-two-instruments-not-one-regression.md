@@ -117,3 +117,39 @@ This is the twin of hq_P's own lesson from the same day — *a control arm tells
 | alternate instrument | `be376a2f` | `daf8918d4` | `all_rungs` `--run` | **244/19/30** |
 
 Every arm `make pristine`. seat02's independently-measured 244 reproduced exactly on this tree, which is what identified the instrument as the variable.
+
+
+---
+
+# ⭐⭐ ADDENDUM — THE 75-PROGRAM GAP WAS ONE DEFECT, IT IS CURED, AND ONE OF MY CLAIMS ABOVE IS WRONG
+
+**Same session, after the analysis above. SCRIP `e8fc3bdc`.**
+
+## The cure
+
+hq_P diagnosed the `rc=1` wall straight out of `--compile` (ASM-DIFF-FIRST, no gdb) and handed it to this lane. `emit.cpp`'s **main omega/concede arm emitted `mov edi,1; call exit`** — so an Icon `main` whose final expression **fails** exited 1, while real `iconx` exits 0. ⭐ **A failing `main` is normal termination in Icon**, and the normal exhaustion of `every` *is* a failure — so every `main` ending in an `every` landed there. That is why the count was 61+, not 3.
+
+The gamma arm 20 lines above already did the right thing (`xor edi,edi`). The fix mirrors its exact encoding **in both media** (BOTH-MEDIUM MANDATORY).
+
+**Scope verified, not assumed:** the arm is guarded on `icn_cells_graph`, whose only two setters are `lower_icon.c:1130` and `:1203` — no SNOBOL4 or Prolog graph reaches it. Unlike the shared-node changes that bit us twice this day, this one genuinely is Icon-only, and SNOBOL4 confirms it.
+
+| arm | before | after |
+|---|---|---|
+| `test_icon_rung_suite.sh` (grades exit status) | 169/94/30 | ⭐ **243/20/30 (+74)** |
+| `test_icon_all_rungs.sh` (discards exit status) | 244/19/30 | **244/19/30 — unmoved** |
+| SNOBOL4 corpus, both modes | 362/362 FAIL=0 SKIP=0 | 362/362 FAIL=0 SKIP=0 |
+| witness `every write(1 to 3)` m3 / m4 | printed `1 2 3`, **rc=1** | printed `1 2 3`, **rc=0** both media |
+
+⭐⭐ **THE RESULT DOUBLES AS PROOF OF THIS FINDING'S OWN THESIS: an exit-code cure is completely INVISIBLE to the instrument that ignores exit codes.** `all_rungs` did not move by a single program while 74 real defects were repaired underneath it.
+
+## ⛔ AND THE CORRECTION I OWE, WHICH IS THE MORE USEFUL HALF
+
+The body above says the 13 SIGSEGVs and 1 SIGABRT were **"sitting inside that 244 as a green tick."** ⛔ **That is wrong, and my own fix is what refuted it.**
+
+After the cure the two instruments read **244 and 243 — a gap of 1**. Therefore **at most ONE program can be passing in the lax instrument while failing in the strict one**, and the 13 crashes were failing in **both** all along: their stdout never matched either, so `all_rungs` counted them among its own 19 FAILs. They were never hidden.
+
+⭐ **How the error was made, because it is worth more than the error:** the true statement was conditional — *"any of them whose stdout matched before dying would be a green tick."* I did not know how many did. When it was written down the condition quietly dropped and it became a **count**. **A hypothesis became a measurement in the act of being recorded.**
+
+⛔ That is precisely the disease this FINDING was written to name — the unlabelled watermark, the number without its provenance — committed by the person writing the rule against it, in the same document, within the hour. It is recorded here rather than quietly edited out, and the RULES.md entry carries the same correction inline.
+
+**What survives, and it is not weakened:** `all_rungs` genuinely does discard exit status, that is genuinely a structural false-green hazard, and the 74-program omega defect it could not see is the proof. The rule stands. The number attached to it did not.
