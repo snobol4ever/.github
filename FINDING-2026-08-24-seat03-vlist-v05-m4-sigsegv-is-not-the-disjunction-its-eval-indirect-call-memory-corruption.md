@@ -644,3 +644,71 @@ this addendum. No SCRIP/corpus source changes this session. `s4e_msg.sh check` r
 before wrap (0 messages both times). Cross-seat inbox files read directly (hq_P's, hq_C's) to establish the ruling
 had landed and that hq_C had not yet been told — same shared-filesystem coordination surface this row's own prior
 sessions have relied on throughout (BOARD.md, QUEUE.tsv, claim files), no seat-private mechanism bypassed.
+
+## ADDENDUM 6 [seat03, 2026-08-24, fresh session #4] — v01/v03/v05/v06's m4 PASS was never stable: all four are environment-size-sensitive manifestations of Defect C, not a smaller-scope subset
+
+Per this task row's own "Action for every future session" step 2: `git log` for touches to `x86_zop`/`x86_zop_regime`/
+`x86_asm.h`, and `git log --all --grep="Defect C" -i`, at current HEAD — no landed fix (the grep hits are all
+pre-existing s137-era commits, an unrelated historical reuse of the name). hq_P's `vlist-v02-v03-same-defect-c-...`
+message arrived in seat03's own inbox this session (read, cleared) — its content was already known from Addendum 5/
+the task file's NEXT (icon-169 exonerated, ruling GO, nothing further needed from seat03 while HQ-lane); no new
+information, no reply needed.
+
+Per step 3 ("re-confirm the ladder is unchanged... note it in LEDGER, stop cleanly"): re-ran the full ladder on a
+fresh pristine-equivalent build at `4a5f88e9` and got a result that does **not** match the recorded baseline —
+**v01 SIGSEGV rc=139 in m4**, where this row's own "Current ladder status" line and every prior session have it
+PASS. Isolated the cause per RULES.md's measure-before-assume order before recording it as a regression:
+
+1. **Ruled out the 6 newly-pulled commits**: built SCRIP at `ef18421e` (this row's own last-confirmed baseline) in
+   an isolated `git worktree`, same corpus source, same link recipe. v01 SIGSEGV'd identically, deterministically
+   (4/4 runs). Not a regression from `ef18421e..4a5f88e9` (all six commits also read in full — `strip-mechanical-
+   carve`, `handoff_status.sh` third state, two exit-status-wiring fixes, banner attribution, `s4e_msg.sh unclaim`
+   — none touch the floor/ZOP codegen path).
+2. **Found the actual variable: process environment size.** Same binary, same everything else. Under this
+   session's ambient shell environment (65 vars, 2448 bytes), v01 SIGSEGVs 8/8 runs. Under a minimal environment
+   (`env -i` plus only `LD_LIBRARY_PATH`), the identical binary PASSES 2/2 runs, output byte-identical to `.ref`.
+3. **Extended the env-size test to the rest of the ladder** (each binary built once at current HEAD, run under
+   both environments, every PASS verified byte-for-byte against `.ref`, not just by exit code):
+
+   | witness | m4, full env (65 vars/2448B) | m4, minimal env (`env -i`) |
+   |---|---|---|
+   | c01 | PASS | PASS |
+   | c02 | PASS | PASS |
+   | v01 | SIGSEGV rc=139 | PASS |
+   | v02 | SIGSEGV rc=139 | SIGSEGV rc=139 |
+   | v03 | SIGSEGV rc=139 | PASS |
+   | v04 | PASS | PASS |
+   | v05 | SIGSEGV rc=139 | PASS |
+   | v06 | SIGSEGV rc=139 | PASS |
+
+This reframes the split this row has carried since session #1 ("v01/v04 clean, v02/v03/v05/v06 broken"): v01 was
+never actually clean — it is the same Defect C write as v02/v03/v05/v06 (§ Addendum 3/4, hq_P's finding), just
+with a narrower trigger window. The raw, non-depth-compensated fixed-offset overshoot lands inside `environ`/stack
+territory whose exact contents depend on `envp`'s size at process start: a small environment leaves the target
+offset in harmless padding (silent, unobservable), an ordinary shell's environment does not. v02 is the one
+witness whose overshoot is large/consistent enough to crash regardless of environment size — evidence of a bigger
+displacement or a different flat-box instance in the same family, not a different mechanism (Addendum 4 already
+placed v02 in the same class via a hardware-watchpoint catch in a different box, `n38_coerce_numeric_α`).
+
+**Why this matters for the HQ-owned cure (flagged onward, not actioned further by seat03 — codegen lane stays
+HQ-only per CEO-19):** for this defect class, a clean run is a weak signal — the crash is a false-negative
+detector, not a false-positive one, since silent corruption of unused padding produces the SAME exit code as a
+correct program. Recommend whoever validates the eventual fix runs the ladder under at least two environment
+sizes (e.g. `env -i` minimal AND the harness's own ambient environment) before treating any witness as cured,
+since stopping-the-crash-under-one-environment and stopping-the-out-of-bounds-write are not the same fact.
+
+No SCRIP/corpus/emitter source changes this session — measurement only.
+
+### RECEIPTS (this addendum)
+
+SCRIP pulled `ef18421e`→`4a5f88e9` (6 commits, each read via `git show`: `4a5f88e9` strip-mechanical-carve,
+`24760433` handoff_status.sh third state, `f5dd74af`/`420eaad3` corpus+icon-runner exit-status wiring,
+`3723631c` banner row-attribution fix, `086e02f4` s4e_msg.sh unclaim — none touch `x86_zop`/`x86_zop_regime`/
+`x86_asm.h`/`scrip.c` floor logic). corpus and `.github` pulled to latest (strip-mechanical-carve .s deletions;
+Icon-232-vs-169 FINDINGs + string-manip work — both read enough to confirm unrelated). Pristine-equivalent
+`make scrip`+`libscrip_rt` at `4a5f88e9`. Isolated worktree at `ef18421e` (`/tmp/scrip-wt-ef18421e`) built,
+tested (v01 m4, 4 runs), and removed via `git worktree remove --force` after use. Full ladder + env-size matrix
+run via an ad hoc scratch script (`/tmp/claude-1000/.../scratchpad/run_ladder.sh`, one-off, not a project script,
+not committed) plus direct manual reruns (`env -i LD_LIBRARY_PATH=<out-dir> <binary>`) for the isolation step.
+Inbox checked at session start (0 msgs) and after the repo pulls (1 msg, hq_P's, read and cleared, no reply
+needed — see above). `git status` clean in SCRIP/corpus at time of writing; this addendum is the only change.
