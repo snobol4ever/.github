@@ -333,3 +333,148 @@ SCRIP `1a9cc1bc` (unchanged from Addendum 1's receipts — investigation only th
 container — confirmed by way of hq_P's own warning, not independently re-discovered the hard way). `objdump -d -M intel`
 against the minimized witness's `--compile` output for the exact instruction. `nm`/nothing beyond stock binutils + gdb 
 needed. Ladder sanity-checked unaffected (m3 PASS, unchanged source) before commit: `c01`, `c02`, `v01`-`v04`.
+
+---
+
+## ADDENDUM 3 [seat03, 2026-08-24, fresh session] — root arithmetic LOCATED and quantitatively confirmed; one fix
+attempted and DISPROVEN by direct test; **major scope correction: v02 and v03 are ALSO m4-red, always were, via a
+DIFFERENT mechanism — the task's own recorded QA baseline undercounted this row's true scope by 2 programs.**
+
+### PART A — the root arithmetic (the thing every prior session on this row named as the missing piece)
+
+⭐ **`EXPR$0`'s graph entry classifies as `IR_DEFINE` with `ival==3` ("kind 3") — NOT `IR_GOTO_DEFERRED`.** Addendum 2
+left this "not yet confirmed." Fresh, permanent, env-gated instrumentation added this session (`SCRIP_FLOOR_DIAG=1`,
+one `fprintf` per floor-forcing call site — `src/driver/scrip.c` all four sites, `src/emitter/emit.cpp`'s
+`emit_jmp_entry_for_proc`, `src/templates/xa_flat.cpp`'s `xa_flat_class_c`; all four kept in the tree, zero cost when
+unset, same idiom as the codebase's existing `SCRIP_STF_DEBUG`/`SCRIP_RTPAT_DIAG`/etc.) proves it directly:
+```
+[FLOOR-DIAG] pname=EXPR$0 is_lbl=0 entry_op=25 hit=1        # 25 = IR_DEFINE (IR.h enum index)
+[ARM-REGION] pname=EXPR$0 r=1 floor=4288 frame_bytes=208 seed_off=0 layout_unknown=1 jcon_value_region=160
+```
+`ival==3` on an `IR_DEFINE` entry is stamped **exclusively** by `sno_expr_thunks_build` (`lower_snobol4.c:2315`), the
+lowering routine for the SNOBOL4 `*` unevaluated-expression operator (`sno_expr_collect`, `lower_snobol4.c:85-95` —
+confirmed by its own fatal-error text, `"unevaluated-expression operator (*) with no operand"`). Genuine runtime
+`EVAL()` **never reaches this code at all**: at lower time it is just an ordinary builtin-name string
+(`lower_snobol4.c:1031`, alongside `CODE`/`CONVERT`) dispatched at runtime via `by_name_dispatch.c:310`'s builtin
+table into `runtime_eval.c`'s **own, separate** copy of the floor-pinning logic (lines 180-184) — a different
+mechanism, a different file, a different time (actual program execution inside the JIT, not AOT `scrip --compile`).
+**scrip.c's four floor-forcing sites are therefore exercised exclusively by the `*E` operator family, never by
+EVAL**, which matters for Part B below.
+
+⭐ **Confirmed live with gdb, not inferred:** broke on `FN__EXPR$0`'s entry and on `n157_disjunction_α` (Greek labels
+silently fail to `break` by name in this container's gdb — as the task file already warns — so `break *0x404852`, the
+raw address from `nm`, was used instead):
+```
+ENTRY rsp = 0x7fffffffdda0                 (FN__EXPR$0 has ZERO prologue: first instruction IS the first box)
+N157  rsp = 0x7fffffffdc10                 (only 400 bytes of cumulative per-box "sub rsp,16" descent by box #157)
+target addr rsp+1776 = 0x7fffffffe300      (post box's own local sub-16, the write target)
+target EXCEEDS entry (target - entry_rsp = +1376)
+```
+The disjunction box (`bb_disjunction()`, `src/templates/bb_disjunction.cpp:34-36`) writes its `disj.alt_i`/pad cell at
+a **fixed, large, positive offset from ITS OWN current `rsp`** (`_.op_off=1760`, i.e. `mov dword ptr [rsp+1776],0` for
+the `+16` sub-field) — a scheme that is only safe if a big frame was carved ONCE, early, sized to cover that offset.
+**No such carve ever happens for `EXPR$0`.** `nm`/the `.s` confirm `FN__EXPR$0:` has no prologue whatsoever — box #0
+runs at the function's literal entry address. The write at box #157 lands **~1376 bytes above `FN__EXPR$0`'s own
+entry `rsp`** — not merely "unreserved scratch," but up and into whatever real C stack frames belong to its actual
+caller chain (`rt_match_end_all` → `rt_dcap_pump` → `rt_call_proc_descr` → `FN__EXPR$0`, all real x86 `call`s, zero
+coroutine/splice — Addendum 2 already traced this chain and ruled out EVAL/generator mechanisms). Given enough
+programs/environment layout, that overshoot reaches `environ[]`, silent until `atexit`'s `getenv()` finally reads
+through the corruption — matching every prior session's symptom exactly.
+
+⭐ **Why the carve is missing — `xa_flat_class_c()` (`src/templates/xa_flat.cpp:321-326`) bails outright whenever
+`g_flat_frame_floor > 0`:**
+```c
+{ extern int g_flat_frame_floor; if (g_flat_frame_floor > 0) return 0; }   // no carve, full stop
+```
+Fresh instrumentation on this exact line, run against `v06`, shows **CLASS-C's carve fires ZERO of 8 times in this
+program's entire compilation** — 3 bail on `floor`, 3 bail on `no_jmp_entry` (ordinary, non-flat procs — expected,
+harmless), 2 bail on `flat_pat` (the `PAT$N` pattern-literal helpers — also expected, harmless). Of the 3 floor
+bails, `EXPR$0` is one.
+
+⭐ **Second, independent bug layer, found while checking whether "just let it carve" would even be sufficient — it
+would NOT:** `flat_frame_bytes` (the actual carve size `xa_flat_class_c`'s caller would use, `emit.cpp:3297`) is
+computed as `(48 + jcon_value_region + 15) & ~15` — **from the CURRENT graph's own native region only, completely
+ignoring `g_flat_frame_floor`.** For `EXPR$0`, native `jcon_value_region=160` → `frame_bytes=208`. The disjunction
+box's offset (1760) requires ≥ ~1780 bytes. **Even a hypothetical "always carve" patch that did nothing else would
+carve 208 bytes and still corrupt memory** — just with a smaller, possibly-still-crashing overshoot. Any real fix
+needs `flat_frame_bytes` to account for the floor too, not just the bail in `xa_flat_class_c`.
+
+⭐ **The likely original design intent, now legible:** `main` itself is never floor-forced (it never appears in
+either diagnostic's output at all — it must carve its own frame through a separate, dedicated code path, sized to
+its own `zls_g_region`, which happens to equal 4288 here). `LBL__`-prefixed graphs (`_is_lbl`, true label-goto-target
+duplicates, reached by an ordinary `:(label)` GOTO from code that is *already running inside `main`'s own,
+already-carved frame* — SNOBOL4 GOTO never touches `rsp`) correctly skip their own carve and borrow `main`'s region
+size, because they are, in fact, still executing with `main`'s own live `rsp`. **`EXPR$0` was swept into the same
+treatment by analogy** (its entry also isn't an ordinary named-proc `IR_DEFINE`, so it superficially resembles the
+label-alias case) **but it is invoked via a real, several-frames-deep C call chain through `rt_dcap_pump`, not an
+in-place GOTO — `main`'s frame is not where its `rsp` actually is, so borrowing `main`'s region without a local
+carve is simply wrong for this case.**
+
+### PART B — one fix attempted, and DISPROVEN by direct test (recorded so it is not retried as-is)
+
+Given Part A's tight causal chain, tried the narrowest fix it suggests: remove the `(_pg->entry->op == IR_DEFINE &&
+IR_LIT(_pg->entry).ival == 3)` disjunct from all four `scrip.c` floor-forcing sites, leaving `_is_lbl` and
+`IR_GOTO_DEFERRED` untouched (kind-3 is lowering-confirmed *E*-exclusive per Part A, so this looked like a clean,
+narrow, structurally-justified removal, not a per-op filter — RULES.md's NO-PER-OP-FILTER law was weighed explicitly
+before attempting this).
+
+**Result: WORSE, not better.** Mode 4 (`v06`) still SIGSEGV rc=139 (unchanged — did not fix the target). Mode 3, which
+was PASSING before this change on every prior session including this one's own reconfirmation, **also started
+SIGSEGVing (rc=139)** after the edit. Reverted immediately (`git diff` confirmed byte-identical condition logic
+restored, mode 3 re-confirmed `MATCH size=1` after rebuild). **Conclusion: the kind-3/`*E` floor-forcing disjunct is
+load-bearing for something beyond just this crash site** — most likely the zls offset-granting pass for *other*
+nodes in the same flat island shifts when the floor stops applying to kind-3 graphs, and at least one of those other
+nodes' new offset is wrong in a way that mode 3's interpreter loop is *not* tolerant of (whatever slack let mode 3
+survive the original, unfixed offset scheme evidently depends on kind-3 also being floor-pinned). **Do not re-attempt
+this exact removal without first explaining why mode 3 broke** — that's the concrete unblocking question for
+whoever picks this up next, not "does mode 4 pass now."
+
+### PART C — ⭐⛔ MAJOR SCOPE CORRECTION: `v02` and `v03` are ALSO m4-red, confirmed at the task's OWN cited baseline
+
+While re-running the full ladder to sanity-check the (reverted) build, `v02_select_concat_and_assign` and
+`v03_array_proto_via_select` **both SIGSEGV rc=139 in mode 4** — contradicting this task file's own `## QA` line
+("ladder v01-v05 PASS ... in m3 and m4; m4 v01 PASS, m4 v05 SIGSEGV"). **This is not a new regression**: built SCRIP
+`0e57de3b` (the exact commit this row's QA baseline names) in an isolated `git worktree` and reproduced both crashes
+there too, byte-for-byte the same signature. **The QA line was wrong from the start, not stale** — v02/v03 were
+never actually green in m4; nobody had checked them individually before this session (the row's own probes only ever
+singled out v05 for deep investigation). Per THE LOOP protocol (`CLAUDE.md`: "a number that disagrees with the brief
+... is a FINDING, not a blocker"), correcting it here rather than treating it as a blocker.
+
+⭐ **Confirmed NOT the same mechanism as Parts A/B**, so do not conflate them: `SCRIP_FLOOR_DIAG=1` against both
+`v02` and `v03` produces **zero** `[FLOOR-DIAG]`/`[ARM-REGION]` lines — the floor-forcing code path never fires at
+all for either program (neither uses `*E`/the unevaluated-expression operator — grepped, zero hits — and neither
+has an `LBL__`-prefixed or `IR_GOTO_DEFERRED`-classified proc). **Their crash is a genuinely separate, unlocated
+defect** that merely happens to share the identical *symptom signature* with v05/v06 — `gdb bt` on `v02`'s crash:
+```
+__GI_getenv (name="SCRIP_ZETA_TELEM") at ./stdlib/getenv.c:31
+#1 rt_gcheap_report () at src/runtime/rt/gc_heap.c:111
+#2 __run_exit_handlers ... #3 __GI_exit ... #4 main_γ ()
+```
+— corruption silent until an unrelated `getenv()` call inside an atexit hook trips over it, exactly like v05/v06.
+This looks like this runtime's generic "something wrote out of bounds somewhere, discovered lazily at exit" fingerprint
+rather than evidence of one shared root cause — **treat v02/v03 as a NEW, third open defect on this row, not as
+already covered by Parts A/B's fix.** Not investigated further this session (out of scope for the time remaining);
+whoever takes Part A/B's fix should re-test v02/v03 afterward on the chance they're accidentally caught by the same
+cure, but should not assume it without checking, and should budget for them being genuinely separate.
+
+### REVISED DONE-WHEN SCOPE
+
+The row's true remaining scope is **THREE** m4-red programs, not one: `v02`, `v03` (mechanism unknown, floor-forcing
+provably not involved), and `v05`/`v06` (mechanism now fully characterized per Part A, fix direction outlined but
+unproven — Part B's naive attempt is disproven). `v01`, `v04`, `c01`, `c02` remain green both modes, unaffected, and
+were re-confirmed clean this session (no source changes carried) — see LEDGER for the full ladder table.
+
+### RECEIPTS (this addendum)
+
+SCRIP `28d73dbf` (pulled forward from `0f4231f8` this session — 4 new commits, all independently confirmed unrelated:
+`0d4a5fbf`/DCAP island, `2d8d6df7`/by-name dispatch, `27f366d2`/`bb_iterate`, `57d507d9`/SIGSEGV handler
+classification, plus a `snocone_lex.c` regen — none touch `emit.cpp`/`xa_flat.cpp`/`scrip.c`'s floor logic or
+`zeta_storage.c`). Full `c01,c02,v01-v06` ladder re-run both modes on the final (reverted-to-baseline-behavior,
+diagnostics-only) build — table in LEDGER. Baseline cross-check for Part C used `git worktree add
+/tmp/scrip_baseline_check 0e57de3b` (removed after use, `git worktree list` confirmed clean). `SCRIP_FLOOR_DIAG=1`
+is now a permanent, zero-cost-when-unset diagnostic (same idiom as this file's existing `SCRIP_*_DEBUG`/`_DIAG`
+flags) — four `fprintf` sites in `scrip.c`, one in `emit.cpp`'s `emit_jmp_entry_for_proc` (prints
+`floor`/`frame_bytes`/`seed_off`/`layout_unknown`/`jcon_value_region` together as `[ARM-REGION]`), one in
+`xa_flat.cpp`'s `xa_flat_class_c` (prints the exact bail reason as `[CLASS-C]`). All gated behind
+`getenv("SCRIP_FLOOR_DIAG")`; `git diff` of the behavioral condition logic itself (pre- vs post-session) is
+byte-identical — confirmed before commit.
