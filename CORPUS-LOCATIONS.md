@@ -7,105 +7,112 @@ single doc names them.  This is that doc.
 PLAN.md links here.  Goal files that reference corpus programs
 should point at this file rather than embed paths inline.
 
+⛔ **REWRITTEN 2026-08-24 (seat04, instrument-repair-bundle PART 3) — every path below verified
+directly against the tree, not carried from the previous revision.** The prior text described the
+pre-flatten `/home/claude/corpus/programs/<lang>/` layout; the s269–s272 reorg removed that
+`programs/` level (7,369 files moved up one directory — CEO-17/CEO-18, .github). Provenance: corpus
+`741921e8`, `.github` `2bc6ce30`, both `main`, checked 2026-08-24. **This file drifts the moment the
+tree moves again — trust `ls corpus/` over this table if they disagree, and fix the row rather than
+trusting memory** (the exact failure this rewrite exists to correct).
+⛔ **PATHS ARE REPO-RELATIVE ON PURPOSE, NEVER A HARDCODED SEAT ROOT.** This is a D-17 PORTABLE-HOME
+project: every root is a sibling checkout (`corpus/`, `SCRIP/`, `.github/`, `x64/` side by side) and
+the absolute prefix differs per seat (`/home/claude04`, `/home/claude_C`, `/home/claude`, …) — verify
+yours with `pwd`, per `CLAUDE.md`. A path here of the form `corpus/icon/` means "under your own
+sibling root," not literally the string `/home/claude/corpus/icon/`; the *previous* revision of this
+file hardcoded `/home/claude/...` throughout, which is the fossil-path class this whole row exists to
+retire (`scripts/test_gate_no_fossil_src_paths.sh`, same commit).
+
 ---
 
 ## Per-language corpus paths
 
-All paths are absolute, rooted at the standard checkout layout
-(`/home/claude/<repo>/...`).
+All paths are relative to the sibling root (see banner above). Counts are a **file census taken
+2026-08-24**, not a graded PASS/FAIL/XFAIL split — run the language's own board script for that.
 
-| Language | Corpus root | Typical filename pattern | Count |
+| Language | Corpus root | Typical filename pattern | Count (2026-08-24 census) |
 |----------|-------------|--------------------------|-------|
-| Icon     | `/home/claude/corpus/programs/icon/`     | `rung<NN>_<topic>_<variant>.icn` | 263 rung files (suite TOTAL=289 incl. subdirs) |
-| SNOBOL4  | `/home/claude/corpus/programs/snobol4/`  | varies (see snobol4corpus subdir)  | many |
-| Snocone  | `/home/claude/corpus/programs/snocone/`  | varies                             | many |
-| Prolog   | `/home/claude/corpus/programs/prolog/`   | varies                             | — |
-| Raku     | `/home/claude/corpus/programs/raku/`     | varies                             | — |
-| Rebus    | `/home/claude/corpus/programs/rebus/`    | varies                             | — |
-| Pascal   | `/home/claude/corpus/programs/pascal/`   | reference compiler (pcom.pas/pint.pas) + `.pas` probes; no suite yet | ref |
-| Icon TIMING benchmarks | `/home/claude/corpus/benchmarks/icon/` | 10 link-heavy programs + support + `.dat`; NOT byte-diffable (timing scaffold output) — full map, reference-impl build recipes, and runner traps: `GOAL-ICON-BB.md` §ICON BENCHMARK MAP | 10 |
-| **SNOBOL4 TIMED benchmarks** ⬅ s149, PROMOTED s155 (BM-ONE) | `/home/claude/corpus/benchmarks/snobol4/` | `<kernel>.sno` (body-only) + `.ref` (check line only) + `harness.inc` + `NOISE-FLOOR.tsv`; TIME-based (fixed ms budget, iterations counted). ⛔ NOT generated — `harness.inc` is the ONE driver and the bodies are HAND-EDITABLE. `gen_timed_bench_snobol4.sh` is DELETED. `timed/` subdir is RETIRED. Runner `test_bench_snobol4_timed.sh` (grades only files that include `harness.inc`) | 12 |
-| **Gimpel SNOBOL4 function library** ⬅ s191 | `/home/claude/corpus/programs/gimpel/` | ⛔ **TWO KINDS OF FILE.** `NAME_driver.sno` = a runnable test (`-INCLUDE "NAME.sno"` + body + `END`) and **is** the scorecard row; `NAME.sno` = a LIBRARY MODULE (a `DEFINE` and a `:(NAME_END)` label — no `END`, no output) and is **not a program**. The scorecard enumerates `-name *_driver.sno`, so **a test whose name does not end in `_driver.sno` is silently never scored**. Full conventions + the SNOBOL4+/Catspaw `INPUT` dialect trap: `programs/gimpel/README.md` | 124 drivers + 145 modules |
-| **BB reference embodiments** ⬅ SINGLE COPY (2026-08-04) | `/home/claude/corpus/probe/bb/` | `test_sno_*.c` · `test_icon*.c` · `test_sno_cell_*.s` · `test_sno_stmt_frame_*.{s,sno}` · `test_sno_call2bb_*.sno` · the 141-probe suite | one home |
-| **Bench-harness procedure-boundary witnesses** ⬅ s252 | `/home/claude/corpus/probe/benchharness/` | `probe_toplevel.sno` / `probe_defwrap.sno` / `probe_deflocal.sno` — same loop body at top level, `DEFINE`-wrapped, and `DEFINE`-wrapped with true locals; receipts for `FINDING-2026-08-22-s252-the-define-boundary-moves-one-slot-offset-and-nothing-else.md` | 3 |
+| Icon     | `corpus/icon/`     | `rung<NN>_<topic>_<variant>.icn` | 295 `rung*.icn` files at the top level |
+| SNOBOL4  | `corpus/snobol4/`  | varies — see subdirs below | 17 subdirs (see below) |
+| Snocone  | `corpus/snocone/`  | varies                             | — |
+| Prolog   | `corpus/prolog/`   | mix of `rungNN_*.pl` (some rungs flat, e.g. 12–21; others nested, e.g. 22–28 — verify per-rung before assuming either shape) + `.pl`/`.expected` or `.pl`/`.ref` pairs (BOTH extensions are live; do not assume one) | — |
+| Raku     | `corpus/raku/`     | varies                             | — |
+| Rebus    | `corpus/rebus/`    | varies                             | — |
+| Pascal   | `corpus/pascal/`   | reference compiler (pcom.pas/pint.pas) + `.pas` probes | — |
+| Icon TIMING benchmarks | `corpus/benchmarks/icon/` | link-heavy programs + support + `.dat`; NOT byte-diffable (timing scaffold output) | see `GOAL-ICON-BB.md` §ICON BENCHMARK MAP |
+| SNOBOL4 TIMED benchmarks | `corpus/benchmarks/snobol4/` | `<kernel>.sno` (body-only) + `.ref` (check line only) + `harness.inc` + `NOISE-FLOOR.tsv`; TIME-based. Runner `test_bench_snobol4_timed.sh` | — |
+| Pascal / Prolog benchmarks | `corpus/benchmarks/pascal/`, `corpus/benchmarks/prolog/` | present on disk 2026-08-24; not otherwise documented here yet | — |
+| **SNOBOL4 include files** ⬅ corrected this pass — `PART 3` | `corpus/include/` | `<name>.inc`, flat, no subdirectory | 16. ⛔ **NOT** `corpus/demo/inc/` or `corpus/snobol4/demo/inc/` — that path never existed on this tree; it was a hardcoded default in 8+ scripts, all repointed this same commit (`test_gate_no_fossil_src_paths.sh` LEDGER). |
+| **Gimpel SNOBOL4 function library** | `corpus/snobol4/gimpel/` | ⛔ **TWO KINDS OF FILE.** `NAME_driver.sno` = a runnable test and **is** the scorecard row; `NAME.sno` = a LIBRARY MODULE (no `END`) and is **not** a program. Full conventions: `corpus/snobol4/gimpel/README.md` (verify it still exists there before trusting the pointer) | 144 drivers + 145 modules |
+| **BB reference embodiments** | `corpus/probe/bb/` | `test_sno_*.c` · `test_icon*.c` · `test_sno_cell_*.s` · etc. — the 141-probe suite | one home, confirmed present |
+| **Bench-harness procedure-boundary witnesses** | `corpus/probe/benchharness/` | `probe_toplevel.sno` / `probe_defwrap.sno` / `probe_deflocal.sno` | confirmed present |
+| **csnobol4-suite** (Phil Budne's CSNOBOL4 test suite) | `corpus/programs/csnobol4-suite/` | ⛔ the ONLY thing left under the old `programs/` prefix — every other language's `programs/<lang>/` was flattened away. Its native oracle is **csnobol4, NOT SPITBOL** — see RULES.md's FACT RULE on grading it against `sbl -bf` (30/120 false reds). A second, differently-named copy also exists at `corpus/snobol4/csnobol4_suite/` (hyphen vs underscore) — this divergence is UNRESOLVED; do not assume the two are identical without checking, and flag it if you need to rely on either. | 120 `.ref` pairs (per RULES.md) |
+| Demo corpus | `corpus/demo/` | showcase programs, one subdir per demo (`arithmetic/`, `beauty/`, `calculator/`, `claws5/`, `counter/`, `hello/`, `json/`, `pattern_test/`, …) | many subdirs |
+| Crosscheck corpus | `corpus/crosscheck/` | self-contained `.sno`+`.ref` pairs, the primary harness feed (SCRIP `CLAUDE.md` § Corpus layout) | — |
 
-⛔ **THE BB EMBODIMENTS HAVE EXACTLY ONE HOME: `corpus/probe/bb/` (Lon directive 2026-08-04).** They
-previously existed as 2–4 divergent copies across `SCRIP/seed/`, `SCRIP/bench/`, and `.github/`, and the
-ARCH docs pointed at three different ones — so a session reading "the golden design" got whichever copy its
-doc happened to name. `SCRIP/seed/` and `SCRIP/bench/` no longer contain any `test_sno_*`/`test_icon*`.
-Anything that consumes them takes a path into `corpus/probe/bb/` (see `scripts/test_gate_call2bb_stub_regime.sh`,
-which reads `$PROBE` with that default). **Do not re-create a second copy for convenience.**
+⛔ **THE BB EMBODIMENTS HAVE EXACTLY ONE HOME: `corpus/probe/bb/` (Lon directive 2026-08-04, unchanged
+by the s269-s272 reorg — confirmed still true 2026-08-24).** Do not re-create a second copy for
+convenience.
 
 **Each `.icn` (or `.sno`, etc.) program has a sibling `.expected`
-file** with the canonical SPITBOL/oracle output.  The corpus runner
-diffs against that file.  Some programs have `.xfail` markers
-indicating known-unimplemented territory (counted XFAIL, not FAIL).
+file** with the canonical SPITBOL/oracle output, OR (Prolog, some rungs) a sibling `.ref` file — the
+two extensions are NOT interchangeable and NOT universal; check which one a given directory actually
+uses before writing a runner (a stale `.ref`-only assumption silently zero-scores an `.expected`-only
+directory, and vice versa — the exact failure class `test_gate_no_fossil_src_paths.sh` was written to
+catch, in the specific case of rung12–21 Prolog tests that had been silently SKIPping for this reason).
+The corpus runner diffs against that file. Some programs have `.xfail` markers indicating known-
+unimplemented territory (counted XFAIL, not FAIL).
 
 **Some programs have sibling `.j` and `.s` files** — these are
-JCON (.j) and SPITBOL (.s) artifacts, not source.  Source is `.icn`.
+JCON (.j) and SPITBOL (.s) artifacts, not source.  Source is `.icn` (or the language's own extension).
 
 ## NOT the corpus
 
-- `/home/claude/SCRIP/test/icon/` — only **8** programs total
-  (hello, queens, sieve, palindrome, generators, meander, roman,
-  plus a coverage subdir).  These are smoke-test files, not the
-  full corpus.  The smoke tests reference these.
-- `/home/claude/SCRIP/bench/` — benchmarks, not correctness corpus.
+- `SCRIP/test/icon/` — 10 `.icn` files at the top level (hello, queens, sieve, palindrome,
+  generators, meander, roman, wordcount, global_test, zk5_global_cells_zero) plus `coverage/` and
+  `jcon_audit/` subdirs, confirmed present 2026-08-24. Smoke-test files, not the full corpus.
+- `SCRIP/bench/` — ⛔ **REMOVED**, confirmed absent 2026-08-24 (the previous revision of this doc
+  still listed it as a live "not the corpus" path; it is gone, not merely renamed).
 
 ---
 
 ## Runners
 
-**Icon corpus:**
-```bash
-bash /home/claude/SCRIP/scripts/test_icon_all_rungs.sh
-# Defaults: SCRIP=/home/claude/SCRIP/scrip  CORPUS=/home/claude/corpus/programs/icon
-# Reports: PASS=N FAIL=N XFAIL=N TOTAL=289   (2026-07-01: 190/63/36)
-# Per-construct, oracle-anchored: bash SCRIP/scripts/audit_jcon_wholesale.sh (66 probes)
-```
-
-**Icon timing benchmarks (iconx oracle + SCRIP m3/m4):**
-```bash
-SKIP_BUILD=1 bash /home/claude/SCRIP/scripts/test_icon_bench_corpus.sh
-# First run without SKIP_BUILD=1 (auto-builds icon-master at /home/claude/icon-master).
-# Full map + Arizona/JCON build recipes + invocation traps: GOAL-ICON-BB.md §ICON BENCHMARK MAP
-```
-
-**Per-rung subset:**
-```bash
-bash /home/claude/SCRIP/scripts/test_icon_ir_rung_NN.sh
-```
-where `NN` is 01..36.  These exist for many but not all rungs;
-see `scripts/test_icon_ir_rung_*.sh`.
-
-**Per-program manual:**
-```bash
-cd /home/claude/SCRIP
-./scrip --run /home/claude/corpus/programs/icon/rung01_paper_mult.icn
-```
+Point every runner at `$S4E/corpus/<lang>/...` (or read `$CORPUS` with the script's own default —
+see `CLAUDE.md` for the `S4E`/`S4E_HOME` sibling-root convention). Do **not** hardcode an absolute
+`/home/claude/...`-style prefix in a new script; that is precisely the fossil-path class this file
+and `test_gate_no_fossil_src_paths.sh` exist to keep out. Per-language runner scripts live in
+`SCRIP/scripts/` — grep `scripts/test_*<lang>*.sh` and `scripts/board_*.sh`/`scripts/scorecard_*.sh`
+for the current entry points rather than trusting a specific script name pinned here; script names
+and counts have churned repeatedly (this file's own history is the evidence) and a name pinned in
+prose goes stale exactly like a path does.
 
 ## Per-mode runner — write one, do not embed paths
 
-A goal that needs `--run` and `--run` results across the
-corpus should add a sibling script (e.g.
-`scripts/test_icon_sm_all_rungs.sh`) that copies
-`test_icon_all_rungs.sh` and changes the mode flag.  Do **not**
-write per-rung mode probes that embed `/home/claude/corpus/...`
-paths — read from `$CORPUS` with this file's default.
+A goal that needs a new mode/variant across the corpus should add a sibling script that copies an
+existing per-language runner and changes the mode flag. Do **not** write per-rung mode probes that
+embed a literal corpus path — derive it from `$S4E`/`$CORPUS` with the script's own default, the same
+convention every other runner in `SCRIP/scripts/` uses.
 
 ---
 
-## What "modes work" means (2026-07-01)
-Modes 1/2 are DELETED. "Works" = `--run` (mode 3) and `--compile` (mode 4) both exit 0 with output matching the sibling `.expected`/oracle, byte-identical to each other; no AST/IR is walked at runtime (emit-time only — GOAL-IR-IMMUTABLE-EMIT.md, GOAL-MODE34-IDENTICAL.md). The former SM-era cheat-detection symbol list was deleted (all symbols dead).
+## What "modes work" means (2026-07-01, still current)
+Modes 1/2 are DELETED. "Works" = `--run` (mode 3) and `--compile` (mode 4) both exit 0 with output
+matching the sibling `.expected`/oracle, byte-identical to each other; no AST/IR is walked at runtime.
 
 ## When to update this file
 
 - New corpus directory added → add a row to the table.
-- Path moves → update the row, do not leave stale paths.
-- New runner script → add to "Runners".
+- Path moves → update the row, do not leave stale paths. **Say when you last verified it** — a bare
+  path with no date is exactly how the previous revision went three-reorgs stale unnoticed.
+- New runner script → note it in "Runners" by pattern, not by pinning one script's name.
 - New language → new row.
+- If you cannot fully verify a row (count, extension convention, subdir shape), say so explicitly
+  ("—", "unverified") rather than carrying forward a number from the prior revision — a stale number
+  with no caveat is indistinguishable from a checked one, which is the whole failure this file keeps
+  having.
 
 This file is **navigation** like PLAN.md, not authoritative
 content — the corpus repo's own `LAYOUT.md` and `README.md` are
-the source of truth for file naming inside the corpus.  This
-file just says where it is.
+nominally the source of truth for file naming inside the corpus, though `LAYOUT.md` is itself flagged
+elsewhere (SCRIP `CLAUDE.md`) as predating the per-language flatten and describing a layout that no
+longer exists — treat the tree itself as the final authority over either document.
