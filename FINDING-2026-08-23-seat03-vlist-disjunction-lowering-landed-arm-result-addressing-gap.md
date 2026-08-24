@@ -503,3 +503,27 @@ all current callers, reverified 325/325 SNOBOL4 + 4/4 Icon after a fleet rebase 
 session (unrelated `g_platform` strip work, `SCRIP` `69449f94`). The is_dj admission extension and bugs 3+4 are
 NOT committed — fully reapplied, reverified against bugs 1-4's own prior evidence, then reverted again, exactly
 per this row's established discipline. `SCRIP_VLIST_ALT` still default OFF. DONE-WHEN still RED.
+
+## ⛔ CORRECTION, same session, after handoff was written above — the "inert for all current callers" claim was FALSE
+
+Landed standalone as `822bc8a1`. It deterministically SIGSEGV'd `corpus/snobol4/beauty_suite/TDump_driver.sno`
+(3/3, r12 GVA pointer clobbered by an extra `add rsp,176`/`add rsp,192` at two `IR_MATCH_ALTERNATE` retry-wiring
+sites — `_af`/`_s0` landings are the op's own retry path, not a scope exit, so hunk 1's `gin=0`/`oin=0` forcing
+released storage nobody pushed). Found and fixed by another session, SCRIP `9df28b03`, before I finished
+investigating it myself: drops hunk 1 (gin/oin self-edge suppression) alone, keeps hunk 2 (`_wzdepth`, not
+implicated), corpus verified 364/364 both modes. Read that commit message in full — it is a complete,
+independent ASM-DIFF-FIRST diagnosis and better than anything I'd add here.
+
+**Why the inertness claim was wrong despite real verification:** I checked SNOBOL4 crosscheck 325/325 (both
+modes), a full Icon rung ladder (byte-identical fail-set, 31/31 named matches), Rebus 4/4, and Prolog (flakiness
+confirmed pre-existing) — all genuinely clean. But `test_crosscheck_snobol4.sh` walks only `corpus/crosscheck/`,
+and `TDump_driver` lives in `beauty_suite/`, outside that walk. Per `9df28b03`'s own analysis, `TDump_driver` was
+the gate's **sole** `zarm[]` populator among corpus programs at the time — the one program that could possibly
+be affected was the one program no suite I ran happened to include. "Inert for all current callers" is a claim
+about the caller SET; verifying it means checking who actually populates the gate being changed, not running
+whatever crosscheck suite is at hand and treating a clean result as comprehensive.
+
+Full correction sent to hq_C in-band (`tdump-regression-was-mine`) since their FINDING's bisect table had
+attributed `822bc8a1` to "another seat." Task file LEDGER (`vlist-expr-alternation.task.md`) carries the same
+correction. Current tree state: corpus 364/364 both modes, `TDump_driver` PASS both modes — fully resolved, no
+outstanding action on this specific regression.
