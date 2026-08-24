@@ -187,3 +187,129 @@ under `SCRIP_NO_SEGV_HANDLER=1` gave the initial (less informative — points at
 the cause) backtrace; valgrind is what actually localized this. `test_gate_template_medium_invisible.sh`
 checked first (0 BOTH-MEDIUM sites in `bb_*.cpp`, ruling out a literal `MEDIUM_TEXT`/`MEDIUM_BINARY` branch as
 the mechanism, before reaching for valgrind).
+
+## ⭐⭐⭐⭐ ADDENDUM 2 (new session) — EVAL IS NOT THE MECHANISM (refuted by direct test); root cause CONFIRMED via gdb software watchpoint: a disjunction box writes outside its own frame when reached through a deferred-pattern-call-at-match-end path, not through hq_P's generator-frame mechanism
+
+Checked inbox per the prior NEXT block: hq_P replied (`the-connection-is-plausible-heres-the-discriminator...`, resent clean after a
+backtick-eaten first copy) with PLAUSIBLE-BUT-UNPROVEN status and a discriminator question: *"does anything v05 writes need to
+SURVIVE a return the emitted thunk makes? If nothing must survive, the mechanism is different even if the code is shared."*
+Also reiterated RULES.md's mandated order: ASM-DIFF-FIRST, ablate toward a minimal witness before gdb. Both directly informed
+what follows.
+
+### The EVAL hypothesis is REFUTED, not just unconfirmed
+
+Ablated `v05_treebank_pushlist_235.sno` (94 lines) down incrementally, re-testing the m3-pass/m4-SIGSEGV signature after every
+cut (dead code first: `Push_item`/`Pop_list`/`ListName` are never called by the driver; then the unread `tags` TABLE; then
+flattened `push_list`'s body to one call; then dropped `Init_list`). Each cut preserved the crash. **One cut mid-way pulled the
+call out of pattern-construction context entirely (a bare top-level `Push_list("'BANK'")` statement) — this did NOT crash in
+either mode, but also gave the WRONG value (`size=0` in both m3 and m4, not just m4) — a self-inflicted semantic bug from
+restructuring the witness, not a finding about the defect. Recorded here so it is not re-attempted: pattern-construction
+context for the call is load-bearing for CORRECTNESS, separately from whatever is load-bearing for the CRASH.** Reverted that
+one step and continued ablating conservatively.
+
+The decisive test: swapped `Push_list`'s body from `EVAL("epsilon . *push_list(" vs ")")` to the literal, non-EVAL form
+`epsilon . *push_list(vs)` — the exact idiom this same file already used, untested until now, for the never-called `Pop_list`
+wrapper — with the matching caller-argument change (`Push_list("'BANK'")` → `Push_list('BANK')`, since the literal form takes
+the value directly rather than a string to re-parse). **The crash survives unchanged.** EVAL, `eval_thunks_emit_from`,
+`runtime_eval.c`'s runtime-JIT machinery are NOT in the picture at all for this defect — the headline and Addendum 1 above
+were chasing the wrong subsystem. Also tested and ruled out as necessary: `EVAL` string-building, the `Init_list` wrapper, a
+second `list()` call nested in argument position (flattened to a temp var — still crashes), and two levels of DEFINE'd-proc
+call nesting (`push_list → ListAppend → ListInsert` collapsed to `push_list → ListInsert` directly — still crashes).
+
+**Minimal witness: 94 → 49 lines**, committed as `corpus/probe/vlist_select/v06_defer_call_disjunction.sno` (+ `.ref`,
+`MATCH size=1`) — m3 PASS, m4 SIGSEGV rc=139, reproduced from the committed file itself, not just the scratch copy.
+
+### The clean flip, and what it isolates
+
+One more single-variable change flips the witness to a clean PASS in **both** modes with the **same correct value**
+(`MATCH size=1`, matching m3 and the oracle-implied answer, not a different wrong number): change `Push_list`'s body from the
+deferred-expression pattern call `epsilon . *push_list(vs)` to an ordinary direct call `push_list(vs)` (no `epsilon .`, no
+`*`). Nothing else differs. This is now the cleanest possible ASM-diff pair (`ab9.s` vs `ab10.s` in scratch, same shape,
+differing only in how the one call is invoked) and it answers hq_P's discriminator precisely: **the deferred `*E` pattern
+form is necessary for the crash; the ordinary direct-call form is not just "also broken" or "differently broken" — it is
+fully correct.**
+
+### hq_P's specific mechanism does NOT appear to apply here — corrected in place
+
+hq_P's PROVEN defect is: a SUSPEND generator's frame is carved on the C stack, control returns out to a caller that runs
+FURTHER arbitrary code (e.g. `write()`), and the caller's own next `call` silently reclaims the frame — no suspend, no bug.
+Tracing `*push_list(vs)`'s actual execution (gdb, see below) shows **no coroutine, no `rt_coexpr.c`, no pthread switch, and no
+suspend/resume anywhere in this path** — `push_list` runs to completion in one straight-line nested-call sequence, exactly
+like an ordinary procedure call, then returns normally. hq_P's own finding text describes pattern-blob (`*P DEFER`) execution
+as the SAFE contrast case precisely because "the blob's caller ... does not run arbitrary code below the retained frame" —
+and that description fits what's actually happening here (no external arbitrary code runs while anything is suspended,
+because nothing is ever suspended). **Correcting the connection flagged to hq_P last session: plausible on the evidence
+available then, but the actual mechanism (below) is structurally different — not a shared root cause with the Icon generator
+defect.** Message sent to hq_P and hq_C with this correction and the new mechanism (see LEDGER).
+
+### The confirmed mechanism — gdb software watchpoint (hardware watchpoints do not work in this container, per hq_P's warning and CLAUDE.md)
+
+`environ` is corrupted, deterministically, at a fixed address under `gdb` (ASLR is disabled by gdb's own `run` by default in
+this container — addresses were byte-identical across separate `gdb -batch` invocations on the unchanged binary, confirmed
+before trusting a hardcoded address). One `environ[]` slot's low 32 bits are zeroed while its high 32 bits stay intact
+(`0x00007fffffffe79f` next to it vs the corrupted `0x00007fff00000000`) — the signature of a 32-bit store landing on the low
+half of an 8-byte pointer slot, not a wild 64-bit-pointer write.
+
+Set `set can-use-hw-watchpoints 0` (forces a software watchpoint — slow, but this witness is small enough to finish well
+inside a timeout) on the exact corrupted qword's address, from `break main` (before any SNOBOL4 code runs) — NOT from a
+Greek-lettered Byrd-box label (`break main_γ` silently produced a "charset conversion failure" warning and the breakpoint
+never actually fired; ASCII-only symbols are safe, unicode port labels are not, for `break` in this gdb build). The watchpoint
+fires exactly once:
+
+```
+Old value = 140737488349128   (0x00007fffffffe79f — valid stack address)
+New value = 140733193388032   (0x00007fff00000000 — corrupted)
+0x0000000000404879 in n157_disjunction_α ()
+```
+
+`objdump -d` at that PC (crashing binary, address confirmed via `nm`):
+
+```
+40486e:  c7 84 24 f0 06 00 00 00 00 00 00   mov DWORD PTR [rsp+0x6f0], 0x0
+```
+
+**A disjunction box (`n157_disjunction_α` — the `LT(place,0) n(x)+place` idiom used throughout `ListValue`/`ListInsert`,
+compiled to `IR_DISJUNCTION`) writes a 32-bit zero to a fixed, large, statically-computed offset (`0x6f0` = 1776 bytes) from
+its OWN current `rsp`, intending to land inside some ancestor frame's reserved "flat frame" scratch region. When this exact
+box is reached through the deferred-call-at-match-end path (see next section), the actual runtime `rsp` at that point is not
+what the static offset assumed, and the write overshoots all the way to the process's `environ` array near the top of the
+initial stack.** This is a genuine, confirmed, reproducible defect — not a guess, not an inference from a victim site.
+
+### Why v01 was "exonerated" and v05/v06 are not — reconciled, not contradictory
+
+Addendum 1 (this same file) reported `v01_select_min.sno` — same `IR_DISJUNCTION` construct — 100% valgrind-clean, and used
+that to rule out "the disjunction's own codegen" as the culprit. That measurement was correct and remains correct for HOW
+`v01` calls it: directly, at pattern-construction time, shallow call depth. **It does not generalize to "the disjunction
+construct has no bug"** — it only shows v01's specific (shallow, non-deferred) invocation never reaches the buggy path. The
+task brief's ORIGINAL hypothesis ("suspect the disjunction's spine depth") was closer to right than Addendum 1 gave it credit
+for; what was missing was the trigger condition: **the SAME disjunction code, reached via a `*E` deferred-pattern call whose
+real invocation is pumped at match-end (`rt_dcap_pump`, `pattern_match.c:685`, calling an internal `*EXPR$0` thunk — confirmed
+via breakpoint, `e->varname = "*EXPR$0"`) rather than during the ordinary match traversal, sits at a different (deeper, and/or
+differently-computed) `rsp` than the fixed compile-time offset assumed.** The clean flip (deferred call → crash, direct call →
+correct) isolates exactly this trigger; it does not by itself prove which side of the arithmetic is wrong (the disjunction
+box's offset, or something in the `EXPR$0` thunk / `rt_call_proc_descr` / `rt_proc_enter` tail-jump chain that under- or
+over-adjusts `rsp` relative to what the disjunction box's offset was compiled against).
+
+### NOT established — the actual next step
+
+- **Which specific fixed-offset computation is wrong is not yet located.** The one analogous "fixed offset into an ancestor's
+  flat frame" logic found this session is `g_flat_frame_floor` / `zls_g_region` inside `eval_thunks_emit_from`
+  (`runtime_eval.c:180-184`) — but that is the EVAL-at-runtime registration path, and this witness does not touch EVAL at
+  all (refuted above), so the AOT `--compile`-path analog (almost certainly somewhere in `emit.cpp` /
+  `codegen_flat_chain_body`, or wherever a chain's disjunction box's `0x6f0`-style constant gets computed) has not been
+  located. That is the concrete, scoped next step — find where THIS box's offset constant is computed for the AOT path, and
+  why the `*EXPR$0`-thunk/`rt_dcap_pump`/match-end invocation route produces a different effective `rsp` than a direct call
+  does at the point that box executes.
+- **No fix attempted.** Per this row's own repeated lesson (RULES.md, and this file's own LEDGER), do not ship a fix ahead of
+  locating the actual offset-computation defect — the mechanism is now precisely characterized (down to the exact instruction
+  and address) but the ROOT arithmetic error (which side is wrong, and why) is not yet found.
+- `v06_defer_call_disjunction.sno`/`.ref` committed to `corpus/probe/vlist_select/` as a fast (49-line), confirmed-reproducing
+  regression witness for whoever takes the fix — much cheaper to re-run/re-diff/re-gdb than the 94-line original.
+
+### RECEIPTS (this addendum)
+
+SCRIP `1a9cc1bc` (unchanged from Addendum 1's receipts — investigation only this session too, zero source changes).
+`gdb -batch` under `SCRIP_NO_SEGV_HANDLER=1`, `set can-use-hw-watchpoints 0` (hardware watchpoints do not fire in this
+container — confirmed by way of hq_P's own warning, not independently re-discovered the hard way). `objdump -d -M intel`
+against the minimized witness's `--compile` output for the exact instruction. `nm`/nothing beyond stock binutils + gdb 
+needed. Ladder sanity-checked unaffected (m3 PASS, unchanged source) before commit: `c01`, `c02`, `v01`-`v04`.
