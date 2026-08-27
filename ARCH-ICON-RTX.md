@@ -208,7 +208,7 @@ concurrency cost, not taste:
   and is the destination every landed RTX rung has used.
 - **⭐ EXCEPTION = THE SCAN/GENERATOR FAMILY → BB TEMPLATE.** `rt_scan_enter` / `rt_scan_leave` /
   `rt_substr` are **Icon's own**, they have no SNOBOL4 analogue, and they are the one family where the
-  call boundary is itself the architectural defect: `ARCH-ICON.md` specifies scanning as stackless BB
+  call boundary is itself the architectural defect: `ARCH-ICON.md` specifies scanning as no-software-value-stack BB
   templates with Σ/δ/Δ pinned in r13/r14/r15, so a `call rt_scan_enter@PLT` spills and reloads exactly
   the registers the design pins. **Porting that to `.S` would make the wrong thing faster.** Moving it
   into templates deletes the boundary. ⛔ **But it is template work: `.s` regen ×3, both-medium, and it
