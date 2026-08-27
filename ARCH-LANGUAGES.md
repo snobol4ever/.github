@@ -84,3 +84,59 @@ State lives in the per-α DATA block; CODE is shared.
 ### Co-expressions
 **LANDED 2026-07-01**, both modes: `create` / `@` / `coret` / `cofail` via pthread + semaphore. C-function Byrd constructs remain banned.
 ✅ *Spot-checked: `src/runtime/rt/rt_coexpr.c` present, and all four of `bb_create` / `bb_activate` / `bb_coret` / `bb_cofail` present under `src/templates/bb/`.*
+
+---
+
+## PROLOG
+
+Frontend: PROLOG → shared IR (`EXPR_t`/`STMT_t`). See `ARCH-ENGINE.md`.
+
+### Four-port is the model — NOT a value stack (2026-05-30 correction, moved)
+The older framing leaned on GNU Prolog's WAM CP-frame **stack** (`pl_choice`, ported from `wam_inst.h`) as the engine compass. **That was wrong.** The model is Proebsting's four-port translation: each operator is four labelled code chunks (**α/β/γ/ω**) threaded by `goto`, each box's value in a FLAT per-activation home — not a pushed/popped value stack, and not a save/restore of shared mutable node slots.
+
+**What survives, and is therefore NOT the value stack:** the **trail** (binding undo log); the **resume cursor / CP ledger** (`_cs` int / parent-linked `pl_choice` record — the irreducible "which suspended alternative is live"); and **explicit indexed deferred-frame arrays** for genuinely repeating constructs (ARBNO-style `_1[64]`).
+
+⛔ **CLAIM CORRECTED — the removal announced here never happened.** The old text said *"the `bb_node_state_t` snapshot/restore mechanism in the current engine IS a value stack and **is being removed**"*. Measured 2026-08-27, ~3 months later: it is **fully live** — `emit.h:179` (the typedef), `emit.h:237-238` (`bb_snapshot_state`/`bb_restore_state`), `rt_runtime.c:465` (inside `PlCallSt`). **LIES GET CONSEQUENCES:** the 2026-08-27 CEO audit of `ARCH-x86.md` independently listed those same two symbols under *"verified correct"*. So the fleet held two ARCH docs that described the same live code as, respectively, being-removed and verified-correct — and a reader could obey either and be misinformed by the other. That is the single clearest argument for this consolidation.
+
+### Engine model (substrate facts — moved, with citations repaired)
+A **boxed-cell, GC-managed** model (tagged `Term*`, GC-allocated). The choice-point ledger is a parent-linked record — not a contiguous WAM stack, and not a value stack.
+- **Terms** — `src/frontend/prolog/term.h` *(was `src/parser/prolog/`; renamed 2026-08-24, `cf1f2961`)*: tagged `Term*` (ATOM/VAR/COMPOUND/INT/FLOAT/REF), GC-allocated. Bound vars become `TERM_REF` with a `ref` pointer; `term_deref` chases the chain (≡ SWI `deRef`).
+- **Unify + trail** — `src/frontend/prolog/prolog_unify.c`: structural unify; `bind()` records the var on a GC-doubling trail; `trail_unwind(mark)` restores vars to `TERM_VAR` on backtrack.
+- **Choice points** — ⛔ the old citation `src/runtime/interp/pl_runtime.{c,h}` **no longer exists**. `pl_choice` now lives in `src/lower/lower_prolog.c`: the CP mechanism moved into the lowerer. Mapping to gprolog's WAM CP frame is unchanged: `parent≡BB`, `trail_mark≡TRB`, `env≡EB`, `resume≡ALTB`, `saved_args≡AB`, `stamp` ≈ HB stand-in; HB/CPB/BCIB/CSB deferred.
+- **Cut** — `g_pl_cut_barrier` + `pl_cp_truncate` ≡ gprolog `Assign_B(BB(B))`.
+- Per-invariant reference: `SCRIP/docs/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md` *(the docs said `SCRIP/doc/` — one letter, and the file is present)*.
+
+### Byrd-box refinements (moved; one verified)
+- **Callee resumability is a CLOSURE VALUE, not a port.** Entering a predicate is a `call` yielding `(value, Resume)`; re-driving it is `closure.Resume()` dispatched from the caller's OWN β chunk. In SCRIP the closure IS the callee's `rt_enter` frame. There is no caller-side "callee-entry/resume port": the ports once emitted as `δ`/`ε` (`X86P_DELTA`/`X86P_EPSILON`, ports 4/5) are **ABOLISHED**.
+  ✅ *Spot-checked (RULING-vs-CODE): zero occurrences of either symbol under `src/`. The abolition genuinely landed and stayed.*
+- **Determinacy is first-class (`bounded`).** A box that cannot offer a second solution emits NO β chunk, allocates no choice point, retains no closure. β exists only for genuine generators (multi-clause predicates, `retract`, member-style recursion, `between`, findall's inner goal). Assigned at lower time.
+- **The boxes ARE the engine.** No central choice-point-stack interpreter loop, no bytecode fetch-decode-execute, no C control engine / `rt_meta_solve` meta-rail. Backtracking is the ω/β wiring plus the one shared trail plus per-callee closures. `pl_choice` remains the CP-ledger RECORD but no longer an engine that DRIVES control.
+- **catch/throw**: catcher tried on a scratch trail before commit (correct ISO discipline).
+
+### Known parity gaps vs gprolog/SWI (moved)
+1. **Conditional trailing.** Both references trail a binding only when the var is older than the youngest live CP (gprolog `Word_Needs_Trailing`, `wam_inst.h:472`; SWI `GTrail`, `pl-incl.h:2194`). SCRIP trails unconditionally → rung family **PL-TRAIL-COND**. This is also the de-facto **HB** port — the one deferred CP-frame field with a real consumer.
+2. **Level-2 indexing.** WAM-CP-8 gives Level-1 first-arg indexing with an O(N) linear filter scan; gprolog Level 2 (`indexing.pl`) and SWI (`pl-index.c` Fibonacci hash) select in O(1) → rung family **PL-INDEX-L2**.
+
+Ladder home: **`GOAL-PROLOG-100.md`** *(the docs said `GOAL-PROLOG-BB.md`, which does not exist — one GOAL file per language)*.
+
+### Prolog on `DESCR` + the three zetas — Lon's s273 ruling (design, absorbed with corrections)
+**Ruling (Lon s273, verbatim in substance):** *Prolog should not use `Term` at all, it should be using `DESCR`… Any allocations better live on (1) the SPINE, (2) the ACTIVATION FRAME, (3) the STANDING (ROOT) ACTIVATION FRAME — IN THAT ORDER… We use GC Heap! NO MALLOC!*
+
+**The one sentence:** a Prolog term is a `DESCR_t`; a logic variable is a `DESCR_t` slot whose address is its identity; a compound is a `DESCR_t` pointing at a contiguous run of `DESCR_t`; all three live on a zeta chosen by lifetime, in Lon's order — and nothing but string bytes reaches the GC heap.
+
+⛔⛔ **TWO CORRECTIONS TO THIS SECTION, BOTH AGAINST ITS OWN AUTHOR (hq_C, s273). Re-measured 2026-08-27:**
+
+| the doc's number (s273) | measured now | |
+|---|---|---|
+| 448 `Term` references | **233** | ↓ 48% |
+| 27 `malloc(` in the Prolog frontend | **11** | ↓ 59% |
+| 23 `malloc`/`free` in `prolog_parse.c` | **4** | ↓ 83% |
+
+Substantial cleanup landed between s273 and now, so the doc's *"the worst of any area"* framing should not be quoted as current. ⭐ Per `RULES.md:105`, the numbers were replaced rather than re-pinned: **re-measure before citing.**
+
+⛔ **AND THE SECTION'S RHETORICAL CENTREPIECE IS FALSE.** It called `rt_jmp_frame_lexprep2` *"a **no-op** called from every 2+-clause predicate's prologue… frame machinery SNOBOL4 and Icon never needed"*, and argued *"fix the representation and the plumbing stops being necessary."* Measured at `src/runtime/rt/rt.c:1653`, the function:
+1. `memset(fb, 0, region_bytes)` — zeroes the frame region; and
+2. restores the pending **cursor / trail-mark** triple for a suspended activation.
+
+Its own comment states the stakes: *"A freshly zeroed frame reads as 'never suspended', so a resumed call would silently re-run clause 1 instead of jumping to the retained cursor."* **It is load-bearing for resume correctness, not dead plumbing.** It is also not Prolog-bespoke: `rtx_icngen.S:84` documents Icon generators depending on state *"set by `rt_jmp_frame_lexprep2` at the generator's α prologue"*, and it appears in emitted **Pascal** prologues (observed 2026-08-27 in `nested.pas`).
+✅ **The DESCR ruling itself is Lon's and stands untouched.** What is struck is one piece of *evidence* offered for it. ⭐ The lesson is the one this consolidation keeps finding: a doc that names a mechanism "a no-op" without a witness invites the next hand to delete it — and here that deletion would silently re-run clause 1 of every resumed predicate, which is a wrong answer, not a crash.
