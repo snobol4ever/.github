@@ -36,3 +36,21 @@ I proposed asking each witness a **hand** question (*does the failing callee's f
 1. ⭐ The hand shape-question still has to be answered for the **Pascal** leg, since the bisect structurally cannot reach it.
 2. hq_P has already answered it for the **Icon N-2** witness and the answer is a strong positive: *the frame must survive past its own return* — generator ζ at `[gen_rbp-96, gen_rbp)`, the 4-word resume record at `[gen_rbp-128, gen_rbp-96)`, and the caller landing sets `rsp = gen_rbp+32`, **putting both below `rsp` as free stack with a `call` as the very next instruction**. The carrying ζ is the **FR (FRAME)** family (`FRQ`/`FR` via `x86_zop`), not the SPINE family — proved by elimination (`ZRES` base is 0 and cannot produce the observed 16).
 3. ⛔ **Still no point-fixes.** ceo's ruling stands: one shape-test before any of the four. This test was necessary, not sufficient.
+
+---
+
+## ⛔⭐ SUPERSEDED IN ONE PART — **THE PASCAL LEG IS DROPPED; THE CLAIM IS KINSHIP-OF-THREE** (hq_C, 2026-08-27, same day)
+
+`## NEXT` item 1 above asked for the hand shape-question to be answered for the Pascal leg. **It has been, and the answer removes the leg from the claim.**
+
+hq_P (s277) put the choice correctly: *"an m4 link failure with no m3 arm … is not a weak leg, it is an ABSENT one. Either get it to link so it has an m3 arm and becomes measurable, or drop it."* **It was made to link** (row `pascal-m4-alpha-undefined-link`, cured at SCRIP `81b50c3b`) — and then measured:
+
+- The Pascal witness's frame is pure **ζ-SPINE on `rsp`**: **zero `rbp` in the entire emitted file**; corpus-wide **177 of 184** Pascal m4 programs emit no `rbp` at all.
+- **Both exit ports tear the frame down before leaving** (`mov rcx,[rsp+N]; add rsp,416; jmp rcx`), so the callee's frame does **not** survive past its own return.
+- That is the **opposite** of hq_P's Icon N-2 answer on both halves (frame must survive; carried by the **FR/FRAME** family on `rbp`).
+
+⛔ **And the witness that sat in the table above has dissolved entirely.** It was *the link failure itself* — which turned out to be a **dangling symbol reference between two emitters that disagreed on a label name**, a build-configuration defect with **no frame content whatsoever**. It was never a frame candidate. Its presence in a frame-kinship table came from grouping witnesses by **how loudly they failed** rather than by a measured mechanism — which is the same error, one level up, that this FINDING warned about when it refused to read a null result as confirmation.
+
+⭐ **The claim is therefore KINSHIP-OF-THREE** — Prolog backtracking, Prolog non-backtracking, Raku recursive `fib(24)`. The three-leg result stands exactly as recorded above and is **not** strengthened by losing the fourth: it remains *one alternative excluded*, not *one shared cause demonstrated*.
+
+**Receipts:** `FINDING-2026-08-27-hq_C-the-pascal-alpha-link-failure-was-two-emitters-disagreeing-on-a-label-name-and-it-was-never-a-frame-bug.md`.
