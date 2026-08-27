@@ -1,6 +1,6 @@
 # ARCH-ICON.md — Icon Frontend and BB Execution (register truth for ALL BB codegen)
 
-Frontend: Icon → shared IR. See ARCH-IR.md. This file also carries the LIVE REGISTER CONTRACT that every BB template (all languages) obeys.
+Frontend: Icon → shared IR. See ARCH-ENGINE.md. This file also carries the LIVE REGISTER CONTRACT that every BB template (all languages) obeys.
 
 ## Execution model
 Icon is goal-directed: every expression Succeeds (γ, may resume for more) or Fails (ω). That IS the Byrd Box four-port model — α start · β resume · γ succeed · ω fail. Icon uses BB_PUMP (generate until ω); SNOBOL4 uses BB_SCAN (try each cursor position).

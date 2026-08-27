@@ -9,7 +9,7 @@
 
 **Repo:** SCRIP + .github
 **Backend:** JVM — Jasmin assembly → `.class` bytecode → `java`. Mode: `--compile --target=jvm`.
-**Read first:** `ARCH-JVM.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
+**Read first:** `ARCH-JVM.md` · `ARCH-ENGINE.md` · `RULES.md`
 
 ---
 

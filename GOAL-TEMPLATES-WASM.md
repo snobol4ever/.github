@@ -9,7 +9,7 @@
 
 **Repo:** SCRIP + .github
 **Backend:** WebAssembly — WAT (`.wat`) → `wat2wasm` → `.wasm` → `node` host. Mode: `--compile --target=wasm`.
-**Read first:** `ARCH-WASM.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
+**Read first:** `ARCH-WASM.md` · `ARCH-ENGINE.md` · `RULES.md`
 
 ---
 

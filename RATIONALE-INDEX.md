@@ -6,13 +6,13 @@
 
 ## Index
 
-- `sn4_blob_choice_scan` -> `.github/ARCH-PATTERN-CHOICE-CARRIER.md` §3.2
-- `resume_carrier_ok` -> `.github/ARCH-PATTERN-CHOICE-CARRIER.md` §3.3 (the seat04 cluster: tier-3 admission, `lf`/`fn`/`nc` witnesses)
-- `blob_choice_rbp_scan` -> `.github/ARCH-PATTERN-CHOICE-CARRIER.md` §3.4
-- `sn4_choice_rbp_off` -> `.github/ARCH-PATTERN-CHOICE-CARRIER.md` §3.4
-- `sn4_alt_carrier` -> `.github/ARCH-PATTERN-CHOICE-CARRIER.md` §3.1
-- `blob_frame_bytes` -> `.github/ARCH-PATTERN-CHOICE-CARRIER.md` §3.5
-- `zdp_tier` / ZDP lattice (`zeta_depth.c`/`.h`) -> `.github/ARCH-PATTERN-CHOICE-CARRIER.md` §3.6 (⛔ verified NOT the live admission path for the choice-carrier decisions as of the recovery commit — re-verify before trusting either way)
+- `sn4_blob_choice_scan` -> `.github/ARCH-ENGINE.md` §3.2
+- `resume_carrier_ok` -> `.github/ARCH-ENGINE.md` §3.3 (the seat04 cluster: tier-3 admission, `lf`/`fn`/`nc` witnesses)
+- `blob_choice_rbp_scan` -> `.github/ARCH-ENGINE.md` §3.4
+- `sn4_choice_rbp_off` -> `.github/ARCH-ENGINE.md` §3.4
+- `sn4_alt_carrier` -> `.github/ARCH-ENGINE.md` §3.1
+- `blob_frame_bytes` -> `.github/ARCH-ENGINE.md` §3.5
+- `zdp_tier` / ZDP lattice (`zeta_depth.c`/`.h`) -> `.github/ARCH-ENGINE.md` §3.6 (⛔ verified NOT the live admission path for the choice-carrier decisions as of the recovery commit — re-verify before trusting either way)
 
 ## Remaining clusters, not yet relocated (see QUEUE.tsv / tasks/ for the dispatched rows)
 

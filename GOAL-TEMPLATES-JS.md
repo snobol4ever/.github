@@ -9,7 +9,7 @@
 
 **Repo:** SCRIP + .github
 **Backend:** JavaScript → `node`. Mode: `--compile --target=js`.
-**Read first:** `ARCH-JS.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
+**Read first:** `ARCH-JS.md` · `ARCH-ENGINE.md` · `RULES.md`
 
 ---
 

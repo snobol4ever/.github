@@ -1,6 +1,6 @@
 # ARCH-SNOBOL4.md — SNOBOL4 Frontend
 
-Frontend: SNOBOL4. Produces shared IR (EXPR_t/STMT_t). See ARCH-IR.md.
+Frontend: SNOBOL4. Produces shared IR (EXPR_t/STMT_t). See ARCH-ENGINE.md.
 
 ## Parser
 
@@ -64,7 +64,7 @@ monitor_ack_fd          // from MONITOR_GO_PIPE env var
 
 Added 2026-05-31 (Lon "Eureka"); CORRECTED 2026-06-01 (Lon): the built pattern is a graph of EMITTED
 BYRD-BOXES (`bb_box_fn`) driven by `bb_broker.c`, NOT a `PATND_t` and NOT a `tree_t`. See
-GOAL-SNOBOL4-BB.md "CORRECTED PATTERN ARCHITECTURE" for the full statement + decided forks.
+GOAL-SNOBOL4-100.md "CORRECTED PATTERN ARCHITECTURE" for the full statement + decided forks.
 Modes 1 (AST interp) and 2 (IR interp) are DELETED (long gone — see PLAN.md Architecture + GOAL-MODE34-IDENTICAL.md); this section governs the only two modes that exist: mode 3 (`--run`, BINARY arm → RX pool) and
 mode 4 (`--compile`, TEXT arm → `as`/`gcc`). Both are pure LOWER + EMITTER, no interpreter. RULES recap: the ONLY emitted thing that does work is
 a **BB code block** (a byrd box) reached via `emit_core.c` dispatch; **XA blocks** only wrap/stitch
@@ -124,10 +124,10 @@ BLOB emitted ONCE at compile time (the wiring frozen to direct jumps, no ε-node
 `REF_INVARIANT` hands MATCH that sealed head directly. Only variant components (`*E`, `$NAME`,
 pattern-valued var) keep runtime build+stitch. Rule: const subtree ⇒ freeze to a sealed BLOB;
 references-runtime ⇒ keep instance-wired/built. This mirrors SPITBOL: constant patterns build once;
-variable patterns rebuild/defer per match. See GOAL-SNOBOL4-BB.md rung PB-RB for the step ladder.
+variable patterns rebuild/defer per match. See GOAL-SNOBOL4-100.md rung PB-RB for the step ladder.
 
 ## Storage & call convention (pointer, 2026-07-11)
-ζ storage design of record: `ARCH-ZETA-LOCAL-STORAGE.md` §7 (two MM flavors, regions, register end-state). Call convention: the ONE-ENTRY / NO-C→BB rule — mode 3 has exactly one C→BB transfer (driver MAIN); C runtime helpers are strict leaves; mode 4 entry is `main` (= the emitted graph). Live rung ladder + violation ledger: `GOAL-SNOBOL4-BB.md` Phase 1 (NCB).
+ζ storage design of record: `ARCH-ENGINE.md` § ζ Local Storage (regions, register end-state — the two-MM-flavor framing this line used to cite is itself superseded there by the RULES.md § BB FRAME-PLACEMENT CRITERION). Call convention: the ONE-ENTRY / NO-C→BB rule — mode 3 has exactly one C→BB transfer (driver MAIN); C runtime helpers are strict leaves; mode 4 entry is `main` (= the emitted graph). Live rung ladder + violation ledger: `GOAL-SNOBOL4-100.md` Phase 1 (NCB).
 
 ---
 
@@ -279,7 +279,7 @@ The rsp linked-frame chain for ARBNO iterations (FORTH-flavor linkage headers, c
 
 **The exit-class ledger (emit.cpp shared-γ/ω site):** a graph's shared γ/ω glue is selected by HOW IT IS ENTERED. **CLASS O** (outer one-shot main, α-pinned via guarded `bb_glue_framed_enter`) → `bb_glue_outer_γ/ω` (whack = the completion sync point outside the graph, then exit/ret). **CLASS C** (chain-entered: LBL__ pseudo-procs, EVAL/CODE fragments) → same whack, ledgered as the AMBIENT-C-FRAME unwind: `rt_chain_enter` pins no rbp; the whack lands in the C caller's -O0 frame and IS the m3 return-to-C (the s22u RBPPAIR falsification's load-bearing accident, now a named decision). **CLASS P** (wire-entered DEFINE stubs, discriminated by the driver's own `g_flat_frame_floor > 0` role-3-entry verdict) → `bb_glue_wire_γ/ω`, whack-free. This is the Lon s22v law applied: whack only at completion outside the graph, FENCE checkpoints inside, or other known sync points — a wire-entered graph's sync point is its ADOPT record, so its exits restore from the record instead of whacking.
 
-**The four linkage needs (Lon's grid):** (ONE) MAIN → initial graph = one-shot static (framed pin + outer landing). (TWO) BB_DEFER → pattern blob = pass-through (`bb_glue_pass_wires`). (THREE) call site → SAVE_RESTORE/CALL_FUNC = one-shot dynamic (C-side open today; emitted role-0 is the CALL2BB slice; exits via `bb_glue_wire_exit`). (FOUR) shim → first statement of a DEFINE body = pass-through THROUGH THE REGISTRY (`rt_goto_transfer`) — ⛔ must stay dynamic: SPITBOL CODE semantics let runtime-compiled fragments override same-name labels, so the hop resolves at run time; a static `jmp` fast-path requires a label-never-redefined license. Conversion backlog for the remaining hand-rolled trios lives in GOAL-SNOBOL4-BB.md's s22v cursor.
+**The four linkage needs (Lon's grid):** (ONE) MAIN → initial graph = one-shot static (framed pin + outer landing). (TWO) BB_DEFER → pattern blob = pass-through (`bb_glue_pass_wires`). (THREE) call site → SAVE_RESTORE/CALL_FUNC = one-shot dynamic (C-side open today; emitted role-0 is the CALL2BB slice; exits via `bb_glue_wire_exit`). (FOUR) shim → first statement of a DEFINE body = pass-through THROUGH THE REGISTRY (`rt_goto_transfer`) — ⛔ must stay dynamic: SPITBOL CODE semantics let runtime-compiled fragments override same-name labels, so the hop resolves at run time; a static `jmp` fast-path requires a label-never-redefined license. Conversion backlog for the remaining hand-rolled trios lives in GOAL-SNOBOL4-100.md's s22v cursor.
 
 ## ZETA-PER-BOX FRAME DISCIPLINE — the coherence challenge, named (HQ analysis 2026-08-04, Lon-directed, Fable seat; one-week history scan 2026-07-27→08-04, 402 SCRIP commits)
 

@@ -2,7 +2,7 @@
 
 Backend: JVM (Jasmin assembly → .class bytecode).
 Emitter: unified `emit_core.c` (`IS_JVM` arms in `SM_templates/` + `BB_templates/`).
-The former silo `emit_jvm.c` was deleted in the EC series — see ARCH-EMITTER.md.
+The former silo `emit_jvm.c` was deleted in the EC series — see ARCH-ENGINE.md.
 `snobol4jvm` (Clojure) is the separate semantic oracle, not the emitter.
 
 ## Byrd Box model (compiled)

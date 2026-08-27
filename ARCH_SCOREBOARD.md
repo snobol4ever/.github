@@ -23,7 +23,7 @@ window ≥800ms (Van Roy adequacy), interleaves 5 rounds, takes medians, reports
 - **RT_OPT=-O0 ALWAYS** (Lon ruling; `-O2` retired s147 — measured ±3–10% on sinks, and the forward
   plan is a hand-written x86 ASM runtime). Any number here is `-O0` unless a directed `-O2` build is
   quoted in that session's block.
-- **Absolute ms is NOISE across runs** (LAW 2, `ARCH-PROFILE-BOX-HISTOGRAM.md`): the same bytes
+- **Absolute ms is NOISE across runs** (LAW 2, `ARCH-ENGINE.md`): the same bytes
   measured 51ms and 71ms minutes apart. Only same-moment interleaved medians (what the rail does)
   and per-iter µs at an adequate window are evidence. Ratios below carry ±~10% run-to-run; the
   *direction* and the *cross-demo ordering* are the stable signal, not the third digit.
@@ -74,7 +74,7 @@ emitted `.s`) but write-once + static-seal-licensed, cells anonymous (no name→
 remaining demo wall confirmed CALLEE-side (PAT$ α = `sub rsp,96` + 3 saves + rbp seed + zero-fills).
 Ladder: **DB-1** dynamic license (registry+barrier; ~no rail delta expected — coverage rung),
 **DB-2** callee α diet (the speed rung), **DB-3** ARBNO static-extent verdict (calc-2's real fix).
-Full ladder: `GOAL-SNOBOL4-BB.md` head.
+Full ladder: `GOAL-SNOBOL4-100.md` head.
 
 ### s148 (2026-07-24, Claude Opus) — FENCE is the structural lever; the whack is memory-not-time
 Full write-up: `.github/FINDING-2026-07-24-CLAUDE-SN4-HEAT-0F-FENCE-IS-STRUCTURAL-WHACK-IS-MEMORY-NOT-TIME.md`.

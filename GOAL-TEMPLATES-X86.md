@@ -9,7 +9,7 @@
 
 **Repo:** SCRIP + corpus + .github
 **Backend:** x86 — native binary. Modes: `--sm-native` (mode-3, in-process JIT) and `--compile --target=x64` (mode-4, GAS `.s` → assemble → link).
-**Read first:** `ARCH-x86.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
+**Read first:** `ARCH-ENGINE.md` · `RULES.md`
 
 ---
 
@@ -44,9 +44,9 @@ byte-identical to the mode-2 oracle where an oracle exists.
 The per-language x86 frontend ladders are the `GOAL-*-BB.md` files. This backend goal is
 the destination they all feed; per-language progress lives in those frontend files.
 
-## Backend-specific notes (detail in ARCH-x86.md)
+## Backend-specific notes (detail in ARCH-ENGINE.md)
 
 - Byrd boxes are flat CODE+DATA blobs in `bb_pool` carrying no software value stack; four ports α/β/γ/ω; DATA per-invocation, CODE shared.
 - Two emission forms: flat BBs (`EMIT_BINARY_WIRED`, jmp-threaded, ζ=`[r12]`) and brokered BBs (`EMIT_BINARY_BROKERED`, C-ABI, `rdi=ζ`).
 - mode-4 TEXT path: GAS `.s` → assemble → link `libscrip_rt.so` → run.
-- Templates are pure functions of `g_emit` (see ARCH-EMITTER.md); byte production lives only inside template files (RULES.md TEMPLATE-ONLY EMISSION).
+- Templates are pure functions of `g_emit` (see ARCH-ENGINE.md); byte production lives only inside template files (RULES.md TEMPLATE-ONLY EMISSION).

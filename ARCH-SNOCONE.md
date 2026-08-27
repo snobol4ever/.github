@@ -14,7 +14,7 @@ and newline-as-whitespace. Chapters 15 (Operators), 17 (Data Types),
 18 (Patterns), and 19 (Functions) are authoritative for what Snocone
 expressions mean. Frontends and runtimes never reinterpret these.
 
-Frontend: SNOCONE. Produces shared IR (EXPR_t/STMT_t). See ARCH-IR.md.
+Frontend: SNOCONE. Produces shared IR (EXPR_t/STMT_t). See ARCH-ENGINE.md.
 
 ---
 

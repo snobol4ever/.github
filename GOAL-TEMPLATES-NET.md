@@ -9,7 +9,7 @@
 
 **Repo:** SCRIP + .github
 **Backend:** .NET — MSIL (`.il`) → `ilasm` → CLR (`dotnet`). Mode: `--compile --target=msil`.
-**Read first:** `ARCH-NET.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
+**Read first:** `ARCH-NET.md` · `ARCH-ENGINE.md` · `RULES.md`
 
 ---
 

@@ -51,9 +51,13 @@ rung and Lon sign-off.
   The live flat-glob register convention this doc locks (`"r12"`/`"r13"`/`"r14"`/`"r15"` literals, the
   `FR`/`FRQ` frame helpers) actually ships in `src/templates/x86_asm.h`, included per-template by the
   current `src/templates/*.cpp` family — not in any `src/runtime/x86/` file.
-- `ARCH-x86.md` — defines the flat-BB ABI, the no-software-value-stack box discipline,
-  and the intra-/extra-BLOB jump rules this doc operates against. **`ARCH-x86.md` is itself flagged
-  stale on file-layout claims as of 2026-06-30 — see its own correction banner.**
+- `ARCH-ENGINE.md` § x86 Backend — defines the flat-BB ABI, the no-software-value-stack box discipline,
+  and the intra-/extra-BLOB jump rules this doc operates against. **The 2026-08-27 ARCH consolidation
+  substantively corrected that section's register model: the ζ frame is NOT r12 — r12 is an ordinary
+  encodable register with no special role. ζ-SPINE locals are RSP-relative by default and move to
+  RBP only when a box is promoted per RULES.md § BB FRAME-PLACEMENT CRITERION. This doc's own `"r12"`
+  literal citation above (line 51) inherited that same now-corrected assumption and has not been
+  independently re-verified against source by this pass — treat it as suspect, not confirmed.**
 
 ---
 

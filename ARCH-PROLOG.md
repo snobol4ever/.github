@@ -1,6 +1,6 @@
 # ARCH-PROLOG.md — PROLOG Frontend
 
-Frontend: PROLOG. Produces shared IR (EXPR_t/STMT_t). See ARCH-IR.md.
+Frontend: PROLOG. Produces shared IR (EXPR_t/STMT_t). See ARCH-ENGINE.md.
 
 ## ⚠️ CORRECTION (2026-05-30): NO VALUE STACK. FOUR-PORT IS THE MODEL.
 
