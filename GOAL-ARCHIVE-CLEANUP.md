@@ -107,7 +107,7 @@ git pull --rebase origin main && git push
 
 ### S-8 — archive/SESSION-snobol4-x64.md
 
-Extracted into: `REPO-SCRIP.md` and `ARCH-SNOBOL4.md`
+Extracted into: `REPO-SCRIP.md` and `ARCH-LANGUAGES.md`
 
 ```bash
 grep -n "^## Key files\|^## §NOW" archive/SESSION-snobol4-x64.md

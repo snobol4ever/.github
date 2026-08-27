@@ -381,7 +381,7 @@ changes **port topology**, not just a table entry.
 | Feature | Semantics | Port consequence |
 |---|---|---|
 | `*->` soft cut | `(C *-> T ; E)` — if `C` has ≥1 solution, run `T` for **every** solution and never `E`; else `E`. Unlike `->`, does **not** cut `C`'s choice points. | β of the condition stays LIVE. `->` kills it. **These are structurally different boxes.** Already banked in `GOAL-PROLOG-BB.md` as a known gap. |
-| SSU `=>` | Head unification is **single-sided**: caller args must match without binding caller vars; commits like a cut on success. | A **determinism-by-construction** rule — no β at all, which is exactly the `bounded` optimisation ARCH-PROLOG.md describes. `=>` is that idea in the source language. |
+| SSU `=>` | Head unification is **single-sided**: caller args must match without binding caller vars; commits like a cut on success. | A **determinism-by-construction** rule — no β at all, which is exactly the `bounded` optimisation ARCH-LANGUAGES.md describes. `=>` is that idea in the source language. |
 | `occurs_check` flag | `false` (default), `true`, or `error` | changes `=/2` itself, engine-wide |
 | Tabling (`:- table`) | SLG resolution, answer subsumption, `max_answers_for_subgoal` | a **separate solver**, not a box shape |
 | Attributed vars | `freeze/2`, `when/2`, coroutining hooks fire on binding | binding is no longer a simple trail write — every `bind()` becomes a potential goal spawn |

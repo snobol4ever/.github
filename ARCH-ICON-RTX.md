@@ -208,7 +208,7 @@ concurrency cost, not taste:
   and is the destination every landed RTX rung has used.
 - **⭐ EXCEPTION = THE SCAN/GENERATOR FAMILY → BB TEMPLATE.** `rt_scan_enter` / `rt_scan_leave` /
   `rt_substr` are **Icon's own**, they have no SNOBOL4 analogue, and they are the one family where the
-  call boundary is itself the architectural defect: `ARCH-ICON.md` specifies scanning as no-software-value-stack BB
+  call boundary is itself the architectural defect: `ARCH-LANGUAGES.md` specifies scanning as no-software-value-stack BB
   templates with Σ/δ/Δ pinned in r13/r14/r15, so a `call rt_scan_enter@PLT` spills and reloads exactly
   the registers the design pins. **Porting that to `.S` would make the wrong thing faster.** Moving it
   into templates deletes the boundary. ⛔ **But it is template work: `.s` regen ×3, both-medium, and it
@@ -302,7 +302,7 @@ SN4-RTX's contract is two-way (RTX ‖ ζ). With ICON-RTX there are **three** li
    ⚠ **PREFER A HARD PROBE (`ud2`/crash) OVER A VALUE PROBE when a silent result would be readable two
    ways** — a value probe conflates "the asm did not run" with "this value does not reach the output".
    A value probe that is NOT silent (it moves the board) remains unambiguous and sufficient.
-1. **READ FIRST:** this file → `ARCH-ICON.md` (register contract + scan semantics) → the family's C
+1. **READ FIRST:** this file → `ARCH-LANGUAGES.md` (register contract + scan semantics) → the family's C
    source in full → **the ICON and JCON sources for every construct the family implements**
    (`refs/icon-master/src/runtime/fstranl.r` + `fscan.r` for scan; `refs/jcon-master/tran/irgen.icn`'s
    43 `ir_a_*` for port topology). ⛔ **NEVER install Java or run the JVM self-host path** (Lon, s121).
@@ -331,5 +331,5 @@ counting instrument.
 ---
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
-**Companions:** `GOAL-ICON-RTX.md` (ladder) · `ARCH-ICON.md` (BB/register/scan) ·
+**Companions:** `GOAL-ICON-RTX.md` (ladder) · `ARCH-LANGUAGES.md` (BB/register/scan) ·
 `ARCH-SNOBOL4-RTX.md` (the contract this one inherits) · `GOAL-ICON-BB.md` (the ζ ladder it runs beside)

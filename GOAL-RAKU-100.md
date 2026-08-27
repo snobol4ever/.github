@@ -350,7 +350,7 @@ with a captured ζ-env (RK-BLK) + EVAL/deferred thunks — heap-promote from bir
 
 **Un-parked by Lon 2026-06-27; RK-GRAM-3 (the recursive-descent seam) is THE LEAD** and carries a standing
 requirement unchanged since minting: **a FRESH session with a FULL context budget, `ARCH-x86.md` +
-`ARCH-SCRIP.md` (+ `ARCH-ICON.md` §String-scanning for the Σ/δ/Δ discipline) read FIRST** — do not tail this
+`ARCH-SCRIP.md` (+ `ARCH-LANGUAGES.md` §String-scanning for the Σ/δ/Δ discipline) read FIRST** — do not tail this
 onto a spent session.
 
 **DIRECTION (Lon 2026-06-14):** NFA is the WRONG primary engine for top-down recursive descent — real

@@ -822,7 +822,7 @@ call `Pop()` once to retrieve the root tree for `TDump`.
 
 ## Snocone-specific gotchas (vs SNOBOL4)
 
-These bite repeatedly. See `ARCH-SNOCONE.md` for the canonical spec.
+These bite repeatedly. See `ARCH-LANGUAGES.md` for the canonical spec.
 
 - **Whitespace is concat.** `'foo' 'bar'` evaluates to `'foobar'`. The
   lexer emits a synthetic `T_CONCAT` token at the boundary.
@@ -998,8 +998,8 @@ Empty output = `Parse Error`. Each line of output is one IR statement.
 
 | Topic | Source of truth |
 |---|---|
-| Snocone language spec | `ARCH-SNOCONE.md` |
-| SNOBOL4 frontend | `ARCH-SNOBOL4.md` |
+| Snocone language spec | `ARCH-LANGUAGES.md` |
+| SNOBOL4 frontend | `ARCH-LANGUAGES.md` |
 | Pattern matching tutorial | SPITBOL Manual ch.6 (pp 55-) |
 | FENCE / FAIL / SUCCEED | SPITBOL Manual ch.9 (pp 124-) |
 | ARBNO recursion | SPITBOL Manual ch.9 (pp 121-) |

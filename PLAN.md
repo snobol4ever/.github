@@ -34,7 +34,7 @@ Lon names a goal. You:
 6. **SNOBOL4 (any rung) → the ONE goal is `GOAL-SNOBOL4-100.md`; every deleted SNOBOL4 GOAL-* name resolves there.**
 6b. **Icon (any rung) → the ONE goal is `GOAL-ICON-100.md`; every deleted Icon GOAL-* name resolves there.**
 6c. **Prolog (any rung) → the ONE goal is `GOAL-PROLOG-100.md`; every deleted Prolog GOAL-* name resolves there.**
-7. **Any BB codegen / template / `x86_asm.h` work (every `GOAL-*-BB` rung) → read the BB-CODEGEN DESIGN SET FIRST, NON-NEGOTIABLE:** `ARCH-ICON.md` (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`) and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (R2/R7/R9/R10 + the ONE-MEDIUM-INVISIBLE FACT RULE govern every new encoder; the `IF(MEDIUM_TEXT,..)+IF(MEDIUM_BINARY,..)` pair is the named forbidden shape).
+7. **Any BB codegen / template / `x86_asm.h` work (every `GOAL-*-BB` rung) → read the BB-CODEGEN DESIGN SET FIRST, NON-NEGOTIABLE:** `ARCH-LANGUAGES.md` (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`) and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (R2/R7/R9/R10 + the ONE-MEDIUM-INVISIBLE FACT RULE govern every new encoder; the `IF(MEDIUM_TEXT,..)+IF(MEDIUM_BINARY,..)` pair is the named forbidden shape).
 8. Open the Goal file + that repo's REPO file.
 9. Run the Goal file's `## Session Setup` scripts.
 10. Trust the goal file's `LIVE CURSOR` (never this table's Step column — stale by design). Find first incomplete Step. Do it.

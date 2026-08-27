@@ -2,7 +2,7 @@
 
 **Written s23p (2026-08-02, Fable) at Lon's direction so that Claude Opus sessions can execute `GOAL-SNOBOL4-BB.md`'s ZW / ZD / RBP-SHED rungs mechanically.** Every claim below was re-measured against a fresh clone + fresh build this session (SCRIP HEAD at write time; `scrip` built green first try with `make scrip`). Nothing here is inherited prose: where the goal file's rung text has drifted (it has — see §8), THIS doc records the drift and the goal file's LIVE CURSOR still outranks both on "what's next."
 
-**READ ORDER FOR AN EXECUTING SESSION (non-negotiable, ~10 min):** `PLAN.md` → `RULES.md` (in full) → `GOAL-SNOBOL4-BB.md` LIVE CURSOR + THE MODEL + LADDERS → this doc → the FINDING doc the cursor names for your rung → `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` **before touching any `x86_asm.h` encoder or template** → `ARCH-ICON.md` register contract section. Then the rung.
+**READ ORDER FOR AN EXECUTING SESSION (non-negotiable, ~10 min):** `PLAN.md` → `RULES.md` (in full) → `GOAL-SNOBOL4-BB.md` LIVE CURSOR + THE MODEL + LADDERS → this doc → the FINDING doc the cursor names for your rung → `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` **before touching any `x86_asm.h` encoder or template** → `ARCH-LANGUAGES.md` register contract section. Then the rung.
 
 ---
 

@@ -1006,11 +1006,11 @@ Other risks tracked but not blocking:
 - **ARCH-x86.md** — x86-64 backend ABI (rdi/esi entry, r10/r11
   scratch, 10-byte prologue, code+data buffer layout).  CB-7d
   inherits the BINARY mode emitter spec from here.
-- **ARCH-JVM.md, ARCH-NET.md, ARCH-JS.md, ARCH-WASM.md, ARCH-C.md**
+- **ARCH-JVM.md, ARCH-NET.md, ARCH-JS.md, ARCH-WASM.md, ARCH-LANGUAGES.md**
   — per-backend conventions.  CB-7f's per-backend cell
   completion lands content into these files as each cell closes.
-- **ARCH-SNOBOL4.md, ARCH-SNOCONE.md, ARCH-ICON.md, ARCH-PROLOG.md,
-  ARCH-REBUS.md, ARCH-SCRIP.md** — per-frontend conventions.
+- **ARCH-LANGUAGES.md, ARCH-LANGUAGES.md, ARCH-LANGUAGES.md, ARCH-LANGUAGES.md,
+  ARCH-LANGUAGES.md, ARCH-SCRIP.md** — per-frontend conventions.
   CB-3 and CB-9 land content into these files as each frontend
   port lands.
 

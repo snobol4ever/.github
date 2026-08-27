@@ -76,7 +76,7 @@ visible in scope), then a destructive replace.
 **Documented as "Snocone emitter property" in ReadWrite.sc:6-12, Qize.sc:13-16.**
 Needs Lon's call: intentional or runtime bug?
 
-If intentional → leave the 2-step idiom, document it once in ARCH-SNOCONE.md,
+If intentional → leave the 2-step idiom, document it once in ARCH-LANGUAGES.md,
 remove the per-file repeat-comments.
 If bug → fix the emitter to preserve captures in predicate-form, restore
 single-statement form in .sc.

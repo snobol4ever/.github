@@ -1,6 +1,6 @@
 # CARVEOUT-B-LADDER.md — per-box-family ladder for CARVE-OUT B (template generation → Snocone `*(EXPRESSION)`)
 
-**Row:** `carveout-b-decompose` (rank 1). **Produced by:** seat13, 2026-08-24. Read `ARCH-ICON.md`, `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`, `REFERENCE-SPITBOL-BEAUTY-CONSTRUCTS.md` in full first, per this row's own NEXT block and CLAUDE.md's non-negotiable BB-codegen protocol. **Did not read `BB-REVAMP-TRACKER.md`** — CLAUDE.md explicitly forbids it; excluded from this ladder's research even though it matched my search for prior CARVE-OUT B content.
+**Row:** `carveout-b-decompose` (rank 1). **Produced by:** seat13, 2026-08-24. Read `ARCH-LANGUAGES.md`, `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`, `REFERENCE-SPITBOL-BEAUTY-CONSTRUCTS.md` in full first, per this row's own NEXT block and CLAUDE.md's non-negotiable BB-codegen protocol. **Did not read `BB-REVAMP-TRACKER.md`** — CLAUDE.md explicitly forbids it; excluded from this ladder's research even though it matched my search for prior CARVE-OUT B content.
 
 **THIS ROW PRODUCES THE LADDER, NOT THE PORT.**
 
@@ -8,7 +8,7 @@
 
 ## 0. This is a materially different, harder proposition than CARVE-OUT A — say so plainly
 
-CARVE-OUT A (parsers) replaces C code that builds a **tree**. CARVE-OUT B (templates) replaces C code that emits **exact machine instructions under a fixed register contract** (`ARCH-ICON.md`'s REGISTER CONTRACT: R12=DCAP/CAS top, R13=Σ subject base, R14=δ cursor, R15=Δ subject length, RBX=GC bump-frontier, RSP/RBP dual-mode frame selection) via a **13-rule + 3-gated-FACT-RULE construction discipline** (`GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`: one medium invisible, in-band patch records, `g_emit`-only operand reads, `x86_bin_t` abolished, TEXT-first conversion). A Snocone `*(EXPRESSION)` replacement has to reproduce that exactly, not just produce semantically-similar output.
+CARVE-OUT A (parsers) replaces C code that builds a **tree**. CARVE-OUT B (templates) replaces C code that emits **exact machine instructions under a fixed register contract** (`ARCH-LANGUAGES.md`'s REGISTER CONTRACT: R12=DCAP/CAS top, R13=Σ subject base, R14=δ cursor, R15=Δ subject length, RBX=GC bump-frontier, RSP/RBP dual-mode frame selection) via a **13-rule + 3-gated-FACT-RULE construction discipline** (`GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`: one medium invisible, in-band patch records, `g_emit`-only operand reads, `x86_bin_t` abolished, TEXT-first conversion). A Snocone `*(EXPRESSION)` replacement has to reproduce that exactly, not just produce semantically-similar output.
 
 **No prior art or prototype for this specific carve-out was found anywhere in `.github`** (excluding the forbidden tracker) — unlike CARVE-OUT A, where every language's Phase-2 rewrite was already substantially done three months ago. The brief's own citation (`REFERENCE-SPITBOL-BEAUTY-CONSTRUCTS.md §7`, deferred `*expr`) explains *why* the mechanism should work in principle — SPITBOL's `*expr` defers evaluation to use-time exactly the way a template needs to name operands (`_.op_sval`, port labels) that don't exist until the template is instantiated for a specific IR node — but principle is not proof. **This ladder's rung 0 is a feasibility spike, not a family port**, because sizing any family-level rung before that spike answers "can this represent one real box's exact `x86(...)` call sequence at all" would be guessing.
 
@@ -21,7 +21,7 @@ CARVE-OUT A (parsers) replaces C code that builds a **tree**. CARVE-OUT B (templ
 | Family | Count | Members (representative, not exhaustive where large) |
 |---|---|---|
 | **SNOBOL4-style pattern-match leaves** | 26 | `match_{abort,alternate,any,arb,arbno,atp,bal,begin,break,breakx,capture,defer,end,fence0,fence1,len,lit,notany,pos,rem,replace,rpos,rtab,span,tab,value}` |
-| **Icon `scan` leaves** (ARCH-ICON.md's "ICN-SCAN BB family", canonical set closed) | 11 | `scan_{alternate,any,bal,find,many,match,move,pos,sequence,tab,upto}` |
+| **Icon `scan` leaves** (ARCH-LANGUAGES.md's "ICN-SCAN BB family", canonical set closed) | 11 | `scan_{alternate,any,bal,find,many,match,move,pos,sequence,tab,upto}` |
 | **assign / rev_assign** | 7 | `assign_{global,local,var}`, `indirect_assign_{lit_s,var}`, `rev_assign{,_var}` |
 | **call** | 7 | `call`, `call_{bool,define,fn,proc_staged,value,write_slot}` |
 | **var** | 7 | `var`, `var_{frame,frame_ref,global,ref}`, `swap_var`, `unop_gvar_slot` |
@@ -55,7 +55,7 @@ Two encoder calls, no operands, no conditionals, no loop. **DONE-WHEN**: hand-wr
 
 Everything past rung 0 is written as a **conditional plan**, not a committed sequence, because rung 0's outcome changes what's even possible:
 
-- **If rung 0 succeeds**: rung 2 should be the smallest FAMILY next, not the biggest. Best candidate: the **structural/statement-level singles** with zero or near-zero operand reads (`bb_fail`, `bb_cut`, `bb_every`, `bb_cell_cut`, `bb_det_nl` — all 13-16 lines) — same low-operand-count property that made `bb_goto` a clean spike, but now proving the pattern generalizes across *several* boxes instead of one. **Save `match` (26 files, the semantically heaviest family, closely bound to the deferred-`*expr` pattern-matching semantics this whole carve-out's premise leans on) and `scan` (11 files, Icon-specific dual-family split per ARCH-ICON.md §"String scanning") for LAST** — they're the biggest and most likely to expose the hard cases (operand threading, port wiring, loop bodies) that a from-scratch mechanism needs to prove out on easy ground first.
+- **If rung 0 succeeds**: rung 2 should be the smallest FAMILY next, not the biggest. Best candidate: the **structural/statement-level singles** with zero or near-zero operand reads (`bb_fail`, `bb_cut`, `bb_every`, `bb_cell_cut`, `bb_det_nl` — all 13-16 lines) — same low-operand-count property that made `bb_goto` a clean spike, but now proving the pattern generalizes across *several* boxes instead of one. **Save `match` (26 files, the semantically heaviest family, closely bound to the deferred-`*expr` pattern-matching semantics this whole carve-out's premise leans on) and `scan` (11 files, Icon-specific dual-family split per ARCH-LANGUAGES.md §"String scanning") for LAST** — they're the biggest and most likely to expose the hard cases (operand threading, port wiring, loop bodies) that a from-scratch mechanism needs to prove out on easy ground first.
 - **If rung 0 fails or is inconclusive**: this ladder cannot responsibly propose family rungs at all — the right next row is a narrower investigation into *why* it failed (bridge-mechanism design, or a hard blocker in how Snocone execution reaches the x86 encoder layer), not a fresh attempt at family sizing.
 
 ## 4. New-global-variable note
@@ -80,7 +80,7 @@ OR, if infeasible, a routed FINDING states exactly why, with the specific mechan
 blocks it named (not "didn't work"). Either outcome closes this rung; only "didn't try" doesn't.
 
 ## NEXT
-STEP 1: Read ARCH-ICON.md's REGISTER CONTRACT section and GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md
+STEP 1: Read ARCH-LANGUAGES.md's REGISTER CONTRACT section and GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md
 R1-R13 + the three gated FACT RULES in full before writing anything -- this spike must respect
 the SAME rules a C box does (one medium invisible, in-band patch records, TEMPLATE READS ONLY
 g_emit) even though it's not itself a C template.

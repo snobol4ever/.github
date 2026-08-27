@@ -136,7 +136,7 @@ cell — its resume chunk is `opfn`+`Goto`, no IndirectGoto. Classed STATIC; fla
 in the loose sense is true of it and the distinction that matters is *where* the state lives.
 ² `ir_a_CoexpList` is `stop("FATAL ERROR: don't know how to do coexplist")` in JCON — unimplemented
 upstream, so JCON is **not** an authority for it. SCRIP's co-expressions landed 2026-07-01 via
-pthread+semaphore (`ARCH-ICON.md`); use `refs/icon-master` for co-expression semantics, never JCON.
+pthread+semaphore (`ARCH-LANGUAGES.md`); use `refs/icon-master` for co-expression semantics, never JCON.
 ³ SCRIP retired `IR_INDIRECT_GOTO`: `lower_if` was its only producer and is now a committed
 `IR_DISJUNCTION` (`emit.cpp:1227` comment). The kind stays declared and `drive_unowned` aborts LOUD if
 one reappears.
@@ -179,7 +179,7 @@ That is precisely the shape ζ-ACTIVATION-FRAME is reaching for, and it is why t
 `op_zdepth = op_fc_bytes` model ("a box compensates for exactly what IT carved", `emit.cpp:1000`) cannot
 express D2/D3 — a box that legitimately suspends is *not* balanced at handoff.
 
-Scan-family split (do not blur — `ARCH-ICON.md` says the same):
+Scan-family split (do not blur — `ARCH-LANGUAGES.md` says the same):
 - `fscan.r` `tab` `{0,1+}` (`:91`) and `move` `{0,1+}` (`:9`) — **cursor-movers**, save old `&pos`
   (`:113`) and reverse on resume ⇒ genuinely gamma-live state.
 - `fstranl.r` `any` `{0,1}` (`:68`), `match` `{0,1}` (`:203`), `many` `{0,1}` (`:175`) —

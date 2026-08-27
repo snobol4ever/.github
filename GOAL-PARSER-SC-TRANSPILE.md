@@ -17,7 +17,7 @@
 
 1. Clone `.github`, `corpus`, `SCRIP`, plus `snobol4ever/x64` to `/home/claude/x64` (prebuilt `bin/sbl` ships in repo — no build step needed). See `PLAN.md`.
 2. `pdftotext /mnt/user-data/uploads/spitbol-manual-v3_7.pdf /tmp/spitbol.txt`. Required chapters: Ch 8 (Gimpel template, line 5806+), Ch 14 (statements, 9017+), Ch 15 (operator priorities, 9540+), Ch 18 (pattern matching, 10606+), App C (SPITBOL vs standard SNOBOL4, 13651+).
-3. Read `corpus/SCRIP/parser_snocone.sc` (the language we transpile FROM), `corpus/SCRIP/README.md` (runtime load order), `.github/ARCH-SNOCONE.md` §"Lowering map".
+3. Read `corpus/SCRIP/parser_snocone.sc` (the language we transpile FROM), `corpus/SCRIP/README.md` (runtime load order), `.github/ARCH-LANGUAGES.md` §"Lowering map".
 
 ---
 
@@ -165,7 +165,7 @@ cat fixture.sc | /home/claude/x64/bin/sbl -bf /tmp/p_snocone.sno 2>&1 | grep -v 
 5. `emit_node(c, n)` — top dispatch. Routes TT_STMT→emit_stmt, TT_PROGRAM→emit_program, control-flow→Gimpel/loop templates.
 6. `tree_to_sno(ast, out)` — public entry. Wraps `&FULLSCAN = 1` prelude, `END` terminator.
 
-To add a TT_* tag: expression-only → `emit_expr` switch case; statement-shape → `emit_node` switch case per ARCH-SNOCONE.md §"Lowering map".
+To add a TT_* tag: expression-only → `emit_expr` switch case; statement-shape → `emit_node` switch case per ARCH-LANGUAGES.md §"Lowering map".
 
 ### Identify a `?TT_NN?` placeholder
 
@@ -231,7 +231,7 @@ import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
 | corpus   | `programs/*/parser/*.ref`              | regenerated baseline (SCT-9b/9f) |
 | .github  | `GOAL-PARSER-SC-TRANSPILE.md`          | this file |
 | .github  | `PRECEDENCE-AUDIT.md`                  | SCT-9g-snocone deliverable |
-| .github  | `ARCH-SNOCONE.md` §"Lowering map"      | authority for stmt-shape lowering |
+| .github  | `ARCH-LANGUAGES.md` §"Lowering map"      | authority for stmt-shape lowering |
 
 ---
 

@@ -183,7 +183,7 @@ Prolog lags one step further back on the SAME ladder: `pl_cells_graph` default O
 ICON-RTX ladder (RTX-23/25 ⛔ BLOCKED ON LON; rulings in `RTX-CLAIMS.md`) · GN-PERF slot-vs-NV (GVA won; NV = reflective binding) · ⛔ ~~`-O2` pass~~ **STRUCK, NEVER TO BE OPENED** (Lon s262 fact rule + s267 in-chat: *"We will never chase that. We are not using C in the end except maybe a tiny bit."*) · JCON-modules byte-compare (data-level) · the perf graveyard (binding, do not re-derive).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Fable
-**Architecture:** `ARCH-ENGINE.md` (crossing laws, ζ glossary, ζ storage) · `ARCH-ICON.md` · `ICON-IRGEN-TOPOLOGY.md` · `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` · `DESIGN-ICON-SUSPEND.md` (historical; superseded by N-2)
+**Architecture:** `ARCH-ENGINE.md` (crossing laws, ζ glossary, ζ storage) · `ARCH-LANGUAGES.md` · `ICON-IRGEN-TOPOLOGY.md` · `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` · `DESIGN-ICON-SUSPEND.md` (historical; superseded by N-2)
 
 ## Session-close / push protocol
 See RULES.md — `scripts/handoff_status.sh` verbatim stdout is the ONLY sanctioned completion claim.
