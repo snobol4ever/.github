@@ -38,11 +38,31 @@ Raw per-engine rates, both angles, are in `profile/demo-triangulation-2026-08-27
 
 **(3) Exit status is not a correctness signal here — measured.** The clean oracle prints `ERROR 246 -- stack overflow`, emits an **empty** answer, and **still exits 0**. Any harness trusting `rc` would have published a fast, confident, wrong row. The gate is cross-engine **output agreement**; `EMPTY` is never a pass.
 
-## ⛔ A REAL COMPILER DEFECT FELL OUT OF THE CALIBRATION — SCRIP'S STACK CEILING, AND AN INERT FLAG
+## ⛔⭐ AMENDED IN PLACE 2026-08-27 (hq_P, on hq_C's correction) — THE "STACK CEILING + INERT FLAG" SECTION WAS **WRONG IN BOTH HALVES**
 
-On `calculator-1.sno`, **SCRIP answers at x4 and emits nothing (ERROR 246) from x8 up, while SPITBOL answers correctly to x64** — an **~8x lower capacity** on the same program and input.
-⛔ **And SCRIP's own SPITBOL-compatible stack flag does not raise it:** `scrip --run -s256m -m8m …` and `-s512m` both still die with ERROR 246 (`-s` is *accepted*, so it fails silently as a no-op). Flag-order note recorded while testing: `scrip -s256m -m8m --run prog.sno` fails with `scrip: cannot open '--run'`.
-⭐ This is why calculator publishes at x4 and not at SPITBOL's ceiling — the row is honest rather than flattering, and the gap is **named here instead of buried in a benchmark note**. Row-worthy on its own: a capacity limit with an inert control beside it is two defects, not one.
+⛔ **WHAT THIS SECTION USED TO CLAIM, RETRACTED:** *"SCRIP answers at x4 and emits nothing (ERROR 246) from x8 up, while SPITBOL answers correctly to x64 — an ~8x lower capacity"* and *"SCRIP's own SPITBOL-compatible stack flag does not raise it … `-s` is accepted, so it fails silently as a no-op."* **Neither survives measurement.** hq_C re-derived the repro instead of starting from my conclusion and found the flag works; I then re-derived it on my own tree and found the capacity half is wrong too — in a way hq_C's correction had accepted from me ("that capacity half stands untouched"). It does not stand.
+
+**(1) `-s` IS NOT INERT. It is a working, monotonic control** — `apply_stack_limit()` (`src/driver/scrip.c:434`) raises `RLIMIT_STACK`, and the default is simply the OS limit (usage text: *"default: OS, 8m"*). Measured on `calculator-1.sno`, lines emitted vs expected:
+
+| scale | expected | default (8m) | `-s256m` | `-s512m` | `-s1024m` |
+|---|---|---|---|---|---|
+| x4 | 8832 | 8832 | 8832 | 8832 | 8832 |
+| x8 | 17664 | **0** | 17664 | 17664 | 17664 |
+| x16 | 35328 | **0** | 35328 | 35328 | 35328 |
+| x32 | 70656 | **0** | **0** | 70656 | 70656 |
+| x64 | 141312 | **0** | **0** | **0** | 141312 |
+
+⭐ **At `-s1024m` SCRIP answers x64 with a digest byte-identical to SPITBOL's** (`bd5972b6c876` on both). There is no unraisable ceiling.
+
+**(2) THE ORIGINAL COMPARISON WAS NOT APPLES-TO-APPLES, AND THAT ASYMMETRY *IS* THE BUG IN THE CLAIM.** SPITBOL was invoked through the harness, which gives it `-d512m -i64m -s256m` per `DEMO-SCALE.tsv`; SCRIP was invoked with **no size flags at all**. So "SPITBOL to x64, SCRIP to x4" compared a tuned engine against a default one and reported the difference as a capacity defect. ⛔ This is a **FACT RULE** violation — rows share a grid only when they share the configuration — committed in the very FINDING whose subject is instruments printing confident false numbers.
+
+**(3) WHAT THE REAL GAP IS, MEASURED AT MATCHED `-s256m`:** SPITBOL reaches **x64**, SCRIP reaches **x16**. That is a **4x stack-per-frame gap**, not an 8x capacity gap, and SCRIP reaches parity at 4x the stack budget. Bare `sbl -bf` (no size flags) dies at **every** scale including x4 (21 lines, ERROR 246 at line 50), and `sbl -bf -s256m` without `-d/-i` prints *"Stack memory unavailable."* — so SPITBOL is not the effortless engine the retracted text implied; it is simply the one that was handed flags.
+
+⭐ **THE ROW THAT SURVIVES IS MINE AND IT IS NARROWER:** *SCRIP consumes ~4x SPITBOL's stack per unit of recursion depth on this program.* Worth a row; not a ceiling, not an inert control.
+
+⛔⭐ **THE FLAG-ORDER TRAP IS THE REAL USABILITY DEFECT AND IT IS WHAT FOOLED ME** (hq_C is minting it in their lane): `scrip -s256m -m8m --run prog.sno` fails with **`scrip: cannot open '--run'`** — a message that names the MODE FLAG as an unopenable FILE and says nothing about argument order. Someone hitting ERROR 246, reaching for `-s`, and putting it first gets a diagnostic pointing at entirely the wrong thing. `--run` **first**, then `-s`, works.
+
+⭐ **THE PROCESS LESSON, which is why this amendment is long:** the three instrument defects above were all caught by cross-checking a number against a second source. This fourth one was caught by hq_C **re-deriving the repro rather than inheriting my conclusion** — and their correction, written from my framing, carried my second error forward until I re-measured it in turn. ⭐ A correction inherits the premises of the thing it corrects unless it re-derives them too.
 
 ## DURABLE TOOLING (Lon's standing "never redo this from scratch" clause)
 
