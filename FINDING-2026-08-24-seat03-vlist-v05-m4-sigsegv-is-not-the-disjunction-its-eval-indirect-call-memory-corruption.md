@@ -776,3 +776,80 @@ environment sizes on the `e637707d` tree, pristine rebuild, `RT_OPT=-O0` confirm
 every prior session's matrix, zero drift. Corpus gate `PASS=365 FAIL=0` both modes, `MISSING=0`. `git status` clean
 in all three repos — zero source edits this session (measurement, two coordination messages, this addendum, and
 the task-file LEDGER entry only).
+
+## ADDENDUM 8 [seat03, 2026-08-27, fresh session] — v04_listappend_growth is NOT immune: it shares Defect C too, with a probabilistic (~28%) trigger window under the minimal environment that only repeat-run sampling reveals; Addendum 6's "deterministic flip by environment size" model does not hold for every witness
+
+### What every prior session recorded, and why it needed revisiting
+
+Every LEDGER entry since Addendum 6 (2026-08-24) has reported v04 as clean "regardless of environment size," grouped
+with the pure controls `c01,c02` as the standing safe set. That reading was built on ONE run per (witness,
+environment) arm — the identical weak-evidence shape Addendum 6 itself already retired for v01. It turns out to
+apply to v04 too.
+
+### What repeat-run sampling found
+
+This session's routine ladder re-run (build once per arm, run once, per this row's own standing methodology) showed
+`v04` SIGSEGV under minimal for the first time in this row's history. Rather than record a one-off (the exact
+mistake this file's own FACT-RULE lessons warn against — a hypothesis becomes a measurement in the act of being
+written down), the same linked binary was re-run repeatedly per arm instead of once:
+
+| arm | runs (binary rebuilt fresh each batch) | PASS | SIGSEGV |
+|---|---|---|---|
+| ambient | 21 (6 + 15, two batches) | 21 | 0 |
+| minimal | 29 (8 + 6 + 15, three batches) | 21 | 8 (~28%) |
+
+Compiled `.s` confirmed byte-identical between the ambient-compiled and minimal-compiled arms (compile-time
+environment cannot affect emitted code, as expected) — the variance is purely in the linked executable's own
+runtime behavior. `v04` genuinely SIGSEGVs under minimal at a real, non-trivial rate; it is not the 0%-forever
+control it was recorded as. It did not SIGSEGV in this session's ambient sampling (0/21), so Addendum 6's
+size-sensitivity *direction* still holds (smaller `envp` = more danger) — v04 simply has a much narrower/rarer
+danger zone than v01/v03/v05/v06's.
+
+For contrast, v01 and v02 were re-sampled the same way (N=6 per arm, freshly built binaries): v01 is 6/6 SIGSEGV
+ambient, 6/6 PASS minimal (a clean, fully deterministic flip — Addendum 6's model holds exactly here); v02 is 6/6
+SIGSEGV in both arms (also fully deterministic, matching "v02 SIGSEGVs regardless"). Only v04 showed within-arm
+run-to-run variance in this session's sampling. v03/v05/v06 were spot-checked at N=4 under minimal only (4/4 PASS
+each) — consistent with the standing record, but not a large enough sample to rule out a v04-sized rare tail; a
+4-sample all-PASS run is an unremarkable outcome even at v04's own measured ~28% rate.
+
+### Why this matters more than the one number
+
+The cure row's own VALIDATION section already states the principle ("a clean run in one environment is not
+evidence"). This addendum supplies a concrete, measured witness where a single clean run at a FIXED environment
+size is *also* not evidence, because the trigger is probabilistic at that fixed size, not purely size-determined.
+Read literally, the cure row's DONE-WHEN ("...PASS in both modes under at least two process environment sizes")
+could be satisfied for v04 by a single lucky draw in roughly 72% of possible sampling outcomes even against a build
+that fixed nothing. Likely mechanism, consistent with (not a revision of) Addenda 3/6's existing account: the raw
+fixed-offset overshoot lands in the stack's environment-block region; ASLR varies the stack/env base address
+per-exec even for an identical binary and identical `envp` byte count, so whether the overshoot lands on live data
+or harmless padding is itself randomized per run — `envp` size sets the *probability*, not a deterministic verdict.
+
+### What this addendum does NOT establish
+
+Not a new root-cause mechanism — the write is still `x86_zop`'s regime-3/4 raw fallback
+(`src/templates/x86/x86_asm.h:877`, byte-identical to every prior session's quoted signature, re-verified this
+session — see RECEIPTS). Not a claim that v03/v05/v06 sit at a rate below v04's — only that this session's smaller
+N=4 sample didn't happen to catch a flip. Not a fix attempt (HQ-only, CEO-19) and not a re-derivation of the
+mechanism itself.
+
+### Action taken — coordination only
+
+Sent `send hq_P vlist-v04-flake-rate-validation-note` (the row that owns the DONE-WHEN validation bar this bears on
+directly) and `send hq_C vlist-v04-flake-rate-validation-note` (cc, witness-row owner) with this measurement and a
+suggestion: validate the eventual cure with repeated runs per environment size, or — per the cure row's own existing
+preference — valgrind wherever it will run, since valgrind flags the OOB write deterministically regardless of
+where it lands that particular run. Did not edit the cure row's own VALIDATION section (hq_P's file) — flagged
+instead, consistent with this row's established practice of coordinating rather than editing another lane's row.
+Re-checked the cure row directly before sending: still `ASSIGNED:hq_P`, LEDGER unchanged since the s272 mint, no
+reply yet to Addendum 7's frame-placement-law question either.
+
+### RECEIPTS (this addendum)
+
+SCRIP at `27d7c700` (pulled `1f79ed2f`→`27d7c700`, 3 commits — a diag-regs r10/r11 telemetry gate, a Snocone
+mode-3 function-call naming fix, and a test-suite-list addition; none touch `x86_zop`/`x86_asm.h`, confirmed by
+full `git log -p` read, not message alone). corpus at `12d8ec4e` (gimpel_triage probe fixtures added, nothing under
+`probe/vlist_select/`). `.github` at `1dcbcd99` (four same-day FINDINGs, grepped for `vlist`/`Defect C`/`x86_zop`,
+zero hits, confirmed unrelated). Pristine rebuild, `RT_OPT=-O0` confirmed, zero `-O2` in the build log. Corpus gate
+`bash scripts/test_corpus_snobol4.sh` → `PASS=365 FAIL=0` both modes, `SKIP=0`, `MISSING=0` — no regression.
+`git status` clean in all three repos — zero source edits this session (measurement, sampling, two coordination
+messages, this addendum, and the task-file LEDGER entry only).
