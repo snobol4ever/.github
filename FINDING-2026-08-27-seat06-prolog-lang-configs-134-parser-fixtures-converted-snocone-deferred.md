@@ -1,0 +1,29 @@
+# FINDING 2026-08-27 (seat06) — `suite-harness-lang-configs`: Prolog LANG_CONFIGS support added, 134 parser fixtures converted; Pascal found already done; Snocone deliberately deferred
+
+Picked up via direct `claim` (not `next`) after `tests-consolidate-prolog` (the row `next` actually handed me) turned out to be structurally blocked — `corpus_suite_harness.py`'s `LANG_CONFIGS` table had zero Prolog support, a finding two prior sessions (seat05, twice) had already made and released on. Rather than re-derive the same finding a third time, released that row and claimed the actual unblocking row instead: `suite-harness-lang-configs`, already rank 1, already citing `tests-consolidate-prolog` as one of four things it unblocks.
+
+## State found at claim time
+
+Of the four target languages (prolog, snocone, pascal, rebus): rebus was already done (seat01, `SCRIP 94b5b7b5`). Pascal turned out to also already be done — `LANG_CONFIGS["pascal"]` landed in `SCRIP ebef203c` ("Pascal gates grade suite families + empty-corpus refusal + LANG_CONFIGS[pascal]") — but nobody had come back to record it on this row's own ledger; found by re-reading the live file rather than trusting the ledger's staleness. So the row's real remaining scope at claim time was prolog + snocone.
+
+## Prolog: done
+
+`LANG_CONFIGS["prolog"] = {"ext": ".pl", "comment_open": "%", "comment_close": "", "modes": "ast"}`. Validated `%` line-comments and `--dump-ast` against a hand-written sample before adding the entry (per the table's own docstring rule) — both worked cleanly on the first try.
+
+**Round-trip target:** `corpus/tests/prolog/parser/`, 136 loose `.pl` files, 20 with a pre-existing committed `.ref`. Checking those 20 first: **0/20 matched current `--dump-ast` output** — full drift, not partial. Inspecting one (`dir_pfx_discontig.pl`, `:- discontiguous bar/2.`): the old `.ref` was a flat `(STMT :subj (TT_FNC discontiguous (TT_DIV ...)))`; current output wraps directives in a synthetic `initialization(...)`/choice-clause node and spells `/` as `TT_FNC /` rather than a dedicated `TT_DIV` node. This reads as genuine Prolog PST/parser-shape evolution (PLAN.md tracks a Prolog PST effort under `GOAL-PROLOG-100.md`), not a regression — matches the exact "AST-dump shape has drifted from the committed .ref" class already documented for Snocone (59/67) and Icon (153/153) parser fixtures, and for Rebus's own conversion (33/48) — a compiler-shape question, never a per-fixture bug, and out of this row's scope to adjudicate.
+
+Since `corpus_suite_harness.py`'s `convert-blocks` requires each original to already be green against its own `.ref` (refuses and writes nothing otherwise — the byte-equal-or-no-delete law), stale `.ref`s had to be re-captured from current output before conversion could even be attempted, for the same reason the beauty.sno self-host milestone treats its own live output as canonical: there is no independent "correct AST shape" oracle to check against for a language-under-development, only "what does the compiler currently, sanely produce." Before doing that: ran `--dump-ast` on all 136 files checking for crashes/empty output/parse errors — **134 sane, non-crashing, non-empty; 0 crashes; 0 parse errors; 2 empty** (`atom_int.pl` = `42.`, `atom_var.pl` = `X.` — a bare integer/variable as a top-level clause head builds no AST node; not investigated further, left loose, reason in `corpus/tests/prolog/parser/KEEP.md`). Captured fresh `.ref` for the 134 sane ones, re-verified 134/134 clean, then ran `convert-blocks prolog` — 134/134 entries OK, ON-DISK RE-VALIDATION PASSED both directions.
+
+New gate `SCRIP/scripts/test_prolog_parser_fixtures.sh` (mirrors `test_rebus_parser_fixtures.sh` exactly: `set -uo pipefail`, deliberately no `-e`) — green: `ast_pass=134 ast_fail=0 ast_crash=0 ast_hang=0 ast_unproven=0 ast_skip=0`. Also removed 2 stray `.s` fossils (`dir_pfx_discontig.s`, `dir_pfx_dynamic.s`) found in the same directory — leftovers from before RULES.md's "test-tree `.s` artifacts are abolished" ruling (2026-08-24), never cleaned up. Regression: re-ran `test_corpus_snobol4.sh` after touching the shared `corpus_suite_harness.py` — clean, 458/458, unaffected.
+
+## Snocone: deliberately not attempted
+
+Read `FINDING-2026-08-27-seat05-tests-consolidate-snocone-same-harness-gap-plus-active-ast-drift.md` in full before considering it. Two independent reasons stand, neither mine to overrule: (1) Snocone's own `tests/snocone/parser-fixtures/` measures PASS=8/FAIL=59 against its pinned `.ref` — far worse than Prolog's "0/20 but otherwise healthy" situation, and (2) Snocone correctness is *actively* in flux the same day, on *separate* corpora, including a freshly-found severe defect (basic `while`/`for` loops not iterating past their first pass — seat07/seat09 findings). Re-pinning AST references right now risks baking a currently-broken shape in as the new baseline, or having any fresh capture invalidated again within hours as the loop bug lands its fix. seat08's own conclusion, cited by seat05: this is "a correctness call this row has no standing to make unilaterally." Nothing observed this session changes that. Not touched.
+
+## Disposition
+
+Released `suite-harness-lang-configs` (`unclaim`, not `done` — 3 of 4 languages is real progress, not the whole DONE-WHEN) with the ledger updated to say its only remaining scope is Snocone, and pointing whoever takes it at the loop-iteration bug and the re-pin-vs-fix judgment call as prerequisites, not busywork to redo.
+
+## WATERMARK
+
+SCRIP `94bad46a` (`corpus_suite_harness.py` LANG_CONFIGS + `test_prolog_parser_fixtures.sh`) · corpus `03c6883a` + `def4adf6` (134-entry conversion + KEEP.md) · `.github` this FINDING + task baton (`suite-harness-lang-configs.task.md` LEDGER, `tests-consolidate-prolog.task.md` release note).
