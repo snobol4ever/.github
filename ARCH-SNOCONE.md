@@ -111,7 +111,7 @@ This is the SPITBOL/SNOBOL4 rule. Concretely:
 - `1*2` (no whitespace either side) → **syntax error**, matching SPITBOL Error 231
 
 The implementation enforces this rule consistently for all dual-role
-operators including `+` `-` `*` `/` `^` — see GOAL-SNOCONE-BEAUTY
+operators including `+` `-` `*` `/` `^` — see GOAL-SNOCONE-100.md
 SB-6.E for the rung that landed this. `^` has no unary form (the
 unary operator set is `+ - * & @ ~ ? . $`), so a tight or
 unary-position `^` is a syntax error.
@@ -343,7 +343,7 @@ control flow is discouraged.
 ### Switch backends — chain vs label-table (compile-time selectable)
 
 **Status:** open design idea (Lon, session 2026-05-02 #6). Not yet
-implemented. See `GOAL-SNOCONE-SWITCH-BACKENDS.md` for the working
+implemented. See `GOAL-SNOCONE-100.md` for the working
 goal and milestones.
 
 **Motivation.** `switch` over a string discriminator is the natural
@@ -613,7 +613,7 @@ here:
 - `RULES.md` "Snocone language facts" (now a one-line pointer to this file)
 - `REPO-SCRIP.md` "Snocone front-end" (now a one-line pointer)
 - `corpus/programs/snocone/LANGUAGE.md` (deleted — pointer in corpus README)
-- `GOAL-SNOCONE-BEAUTY.md` "Snocone language facts" (deleted — pointer here)
+- `GOAL-SNOCONE-BEAUTY.md` "Snocone language facts" (deleted — pointer here; GOAL-SNOCONE-BEAUTY.md itself later absorbed into `GOAL-SNOCONE-100.md`, 2026-08-27)
 
 Andrew Koenig's original Snocone (`SNOCONE.zip`: `snocone.sc`,
 `snocone.sno`, `snocone.snobol4`) is historical context, not

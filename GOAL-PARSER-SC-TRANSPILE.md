@@ -208,7 +208,7 @@ import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
 |------|--------------|
 | `GOAL-REBUS-100.md` (retired name `GOAL-PST-REBUS.md`) | Independent path. PST-REBUS fixes direct Snocone runtime; this goal transpiles around it. Both converge later. |
 | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | This goal depends on LOWER producing correct `tree_t`. Sync-monitor reveals LOWER bugs as divergences. |
-| `GOAL-LANG-SNOCONE.md`            | Post-SCT-11, this defines the Snocone subset spec. |
+| `GOAL-SNOCONE-100.md`            | Post-SCT-11, this defines the Snocone subset spec. |
 | `GOAL-PST-PROLOG.md`              | Orthogonal. SCT-6 can land independently. |
 
 ---

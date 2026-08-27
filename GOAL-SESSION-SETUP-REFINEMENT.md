@@ -88,14 +88,13 @@ to script lists, but:
   |-----------|---------------|
   | GOAL-UNIFIED-BROKER.md | install_system_packages, build_scrip, build_csnobol4_oracle, build_spitbol_oracle |
   | GOAL-SCRIP-INTERP-SPLIT.md | install_system_packages, build_scrip |
-  | GOAL-SNOCONE-IR-BB.md | install_system_packages, build_scrip |
+  | GOAL-SNOCONE-100.md | install_system_packages, build_scrip, build_spitbol_oracle |
   | GOAL-SILLY-SWEEP-FORWARD.md | install_system_packages, build_csnobol4_oracle |
   | GOAL-SILLY-SWEEP-BACKWARD.md | install_system_packages, build_csnobol4_oracle |
   | GOAL-SILLY-SYNC-MONITOR.md | install_system_packages, build_csnobol4_oracle, build_spitbol_oracle, build_monitor_ipc_shared_library, build_ss_monitor_harness |
   | GOAL-SILLY-COMPLETE.md | install_system_packages, build_csnobol4_oracle |
   | GOAL-PROLOG-IR-RUN.md | install_system_packages, build_scrip, build_spitbol_oracle |
   | GOAL-CROSS-LANG-VERIFY.md | install_system_packages, build_scrip, build_spitbol_oracle, build_csnobol4_oracle |
-  | GOAL-SNOCONE-BEAUTY.md | install_system_packages, build_scrip, build_spitbol_oracle |
   | GOAL-SUBEXPR-ORACLE.md | install_system_packages, build_scrip, build_spitbol_oracle |
   | GOAL-REMOVE-CMPILE.md | install_system_packages, build_scrip, build_spitbol_oracle |
   | GOAL-TWO-STEP-HUNT.md | install_system_packages, build_scrip, build_spitbol_oracle |

@@ -144,7 +144,7 @@ Do not track ⏳/✅ progress here; this table is a static index only.
 | SNOBOL4 | ✅ | `GOAL-PST-SNOBOL4.md` |
 | Icon    | ✅ | `GOAL-PST-ICON.md` |
 | Raku    | ✅ | `GOAL-RAKU-100.md` (§ TRACK 3) |
-| Snocone | ✅ | `GOAL-PST-SNOCONE.md` |
+| Snocone | ✅ | `GOAL-SNOCONE-100.md` (retired name `GOAL-PST-SNOCONE.md`) |
 | Rebus   | ✅ | `GOAL-REBUS-100.md` (retired name `GOAL-PST-REBUS.md`) |
 | Prolog  | ✅ | `GOAL-PST-PROLOG.md` |
 
@@ -247,7 +247,7 @@ Lon will fire each from its per-language goal file.
 - `GOAL-PST-RAKU.md` (rewritten — 123 lines; retired 2026-08-28, consolidated into `GOAL-RAKU-100.md` § TRACK 3)
 - `GOAL-PST-SNOBOL4.md` (rewritten — 133 lines)
 - `GOAL-PST-PROLOG.md` (rewritten — 228 lines)
-- `GOAL-PST-SNOCONE.md` (rewritten — 353 lines)
+- `GOAL-SNOCONE-100.md` (rewritten — 353 lines)
 - `SNOBOL4-SNOCONE-PRIMER.md` (840 → 1191 lines; addendum at line 471)
 - `PLAN.md` (PST rows updated)
 - `PST-SCRIP-AUDIT.md` (NEW — 705 lines; reference; steps already in goals)

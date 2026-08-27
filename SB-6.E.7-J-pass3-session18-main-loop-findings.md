@@ -1,7 +1,7 @@
 # SB-6.E.7-J pass #3 — session #18 main-loop LANDED (goto-based mechanical port)
 
 **Date:** 2026-05-02
-**Goal file:** `GOAL-SNOCONE-BEAUTY.md`
+**Goal file:** `GOAL-SNOCONE-BEAUTY.md` (absorbed into `GOAL-SNOCONE-100.md`, 2026-08-27 — this finding's content is unchanged, only the live pointer moved)
 **Active step:** SB-6.E.7-J pass #3 — main00..main05 main-loop rewrite was
 the SOLE remaining piece (per session #17 closure). **LANDED this session.**
 **Outcome:** Goto-based mechanical translation committed to corpus.

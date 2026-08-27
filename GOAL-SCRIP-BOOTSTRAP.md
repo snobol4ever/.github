@@ -68,8 +68,8 @@ Two paths forward exist after Milestone 1:
 
 - **Path A** — extend the SNOBOL4 work language-by-language on the
   existing x86-64 backend (close GOAL-LANG-ICON, GOAL-LANG-PROLOG,
-  GOAL-RAKU-100 (was GOAL-LANG-RAKU), GOAL-LANG-SNOCONE, GOAL-LANG-REBUS
-  one at a time on the C runtime).
+  GOAL-RAKU-100 (was GOAL-LANG-RAKU), GOAL-SNOCONE-100 (was GOAL-LANG-SNOCONE),
+  GOAL-LANG-REBUS one at a time on the C runtime).
 - **Path B** — write SCRIP **in** the languages it implements, so
   the compiler/interpreter/runtime stops being C and starts being
   SCRIP. Once that is true on x86-64, porting to JVM / .NET / JS /
@@ -988,7 +988,7 @@ Other risks tracked but not blocking:
   protocol; all CB-* sub-rungs are bound by it.
 - **GOAL-LANG-SNOBOL4.md** — Milestone 1 (closed session #61).
   CB-3 / CB-4 / CB-5 inherit its done-when invariant.
-- **GOAL-LANG-SNOCONE.md, -ICON, -PROLOG, -RAKU, -REBUS** — each
+- **GOAL-SNOCONE-100.md, -ICON, -PROLOG, -RAKU, -REBUS** — each
   language's rung-ladder. CB-9 closes by closing each of these
   to its own done-when, plus the beauty self-host invariant.
 - **GOAL-NET-BEAUTY-SELF.md** — the .NET self-host work in
@@ -1259,7 +1259,7 @@ box runtime becomes a generator output from day one.
   the snobol4ever org. The Stage-1 hosts for .NET and JVM live
   in those repos today. The Stage-2 SCRIP-language sources live
   in `SCRIP`. Decision (deferred): keep the split or merge.
-- **Snocone Beauty (GOAL-SNOCONE-BEAUTY)**: Snocone's own
+- **Snocone Beauty (GOAL-SNOCONE-100)**: Snocone's own
   `beauty.sc` self-host. Once the Snocone frontend ports under
   CB-9, that goal closes by composition.
 

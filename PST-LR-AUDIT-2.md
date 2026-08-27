@@ -176,7 +176,7 @@ The audit-1 listed 27 R-tagged rows (R1–R27). Verified by scanning current sou
 | **Total**| **51** | **49** | **2** | — |
 
 **1 outstanding §⛔ violation remaining:**
-1. **Snocone V13-switch** — `sc_finalize_switch_pst` still calls `sc_label_new` and pushes `TT_QLIT(_Lend_NNNN)` as last child of TT_CASE. (Owned by PST-SC-SWITCH-LABELS in GOAL-PST-SNOCONE.md.)
+1. **Snocone V13-switch** — `sc_finalize_switch_pst` still calls `sc_label_new` and pushes `TT_QLIT(_Lend_NNNN)` as last child of TT_CASE. (Owned by PST-SC-SWITCH-LABELS in GOAL-SNOCONE-100.md.)
 
 ~~2. **Raku R15**~~ — ✅ CLOSED-by-rescope (PRF-12-R15-DISPOSITION, 2026-05-19 Sonnet 4.6). Parser-local-scratch idiom accepted; no code change.
 
@@ -220,7 +220,7 @@ struct tree_t {
 ### Required actions before Phase-2 SCRIP mirror can start
 
 **For Snocone (blocking PST-SC-SC):**
-1. **New rung PST-SC-SWITCH-LABELS** in `GOAL-PST-SNOCONE.md`: move switch end-label/default-label allocation from `sc_switch_head_new` (rebus.y:873–874) and the `TT_QLIT(end_label)` child of TT_CASE (line 938) to lower.c. TT_CASE shape becomes `[disc, val0, body0, …]` only — labels minted in lower.
+1. **New rung PST-SC-SWITCH-LABELS** in `GOAL-SNOCONE-100.md`: move switch end-label/default-label allocation from `sc_switch_head_new` (rebus.y:873–874) and the `TT_QLIT(end_label)` child of TT_CASE (line 938) to lower.c. TT_CASE shape becomes `[disc, val0, body0, …]` only — labels minted in lower.
 2. **Cleanup**: fix stale docstrings at snocone_parse.y:756, 770–772, 785–788, 787 to reflect post-LABELS / post-FOR-INIT tree shapes.
 
 **For Raku (blocking PRF-13):**

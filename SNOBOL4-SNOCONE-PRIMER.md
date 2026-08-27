@@ -1105,7 +1105,7 @@ Gates: smoke PASS=5 FAIL=0, parser PASS=60 FAIL=0. corpus @ `3420666`.
     the return value slot. Always use a distinct local variable name for captures:
     `SPAN(...) . top` then `top_break_label = top`.
 
-**Next:** SC-9 (struct). See GOAL-PARSER-SNOCONE.md for full spec.
+**Historical note (superseded):** at time of writing SC-9 (struct) was next; the PARSER-SC ladder went on to finish completely (PASS=67, `beauty.sc` 1148/1148 byte-identical, 2026-05-07). See `GOAL-SNOCONE-100.md` § PARSER-SC for the closed ladder and current status.
 
 **Exact commits:**
 - corpus @ `7a17ff0` — SC-6c-bug fix: save_if_nthen/restore_if_nthen

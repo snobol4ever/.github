@@ -40,7 +40,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP (primary) + .github (this file)
-**Prerequisite for:** GOAL-SNOCONE-SM-LOWER (M2). The Snocone port (SL-1+)
+**Prerequisite for:** the SM-LOWER self-host ladder (SL-1+, now `GOAL-SNOCONE-100.md` § SM self-host — the standalone `GOAL-SNOCONE-SM-LOWER.md` this once pointed at was merged into `GOAL-SNOCONE-SM.md` 2026-05-12, itself absorbed into `GOAL-SNOCONE-100.md` 2026-08-27). The Snocone port (SL-1+)
 is a transcription exercise *after* this refactor lands, not before.
 
 ---
@@ -67,7 +67,7 @@ making the Snocone port a one-to-one translation.
 4. No mid-function `#include`; frontend tokens normalize at the boundary. ✅ SR-9
 5. `CODE_t` and `STMT_t` no longer drive `sm_preamble`/`execute_program`;
    all frontends produce `AST_PROGRAM`/`AST_STMT` for the driver.
-   ✅ SI-1..SI-8 complete. (Full type deletion deferred to GOAL-SNOCONE-SM-LOWER.)
+   ✅ SI-1..SI-8 complete. (Full type deletion deferred to GOAL-SNOCONE-100.md's SM-LOWER ladder.)
 6. `lower.c` head-comment is a one-page architectural overview. ✅ SR-15
 7. **All gates byte-identical** to baseline at every rung-close.
 
@@ -185,7 +185,7 @@ gates at baseline.
 **SI-8 ✅** Session 2026-05-11, SCRIP `c1be7390` — `scrip_cc.h` doc pass.
 Top-of-file header rewritten to describe SI-1..SI-6 pipeline shape accurately.
 Stale "SI-7 will migrate" forward reference removed; CODE_t shim deferral
-updated to point to GOAL-SNOCONE-SM-LOWER (SL-1+).
+updated to point to GOAL-SNOCONE-100.md's SM-LOWER ladder (SL-1+).
 
 ---
 
