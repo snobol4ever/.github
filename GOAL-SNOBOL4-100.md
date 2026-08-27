@@ -96,6 +96,43 @@ Found and fixed THREE independent, previously-unknown gaps, none of them the mec
 
 **Found but NOT fixed here — own row, not this one's scope:** `APPLY('aliasName', args)` SIGSEGVs when the alias targets a statically-`DEFINE()`'d procedure (direct `APPLY('realName', args)` works). Confirmed pre-existing via `git stash`; not on any tracked witness, not this row's DONE-WHEN, not what hq_C's re-pointed concern asked for (which `opsyn_rebind_twice.sno` already satisfies). Minted `corpus/probe/opsyn/opsyn_apply_alias_sigsegv.sno` (oracle-verified: SPITBOL prints 42) and flagged to hq_C. Full detail, including the traced dispatch sequence and two untested hypotheses for whoever opens that row: `FINDING-2026-08-27-seat06-opsyn-alias-dispatch-fixed-mode4-had-no-user-call-hook-and-two-more-gaps.md`.
 
+---
+
+## ⭐⭐⭐⭐ LIVE CURSOR — 2026-08-27 seat12 (THE LOOP postoffice task `perf-table-subscript-fastpath`, lever 2) — **LANDED AND VERIFIED: T[I]=v's subscript-mint + assign-store fused into one box; ratio 0.8643x -> 0.9948x (SPITBOL parity noise floor). CLOSE-VS-CONTINUE JUDGMENT STILL HQ'S CALL, NOT DECIDED HERE.**
+
+Lever 1 (seat01, 2026-08-24) put a DT_T fast-path arm into `rt_subscript_var`/`rt_assign_var`'s own asm so `T[I]=v`'s
+two calls stay in asm end-to-end; lever 2 (this session) eliminates one of the two calls entirely for that shape.
+`IR_ASSIGN_VAR` gained a 3-operand arity (base,idx,val) alongside its existing 2-operand form, same precedent
+`IR_SUBSCRIPT` already uses for its own 2-vs-3-operand dispatch — no new opcode. `lower_snobol4.c`'s
+`sx_subscript_lv_fused` skips building the intermediate `IR_SUBSCRIPT` mint node for the single-index case only
+(nidx==1; nested/2-index writes fall through unmodified). New template `bb_assign_var_sub.cpp` checks the base's
+tag INLINE (`cmp dil,DT_T`) and either calls one new function straight into `table_set_descr_d` (no allocation) or
+falls through to `rt_subscript_var`+`rt_assign_var` called DIRECTLY from the same box — same two calls the old
+two-box chain always made. **A self-introduced regression was found and fixed in-session**: the first working
+version routed the fallback through a wrapper C function instead of inlining the branch in the template, adding a
+third call frame (irreducible at `-O0`, mandatory per NO-O2-BUILDS) around those same two calls for every non-table
+write; `test_gate_instr_budget.sh` caught it as an array_sum.sno regression before anything was committed. Verified
+after the fix: broad corpus 365/365 both modes, Snocone 5/5, Rebus 4/4 (both route through this lowerer — the real
+shared-node set, confirmed by grep before writing code, not assumed), Icon 14/14 both modes (unaffected, separate
+lowerer), killswitch (`SCRIP_SUBASSIGN_FUSE`, default on) off byte-identical `.s`, oracle-diffed hand probe
+(strings, string keys, arrays, nested writes, key re-assignment). Fresh N=2000 fixed-work measurement (clean bench
+oracle, same recipe as lever 1's own FINDING): **ratio 0.8643x -> 0.9948x** — table_access is now within
+measurement noise of SPITBOL parity on this kernel, still short of the campaign's ratio>=2.00x target (the residual
+gap is `table_set_descr_d`'s own legitimate hash+bucket-search+insert cost, a different lever). Standalone gate
+watermark re-pinned 12986443 -> 11879659 (array_sum unchanged, 10912565 -> 10917277, +0.04% noise). `ITEM(...)=v`
+(same shape) deliberately left unfused, named follow-on. Full receipts:
+`FINDING-2026-08-27-seat12-perf-table-subscript-fastpath-lever2-fused-subscript-assign.md`. Messaged hq_P (seat12's
+owning HQ) the close-vs-continue call this row has asked since lever 1 — not decided here. Claim released on
+landing per THE LOOP.
+
+**WATERMARK:** SCRIP `src/emitter/emit.cpp` (+11/-2) · `src/lower/lower_snobol4.c` (+61/-13) ·
+`src/runtime/pattern_match.c` (+31, new `c_rt_table_assign_fast`) · `src/templates/bb/bb_assign_var_sub.cpp` (new)
+· `src/templates/bb/bb_templates.h` (+1) · `Makefile` (+1) · `scripts/test_gate_instr_budget.sh` (re-pin) · corpus
+benchmark `.s` regen (4 files: array_sum, table_access, table_variety, mixed_workload — the only four that write
+into a table/array via `[...]=`) · `.github` this FINDING + task NEXT/LEDGER/QA + this cursor entry.
+
+---
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-08-23 seat01 (THE LOOP postoffice task `zeta-frame-rsp-second-wild-write`, rank 0) — **CLOSED. BOTH THE MECHANICAL DONE-WHEN (mode-3) AND THE ROW'S ORIGINAL CRITERION (mode-3 AND mode-4, byte-for-byte vs cell-stack) NOW PASS. FOUND AND PATCHED A SECOND MODE-4 SITE THE PRIOR SESSION'S FIX PLAN NEVER SAW.**
 
 Continuation of seat03's root-caused-but-unimplemented fix plan (`FINDING-2026-08-23-seat03-frame-rsp-wild-write-root-cause-and-fix-plan.md`): frame-rsp's outer/top-level scope computes a correct, ever-growing ZLS slot layout but the entry prologue only ever reserved a fixed `sub rsp, 8`, wild-writing past the mapped stack once accumulated slot usage exceeds real headroom. Implemented the plan's mode-3 fix verbatim (`rt_outer_call` in `rt.c`, bracket the existing `sub/add $8,%rsp` with a symmetric `sub/add $4194304,%rsp` pair, alignment re-verified independently since 4,194,304 is a multiple of 16) and its named mode-4 fix (`scrip.c:1481`, gate on `ZC_STORAGE_FRAME_RSP`, reserve `zls_g_region(sbbg)` rounded to 16). **`beauty.sno` mode-4 still SIGSEGV'd after both.** Root cause: `scrip.c` has TWO near-identical mode-4 `main:`-prologue emitters — the plan's author patched the `sbbg`-keyed one (reached only when a program has zero `DEFINE`d procedures, which is why their synthetic witness "confirmed" the cure), but any program with `DEFINE`d procs — including `beauty.sno` — compiles through an earlier, separate `bbg`-keyed emitter (ending `call module_init`) that was never touched. Patched it identically once found. Confirmed via `.s` inspection: `main:` now shows `sub rsp, 168112`, exactly matching `--dump-zeta`'s reported `region_end` for beauty's real top-level graph. **This is exactly why the task baton's own note ("mode-4 should also be checked even though the mechanical DONE-WHEN only covers mode-3") mattered — a mode-3-only verification would have closed this row with mode-4 still broken.** Full regression sweep (`test_crosscheck_snobol4.sh`, fresh `make pristine`, SCRIP `3f81eda2`): frame-rsp `--compile` FAIL 126→34, the 34 a **verified-by-name strict subset** of the 126 (zero new failures, 92 cured); `--run` unchanged byte-for-byte (33/33 identical items); DIVERGE 93→1. Default (cell-stack) arm proven untouched in every measurement (325/325 both modes, 0 DIVERGE, identical before/after — the mode-4 sites are gated unreachable for any other arm by construction, the mode-3 bracket confirmed content-free). Gates `test_gate_emit_no_lang.sh`/`test_gate_template_medium_invisible.sh` both pass (neither edit touches `src/templates/`). Row closed via `s4e_msg.sh done` (DONE-WHEN computed, not claimed). Full writeup: `FINDING-2026-08-23-seat01-zeta-frame-rsp-second-wild-write-fixed-and-verified.md`. **Remaining, explicitly out of scope:** `DEFINE`d-function activations' own per-call headroom is a separate, unfixed defect (needs correct `add rsp` on every RETURN/FRETURN/NRETURN exit); frame-rsp is still not a 100%-passing arm (34/33 crosscheck items remain, one m3/m4 diverge, all pre-existing and independent of this mechanism) — this row's DONE-WHEN was beauty.sno specifically, never "100% crosscheck."
