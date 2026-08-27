@@ -2,7 +2,7 @@
 
 Frontend: PROLOG. Produces shared IR (EXPR_t/STMT_t). See ARCH-IR.md.
 
-## ⚠️ CORRECTION (2026-05-30): NO VALUE STACK. STACKLESS FOUR-PORT IS THE MODEL.
+## ⚠️ CORRECTION (2026-05-30): NO VALUE STACK. FOUR-PORT IS THE MODEL.
 
 The prior framing below leaned on GNU Prolog's WAM CP-frame **stack** (`pl_choice` ported from
 `wam_inst.h`) as the engine compass. **That was wrong.** The correct model is Proebsting's
