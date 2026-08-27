@@ -58,7 +58,7 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **⛔⭐⭐⭐⭐ SNOBOL4 100% — THE ONE GOAL** ⬅ Lon 2026-08-15 s92: 22 SNOBOL4 goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME on RBP, ζ-SPINE on RSP); Milestone 1 (beauty self-host) is rung R-2 | `GOAL-SNOBOL4-100.md` | R-0 = the M1 root cause (ALT-arm-interior capture has no home, both media, witness `corpus/probe/m1/`); R-1 = m3 unification (branch `s91-m3-unify` + tiny-site binary crossing); scorecard META 38.0 baseline. |
 | **IR REDUCE / NO-MANGLE** ⬅ GROUND ZERO #5 | `GOAL-IR-IMMUTABLE-EMIT.md` | Emitter reads IR, never mutates; collapse 224 opcodes toward JCON-33; per-BB self-allocation (ZB-PORTS → ZB-ACT) per the file's CURRENT-PRIORITY banner. |
 | **RTCC — GLOBAL REGISTER LIBERATION** ⬅ NEW 2026-08-08 (Lon strategy pivot; absorbs/generalizes RTX-11) | `GOAL-RTCC.md` | Veneer at every C-RT boundary; claim all 9 caller-saved GPRs + XMM8–15 as VM globals. RC-0 open (scripts/census half). ⛔ RC-1..RC-4 touch shared files (merge, do not wait) |
-| **Raku BB (OOP)** | `GOAL-RAKU-BB.md` | OO LADDER top of file. |
+| **Raku BB (OOP)** | `GOAL-RAKU-100.md` | OO LADDER, § TRACK 1. |
 | **DEAD-CODE SWEEP** | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed; see file. |
 | **BB-FIXUP** | `GOAL-BB-FIXUP.md` | Round-robin hygiene; cursor in `BB-REVAMP-TRACKER.md`. |
 | **SRC REORG** | `GOAL-SRC-REORG.md` | Open GMR-8(b). |

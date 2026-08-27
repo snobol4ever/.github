@@ -68,8 +68,8 @@ Two paths forward exist after Milestone 1:
 
 - **Path A** — extend the SNOBOL4 work language-by-language on the
   existing x86-64 backend (close GOAL-LANG-ICON, GOAL-LANG-PROLOG,
-  GOAL-LANG-RAKU, GOAL-LANG-SNOCONE, GOAL-LANG-REBUS one at a time
-  on the C runtime).
+  GOAL-RAKU-100 (was GOAL-LANG-RAKU), GOAL-LANG-SNOCONE, GOAL-LANG-REBUS
+  one at a time on the C runtime).
 - **Path B** — write SCRIP **in** the languages it implements, so
   the compiler/interpreter/runtime stops being C and starts being
   SCRIP. Once that is true on x86-64, porting to JVM / .NET / JS /

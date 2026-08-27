@@ -459,7 +459,7 @@ omitted — they build no node.
 
 | Loc | Production | Parent kind | Children L→R | L→R OK? | Notes |
 |-----|------------|-------------|--------------|---------|-------|
-| 193–217 | `program : stmt_list` | (no node directly — drives `add_proc` for each `stmt_list` item) | — | ⚠ | Top-level walks `stmt_list`, picks out items where `t==TT_FNC && _id==SUB_TAG_ID` and calls `add_proc(e)`; remaining items are wrapped into a synthetic `main` `TT_FNC` (lines 206–212). **FLAG: synthetic `main` proc minted by the parser.** No source token `main` exists — it is named from a literal in `leaf_sval(TT_FNC,"main")`. Rule 3 violation: a `TT_FNC` node appears in the tree with no corresponding source-token origin. Owned by **PRF-12-program** (already named in `GOAL-PST-RAKU.md`). |
+| 193–217 | `program : stmt_list` | (no node directly — drives `add_proc` for each `stmt_list` item) | — | ⚠ | Top-level walks `stmt_list`, picks out items where `t==TT_FNC && _id==SUB_TAG_ID` and calls `add_proc(e)`; remaining items are wrapped into a synthetic `main` `TT_FNC` (lines 206–212). **FLAG: synthetic `main` proc minted by the parser.** No source token `main` exists — it is named from a literal in `leaf_sval(TT_FNC,"main")`. Rule 3 violation: a `TT_FNC` node appears in the tree with no corresponding source-token origin. Owned by **PRF-12-program** (already named in `GOAL-RAKU-100.md` § TRACK 3). |
 | 116–125 | `add_proc(e)` helper (called from program action and from class_decl method emission, and from gather-hoist pass) | `TT_STMT` | `[TT_ATTR(":lang"), TT_ATTR(":line"), TT_ATTR(":stno"), TT_ATTR(":subj"〈e〉)]` | ⚠ | Same shape as Icon's TT_STMT (audit 1.3) — attr-tagged children. Not L→R-by-source-tokens (the `:lang` attr is not a source token at all). Treated identically to Icon's wrapper — convention-tagged, not subject to §⛔ rule 1 per primer. |
 
 ### 4.2 Statement productions
@@ -575,7 +575,7 @@ omitted — they build no node.
 Under the three rules (L→R order, no mutate-prior, no source token lifted
 out), Raku has **substantial work** but the violations are all of a
 common shape: parser-side desugaring to runtime calls. The work item
-**PRF-12** in `GOAL-PST-RAKU.md` already covers most of it.
+**PRF-12** in `GOAL-RAKU-100.md` § TRACK 3 already covers most of it.
 
 **Withdrawn (not violations under your rules):**
 - TT_TO for both `..` and `..^` (kind choice, parser's freedom).
@@ -620,7 +620,7 @@ common shape: parser-side desugaring to runtime calls. The work item
 | R27 | `raku_lower_hoist_gather_pass` rewrites every `TT_GATHER` node's `t`/`v.sval`/`n`/`c` in place (lines 647–653) and splices new TT_STMTs into `prog->c[]` (lines 671–685) | rule 2: in-place rewrite of node kind + child array; rule 3: synthesized def stmts | PRF-12-gather |
 
 **Net Raku status: 27 retained violations under the corrected scope.**
-That is much more than Snocone's 11. **PRF-12** in `GOAL-PST-RAKU.md`
+That is much more than Snocone's 11. **PRF-12** in `GOAL-RAKU-100.md` § TRACK 3
 already names five rungs (gather, sub, class, program, for-range);
 expanding to cover all 27 sites needs additional sub-rungs as listed
 above. The rung naming preserves the existing `PRF-12-*` convention.
@@ -957,7 +957,7 @@ wrap and L→R — consumer-side splits are not parser-rule violations.)
 - **PST-SN4-W2** — `goto_expr T_CONCAT goto_atom` mutates $1.
 - **PST-SN4-W3** — `expr15`/`expr17` g_cur mid-rule pattern mutates the prior-built TT_IDX/TT_VLIST/TT_FNC across reductions.
 
-**Raku** (extending `PRF-12` in `GOAL-PST-RAKU.md`):
+**Raku** (extending `PRF-12` in `GOAL-RAKU-100.md` § TRACK 3):
 
 Already-named sub-rungs (PRF-12-gather, sub, class, program, for-range) cover R1, R12, R13, R15, R16, R17, R18, R19, R27. New sub-rungs needed for the remaining 18 violations:
 

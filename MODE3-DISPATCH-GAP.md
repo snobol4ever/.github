@@ -79,7 +79,7 @@ engine, separate failure surface. The fix does not regress any path.
 
 ## Recommended path forward
 
-Spin a goal — `GOAL-MODE3-NO-INTERP.md` (or fold into existing GOAL-RAKU-BB
+Spin a goal — `GOAL-MODE3-NO-INTERP.md` (or fold into existing GOAL-RAKU-100
 as a new rung) — with structure mirroring IBB ground-zero:
 
 1. Surface the C-interpreter fall-through with an `abort()` gated by env
@@ -171,7 +171,7 @@ rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23
 ```
 
 All fail with Error 5 "Undefined function" then SEGV. Per
-`GOAL-RAKU-BB.md`: deferred to `GOAL-RAKU-PAT-BB`. Out of scope here.
+`GOAL-RAKU-100.md` (formerly `GOAL-RAKU-BB.md`): deferred to `GOAL-RAKU-PAT-BB`. Out of scope here.
 
 ### Summary by closability
 

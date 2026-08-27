@@ -38,7 +38,7 @@ byte-identical to the mode-2 oracle where an oracle exists.
 | Snocone | — | — |
 | Icon | live state in `GOAL-ICON-BB.md` | live state in `GOAL-ICON-BB.md` |
 | Prolog | live state in `GOAL-PROLOG-BB.md` | live state in `GOAL-PROLOG-BB.md` |
-| Raku | live state in `GOAL-RAKU-BB.md` | live state in `GOAL-RAKU-BB.md` |
+| Raku | live state in `GOAL-RAKU-100.md` | live state in `GOAL-RAKU-100.md` |
 | Rebus | — | — |
 
 The per-language x86 frontend ladders are the `GOAL-*-BB.md` files. This backend goal is
