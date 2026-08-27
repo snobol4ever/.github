@@ -40,3 +40,23 @@ Minted as `perf-pattern-defer-capture-layer-cure` (rank 1, hq lanes; the evidenc
 ## ⛔ CORRECTION, same night (hq_P's reconciliation, s199 prior art): THE DEMO-INHERITANCE PARAGRAPH ABOVE IS RETRACTED — THE DEMOS LOSE ON TABLES, NOT ON THIS LAYER
 
 `FINDING-2026-08-21-s199-why-the-demos-lose-the-matcher-wins-and-the-table-path-is-91-percent.md` (four-point ablation, one grammar, identical check values, gc=0) already decomposed claws5: **pattern match 1.35x FASTER than SPITBOL (0.3% of runtime) · captures 1.20x slower (1.7%) · empty callout 2.66x slower (6.5%) · 3-level TABLE build 7.00x SLOWER (91.6%)**. The two findings COMPOSE rather than conflict: this file's kernels are capture/defer-DENSE synthetic loops that isolate the layer at maximum concentration (where it reads 0.22–0.31x Ir); a real demo spends ~2% of its time there, so the layer barely moves demo totals — the demo deficit lives in the table path. BOTH are true; the sentence claiming the demos "inherit this directly" was the one inference not measured, and it was wrong. The cure row (`perf-pattern-defer-capture-layer-cure`) remains valid FOR THE PATTERN LANE; the DEMO levers are `table-nested-subscript-cost` (the 7x) and `callout-fragment-entry-cost` (2.66x) — both re-entering the queue by ceo ruling tonight. hq_P's step-1 re-cut of the reconciliation (rivals-grid 0.55x wall vs s199's 1.35x — same lane, opposite verdicts, different instruments; run1's flag asymmetry upstream of both) is RATIFIED and precedes any matcher cure.
+
+## ⭐⭐⭐ THE DIG AND THE CURE, same night (Lon: "Tag you are it… are we doing something stupid like looking up a global versus just accessing its address directly?") — YES, THREE STUPIDITIES, ALL FIXED, AND SCRIP NOW BEATS SPITBOL ON THE BACKTRACKING KERNEL
+
+Source-level dig into the four attributed cost centers found no algorithmic deficiency in matching — the bottleneck was three defects in the caching that was SUPPOSED to bypass name lookup:
+
+1. **`rt_defer_probe_run` discarded its own cache hit for pattern values** (`pattern_match.c`, the `cv.v != DT_P` guard): the site-slot cell cache (two loads + a pointer compare) already returned the pattern descriptor, but the DT_P arm fell through to `rt_defer_nv_read`→`NV_GET_fn` — the full hash+memo+generation+validating-strcmp ceremony — every iteration. `SUB ? PAT` with a pattern in a variable, the most common shape in the language, was the one shape the s261 cache excluded. **Fix: the DT_P/DT_X arm now uses the cached descriptor.**
+2. **`rt_dcap_nv_cell`'s pointer hash was degenerate for adjacent rodata literals**: `(p>>3)^(p>>11)` maps capture-target names sitting bytes apart (`F1 F2 F3`) into ONE slot — each capture evicted the previous, ~100% miss, so the "caller-side elimination" cache shipped at s262 never fired on multi-capture patterns and every capture re-paid `NV_PTR_fn` hash + bucket strcmps. **Fix: Fibonacci multiplicative hash on the pointer.**
+3. **`is_protected_pat_name("F1")` ran two strcmps per capture per iteration** — 48M strcmps on string_pattern for a compile-time-constant verdict ('F' is in the protected lead set, so F-named captures always paid). **Fix: a cache HIT skips the guard — sound because protected names can never enter the cell cache (they take the NV_SET_fn path before it).**
+
+**A/B, same instrument as the baseline table (dated TSV `perf-attribution-20260827T235331Z.tsv` beside the baseline):**
+
+```diff
+  kernel          basis              before        after       vs SPITBOL
++ pattern_bt      insn @2M           10.66G        7.65G       Ir 0.31x -> 0.44x
++ pattern_bt      wall best          0.929s        0.731s      0.97x -> 1.23x  <- SCRIP AHEAD
++ string_pattern  insn @8M           28.42G        14.49G      Ir 0.22x -> 0.43x
++ string_pattern  wall best          3.600s        1.305s      0.27x -> 0.74x
+```
+
+Landed SCRIP `34aea2db` after the full verdict set: board **890/890 both modes FAIL=0 SKIP=0 MISSING=0** on the pristine-built tree, both blocking gates rc=0, snocone smoke 5/5, both kernels byte-match refs. **Next levers, measured and named in the TSV:** (a) cache the resolved pattern fn in the site slot (~30% of pattern_bt's remainder: probe+cell_read+dtp_fn_of); (b) slice-captures — descriptors into the subject instead of `rt_str_alloc`+`memcpy` per capture (kills string_pattern's `gc_collect_ex` 9.8% and most of the pump body); (c) `rt_dcap_pump` as the first rtx ASM rewrite per the RT→ASM program. Answer to Lon's "new search algorithm?" question: **no — the search is fine and now demonstrably ahead; the residue is ceremony, and it is enumerated.**
