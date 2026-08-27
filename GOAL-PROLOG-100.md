@@ -83,7 +83,7 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 **Fixed:** `bcps_wire_cross_gen` (bb_call_proc_staged.cpp) — adds the one missing `lea rdx,<omega>` before the jmp, scoped to the two generator-call sites only.
 
-**Measured name-for-name:** SNOBOL4 365/365 unchanged · Icon `246/16/1/30 · 246/16/1/30 · 244/18/1/30` identical to pre-change baseline · rung15 `1/5→2/5` · rung13 `0/5`/rung14 `2/5`/smoke m4 `4/5` unchanged (different mechanisms).
+**Measured name-for-name:** SNOBOL4 365/365 unchanged · Icon `246/16/1/30 · 246/16/1/30 · 244/18/1/30` identical to pre-change baseline · rung13 `0/5`/rung14 `2/5`/smoke m4 `4/5` unchanged (different mechanisms). ⛔ **CORRECTION, same pass:** rung15 `1/5→2/5` is true but incomplete — controlled A/B (5 runs each side) shows pre-fix perfectly deterministic (`1/5` every run) but post-fix genuinely flaky (`1–3/5` across runs). The fix is real; it converts a stable wrong-jump crash into an intermittent one on 2 of the 5 witnesses, exposing rather than closing a second pre-existing defect. Full data: the FINDING's own ADDENDUM.
 
 **Row NOT closed.** Same repro now fails one layer deeper: fact's own omega resolves correctly now, but crashes shortly after (SIGILL, a stack address used as a jump target, inside/after the `rt_proc_call_epilogue_ω` call chain) — new mechanism, not yet root-caused. See the task file's `## NEXT` for the exact next step. This is this row's THIRD real, verified, non-regressing "worked, not done" pass in one day (hq_C's stack-depth fix, then this) — the wall keeps moving, has not yet fallen.
 
