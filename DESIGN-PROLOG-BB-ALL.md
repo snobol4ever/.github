@@ -287,12 +287,15 @@ boxes are the engine.
 
 ---
 
-## 9. STACKLESS — the value stack moved INTO the box (re-derivation, 2026-06-13)
+## 9. NO SOFTWARE VALUE STACK — the value stack moved INTO the box (re-derivation, 2026-06-13)
 
-SNOBOL4 and Icon are **stackless**: goal-directed control is jumps between four ports, and the
-"external value stack" is placed INSIDE each Byrd Box as STATIC frame slots. **There is no control
-stack and no value stack.** The single hardware stack (the C call stack) is touched only for (a)
-calls into the C runtime `rt_*` helpers and (b) the predicate-call closure-resume `call δ`/`call ε`.
+SNOBOL4 and Icon carry **no software value stack**: goal-directed control is jumps between four
+ports, and the "external value stack" is placed INSIDE each Byrd Box as STATIC frame slots,
+themselves machine-stack resident per the ζ ladder (ζ-SPINE/RSP by default, promoted to a
+ζ-ACTIVATION-FRAME/RBP for γ-SUSPEND-capable boxes). **There is no separate software-managed
+control stack or value stack** to push and pop. The hardware stack is touched throughout — for
+box frame slots as above, and also for (a) calls into the C runtime `rt_*` helpers and (b) the
+predicate-call closure-resume `call δ`/`call ε`.
 
 **Verified in-tree (not asserted):** `grep g_vstack src/ = 0`; zero `rt_push`/`rt_pop` in any
 `bb_cell_*.cpp`; no choice-point-stack in the GZ runtime. State lives in `[r12+GZ_CELL_OFF(slot)]`.
@@ -317,7 +320,7 @@ construct that *looks* like it needs a stack proves it doesn't.
 
 ### How each WAM/SWI "stack" dissolves
 
-| WAM/SWI baggage | what it actually was | stackless replacement |
+| WAM/SWI baggage | what it actually was | frame-slot replacement |
 |---|---|---|
 | Choice-point **stack** (B-chain) | "what to try on failure" | **ω wiring** (compile-time: clause k.ω → clause k+1.α) + a frame **cursor cell** for runtime-chosen resume |
 | Environment **stack** (E-chain) | active-call locals + return | **C call** per activation; locals are **frame cells** |
