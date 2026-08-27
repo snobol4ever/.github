@@ -5,7 +5,7 @@ Frontend: Icon → shared IR. See ARCH-IR.md. This file also carries the LIVE RE
 ## Execution model
 Icon is goal-directed: every expression Succeeds (γ, may resume for more) or Fails (ω). That IS the Byrd Box four-port model — α start · β resume · γ succeed · ω fail. Icon uses BB_PUMP (generate until ω); SNOBOL4 uses BB_SCAN (try each cursor position).
 
-**STACKLESS (GROUND ZERO 3).** Icon emits ZERO SM opcodes, no value stack, no r12-TOS, no rt_push/pop. Each box's value lives in a flat per-box DATA slot; consumers read operand boxes' slots directly (Proebsting: `plus.value ← E1.value + E2.value`). Unbounded backtrack state (ARBNO, recursion) = per-box .bss arena by depth. Inter-box transitions are direct `jmp`. Reference embodiment: `corpus/probe/bb/test_icon.c`.
+**NO SOFTWARE VALUE STACK (GROUND ZERO 3; renamed from "STACKLESS" — that name VOID per Lon 2026-08-27, RULES.md: all three zetas ARE on the stack, and Icon walks the ladder RSP spine → RBP activation frame → root, γ-SUSPEND-capable graphs keeping ζ in an RBP activation frame).** Icon emits ZERO SM opcodes, no software value stack, no r12-TOS, no rt_push/pop. Each box's value lives in a flat per-box DATA slot; consumers read operand boxes' slots directly (Proebsting: `plus.value ← E1.value + E2.value`). Unbounded backtrack state (ARBNO, recursion) = per-box .bss arena by depth. Inter-box transitions are direct `jmp`. Reference embodiment: `corpus/probe/bb/test_icon.c`.
 
 **Relational ops are NOT booleans** — a comparison is a {0,1} generator: γ yields a value, ω fails; constructs only choose where γ/ω go (verified vs canonical `ocomp.r` and JCON `ir_opfn`).
 
