@@ -82,7 +82,7 @@ Both share ONE emitter (`bb_*`/`xa_*` templates) and MUST share ONE driver setup
 
 ## Prereq reads (NON-NEGOTIABLE for any step touching emission)
 ⛔ **`src/emitter/bb_regs.h` DOES NOT EXIST** (confirmed by `find`; `REGISTER-LAYOUT.md` carries its own correction banner; `emit.h` says it "was dead and dropped"). Register contract of record = **`ARCH-ICON.md` §REGISTER CONTRACT** (2026-07-18, billed as register truth for ALL BB codegen, all languages), backed by live `src/templates/x86_asm.h`: **r13=Σ subject base · r14=δ cursor · r15=Δ length · r12=DCAP/CAS top (NOT the ζ frame) · rbx=WS/GC bump-frontier top · GVA globals address absolutely via `ABSQ(RT_GVA_VA + k*16)`, no register base.** This CONTRADICTS the older `rbx=GVA base` claim still repeated in places; `REGISTER-LAYOUT.md` is stale on the r12 row by its own admission — read it only for the SPITBOL/CSNOBOL4 oracle maps.
-Also: `ARCH-x86.md` §"Boxes are stackless" + §"Flat-BB ABI" · `src/emitter/XA_templates/xa_flat.cpp` (glob preamble) · `ARCH-SCRIP.md` · for driver work, `src/driver/scrip.c` `mode_compile_x86` and `mode_run` blocks side by side.
+Also: `ARCH-x86.md` §"Boxes carry no software value stack" + §"Flat-BB ABI" · `src/emitter/XA_templates/xa_flat.cpp` (glob preamble) · `ARCH-SCRIP.md` · for driver work, `src/driver/scrip.c` `mode_compile_x86` and `mode_run` blocks side by side.
 
 ## Build / probe
 ⛔ Boehm GC is GONE (deleted by GC-U-4 s67) — no `libgc-dev`, no `-lgc`. `scripts/install_system_packages.sh` is the ONE authority for box packages; run it, never hand-rolled apt.
