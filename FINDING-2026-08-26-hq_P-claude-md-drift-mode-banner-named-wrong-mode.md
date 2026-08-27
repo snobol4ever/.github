@@ -79,7 +79,8 @@ in upstream" from a grep you did not first prove was searching a populated tree.
 | `test_gate_*` | 88 | **110** |
 | `bb_*.cpp` templates | ~129 | **132** |
 | corpus timeout advice | `timeout 30s` | board measures **32 s** — the advice **SIGTERMs a green board 2 s short** |
-| `corpus/suites/` | unlisted | **top-level**, sibling of `crosscheck/`, read as `$CORPUS/suites` (`test_corpus_snobol4.sh:121`) |
+| converted suites | unlisted | **`corpus/tests/snobol4/crosscheck/`** — see the self-correction below |
+| `corpus/crosscheck/` | 203 `.sno` / 399 `.ref` | **190 / 386** — it *shrinks* as conversion proceeds, by design |
 | `IDEAS.txt` at root | claimed present | **absent in this root** (lives in `/home/claude`) |
 | `scrip.c:791` | 791 | 792–793 |
 
@@ -96,6 +97,20 @@ requires pristine before any *verdict*; this re-verifies the denominator only. T
 ⭐ **Worked example of FETCH-IS-NOT-CHECKOUT, and I walked into it myself:** the first reading was taken while all
 three repos were BEHIND origin — it graded a world that no longer existed. 365 happened to survive the move; next time
 it will not. **`merge --ff-only origin/main` in every repo BEFORE measuring, not after.**
+
+## ⛔⭐ SELF-CORRECTION, AND IT IS THE BEST EVIDENCE IN THIS FINDING
+
+I wrote "`corpus/suites/` is TOP-LEVEL" into `CLAUDE.md` during this audit. **It was wrong inside the hour.**
+`f28e10641` ("corpus-suites-consolidation: re-home `suites/crosscheck` → `tests/snobol4/crosscheck`, baton
+amendment") had already landed on origin; a top-level `corpus/suites/` **no longer exists at all**, and the runner
+now reads `SUITES="$CORPUS/tests/snobol4"` (`test_corpus_snobol4.sh:121`). Corrected in-file.
+
+⭐ **This is the whole FINDING in miniature, and it is why the cure is not "better numbers".** I had *just* pulled,
+*just* written the FETCH-IS-NOT-CHECKOUT lesson into the file, and still shipped a path claim that a concurrent seat
+had invalidated. At `FLEET-16` the tree moves under you *while you document it* — so the durable fix is never a
+fresher constant, it is **a pointer at the thing that cannot go stale**: the runner's own `SUITES=` line, the `ls`
+that regenerates a census, the binary's `rc=2`. Every correction in this FINDING now names its regenerating command
+rather than only its value.
 
 ## ⚠️ Cross-root exposure — NOT cured, and not mine to cure
 
