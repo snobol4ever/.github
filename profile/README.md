@@ -92,16 +92,14 @@ The compiler. Every construct lowers to four-port Byrd boxes — **α** proceed,
 pip install SNOBOL4python
 ```
 
-Full SNOBOL4 pattern vocabulary as a Python library. Dual backend: C extension wrapping Phil Budne's SPIPAT engine (7–11× faster) and a pure-Python fallback. Shift-reduce parser stack for building ASTs inside patterns. v0.5.0.
+Full SNOBOL4 pattern vocabulary as a Python library. Dual backend: a C extension wrapping Phil Budne's SPIPAT engine — 7–11× the speed of the pure-Python yield implementation — with that pure-Python engine as the portable fallback. Shift-reduce parser stack for building ASTs inside patterns. v0.5.0.
 
-*(README v2 grid sprint: DEFERRED — M-VOL-PYTHON, M-FEAT-PYTHON, M-README-V2-PYTHON out of scope for current sprint.)*
 
 ### [snobol4csharp](https://github.com/snobol4ever/snobol4csharp)
-*SNOBOL4 pattern matching for C# — Jeffrey Cooper*
+*SNOBOL4 pattern matching for C# — Lon Cherryholmes, with Claude Sonnet 4.6*
 
-A C# port of the snobol4python pattern engine. Patterns are first-class objects with full backtracking. Captures use plain C# delegates. Full primitive vocabulary, recursive patterns via `ζ`, cursor capture, regex bridge, and shift-reduce parse-tree stack. Validated against the Porter Stemmer (23,531-word corpus), Penn Treebank parser, CLAWS5 NLP corpus parser, and a SNOBOL4 source code parser.
+Lon's C# port of the snobol4python pattern engine, written with Claude Sonnet 4.6. Patterns are first-class objects with full backtracking. Captures use plain C# delegates. Full primitive vocabulary, recursive patterns via `ζ`, cursor capture, regex bridge, and shift-reduce parse-tree stack. Validated against the Porter Stemmer (23,531-word corpus), Penn Treebank parser, CLAWS5 NLP corpus parser, and a SNOBOL4 source code parser.
 
-*(README v2 grid sprint: DEFERRED — M-VOL-CSHARP, M-FEAT-CSHARP, M-README-V2-CSHARP out of scope for current sprint.)*
 
 ### [snobol4artifact](https://github.com/snobol4ever/snobol4artifact)
 *CPython C extension: SNOBOL4 Byrd Box engine*
@@ -112,80 +110,6 @@ Direct CPython C extension running SNOBOL4python pattern trees through a full By
 *Shared test corpus — CC0*
 
 Single source of truth for the shared test universe: the 365-program SNOBOL4 board graded in both execution modes against SPITBOL, per-language benchmark suites for the rivals grids, the Gimpel algorithm library, the Shafto AI corpus, and the growing suite format — one test per line beside its expected output, made to be read in color.
-
----
-
-## Performance
-
-These numbers compare the SCRIP mode-4 `--compile` native backend against the two
-SNOBOL reference oracles — SPITBOL x64 (official `spitbol/x64`) and CSNOBOL4 2.3.4
-(Phil Budne) — on the shared corpus benchmarks (`corpus/benchmarks/snobol4/*.sno`).
-Each figure is the program's own `TIME()` compute loop in milliseconds (process
-startup and compile time excluded), gcc `-O0`. The community is invited to verify
-them independently using `harness`. A full cross-engine grid (all seven
-implementations, all programs) will be published when M-GRID-BENCH fires. See
-[GRIDS.md](../GRIDS.md). Lower is faster.
-
-| Benchmark | SPITBOL | CSNOBOL4 | SCRIP native | vs SPITBOL | vs CSNOBOL4 |
-|-----------|--------:|---------:|-------------:|-----------:|------------:|
-| arith_loop | 24 | 131 | 1,604 | 68× slower | 12× slower |
-| fibonacci | 94 | 534 | 6,191 | 66× slower | 12× slower |
-| func_call | 424 | 2,440 | 32,371 | 76× slower | 13× slower |
-| func_call_overhead | 425 | 2,454 | 32,542 | 77× slower | 13× slower |
-| mixed_workload | 99 | 455 | 4,034 | 41× slower | 8.9× slower |
-| op_dispatch | 67 | 369 | 3,515 | 53× slower | 9.5× slower |
-| pattern_bt | 485 | 549 | 963 | **2.0× slower** | **1.8× slower** |
-| string_concat | 138 | 311 | 1,618 | 12× slower | 5.2× slower |
-| string_manip | 391 | 1,672 | 21,220 | 54× slower | 13× slower |
-| string_pattern | 380 | 1,822 | 8,047 | 21× slower | 4.4× slower |
-| table_access | 202 | 1,969 | 11,327 | 56× slower | 5.8× slower |
-| var_access | 702 | 3,529 | 44,766 | 64× slower | 13× slower |
-
-*milliseconds (compute loop) · 12/16 benchmarks green; `roman` (recursion bug),
-`eval_fixed`/`eval_dynamic` (EVAL/CODE unimplemented), and `indirect_dispatch`
-(undefined-function call in the program — SPITBOL errors on it too) excluded.*
-
-These are honest current numbers, not the target. SCRIP native code today runs
-roughly **40–77× slower than SPITBOL** and **5–13× slower than CSNOBOL4** on
-whole-program workloads; the "ten times faster" goal is not yet met and is
-presently inverted against the SPITBOL oracle. The lone bright spot is
-`pattern_bt` (≈2× off SPITBOL), the one benchmark dominated by pattern-match
-backtracking — the Byrd-box path the native templates implement directly.
-Re-grounding this claim is tracked under the REC-COV / RC-5 rung.
-
-### Prolog — SCRIP vs GNU Prolog vs SWI-Prolog
-
-The Prolog frontend is measured against the two mainstream native engines — **GNU Prolog
-1.4.5** (gprolog, a mature WAM-to-native compiler) and **SWI-Prolog 9.0.4** — on the
-community-standard van Roy / Aquarius performance suite
-(`corpus/benchmarks/prolog/bench/`, UCB/CSD 89/50). All 22 programs reach **four-way
-correctness consensus**: GNU, SWI, SCRIP mode-3 (`--run`, in-process x86), and SCRIP
-mode-4 (`--compile` → native binary) all produce byte-identical output. Timing is
-per-iteration compute (each core looped *N* times so compile amortizes out; SCRIP m4 is
-the mode-4 native binary, gcc `-O0`). Lower is faster; ratio is SCRIP-m4 vs gprolog.
-
-| Benchmark | GNU | SWI | SCRIP m4 | m4 vs GNU |
-|-----------|----:|----:|---------:|----------:|
-| cal | 0.072 | 0.071 | 0.034 | **0.48× (faster)** |
-| sendmore | 4.288 | 10.297 | 4.286 | **1.00×** |
-| crypt | 0.541 | 0.778 | 1.256 | 2.32× |
-| tak | 12.03 | 21.16 | 41.73 | 3.47× |
-| fib | 3.596 | 4.408 | 12.79 | 3.56× |
-| queensn | 158.3 | 183.5 | 792.0 | 5.00× |
-| zebra | 2.305 | 2.304 | 13.65 | 5.92× |
-| qsort | 0.076 | 0.153 | 0.515 | 6.74× |
-| meta_qsort | 0.750 | 0.521 | 9.017 | 12.03× |
-
-*per-iteration compute, milliseconds · 9 of the 22 shown, spanning the range · full table
-in the [SCRIP README](https://github.com/snobol4ever/SCRIP#prolog-benchmark--scrip-vs-gnu-prolog-vs-swi-prolog).*
-
-**Geomean SCRIP-m4 vs gprolog = 3.28×** (median 3.56×), all 22 programs. The gap tracks
-heap traffic: search- and atom-bound programs are at parity or faster, arithmetic-bound
-ones near 2×, and list/structure-heavy ones plus the meta-interpreter are the worst (the
-boxed-`Term*` compound-allocation tax). The inline-cell campaign (PL-DESCR) has moved
-scalars off the heap; compounds and first-argument indexing are the remaining levers.
-Honest current numbers against a mature native WAM — not yet the target, but the four-port
-boxed Prolog is competitive with SWI on a fair fraction and within ~3.3× of gprolog.
 
 ---
 
