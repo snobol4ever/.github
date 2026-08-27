@@ -469,6 +469,8 @@ The arena (globals) + ζ frame (locals) split is only complete when the THREE-TI
 
 **Bench landmines:** keep benchmark sources OUT of the M3/M4 *correctness* gate loop if they are long-running (use the `timeout 30s` corpus-runner budget, not the 8s smoke); never wire benchmark `.s` byte-identity into a gate; record peer versions/flags so numbers are reproducible.
 
+**2026-08-27 (seat12, side note from corpus-import-iso7185pat-p5, PAS-BENCH-0/1 still NOT started by this note):** `corpus/packages/pascal/p5/sample_programs/drystone.pas` landed as part of the Pascal-P5 ISO 7185 suite import — it is S. A. Moore's own small benchmark, **not** the canonical Weicker Dhrystone v2 this rung targets (that's still `github.com/Keith-S-Thompson/dhrystone`, still unfetched here). Do not let the similar filename stand in for PAS-BENCH-0/1. Whetstone remains completely unsourced. No triage or import work against this rung was done this session — this is a pointer, not progress.
+
 ---
 
 ## ▶ CURRENT STATE (Session 68, 2026-06-27)
