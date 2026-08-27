@@ -46,7 +46,7 @@ the destination they all feed; per-language progress lives in those frontend fil
 
 ## Backend-specific notes (detail in ARCH-x86.md)
 
-- Byrd boxes are stackless CODE+DATA blobs in `bb_pool`; four ports α/β/γ/ω; DATA per-invocation, CODE shared.
+- Byrd boxes are flat CODE+DATA blobs in `bb_pool` carrying no software value stack; four ports α/β/γ/ω; DATA per-invocation, CODE shared.
 - Two emission forms: flat BBs (`EMIT_BINARY_WIRED`, jmp-threaded, ζ=`[r12]`) and brokered BBs (`EMIT_BINARY_BROKERED`, C-ABI, `rdi=ζ`).
 - mode-4 TEXT path: GAS `.s` → assemble → link `libscrip_rt.so` → run.
 - Templates are pure functions of `g_emit` (see ARCH-EMITTER.md); byte production lives only inside template files (RULES.md TEMPLATE-ONLY EMISSION).
