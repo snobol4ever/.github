@@ -183,3 +183,38 @@ Both oracles learn `&name` as plain variables (`sbl-x`, `csnobol4-x`) so convert
 
 ### The flagship
 ⛔ **PATH ABSENT.** The doc names `corpus/programs/snobol4/demo/beauty_c/` as the generated flagship (fixed point: `beauty_c < beauty.sno ≡ beauty.sno`). **No `beauty_c` directory exists anywhere under `corpus/`.** Live relatives: `corpus/demo/snobol4/beauty`, `corpus/tests/snobol4/beauty_suite`, `corpus/tests/snobol4/smoke/beauty_compiled.sno`. ⚠️ And `corpus/programs/` is ruled non-test material entirely (Lon 2026-08-27, `RULES.md:55`), so the flagship needs a new home *and* a new status before it can be cited again.
+
+---
+
+## SNOBOL4 — frontend
+
+Frontend: SNOBOL4 → shared IR (`EXPR_t`/`STMT_t`). See `ARCH-ENGINE.md`.
+
+### ⛔⛔ PARSER — THE DOC DESCRIBED A PARSER THAT IS NOT THE FRONTEND AND IS NOT BUILT
+`ARCH-SNOBOL4.md` opened with: *"`src/frontend/snobol4/CMPILE.c` — single-file SIL-faithful parser. Public API: `cmpile_init`, `cmpile_file`, `cmpile_string`, `cmpile_free`. Parse node type `CMPND_t`. Statement type `CMPILE_t`,"* followed by a **Streaming model** section describing `FORWRD`/`FORBLK`/`FORRUN`/`STREAM` and the `IBLKTB`/`FRWDTB` action tables.
+
+**Measured 2026-08-27, all of it:**
+- `src/frontend/snobol4/CMPILE.c` **does not exist**.
+- **Zero** occurrences of `cmpile_init`, `cmpile_file`, `cmpile_string`, `cmpile_free`, `CMPND_t` or `CMPILE_t` anywhere under `src/`.
+- `CMPILE` lives at **`SILly/cmpile.{c,h}`** — a separate top-level directory, and ⛔ **`SILly/` appears nowhere in the `Makefile`: it is not built into `scrip`.**
+- **The live SNOBOL4 frontend is lex/yacc:** `src/frontend/snobol4/{snobol4.l, snobol4.y, snobol4.lex.c, snobol4.tab.c, snobol4.tab.h}`, and `Makefile:325-326` builds `snobol4.tab.c` + `snobol4.lex.c`.
+
+⭐ **LIES GET CONSEQUENCES — what this one would cost.** These were the doc's **first two sections**: the first thing a new hand reads about how SNOBOL4 source becomes IR. Anyone sent to *"the single-file SIL-faithful parser"* to add a construct, fix a parse bug, or answer a grammar question looks for a file that is not there, and — if they find `SILly/cmpile.c` by name — edits a program that is **not linked into the compiler**, then cannot explain why their change has no effect. ⛔ **The SIL-faithful description is not merely mis-pathed; it describes a different parsing strategy from the one that ships.** Whether `SILly/` is a live sibling project, a reference implementation, or residue is **not resolved here** — it is outside this row's scope, and I am flagging rather than guessing. What is resolved: it is not the frontend, and this file will no longer say it is.
+
+### Runtime · DATATYPE · monitor hooks
+Moved from the source doc unchanged. ⚠️ **NOT re-verified** — the sections' anchors were not spot-checked this pass, and after the CMPILE finding above they carry the same doubt as any unchecked claim in the same file. **Re-derive before relying on them**, and do not read their presence here as endorsement.
+
+### Native pattern architecture — modes 3 & 4
+Pattern = a graph of emitted Byrd boxes (`bb_box_fn`). ✅ *Anchor spot-checked: `bb_box_fn` is live — `src/driver/scrip.c` (14 hits), `src/templates/bb/bb_main.cpp`, `src/runtime/rt_gram_trampoline.S`.* The five-phase statement model, the real build/run split, and the ALL-INVARIANT BLOB FREEZE optimization step move with it.
+
+### ⭐⭐⭐ THE THREE COMBINATORS — WHAT EACH ACTUALLY REQUIRES (PROVED BY DELETION, 2026-08-05, Lon-directed)
+Moved intact — this is the section the file existed for, and it is a *proof method* rather than a claim about a path, so it does not rot the way the parser section did.
+1. **SEQUENCE — wiring.** A node is possible but worthless.
+2. **ALTERNATE — the box is REQUIRED**, and the section states exactly why.
+3. **ARBNO — ZERO local storage**, proved by deletion.
+   - ⭐ **CORRECTED LAW: ARBNO REQUIRES A NON-ZERO PER-ITERATION FRONTIER ADVANCE.** (Carried forward as the source doc's own correction — a law amended in place after the original claim proved too strong.)
+   - **3b. ARBNO and the WHACK — the TWO-TIER verdict**, answering Lon's 2026-08-05 question *"is ζ storage required for the ARBNO BB box?"*
+
+### ARBNO iteration frames — ERADICATION GOAL (Lon ruling, 2026-07-24 s146) · Dynamic linkage — the WIRE CONTRACT and the GLUE set (2026-08-01) · ZETA-PER-BOX FRAME DISCIPLINE
+Moved. The frame-discipline section names *"the greatest current challenge — frame-base/register coherence at β re-entry under NESTED frames"*, records what is **already SOLVED (do not re-litigate)**, and carries the four design verdicts and the four rulings from the 2026-08-04 C-reference-ladder session.
+⚠️ **Register/frame-base specifics in this section are ENGINE law and were the exact class found wrong in `ARCH-ICON.md`.** Where it and `ARCH-ENGINE.md`/`RULES.md` § BB FRAME-PLACEMENT CRITERION disagree, **the engine authority wins** — that is the rule this file adopts rather than adjudicating each line, precisely because a language file restating engine law is how the drift happened twice.
