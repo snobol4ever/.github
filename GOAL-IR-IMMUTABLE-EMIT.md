@@ -112,7 +112,7 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
 
 **BRING-FORWARD DECISIONS (Lon, chat session 2026-07-05):**
 - Per-activation ζ blocks from a BUMP ζ-STACK in the RX slab: alloc = add, release = restore; a `.prev` link
-  field replaces the push-r12 machine-stack discipline (stackless preserved). Heap promotion (`blk_alloc`)
+  field replaces the push-r12 machine-stack discipline (no-software-value-stack preserved). Heap promotion (`blk_alloc`)
   DEFERRED to suspendable scopes (Icon suspend dependency).
 - NO `.bss` in emitted programs. mode-4 prints NASM `struc/endstruc` OVERLAY headers — zero storage, pure
   layout documentation; BOTH modes address `[rZ+disp]` only (displacement-identical bytes, MODE34-IDENTICAL),
