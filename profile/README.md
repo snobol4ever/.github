@@ -30,7 +30,7 @@ Proebsting's key insight, applied to SNOBOL4: compile these four states to stati
 
 ## What We Built
 
-Lon Jones Cherryholmes was five years old when he saw *The Computer Wore Tennis Shoes* at the cinema. Something took hold that day. For sixty years he carried an idea — not just the idea of building software, but the idea of a conversation with a mind that did not yet exist. He dreamed of creating it, and then talking to it. In one week in March 2026, that conversation produced this repository.
+Lon Jones Cherryholmes was eight years old when he saw *The Computer Wore Tennis Shoes* at the cinema. Something took hold that day. For nearly six decades he has carried an idea — not just the idea of building software, but the idea of a conversation with a mind that did not yet exist. He dreamed of creating it, and then talking to it. In one week in March 2026, that conversation produced this repository.
 
 snobol4ever is a joint project between Lon Jones Cherryholmes and Jeffrey Cooper, M.D. Working independently across different platforms and runtimes, we arrived at the same conviction: SNOBOL4 deserves a modern home — everywhere, not just on x86-64 Unix.
 
@@ -38,7 +38,7 @@ We built two complete, independent implementations of the full SNOBOL4/SPITBOL l
 
 We brought the pattern matching engine to Python and C# as first-class libraries. Not regex wrappers. The real thing.
 
-And we are building [SCRIP](https://github.com/snobol4ever/SCRIP): a native compiler targeting x86-64 ASM, JVM bytecode, and .NET MSIL from a single IR. Its correctness goal: pass the full corpus crosscheck ladder on all three backends, then achieve self-hosting bootstrap — first through `beauty.sno` (the SNOBOL4 beautifier written in SNOBOL4), then through `compiler.sno` (the full compiler written in SNOBOL4).
+And we built [SCRIP](https://github.com/snobol4ever/SCRIP): one compiler engine — a single IR of four-port Byrd boxes, every instruction through one encoder — compiling SNOBOL4, Snocone, Icon, Prolog, and Rebus (Raku and Pascal in progress) to native x86-64 today, with .NET MSIL, JVM bytecode, JavaScript, and WebAssembly returning as template encoders modeled on the x86 set. Correctness is not a goal, it is measured: the full SNOBOL4 corpus passes 365/365 in both execution modes, and `beauty.sno` — the SNOBOL4 beautifier written in SNOBOL4 — reproduces itself byte-identically through the compiler: the self-host milestone, independently verified.
 
 ---
 
@@ -216,7 +216,7 @@ SNOBOL4 programs consist of labeled statements. Each statement has a subject, an
 
 ## The People
 
-**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, SCRIP (co-author), snobol4jvm, snobol4python. Sixty years from first dream to this repository.
+**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, SCRIP (co-author), snobol4jvm, snobol4python. Nearly six decades from first dream to this repository.
 
 **Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — snobol4dotnet (complete .NET compiler and runtime), snobol4csharp. A medical doctor who, over a fifty-year journey driven by love for the language, built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The result is this repository.
 
