@@ -3,8 +3,8 @@
 # Self-host beauty in BOTH media and require each output to be byte-identical to its own input.
 # The oracle is the file itself (Lon s117): beauty self-host is a FIXED POINT, so exp = md5(SRC).
 #
-# ⛔ CWD MUST BE THE BEAUTY DIRECTORY. beauty.sno pulls 16 -INCLUDE files that resolve relative to
-# the working directory. Run it anywhere else and every arm emits ZERO bytes with "cannot open
+# ⛔ CWD MUST BE THE DIRECTORY HOLDING THE .inc SET. The pinned source pulls 17 -INCLUDE files
+# that resolve relative to the working directory. Run it anywhere else and every arm emits ZERO bytes with "cannot open
 # include 'global.inc'" — a failure that has NOTHING to do with the code under test. That exact
 # mistake is baked into the rescued bisect probe's history: seat01 smoke-tested its corrected probe,
 # got rc=1 with EMPTY output, and read it as "BAD as expected" — but the real regression symptom is
@@ -18,12 +18,30 @@ ROOT="${S4E_HOME:-$(cd "$HERE/../../.." && pwd)}"
 SCRIP="${SCRIP_BIN:-$ROOT/SCRIP/scrip}"
 RT="${SCRIP_RT:-$ROOT/SCRIP/out}"
 SRC="${M1_SRC:-$HERE/beauty_classic_fixedpoint.sno}"
-BEAUTY="${M1_BEAUTY_DIR:-$ROOT/corpus/programs/snobol4/demo/beauty}"
+# ⛔ THE INCLUDE DIRECTORY IS DISCOVERED BY THE FILE IT MUST CONTAIN, NEVER BY A HARDCODED PATH.
+# The pinned classic source lives under .github/, whose ancestors have no include/ dir, so the driver's
+# ancestor-walk (src/driver/scrip.c:938-951, which registers any <ancestor>/include) finds nothing and the
+# ONLY resolver left is "." - CWD. So this script must cd somewhere that actually holds the .inc set.
+# ⭐ 2026-08-27 hq_C: the previous hardcoded path (corpus/programs/snobol4/demo/beauty) died in the
+# 2026-08-24 corpus re-grid and the .inc files moved to corpus/include/. The probe refused honestly
+# (rc=2, never a false green) but Milestone 1's stated DONE-WHEN could not say YES on ANY tree for days.
+# ⛔ Testing [ -d "$dir" ] is what let a MOVED FILE SET stay invisible: the container can exist while
+# the contents re-nest. Probe for global.inc itself.
+m1_find_include_dir() {
+  local r="$1" c
+  for c in "$r/corpus/include" "$r/corpus/probe/fwctx"; do
+    [ -f "$c/global.inc" ] && { printf '%s\n' "$c"; return 0; }
+  done
+  c="$(find "$r/corpus" -name global.inc -printf '%h\n' 2>/dev/null | head -1)"
+  [ -n "$c" ] && [ -f "$c/global.inc" ] && { printf '%s\n' "$c"; return 0; }
+  return 1
+}
+BEAUTY="${M1_BEAUTY_DIR:-$(m1_find_include_dir "$ROOT" || true)}"
 ARM="${1:-both}"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 [ -x "$SCRIP" ]  || { echo "⛔ no scrip binary at $SCRIP — build first (make -C $ROOT/SCRIP)"; exit 2; }
 [ -f "$SRC" ]    || { echo "⛔ pinned source missing: $SRC"; exit 2; }
-[ -d "$BEAUTY" ] || { echo "⛔ beauty dir missing: $BEAUTY (the 16 .inc files live there)"; exit 2; }
+[ -n "$BEAUTY" ] && [ -f "$BEAUTY/global.inc" ] || { echo "⛔ GATE UNPROVEN(2): no directory holding the .inc set found under $ROOT/corpus (looked for global.inc; set M1_BEAUTY_DIR=). Got: [${BEAUTY:-none}]"; exit 2; }
 case "$ARM" in m3|m4|both) ;; *) echo "⛔ GATE UNPROVEN(2): unrecognized ARM '$ARM' — expected m3, m4, or both"; exit 2;; esac
 exp="$(md5sum "$SRC" | awk '{print $1}')"; bytes_exp="$(wc -c < "$SRC")"; rc=0
 report() { # $1=arm $2=outfile

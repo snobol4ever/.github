@@ -36,12 +36,30 @@ mkdir -p "$LOGDIR"; cd "$SCRIP_DIR" || exit 125
 SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 make pristine > "$LOGDIR/pristine.$SHA.log" 2>&1
 [ -x ./scrip ] || { echo "[$SHA] BUILD FAIL — see $LOGDIR/pristine.$SHA.log"; exit 125; }
-# ⛔ MUST RUN FROM THE BEAUTY DIRECTORY. beauty.sno pulls 16 -INCLUDE files resolved relative to CWD;
+# ⛔ MUST RUN FROM THE DIRECTORY HOLDING THE .inc SET. The source pulls 17 -INCLUDE files via CWD;
 # run it anywhere else and EVERY commit emits 0 bytes ("cannot open include 'global.inc'") and reads BAD,
 # so the bisect converges confidently on nothing. This is the SECOND door onto the same defect seat01
 # caught in the first probe — measured by hq_C 2026-08-22, after the rescue, on this very file.
-BEAUTY="${M1_BEAUTY_DIR:-$(cd "$HERE/../../../corpus/programs/snobol4/demo/beauty" 2>/dev/null && pwd)}"
-[ -d "$BEAUTY" ] || { echo "⛔ beauty dir (the 16 .inc files) not found: set M1_BEAUTY_DIR=" >&2; exit 125; }
+# ⛔ THE INCLUDE DIRECTORY IS DISCOVERED BY THE FILE IT MUST CONTAIN, NEVER BY A HARDCODED PATH.
+# The pinned classic source lives under .github/, whose ancestors have no include/ dir, so the driver's
+# ancestor-walk (src/driver/scrip.c:938-951, which registers any <ancestor>/include) finds nothing and the
+# ONLY resolver left is "." - CWD. So this script must cd somewhere that actually holds the .inc set.
+# ⭐ 2026-08-27 hq_C: the previous hardcoded path (corpus/programs/snobol4/demo/beauty) died in the
+# 2026-08-24 corpus re-grid and the .inc files moved to corpus/include/. The probe refused honestly
+# (rc=2, never a false green) but Milestone 1's stated DONE-WHEN could not say YES on ANY tree for days.
+# ⛔ Testing [ -d "$dir" ] is what let a MOVED FILE SET stay invisible: the container can exist while
+# the contents re-nest. Probe for global.inc itself.
+m1_find_include_dir() {
+  local r="$1" c
+  for c in "$r/corpus/include" "$r/corpus/probe/fwctx"; do
+    [ -f "$c/global.inc" ] && { printf '%s\n' "$c"; return 0; }
+  done
+  c="$(find "$r/corpus" -name global.inc -printf '%h\n' 2>/dev/null | head -1)"
+  [ -n "$c" ] && [ -f "$c/global.inc" ] && { printf '%s\n' "$c"; return 0; }
+  return 1
+}
+BEAUTY="${M1_BEAUTY_DIR:-$(m1_find_include_dir "$(cd "$HERE/../../.." && pwd)" || true)}"
+[ -n "$BEAUTY" ] && [ -f "$BEAUTY/global.inc" ] || { echo "⛔ .inc set not found (looked for global.inc under corpus/); set M1_BEAUTY_DIR=" >&2; exit 125; }
 OUT="$LOGDIR/out.$SHA"
 ( cd "$BEAUTY" && timeout 60 "$SCRIP_DIR/scrip" "$SRC" < "$SRC" ) > "$OUT" 2> "$LOGDIR/stderr.$SHA"; rc=$?
 got="$(md5sum "$OUT" | awk '{print $1}')"; exp="$(md5sum "$SRC" | awk '{print $1}')"
