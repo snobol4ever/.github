@@ -71,11 +71,11 @@ Full receipts: `FINDING-2026-08-22-hq_C-rung-C-0-milestone-1-is-not-regressed-at
 
 | front | state (measured by hq_C at HEAD `457dc5d9`, 2026-08-22) |
 |---|---|
-| **SNOBOL4 #1** | ✅ **M1 fixed point HOLDS in both media** (C-0 closed above). ⭐⭐ **`364/364`, ZERO KNOWN REDS, ON `main` — MEASURED BY hq_C s271 (2026-08-24), pristine `-O0`, SCRIP `9df28b03`: `m3 PASS=364 FAIL=0` · `m4 PASS=364 FAIL=0` · `SKIP=0` (364 total).** Lon's number (*"We want SNOBOL4 to be 364 out of 364"*) is **MET**. Both former reds are cured: `demo_treebank` / `vlist-expr-alternation` at `0e57de3b` (s270, the `fc_geom` per-op-filter grant) and `TDump_driver` at `9df28b03` (s271, dropping `822bc8a1`'s gin/oin self-edge suppression). Board re-run pristine **after** the `94dd91ba` rebase, per s270's measure-then-rebase rule. ⛔ **EVERY EARLIER FIGURE ON THIS ROW IS STALE AND DELETED** — `363/364`, `357/359`, `339/341`, `320/321`: the denominator is **364** and the numerator is now **364**. ⛔ **BUT "no corpus red" ≠ "SNOBOL4 is finished":** the named tail is `v05` — PASSES m3, **SIGSEGVs m4**, an m3 ≢ m4 DESIGN-INVARIANT violation, row `vlist-v05-m4-sigsegv-m3-m4-divergence` (rank 2), and it is invisible to this board because the corpus is green in both modes. The old `132_pat_fence_eps_recur_shallow` and `demo_porter` SKIPs are **CURED and gone**. Receipt: `bash scripts/test_corpus_snobol4.sh`. |
+| **SNOBOL4 #1** | ✅⭐ **CURRENT: `365/365` BOTH MODES, `FAIL=0 SKIP=0 MISSING=0`, rc=0 `GATE OK` — measured by hq_C 2026-08-27 s274, pristine `-O0`, SCRIP `d4e6e971`.** **M1 fixed point HOLDS in both media, verified by hand this session** (see the s274 cursor: m3 and m4 both 40,943 B / `f20461f9…`, byte-identical to `beauty.sno`, `m3 ≡ m4` clean). ⛔ **The denominator has moved legitimately and repeatedly — 364 → 362 → 365 — so read `FAIL=0 · SKIP=0 · MISSING=0` over the printed total, NEVER a remembered number.** The board refuses (rc=2) when its basis moves, which is what makes that safe. Historical detail below, all of it superseded on the numbers: ⭐⭐ **`364/364`, ZERO KNOWN REDS, ON `main` — MEASURED BY hq_C s271 (2026-08-24), pristine `-O0`, SCRIP `9df28b03`: `m3 PASS=364 FAIL=0` · `m4 PASS=364 FAIL=0` · `SKIP=0` (364 total).** Lon's number (*"We want SNOBOL4 to be 364 out of 364"*) is **MET**. Both former reds are cured: `demo_treebank` / `vlist-expr-alternation` at `0e57de3b` (s270, the `fc_geom` per-op-filter grant) and `TDump_driver` at `9df28b03` (s271, dropping `822bc8a1`'s gin/oin self-edge suppression). Board re-run pristine **after** the `94dd91ba` rebase, per s270's measure-then-rebase rule. ⛔ **EVERY EARLIER FIGURE ON THIS ROW IS STALE AND DELETED** — `363/364`, `357/359`, `339/341`, `320/321`: the denominator is **364** and the numerator is now **364**. ⛔ **BUT "no corpus red" ≠ "SNOBOL4 is finished":** the named tail is `v05` — PASSES m3, **SIGSEGVs m4**, an m3 ≢ m4 DESIGN-INVARIANT violation, row `vlist-v05-m4-sigsegv-m3-m4-divergence` (rank 2), and it is invisible to this board because the corpus is green in both modes. The old `132_pat_fence_eps_recur_shallow` and `demo_porter` SKIPs are **CURED and gone**. Receipt: `bash scripts/test_corpus_snobol4.sh`. |
 | **Icon #2** | ✅ **Oracle BUILT s266** — Arizona icont/iconx at `/home/resources/icon-master/bin/`, symlinked `/home/resources/icon-build` (scripts' default `ORACLE_BIN`), `SCRIP/refs/{icon,jcon}-master` repopulated, smoke-verified. Lon s266: *"Take us to 100% SNOBOL4 and 100% Icon"* — Icon is IN SCOPE, superseding the s258 "not now". seat08's rung-A2 register-liveness analysis is banked, HELD, not lost. |
-| **Prolog #3** | Oracles **ABSENT** — no `swipl`, no `gprolog`. Same rule: no oracle, no verdict. |
+| **Prolog #3** | ⛔⭐ **THE "ORACLES ABSENT" CLAIM ON THIS ROW WAS FALSE AND IS DELETED — MEASURED 2026-08-27 hq_C: `/usr/bin/swipl` = SWI-Prolog **9.0.4**, `/usr/bin/gprolog` = GNU Prolog **1.4.5**, both present, both genuinely on `PATH`.** The row read *"no `swipl`, no `gprolog`. Same rule: no oracle, no verdict"* — **a false premise sitting in the sovereign file blocking Prolog grading**, which is the exact class `CLAUDE.md` names for Icon (a seat ran `command -v icont`, got nothing, and wrote *"no Icon oracle exists"* into the digest). ⛔ It also **contradicted this file's own s271 cursor**, which quotes a graded board — `Prolog PASS=93 FAIL=2 SKIP=94 ORACLE_MISS=0` — so the two halves of this file disagreed and the pessimistic half is the one that was wrong. ⭐ Both oracles are reachable by absolute path and `lib_oracle_flags.sh` is the shared authority. Prolog is GRADEABLE. Open work: `prolog-pz4-gamma-retain-activation-frames` (rank 0 FREE, the keystone) with `prolog-pz5-…` BLOCKED behind it; measured floor rung13 `0/5` · rung14 `2/5` · rung15 `1/5`. |
 
-⛔ **RULING OWED BY LON, ASKED AND STILL UNANSWERED:** SNOBOL4-FIRST says *do not even run* the Icon/Prolog checks, while the s255 bootstrap ruling puts them on the road. HQ reads that as a SEQUENCE, not a contradiction — **that is HQ's reading, not Lon's word. Confirm before staffing Icon or Prolog.**
+✅⭐⭐ **THIS RULING IS NO LONGER OWED — IT WAS ANSWERED 2026-08-26 AND THIS FILE DID NOT NOTICE FOR A DAY.** The block below read *"RULING OWED BY LON, ASKED AND STILL UNANSWERED … Confirm before staffing Icon or Prolog."* **`RULES.md:29` § CROSS-LANGUAGE SCOPE settles it** (Lon, in-chat to CEO, verbatim: *"Give approval to make cross language changes to all Fleet workers, we are trying to get all languages working nicely."*): the SNOBOL4-FIRST era is **CLOSED**, the DO-NOT-RUN prohibition is **retired**, and no lane-scoped permission is needed to staff Icon or Prolog. ⛔ **Three stale premises were sitting in this one section at once** — this one, the false *"Prolog oracles ABSENT"* row above, and a SNOBOL4 total two re-grids out of date. ⭐ **Each was independently pessimistic, and that is the pattern worth naming: a sovereign file decays toward *blocked*, because a resolved blocker leaves no artifact where the block was written.** The measured cure is the one this org already has — **law lives in `RULES.md`, and a goal file must CITE it rather than restate it** (`RULES.md:170`, the same corollary that keeps rules out of the per-root digests). ⚠️ What still binds, and is not the old rule renamed: this seat's correctness PRIORITY is unchanged — **SNOBOL4 #1, Icon #2, Prolog #3** — and the SHARED-NODE VERDICT SCOPE still gates **landing**. Permission was removed; the ordering and the measurement were not.
 
 ## OPEN CORRECTNESS ROWS ALREADY ROOT-CAUSED (landing jobs, not investigations)
 
@@ -147,6 +147,55 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 5. **Escalation is unchanged:** hq_C ↔ hq_P directly, `ceo` for arbitration, Lon overrides anyone.
 
 ## LIVE CURSOR — hq_C
+
+**s274 (2026-08-27, Opus 5, FLEET-12 → DUO mid-session) — ⭐⭐⭐ C-0 / MILESTONE 1 VERIFIED GREEN IN BOTH MEDIA BY HAND. AND THE PROBE THIS FILE NAMES AS THE M1 DONE-WHEN COULD NOT SAY YES ON ANY TREE FOR THREE DAYS.**
+
+### ⭐⭐ C-0 IS GREEN — VERIFIED INDEPENDENTLY, NOT ACCEPTED ON REPORT
+
+seat05 messaged that beauty's fixed point was restored by their `table-int-keys-and-nd-subscript` landing (SCRIP `a1d8cb02`) and explicitly asked me to verify before closing anything. **I did not re-run their gate.** Own hand measurement, `make pristine` `-O0`, SCRIP `d4e6e971`, run from the beauty directory:
+
+| arm | bytes | md5 | verdict |
+|---|---|---|---|
+| m3 | **40,943** | `f20461f9114d50414fc925df1482c9b9` | ✅ byte-identical to `beauty.sno` itself |
+| m4 | **40,943** | `f20461f9114d50414fc925df1482c9b9` | ✅ identical to the byte |
+
+`cmp m3 m4` clean — **the `m3 ≡ m4` DESIGN INVARIANT holds.** Control arm, same tree: **SNOBOL4 `m3 PASS=365 FAIL=0 · m4 PASS=365 FAIL=0 · SKIP=0 · MISSING=0`, rc=0 `GATE OK`.**
+
+⛔ **THE PIN MOVED AND THAT IS LEGITIMATE — DO NOT "RESTORE" IT.** Every figure above this section reads `40,971 / 6f1671c0`. That is the **pinned classic** (`.github/probes/m1-bisect/beauty_classic_fixedpoint.sno`), which still self-hosts to exactly those numbers — I measured it. The **live** `corpus/demo/snobol4/beauty/beauty.sno` is now 40,943 / `f20461f9` because Lon hand-edited it. ⭐ Both are fixed points; the flagship criterion is *output byte-identical to its own input* (Lon s117, all md5 pins VOID), so **the file is its own oracle and a changed file legitimately changes the number.**
+
+### ⛔⛔ THE M1 DONE-WHEN COULD NOT SAY YES — REPAIRED, `.github` `7fd19a01`
+
+This file says of `.github/probes/m1-bisect/check_m1_fixedpoint.sh`: *"exit 0 at HEAD — this IS the M1 DONE-WHEN."* It hardcoded `corpus/programs/snobol4/demo/beauty`, a path that **died in the 2026-08-24 corpus re-grid**; the 16 `.inc` files moved to `corpus/include/`. So it exited **2 on every tree, cured or broken**, from 08-24 to 08-27.
+
+⭐ **THE PROBE WAS NOT DISHONEST, AND THE NARROW POINT IS THE TRANSFERABLE ONE.** It refused with **rc=2** and named the missing directory — exactly what REFUSE-NEVER-SKIP requires, and the opposite of the `make test` trap. **But honest refusal BOUNDS the damage; it does not REPAIR the gate.** A criterion that cannot say YES is trap #1 in this file's own § THE THREE TRAPS — *if nothing can make it pass, it is not a criterion* — and it sat there for three days while C-0 read red at the top of the sovereign file.
+
+⛔⛔ **THE GUARD IS WHAT MISSED IT, AND IT IS s272 VERBATIM.** The check was `[ -d "$BEAUTY" ]` — **the container**. The container survived the re-grid while the **contents re-nested**, which is precisely the shape I wrote up at s272 (*"the subtree existing while the files inside it re-nested"*) and precisely why *a guard written against the last outage checks for the last outage*. ⭐ **Both probes now discover the directory BY THE FILE IT MUST CONTAIN** (`global.inc` — prefer `corpus/include`, then `corpus/probe/fwctx`, then a `find`), and assert `-f global.inc`, **never `-d`** on a container.
+
+⭐ **MECHANISM, MEASURED NOT ASSUMED** (`src/driver/scrip.c:938-951`): the driver walks **up** from the source path and registers any `<ancestor>/include`, adding `"."` **last**. The live `beauty.sno` therefore self-hosts **from any cwd** — its ancestor `corpus/` has `include/`. The pinned classic lives under `.github/`, whose ancestors have none, so **CWD is its only resolver**. That is why the `cd` is still load-bearing for the probe, and why its cwd comment needed its **scope corrected, not deleted** — I first measured "cwd no longer matters" from the live file and that generalisation was **wrong**.
+
+**NEGATIVE-TESTED THREE WAYS** (the honesty contract, all three arms): **rc=0** both arms FIXED POINT · **rc=1** says NO on a mangled source · **rc=2** refuses when no directory holding `global.inc` exists.
+
+### ⭐ PROLOG — RULED ON seat07'S CONVERGENCE QUESTION: THE WALL IS PARKED, THE CURE IS MINTED
+
+Three independent same-day passes (2× seat07, 1× seat01) converged, without contradiction, on one root shape: **retry/resume state at a fixed offset or in a shared global, unprotected across a γ-suspend↔β-resume window** — the BB FRAME-PLACEMENT CRITERION. seat07 asked for a sequencing ruling rather than taking it unilaterally.
+
+⛔ **THE GAP WAS NOT THE PARKING — IT WAS THAT THE CURE HAD NO ROW AT ALL.** Three seats converged on PZ-4/PZ-5 while **neither rung existed in the queue**, so the only pickable row was the wall itself. Parking alone would have stalled Lon's s273 *"take this row and fix it."* Minted both, then parked:
+
+- `prolog-pz4-gamma-retain-activation-frames` — **rank 0 FREE**, the keystone; carries all three FINDINGs as required reading, names the **retired** leads (448-vs-480 `resume_off`, the RTCC-veneer `rcx` clobber) so nobody re-walks them.
+- `prolog-pz5-in-frame-resume-delete-pending-mailbox` — **rank 0 BLOCKED on PZ-4 by construction** (PZ-5 writes into the *retained* frame; it is not expressible before PZ-4). ⭐ Its DONE-WHEN asserts the **ABSENCE** of `g_pl_zf_pending_` (measured census: **29 refs across 4 files**) — a deletion row that only asserts passing tests lets the machine survive behind a green board.
+- `prolog-multiclause-uninit-lexprep-frame` → `PARKED-AWAITING:prolog-pz4-…`, parked **around** seat07's preserved claim (s266 rule: a park is a verdict on a ROW, never an eviction).
+
+**Re-measured seat07's floor myself** — pristine `-O0`: **rung13 `PASS=0 FAIL=5` · rung14 `PASS=2 FAIL=3` · rung15 `PASS=1 FAIL=4`**, name-for-name what they reported.
+
+### ⛔ RANK 0 HAS STOPPED DISCRIMINATING — THIRD FIRING, ROUTED TO ceo
+
+ceo minted eight rows "rank 1" (5 arch-consolidation + 3 rivals) believing that was the top. **Measured: 33 FREE rank-0 rows, 60 FREE rank-1** — they sit behind 33 pickable rows. ⭐ **Same correction I routed at s272** (`corpus-suites-consolidation` minted "rank 1", actually rank 3 behind ~25), and **hq_P hit it independently today** from the perf side (`PARKED-UMBRELLA:hq_P-2026-08-27-rank0-picker-livelock`). **Rank 0 has been used to mean *important* rather than *served next*, and has inflated to 53 rows.** Costs nothing in DUO; mis-serves the moment a fleet re-fires. Re-ranks applied as custodian: arch engine 1 (dependency — it carries THE METHOD the other four inherit), languages 1, runtime 2, backends 2, build 3; iso7185pat 1, roast 2, bench-rivals 2.
+
+⚠️ **A CORRECTION I OWED ceo THE SAME SESSION:** I quoted two of those deltas from memory of an earlier grep instead of re-reading the fields, and got two wrong (`languages` was already 1; `runtime` was 1, not 2). End state unchanged and applied; correction routed. **`RULES.md:105` — transcription is where provenance dies — and a rank is exactly the small field that moves under you.**
+
+---
+
+## LIVE CURSOR — hq_C (s272, superseded by s274 above)
 
 **s272 (2026-08-24, Opus 5, FLEET-8) — ⭐⭐⭐ THE BOARD THAT CERTIFIES SNOBOL4 COULD NOT SAY NO. IT CAN NOW: rc=0 GREEN · rc=1 REAL FAILURE · rc=2 REFUSED. AND THE QUEUE IS SHAPED FOR 8 SEATS.**
 
