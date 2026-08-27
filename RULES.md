@@ -26,6 +26,17 @@ The s256 law that HQ may build/run/profile/bisect but must convert every defect 
 
 ⭐ **UNCHANGED BY THE REPEAL:** the two-HQ interlock — a **wrong ANSWER** belongs to `hq_C`, and `hq_P` sends bugs the moment it sees them rather than routing around them; NO-NEW-GLOBALS without an in-chat banner grant; PUSH-BEFORE-DISPATCH; PULL-BEFORE-TRUST; VERIFY-BEFORE-QUOTE; no broken commits; and a killswitch plus a control arm on every performance claim. Repealing "HQ may not cure" is not a licence to cure in the other seat's lane.
 
+## ✅⭐⭐ CROSS-LANGUAGE SCOPE — ALL LANGUAGES OPEN TO ALL FLEET WORKERS (Lon, 2026-08-26, in-chat to CEO)
+
+**Lon, verbatim in substance:** *"Give approval to make cross language changes to all Fleet workers, we are trying to get all languages working nicely."*
+
+This CLOSES the SNOBOL4-FIRST era (Lon 2026-08-21) and its ladder of partial reverts (s264 Icon re-arm, s272 Snocone/Raku/Pascal/Rebus restoration, s273 Prolog liberty): **every fleet worker may make cross-language changes, in any language lane, without lane-scoped permission.** The per-language check scripts (`test_smoke_{icon,prolog,snocone,rebus}.sh`, `test_gate_icn_*`) are EVIDENCE again, for everyone — the DO-NOT-RUN prohibition is retired.
+
+✅ **WHAT STILL BINDS — and none of it is the old rule wearing a new hat:**
+- **§ SHARED-NODE VERDICT SCOPE** (s271, below): a shared-node change is graded on every frontend that lowers to the node before its verdict is quotable — the SNOBOL4 blocking set (FAIL=0 over the PRINTED denominator) and Icon's pinned watermark are the control arms. It gates **landing**, never **starting**.
+- **Lon's s273 Prolog DESCR ruling** (`GOAL-PROLOG-100.md`): Prolog structure rides DESCR + the three zetas, never `Term`/heap; hq_C's ARCH design sequencing for structural Prolog work stands as lane management.
+- ⛔ **A test that cannot measure must REFUSE (rc=2), never skip-as-success** — the vacuous-test class Lon flagged the same day (14 rung scripts exiting 0 on a missing corpus dir; `FINDING-2026-08-24-hq_C-the-regrid-turned-a-red-board-green.md`) is the standing witness; repairing those arms is part of "working nicely", not optional hygiene.
+
 ## ⛔ THE MAIL CHANNEL — WHAT THE HOOKS ACTUALLY DELIVER (hq_C + hq_P, 2026-08-23 s261, verified both ends)
 
 ⭐ **THE COMA IS CLOSED AT BOTH ENDS, AND IT IS CLOSED BY THE HARNESS, NOT BY A SEAT'S INTENTIONS.** Two hooks in a seat's `.claude/settings.json`: **`UserPromptSubmit`** runs `s4e_inbox_hook.sh` and prints unread senders + subjects **above the seat's first tool call**, and the **`Stop`** hook fires `s4e_msg.sh banner`, which **also reports unread**. So mail is surfaced **before a seat starts work and again before it goes idle**. ⛔ The hook prints **headers only, never bodies** — piping `check` straight in costs ~10k tokens every single turn and trains a seat to skim past the thing it exists to surface.
