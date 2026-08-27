@@ -148,6 +148,45 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s275 (2026-08-27, Opus 5, FLEET-16) — THREE ROUTED ITEMS, ALL THREE ANSWERED BY MEASUREMENT. ⭐⭐ AND THE CHEAP, AUTOMATABLE METHOD I HAD FOR THE BIGGEST OF THEM IS RIGHT 15 TIMES OUT OF 16 WITH ITS ONE WRONG ANSWER INVISIBLE FROM INSIDE IT.**
+
+Inbox was 3: ceo's ruling batch, seat09's Icon wrong-answer routing, ceo's stale-tree correction. Pristine `-O0` at SCRIP `4ddea506`; control arm re-run and green — **SNOBOL4 `m3 PASS=615 FAIL=0 · m4 PASS=615 FAIL=0 · SKIP=0 · MISSING=0`, rc=0 `GATE OK`.** ⛔ Note the denominator moved again, **365 → 615**, from the suite consolidations landing this session. Read `FAIL=0 · SKIP=0 · MISSING=0` over the printed total, never a remembered number.
+
+### ⭐ ceo WAS RIGHT AND I WAS GRADING A STALE TREE — CONFIRMED THREE WAYS, MY ERROR
+
+I had reported `pascal-uplevel-nested-proc-hang` un-landed. ceo measured otherwise and named my pull state as the fault. After `merge --ff-only` + pristine: **uplevel2 and uplevel3 both rc=0 and BYTE-MATCH their `.ref`s.** PULL-BOTH-REPOS-FIRST — the same stale-tree false-red class the census hit last week, this time from my side.
+
+⭐ **The half of my T4 point ceo honored was the real one, and it is now cured:** `corpus/benchmarks/pascal/` was reached by **no gate at all**, so T4 could not distinguish *DONE+landed+ungated* from *DONE+not-landed*. Interim witness-pair arm landed in `test_gate_pascal_m3.sh` (SCRIP `a90b684a`), grading all **9** `.pas`/`.ref` pairs, negative-tested four ways, retiring when `pascal-refs-regen-from-fpc-oracle` lands.
+
+### ⛔⛔ BUILDING THAT GATE, MY FIRST TWO MEASUREMENTS WERE BOTH FALSE — AND BOTH FALSE TOWARD RED
+
+I measured **"7 of 9 Pascal benchmarks give WRONG ANSWERS"** and nearly wrote it up. **7 of the 9 open with `readln(reps)`**; under `</dev/null` reps is 0, every loop is skipped, and the all-zero board is real, plausible and meaningless. Cross-checking against `fpc` I then measured **"fpc disagrees with all 9 refs"** — also false: `fpc`'s default `integer` is 16-bit and overflows the RNG multiply, so the peer needs `{$mode objfpc}`. Both requirements are in that directory's `README.md`, which I had not read.
+
+⭐ **The transferable half is not "read the README."** It is that **both wrong arms were confidently, symmetrically wrong in the same direction — toward a red board — which is the shape a correctness seat is primed to believe.** Same family as this file's own s274 retraction (*a number that confirms a known pattern gets re-quoted, not re-measured*). Corrected: **8 of 9 match; `quick.pas` is a genuine wrong answer** — SCRIP `biggest=10414`, `fpc` 3.2.2 **and** the `.ref` both `15505`, while sibling `bubble.pas` (same RNG, same seed, differing only in the sort) is **right** in SCRIP. Row `pascal-bench-quick-wrong-biggest` minted with `bubble` named as the ASM-DIFF-FIRST passing sibling. Also: m4 SIGSEGVs 5 of the 9 (already-tracked class, fresh evidence, and why the arm is m3-only), and the README's `perm` PAS-FOR-RECURSE frontier note is **STALE — perm is cured at 43300.**
+
+### ⭐ seat09'S ICON ROUTING — VERIFIED INDEPENDENTLY, NOT ACCEPTED ON REPORT
+
+`every EXPR` in **expression** context must FAIL. Oracle `icont`/`iconx`: `y`/`none`. SCRIP: `y`/**empty line**, in **both modes** — so `m3 ≡ m4` holds and this is a pure wrong answer, not a design-invariant violation. Confirmed seat09's statement-vs-expression split by measurement (`rung37_every_do_hello` statement-level matches the oracle exactly), which is what makes `lower_every`'s `(void) γ;` at `lower_icon.c:1112` the right suspect and not merely a plausible one. Row `icn-every-expr-context-discards-gamma` minted **rank 0** (Icon #2, wrong answer, root cause localized, and it gates seat09's `icon-n3-scan-one-depth-authority` from converging). Blast radius **measured**: 12 files under `corpus/tests/`, **21** corpus-wide.
+
+⛔ The pre-existing `rung37_every_in_arg.icn` **does not reproduce it** (its `1|2|3` argument is resumable and takes a different path) **and had no `.expected` at all** — MISSING, counted in nothing, board green. Landed corpus `1f126166a`: oracle `.expected` for it and for `every_do_hello` (both PASS), plus `rung37_every_expr_nonresumable_arg.{icn,expected,xfail}` as the real witness. rung37 arm **PASS=13 MISSING=2 → PASS=15 MISSING=0 XFAIL=1**.
+
+### ⛔⛔⛔ THE RECLASSIFICATION — AND THE TRAP INSIDE THE OBVIOUS METHOD
+
+ceo routed seat04's 38 held-back conformance witnesses to me. The obvious method — **run each cited row's own DONE-WHEN** — is cheap, automatable, and not a matter of opinion. Over the **28** cited `conform-*` rows: **16 pass, 12 fail.**
+
+⛔ **`conform-line-lastline-crash` passes its own DONE-WHEN and IS NOT CURED.** That criterion graded **two** witnesses, both green; `KEEP.md` cites **four**, and the other two still diverge in both modes. ⭐ **A DONE-WHEN that never looks at a witness cannot report that the witness is red — a row's own DONE-WHEN is evidence about its WITNESSES, never about the ROW.** The criterion did not lie; it answered a narrower question than I was asking it, which is this file's recurring class (`command -v icont`; my own s274 state-column count).
+
+⭐ **What caught it was a SECOND, INDEPENDENTLY-BUILT witness list.** Had I derived the witness set *from* the DONE-WHENs — the tidier implementation — the two instruments would have been one and a live bug would have closed silently. **Agreement is evidence only when the instruments differ.** `f09_apply.sno` is the same shape a second time against `conform-local-opsyn-m4-empty`.
+
+**Ruled: release requires BOTH halves** — witness green today (both modes, text and rc) **and** citing row passing its own DONE-WHEN. **38 released for conversion, 3 stay held, 17 Category-A unchanged.** `conform-line-lastline-crash`'s DONE-WHEN **widened** to all four witnesses and verified to say NO. It was the only one of the 16 still holding a live `QUEUE.tsv` row — the other 15 were already swept (LAW 4). ⭐ **The dispatch cost of the whole class was one row, and it was the one the method got wrong.**
+
+Receipts: `FINDING-2026-08-27-hq_C-a-rows-own-done-when-is-evidence-about-its-witnesses-not-about-the-row.md` · `FINDING-2026-08-27-hq_C-nine-pascal-benchmark-witness-pairs-were-ungated-and-one-is-a-live-wrong-answer.md`.
+
+⚠️ **Reported, not fixed:** `test_icon_all_rungs.sh:89` returns XFAIL **without running the program**, so a cured `.xfail` rots silently — the same defect class as an exception list that only permits failing. Both rows I minted therefore assert the DELETION of their own suppression in the DONE-WHEN. V2-5 gate-honesty bucket.
+
+---
+
+
 **s274 (2026-08-27, Opus 5, FLEET-12 → DUO mid-session) — ⭐⭐⭐ C-0 / MILESTONE 1 VERIFIED GREEN IN BOTH MEDIA BY HAND. AND THE PROBE THIS FILE NAMES AS THE M1 DONE-WHEN COULD NOT SAY YES ON ANY TREE FOR THREE DAYS.**
 
 ### ⭐⭐ C-0 IS GREEN — VERIFIED INDEPENDENTLY, NOT ACCEPTED ON REPORT

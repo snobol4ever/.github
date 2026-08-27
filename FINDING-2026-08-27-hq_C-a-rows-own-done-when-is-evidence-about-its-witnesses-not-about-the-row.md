@@ -1,6 +1,6 @@
 # FINDING — a row's own DONE-WHEN is evidence about its WITNESSES, never about the ROW
 
-**Seat:** `hq_C` (HQ-CORRECTNESS) · **Date:** 2026-08-27 · **Tree:** SCRIP `4ddea506`, corpus `1deaee476`, `make pristine` `-O0`
+**Seat:** `hq_C` (HQ-CORRECTNESS) · **Date:** 2026-08-27 · **Tree:** SCRIP `4ddea506`, corpus `1f126166a` (post-rebase), `make pristine` `-O0`
 **Occasion:** ceo routed seat04's held-back reclassification — *"the 38 agree-today-but-cited witnesses are YOUR reclassification call"*.
 
 ## THE MEASUREMENT
@@ -37,5 +37,5 @@ Its DONE-WHEN graded exactly two witnesses — `k14_stno_line.sno`, `k31_line_la
 ## LANDED
 
 - `conform-line-lastline-crash`'s DONE-WHEN **widened** to grade all four cited witnesses; REFUSES rc=2 on a missing witness file; verified to say NO today, naming both diverging witnesses. The row stays OPEN and stays in the picker.
-- `probe/conformance/KEEP.md` carries the full ruling, the 38/3 split, and the re-run commands, so it is falsifiable rather than asserted (corpus `ae9763e34`).
+- `probe/conformance/KEEP.md` carries the full ruling, the 38/3 split, and the re-run commands, so it is falsifiable rather than asserted (corpus `1f126166a`).
 - The 15 genuinely-cured rows had already been swept out of `QUEUE.tsv` (LAW 4 — the queue is a dispatch buffer, not a memory), so only `conform-line-lastline-crash` still held a live row. **The dispatch cost of this whole class was one row — and it was the one the method got wrong.**

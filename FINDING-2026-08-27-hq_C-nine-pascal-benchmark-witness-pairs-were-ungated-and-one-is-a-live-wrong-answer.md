@@ -1,6 +1,6 @@
 # FINDING — 9 Pascal benchmark witness pairs were reached by NO gate; one is a live wrong answer
 
-**Seat:** `hq_C` · **Date:** 2026-08-27 · **Tree:** SCRIP `4ddea506` → `30270184`, `make pristine` `-O0` · **Oracle:** `fpc` 3.2.2 (ceo-ruled the same day)
+**Seat:** `hq_C` · **Date:** 2026-08-27 · **Tree:** SCRIP `4ddea506` → `a90b684a` (post-rebase), `make pristine` `-O0` · **Oracle:** `fpc` 3.2.2 (ceo-ruled the same day)
 
 ## OCCASION
 
@@ -33,4 +33,4 @@ ceo corrected a stale-tree report of mine on `pascal-uplevel-nested-proc-hang` (
 
 **Negative-tested four arms** (honesty contract): green contributes `FAIL=0`; a mangled ref → `FAIL=1`; a listed-but-passing witness → `XFAIL_STALE=1`; all corpora empty → **REFUSES rc=2** with a named reason. Discovery is **by a file the directory must contain** (`uplevel2.pas`), never `-d` on the container — the s274 lesson, where a container survived the re-grid while its contents re-nested.
 
-**Landed:** SCRIP `30270184`. Interim by construction — retires when `pascal-refs-regen-from-fpc-oracle` (rank 0) puts the directory on the graded board.
+**Landed:** SCRIP `a90b684a`. Interim by construction — retires when `pascal-refs-regen-from-fpc-oracle` (rank 0) puts the directory on the graded board.
