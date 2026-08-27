@@ -42,23 +42,29 @@ And we built [SCRIP](https://github.com/snobol4ever/SCRIP): one compiler engine 
 
 ---
 
-## The Map — A Two-Dimensional Platform
+## The Map — Seven Languages, Five Platforms
 
-The org is a **compiler matrix**. Two dimensions.
+*"SCRIP is seven languages on five platforms, such that they can call each other and even co-exist in the same translation unit."* — the product, in one sentence.
 
-SNOBOL4 and SPITBOL are one frontend — SPITBOL extensions enabled by switch. CSNOBOL4 and SPITBOL are our *oracles* — reference implementations we test against, not our products.
+**Columns = frontends.** SNOBOL4/SPITBOL is one frontend — SCRIP follows SPITBOL semantics. Snocone is Andrew Koenig's structured frontend — C-like syntax over SNOBOL4 semantics. Rebus began as a structured transpiler to SNOBOL4 and is a directly compiled frontend in SCRIP. Icon and Prolog are native frontends — their goal-directed evaluation and backtracking compile to the same four-port boxes. Raku and Pascal are in progress.
 
-|                           | **SNOBOL4 / SPITBOL** | **Snocone** | **Rebus** | **Icon** | **Prolog** |
-|---------------------------|:---------------------:|:-----------:|:---------:|:-------------:|:---------------:|
-| **C / x86-64 native**     | SCRIP ✅           | SCRIP ✅ | SCRIP ✅ | post-compiler.sno | post-compiler.sno |
-| **JVM bytecode**          | SCRIP ✅ / snobol4jvm ✅ | planned | — | post-compiler.sno | post-compiler.sno |
-| **.NET MSIL**             | SCRIP ⏳ / snobol4dotnet ✅ | planned | — | post-compiler.sno | post-compiler.sno |
+**Rows = platforms.** Wherever programs run, these languages should run there too.
 
-**Rows = backends.** Wherever programs run, SNOBOL4 should run there too.
+Status as of 2026-08-28:
 
-**Columns = frontends.** SNOBOL4/SPITBOL is the core. Snocone is Andrew Koenig's structured frontend — C-like syntax over SNOBOL4 semantics. Rebus is a structured transpiler to SNOBOL4. Icon and Prolog extend the Byrd Box IR to Icon generators and Prolog unification — both map naturally to the same four-port model.
+|                       | **SNOBOL4/SPITBOL** | **Snocone** | **Rebus** | **Icon** | **Prolog** | **Raku** | **Pascal** |
+|-----------------------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **x86-64 native** (SCRIP) | ✅ 365/365 both modes | ✅ 4/5 smoke | ✅ 4/4 | ✅ output-matches icont/iconx | ✅ 22/22 four-way consensus | 705/719 | in progress |
+| **JVM bytecode**      | snobol4jvm ✅ (shipped) · SCRIP: returning | returning | — | returning | returning | — | — |
+| **.NET MSIL**         | snobol4dotnet ✅ (shipped) · SCRIP: returning | returning | — | returning | returning | — | — |
+| **JavaScript**        | returning | — | — | — | — | — | — |
+| **WebAssembly**       | returning | — | — | — | — | — | — |
 
-**"post-compiler.sno"** means after the two-stage bootstrap: first `beauty.sno` self-beautification on all backends (M-BEAUTIFY-BOOTSTRAP), then `compiler.sno` — the full compiler written in SNOBOL4 — achieving self-hosting (M-COMPILER-BOOTSTRAP). These are the gates, not arbitrary timelines.
+**"Returning"** means: earlier full-scale backends existed and ran; the consolidation into one IR retired them, and they come back as template encoders modeled on the working x86-64 set — the old emitters preserved as architecture reference.
+
+**The oracles** — reference implementations we test against, not our products: CSNOBOL4 (Phil Budne) and SPITBOL x64 for SNOBOL4; Arizona `icont`/`iconx` for Icon; GNU Prolog and SWI-Prolog for Prolog; Rakudo for Raku; Free Pascal for Pascal.
+
+**Self-hosting is not a plan, it is a fact:** `beauty.sno`, the SNOBOL4 beautifier written in SNOBOL4, reproduces itself byte-identically through SCRIP in both execution modes. The next milestone is `compiler.sno` — the full compiler written in SNOBOL4.
 
 ---
 
