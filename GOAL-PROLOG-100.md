@@ -75,6 +75,20 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ✅⭐⭐ LIVE CURSOR — 2026-08-27 seat05 (FLEET-8) — PZ-4 row: omega-wire caller/callee mismatch found+fixed, row still open (new SIGILL witness)
+
+**SCRIP `0c800c86`** (on `d4e6e971`+hq_C's `0e8cf4a4`) · corpus `49b4779f0`. Row `prolog-pz4-gamma-retain-activation-frames`, task file at `/home/resources/postoffice/tasks/`, full receipts `.github/FINDING-2026-08-27-seat05-pz4-omega-wire-never-loaded-bcps-spine-gen-arm.md`.
+
+**Found (gdb-confirmed, not just read):** `bcps_spine_gen_arm`'s wire-cross to every zframe-graph (generator) callee never loaded the omega continuation into `rdx` — `xa_flat_zframe_prologue_str` captures {γ,ω} unconditionally from rcx/rdx, but the default `SCRIP_ICN_WIRE_STACK=1` path (`bb_glue_pass_wires_blob`) only pushes them onto the stack, leaving rdx as whatever the last intervening call happened to clobber it with. γ survived by an accidental coincidence in which register the push sequence's `lea` scratch lands in; ω did not. This predates and is independent of the `SCRIP_PL_GAMMA_RETAIN` question this row was minted around — both retain=0 and retain=1 hit the same garbage-omega crash in hq_C's own matrix.
+
+**Fixed:** `bcps_wire_cross_gen` (bb_call_proc_staged.cpp) — adds the one missing `lea rdx,<omega>` before the jmp, scoped to the two generator-call sites only.
+
+**Measured name-for-name:** SNOBOL4 365/365 unchanged · Icon `246/16/1/30 · 246/16/1/30 · 244/18/1/30` identical to pre-change baseline · rung15 `1/5→2/5` · rung13 `0/5`/rung14 `2/5`/smoke m4 `4/5` unchanged (different mechanisms).
+
+**Row NOT closed.** Same repro now fails one layer deeper: fact's own omega resolves correctly now, but crashes shortly after (SIGILL, a stack address used as a jump target, inside/after the `rt_proc_call_epilogue_ω` call chain) — new mechanism, not yet root-caused. See the task file's `## NEXT` for the exact next step. This is this row's THIRD real, verified, non-regressing "worked, not done" pass in one day (hq_C's stack-depth fix, then this) — the wall keeps moving, has not yet fallen.
+
+---
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-21 HANDOFF (seat2 `/home/claude2`, Claude Fable 5 → Opus 5; Lon in-chat: prune → REPLAN to the SN4 machine → deep scan + work list) — **THE CHARTER, THE CENSUS, THE SEED AND THE WORK LIST ARE ALL CUT. NO COMPILER CODE WAS CONVERTED YET — PZ-1(b) IS THE FIRST CODE RUNG.**
 **HANDOFF SUMMARY.** This session replaced the whole pre-conversion ladder with the SN4 THREE-ZETAS conversion (Lon in-chat: *"a new world of code … EXACTLY like SNOBOL4"*), then did the discovery to back it: a 1,603-commit history scan of the SN4 campaign (16 campaigns, its dependency order, Lon's ruling SHAs), a full per-template scrutiny of every Prolog-reachable file, a live-measured admission census, an oracle-green hand-written seed, and the per-file work list. **⛔ ZERO codegen files were touched** (`src/emitter`, `src/templates`, `src/lower`, `src/runtime` all untouched) — so RULES step-4 `.s` artifact regen does NOT apply to this handoff, by construction rather than by omission. Deliverables: `WORKLIST-PROLOG-ZETA.md` (32-row inventory + steps + deletion ledger) · `FINDING-2026-08-21-seat2-prolog-zeta-gap-census.md` (the arc + ten gaps + twelve laws) · `FINDING-2026-08-21-seat2-PZ-0-...-86-percent.md` (the census) · `corpus/probe/plz/test_pl_zeta_1.s` (`2ef8bb3e`, oracle-green) · `SCRIP/scripts/util_pl_zd_arm_census.sh` (`cc2675cd`) · `corpus/probe/plz/` 9 witnesses + gprolog `.ref` oracles.
 **⛔ FOR THE NEXT SEAT — READ IN THIS ORDER:** this cursor → `WORKLIST-PROLOG-ZETA.md` §0 (the four undocumented facts) → §1 (inventory) → §2 (steps). Re-grep every anchor: the 2026-08-20 style-200col pass moved lines tree-wide and three anchors in older Prolog docs were already stale when the work list was cut.
