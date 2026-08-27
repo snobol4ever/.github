@@ -649,7 +649,7 @@ Bison grammar, 635 lines. **Hybrid state:** declaration-level structure
 (records, function decls, case clause list) still uses `RDecl` /
 `RProgram` / `RCase` C-struct types — these are **off-tree**, not
 `tree_t`. Expressions and statements are `tree_t` (PST-RB-5b).
-Per `GOAL-PST-REBUS.md`, the off-tree decl machinery is still owned by
+Per `GOAL-REBUS-100.md` (retired name `GOAL-PST-REBUS.md`), the off-tree decl machinery is still owned by
 the larger PST-RB family; the goal for this audit is the **tree-building
 productions only** under the three §⛔ rules. Off-tree decl/case
 plumbing is recorded but not graded against the §⛔ rules — those rules
@@ -677,7 +677,7 @@ is a tree node; growing them in-place is not a tree mutation.
 | 619–628 | `arglist`/`arglist_ne` | builds `TAL` of `tree_t*` | local accumulator; not a tree node |
 
 **This is the PST-RB ladder's remaining off-tree work** — owned by
-`GOAL-PST-REBUS.md` rungs PST-RB-5* (decl/case plumbing rewrite). Not
+`GOAL-REBUS-100.md` (retired name `GOAL-PST-REBUS.md`) rungs PST-RB-5* (decl/case plumbing rewrite). Not
 audited here against §⛔ because they don't produce `tree_t` nodes.
 
 ### 5.2 stmt_list productions (in-place tree mutation candidates)
@@ -687,7 +687,7 @@ audited here against §⛔ because they don't produce `tree_t` nodes.
 | 205–211 | `stmt_list : ε \| stmt_list_ne` | `TT_PROGRAM` (empty) or passthrough | `[]` empty, or passthrough | ⚠ | The empty case builds fresh empty `TT_PROGRAM`; the non-empty case passes through `stmt_list_ne` which itself does in-place mutation (see below). The fresh-TT_PROGRAM-on-empty case is ✅. |
 | 213–218 | `stmt_list_ne : stmt ';'` | `TT_PROGRAM` | `[$1]` | ✅ | initial 1-child TT_PROGRAM, fresh wrap |
 | 219 | `stmt_list_ne : compound_stmt` | passthrough of the TT_PROGRAM that compound_stmt built | — | ✅ | |
-| 220–223 | `stmt_list_ne : stmt_list_ne stmt ';'` | mutates `$1` (a TT_PROGRAM) by `expr_add_child($1, $2)` | flat n-ary; **appends into prior** | ❌ | **Rule 2 violation — `expr_add_child($1, $3); $$ = $1;` mutates the previously-built TT_PROGRAM by adding a child.** Same exact pattern as Snocone's `exprlist_ne` (V7 in scan 1) and SNOBOL4's `goto_expr T_CONCAT goto_atom` (W2 in scan 3). This is the canonical §⛔ rule 2 example. Owned: **RB-C-1** (already named in `GOAL-PST-REBUS.md`). |
+| 220–223 | `stmt_list_ne : stmt_list_ne stmt ';'` | mutates `$1` (a TT_PROGRAM) by `expr_add_child($1, $2)` | flat n-ary; **appends into prior** | ❌ | **Rule 2 violation — `expr_add_child($1, $3); $$ = $1;` mutates the previously-built TT_PROGRAM by adding a child.** Same exact pattern as Snocone's `exprlist_ne` (V7 in scan 1) and SNOBOL4's `goto_expr T_CONCAT goto_atom` (W2 in scan 3). This is the canonical §⛔ rule 2 example. Owned: **RB-C-1** (already named in `GOAL-REBUS-100.md`, retired name `GOAL-PST-REBUS.md`). |
 | 224–227 | `stmt_list_ne : stmt_list_ne compound_stmt` | mutates `$1` (a TT_PROGRAM) by appending each child of `$2` (also a TT_PROGRAM) into it | flat n-ary; **dismantles $2 (child-stealing) + appends into $1 (in-place)** | ❌ | **Double violation of rule 2:** (a) mutates `$1` by appending; (b) the loop `for (int i = 0; i < $2->n; i++) expr_add_child($1, $2->c[i])` steals every child of `$2` (the compound's TT_PROGRAM) and re-parents them under `$1`. `$2` is left as a hollow TT_PROGRAM with `n` unchanged but all its `c[]` pointers now also live under `$1`. Same "child stealing" pattern as Raku's `sub_decl` (R15). Owned: **RB-C-1**. |
 | 228 | `stmt_list_ne : stmt_list_ne error ';'` | passthrough of `$1` after `yyerrok` | — | ✅ | error recovery, no tree work |
 
@@ -976,7 +976,7 @@ Already-named sub-rungs (PRF-12-gather, sub, class, program, for-range) cover R1
 - **PRF-12-capture** — `$N` and `$<name>` should produce `TT_CAPTURE(TT_ILIT(N))` and `TT_NAMED_CAPTURE(TT_QLIT(name))` kinds (R25).
 - **PRF-12-twigil** — `$.foo`/`$!foo` should produce `TT_TWIGIL_FIELD(sval=name)` kind with no synthesized `self` child; lower attaches the `self` reference (R26).
 
-**Rebus** (in `GOAL-PST-REBUS.md`):
+**Rebus** (in `GOAL-REBUS-100.md`, retired name `GOAL-PST-REBUS.md`):
 
 - **RB-C-1** (already named) — `stmt_list_ne` always-wrap. Fix both `stmt_list_ne stmt ';'` (Rb1) and `stmt_list_ne compound_stmt` (Rb2) to build fresh TT_PROGRAM each reduce instead of mutating `$1`. (Right-leaning TT_PROGRAM chain is correct.)
 - **RB-C-2** (new) — `unless_stmt` should produce its own `TT_UNLESS` kind, not desugar to `TT_IF(TT_NOT(...))`. Lower can pick the runtime shape.
