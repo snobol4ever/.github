@@ -712,3 +712,67 @@ run via an ad hoc scratch script (`/tmp/claude-1000/.../scratchpad/run_ladder.sh
 not committed) plus direct manual reruns (`env -i LD_LIBRARY_PATH=<out-dir> <binary>`) for the isolation step.
 Inbox checked at session start (0 msgs) and after the repo pulls (1 msg, hq_P's, read and cleared, no reply
 needed — see above). `git status` clean in SCRIP/corpus at time of writing; this addendum is the only change.
+
+## ADDENDUM 7 [seat03, 2026-08-27, fresh session] — Lon's new BB FRAME-PLACEMENT CRITERION describes Defect C's own trigger and may supersede hq_C's "depth-compensate" ruling on the cure row with an RBP-activation-frame answer instead; flagged to hq_P/hq_C, not landed as of this addendum
+
+### The law, verbatim, and why it lands on this row specifically
+
+Lon, in-chat to CEO, 2026-08-27 (landed `.github d3fd64e1`, now `RULES.md:72`): *"the determining factor for
+whether to place a BB RESULT and/or BB LOCALS [in an activation frame] is the UNBOUNDED — i.e. unknown at
+compile-time — stack growth between the time a BB box leaves at GAMMA and is resumed at BETA. Or any time
+UNBOUNDED growth prevents an OPERAND from being loaded by its OPERATOR with a fixed offset."* Operationalized in
+RULES.md: RESULT/LOCALS stay on the ζ-SPINE (RSP) **iff every consumer reaches them at a fixed, compile-time-known
+offset on every path**; the moment unbounded growth can intervene, they move to a ζ-ACTIVATION-FRAME (RBP).
+
+That is a formal, general restatement of exactly Defect C's own precondition, already established in this file's
+own Addenda 3-6: a flat-regime box (RSP-addressed via `x86_zop`'s regime-3/4 raw fallback) reached from inside a
+disjunction arm holding an outstanding, unbounded carve — i.e. an OPERAND (the flat box's RESULT/LOCALS) that
+cannot be loaded by its OPERATOR at a fixed offset, because the intervening growth is unbounded. The cure row
+(`defect-c-zop-flat-regime-depth-compensate`, hq_P, ASSIGNED, still not landed — LEDGER unchanged since s272)
+records a *different* ruled approach from hq_C: **depth-compensate every flat reference** (correct the RSP-relative
+offset arithmetic dynamically), explicitly **not** force-release, but also not framed as "move to RBP." Lon's law,
+read plainly, points at the RBP-activation-frame answer instead ("they move up the ladder to a ζ-ACTIVATION-FRAME
+(RBP)") — a third option distinct from both of the cure row's previously-considered approaches (force-release,
+disproven; depth-compensate, ruled). Per THE LOOP (CLAUDE.md § 6), Lon's word overrides a standing HQ ruling, and
+the override must be routed back explicitly rather than assumed to have already propagated.
+
+### A live worked example landed in the same session, in the same function
+
+`SCRIP e637707d` (hq_P, same day, "N-2 item 1" — re-homing Icon **generator** ζ from the RSP spine to an RBP
+activation frame) is a concrete, already-built instance of exactly this RBP re-home pattern, applied to a sibling
+ζ family (`x86_zop`/`x86_zref`, the identical function Defect C lives in) via a new gate, `icn_gen_zeta_ft()`.
+Verified by direct read this session that it does **not** touch Defect C's own raw-offset formula (the regime-3/4
+`else` arm's `eff` computation is byte-identical to every prior session's quoted signature) and does **not** fire
+for any SNOBOL4 graph (`icn_genframe2()` is `SCRIP_ICN_GENFRAME2=1`-gated via `getenv`, default OFF) — confirmed
+both by code read and empirically (full ladder + corpus gate unaffected, see task-file LEDGER for this session).
+This is not offered as proof the pattern transfers to Defect C's regime-3/4 case — the triggering condition differs
+(disjunction/outstanding-carve vs. armed Icon generator) — only as an existing scaffold worth knowing about before
+hq_P designs the cure from scratch.
+
+### Action taken — coordination only, not a fix attempt (HQ-only, CEO-19)
+
+Sent `send hq_P defect-c-frame-placement-law-may-change-ruled-approach` (full detail: law text, the e637707d
+connection, request to confirm the ruled approach before building further) and a shorter awareness copy to hq_C
+(`send hq_C defect-c-frame-placement-law-may-change-ruled-approach`, since hq_C made the ruling that may now be
+superseded and owns this witness row). Re-checked the cure row directly before sending: still `ASSIGNED:hq_P`,
+LEDGER unchanged since the s272 mint — the ruling has not yet been revisited in light of the new law as of this
+addendum. Did not attempt to redesign or re-derive the cure myself.
+
+### What this addendum does NOT establish
+
+Whether RBP-activation-framing is actually the right cure for Defect C's specific regime-3/4 case, whether it is
+cheaper or more invasive than depth-compensation, or how it interacts with the row's own second bug layer
+(`flat_frame_bytes` sizing ignoring the floor). All of that is HQ design work, not established here — this
+addendum only establishes that the *design question itself* may have reopened, and that the right people now know.
+
+### RECEIPTS (this addendum)
+
+SCRIP pulled `f7af8606`→`e637707d` (1 commit, read in full via `git show`, confirmed unrelated to Defect C by both
+code read and empirical ladder/corpus re-run). corpus pulled `9068fdd4`→`8e85e50d` (1 commit, benchmark TSVs,
+unrelated). `.github`: first `git pull --rebase` falsely reported "Already up to date" (stale — raced an origin
+push in progress); caught via `git cat-file -t d3fd64e1` failing locally despite a message citing it; `git fetch`
+confirmed 6 commits behind, re-pulled to `5fe6cb43`. Full ladder (c01,c02,v01-v06) re-run both modes × both
+environment sizes on the `e637707d` tree, pristine rebuild, `RT_OPT=-O0` confirmed: byte-for-byte identical to
+every prior session's matrix, zero drift. Corpus gate `PASS=365 FAIL=0` both modes, `MISSING=0`. `git status` clean
+in all three repos — zero source edits this session (measurement, two coordination messages, this addendum, and
+the task-file LEDGER entry only).
