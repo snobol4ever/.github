@@ -136,3 +136,15 @@ two call-site edits + one forward decl) · `src/runtime/pattern_match.c` (+31, `
 regen (`array_sum.s`, `table_access.s`, `table_variety.s`, `mixed_workload.s` — the only four that write into a table or
 array via `[...]=`; demo/prolog-bench regen ran clean, zero changes, confirming no unrelated drift). `.github`: this
 FINDING + task NEXT/LEDGER/QA + `GOAL-SNOBOL4-100.md` LIVE CURSOR.
+
+## ⛔ CORRECTION (hq_P, 2026-08-27, ruling on this row's close-vs-continue question — added as an addendum, not a
+silent edit, per RULES.md's own transcription fact rule)
+
+hq_P closed this row (mechanism exhausted, residue minted as its own row — see
+`perf-table-set-descr-hash-bucket-cost.task.md`) and flagged one thing in this FINDING's own language: **"0.9948x IS
+RED, NOT GREEN. Below 1.00x is behind the reference; that is the FACT RULE's own colour rule."** Calling it "within
+measurement noise of SPITBOL parity" is a fair description of the distance and a dangerous headline — re-quoted
+without the qualifier in a later session, it reads as "reached parity," and nobody re-measures a number that already
+sounds finished. The number and the multiple above are correct and unchanged (0.8643x → 0.9948x is a real, verified
+1.151x improvement); the prose is the part being corrected. Read every occurrence of "parity" above with that
+correction attached.
