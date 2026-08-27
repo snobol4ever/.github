@@ -221,7 +221,7 @@ Assuming the **address-in-frame** resume form (rule-safe) and **caller-owned act
 
 ## 6. Risk
 
-High — it is the proc-call boundary in a stackless ABI, the part the goal file calls "the trickiest,"
+High — it is the proc-call boundary in a no-software-value-stack ABI, the part the goal file calls "the trickiest,"
 and it sits directly on the most-guarded FACT RULE. The §4(a) ruling determines whether this is a
 small `entry=1` change or a from-scratch address-dispatch resume mechanism. **No code until that
 ruling** — implementing the wrong form is a rejection-worthy FACT-RULE violation, not a mergeable bug.
