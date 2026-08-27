@@ -86,3 +86,59 @@ graph's RBP activation frame" is unambiguous and correct as policy, and the encl
 has **zero** rbp references. ⛔ Before implementing against a named location, `grep` for it on the actual artifact —
 the cost of not doing so here would have been a caller-ζ corruption that every board would have reported as a
 generator bug.
+
+---
+
+# ADDENDUM (hq_P s277, after ceo's ruling) — the callee frame size IS reachable, the registry already exists, and there is a forward-reference hazard nobody has named
+
+ceo **RATIFIED** the design: host promotes to a real RBP activation frame; a **direct** call reserves the callee's
+compile-time-known frame bytes inside the host's own carve. Worst-case reservation **REFUSED**; indirect/dynamic
+dispatch **UNRULED**, handed to the `hq_C` one-shape-test. This addendum records step 1's de-risking result.
+
+## ✅ The input I flagged as unknown is actually already there
+
+**The driver already records every proc's frame bytes by name.** In the proc-emission loop (`src/driver/scrip.c`),
+immediately after each `emit_chain`, it captures:
+
+```c
+{ extern int g_last_flat_frame_bytes; proc_fb_buf[n_procs] = (... LBL__ ...) ? 0 : g_last_flat_frame_bytes; }
+proc_names_buf[n_procs++] = pname ? strdup(pname) : NULL;
+```
+
+So `proc_fb_buf[]` ↔ `proc_names_buf[]` is exactly the callee-frame-size registry item 2 needs. Nothing new has to be
+computed — **only exposed.**
+
+## ✅ Emission order is favourable for host = `main`
+
+Both driver arms emit procs first and `main` last: each proc loop explicitly `continue`s on `main`
+(`scrip.c:1263`, `:1415`, `:1447`), and `main` is emitted afterwards (`:1365`, and the m3 arm's own tail). **So at
+`main`'s emit time every proc's frame bytes are already recorded.** That covers the four-line witness.
+
+## ⚠️ THE HAZARD, and it is the reason step 1 was worth doing separately
+
+⛔ **The favourable order holds only because the host is `main`. It does NOT generalize.** If the host is itself a
+**proc** that calls a generator appearing **later in the same proc loop**, the callee's frame bytes are **not yet
+recorded** when the host is emitted — a forward reference, and `proc_fb_buf` would be read as 0 or absent.
+
+⭐ **This is the same shape as three other defects found today: the value is READ AT A POINT WHERE IT IS NOT YET
+DEFINED, and the read returns a plausible number rather than an error.** A 0-byte reservation would produce a host
+carve that is silently too small — i.e. exactly the "silent overflow" ceo refused worst-case reservation to avoid,
+arriving through a different door.
+
+**Required before step 2 lands:** either (a) a pre-pass that records all generator procs' frame bytes before ANY graph
+is emitted, or (b) an assertion that REFUSES loudly when a host reserves for a callee whose frame bytes are not yet
+recorded. ⛔ **Not "read it and hope" — a missing frame size must never read as 0.** `bench_correct`'s eight programs
+must be checked for the host-is-a-proc shape before anyone assumes the `main` case is representative.
+
+## What remains for step 2
+
+Expose an emit-time accessor `callee_frame_bytes(name)` over the existing `proc_fb_buf`/`proc_names_buf` pair, guarded
+per the hazard above. **No new state, no new globals** — the data exists and is captured in the right order for the
+`main` host.
+
+## Status
+
+⛔ **NO CODE CUT.** The promotion itself touches `x86_main_prologue()`/`bb_glue_framed_enter()` — the glue path **every
+frontend shares** — and the host rebase must route through `x86_frame_off`/`op_zdepth` rather than a constant, because
+the host's rsp moves (unlike the generator's, which is what made item 1's rebase exact). Ordered work is in the baton
+under `## NEXT-ITEM-2`.
