@@ -130,7 +130,7 @@ clone 2026-07-05 (ZB-1) and again this session:
 ### M3 — One-register frame ratification (one4all GZ3, 2026-05-30/31)
 
 Icon value stack demolished (`50a6d07a`: 23 vstack consumers stubbed to ICN_STACKLESS_ABORT); TWO FACT
-RULES born — **ICON STACKLESS ONE-REGISTER FRAME** (all RW in ONE per-sequence frame `[reg+off]`) and
+RULES born — **ICON NO-SOFTWARE-VALUE-STACK, ONE-FRAME DISCIPLINE** (all RW in ONE per-sequence frame `[reg+off]`) and
 **RO LOCALS ARE IP-RELATIVE** (`[rip+disp]`, sealed adjacent to the blob). ζ register switched r15→r12
 (`03acf1be`) as the ratified layout. The tri-language **PER-BOX LOCAL STORAGE FACT RULE**
 (byte-identical in GOAL-SNOBOL4-BB / GOAL-ICON-BB / GOAL-PROLOG-BB) fixes the law: every box value
@@ -207,7 +207,7 @@ bb_match_rem/break/breakx/span/arb/**arbno**).
 ### M6 — The ZETA-BLOCKS pivot (2026-07-05, current frontier — ZB ladder)
 
 Bring the 4/28 chunk STRUCTURE forward onto the live spine, minus its costs: bump ζ-stack in the RX
-slab (alloc = add, release = restore-to-mark), `.prev` link replaces push-r12 (stackless preserved),
+slab (alloc = add, release = restore-to-mark), `.prev` link replaces push-r12 (no-software-value-stack preserved),
 NO `.bss` in emitted programs (mode-4 prints NASM `struc/endstruc` OVERLAY headers — pure layout
 documentation, zero storage; both modes address `[rZ+disp]`, MODE34-identical), layouts computed
 PRE-EMIT into the parallel `zls[]` table, **COLLECTIONS** (realloc-grown per-iteration storage owned by
@@ -351,8 +351,8 @@ inside a bump-lifetime scope.
 
 | Option | Pros | Cons | Verdict |
 |---|---|---|---|
-| **`.prev` link field** in the block header | Stackless preserved (the foundational rule); restore is one load; works identically for heap-promoted blocks | One t·p of header per frame | **CHOSEN** (ZB-ALLOC) |
-| Machine-stack `push r12` (4/28 F3, seed-6 broker) | Zero header bytes | Reintroduces a stack discipline the STACKLESS rule bans; coexpr/suspend can't ride it | Rejected for the spine; the C-transport seed-6 broker remains a reference only |
+| **`.prev` link field** in the block header | No-software-value-stack preserved (the foundational rule); restore is one load; works identically for heap-promoted blocks | One t·p of header per frame | **CHOSEN** (ZB-ALLOC) |
+| Machine-stack `push r12` (4/28 F3, seed-6 broker) | Zero header bytes | Reintroduces a stack discipline the NO-SOFTWARE-VALUE-STACK rule bans; coexpr/suspend can't ride it | Rejected for the spine; the C-transport seed-6 broker remains a reference only |
 | Named static cells (4/28 `nref516_r12`) | — | .bss ban; not re-entrant | Rejected |
 
 ### 5e. Initialization
@@ -743,7 +743,7 @@ so ZL-COEXPR blocks are heap-lifetime (family A) from creation, never bump-lifet
 | Option | What | Pros | Cons |
 |---|---|---|---|
 | **O1 — pthreads transport (LANDED)** | `rt_coexpr.c` pthread+semaphore; each coexpr owns a thread (its own machine stack); `bb_create/bb_activate/bb_coret/bb_cofail` templates; CREATE k+=4 | Already end-to-end both modes (2026-07-01 RUNGs 1-5); real OS substrate; sidesteps continuation plumbing | Heavy per coexpr; per-thread zS/rZ plumbing needed once ζ-stacks exist; MODE34 text-side must mirror |
-| **O2 — single-thread ζ-plane swap** | seed-5/6 law at scale: coexpr = ONE heap ZL-COEXPR block (its ζ plane + its OWN ζ-substack pointer + stored continuation cells, the 4/28 `P_X_ret_γ/ω` pattern relocated INTO the block); `@` = save current (rZ,zS,resume-label) into the source plane, load the target's, `jmp` its resume | Stackless-pure; cheap activation (a few moves + jmp); refresh/clone trivial; no threads | Continuation cells must be stored per plane (the machinery M2 had in statics, now per-block — fine); C-transport interop (rt_* helpers mid-coexpr) needs care |
+| **O2 — single-thread ζ-plane swap** | seed-5/6 law at scale: coexpr = ONE heap ZL-COEXPR block (its ζ plane + its OWN ζ-substack pointer + stored continuation cells, the 4/28 `P_X_ret_γ/ω` pattern relocated INTO the block); `@` = save current (rZ,zS,resume-label) into the source plane, load the target's, `jmp` its resume | No software value stack; cheap activation (a few moves + jmp); refresh/clone trivial; no threads | Continuation cells must be stored per plane (the machinery M2 had in statics, now per-block — fine); C-transport interop (rt_* helpers mid-coexpr) needs care |
 | **O3 — hybrid (RECOMMENDED v1)** | Keep O1 as TRANSPORT; adopt the ZL-COEXPR PLANE regardless: each coexpr body's boxes address rZ = its own promoted block; per-coexpr zS sub-arena (its bump region) | The plane is the DESIGN, the thread is transport; O2 becomes a later swap-out with zero layout change | Two mechanisms alive until the swap |
 
 **Refresh `^e` is where the CLONE TIER earns its return:** refresh = restore the block to its
@@ -784,7 +784,7 @@ from telemetry.
 
 * **PER-BOX LOCAL STORAGE FACT RULE** — unchanged; this document defines the RW side's ALLOCATION.
   Every reference stays (RO) `[rip+disp]` or (RW) `[rZ+off]`.
-* **STACKLESS / ONE-REGISTER FRAME** — preserved; `.prev` replaces push-r12; rZ MOVES (that was always
+* **NO-SOFTWARE-VALUE-STACK / ONE-REGISTER FRAME** — preserved; `.prev` replaces push-r12; rZ MOVES (that was always
   the 4/28 truth; M5's fixed-r12 was the deviation).
 * **TMP-ERADICATE** — `zls_build()` is its COMPLETION, not reversal: LOWER (via the post-optimizer pass)
   owns the ENTIRE layout; `drive_value_slot` degenerates to a zls read; the emitter allocates nothing.
