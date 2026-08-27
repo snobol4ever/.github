@@ -1,0 +1,8 @@
+# FINDING 2026-08-27 (ceo): first Pascal rivals grid — 7/7 kernels m3 ≡ fpc 3.2.2 output; four m4 fails are ONE α-symbol link class; the checked-in .refs are the drifted artifact
+
+**Context:** Lon's rivals directive; fpc 3.2.2 (current stable) installed by Lon this evening. Kernels: `corpus/benchmarks/pascal/{bubble,intmm,perm,queens,quick,sieve,towers}.pas` (the Stanford classics). SCRIP at `915bdaa4`+, `-O0` law; fpc at `-O2` released defaults, labeled.
+
+1. **CORRECTNESS: 7/7 — every kernel's mode-3 output equals the fpc binary's output** (whitespace-normalized). SCRIP agrees with the industry standard on the entire set.
+2. **The checked-in `.ref` files DISAGREE with both compilers** (e.g. sieve.ref says 1899; SCRIP and fpc both print 0) — the refs are stale artifacts from a different parameterization. RIVAL-DIFF is the honest oracle for these grids until the refs are regenerated (duty noted in bench-rivals-raku-pascal).
+3. **⛔ m3≠m4 CLASS DEFECT, one shape, four witnesses:** perm/queens/quick/towers fail mode-4 at LINK — `undefined reference to swap_α / permute_α`: emitted code calls per-proc α labels that are never emitted/exported for these procedure shapes (nested/recursive; the three flat kernels link and run m3≡m4≡fpc). Row `pascal-m4-alpha-undefined-link` minted. This violates the m3≡m4 design invariant and blocks the m4 arm of any Pascal grid.
+4. **TIMING: not yet quotable** — kernels as parameterized run sub-millisecond under fpc (10-rep wall clock: fpc <1ms, SCRIP m4 ~3ms ≈ startup delta, m3 ~6ms including in-process compile). Real multiples await the three-angle scaled harness; no × numbers are quoted from this pass (FACT RULE: a too-small instrument measures startup, not the kernel).
