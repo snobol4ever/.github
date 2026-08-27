@@ -81,9 +81,9 @@ Jeffrey Cooper built a complete SNOBOL4/SPITBOL implementation in C#, taking Emm
 A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. Parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement IR, and runs programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends: interpreter, Clojure IR transpiler (3.5–6×), stack-machine VM (2–6×), and direct JVM bytecode via ASM (up to 7.6× faster with JVM JIT). EDN compilation cache gives 22× speedup on repeated programs. **2,033 tests / 4,417 assertions / 0 failures.** The JVM backend has achieved `beauty.sno` self-beautification — byte-for-byte identical to the CSNOBOL4 oracle (M-JVM-BEAUTY ✅).
 
 ### [SCRIP](https://github.com/snobol4ever/SCRIP)
-*A multi-language compiler — SNOBOL4, Icon, Prolog, Snocone, Rebus × x86-64 ASM, JVM bytecode, .NET MSIL, portable C — from a single IR*
+*One compiler engine — SNOBOL4/SPITBOL, Snocone, Rebus, Icon, Prolog today; Raku and Pascal in progress — native x86-64 now, MSIL/JVM/JS/WASM returning*
 
-The compiler. Every expression compiles to inlined α/β/γ/ω gotos — no runtime dispatch. Three backends share one IR: C with gotos (default, 106/106 corpus ✅), x86-64 NASM assembly (106/106 corpus ✅), JVM Jasmin bytecode (beauty.sno ✅), and .NET CIL (110/110 corpus ✅). Five frontends: SNOBOL4/SPITBOL (active), Snocone (active), Rebus (complete — M-REBUS ✅), Icon (planned), Prolog (planned).
+The compiler. Every construct lowers to four-port Byrd boxes — **α** proceed, **β** recede, **γ** succeed, **ω** concede — wired at compile time into straight-line jumps; no runtime dispatch. One IR, one encoder discipline (every x86 instruction through a single encoder), and two execution modes that must agree: `--run` wires native code into the running process, `--compile` emits a standalone x86-64 binary. The SNOBOL4 corpus passes **365/365 in both modes**, byte-for-byte against the SPITBOL oracle, and each frontend is verified against its own rival: Icon output-matches Arizona `icont`/`iconx`, Prolog reaches 22/22 four-way consensus with GNU Prolog and SWI-Prolog, Rebus 4/4, Raku 705/719. `beauty.sno` self-hosts byte-identically.
 
 ### [snobol4python](https://github.com/snobol4ever/snobol4python)
 *SNOBOL4 pattern matching for Python — on PyPI*
@@ -106,12 +106,12 @@ A C# port of the snobol4python pattern engine. Patterns are first-class objects 
 ### [snobol4artifact](https://github.com/snobol4ever/snobol4artifact)
 *CPython C extension: SNOBOL4 Byrd Box engine*
 
-Direct CPython C extension running SNOBOL4python pattern trees through a full Byrd Box engine in C. The proof-of-concept from which `engine.c` in SCRIP was extracted.
+Direct CPython C extension running SNOBOL4python pattern trees through a full Byrd Box engine in C. The proof-of-concept from which SCRIP's original C pattern engine was extracted.
 
 ### [corpus](https://github.com/snobol4ever/corpus)
 *Shared test corpus — CC0*
 
-Single source of truth for all `.sno`, `.inc`, and `.spt` files shared across all repos. 106-program crosscheck ladder across 11 language rungs plus beauty.sno. Gimpel algorithm library. Shafto AI corpus. Oracle runner scripts.
+Single source of truth for the shared test universe: the 365-program SNOBOL4 board graded in both execution modes against SPITBOL, per-language benchmark suites for the rivals grids, the Gimpel algorithm library, the Shafto AI corpus, and the growing suite format — one test per line beside its expected output, made to be read in color.
 
 ---
 
