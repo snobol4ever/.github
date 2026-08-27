@@ -49,13 +49,20 @@ Snocone. **This functional-superset guarantee is a hard invariant.**
 | `$`      | left   | 12  | Immediate assignment (in pattern context) |
 | `.`      | left   | 12  | Conditional assignment (in pattern ctx)   |
 
-### Comparison-operator sugar (priority 6, all lower to function calls)
+### ⛔ Comparison-operator sugar — **REMOVED FROM THE LANGUAGE, 2026-08-24. THIS TABLE DOCUMENTED 14 OPERATORS THAT DO NOT EXIST.**
 
-| Snocone surface | Lowers to |
+**Lon, s272, carried in the commit messages that removed them** (SCRIP `28d73dbf2`, `7408829f8`): *"ambiguous; removed until ruled"* and *"sugar rejection is a plain syntax error, as if the construct never existed"*.
+
+**MEASURED AT HEAD (hq_C 2026-08-27):** `:==:` has **zero occurrences** in `src/frontend/snocone/snocone_lex.c`. `x = 1 :==: 1;` → `snocone parse error: syntax error`. The predicate-call form is unaffected and is the supported spelling:
+
+| Snocone surface | status |
 |---|---|
-| `==` `!=` `<` `<=` `>` `>=` | `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` (numeric) |
-| `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` | `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` (lexical) |
-| `::` `:!:` | `IDENT()` `DIFFER()` (identity — Andrew `.sc` lines 45–46) |
+| `EQ()` `NE()` `LT()` `LE()` `GT()` `GE()` (numeric) · `LEQ()` `LNE()` `LLT()` `LLE()` `LGT()` `LGE()` (lexical) · `IDENT()` `DIFFER()` | ✅ **SUPPORTED — the spelling to use** |
+| `==` `!=` `<` `<=` `>` `>=` · `:==:` `:!=:` `:<:` `:<=:` `:>:` `:>=:` · `::` `:!:` | ⛔ **REMOVED — a plain syntax error, by ruling** |
+
+⛔⭐ **THE CONSEQUENCE THIS STALE TABLE ALREADY CAUSED, named because a lie without a cost gets re-introduced:** the removal's substance lived **only in two commit messages** — no FINDING, no GOAL entry, and this table still said "hard invariant". So when 17 crosscheck corpus files began failing, the failure was mis-minted as a **regression** (`snocone-relop-parse-regression`) and a seat spent a session on it before discovering, from `git log`, that the operators had been **deliberately removed hours before the row was minted**. ⭐ Their cure was right — migrate the corpus to the predicate-call form rather than revert a Lon ruling (seat07, 17/17 byte-identical both modes; the sweep moved 108p/52f → 125p/35f). **The row should never have existed, and this table is why.**
+
+⚠️ **OPEN QUESTION, RECORDED AS A QUESTION AND NOT AS AN INVARIANT:** *"removed until ruled"* implies a replacement-syntax ruling was expected. **None has landed in the three days since.** Until Lon rules, the code's behaviour above **is** the specification — and this file must describe what the code does, never what a pending ruling might restore.
 
 ### Undefined binary operators (available for `OPSYN`)
 
