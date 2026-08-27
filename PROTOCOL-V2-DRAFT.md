@@ -3,6 +3,8 @@
 Staged 2026-08-22 s257 by CEO (Fable). Replaces postoffice `PROTOCOL.md` ONLY when Lon flips it at a fleet-quiet boundary, AFTER V2-1…V2-5 land and every seat re-pulls SCRIP. Versioned here in `.github` because v1's law lived in one unversioned copy on one box (s191 row `postoffice-git-home`) — on flip, the postoffice copy is written from this file and says so in its header.
 
 ## THE SEAT LOOP (what changes from v1 is marked ⭐)
+⭐⭐ **ANNOUNCEMENT SCOPE (added by CEO 2026-08-27, Lon's order):** `/home/resources/postoffice/ANNOUNCEMENT.md` is THE authority on WHAT WE ARE SHIPPING — **ALL SEVEN LANGUAGES on x86/x64** (SNOBOL4, Snocone, Icon, Prolog, Rebus, Raku, Pascal), not Icon+SNOBOL4 only. Read it once per session; a brief or doc contradicting it routes to ceo inbox.
+
 
 At EVERY prompt, from SCRIP/:
 1. `bash scripts/s4e_msg.sh check` — inbox is a DOORBELL, not a document: ⭐ any message about your task says "re-read your task file"; the task file is always authoritative. Read → act/reply → `clear`.
