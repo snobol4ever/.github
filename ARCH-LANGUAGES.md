@@ -140,3 +140,46 @@ Substantial cleanup landed between s273 and now, so the doc's *"the worst of any
 
 Its own comment states the stakes: *"A freshly zeroed frame reads as 'never suspended', so a resumed call would silently re-run clause 1 instead of jumping to the retained cursor."* **It is load-bearing for resume correctness, not dead plumbing.** It is also not Prolog-bespoke: `rtx_icngen.S:84` documents Icon generators depending on state *"set by `rt_jmp_frame_lexprep2` at the generator's α prologue"*, and it appears in emitted **Pascal** prologues (observed 2026-08-27 in `nested.pas`).
 ✅ **The DESCR ruling itself is Lon's and stands untouched.** What is struck is one piece of *evidence* offered for it. ⭐ The lesson is the one this consolidation keeps finding: a doc that names a mechanism "a no-op" without a witness invites the next hand to delete it — and here that deletion would silently re-run clause 1 of every resumed predicate, which is a wrong answer, not a crash.
+
+---
+
+## SNOBOL4 — user-declared `&` constants (Lon's Eurekas 1–3, 2026-08-19)
+
+**Status home:** rung STATE lives in `GOAL-SNOBOL4-100.md` § SN4-CONSTANTS; this section is the design of record it points at.
+
+⭐ **This section verified unusually well.** Every load-bearing mechanism was spot-checked against live code and **all of it holds**, including both error codes with their exact wording. Recorded because the method's value is not only in catching drift — a section that survives a both-directions check should be usable without re-deriving it.
+
+### The three-tier `&` namespace (resolution order)
+1. **Protected keywords** — already constants (`&ALPHABET &ARB &BAL &FENCE &ABORT &FAIL &REM &SUCCEED &UCASE &LCASE &STCOUNT &STNO …`), untouched.
+2. **The closed unprotected list** — true keyword VARIABLES (`&ANCHOR &TRIM &STLIMIT &MAXLNGTH &FULLSCAN &DUMP &ERRLIMIT &CODE &CASE &FTRACE &TRACE &ABEND &COMPARE &PROFILE &ERRTEXT &ERRTYPE`), assignable per manual ch.16.
+3. **Every other `&name` = USER CONSTANT** — one-time assignment, sealed forever. Bare `name` is a different cell (CN-2 canonicalises the NV key to `"&Name"`).
+
+### Semantics
+Second textual definition = compile error (CN-0 target; today runtime-only). Any dynamic write to a sealed cell = **error 341** (with the name). Read before the definition EXECUTES = **error 342** (with the name). No bypass via `OPSYN`/aliasing — the seal lives on the CELL (`NV_t.is_const`, Lon's bit).
+✅ **All four verified live:** `NV_t.is_const` at `core.c:2267`; the namespace filter `_nv_ordinary()` at `:2337`; **error 341** at `:2427` — *"re-assignment of a sealed &constant: %s"*; **error 342** at `keywords.c:392` — *"&constant read before its one-time assignment: %s"*. `NV_KW_GET_fn`/`NV_KW_SET_fn` live at `keywords.c:386/393/451`. Killswitch `SCRIP_KWSPACE_SPLIT=0` live at `core.c:2336`.
+
+⛔ **THE `$('&X')` CLAUSE IS STRUCK AS FACTUALLY WRONG** (s173, measured on live `sbl`; `FINDING-2026-08-19-s173-eval-fails-not-aborts-and-the-dollar-indirect-premise-is-falsified.md`). In SPITBOL, `$('&X')` names an ORDINARY VARIABLE literally spelled `&X` — a namespace wholly DISJOINT from the keyword `&X` in BOTH directions: `$('&ANCHOR')` reads null while the keyword reads 1, an indirect write leaves the keyword untouched, and `$('&NEVERSET') = 99` is accepted silently. **There was never a bypass here to seal — the clause is VACUOUS.** ⭐ **LIES GET CONSEQUENCES:** the earlier HQ-58 ruling had *narrowed* the clause to writes on the strength of an s153 truth-table row (`$("&N") -> 42, same cell`) that is **false against the oracle**. A wrong table row survived one ruling that refined it rather than re-testing it — narrowing a claim is not the same as checking it. **RULED AND CLOSED — HQ-61 (s173).**
+Witnesses, all three present: `corpus/probe/cn/cn_indirect_is_ordinary_var.{sno,ref}` · `cn_indirect_rewrite.{sno,ref}` · `cn_indirect_seal.{sno,ref}`.
+
+### The guarantee (two layers)
+(a) **The bit** — `is_const` on the NV cell (landed CN-2, SCRIP `a63c13d9`). (b) **The page** — constants land in the KW-STATIC emitted block's sibling RO segment, `mprotect(PROT_READ)` after init: re-assignment FAULTS (CN-4).
+
+### CVA / GVA — the two-area model of record (Lon's names, 2026-08-19)
+**GVA** (Global Variable Area — `rt_gva_island`/`gva_register`/R9-slot machinery) holds **WRITABLE globals only**; **CVA** (Constant Variable Area) is its sealed sibling holding every constant DESCR + payload.
+✅ Disjointness is already mechanically true at the collector: `src/optimizer/gva_collect.c` refuses `&`-names (`if (name[0] == '&') return 0;`). ⚠️ *The doc cited this as line **10**; it is at line **47** — the claim is true, the line number had drifted. Line numbers are the first thing to rot; cite the symbol.*
+
+**The two guarantees are different things and the design needs both.** The **BIT** refuses a second NAME→value binding and costs nothing on the hot path (`NV_SET_fn` segregates on `name[0] != '&'` before any seal logic). The **ARENA** makes the bound VALUE physically immutable: a GVA-like mmap'd region holding every constant DESCR + payload, with GVA proper reserved for writable globals — which also relieves scarce R9-tier slot pressure.
+**The EVAL hole and the answer:** `EVAL("&new = …")` mints constants at runtime, so a one-shot `mprotect` over the whole arena breaks. Recommended shape: **page-granular progressive sealing** — a bump allocator whose FILLED pages seal RO as the frontier crosses them; only the frontier page is writable; reads never pay a protection flip.
+**Two homes, one semantics:** compile-time-known constants emit into the KW-STATIC block's sibling `.rodata` (mode-4) or the sealed arena (mode-3); EVAL-minted constants always land in the arena. Payoffs: no GC scanning, no write barriers, co-located reads. Status: DESIGN CANDIDATE for CN-4; the bit stays regardless.
+
+### Optimizer tiers
+**T1** scalar constants → immediates/rodata, zero NV/GVA reads. **T2** constant PATTERNS → `pat_static` by DECLARATION (⛔ but NOT the match-time `. *Fn()` capture-call class — those side effects fire per match by design). **T3** constant strings/tables → rodata, no GC scan, no write barriers.
+
+### Parser-action COMPILER primitives (CN-5)
+Lon's ruling 2026-08-19: *"nPush/nPop FAMILY is a compiler primitive… CONSTANT forever."* Builtin WINS always — sealed compiler names; user `DEFINE` of them is an error. The family lowers at compile time to dedicated zero-width boxes (counter op + four-port backtrack undo); the runtime two-level deferred-call encoding is never emitted for them.
+
+### Oracle amplification + the pristine-oracle law
+Both oracles learn `&name` as plain variables (`sbl-x`, `csnobol4-x`) so converted programs keep LIVE oracle grading. ⛔ **Stock binaries are NEVER replaced**; every `-x` proves full-classic-corpus byte-identity against stock before anything trusts it.
+
+### The flagship
+⛔ **PATH ABSENT.** The doc names `corpus/programs/snobol4/demo/beauty_c/` as the generated flagship (fixed point: `beauty_c < beauty.sno ≡ beauty.sno`). **No `beauty_c` directory exists anywhere under `corpus/`.** Live relatives: `corpus/demo/snobol4/beauty`, `corpus/tests/snobol4/beauty_suite`, `corpus/tests/snobol4/smoke/beauty_compiled.sno`. ⚠️ And `corpus/programs/` is ruled non-test material entirely (Lon 2026-08-27, `RULES.md:55`), so the flagship needs a new home *and* a new status before it can be cited again.
