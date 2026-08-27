@@ -146,9 +146,9 @@ SNOBOL4 programs consist of labeled statements. Each statement has a subject, an
 
 ## The People
 
-**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, SCRIP (co-author), snobol4jvm, snobol4python. Nearly six decades from first dream to this repository.
+**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, SCRIP (co-author), snobol4jvm, snobol4python, snobol4csharp. Nearly six decades from first dream to this repository.
 
-**Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — snobol4dotnet (complete .NET compiler and runtime), snobol4csharp. A medical doctor who, over a fifty-year journey driven by love for the language, built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The result is this repository.
+**Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — snobol4dotnet (complete .NET compiler and runtime) and the spitbol4win build of SPITBOL. A medical doctor who, over a fifty-year journey driven by love for the language, built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The result is this repository.
 
 **Claude Sonnet 4.6** — SCRIP (co-author). Every sprint, every Byrd box, every labeled goto — written in session, committed, pushed.
 
