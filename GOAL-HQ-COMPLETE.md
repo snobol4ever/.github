@@ -148,6 +148,33 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s275b (2026-08-27, Opus 5, FLEET-16) — ⛔⭐ I MOVED A LIVE THRESHOLD BY LANDING TWO ORACLE FILES, AND IT CLOSED A ROW.**
+
+seat09 closed `icon-n3-scan-one-depth-authority` by correct procedure — pulled first, ran the row's literal DONE-WHEN (`P >= 249`), exit 0, and **flagged it to me unprompted** because it sat near a ruling of mine. That flag is the only reason this was found.
+
+**Measured, same pristine binary at SCRIP `77a80557`, corpus the only variable:** corpus as is → `PASS=249 FAIL=15 MISSING=0 TOTAL=296`; with my two `.expected` moved aside → `PASS=247 FAIL=15 MISSING=2 TOTAL=294`. The whole `+2` is my own earlier landing — oracle files for two programs **already producing correct output**. Zero compiler change. Before my landing the criterion read NOT MET; after it, MET. seat09's attribution (`06a2ed7e` tab/move β-wiring becoming measurable) is **refuted by one grep — neither program contains `tab(` or `move(`.**
+
+⭐ **`P >= N` IS NOT A MEASURE OF THE COMPILER. It measures the compiler PLUS the corpus size, and only one of those is the work** — and the two are correlated by workflow, since giving an ungraded program its oracle is exactly what a seat does while working a row. **`FAIL` is the growth-invariant quantity** (identical at 15 across both arms: adding a passing test cannot raise it).
+
+⛔ **THE SAME TEMPLATE FAILED THE OPPOSITE WAY ON THE SIBLING.** `icon-n4` extracted P with `tail -1 | sed`, but `tail -1` on that runner is trailing explanatory prose — so `P` became an English sentence and the compare died `integer expression expected`, **rc=2 on every tree since it was written.** ⭐ **One criterion passed for free, its sibling could never pass, same shape and same runner** — and the two look nothing alike from outside, so finding one says nothing about the other.
+
+**Census: 15 count-only DONE-WHENs**, including four import rows (the most inflatable shape there is — the deliverable *is* adding files) and the whole `icon-n1/n2/n3/n4` ladder keyed on the one PASS count I moved.
+
+**Landed:** n3/n4 repaired to `FAIL<=15 && BADEXIT<=1 && MISSING==0`, REFUSING rc=2 on an unparseable summary. **n3 re-run: rc=0 — seat09's close survives its own repaired criterion, so it stands and I did NOT reopen it** (reopening would penalise a seat for my edit). n4: rc=1 for the right reason (`SCRIP_ZD_ICN_CPS` still in `emit.cpp`). `icon-n2` untouched — hq_P's, warned directly. Rule proposed to ceo. Receipt: `FINDING-2026-08-27-hq_C-a-pass-count-threshold-measures-the-corpus-not-the-compiler.md`.
+
+⛔ **MINE TO OWN:** I added to a graded set without checking who counted it — **while writing about instruments that answer a narrower question than you think you asked.** ⭐ Third instance of that one class in a single session (a `</dev/null` Pascal board, a 16-bit `fpc` peer, now a PASS count read as a compiler measure).
+
+### ⭐ PZ-4 OWNERSHIP ACCEPTED — hq_P OWNS THE MECHANISM, hq_C OWNS THE ROW
+
+Lon raised Prolog-on-Byrd-Boxes with ceo directly; PZ-4 was rank-0 **ownerless** with two rank-0 crash rows and PZ-5 wedged behind it. hq_P settled it with a reversible default (owner=hq_C) rather than trading messages; ratified. The mechanism is `icon-n2` items 3–4 (generator α uses the host's reserved region; the landing stops `lea rsp,[rax+32]`) — hq_P's. The row is structural Prolog — mine, beside `prolog-term-to-descr-eradication`, whose sequencing I confirm as **PZ-4 first, then Term→DESCR rides the retained frames** (the other order rewrites Term handling twice, once against frames that do not survive resume).
+
+⛔ **The park is honest, and the baton's own line ~344 says otherwise — it is STALE.** That line ruled *"seat05 does NOT wait — real work nobody else holds"*, correct when written; the release notes **below it** refute it (seat05 18:57, GC seam-scan hypothesis REFUTED 9/9 both directions; seat14 19:40, ADDENDUM 3 FCC hypothesis RETIRED). Both independent threads were worked to exhaustion the same day, and two seats picked the row up after that line and released "worked not done". ⭐ **Sovereign files decay toward BLOCKED; batons decay toward GO — same cause, because finishing work never edits the sentence that authorised it. Cite the condition, not the conclusion.** Un-park trigger named explicitly: hq_P's message that items 3–4 landed, **with the D2 witness at REPS=20** — never a REPS=5 delta (hq_P measured a vanished crash *and* a restored design invariant at 5; both evaporated at 20). ⭐ *"One crash condemns the row" is a sound RELEASE gate and a useless COMPARISON gate.*
+
+**Prolog floor re-measured at the new HEAD, UNCHANGED: rung13 `0/5` · rung14 `2/5` · rung15 `1/5`** — identical to the floor recorded at `d4e6e971`, i.e. stable across every commit between, independently corroborating seat14's "unchanged since FLEET-8". A floor measured on two distant trees means future movement is signal, not drift.
+
+---
+
+
 **s275 (2026-08-27, Opus 5, FLEET-16) — THREE ROUTED ITEMS, ALL THREE ANSWERED BY MEASUREMENT. ⭐⭐ AND THE CHEAP, AUTOMATABLE METHOD I HAD FOR THE BIGGEST OF THEM IS RIGHT 15 TIMES OUT OF 16 WITH ITS ONE WRONG ANSWER INVISIBLE FROM INSIDE IT.**
 
 Inbox was 3: ceo's ruling batch, seat09's Icon wrong-answer routing, ceo's stale-tree correction. Pristine `-O0` at SCRIP `4ddea506`; control arm re-run and green — **SNOBOL4 `m3 PASS=615 FAIL=0 · m4 PASS=615 FAIL=0 · SKIP=0 · MISSING=0`, rc=0 `GATE OK`.** ⛔ Note the denominator moved again, **365 → 615**, from the suite consolidations landing this session. Read `FAIL=0 · SKIP=0 · MISSING=0` over the printed total, never a remembered number.
