@@ -1,18 +1,19 @@
 # ARCH-x86.md — x86 Backend
 
-⛔ **Pruned 2026-07-01.** The stale file-layout/CLI body (six-target matrix, `--sm-*`/`--bb-*` flags, `emit_core.c`/`emit_bb.c`/`BB_templates/`/`bb_pool` paths, dispatched-BB ABI, four-mode emitter enum, SM_Program section) is DELETED — none of it exists; recover from git. **Current layout:** `src/emitter/emit.cpp`+`emit.h` (the one driver) · flat `src/templates/*.cpp` + `x86_asm.h` (encoders) · two modes only, `--run`/`--compile` (REPO-SCRIP.md). The CONCEPTS below — stackless boxes, four ports, fresh DATA per α-entry, intra/extra-BLOB jumps, three-column form — remain the live design intent.
+⛔ **Pruned 2026-07-01.** The stale file-layout/CLI body (six-target matrix, `--sm-*`/`--bb-*` flags, `emit_core.c`/`emit_bb.c`/`BB_templates/`/`bb_pool` paths, dispatched-BB ABI, four-mode emitter enum, SM_Program section) is DELETED — none of it exists; recover from git. **Current layout:** `src/emitter/emit.cpp`+`emit.h` (the one driver) · flat `src/templates/*.cpp` + `x86_asm.h` (encoders) · two modes only, `--run`/`--compile` (REPO-SCRIP.md). The CONCEPTS below — no-software-value-stack boxes, four ports, fresh DATA per α-entry, intra/extra-BLOB jumps, three-column form — remain the live design intent.
 
 ## Byrd Box model
 
 Each pattern node compiles to a self-contained x86 code+data blob in `bb_pool`.
 Four ports: α (proceed), β (resume), γ (succeed), ω (fail).
 
-### Boxes are stackless
+### Boxes carry no software value stack
 
-⛔ **Byrd boxes have no stack.**  A box has CODE and DATA.  No call frame, no
-local stack frame, no `push`/`pop` of working state in the body.  Every
-"local" the box needs (cursor save, counter, captured pointer) lives in its
-DATA block.
+⛔ **A Byrd box carries no software value stack.**  A box has CODE and DATA — no
+`push`/`pop` of working state in the body.  Every "local" the box needs (cursor save,
+counter, captured pointer) lives in its DATA block, itself machine-stack resident per
+the ζ ladder (ζ-SPINE/RSP by default, promoted to a ζ-ACTIVATION-FRAME/RBP when the box
+can γ-SUSPEND) — never in a separate pushed/popped value-stack structure.
 
 > **2026-05-30 NOTE — the Prolog engine VIOLATED this rule and is being fixed.**
 > Instead of "fresh DATA block per α-entry," the mode-2/3 Prolog path shares ONE
