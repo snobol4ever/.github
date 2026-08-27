@@ -51,7 +51,7 @@ rung and Lon sign-off.
   The live flat-glob register convention this doc locks (`"r12"`/`"r13"`/`"r14"`/`"r15"` literals, the
   `FR`/`FRQ` frame helpers) actually ships in `src/templates/x86_asm.h`, included per-template by the
   current `src/templates/*.cpp` family — not in any `src/runtime/x86/` file.
-- `ARCH-x86.md` — defines the flat-BB ABI, the stackless-box discipline,
+- `ARCH-x86.md` — defines the flat-BB ABI, the no-software-value-stack box discipline,
   and the intra-/extra-BLOB jump rules this doc operates against. **`ARCH-x86.md` is itself flagged
   stale on file-layout claims as of 2026-06-30 — see its own correction banner.**
 
