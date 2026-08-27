@@ -1,0 +1,17 @@
+# demo-triangulation -- basis=WHOLE-PROGRAM-RUN (total, incl startup+compile) -- never a kernel slope
+demo	engine	scale	a1_runs_per_s	a1_runs	a2_runs_per_s	a2_runs	a2_cpu_ms_mean	ratio	verdict	inblock	oublock	answer_digest
+claws5	sbl	16	6.0008	-	6.3588	5	157.262	1.0597	AGREE	0	0	9cebc0bfdb70
+claws5	m3	16	4.6539	-	4.8387	5	206.668	1.0397	AGREE	0	0	9cebc0bfdb70
+claws5	m4	16	5.0883	-	4.9110	5	203.626	1.0361	AGREE	0	0	9cebc0bfdb70
+treebank	sbl	1024	4.4660	-	4.2338	5	236.194	1.0548	AGREE	0	0	4e1c2e4cbc23
+treebank	m3	1024	1.2311	-	1.2056	5	829.464	1.0212	AGREE	0	0	4e1c2e4cbc23
+treebank	m4	1024	1.3665	-	1.4635	5	683.272	1.0710	AGREE	0	0	4e1c2e4cbc23
+json	sbl	1	14.6381	-	14.4923	5	69.002	1.0101	AGREE	0	8	60e070852b39
+json	m3	1	3.8798	-	3.6270	5	275.71	1.0697	AGREE	0	8	60e070852b39
+json	m4	1	5.9983	-	5.8848	5	169.928	1.0193	AGREE	0	8	60e070852b39
+calculator	sbl	4	12.8102	-	12.3796	5	80.778	1.0348	AGREE	0	8	85cdbe6da471
+calculator	m3	4	4.5813	-	4.3148	5	231.762	1.0618	AGREE	0	8	85cdbe6da471
+calculator	m4	4	6.1794	-	5.9109	5	169.18	1.0454	AGREE	0	8	85cdbe6da471
+beauty	sbl	1	210.3894	-	193.2741	5	5.174	1.0886	AGREE	0	8	50e4584ed138
+beauty	m3	1	0.2346	-	0.2577	5	3880.16	1.0985	VOID-ANSWER	0	0	d193b7a64d00
+beauty	m4	1	1.5946	-	2.0174	5	495.678	1.2651	VOID-ANSWER	0	0	d193b7a64d00
