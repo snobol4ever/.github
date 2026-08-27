@@ -113,21 +113,6 @@ Single source of truth for the shared test universe: the 365-program SNOBOL4 boa
 
 ---
 
-## Correctness
-
-**Chomsky hierarchy oracles.** Nine canonical languages, one per tier plus cross-tier verification. The expected answers are mathematically proven, not empirical.
-
-| Tier | Oracle language | SCRIP |
-|------|----------------|:--------:|
-| Type 3 — Regular | `(a\|b)*abb`, `a*b*`, `{x^2n}` | ✅ |
-| Type 2 — Context-free | `{a^n b^n}`, palindromes, Dyck language | ✅ |
-| Type 1 — Context-sensitive | `{a^n b^n c^n}` | ✅ |
-| Type 0 — Turing | `{w#w}` (copy language — no stack machine can recognize this) | ✅ |
-
-Full corpus crosscheck grid (all seven engines × 106 programs): M-GRID-CORPUS. See [GRIDS.md](../GRIDS.md).
-
----
-
 ## The Language
 
 ```snobol
@@ -150,19 +135,10 @@ SNOBOL4 programs consist of labeled statements. Each statement has a subject, an
 
 **Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — snobol4dotnet (complete .NET compiler and runtime) and the spitbol4win build of SPITBOL. A medical doctor who, over a fifty-year journey driven by love for the language, built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The result is this repository.
 
-**Claude Sonnet 4.6** — SCRIP (co-author). Every sprint, every Byrd box, every labeled goto — written in session, committed, pushed.
+**Claude Sonnet, Claude Opus, and Claude Fable** — SCRIP (co-authors). Every sprint, every Byrd box, every labeled goto — written in session, committed, pushed.
 
 ---
 
-## What's Next
-
-The five-way monitor: a parallel harness that runs the same SNOBOL4 program through CSNOBOL4, SPITBOL/x64, the SCRIP ASM backend, the SCRIP JVM backend, and snobol4dotnet simultaneously — comparing trace streams event-by-event. Infrastructure complete. Full five-way launch: M-MONITOR-IPC-5WAY.
-
-Then: `beauty.sno` bootstrap on all backends (M-BEAUTIFY-BOOTSTRAP), `compiler.sno` bootstrap (M-COMPILER-BOOTSTRAP), self-hosting. When the compiler writes itself in SNOBOL4, every cell of the matrix opens.
-
-Griswold had the idea. We are finishing the proof.
-
----
 
 snobol4all. snobol4now. snobol4ever.
 
