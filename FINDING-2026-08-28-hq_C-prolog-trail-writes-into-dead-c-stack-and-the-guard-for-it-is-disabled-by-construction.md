@@ -83,5 +83,34 @@ A/B via a temporary env-gated probe (installed, measured, reverted):
 - **seat02** — `pascal-relop-*`, `zd_plan` walks only the γ edge so a `BINOP_TEST`'s ω arm is emitted under a *different addressing convention*; gdb-measured `zd_on=0` vs `1` and a live 272-byte `rsp` discrepancy.
 - **seat10** — `m4-pie-vs-no-pie`, `RSP == 0x0` at fault under `-no-pie` at a program point where PIE has a valid stack address.
 
+## ⭐⭐ THE PUSHING SITE IS NAMED: `plw_bind`, `by_name_dispatch.c:123` — ALL 217 OF THEM
+
+Instrumented `pl_trail_push` to report every trail entry whose address lies on the live stack, with
+`__builtin_return_address(0)` resolved through `dladdr` + `addr2line`. On the 2-element witness:
+**217 stack-cell pushes, from exactly ONE return address**, `libscrip_rt.so+0x43feda` →
+
+```
+plw_bind
+/home/claude_C/SCRIP/src/runtime/by_name_dispatch.c:123
+```
+
+```c
+static void plw_bind(DESCR_t *cell, DESCR_t word) { pl_trail_push(&g_pl_trail, cell); *cell = word; }
+```
+
+It trails whatever cell it is handed, with no test of where that cell lives.
+
+⭐ **AND THE DISCIPLINE THAT WOULD FIX IT ALREADY EXISTS TWO LINES BELOW, applied to only one of the
+three arms.** In `plw_unify_cells` (`:126`), the **var-var** case is already stack-aware:
+
+| arm | line | what it does | trails a doomed stack cell? |
+|---|---|---|---|
+| var-var, both above the current frame | `:131-137` | **VVB**: age-orders them — binds the lower-addressed (younger) at the higher (older), so the binding dies with the younger. Killswitch `SCRIP_NO_VVB`. | no — correct by construction |
+| var-var, otherwise | `:137` | allocates a **heap join cell** (`rt_plj_alloc`) and points both at it | no — heap outlives both |
+| **`if (av) plw_bind(A, *B)` / `if (bv) plw_bind(B, *A)`** | **`:138-139`** | **binds a variable cell to a value with no location test at all** | ⛔ **yes — this is the leak** |
+
+So the var-**nonvar** arms are the unguarded ones, and both precedents for fixing them (age ordering,
+and heap-join indirection) are already in the same function, already shipped, already killswitched.
+
 ## NEXT STEP FOR WHOEVER TAKES IT
-Find where the cells the trail records are allocated (`pl_bind` → `pl_trail_push(trail, v)` records `v`, and `pl_unify`'s fresh-variable arm allocates its join cell via `rt_ws_alloc` — heap — so establish which callers instead hand it a **stack** cell). The witness is 2 elements and deterministic in both modes, so this is a bounded gdb/valgrind question, not a search.
+The site is named above. The question is now a **design** one, not a search: make `plw_unify_cells`'s var-nonvar arms (`:138-139`) as location-aware as its var-var arm already is — either by refusing to trail a cell that will not outlive the choice point, or by routing the binding through a heap cell the way `:137` already does. ⛔ Whatever the shape, grade it against the **wrong-answer** arm too, not just the crash: forcing the existing floor guard on removes the smash and returns `rc=1` with no output. A cure that only stops the abort has not fixed anything.
