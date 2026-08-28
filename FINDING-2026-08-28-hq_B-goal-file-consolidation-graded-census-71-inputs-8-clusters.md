@@ -168,7 +168,16 @@ reachable without forcing a merge that interlock (e) forbids; I am not amending 
 - **B · IR/lower redesigns** — mixed: living design ideas here route INTO the owning ⭐100 files per step (2)
   before the remainder archives. ⛔ Merit calls that touch semantics are the reserved class — ASSIGNED asks,
   never dropped, per the reserved-question law.
-- **C · reorg hygiene** — mostly LANDED work describing completed moves. ⚠️ `GOAL-SRC-REORG.md` carries the
+- **C · reorg hygiene** — ⚠️ **"mostly LANDED work describing completed moves" is TOO GENEROUS and I am
+  correcting it here (flagged by seat12, 2026-08-28).** `GOAL-SRC-REORG.md` is **PARTIALLY EXECUTED, not
+  landed**: `src/parser`→`src/frontend`, `src/contracts`→`src/ir` and the removal of `src/backends` all
+  happened (SCRIP `d4312e86`), but the plan's fold of the per-box templates INTO `emitter/` (its line 50) has
+  **not** — the live tree still carries `src/emitter` and `src/templates` as separate directories. ⛔ **One
+  document holding both completed and outstanding steps is the worst shape for a reader trying to tell which
+  paths are real**, and it is how a gate comes to hardcode a path that is either already dead or not yet born.
+  Whether that merge is still intended or was quietly superseded is a question for the landing, not something
+  the doc can answer about itself — **a plan file is not evidence that the plan is current.**
+  ⚠️ `GOAL-SRC-REORG.md` also carries the
   most retired-home citations in the corpus (11) and that is CORRECT: it documents the move that retired
   them. **Do not grade a reorg doc stale for naming what it retired** — this is the one place the
   instrument's signal inverts, and it is why the survey is a human pass and not a script.
