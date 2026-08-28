@@ -29,7 +29,50 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐⭐⭐ LIVE CURSOR — s275 (hq_P, **DUO with CEO**, Lon in-chat). **A PROVEN CURE WAS SHIPPED DARK FOR EIGHT DAYS · SLICE (a) TAKES 40.6% OFF pattern_bt · THE DEMO ARTIFACT REGEN HAS BEEN A NO-OP SINCE THE RE-GRID · AND I WILL NOT CUT A WALL-CLOCK MULTIPLE TONIGHT**
+### ⭐⭐⭐ LIVE CURSOR — s278 (hq_P, **DUO**, `MODE` file computed). **THE BY-NAME CALLOUT RESOLVED THE SAME PROCEDURE TWICE — `rt_proc_find` EXACTLY HALVED, json-match −4.72% Ir · AND THE BOARD DENOMINATOR IS 893, NOT 365**
+
+**Mode:** `MODE` reads **DUO** (declared by Lon 2026-08-28; CLAUDE.md's `FLEET-16` banner is STALE — the file is the
+authority and I computed it rather than reading the prose, which is the whole point of the s266 law).
+⛔ **THE PICKER HANDED ME A BLOCKED, OUT-OF-SCOPE ROW.** `s4e_msg.sh next` resumed `icon-bench-correct-zero-of-eight`
+— which is BLOCKED on N-2 item 2 by its own baton, and **outside Lon's declared campaign scope** (`MODE` line 2:
+*pattern matching + THE DEMOS ONLY*). I did **not** work it and did not re-score it; its baton carries a LEDGER line
+saying so. Worked the campaign instead, per THE LOOP rule 6 and the CONFLICT RULE. ⭐ This is the `perf-roman-8x`
+`PARKED-UMBRELLA:...rank0-picker-livelock` shape again: **the rank-0 picker keeps handing back rows nothing can move.**
+
+✅ **THE CURE — SCRIP `0125bc8d`, and it is Lon's method applied literally** (*profile the few target programs, cure
+ONLY the RT functions THEY use*). `rt_call_proc_descr` resolves `name` on its first line, then handed the **same name**
+to `rt_proc_call_open`, which resolved it **again**: **185,890 `rt_proc_find` calls for 92,945 callouts.** Split the
+post-resolution half into `rt_proc_call_open_p(p, nargs)`; the by-name entry keeps its signature and delegates, so **no
+emitted code changes** (21/21 demo `.s` verified `same`, list read in full — that summary string is the false-green my
+own s275 FINDING caught). The two resolutions provably cannot disagree: nothing between them mutates the table, and
+`rt_call_proc_descr` **already** dereferences its `p` after the call.
+⭐ **MEASURED vs a REBUILT pre-cure baseline, NOT vs the disarmed arm** — the disarmed arm carries the killswitch's own
+per-callout cost (1.57% above baseline), so arm-vs-arm reads −6.20% and **overstates it**. Honest: `json-match`
+**153,610,836 → 146,361,201 Ir = −4.72%**; `json-match-fence` −5.89%. **`rt_proc_find` 11,526,326 → 5,763,736 —
+exactly halved**, the predicted mechanism rather than a bulk number. Killswitch `SCRIP_PROC_OPEN_P=0`, **default ON,
+opt-OUT**.
+⭐⭐ **THE ZERO ROWS ARE THE CONFIRMATION, NOT A GAP:** `calculator-1-match` and `calculator-2-match` moved **+0.00%,
+byte-identical Ir**. They profile as emitted match boxes with **zero** procedure callouts, so a callout cure must be
+*exactly* inert there. **A number that moved everything would have been evidence the attribution was wrong.**
+→ `FINDING-2026-08-28-hq_P-the-by-name-callout-resolved-the-same-procedure-twice.md`
+
+⛔⭐ **CORRECTION TO A NUMBER EVERY SEAT MATCHES AGAINST: THE SNOBOL4 BOARD DENOMINATOR IS NOW `893`.** CLAUDE.md still
+says *"expected totals are `m3 365/365, m4 365/365`"* — stale by **~2.4×**. Measured pristine this session:
+**m3 PASS=893 FAIL=0 · m4 PASS=893 FAIL=0 · SKIP=0 · MISSING=0**, rc=0, 65 s. ⭐ `FAIL=0/SKIP=0/MISSING=0` is the
+invariant; **the total is not** — a seat matching on 365 reads today's green as 528 missing programs and chases a cure.
+⚠️ **AND THE INSTRUMENT NEEDS A FLAG NOBODY WROTE DOWN:** callgrind needs `--main-stacksize=2000000000` on the
+recursive pattern demos, or `calculator-1-match`/`json-match` die `Stack overflow in thread #1` at **rc=139 while still
+writing a plausible 185 KB profile**. A partial profile of a crashed run does not announce itself, and
+`calculator-2-match` survived the same sweep — so it reads as per-program flakiness, not as a missing flag.
+
+⛔ **WHAT IS STILL OPEN AND IS THE NEXT LEVER, stated so it is not re-bought:** the callout ceremony is **~31.6%** of
+json-match's match phase; this cure took **one slice**. `rt_name_save_push` (7.87% self, **still two calls per
+callout**), `rt_proc_call_prologue`, and the argument `memmove` are untouched and are the largest remaining lever on
+the worst tier-1 row. ⛔ No aspect-2 `x` multiple is published for this cure — converting Ir to a multiple needs the
+two-aspect board, and s275's **1.76x wall-clock swing with no code between readings** is why that is not done by
+arithmetic.
+
+### LIVE CURSOR — s275 (hq_P, **DUO with CEO**, Lon in-chat). **A PROVEN CURE WAS SHIPPED DARK FOR EIGHT DAYS · SLICE (a) TAKES 40.6% OFF pattern_bt · THE DEMO ARTIFACT REGEN HAS BEEN A NO-OP SINCE THE RE-GRID · AND I WILL NOT CUT A WALL-CLOCK MULTIPLE TONIGHT**
 
 **Mode:** Lon declared DUO in-chat mid-session while the `MODE` file still read `FLEET-16`; routed to `ceo` the same session per THE LOOP step 6(b) and `ceo` rewrote the file. ⭐ Worth recording as the mirror of s266: last time seats *assumed* DUO when the file said FLEET; this time the file said FLEET when **Lon** said DUO. The law held — the file is the authority, Lon outranks the file, and the override is routed, not acted on privately.
 
