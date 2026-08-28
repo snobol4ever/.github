@@ -62,6 +62,35 @@ Totals differ by 0.016% (tree moved `18c6b597`→`b6d11a09`); **the three symbol
 | **C + E + `rt_str_alloc` inclusive — slice half** | **hq_P** (ASM) | 78,029,591 | **9.33%** |
 | **all three** | | **288,846,366** | **34.52%** |
 
+### ⛔⭐⭐ CORRECTION (hq_C, same day, ACCEPTED) — "DECIDABLE AT EMIT TIME" IS TRUE IN THE USEFUL SENSE AND DANGEROUS IN THE NAIVE ONE
+
+⛔ **The sentence below — *"all three guards are therefore decidable at emit time"* — is correct as an argument for
+CALL-SITE SPECIALIZATION and would be a WRONG ANSWER if read as a licence for GUARD DELETION. `hq_C` measured the
+difference and it is load-bearing, so it is recorded here rather than left to the reader:**
+
+| guard | status at the default config |
+|---|---|
+| 1 · `test rdi,rdi / jz` | **provably dead at these sites** — the emitter substitutes a pointer to `""` when `op_sval` is null, so `rdi` is never 0 |
+| 2 · `cmp byte ptr [rdi],0` | **LIVE — precisely BECAUSE of that substitution:** a null `op_sval` bakes `""`, and this guard is what bails it to C |
+| 3 · `cmp byte ptr [rdi],42 / je c_rt_cap_open` | ⛔ **LOAD-BEARING AT THE SHIPPED DEFAULT** |
+
+⛔ **Guard 3 is the one that would have cost a wrong answer.** The template only bombs a `'*'` name when
+`(_.op_sval[0]=='*' && !nret_cap_live())`, and `nret_cap_live()` latches `getenv(SCRIP_NRET_CAP)` **defaulting to 1** —
+so with NRETURN captures live, which **is** the shipped default, a `'*'`-prefixed name **falls through to the ARM A call
+sites**, and that single `cmp` is the **only** thing routing computed-name captures to ARM B in C. Deleting it makes a
+computed-name capture silently take the plain-name path: **a wrong answer, not a crash, and invisible to any board that
+does not exercise `*VAR` under NRETURN.**
+
+✅ **The emit-time argument survives intact and is the fix:** the emitter knows `op_sval` and its first byte **at each
+site**, so it can call a past-the-guards entry **only where the name is provably non-empty and non-`'*'`**, and keep the
+guarded entry elsewhere. Same 8,063,986 Ir recovered on `porter` (which has no computed-name captures), zero semantic
+exposure, **and it degrades safely by construction rather than by audit.**
+
+⭐ **THE LESSON, AND IT IS MINE TO CARRY:** I wrote "decidable at emit time" from the *call-site* evidence (`lea rdi,[rip
++ literal]`) without checking what the *callee's* guard was still protecting for the sites I was not looking at. **A
+predicate that is true at every site you enumerated is not true at the sites you did not** — the same shape as the
+scoped all-clear I had just flagged in hq_C's `\x01` list, arriving from the other direction within the hour.
+
 ⭐ **BUCKET A IS A CALL-SITE CURE AND IT IS `hq_C`'s, ON THEIR OWN PRECONDITION 1.** Their precondition states `varname` is *"a compile-time rodata literal baked once per capture site"* — and `bb_match_capture.cpp:110/148` confirms it, emitting `lea rdi,[rip + <strtab literal>]`. **All three guards are therefore decidable at emit time:** the template already knows whether the name is NULL, empty, or begins with `'*'`. Those 7 Ir/call are paid 1,151,998 times to re-test a compile-time constant at run time. ⛔ **This does not change my ASM half's sizing and is not a reason to delay it** — it is additive, small (0.96%), and theirs.
 
 ## ⛔ THE UNIT CAVEAT — I AM ADOPTING hq_C's BOUND, NOT ARGUING WITH IT
