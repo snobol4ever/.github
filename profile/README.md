@@ -57,6 +57,22 @@ The corpus is two things at once. It is the home of the **include/import librari
 
 ---
 
+## The Story
+
+In 2012, Jeff Cooper emailed Lon Cherryholmes. They knew each other the way SNOBOL people knew each other — from the community bulletin boards and mailing lists that kept a great language alive through the lean decades. Jeff mentioned he was writing SNOBOL4 in C#. Lon never got the chance to join him, and the thread went quiet — for fourteen years.
+
+In March 2021, Lon spent a few weeks implementing a subset of SNOBOL4 in Clojure — played with it, proved the shape, set it down (the first commit of what would become snobol4jvm is dated March 5, 2021).
+
+In March 2026, Jeff called. He had an implementation — a real one, complete, the work of years. Lon promised to help. **Two days later**, working with Claude Sonnet 4.6, Jeff's implementation was running **twenty times faster**. Then Lon thought: resurrect mine. **One day later**, the 2021 Clojure subset had become snobol4jvm — a full implementation.
+
+And then came the thought that would not stop, each idea pulling the next one in:
+
+*Maybe now we can write a portable bootstrap compiler in SNOBOL4. Or better — in Snocone. A SNOBOL4/Snocone compiler, written in Snocone. But Icon and Prolog are goal-directed-evaluation languages — the same machine underneath — so bring them in. And Rebus belongs, for history's sake. And we need a common 3GL and a modern scripting language: Pascal, and Raku. Call it SCRIP — **S**nobol4 · sno**C**one · **R**aku/**R**ebus · **I**con · **P**rolog/**P**ascal. What if they could link and call each other seamlessly? What if they could co-exist in the same file — SCRIPtix: triple-backtick blocks in any Markdown file, compiled and run, all languages simultaneously? What if we go further — expression embedding, pure language code-switching mid-program? What if it runs everywhere?*
+
+The repository born that March was named **one4all**. On May 31, 2026 it was reborn as **SCRIP**. The destination is visible from here: a form of Jupyter notebook in which every code cell speaks any SCRIP language — the SCRIPtix feature delivered through interactive Python notebooks (`.ipynb`) — seven languages, one engine, anywhere and everywhere.
+
+---
+
 ## The People
 
 **Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, SCRIP (co-author), snobol4jvm, snobol4python, snobol4csharp. Nearly six decades from first dream to this repository.

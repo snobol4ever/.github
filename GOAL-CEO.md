@@ -4,6 +4,8 @@
 
 ## LIVE CURSOR
 
+**CEO-98 (2026-08-28 — THE STORY, TOLD RIGHT):** '## The Story' added to the profile README before The People, from Lon's own telling with dates VERIFIED against the repos (2012 Jeff's email; the Clojure subset's first commit 2021-03-05 — Lon said ~2020, the repo says March 2021, the repo wins; March 2026 the call, two days to 20x with Sonnet 4.6, one day to snobol4jvm; one4all born 2026-03-10, reborn as SCRIP 2026-05-31), the cascade of ideas in his rhythm (bootstrap in Snocone → GDE languages → Rebus for history → Pascal+Raku → the SCRIP acronym → seamless linking → SCRIPtix triple-backtick MD → expression embedding/code-switching → everywhere), ending at the IPYNB destination.**
+
 **CEO-97 (2026-08-28 — LON'S FINAL PROFILE ORDER):** Implementations now read dotnet → jvm → **corpus → pattern libraries** (his order) with **everything SCRIP at the very bottom** — the SCRIP section (promoted to its own ## heading) leads the closing block, followed by The Discovery and The Map, then License. Heading census verified after surgery.**
 
 **CEO-96 (2026-08-28 — LON RESTORES THE CORPUS SECTION, REFRAMED):** corpus section re-added to the profile README per his spec — the include/import-library home AND the interesting-programs home with SUBMISSIONS WELCOME, keeping the deleted section's substance (Gimpel library, Shafto AI corpus, 1,299-entry board both modes, one-test-per-line-in-color suite format, CC0 restored to the License line). Placed after the pattern libraries; repo-mention scope otherwise unchanged.**
