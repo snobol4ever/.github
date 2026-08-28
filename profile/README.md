@@ -75,7 +75,7 @@ The repository born that March was named **one4all**. On May 31, 2026 it was reb
 
 ## The People
 
-**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — compiler architecture, SCRIP (co-author), snobol4jvm, snobol4python, snobol4csharp. Nearly six decades from first dream to this repository.
+**Lon Jones Cherryholmes** ([@LCherryholmes](https://github.com/LCherryholmes)) — **architect of SCRIP**: the seven-language vision, the Byrd-box engine, the platform roadmap — and author of snobol4jvm, snobol4python, and snobol4csharp. Nearly six decades from first dream to this repository.
 
 **Jeffrey Cooper, M.D.** ([@jcooper0](https://github.com/jcooper0)) — snobol4dotnet (complete .NET compiler and runtime) and the spitbol4win build of SPITBOL. A medical doctor who, over a fifty-year journey driven by love for the language, built a complete SNOBOL4 compiler and runtime. When he called Lon to say he had an implementation, two fifty-year journeys collided. The result is this repository.
 
