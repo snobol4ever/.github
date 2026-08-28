@@ -29,6 +29,66 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
+### ⭐⭐⭐ LIVE CURSOR — s281 (hq_P, **FLEET-8**, `MODE` file computed). **PER-STATEMENT ATTRIBUTION IS ON BY DEFAULT — AND IT USED TO LIE ABOUT `-INCLUDE`: 599 OF 1,068 `.loc` ON beauty POINTED PAST THE END OF THE FILE THEY NAMED**
+
+✅ **SCRIP `764752c6` · corpus `89620e682` · `RT_OPT=-O0` · pristine (HQ-27).** Row `perf-per-statement-loc-emission`
+(slice 2 of `perf-symbol-attribution-tooling`) LANDED and PUSHED. **`perf report --sort srcline` and `perf annotate`
+now resolve mode-4 binaries to source statements with no env var asked for.** No speed claim — this is attribution
+plumbing and it is **inert by construction** (`.text` byte-identical, poison-arm-proven).
+
+⭐ **THE MACHINERY HAD EXISTED FOR FIVE DAYS AND HAD NEVER EMITTED ANYTHING.** `fde80746` landed `x86("loc",…)` +
+`bb_line_of()` correctly — behind `SCRIP_DWARF_LOC=1`, **opt-IN**. Instrument Law 1, second independent instance:
+*a cure behind a default-OFF flag is a deletion with a comment explaining what it used to do.* ⛔ **And the gate
+agreed with it** — `test_gate_emit_dwarf_loc.sh` asserted as arm 3 that the default build emits **no** `.file`/`.loc`.
+**A gate written alongside an opt-in cure will faithfully protect the opt-in.** Default now ON; `SCRIP_DWARF_LOC=0`
+is the killswitch **and** the control arm, boarded in both arms.
+
+⛔⭐ **THE DEFECT WORTH CARRYING FORWARD: `-INCLUDE` CODE WAS ATTRIBUTED TO THE MAIN FILE.** The lexer's `lineno`
+(`snobol4.lex.c:703`) is a monotonic counter over the **post-include stream**, so an included statement carries a
+number indexing nothing in the file `.file` names. **Measured on beauty (618 lines): 599 of 1,068 `.loc` pointed past
+EOF, and the rest landed on real line numbers belonging to unrelated statements** — the second half is the dangerous
+half, because an in-range wrong line is **plausible** and `perf annotate` renders it as confidently as a true one.
+⛔ The old gate could not see it: **it graded `roman.sno`, which has no includes** (Instrument Law 9 — one spelling of
+the concept). ⛔ **Both obvious repairs are wrong and were measured:** omitting the `.loc` does not mean "unknown"
+because **DWARF `.loc` is sticky** (it inherits the previous statement — ~56% of beauty onto one line), and
+**`.loc <file> 0` is SILENTLY DROPPED by gas** (raw table shows no row; `addr2line` reports the prior line).
+✅ **Cure: file 1 = main source, file 2 = `"<included>"`**, routed on a fact `stmt_ast.c` already computed and threw
+away (`stmt_src_slice()` returning NULL *is* "not in the main file"), carried as `:incl` on the **sign** of the line
+already flowing to `g_bb_src` — **no new global, no new parallel array, no signature change.** beauty now: **178
+file-1 rows (true lines) + 890 file-2, ZERO file-1 lines past EOF.**
+⛔ **A bound check alone was NOT enough** — my first cut routed on `line <= nlines` and an included statement whose
+stream line landed *inside* the main file's range slipped through. ⭐ **The predicate reconstructible at the emit site
+was weaker than the one the compiler had already evaluated upstream; the fix was to carry the real answer forward, not
+to re-derive an approximation of it.**
+
+⛔⭐ **AND AN INSTRUMENT LESSON THAT COST THE MOST TIME: `mawk` HAS NO `\s`, GNU `grep` DOES.** I measured beauty at
+**0 `.loc`** and chased it as a compiler regression. `awk '/^\s*\.loc/'` matches **nothing** under mawk (the only awk
+on this box) while `grep -c '^\s*\.file'` in the same block worked — so two counters over **one file** disagreed, and
+the disagreement looked exactly like "the emitter stopped emitting `.loc` but still emits `.file`". The file had 1,068
+the whole time. ⭐ **Two counters over one file disagreeing about that file is an INSTRUMENT fault before it is a
+subject fault.** Use `[[:space:]]` in awk, always — same family as clause 15.
+
+**BOARDS (both re-run AFTER `pull --rebase` brought in 19 other-seat commits — the first pair certified a tree that
+never existed on origin):** SNOBOL4 default **m3 893/893 · m4 893/893 SKIP=0 MISSING=0**; `SCRIP_DWARF_LOC=0` arm
+**identical**. Shared-node scope (`emit.cpp`/`x86_asm.h`/`scrip.c` reach every frontend): icon 14/14 m4, rebus 4/4,
+raku 724/724, polyglot 2/2, hello-matrix 6/6, `emit_no_lang` OK, `template_medium_invisible` OK, `emit_dwarf_loc` OK.
+Icon bench `.s` byte-identical (8 sampled), prolog bench regen `changed=0` — only SNOBOL4's lowering populates the
+line table. Prolog smoke **4/5**: `clause` fails identically in both arms **and in m2**, which this change cannot
+reach — pre-existing, row `prolog-multiclause-fail-backtrack-segv`.
+
+⛔ **ROUTED, NOT CURED (sent to `ceo`):** `update_icon_bench_asm.sh CHECK=1` prints `total=0 … ` and **exits 0** while
+**37 Icon bench sources + 20 committed `.s`** sit at `corpus/benchmarks/icon/` — its guard still matches the
+pre-re-grid `*/corpus/icon`. Instrument Law 2, and the same re-grid casualty class as the demo regen break RULES
+records (**that one is now fixed; this one is not**). Harmless for this change (verified by hand) but it would hide
+genuine Icon drift silently, forever. ⭐ **A guard keyed on a name is not a guard, it is a coincidence.**
+
+**NEXT for this seat:** slice 4 of the parent row (Lon's addendum) — α/β **execution counts**, `β/α` = backtrack
+pressure per box, exact and noise-free beside perf's samples; the dead `SCRIP_BBPROF` bones may serve as the reporting
+half **only if both its defects die** (never-records; m4-cannot-report-by-construction), two-arm board per clause 10,
+and **the counter overhead measured and reported beside the numbers** per clause 6 — that overhead is the real risk,
+since this counts per box execution rather than once per graph at seal.
+Receipts: `FINDING-2026-08-28-hq_P-per-statement-loc-was-opt-in-and-lied-about-include-files.md`.
+
 ### ⭐⭐⭐ LIVE CURSOR — s280 (hq_P, **FLEET-8**, `MODE` file computed). **THE PROFILE COULD NOT SAY WHICH BOX *KIND*, AND MODE-3 COULD NOT SAY ANYTHING — BOTH CURED (Lon direct) · `match_begin` β IS 18% OF CYCLES · AND `rt_cap_open` HAS NO PROLOGUE**
 
 ✅ **SCRIP `476a8ae3`.** Two rows landed, both instruments, no cure and no speed claim.
