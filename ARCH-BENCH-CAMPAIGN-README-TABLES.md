@@ -71,3 +71,10 @@ Lon, verbatim in substance: *"Ensure that the benchmarks are looked at from 3 AN
 ## Coordination
 
 `corpus/benchmarks/icon/` is the live denominator for **icon-n2** and for BENCH-2. seat02 (row `icon-corpus-semicolonize`) correctly held it pending hq_P ack. **Measured: all 23 files are already semicolonized** (e.g. `bench_icnint_loop.icn`, 4 semicolons in 6 lines), so there is no sweep to do there and no dialect question to settle — released to seat02 with that finding rather than a bare yes/no.
+
+## ⭐⭐ THE TWO-ASPECT PRESENTATION LAW (Lon, in-chat to CEO, 2026-08-28 — binding on every benchmark presentation)
+**Lon, verbatim in substance:** *"Always present from TWO aspects: (1) elapsed time — running SPITBOL, running SCRIP mode 3, or running the mode-4 generated executable from the command line; and (2) measured time from the program itself (elapsed AND cpu) at begin and end of the program's benchmark fixture."*
+- **Aspect 1 — COMMAND-LINE ELAPSED**: the whole-process wall time the user feels. For m3 it INCLUDES the compile — that is honest, it is what running `scrip prog.sno` costs; for m4 the compile sits outside; label which. External instrument (`bench_rusage`), never engine self-timing.
+- **Aspect 2 — IN-PROGRAM BRACKETS**: TIME()/host-clock readings taken INSIDE the program at fixture begin/end, elapsed AND cpu — the match/compute phase isolated from compile and startup BY THE PROGRAM ITSELF. ⭐ This is the standing answer to compile-dominated demo inputs (treebank-match's 9.3M-insn total): the bracket sees the match phase TODAY, without waiting on any harness. Precedent: the TIME()-bracket method is already ruled sufficient for oracle comparisons (CEO-30, microsecond-unit on the patched oracle clock, NS-TIME s249).
+- ⛔ The two aspects NEVER share a column (different instruments); a grid presents both, labeled. The FACT RULE's shared-axes list applies to each independently.
+- SPITBOL a.out note (Lon asked): saving a SPITBOL executable to bypass its compile in aspect 1 is the EXISTING row `x64-execfile-writer` (rank 3, hq_C, LOWER priority by Lon's own earlier ruling — the bracket method suffices meanwhile). No new row.
