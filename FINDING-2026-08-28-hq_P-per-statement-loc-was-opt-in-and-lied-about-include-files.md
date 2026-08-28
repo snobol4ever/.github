@@ -137,3 +137,41 @@ No speed claim — this is attribution plumbing and it is inert by construction.
 to `<included>:<stream-line>`, an honest bucket, **not** a file `perf annotate` can open; giving each
 include file its own `.file` number needs file identity threaded through the lexer and is not in this row.
 Slice 3's m3 perf-map remains **per-graph, not per-box**.
+
+## ⭐ ADDENDUM — RE-PROVEN ON THE FINAL TREE (same session, added openly rather than by silent edit)
+
+After the FINDING body was written, a `pull --rebase` for a follow-up commit (the demo-regen path fix below)
+moved the tree again. Both arms, the three gates and the Icon smoke were **re-run on the tree actually handed
+off**: **SCRIP `e5ee4c78` · corpus `c9d235401`**, pristine, `RT_OPT=-O0`, `bash scripts/test_corpus_snobol4.sh`:
+
+| arm | board |
+|---|---|
+| SNOBOL4 default (feature ON) | m3 PASS=1081 FAIL=0 · m4 PASS=1081 FAIL=0 SKIP=0 · MISSING=0 |
+| SNOBOL4 `SCRIP_DWARF_LOC=0` | m3 PASS=1081 FAIL=0 · m4 PASS=1081 FAIL=0 SKIP=0 · MISSING=0 |
+
+`test_gate_emit_dwarf_loc` rc=0 · `test_gate_emit_no_lang` rc=0 · `test_gate_template_medium_invisible` rc=0 ·
+`test_smoke_icon` rc=0.
+
+⛔⭐ **THE DENOMINATOR MOVED 893 → 1081 INSIDE ONE SESSION** — another seat grew the corpus between my two
+board runs. Both readings are green and both are correct for their tree. This is the standing CLAUDE.md
+warning paying off exactly as written: **`FAIL=0 / SKIP=0 / MISSING=0` is the invariant; the total is not.**
+A seat matching a remembered 893 against today's 1081 would read legitimate corpus growth as 188 missing
+programs and go hunting for a cure.
+
+## ⛔ A DEFECT THIS ROW INTRODUCED, CAUGHT AND CURED THE SAME SESSION — COMMITTED ARTIFACTS WENT SEAT-ROOT-SPECIFIC
+
+Because the compiler now emits `.file 1 "<path as given>"` (gcc's own behaviour, and correct — the compiler
+echoes the path it was handed), **`util_regen_demo_s_artifacts.sh` baked `/home/claude_P/...` into 21 committed
+demo `.s` artifacts**: it resolves its source with `find "$DEMO" …`, so it handed the compiler an absolute path.
+⛔ **Every other seat root would have regenerated them straight back — a permanent churn war between
+`/home/claude_P` and `/home/claude_C` over 21 files, with neither side wrong.** The benchmark regen was clean
+throughout because it already passed a bare basename.
+
+⭐ **What caught it is the part worth keeping: `handoff_status.sh`'s artifact WARN said "21 demo .s owed" while
+the regen script itself said "already current" — and I chased the disagreement instead of trusting the
+scarier-looking one or waving off the WARN-only banner.** Two instruments disagreeing about one tree is a fact
+about the instruments, and it was true here in the same way it was true of the mawk/grep split in §4. The
+script already `cd`s to `$DEMO`, so compiling `"${src#$DEMO/}"` is a one-token fix. Verified: 21 files
+re-emitted (21 insertions, 21 deletions — one `.file` line each), **zero committed `.s` under `corpus/` carry an
+absolute `/home/` path**, a second regen reports "already current", and roman/json/wordcount re-compile
+byte-identical from `$DEMO`.
