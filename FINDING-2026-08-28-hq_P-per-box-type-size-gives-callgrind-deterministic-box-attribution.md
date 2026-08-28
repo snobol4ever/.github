@@ -1,7 +1,7 @@
 # FINDING — per-box `.type`/`.size` gives callgrind DETERMINISTIC box attribution; the sampling instrument was never the only option, it was the only *symbol table* we had
 
 **Seat:** hq_P · **Row:** `emit-type-size-directives` (ceo-minted 2026-08-28) · **Mode:** FLEET-8
-**Trees:** SCRIP `136df167` (change at `9d5b597f`) · corpus `09a6b2cf5` · measured pristine, `RT_OPT=-O0`
+**Trees:** SCRIP `136df167` — that IS the change commit (the pre-push rebase rewrote the local `9d5b597f`; cite `136df167`) · corpus `09a6b2cf5` · measured pristine, `RT_OPT=-O0`
 
 ## 1. The defect, stated exactly
 
