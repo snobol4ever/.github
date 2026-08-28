@@ -148,6 +148,37 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s277 (2026-08-28, Opus 5, FLEET-8) — ⭐⭐ A FORMAT EXCEPTION CLASS THAT CITED MY OWN RULING IS GONE, AND THE FILE NAMED FOR THE COVERAGE IT PROVIDES PROVIDES NONE.**
+
+Inbox 3, all answered and cleared (seat02 decline, ceo resend request, seat07 question). Row `corpus-crosscheck-probe-total-conversion`. SCRIP `241def5e` · corpus `710f2562c`.
+
+### ⭐ SUITE FORMAT EXTENSION (C): STDIN, OUT-OF-BAND — AND THE DESIGN CAME FROM MY OWN BUG
+9 of crosscheck's 10 "permanent keepers" were stdin-bearing, held loose because *"the settled suite format has no stdin-input concept"* — citing **this seat's own** ruling in their `KEEP.md`. Lon voided the exception class, so the excuse became the work. Landed as a **third parallel `family.in`**, banner-keyed, matched by name; absent ⇒ `/dev/null`, so every existing suite keeps its verdicts byte-for-byte.
+⛔ **The in-band `*<<<STDIN` marker was rejected on measured grounds, not taste** — it is the `a01fe9f6` class I cured this same session (a port marker prepended in-band, `x86_internal_resolve` eating two bytes of any Pascal descriptor carrying that byte in its own `.string` data; silent, m4-only, read as *output mismatch*). ⭐ **A test program's stdin is arbitrary user bytes, so reserving any line shape inside it recreates that class by construction.** The general form I wrote into the format amendment: **xfail and self-pinned-ref grading are also entry metadata and belong in sidecars for the same reason.**
+⭐ **Auto-discovered, never a flag** (`sidecar_in_path`): every board, gate and runner picks stdin up with **zero argv changes**, so a converted family cannot silently run *without* its input because one caller was missed — the failure a `--stdin` flag would have guaranteed, and it would have looked like a real FAIL.
+**Measured, both directions:** control arm old-vs-new over 3 families / 29 entries — `SUITE_BOARD` **byte-identical** · round-trip exact incl. stdin · **load-bearing: with `.in` 6/6 PASS both modes, hidden 0/6**, through the CLI so auto-discovery itself was under test · Pascal m3 suites 96/0 (`read_block_suite` = the path changed most) · both blocking gates rc=0.
+
+### ✅ 9 CONVERTED, THREE DIRECTORIES DELETED, DENOMINATOR NET ZERO
+`crosscheck/{arith,control,strings}` **gone**, with the `KEEP.md` files that documented the void exception. **Oracle pre-flight first: 9/9 match `sbl -bf` byte-for-byte** — genuinely oracle-derived, not self-pinned. Byte-equality validated **per entry** against the loose original, both modes, same stdin, before any delete.
+**Attributed (s272):** 893 → 902 (both copies live) → **893**. Net zero — the 9 changed container without leaving the board. ⚠️ Post-rebase the board reads **1081/1081 FAIL=0 SKIP=0 MISSING=0 rc=0**; the extra 188 are other seats' conversions landing under me. **Read FAIL=0 over the printed total, never a remembered number** — that rule demonstrated itself twice in one session.
+⭐ **The pre-flight is now twice-measured, not a maxim.** The same audit found **4 of 96** Pascal crosscheck refs pinned to SCRIP's own output, invisible for 20 days, past a 7-of-82 spot-check and an exhaustive whitespace check. **A conversion inherits the correctness of its inputs, and byte-equality preserves a bad ref perfectly** — after conversion the error is permanent *and provable-looking*.
+
+### ⭐⭐ THE 10th KEEPER: A FILE NAMED FOR THE COVERAGE IT PROVIDES, THAT PROVIDES NONE
+`coverage_sno_nodes.sno` claims to exercise every SNOBOL4 IR node kind. **Measured:** the oracle **SIGSEGVs nondeterministically** (139,139,231,139,139 over five runs) and emits a **timestamped** listing → no oracle ref can ever exist; SCRIP refuses it deterministically rc=1 (`pattern shape outside the SN4-PAT subset … IR_MATCH_* pending`). **Neither implementation can execute it.**
+⭐ `KEEP.md` called it *"genuinely never graded"* — **true, and it reads as benign. The reason it is never graded is that it cannot run.** Same family as the Icon recognizer's `(compiland "")`: **a thing characterised precisely enough to be bucketed, never enough to be graded.** Held as a pending-feature witness — giving it a ref from SCRIP's own refusal would launder a self-pinned ref, exactly what I refused for the 4 Pascal blocks.
+
+### ⛔ CLAUSE 1 NOT CLAIMED, AND THE BLOCKER IS NAMED
+`corpus/crosscheck/` is **not deletable yet**: `snocone/` 181 `.sc`, `coverage/` 1, plus beauty/patterns artifact residue. **Both remainders gate on extension (D) xfail/xpass**, whose convention already exists on disk (`.xfail` sidecars whose *content is the reason*, 4 of them) while the harness has **zero** support. ⭐ That the org reached for a sidecar unprompted is itself the design argument for keeping (D) out-of-band too. Fan-out re-cut: minted `crosscheck-snocone-181-convert` rank 2 FREE (177 convertible now, 4 held).
+
+### ⭐ seat07's ROW: I VERIFIED THE MECHANISM IN SOURCE INSTEAD OF SENDING A FOURTH GUESS
+Their storage-class hypothesis is **structurally well-posed**: `emit.cpp:1080-1085` dispatches `IR_VAR` into `bb_var()` (source `FRQ(_.op_sa)`, RSP-relative for Pascal → depth-sensitive on read **and** write) vs `bb_var_global()` (source `GVARQ`/`ABSQ` → **depth-independent**). ⭐ **The discriminator is the SOURCE read, and `bb_var()`'s source is `_.op_sa` — the PRODUCER's slot, a cross-node quantity** — which is exactly my own open half (`emit.cpp:3170-3173`, `zd_out[i] - zd_out[_k] + _xh` across runs). **Two independent lines met on one mechanism for the first time on this thread.** Checkable with **no rebuild** on the `.s` they already hold. ⛔ Scope stated explicitly: the *arms* are proven, the *polarity* is not — a mixed result kills it for the price of a grep. Killed a fourth candidate before sending it (`XSAQ` looks like a missing rbp arm in `bb_var`; it has exactly 7 users, all `bb_match_*`, so the split is by design), and corrected `x86_asm.h:887`'s blanket *"no rbp arm anywhere"* — there is one, Icon-generator-gated, 0 for Pascal. Banked in the row's baton, **not only in a message** — because the postoffice lost an hq_C→ceo message unread this same session.
+
+### ⭐ THE UNSAYING I OWED, RESENT
+ceo cleared my message unread (their own pipe defeated `check`). Resent: I had **routed seat03's bisect attribution upward as correct** — `69a0e1d1` first-bad for the Pascal bool-family truncation. **It is wrong.** The real introducer is `3da1168c`, twenty days earlier, byte-identical at `lower_pascal.c:125` in **both** of that bisect's own anchors — settled by two `git show | grep`, no rebuild. ⭐ **`git bisect` assumes one repository and one oracle; this workspace has neither** — corpus moved under a SCRIP bisect (`32be25c71`, 77 seconds away), so the flip had no SCRIP commit responsible. **Pin the oracle before bisecting the code.** Blast-radius checked: zero occurrences in `GOAL-CEO.md` or any sovereign file, so the false premise never landed. seat03's *observations* were all correct — only the anchor was wrong.
+
+---
+
+
 **s276 (2026-08-28, Opus 5, FLEET-8) — ⭐⭐ THE RANK-0 SHARED-INFRA ROW IS CLOSED, AND THE OTHER TWO RESULTS BOTH RAN AGAINST ME: I VOIDED A GOOD GRID ON AN ARGUMENT, AND AN ICON BOARD HAD BEEN GRADING ZERO FILES.**
 
 Inbox 2 (seat07 park, ceo rulings), both drained. Pristine `-O0` at SCRIP `43fa94a0`.
