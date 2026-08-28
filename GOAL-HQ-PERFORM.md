@@ -29,7 +29,32 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐⭐⭐ LIVE CURSOR — s279 (hq_P, **FLEET-6**, `MODE` computed). **ONE `static const` TABLE IN A HEADER IS 96% OF THE RUNTIME'S RELOCATIONS — 150 PRIVATE COPIES, 1000.8 KB, ~59% OF THE WHOLE STARTUP FLOOR · AND THE STARTUP-TOUCH LANE AS BRIEFED IS BOUNDED AT 7%**
+### ⭐⭐⭐ LIVE CURSOR — s279b (hq_P, **FLEET-6**). **AN EARLY RETURN STILL PAYS THE CALL — 0.175% BECAME 1.89% BY MOVING THE SAME TEST TO THE CALL SITE · json-match −6.53% ACROSS TWO SESSIONS**
+
+✅ **SCRIP `18c6b597`.** `rt_proc_call_prologue` calls `rt_name_save_push` **185,890 times for 92,945 callouts** while
+only **92,945 elements** are ever pushed — the parameter push arrives with `np == 0` because json's `EXPR$n` procs carry
+no formals. **Half the calls did nothing.**
+⭐⭐ **THE LESSON, AND IT COST ME ONE FULL MEASURE-AND-REVERT CYCLE TO LEARN:** the obvious cure — early-return when
+`n <= 0` — is provably correct and bought **−0.175%**. Line annotation said why: the opening brace alone is **10 Ir of
+prologue per entry**, ×185,890 = **1.27% of the program in function ENTRY**. **An early return shortens the body, and
+the body was not the cost.** Moving the same test to the CALL SITE took it to **−1.89%** (146,345,152 → 143,579,020).
+With s278's `0125bc8d`, json-match is **153,610,836 → 143,579,020 = −6.53%**.
+⛔ **AND IT IS NOT s278's SHAPE — I CHECKED INSTEAD OF PATTERN-MATCHING.** There the second `rt_proc_find` was the same
+answer computed twice. Here **both calls are necessary and different** (params vs result name); one is merely empty for
+json's shape. **A matching call-count ratio is not a shared mechanism.**
+⛔ Remaining ~110 Ir per populated element is **intrinsic** `DESCR_t` copying at `-O0` (fast path always taken —
+`NV_GET_fn`/`NV_SET_fn` never reached here), so **the rest of that symbol is an RTX/ASM question, not a C one.**
+⭐ Boarded **in both arms** per hq_C's law: pristine **893/893 m3 and m4, armed AND disarmed**; Icon 14/14, Snocone 5/5,
+Rebus 4/4, Prolog 4/5 pre-existing. → `FINDING-2026-08-28-hq_P-an-early-return-still-pays-the-call.md`
+
+⭐ **ARM-A CAPTURE (hq_C's find) — SPLIT RATIFIED BY ceo, ASM EDIT IS MINE, AND I RESIZED IT.** hq_C estimated a ~14%
+ceiling on `porter`; measured here it is **~30%**. `rt_cap_open` is entered **1,151,998** times and drives **83.2% of
+every `NV_SET_fn` call** (≈17.1% of the program) and **89.7% of every `rt_str_alloc` call** (≈5.2%), plus its own 7.77%.
+⭐ **So their two halves SWAP ORDER — kill `NV_SET_fn` first (~17%), slice the alloc+memcpy second (~5%).** ⛔ I declined
+their offer to take the whole rung: writing that ASM from the ASM would let me infer semantics from the code I am
+editing, which is their own one-spelling failure wearing my name. Waiting on their preconditions. Filed on the baton.
+
+### LIVE CURSOR — s279 (hq_P, **FLEET-6**, `MODE` computed). **ONE `static const` TABLE IN A HEADER IS 96% OF THE RUNTIME'S RELOCATIONS — 150 PRIVATE COPIES, 1000.8 KB, ~59% OF THE WHOLE STARTUP FLOOR · AND THE STARTUP-TOUCH LANE AS BRIEFED IS BOUNDED AT 7%**
 
 **Mode:** `MODE` now reads **FLEET-6** (Lon, campaign split: 6 seats, asks 01-03→hq_C, **04-06→hq_P**). ⭐ My deep
 items stay mine per ceo: **json remainder · *expr-by-address (coordinated with hq_C) · frame-locals · string-free
