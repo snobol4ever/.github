@@ -86,7 +86,7 @@ property of the sort, not a finding.
 | `GOAL-SELF-CONTAINED-SCRIPTS.md` | 131 | 0 | 11 | 0 | 0% |
 | `GOAL-SESSION-SETUP-REFINEMENT.md` | 145 | 1 | 0 | 0 | — |
 
-### D · monitor / SILly — 6 files
+### D · monitor / SILLY — 6 files
 
 | file | lines | RUNG/STEP | syms | gone | %gone |
 |---|--:|--:|--:|--:|--:|
@@ -172,7 +172,7 @@ reachable without forcing a merge that interlock (e) forbids; I am not amending 
   most retired-home citations in the corpus (11) and that is CORRECT: it documents the move that retired
   them. **Do not grade a reorg doc stale for naming what it retired** — this is the one place the
   instrument's signal inverts, and it is why the survey is a human pass and not a script.
-- **D · monitor / SILly** — the monitor is not deprecated as a tool but is no longer a mandated step;
+- **D · monitor / SILLY** — the monitor is not deprecated as a tool but is no longer a mandated step;
   consolidate to one file recording what survives.
 - **E · live announce READMEs** — `CORPUS` and `SCRIP` are NOT absorbed (interlock e).
 - **F · templates / BB** · **G · legacy rewrite era** · **H · unclustered** — H is deliberately not forced
