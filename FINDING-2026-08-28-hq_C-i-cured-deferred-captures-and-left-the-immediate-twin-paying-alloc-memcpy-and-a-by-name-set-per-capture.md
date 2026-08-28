@@ -30,6 +30,18 @@ NV_SET_fn(varname, {DT_S, len, copy})       <- BY-NAME SET, per capture
 
 ⭐ **I claimed slice (b) cured "captures". It cured DEFERRED captures.** SNOBOL4 has two capture operators and I cured one, and nothing in my own board told me — `.` and `$` are different boxes, and every kernel I graded the cure on (string_pattern, pattern_bt) uses `.`. The self-check that would have caught it is the one I did not run: *does the cure reach every construct the claim names?*
 
+## 2b. ⭐ THE WITNESS: ONE CHARACTER, 3 ALLOCATIONS VERSUS 1004
+
+Same program, same work, same output — only the capture operator differs. `SCRIP_ALLOC_HIST`, 1000 iterations:
+
+```diff
+        REC BREAK(',') . F1     ->  DT_S allocations =    3,   38 bytes   (deferred: sliced, cured)
+-       REC BREAK(',') $ F1     ->  DT_S allocations = 1004, 6050 bytes   (immediate: one per capture)
+```
+1004 = 1000 + 4: **exactly one allocation per capture, every iteration.** Both print `F1=alpha N=1000`, so this is not a semantic difference being measured — it is the same work costing 335× the allocations because of which capture operator was written.
+
+⭐ This witness is also the regression guard the cure will need: after the fix, BOTH operators must read ~0, and the assertion should name both spellings rather than "captures". A gate that says "captures do not allocate" while exercising one operator is how this got past me the first time.
+
 ## 3. BOTH HALVES OF THE CURE TRANSFER, AND THEIR PRECONDITIONS ARE ALREADY PROVEN
 
 1. **Slice the capture** instead of `rt_str_alloc`+`memcpy`. Length authority is board-proven (`SCRIP_CAP_POISON` green at 893/893), and `rt_gc_visit_descr` already marks and relocates interior `DT_S` pointers. Same `len > 0` carve-out, same `rt_sxt_break_fast` on mint.
