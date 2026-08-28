@@ -78,3 +78,58 @@ Lon, verbatim in substance: *"Ensure that the benchmarks are looked at from 3 AN
 - **Aspect 2 — IN-PROGRAM BRACKETS**: TIME()/host-clock readings taken INSIDE the program at fixture begin/end, elapsed AND cpu — the match/compute phase isolated from compile and startup BY THE PROGRAM ITSELF. ⭐ This is the standing answer to compile-dominated demo inputs (treebank-match's 9.3M-insn total): the bracket sees the match phase TODAY, without waiting on any harness. Precedent: the TIME()-bracket method is already ruled sufficient for oracle comparisons (CEO-30, microsecond-unit on the patched oracle clock, NS-TIME s249).
 - ⛔ The two aspects NEVER share a column (different instruments); a grid presents both, labeled. The FACT RULE's shared-axes list applies to each independently.
 - SPITBOL a.out note (Lon asked): saving a SPITBOL executable to bypass its compile in aspect 1 is the EXISTING row `x64-execfile-writer` (rank 3, hq_C, LOWER priority by Lon's own earlier ruling — the bracket method suffices meanwhile). No new row.
+
+## ⭐ STATIC-VS-SHARED m4 LINK ARM — ASPECT-1 RE-MEASUREMENT (seat02, row `m4-static-link-arm`)
+
+FINDING `f4f6292c` (hq_P) isolated the tier-1 aspect-1 floor to merely LOADING `libscrip_rt.so` (430
+minor faults / 7.4MB / ~1.8ms before any program work) and found static linking the one lever of four
+that actually worked, at a real price (~27-30MB/binary) that keeps it an ADDITIONAL opt-in arm, never
+a default — `out/libscrip_rt.so` is unchanged and still canonical. This re-measures aspect 1 on all 10
+tier-1 twins now that the arm is built: `--static` (`STATIC=1`) in `bench_rep_loop_demos_snobol4.sh`
+and `bench_snobol4_fixed_iter.sh`, via `make libscrip_rt_static` → `out/libscrip_rt.a` (the SAME
+`RT_PIC_OBJS` as the `.so`, `ar rcs`'d) + `gcc -no-pie -static` (never `-Wl,-Bstatic` toggling).
+
+Shared axes: instrument `tools/bench_rusage` (best-of-3 external elapsed); aspect 1 = whole process,
+m4 compile included; RT_OPT=-O0; mode m4 only (STATIC does not touch sbl/m3, both unaffected by
+construction); SCRIP tree `ddb86a93`. × is `shared/static`, ≥1.00x = static ahead (GREEN).
+
+⚠️ **Measured on the shared 16-seat box under real, visible contention, not a quiet machine** —
+`uptime` read load average 5.7-6.8 throughout, with other seats' own `bench_rep_loop_demos_snobol4.sh`
+processes independently visible in `ps` for the whole run. `calculator-1-match` — the heaviest tier-1
+program, and therefore the row most exposed to scheduler noise — is flagged UNTRUSTED rather than
+hidden or silently re-rolled: it read WORSE under static while every other row improved. Per this
+file's own three-angle law, disagreement this sharp on one row is a reason to withhold that number,
+not to average it in or discard it.
+
+```diff
+ demo                        × vs shared (aspect 1, m4 whole-process)
+-calculator-1-match          0.56x   UNTRUSTED -- contended run, heaviest tier-1 program, re-measure quieter
++calculator-1-match-fence    1.01x
++calculator-2-match          1.04x
++calculator-2-match-fence    1.09x
++treebank-match              1.80x
++treebank-match-fence        1.63x
++claws5-match                2.22x
++claws5-match-fence          2.04x
++json-match                  1.88x
++json-match-fence            1.93x
+```
+
+**Correctness + footprint, all 21 sanctioned demos (10 tier-1 twins included):** every static binary
+byte-matches its `.ref` AND is independently verified genuinely static via `ldd` (the control-arm-trap
+check `f4f6292c` asks every static-arm caller to run — this row's own first attempt at that check had
+a `pipefail`/`ldd`-exit-code bug that misreported every binary as non-static; cured in
+`lib_static_link_snobol4.sh` before any number below was trusted). Full table:
+`corpus/benchmarks/snobol4/perf-attribution-20260828T034003Z-seat02-static-link-arm.tsv`.
+
+Aggregate across all 21 (mean of each demo's static/shared ratio): **maxrss → 0.477x of shared (a
+52.3% cut), minor faults → 0.595x of shared (a 40.5% cut)**, at a binary size of 15.9KB-250.4KB
+(shared, mean 51.5KB) growing to a flat **~29.1-29.3 MB regardless of program size** (static, mean
+28.4MB) — the archive's own content dominates; program size barely moves it. Same shape FINDING
+`f4f6292c` reported (do-nothing floor -51% faults there vs -40.5% mean here; the difference is this
+arm links fully `-static`, glibc included, not only `libscrip_rt` — a wider cut than the finding's own
+arm, never independently re-priced there, so treat the two as agreeing in direction and order of
+magnitude, not as the same measurement).
+
+⛔ **Not a ship decision.** This row builds and prices the arm; whether SCRIP ever links this way by
+default remains Lon's call, unchanged by any number above.
