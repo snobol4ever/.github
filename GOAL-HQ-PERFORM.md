@@ -29,6 +29,50 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
+### ⭐⭐⭐ LIVE CURSOR — s280 (hq_P, **FLEET-8**, `MODE` file computed). **THE PROFILE COULD NOT SAY WHICH BOX *KIND*, AND MODE-3 COULD NOT SAY ANYTHING — BOTH CURED (Lon direct) · `match_begin` β IS 18% OF CYCLES · AND `rt_cap_open` HAS NO PROLOGUE**
+
+✅ **SCRIP `476a8ae3`.** Two rows landed, both instruments, no cure and no speed claim.
+
+⭐ **ROW `perf-symbol-attribution-tooling` (rank 1, LON DIRECT) — SLICES 1 AND 3 LANDED.** `scripts/util_perf_bb_rollup.sh`
+rolls a perf report into a **BB FAMILY × PORT** table (41 families; ports **α β af as s0…s20**), and `SCRIP_PERF_MAP=1`
+writes the perf jit map at slab-seal so mode-3 stops resolving to `[JIT]` (**`m3_pat_flat` at 11.20%**, previously an
+anonymous address). ⭐ **FIRST RESULT, AND IT NAMES A LEVER: `match_begin` is 24.84% of `porter` cycles and 18.18 of
+those points sit on ONE port — β, recede.** Per-symbol profiling had spread that across three unrelated 8/4/3% rows;
+**the rollup is the difference between three mid-table rows and the top lever.**
+⛔⭐ **THE PORT NAMES ARE LITERAL UTF-8 GREEK IN THE EMITTED LABEL** — an ASCII-only regex sees `af/as/sN` and silently
+misses **4,880 of 4,957** labels, because α and β are 98% of them. My first census did exactly that and produced a
+port vocabulary with no α in it, which still looked plausible. **An ASCII assumption over emitted labels is not a
+narrower measurement, it is a wrong one.**
+⛔ **SLICE 2 (`.loc` per statement) NOT DELIVERED — per-STATEMENT attribution, the first thing Lon's sentence names,
+still does not exist.** ⛔ **And the row's own DONE-WHEN has a STRUCTURALLY DEAD BRANCH:** it compiles
+`corpus/../corpus/...` from `SCRIP/`, but `SCRIP/corpus` does not exist (corpus is a *sibling*), so the `.loc` test
+greps a file that was never written — **slice 2 could land perfectly and DONE-WHEN would never see it.** Raised with
+`ceo` rather than silently patched; an acceptance criterion is not the graded party's to rewrite.
+✅ Print-only proven: emitted `.s` **byte-identical** arm-on/arm-off with a **negative control** (1-line poison makes
+`cmp` fire). **Zero new globals** — `getenv`+`fopen(append)` per seal, no cached static, no held `FILE*`.
+→ `FINDING-2026-08-28-hq_P-the-profile-could-not-say-which-box-kind-and-mode-3-could-not-say-anything.md`
+
+⭐ **ARM A — hq_C's BLOCKING ASK ANSWERED BEFORE THE CUT, AND IT MOVED A BUCKET TO THEM.** Line-annotated
+`rtx_match.S` ARM A: 61 instructions, buckets reconciling to callgrind's self figure **EXACTLY** (64,998,227).
+⛔ **THERE IS NO PROLOGUE.** `rt_cap_open` is a bare `RTX_FUNC` — entire entry is one `endbr64`, **0.14%**. The s279
+`rt_name_save_push` lesson is a fact about the **C calling convention**, not about a symbol, and does not transfer to
+an ASM callee. ⭐ **But their instinct was right in the wrong bucket: 49.6% of the function is CALL SCAFFOLDING**
+(`RTX_CALL_ALIGN`×2, 4 push/4 pop, arg marshalling) against only **32.7%** semantic work. ⭐ **`rep movsb` copies
+3.51 bytes per capture and its setup costs 3.13x the copy** — so "make the copy faster" targets 5.5% and is not worth
+cutting. ⭐ **Returned bucket A to hq_C on their own precondition 1:** `varname` is a compile-time rodata literal, so
+all three entry guards (8,063,986 Ir, **0.96%**) are decidable at emit time — a **call-site** cure, not an ASM one.
+⛔ **Ir ONLY. 34.52% addressable is an INSTRUCTION bound, never a speed claim** (ceo's cycles-axis ruling; I expect the
+Ir→cycles gap to be *wider* here — scaffolding is push/pop on a hot stack, the cheapest instructions retired).
+⭐ Re-verified hq_C's `\x01` all-clear rather than inheriting it — json-match 0, string_pattern 0, **and `porter` 0**,
+the Arm A witness, which was not on their list. **An all-clear is scoped to the list actually run.**
+→ `FINDING-2026-08-28-hq_P-rt-cap-open-has-no-prologue-half-of-it-is-call-scaffolding.md`
+
+⚠️ **PRE-EXISTING RED, control-armed, not mine:** `make test` rc=2 via `test_gate_corpus_coverage_classified.sh`
+(unclassified subtrees; `benchmarks/pascal` covered only by row `pas-display-revival`, state DONE). With my edits
+stashed it returns the **identical rc=1 and identical message**, and it never invokes the compiler. Reported to `ceo`.
+⛔ `icon-bench-correct-zero-of-eight` remains **BLOCKED and NOT re-scored** — N-2 item 2 step 2b is unstarted,
+`bb_call_proc_staged.cpp:733` untouched. **Board stays 0/8 by design.**
+
 ### ⭐⭐⭐ LIVE CURSOR — s279b (hq_P, **FLEET-6**). **AN EARLY RETURN STILL PAYS THE CALL — 0.175% BECAME 1.89% BY MOVING THE SAME TEST TO THE CALL SITE · json-match −6.53% ACROSS TWO SESSIONS**
 
 ✅ **SCRIP `18c6b597`.** `rt_proc_call_prologue` calls `rt_name_save_push` **185,890 times for 92,945 callouts** while
