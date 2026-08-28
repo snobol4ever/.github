@@ -4,6 +4,8 @@
 
 ## LIVE CURSOR
 
+**CEO-97 (2026-08-28 — LON'S FINAL PROFILE ORDER):** Implementations now read dotnet → jvm → **corpus → pattern libraries** (his order) with **everything SCRIP at the very bottom** — the SCRIP section (promoted to its own ## heading) leads the closing block, followed by The Discovery and The Map, then License. Heading census verified after surgery.**
+
 **CEO-96 (2026-08-28 — LON RESTORES THE CORPUS SECTION, REFRAMED):** corpus section re-added to the profile README per his spec — the include/import-library home AND the interesting-programs home with SUBMISSIONS WELCOME, keeping the deleted section's substance (Gimpel library, Shafto AI corpus, 1,299-entry board both modes, one-test-per-line-in-color suite format, CC0 restored to the License line). Placed after the pattern libraries; repo-mention scope otherwise unchanged.**
 
 **CEO-95 (2026-08-28 — LON REORDERS THE ORG PROFILE README):** Executed his spec exactly (.github/profile/README.md rewritten, no root .github/README.md exists — verified): general statement first (rewritten to lead with the FAMILY, not SCRIP) → **snobol4dotnet showcased FIRST with the spitbol4win special-build mention added** → snobol4jvm → SCRIP (all SCRIP/Byrd-box material — Discovery + Map — moved LAST, after The People) → snobol4python + snobol4csharp condensed to one brief shared section. **snobol4artifact and corpus sections REMOVED** per "do not mention any other repos" (License line trimmed to match); board numbers refreshed 1298→1299 in the three cells that cite them.**

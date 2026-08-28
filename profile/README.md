@@ -46,19 +46,14 @@ Alongside it, Jeffrey maintains **spitbol4win** — a special build of SPITBOL f
 
 A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. Parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement IR, and runs programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends: interpreter, Clojure IR transpiler (3.5–6×), stack-machine VM (2–6×), and direct JVM bytecode via ASM (up to 7.6× faster with JVM JIT). EDN compilation cache gives 22× speedup on repeated programs. **2,033 tests / 4,417 assertions / 0 failures.** The JVM backend has achieved `beauty.sno` self-beautification — byte-for-byte identical to the CSNOBOL4 oracle (M-JVM-BEAUTY ✅).
 
-### [SCRIP](https://github.com/snobol4ever/SCRIP)
-*One compiler engine — SNOBOL4/SPITBOL, Snocone, Icon, Prolog, Rebus, Raku, and Pascal — native x86-64 now, MSIL/JVM/JS/WASM returning*
-
-The compiler. Every construct lowers to four-port Byrd boxes — **α** proceed, **β** recede, **γ** succeed, **ω** concede — wired at compile time into straight-line jumps; no runtime dispatch. One IR, one encoder discipline (every x86 instruction through a single encoder), and two execution modes graded independently: `--run` wires native code into the running process, `--compile` emits a standalone x86-64 binary. The SNOBOL4 corpus board passes **1299/1299 in both modes** (2026-08-28), byte-for-byte against the SPITBOL oracle, and each frontend is verified against its own reference implementation: Arizona `icont`/`iconx` for Icon, GNU Prolog and SWI-Prolog for Prolog, Rakudo for Raku, Free Pascal for Pascal. `beauty.sno` self-hosts byte-identically. Polyglot translation units — several languages in one `.scrip` file, calling each other — are the frontier under active work.
-
-### The pattern libraries
-
-[**snobol4python**](https://github.com/snobol4ever/snobol4python) brings the full SNOBOL4 pattern vocabulary to Python as a first-class library (`pip install SNOBOL4python`) — not a regex wrapper, the real thing, with a C extension backend at 7–11× the pure-Python engine. [**snobol4csharp**](https://github.com/snobol4ever/snobol4csharp) is Lon's C# port of the same engine: patterns as first-class objects with full backtracking, validated against the Porter Stemmer, Penn Treebank, and CLAWS5 corpora.
-
 ### [corpus](https://github.com/snobol4ever/corpus)
 *The shared program universe — libraries, tests, and interesting programs — CC0*
 
 The corpus is two things at once. It is the home of the **include/import libraries** — the shared `-INCLUDE` and import-able SNOBOL4 code that every implementation in this organization draws on — and it is the home of **interesting programs**: the Gimpel algorithm library, the Shafto AI corpus, classic and newly written SNOBOL4/SPITBOL programs, and per-language benchmark and demo suites. **Submissions are welcome** — if you have written a SNOBOL4 program worth reading, this is where it belongs, beside the test universe that keeps it running forever: the SNOBOL4 board graded in both execution modes against SPITBOL (1,299 entries as of 2026-08-28 — the denominator grows as loose files consolidate into suites), in a suite format of one test per line beside its expected output, made to be read in color.
+
+### The pattern libraries
+
+[**snobol4python**](https://github.com/snobol4ever/snobol4python) brings the full SNOBOL4 pattern vocabulary to Python as a first-class library (`pip install SNOBOL4python`) — not a regex wrapper, the real thing, with a C extension backend at 7–11× the pure-Python engine. [**snobol4csharp**](https://github.com/snobol4ever/snobol4csharp) is Lon's C# port of the same engine: patterns as first-class objects with full backtracking, validated against the Porter Stemmer, Penn Treebank, and CLAWS5 corpora.
 
 ---
 
@@ -71,6 +66,11 @@ The corpus is two things at once. It is the home of the **include/import librari
 **Claude Sonnet, Claude Opus, and Claude Fable** — SCRIP (co-authors). Every sprint, every Byrd box, every labeled goto — written in session, committed, pushed.
 
 ---
+
+## [SCRIP](https://github.com/snobol4ever/SCRIP)
+*One compiler engine — SNOBOL4/SPITBOL, Snocone, Icon, Prolog, Rebus, Raku, and Pascal — native x86-64 now, MSIL/JVM/JS/WASM returning*
+
+The compiler. Every construct lowers to four-port Byrd boxes — **α** proceed, **β** recede, **γ** succeed, **ω** concede — wired at compile time into straight-line jumps; no runtime dispatch. One IR, one encoder discipline (every x86 instruction through a single encoder), and two execution modes graded independently: `--run` wires native code into the running process, `--compile` emits a standalone x86-64 binary. The SNOBOL4 corpus board passes **1299/1299 in both modes** (2026-08-28), byte-for-byte against the SPITBOL oracle, and each frontend is verified against its own reference implementation: Arizona `icont`/`iconx` for Icon, GNU Prolog and SWI-Prolog for Prolog, Rakudo for Raku, Free Pascal for Pascal. `beauty.sno` self-hosts byte-identically. Polyglot translation units — several languages in one `.scrip` file, calling each other — are the frontier under active work.
 
 ## The Discovery
 
