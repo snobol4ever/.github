@@ -55,6 +55,11 @@ The compiler. Every construct lowers to four-port Byrd boxes — **α** proceed,
 
 [**snobol4python**](https://github.com/snobol4ever/snobol4python) brings the full SNOBOL4 pattern vocabulary to Python as a first-class library (`pip install SNOBOL4python`) — not a regex wrapper, the real thing, with a C extension backend at 7–11× the pure-Python engine. [**snobol4csharp**](https://github.com/snobol4ever/snobol4csharp) is Lon's C# port of the same engine: patterns as first-class objects with full backtracking, validated against the Porter Stemmer, Penn Treebank, and CLAWS5 corpora.
 
+### [corpus](https://github.com/snobol4ever/corpus)
+*The shared program universe — libraries, tests, and interesting programs — CC0*
+
+The corpus is two things at once. It is the home of the **include/import libraries** — the shared `-INCLUDE` and import-able SNOBOL4 code that every implementation in this organization draws on — and it is the home of **interesting programs**: the Gimpel algorithm library, the Shafto AI corpus, classic and newly written SNOBOL4/SPITBOL programs, and per-language benchmark and demo suites. **Submissions are welcome** — if you have written a SNOBOL4 program worth reading, this is where it belongs, beside the test universe that keeps it running forever: the SNOBOL4 board graded in both execution modes against SPITBOL (1,299 entries as of 2026-08-28 — the denominator grows as loose files consolidate into suites), in a suite format of one test per line beside its expected output, made to be read in color.
+
 ---
 
 ## The People
@@ -113,4 +118,4 @@ snobol4all. snobol4now. snobol4ever.
 
 ## License
 
-AGPL v3 (SCRIP, snobol4jvm) · MIT (snobol4dotnet) · LGPL v3 (snobol4python, snobol4csharp). See individual repos for details.
+AGPL v3 (SCRIP, snobol4jvm) · MIT (snobol4dotnet) · LGPL v3 (snobol4python, snobol4csharp) · CC0 (corpus). See individual repos for details.
