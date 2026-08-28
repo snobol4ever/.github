@@ -143,6 +143,49 @@ Its own comment states the stakes: *"A freshly zeroed frame reads as 'never susp
 
 ---
 
+## PASCAL
+
+### ⭐ Oracle law — fpc 3.2.2 `-Miso`, AMENDED where it deviates from ISO 7185 or from itself (Lon via CEO-72/CEO-74, 2026-08-28)
+
+**`fpc -Miso` remains THE Pascal correctness oracle**, EXCEPT on real-number output formatting, where ISO 7185
+**delegates** to the implementation. Sourced: *Moore's Rules of ISO 7185*, <https://standardpascal.org/iso7185rules.html>
+— the exponent character is **"either `e` or `E` (the case is implementation defined)"**, and **"the number of digits
+in the exponent are implementation defined, as are the number of digits in a fraction if no field width is defined"**.
+Corroborated by P5's own read side accepting both cases (`pint.pas:1948,1964`). ⚠️ **Stated as what it is: a secondary
+source**, authored by the P5 reference-implementation maintainer — three consistent proxies, zero contradicting; ISO
+7185's normative text is not on this machine.
+
+**CONSEQUENCE:** on both delegated axes SCRIP's fixed, self-consistent default **is** the sanctioned implementation
+definition. Refs recording it are marked **`ISO-DELEGATED-SCRIP-DEFAULT`** — *delegated*, never "ISO-RULED": ISO does
+not mandate this shape, it declines to mandate any. fpc's own output is **not** a target on these axes because it is
+self-inconsistent: measured at one width in one program, ` 1.5540000e+000` (3-digit exponent) beside ` 3.141593e+0000`
+and ` 3.340000e-0003` (4-digit).
+
+⛔ **A ref that records the implementation under test cannot fail that implementation.** Delegation makes such a ref
+*sanctioned*, not *graded* — it pins a choice, it does not prove one. Any future change to SCRIP's real formatting must
+re-generate these refs deliberately and re-affirm the delegation, never silently re-pin.
+
+⭐ **How this ruling was reached is part of the law.** The question first reached Lon carrying an unsourced premise —
+"ISO 7185 specifies an uppercase `E`" — asserted from memory by hq_C and quoted onward as fact. It was retracted before
+the refs converted, and the ruling was re-taken on a cited source, arriving at the same byte string for a *different and
+correct reason*. **A specification clause is a number** (`RULES.md:105`): quoting one you did not produce is the same
+failure as quoting a benchmark you did not run, and it is more portable, because a wrong measurement gets re-measured
+while a wrong citation gets quoted. See `FINDING-2026-08-28-hq_C-RETRACTION-i-supplied-the-uppercase-E-premise-lon-ruled-on-and-i-cannot-source-it.md`.
+
+### ⛔ NOT settled by the above: `writeln(<enum>)` — no oracle, and the ISO question is OPEN
+`fpc -Miso` cannot compile it (`Fatal: Unknown compilerproc "fpc_write_text_enum_iso"`), so two crosscheck witnesses
+(`pb:1 pb36`, and the loose `pb37`) have **no oracle at all** and their refs are SCRIP-self-derived. ⛔ This is **not**
+a real-formatting question and is **not** covered by the delegation ruling — it was bundled with the other four only
+because it was held in the same batch. **Whether ISO 7185 permits writing an enumerated value directly is UNRESOLVED
+here, and the local evidence points both ways:** the ISO 7185 acceptance test writes enums exclusively as `ord(e):1`,
+never `writeln(e)` (`iso7185pat.pas:559,562,570`), which suggests it is not standard — while the fpc routine's own name,
+`fpc_write_text_enum_ISO`, suggests fpc intended to support it in ISO mode and the routine is merely missing.
+⚠️ `tests/pascal/KEEP.md` §4 calls this "a real gap in this fpc build's `-Miso` RTL, not a SCRIP or ref defect." That
+characterization is **asserted, not sourced**, and may be the same class of error as the uppercase-`E` premise above.
+Row `pascal-writeln-enum-iso-conformance-unresolved` carries it. Do not cite KEEP.md §4 as settled.
+
+---
+
 ## SNOBOL4 — user-declared `&` constants (Lon's Eurekas 1–3, 2026-08-19)
 
 **Status home:** rung STATE lives in `GOAL-SNOBOL4-100.md` § SN4-CONSTANTS; this section is the design of record it points at.
