@@ -12,7 +12,7 @@ SPITBOL (Speedy Implementation of SNOBOL) proved SNOBOL4 could be genuinely fast
 
 The tradition is alive today. Phil Budne maintains CSNOBOL4 — a faithful, actively maintained C port of the original Bell Labs Macro SNOBOL4 implementation that builds on nearly any platform with a C89 compiler: Linux, macOS, Windows, FreeBSD, and beyond. He has kept the SNOBOL4 and SPITBOL communities alive for decades on groups.io, answering questions and shepherding the language forward with patience and generosity. CSNOBOL4 is the reference implementation most people reach for first, and it deserves that reputation. Andrew Koenig of AT&T Bell Labs created Snocone — a structured, C-like preprocessor for SNOBOL4, described in Bell Labs Computing Science Technical Report #124 (1986) — which snobol4ever has adopted as its own structured frontend, maintained and distributed today through Phil Budne's CSNOBOL4 distribution. This is a community of serious, generous people who have kept a great language alive for decades, and we are proud to stand alongside them.
 
-What we add to that tradition is SNOBOL4 on the JVM and on .NET — two ecosystems where hundreds of millions of programs run today — plus a native compiler targeting x86-64 ASM, JVM bytecode, and .NET MSIL simultaneously from a single intermediate representation. And a discovery about SNOBOL4's pattern model that clarifies what snobol4ever is, at its core.
+What we add to that tradition is **SCRIP** — one native compiler running **seven languages** (SNOBOL4/SPITBOL, Snocone, Icon, Prolog, Rebus, Raku, and Pascal) as x86-64 machine code through a single engine of four-port Byrd boxes — plus complete SNOBOL4 implementations on the JVM and on .NET, two ecosystems where hundreds of millions of programs run today. And a discovery about SNOBOL4's pattern model that clarifies what snobol4ever is, at its core.
 
 ---
 
@@ -38,7 +38,7 @@ We built two complete, independent implementations of the full SNOBOL4/SPITBOL l
 
 We brought the pattern matching engine to Python and C# as first-class libraries. Not regex wrappers. The real thing.
 
-And we built [SCRIP](https://github.com/snobol4ever/SCRIP): one compiler engine — a single IR of four-port Byrd boxes, every instruction through one encoder — compiling SNOBOL4, Snocone, Icon, Prolog, and Rebus (Raku and Pascal in progress) to native x86-64 today, with .NET MSIL, JVM bytecode, JavaScript, and WebAssembly returning as template encoders modeled on the x86 set. Correctness is not a goal, it is measured: the full SNOBOL4 corpus passes 365/365 in both execution modes, and `beauty.sno` — the SNOBOL4 beautifier written in SNOBOL4 — reproduces itself byte-identically through the compiler: the self-host milestone, independently verified.
+And we built [SCRIP](https://github.com/snobol4ever/SCRIP): one compiler engine — a single IR of four-port Byrd boxes, every instruction through one encoder — compiling all seven languages, SNOBOL4, Snocone, Icon, Prolog, Rebus, Raku, and Pascal, to native x86-64 today, with .NET MSIL, JVM bytecode, JavaScript, and WebAssembly returning as template encoders modeled on the x86 set. Correctness is not a goal, it is measured: the SNOBOL4 corpus board passes 1298/1298 in both execution modes (2026-08-28), and `beauty.sno` — the SNOBOL4 beautifier written in SNOBOL4 — reproduces itself byte-identically through the compiler: the self-host milestone, independently verified.
 
 ---
 
@@ -46,15 +46,15 @@ And we built [SCRIP](https://github.com/snobol4ever/SCRIP): one compiler engine 
 
 *"SCRIP is seven languages on five platforms, such that they can call each other and even co-exist in the same translation unit."* — the product, in one sentence.
 
-**Columns = frontends.** SNOBOL4/SPITBOL is one frontend — SCRIP follows SPITBOL semantics. Snocone is Andrew Koenig's structured frontend — C-like syntax over SNOBOL4 semantics. Rebus began as a structured transpiler to SNOBOL4 and is a directly compiled frontend in SCRIP. Icon and Prolog are native frontends — their goal-directed evaluation and backtracking compile to the same four-port boxes. Raku and Pascal are in progress.
+**Columns = frontends.** SNOBOL4/SPITBOL is one frontend — SCRIP follows SPITBOL semantics. Snocone is Andrew Koenig's structured frontend — C-like syntax over SNOBOL4 semantics. Rebus began as a structured transpiler to SNOBOL4 and is a directly compiled frontend in SCRIP. Icon and Prolog are native frontends — their goal-directed evaluation and backtracking compile to the same four-port boxes. Raku and Pascal are the newest frontends, live in the same engine.
 
 **Rows = platforms.** Wherever programs run, these languages should run there too.
 
-Status as of 2026-08-28:
+Status as of 2026-08-28 (that day's tree; the instrument is named per cell):
 
 |                       | **SNOBOL4/SPITBOL** | **Snocone** | **Rebus** | **Icon** | **Prolog** | **Raku** | **Pascal** |
 |-----------------------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **x86-64 native** (SCRIP) | ✅ 365/365 both modes | ✅ 4/5 smoke | ✅ 4/4 | ✅ output-matches icont/iconx | ✅ 22/22 four-way consensus | 705/719 | in progress |
+| **x86-64 native** (SCRIP) | ✅ 1298/1298 board, both modes | ✅ 5/5 smoke | ✅ 4/4 smoke | ✅ 14/14 smoke, both modes | ✅ 4/5 smoke | ✅ 83/83 parser suite | ✅ 96/96 suites, both modes |
 | **JVM bytecode**      | snobol4jvm ✅ (shipped) · SCRIP: returning | returning | — | returning | returning | — | — |
 | **.NET MSIL**         | snobol4dotnet ✅ (shipped) · SCRIP: returning | returning | — | returning | returning | — | — |
 | **JavaScript**        | returning | — | — | — | — | — | — |
@@ -81,9 +81,9 @@ Jeffrey Cooper built a complete SNOBOL4/SPITBOL implementation in C#, taking Emm
 A complete implementation of SNOBOL4 and SPITBOL built from the ground up in Clojure. Parses SNOBOL4 source through an instaparse PEG grammar, emits a labeled-statement IR, and runs programs through a GOTO-driven interpreter faithful to the original execution model. Multiple execution backends: interpreter, Clojure IR transpiler (3.5–6×), stack-machine VM (2–6×), and direct JVM bytecode via ASM (up to 7.6× faster with JVM JIT). EDN compilation cache gives 22× speedup on repeated programs. **2,033 tests / 4,417 assertions / 0 failures.** The JVM backend has achieved `beauty.sno` self-beautification — byte-for-byte identical to the CSNOBOL4 oracle (M-JVM-BEAUTY ✅).
 
 ### [SCRIP](https://github.com/snobol4ever/SCRIP)
-*One compiler engine — SNOBOL4/SPITBOL, Snocone, Rebus, Icon, Prolog today; Raku and Pascal in progress — native x86-64 now, MSIL/JVM/JS/WASM returning*
+*One compiler engine — SNOBOL4/SPITBOL, Snocone, Icon, Prolog, Rebus, Raku, and Pascal — native x86-64 now, MSIL/JVM/JS/WASM returning*
 
-The compiler. Every construct lowers to four-port Byrd boxes — **α** proceed, **β** recede, **γ** succeed, **ω** concede — wired at compile time into straight-line jumps; no runtime dispatch. One IR, one encoder discipline (every x86 instruction through a single encoder), and two execution modes that must agree: `--run` wires native code into the running process, `--compile` emits a standalone x86-64 binary. The SNOBOL4 corpus passes **365/365 in both modes**, byte-for-byte against the SPITBOL oracle, and each frontend is verified against its own rival: Icon output-matches Arizona `icont`/`iconx`, Prolog reaches 22/22 four-way consensus with GNU Prolog and SWI-Prolog, Rebus 4/4, Raku 705/719. `beauty.sno` self-hosts byte-identically.
+The compiler. Every construct lowers to four-port Byrd boxes — **α** proceed, **β** recede, **γ** succeed, **ω** concede — wired at compile time into straight-line jumps; no runtime dispatch. One IR, one encoder discipline (every x86 instruction through a single encoder), and two execution modes graded independently: `--run` wires native code into the running process, `--compile` emits a standalone x86-64 binary. The SNOBOL4 corpus board passes **1298/1298 in both modes** (2026-08-28), byte-for-byte against the SPITBOL oracle, and each frontend is verified against its own reference implementation: Arizona `icont`/`iconx` for Icon, GNU Prolog and SWI-Prolog for Prolog, Rakudo for Raku, Free Pascal for Pascal. `beauty.sno` self-hosts byte-identically. Polyglot translation units — several languages in one `.scrip` file, calling each other — are the frontier under active work.
 
 ### [snobol4python](https://github.com/snobol4ever/snobol4python)
 *SNOBOL4 pattern matching for Python — on PyPI*
@@ -109,7 +109,7 @@ Direct CPython C extension running SNOBOL4python pattern trees through a full By
 ### [corpus](https://github.com/snobol4ever/corpus)
 *Shared test corpus — CC0*
 
-Single source of truth for the shared test universe: the 365-program SNOBOL4 board graded in both execution modes against SPITBOL, per-language benchmark suites for the rivals grids, the Gimpel algorithm library, the Shafto AI corpus, and the growing suite format — one test per line beside its expected output, made to be read in color.
+Single source of truth for the shared test universe: the SNOBOL4 board graded in both execution modes against SPITBOL (1298 entries as of 2026-08-28 — the denominator grows as loose files consolidate into suites), per-language benchmark suites for the rivals grids, the Gimpel algorithm library, the Shafto AI corpus, and the suite format itself — one test per line beside its expected output, made to be read in color.
 
 ---
 
