@@ -148,6 +148,28 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s276 (2026-08-28, Opus 5, FLEET-8) — ⭐⭐ THE RANK-0 SHARED-INFRA ROW IS CLOSED, AND THE OTHER TWO RESULTS BOTH RAN AGAINST ME: I VOIDED A GOOD GRID ON AN ARGUMENT, AND AN ICON BOARD HAD BEEN GRADING ZERO FILES.**
+
+Inbox 2 (seat07 park, ceo rulings), both drained. Pristine `-O0` at SCRIP `43fa94a0`.
+
+### ✅ `bb-label-prefix-pascal-suite-regression` — DONE, full SHARED-NODE control set re-proven
+Cure `840d05f7`: `a01fe9f6` signalled ports **in band** (`\x01`+port prepended to a label line) and `x86_internal_resolve` consumed **any** `\x01` plus the byte after it — but Pascal record-layout descriptors legitimately emit `\x01` inside `.string` data, so **two bytes of the program's own data were silently deleted.** One mechanism explains every symptom seat12 saw: m4-only (the resolver runs in TEXT medium, never BINARY), record/variant-record families worst hit (they emit `\x01` in data), and `output mismatch` rather than crash (nothing malformed — the data is simply wrong).
+**Verdict set at HEAD:** Pascal m4 suites **96/96, 0 fail** (the DONE-WHEN) · loose PASS=142 FAIL=12 · SNOBOL4 **m3 893/893 · m4 893/893 · FAIL=0 SKIP=0 MISSING=0** rc=0 · Icon **PASS=251 FAIL=15 BADEXIT=1 MISSING=0** = the control in `840d05f7` · both blocking gates rc=0. ⛔ **SNOBOL4 denominator moved 615 → 893 since s275** — read `FAIL=0 · SKIP=0 · MISSING=0` over the printed total, never a remembered number.
+⛔ **Recorded as a NARROWING, not a redesign.** In-band signalling over a channel that does not reserve its signal byte stays fragile by construction; today's line-start discriminator rests on the empirical claim that a data `\x01` never lands at line-start, which **nothing enforces and no gate checks**. Minted `label-port-marker-out-of-band` rank 2 per ceo's ruling, with a DONE-WHEN that demands the adversarial witness today's HEAD would fail. **Closing the correctness row must not close the design risk.**
+
+### ⛔ I VOIDED seat07's MEASURED GRID ON AN ANCESTRY ARGUMENT, AND RE-MEASURING PUT EVERY NUMBER BACK UNCHANGED
+seat07 parked `pascal-m4-for-spine-leak-64b-per-iter` with a 9-kernel grid taken at `79873cc3`. `git merge-base --is-ancestor a01fe9f6 79873cc3` = **YES**, so their base carried my rank-0 regression. I ruled the grid unusable, set the row BLOCKED, and **published a mechanism** — that the regression explained an anomaly they had flagged (failing set changed *membership* while holding *count*). Then I measured: **byte-identical grid on the cured base, 10/10 deterministic both directions.** Their numbers were right as published.
+⭐ **Ancestry establishes that a variable was UNCONTROLLED; it never establishes that it was OPERATIVE.** I had the first and asserted the second. Refusing an uncontrolled baseline was correct and I would do it again; publishing an unmeasured cause was not. ⛔ **The tell: the hypothesis was load-bearing twice over** — it excused the grid *and* resolved the one anomaly I couldn't otherwise explain. **A story that closes your open question as a free side effect is being selected for closure, not for truth.**
+**Consequences, all against my ruling:** the membership shuffle is *still* unexplained and `a01fe9f6` is now eliminated as its cause (seat07's two-unrelated-events reading stands); seat07's fix (b) is **not** rehabilitated — the grid's invariance is evidence their original judgement was right and my second-guess wrong. Row BLOCKED → **FREE** with the re-measured grid as its verified baseline. Receipt: `FINDING-2026-08-28-hq_C-an-ancestry-argument-voided-a-good-grid-and-measurement-put-it-back.md`.
+
+### ⭐ AN ICON BOARD HAD **THREE** INDEPENDENT REASONS IT COULD NOT MEASURE — 0 FILES GRADED, NOW 476
+`test_corpus_icon_parser.sh` exited rc=2 `icon_parser compile failed`. Refusing was correct; it had been refusing *instead of grading*, for unknown duration, in this seat's **#2** language. Three faults, each alone fatal and all producing that one line: bare **`icont`** (not on PATH; `icont_bin()` exists precisely so nobody re-derives it); **`$REPO_ROOT/../corpus`** with `REPO_ROOT` already the seat root → `/home/corpus`, a path that **could never have matched on any tree, ever**; and the sources **relocated** by the 2026-08-24 re-grid.
+⭐⭐ **Fault 2 means the board was broken BEFORE the re-grid that broke it again** — so the obvious, correctly-diagnosed re-grid repair alone would have left it printing the same rc=2 and looking like one unfixed bug. **A refusal is a scalar; the thing behind it need not be.** The natural loop (fix, re-run, still red, conclude the fix was wrong) misreads *correct and incomplete* as *incorrect*. Same shape as the `-O2` framing on RUNG C-0, where `-O1` fails identically and the boundary was never where the row name said.
+Cured at `43fa94a0`: resolve by search, refuse on unresolvable, go through the shared accessor. **0 → 476 files** (parser 476/476, recognizer 268 pass / 208 empty, 0 crashes, rc=0). **Negative-tested both arms** — sources absent rc=2, oracle absent rc=2 with no bare-`icont` fallback. ⚠️ **Still owed:** the recognizer's **208 empty** results are counted but ungraded — nothing says whether an empty parse is a defect there. Surfaced by this cure, not answered by it.
+
+---
+
+
 **s275b (2026-08-27, Opus 5, FLEET-16) — ⛔⭐ I MOVED A LIVE THRESHOLD BY LANDING TWO ORACLE FILES, AND IT CLOSED A ROW.**
 
 seat09 closed `icon-n3-scan-one-depth-authority` by correct procedure — pulled first, ran the row's literal DONE-WHEN (`P >= 249`), exit 0, and **flagged it to me unprompted** because it sat near a ruling of mine. That flag is the only reason this was found.
