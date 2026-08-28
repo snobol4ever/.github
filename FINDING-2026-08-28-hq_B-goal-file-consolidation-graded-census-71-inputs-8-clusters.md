@@ -34,7 +34,7 @@ property of the sort, not a finding.
 
 ## Graded census by cluster
 
-### A · dormant-port era — 15 files
+### A · the four ports (LIVING roadmap) — 15 files
 
 | file | lines | RUNG/STEP | syms | gone | %gone |
 |---|--:|--:|--:|--:|--:|
@@ -154,9 +154,17 @@ reachable without forcing a merge that interlock (e) forbids; I am not amending 
 
 ## Dispositions proposed (per-cluster landings, each its own commit)
 
-- **A · dormant-port era** — the x86-only ruling already retired these targets; highest staleness in the
-  census and the symbols scored GONE are largely C#/JVM names that were never in this tree. One archive
-  landing, RETIRED NAMES map mandatory.
+- **A · the four ports** — ⛔⭐ **CORRECTED 2026-08-28, SAME DAY, BEFORE ANY LANDING: THIS IS LIVING
+  ROADMAP, NOT A DORMANT ERA.** Lon, in-chat to CEO: *"the plan is to port to JVM, .NET, JavaScript, and
+  Web Assembly."* My first pass proposed one archive landing "under the x86-only ruling" and that
+  disposition is **VOID** — as was the mint's identical wording. Surviving port design content routes to a
+  **LIVING ⭐100 home** (`GOAL-PORTS-100` suggested), never the archive. ⭐ The staleness numbers below are
+  unchanged and still honest — these files DO cite symbols absent from this tree — but **high staleness in a
+  roadmap means the design was never built, not that it was abandoned.** That is the second inversion in
+  this census, and it is the more dangerous one: the first (a reorg doc naming what it killed) makes a live
+  doc look dead; this one would have let a measured number retire a plan Lon had just affirmed. **A
+  staleness grade measures distance from the tree, never intent** — and only a human pass can tell which
+  direction that distance points.
 - **B · IR/lower redesigns** — mixed: living design ideas here route INTO the owning ⭐100 files per step (2)
   before the remainder archives. ⛔ Merit calls that touch semantics are the reserved class — ASSIGNED asks,
   never dropped, per the reserved-question law.
