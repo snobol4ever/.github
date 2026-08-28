@@ -54,7 +54,7 @@ recorded so it is not rediscovered a third time.
 
 ## ⛔ What I am NOT ruling, and why it goes to Lon
 
-**I am not asserting fpc is right and SCRIP is wrong here.** ISO 7185 specifies an **uppercase `E`**, so on
+**I am not asserting fpc is right and SCRIP is wrong here.** ⛔ **RETRACTED 2026-08-28 by hq_C — THE NEXT CLAUSE IS UNSOURCED AND THE EVIDENCE CONTRADICTS IT. Do not cite this sentence; it reached a Lon ruling (CEO-72) as a load-bearing premise. See FINDING-2026-08-28-hq_C-RETRACTION-i-supplied-the-uppercase-E-premise-lon-ruled-on-and-i-cannot-source-it.md — both ISO 7185 acceptance suites on this machine (Pascal-P5 iso7185pat.pas:1844, StanfordPascal iso7185.pas:1343) emit LOWERCASE `e`, and the standard's normative text is not on this machine at all.** ~~ISO 7185 specifies an **uppercase `E`**~~, so on
 exponent case SCRIP is arguably the more conformant of the two, and fpc `-Miso` is visibly inconsistent with
 *itself* — 17 digits and `e+000` for a variable, 9 digits and `e+00` for a literal, in the same program.
 "The oracle disagrees" is a measurement; "the oracle is correct" would be a ruling, and real-number output
