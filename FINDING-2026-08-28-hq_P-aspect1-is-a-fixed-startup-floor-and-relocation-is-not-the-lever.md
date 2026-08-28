@@ -78,3 +78,62 @@ the new MODES MAY DIVERGE law. That addresses the 45% half.
 ⚠️ **Stated rather than implied:** nothing here is a cure, and I am not claiming the two halves sum to a
 plan. What it buys is that **nobody now spends a week on relocation packing**, and that the fixed-floor
 half is sized (~600 faults, ~9 MB, paid by every program including one that prints a single character).
+
+---
+
+# ADDENDUM (same session): the floor is isolated to **library load**, three levers are dead, and one works
+
+## The floor is `libscrip_rt.so` being loaded — 430 faults before any work
+
+| program | maxrss | minor faults | cpu |
+|---|---|---|---|
+| C `main(){return 0;}`, RT **not** loaded | 1,252 kB | 67 | 0.34 ms |
+| C `main(){return 0;}`, RT **loaded** (`--no-as-needed`) | 8,672 kB | **497** | **2.15 ms** |
+| m4 program whose body is `OUTPUT = 1` | 9,044 kB | 531 | 2.22 ms |
+
+**Merely loading the runtime costs 430 extra minor faults, 7.4 MB resident and ~1.8 ms.** The m4
+program's own initialisation adds **34 faults**. The clean oracle's *entire real run* is 170 faults.
+
+⛔⛔ **A CONTROL-ARM TRAP I FELL INTO AND CORRECTED, recorded because it nearly produced a published
+reversal.** My first control linked `-lscrip_rt` and measured **0.34 ms**, which said the library was
+free and my original attribution was wrong. It was the control that was wrong: **`--as-needed` is the
+default, the control referenced no symbol from the library, and the linker dropped the `DT_NEEDED`
+entry entirely** — so the "control that loads the RT" never loaded it. `ldd` shows 0 references.
+Rebuilt with `--no-as-needed`: **2.15 ms**, and the original attribution stands. ⭐ **A control that
+silently does not exercise the thing under test agrees with every hypothesis.**
+
+## Three levers, measured dead
+
+| lever | what it changed | effect |
+|---|---|---|
+| `-Wl,-z,pack-relative-relocs` (DT_RELR) | 132,389 relative relocs → 1,014 | **0.4%** of the gap (`LD_DEBUG`: 31,010 cycles) |
+| `-Wl,-Bsymbolic-functions` | loader startup 601,580 → 483,879 cycles (−19.6%) | **~1.3%**, and end-to-end it was **+3.3% / −5.5%** on two programs — inside noise |
+| `strip --strip-debug` | `.so` 34.4 MB → 12.5 MB (−64%) | **none** (debug sections are never mapped) |
+
+⭐ Two of these look compelling on paper — a 3.19 MB relocation section applied 132,389 times, and a
+64% file-size cut. **Neither survives measurement.** The loader's total startup is only ~0.20 ms of the
+2.15 ms, so *every* link-level lever is bounded at ~9% before it starts.
+
+## ✅ The lever that works: static linking
+
+| | cpu | maxrss | minor faults |
+|---|---|---|---|
+| `OUTPUT = 1`, shared | 2.22 ms | 9,044 kB | 531 |
+| `OUTPUT = 1`, **static** | **1.08 ms** | 4,632 kB | **194** |
+| treebank-match, shared | 2.82 ms | 12,744 kB | 770 |
+| treebank-match, **static** | **2.01 ms** | 8,100 kB | **418** |
+| treebank-match, clean oracle | 0.48 ms | — | — |
+
+Answers byte-identical in both forms. **Do-nothing floor −51%; treebank-match −29%, taking its aspect-1
+multiple from 0.17x to 0.24x.** Static linking maps and touches only the objects actually pulled in,
+which is exactly the pages-touched quantity the floor is made of.
+
+⛔ **NOT LANDED, AND THE COST IS WHY — this is a Lon/ceo call, not mine.** The static binary is
+**27,404 kB against 32 kB shared.** Every compiled program would carry ~27 MB. It also cuts against
+`out/libscrip_rt.so` being the canonical path that 73 scripts reference by name, so it would be an
+additional link mode, never a replacement. **It is a real lever with a real price, and the price is not
+a perf question.**
+
+⚠️ And it does **not** close the gap: 0.24x is still ~4x behind. The floor is code-size-shaped, `-O0` is
+mandated, so the structural cure remains **RTX**. Static linking is worth roughly a third of the
+aspect-1 loss for a price someone else has to agree to pay.
