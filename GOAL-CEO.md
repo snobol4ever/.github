@@ -4,6 +4,8 @@
 
 ## LIVE CURSOR
 
+**CEO-51 (2026-08-28 — LON PUTS LAMBDA ON HOLD ("I'll think about it later. Back to just normal benchmark enhancements for patterns and demos")):** both lambda rows PARKED-LON-HOLD via the proper path (k40 stays committed red, waiting); hq_C redirected to pattern/demo perf; the A-F decision list stands in the record for his return. Campaign focus unchanged: pattern + demo speed.**
+
 **CEO-50 (2026-08-28 — LON CONFIRMS THE LAMBDA SEMANTICS: Λ IS A PREDICATE IN THE LANGUAGE'S OWN BOOLEAN, λ IS `P . *F()` PROMOTED TO A PRIMITIVE CARRYING AN EXPRESSION-DATATYPE INVARIANT, AND THE C.A.S. IS THE CONFIRMED VEHICLE (++ at cursor-pass, -- on backtrack, pump at success — the existing rt_cas_/dcap frame, no second queue)):** routed verbatim into the feature row's ledger; hq_C told to implement against Lon's words; the inline-thunk-never-EXPR$-proc nuance recorded (the performance point AND the synth-names shrinkage in one).**
 
 **CEO-49 (2026-08-28 — TICK + k40 AUTHORED RED-ON-PURPOSE):** Census post-sweep 12 findings, all routed (6 stood-down-seat claims → corroborate-then-β per lanes; the 2 rowless task files RE-flagged to hq_C, second time; 4 ownerless parked). Burn-down **46 of 53 pinned live** (down from 53 at pin); overall 182. ⭐ k40_lambda_primitives.sno+.ref AUTHORED AND COMMITTED before the feature exists — the instrument lands before the cure (clause 3, k30 red-on-purpose precedent): five arms covering conditional queue ORDER, backtrack-discard, immediate persistence, LAMBDA-failure-fails-match, and BOTH Greek spellings inside a STORED pattern (hq_C recon point 5's round-trip). Ref self-pinned, never sbl-graded; disagreement-is-a-design-question clause in the handoff note to hq_C.**
