@@ -1,7 +1,7 @@
 # PLAN.md — snobol4ever HQ
 
 **Product:** SCRIP — SNOBOL4, Snocone, Rebus, Icon, Prolog, Pascal. Ten times faster.
-**⭐ TARGETS (Lon 2026-08-22 s257, in-chat, verbatim in substance — ship / dream), measured per the s255 two-oracle law (fixed-work callgrind Ir; SPITBOL = `spitbol-clean`):** SNOBOL4/Snocone **2–3x SPITBOL / dream 10x** · Icon **5–10x Arizona `icont`/`iconx`, ≫ JCON / dream 20x** · Prolog **2–3x SWI, par GNU / dream 10x SWI, 1.5x GNU (Lon: GNU is a true compiler)** — order: SNOBOL4 (Snocone) → Icon → Prolog → Pascal & Raku. **Fleet v2 config (same ruling): CEO = Fable @ `/home/claude`; hq_C + hq_P = Opus 5 (Max); seats = Sonnet 5, 8 active + 8 reserve.**
+**⭐ TARGETS (Lon 2026-08-22 s257, in-chat, verbatim in substance — ship / dream), measured per the s255 two-oracle law (fixed-work callgrind Ir; SPITBOL = `spitbol-clean`):** SNOBOL4/Snocone **2–3x SPITBOL / dream 10x** · Icon **5–10x Arizona `icont`/`iconx`, ≫ JCON / dream 20x** · Prolog **2–3x SWI, par GNU / dream 10x SWI, 1.5x GNU (Lon: GNU is a true compiler)** — order: SNOBOL4 (Snocone) → Icon → Prolog → Pascal & Raku. **Fleet v2 config (same ruling): CEO = Fable @ `/home/claude`; hq_C + hq_P = Opus 5 (Max); seats = Sonnet 5, 8 active + 8 reserve.** ⭐ **PLATFORM ROADMAP (Lon 2026-08-28, in-chat to CEO, verbatim in substance: "the plan is to port to JVM, .NET, JavaScript, and Web Assembly"): x86/x64 ships FIRST (the announcement); the four ports are PLANNED TARGETS, not retired scope — the IS_JVM/IS_JS/IS_NET/IS_WASM stubs and the port-era GOAL/design files are living roadmap material and must never be archived as dead.**
 **Team:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
 
 ---
