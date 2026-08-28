@@ -29,7 +29,40 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐⭐⭐ LIVE CURSOR — s278 (hq_P, **DUO**, `MODE` file computed). **THE BY-NAME CALLOUT RESOLVED THE SAME PROCEDURE TWICE — `rt_proc_find` EXACTLY HALVED, json-match −4.72% Ir · AND THE BOARD DENOMINATOR IS 893, NOT 365**
+### ⭐⭐⭐ LIVE CURSOR — s279 (hq_P, **FLEET-6**, `MODE` computed). **ONE `static const` TABLE IN A HEADER IS 96% OF THE RUNTIME'S RELOCATIONS — 150 PRIVATE COPIES, 1000.8 KB, ~59% OF THE WHOLE STARTUP FLOOR · AND THE STARTUP-TOUCH LANE AS BRIEFED IS BOUNDED AT 7%**
+
+**Mode:** `MODE` now reads **FLEET-6** (Lon, campaign split: 6 seats, asks 01-03→hq_C, **04-06→hq_P**). ⭐ My deep
+items stay mine per ceo: **json remainder · *expr-by-address (coordinated with hq_C) · frame-locals · string-free
+emission**. ⛔ **I wrote NO cure into a seat's lane** — in FLEET the seat that locks the row cures it, and the
+startup-touch row is seat03's. I produced the target list ceo asked me for and stopped there.
+
+⭐⭐ **THE TARGET LIST INVERTED THE LANE, WHICH IS WHY IT WAS WORTH MEASURING BEFORE SEAT03 SPENT A SESSION.**
+Briefed work = shrink RT `.text` by moving C to ASM. **Measured: a do-nothing m4 program executes 65 RT functions
+totalling 23.2 KB across 29 pages of a 1,270-page `.text` — so that lane is bounded at 29 of 433 startup faults ≈ 7%
+before a line is written.** ⭐ And at **20% density** those 29 pages are mostly padding: **linker ordering alone takes
+29 → ~6 with no code rewritten.**
+⭐⭐ **THE REAL TERM: `.data.rel.ro` is 275 pages = 64% of the 433-fault floor, and ONE symbol is 93% of it.**
+`x86_argroles` — `static const` **defined in a header** (`x86_arg_roles.h:3`), pulled in by `x86_asm.h:1357`, **the
+encoder header the emission discipline REQUIRES every template to include** — so **`nm` finds 150 distinct copies**,
+one per TU. 150 × 6,832 B = **1,024,800 B**; 150 × 854 relocs = **128,100 = 96.1% of all 133,257**. Both match the
+measured attribution **to the digit**. ⭐ **Invisible by construction:** the table is small, correct and idiomatic, and
+the duplication is manufactured by the one header everyone is *required* to include. Neither file reads wrong.
+⛔ **NOT CLAIMED, and my own earlier finding is why:** this is a **page/resident** prediction, not a **time** one.
+Relocation *processing* is already known to cost 0.4% (DT_RELR test) — the cost here is **dirtying 245 pages**, not the
+loop. The two findings agree and jointly kill DT_RELR: it compresses the encoding, the same addresses are still
+written. **Grade on faults + maxrss first** (do-nothing baseline **532 faults / 8,976 kB**); wall clocks stay refused
+until seat05 lands. → `FINDING-2026-08-28-hq_P-one-static-table-in-a-header-is-96-percent-of-the-runtime-relocations.md`
+
+✅ **CLOSED A GAP hq_C FLAGGED IN MY OWN s278 WORK.** My `SCRIP_PROC_OPEN_P` killswitch had only ever been boarded in
+its **default** arm. Re-ran the FULL board **in both arms**, pristine: **893/893 m3 and m4, FAIL=0 SKIP=0 MISSING=0,
+rc=0 each**. The killswitch is **correct, not merely slower** — so every A/B taken with it is trustworthy. ⭐ Their law,
+adopted: *a killswitch that is merely slower is fine; one that is silently wrong poisons every later A/B, and nobody
+looks, because it is "just the old path."*
+⭐ **`json-match` baseline re-pinned at `ddb86a93`: 146,345,152 Ir** (0.011% from the `0125bc8d` reading — hq_C's commit
+did not move it), so my measuring window on the callout path is **CLOSED and they are unblocked**. **`rt_name_save_push`
+is now the #1 RT cost centre at 8.26%**; `rt_proc_find` fell 7.50% → 3.94% after s278.
+
+### LIVE CURSOR — s278 (hq_P, **DUO**, `MODE` file computed). **THE BY-NAME CALLOUT RESOLVED THE SAME PROCEDURE TWICE — `rt_proc_find` EXACTLY HALVED, json-match −4.72% Ir · AND THE BOARD DENOMINATOR IS 893, NOT 365**
 
 **Mode:** `MODE` reads **DUO** (declared by Lon 2026-08-28; CLAUDE.md's `FLEET-16` banner is STALE — the file is the
 authority and I computed it rather than reading the prose, which is the whole point of the s266 law).
