@@ -74,8 +74,9 @@ subject fault.** Use `[[:space:]]` in awk, always — same family as clause 15.
 runs; an earlier pair at SCRIP `764752c6` read 893/893 both arms, also green). **`FAIL=0 / SKIP=0 / MISSING=0` is the
 invariant; the total is not** — a seat matching a remembered 893 would read legitimate growth as 188 missing programs. Shared-node scope (`emit.cpp`/`x86_asm.h`/`scrip.c` reach every frontend): icon 14/14 m4, rebus 4/4,
 raku 724/724, polyglot 2/2, hello-matrix 6/6, `emit_no_lang` OK, `template_medium_invisible` OK, `emit_dwarf_loc` OK.
-Icon bench `.s` byte-identical (8 sampled), prolog bench regen `changed=0` — only SNOBOL4's lowering populates the
-line table. Prolog smoke **4/5**: `clause` fails identically in both arms **and in m2**, which this change cannot
+Icon: a fresh emit carries ZERO `.loc` — only SNOBOL4's lowering populates the line table (prolog bench regen
+`changed=0`). ⛔ **NOT an Icon all-clear:** the verifier reports 15 Icon bench `.s` owed + 3 CERR on this tree —
+re-measured at 6.5k–7.6k differing lines each, carrying no `.loc`, i.e. the standing s272 Icon backlog, not this row. Prolog smoke **4/5**: `clause` fails identically in both arms **and in m2**, which this change cannot
 reach — pre-existing, row `prolog-multiclause-fail-backtrack-segv`.
 
 ⛔ **ROUTED, NOT CURED (sent to `ceo`):** `update_icon_bench_asm.sh CHECK=1` prints `total=0 … ` and **exits 0** while

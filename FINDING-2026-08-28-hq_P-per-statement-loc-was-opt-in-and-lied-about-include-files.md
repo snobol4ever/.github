@@ -109,9 +109,10 @@ insertions and 0 deletions** — the emitted code is otherwise unchanged.
 
 Shared-node scope (`emit.cpp` / `x86_asm.h` / `scrip.c` are reached by every frontend): icon smoke 14/14
 m4, rebus 4/4, raku 724/724, polyglot 2/2, hello-matrix 6/6, `test_gate_emit_no_lang` OK,
-`test_gate_template_medium_invisible` OK, `test_gate_emit_dwarf_loc` OK. Icon bench `.s` verified
-byte-identical (8 sampled) and carry no `.loc` — only SNOBOL4's lowering populates the line table, which
-is why prolog bench regen is `changed=0`. Prolog smoke **4/5**: `clause` fails **identically in both arms
+`test_gate_template_medium_invisible` OK, `test_gate_emit_dwarf_loc` OK. Icon bench `.s`: the 8 I sampled were byte-identical **and that is
+NOT an Icon all-clear — see the scope correction at the end of this file.** The load-bearing fact is that a
+fresh Icon emit carries **zero** `.loc`/`.file` — only SNOBOL4's lowering populates the line table, which is
+why prolog bench regen is `changed=0`. Prolog smoke **4/5**: `clause` fails **identically in both arms
 and in m2**, which this change cannot reach — pre-existing, tracked by `prolog-multiclause-fail-backtrack-segv`.
 
 ⚠️ The first board pair was taken before `git pull --rebase` brought in 19 other-seat commits (one of them
@@ -175,3 +176,22 @@ script already `cd`s to `$DEMO`, so compiling `"${src#$DEMO/}"` is a one-token f
 re-emitted (21 insertions, 21 deletions — one `.file` line each), **zero committed `.s` under `corpus/` carry an
 absolute `/home/` path**, a second regen reports "already current", and roman/json/wordcount re-compile
 byte-identical from `$DEMO`.
+
+## ⛔ SCOPE CORRECTION ON MY OWN CLAIM — INSTRUMENT LAW 13, CAUGHT AT HANDOFF
+
+I wrote "Icon bench `.s` verified byte-identical (8 sampled)". **True of those 8, and misleading as written**, because
+it reads as an all-clear on Icon artifacts. It is not one: `handoff_status.sh`'s verifier reports **15 Icon bench `.s`
+owed plus 3 CERR** on the same tree. ⭐ *An all-clear is scoped to the list actually run* — and my list was
+`ls *.s | head -8`, which is not a sample anyone chose for coverage.
+
+**Re-measured on three of the named-owed files, which is what settles it:** `concord.s` **7,604**, `deal.s` **7,108**,
+`queens.s` **6,520** differing lines — and **a fresh emit of each carries ZERO `.loc`/`.file`.** So the drift is large,
+real, and **cannot be from this row**: this change emits nothing at all for Icon. It is the standing Icon backlog RULES
+already records from s272 (*"20 stale benchmark `.s` and 3 genuine CERR (`options`/`post`/`shuffle`)"*, explicitly
+flagged as a follow-up row and out of scope) — the CERR count still matches at 3.
+
+⛔ **And it sharpens the routed defect above rather than duplicating it:** the verifier can SEE these 15, while
+`update_icon_bench_asm.sh CHECK=1` reports `total=0` and exits 0 on the same tree. **Two instruments over one tree,
+disagreeing — the third time that pattern paid out in this session** (mawk vs grep in §4; the artifact WARN vs the
+regen script's "already current" in the addendum). The one that says *nothing to do* has been wrong every time.
+
