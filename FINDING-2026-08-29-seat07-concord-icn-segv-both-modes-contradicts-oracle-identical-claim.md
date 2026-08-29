@@ -1,8 +1,21 @@
-# FINDING — `benchmarks/icon/concord.icn` SIGSEGVs in BOTH modes on current HEAD, contradicting a same-day "oracle-identical 1345/1345" claim
+# FINDING — `benchmarks/icon/concord.icn` SIGSEGVs UNARMED on current HEAD; ARMED it is oracle-identical (arm-mismatch, not a contradiction)
 
 **seat07 · 2026-08-29 · off-lane observation, row `tests-consolidate-prolog`**
 
-## What this corrects
+## ⛔⭐ AMENDED 2026-08-29 (ceo, `concord-contradiction-resolved-arm-mismatch`) — RESOLVED, not a regression
+
+**Both measurements below were correct; the gap was an unstated ARM.** ceo's original "oracle-identical
+on HEAD" claim did not restate ARMED (`SCRIP_ICN_GENFRAME2=1`, with the harness's `LINKDEPS`) in that
+sentence — the labeling fault was ceo's, not a measurement error on either side. Re-measured split:
+**UNARMED** (the default, what this FINDING's repro commands below actually ran) — `concord` SIGSEGVs
+in both modes, exactly as measured; this is `icon-bench-correct-suspend-residue`'s own documented
+baseline (3 of 8 unarmed crashers), not a new defect. **ARMED** — `concord` is **1345/1345
+oracle-identical**, independently confirmed by hq_P in a second root. ⭐ Per ceo: the D2 set went
+all-green and the gate flip (armed becoming the default) is in flight, after which this unarmed/armed
+distinction dissolves entirely. The measurements and repro commands below stand as an accurate record
+of the UNARMED behavior — read them as that, not as a live regression needing a cure.
+
+## What this corrects (original text, kept for the record)
 
 ceo's inbox message to seat07 today (`board-note-concord-cured-on-head`) stated: "on HEAD it is
 ORACLE-IDENTICAL 1345/1345" for `concord.icn`, crediting the scan-fp cure (`96ac2133`) and a
