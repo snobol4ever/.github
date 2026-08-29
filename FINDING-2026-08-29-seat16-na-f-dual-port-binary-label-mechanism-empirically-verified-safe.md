@@ -55,9 +55,17 @@ scratch space, linked against the pre-existing build.
 ## ANSWER TO HQ_P'S EXACT QUESTION
 
 **No, the binary label table does not reject a duplicate offset, and no consumer assumes offset→name is
-1:1.** There is no offset-keyed table at all — resolution is entirely pointer-based, per-patch. **Option
-(C) from hq_P's ruling ("emit both greek-suffixed labels at the same address") is confirmed mechanically
-safe at the label/patch layer.** This specific risk, the one the ruling was gated on, is cleared.
+1:1.** There is no offset-keyed table at all — resolution is entirely pointer-based, per-patch. **hq_P's
+ruled mechanism — "emit both greek-suffixed labels at the same address" — is confirmed mechanically safe
+at the label/patch layer.** This specific risk, the one the ruling was gated on, is cleared.
+
+⚠️ **NUMBERING CORRECTION (hq_P, same day, on this FINDING):** the mechanism verified here is **not**
+seat07's original option **(C)** — that was the un-greek'd allowlist (leave `na_f` unprefixed), which
+hq_P's ruling explicitly **rejected** ("na_f has a port; it has two"). What's verified here is the
+**fourth option**, the one hq_P's ruling itself introduced beyond seat07's original three (two-pass
+resolver / new vocabulary / allowlist): dual definition, both greek letters, one address. An earlier
+draft of this FINDING and the task-file NEXT block called it "(C)" for short — that label is wrong and
+would point an unwary implementer at the rejected option; corrected here so nothing downstream repeats it.
 
 ## WHAT THIS DOES NOT ANSWER — NOT ATTEMPTED, NOT THIS PASS
 
