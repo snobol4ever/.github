@@ -1,7 +1,7 @@
 # RULES.md — snobol4ever Working Rules
 
 
-## ⛔⭐⭐ THE TWO MODES — DUO AND FLEET. DUO IS THE DEFAULT. KNOW WHICH ONE YOU ARE IN. (Lon, 2026-08-23 s261)
+## ⛔⭐⭐ THE MODE — READ `/home/resources/postoffice/MODE`, NEVER ASSUME ONE. (Lon s261; rewritten ceo 2026-08-29 on hq_B's finding: this section named no authority that exists)
 
 **There are exactly TWO operating modes and every session must know which one it is running in.** Lon ruled this in-chat after finding DUO mode had been told to a seat and never written down anywhere — the "the chat is not the record" failure, committed about the very structure the record describes.
 
@@ -12,7 +12,7 @@
 | who cures | **you do — measure AND cure, in the same session** | the seat that locked the row |
 | Lon's own words on the balance | *"We'll probably NEVER be in FLEET mode because you can barely handle yourself much less 16 FLEET worker. Are you kidding me."* | |
 
-⭐ **DUO IS THE DEFAULT AND YOU ASSUME IT UNLESS TOLD OTHERWISE.** Do not infer FLEET mode from the existence of `QUEUE.tsv`, sixteen inboxes, or a fleet protocol document — that machinery exists and is *not* evidence that it is running. If nobody has said FLEET, you are in DUO. ⭐ **"TOLD" INCLUDES THE ROUTED RECORD (added s266, after a restarted HQ assumed DUO during a live 16-seat run): the CURRENT MODE line at the top of `ARCH-FLEET-CEO.md` § TWO OPERATING MODES is the maintained authority — check it at orientation BEFORE assuming; assume DUO only if that line is absent or older than Lon's word to you.**
+⭐⭐ **THE AUTHORITY IS THE FIRST LINE OF `/home/resources/postoffice/MODE`, read at the moment the answer matters (rewritten ceo 2026-08-29, wording hq_B's, on their measured finding: this section previously named NO authority that exists — zero mentions of the MODE file the machinery reads — while still teaching a DUO default and "two modes"; MODE changed THREE times inside one seat session that day, so a seat obeying the old text was wrong three times over, the exact s266 incident this section was written to prevent, caused BY the section).** MODE is what `s4e_msg.sh next`, `s4e_inbox_hook.sh` and the banner read IN CODE. Values: **DUO | TRIO | CEO | FLEET-<n>**. `ARCH-FLEET-CEO.md`'s CURRENT MODE line is a POINTER to it under the same custody (it stopped restating the value 2026-08-29 after going stale three separate times); if any prose disagrees with MODE, **MODE wins and the disagreement is itself a defect to report**. ⛔ Assume NOTHING from machinery (`QUEUE.tsv`, sixteen inboxes, a fleet protocol document existing proves nothing about what is running) and nothing from memory — **a MODE reading has a shelf life of minutes**. Lon's in-chat word to you outranks the file for your session and must be routed into MODE the same session by whoever holds its custody (ceo).
 
 ⛔ **WHAT CHANGES BETWEEN THEM, and it is the thing that keeps being got wrong:** in DUO mode there is no fleet to delegate to, so **"file a queue row" IS NOT A DELIVERABLE and never was** — it is the shape of not doing the work. In DUO you find the defect and you fix it. In FLEET mode a brief in a seat's inbox is a real deliverable because a real seat picks it up. Applying FLEET-mode delegation habits while in DUO mode produces a session that measured everything, cured nothing, and filed paperwork addressed to nobody. See § MEASURE AND CURE.
 
