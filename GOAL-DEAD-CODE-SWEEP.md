@@ -7,6 +7,40 @@
 **⛔ THE ASK ITSELF MUST BE A BANNER: any session requesting this permission MUST display the request in-chat as a large unmissable ⛔ banner — the proposed global's name, type, owning file, purpose, and why registers/the stack cannot carry it — so Lon cannot miss the ask.  A quiet or inline ask does not count as asking. (Lon 2026-08-13 s55, in-chat.)**
 
 
+## ⛔ UPDATE 2026-08-29 (seat07, `goal-files-major-consolidation` row) — NOT a fold candidate; here's why
+
+This file was twice considered for archiving into a closed-history cluster (seat16, then this session) as
+part of Lon's GOAL-file consolidation. Both times it was pulled back out. Recorded here so a third session
+doesn't repeat the same investigation from zero:
+
+1. **The 2026-06 worklist below is genuinely done.** All 9 cited commit hashes verified present with
+   matching messages; the final remaining-worklist symbols (`rt_in_native_chunk`, `bomb_bytes`/`bomb_intern`/
+   `bomb_text`, `lower_flat_set_cap_fixup`) are confirmed absent from `src/` today. The `src/attic/` mirror
+   directory this file's whole method depends on no longer exists anywhere in the tree either.
+2. **But this file is a live routing lane, not a closed project — do not archive it.** At least three other
+   files actively point new dead-code findings HERE by name, all dated AFTER this file's own worklist closed,
+   none of them added to this file's own text: `ARCH-SNOBOL4-RTX.md` and `GOAL-ICON-100.md`/
+   `GOAL-SNOBOL4-100.md` (2026-08-22, seat11's `free-r11` rung) flag `bb_idx_get.cpp`/`bb_idx_set.cpp`
+   (`IR_IDX`/`IR_IDX_SET`, no live enum member or dispatch site) and `bb_subject.cpp`/`bb_initial.cpp`
+   (`IR_SUBJECT` not live; `IR_INITIAL` dispatches to `bb_enter_init()` instead) as "`GOAL-DEAD-CODE-SWEEP.md`
+   territory, not fixed/deleted here." The `bb-fixup-az-cleanup` postoffice task file does the same for
+   further BB-template dead code it found. **Fresh worklist, not yet actioned:** those four files/symbols.
+3. **The oracle script (`util_gc_dead_oracle.sh`) currently fails, root cause now precisely localized** (was
+   previously just "a link-time gap"): its recompile step (`make -j4 scrip WARN="-ffunction-sections ..."`)
+   produces almost nothing under `$OBJ` — verified this session, only `scrip_driver.o` exists there after a
+   fresh run — and its hand-rolled relink (`g++ ... "$OBJ"/*.o -lm -Wl,--gc-sections ... -o /tmp/scrip_gc`)
+   never references the runtime objects/archive that `rt_outer_call`/`g_gva_active`/`bbprof_report`/
+   `bin_audit_print` (all `src/runtime/rt/rt.c`, `bbprof.c`, `src/runtime/core/stmt_exec.c`) actually live in
+   — a real `make scrip` resolves them from wherever the Makefile's own `scrip:` recipe links that this
+   script's separately-hand-maintained relink line does not. The oracle's link step has drifted from the
+   real Makefile recipe, the exact "second, subtly-different implementation" class this whole codebase's
+   commentary warns about elsewhere. Full detail:
+   `FINDING-2026-08-29-seat07-gc-dead-oracle-relink-drifted-from-real-link-recipe.md`. Fixing it is a SCRIP
+   build-tooling task, not this consolidation row's — flagged, not fixed here.
+
+**Disposition: leave this file standing, update its worklist when someone next works it, do not fold it into
+any history cluster** while it continues to function as the project's dead-code triage inbox.
+
 **Method (now reproducible):** `SCRIP/scripts/util_gc_dead_oracle.sh` — recompiles every TU with
 `-ffunction-sections -fdata-sections` (injected through the Makefile `WARN` hook, which is
 concatenated into CBASE/CRT/CXXRT but NOT the link line), re-links scrip with

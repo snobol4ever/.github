@@ -1,25 +1,45 @@
 # GOAL-HISTORY-PROCESS-HOUSEKEEPING.md — closed rename, dead-parser-removal, and session-convention work
 
 This is a consolidated historical record, not a live design doc — **nothing in this file describes an open
-task.** It replaces four separate `GOAL-*.md` files, all now deleted, whose entire subject was a one-time
+task.** It replaces five separate `GOAL-*.md` files, all now deleted, whose entire subject was a one-time
 process or infrastructure initiative that finished and is no longer tracked anywhere else. Unlike the
 `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md` cluster (dead execution *architectures*), nothing here was ever about
 how SNOBOL4/Icon/Prolog programs run — these are org/build/parser housekeeping closures. See RETIRED NAMES at
 the end for the old→new mapping every stale cross-reference should resolve through.
 
 Landed via `goal-files-major-consolidation` (task file, `/home/resources/postoffice/tasks/`), executing Lon's
-2026-08-28 ruling steps (1)/(3) — grade against live source, consolidate by clustering. All four files carried
-a clean, unanimous **HISTORICAL-CLOSED / safe-to-fold** verdict from the survey phase with no reserved question
-attached; this landing independently re-ran the load-bearing checks rather than trusting the survey blind
-(file existence, binary/symbol checks, a fresh commit-ancestry check on each cited hash) before folding.
-`GOAL-DEAD-CODE-SWEEP.md`, part of the same "confidently-historical singles" shortlist the prior NEXT block
-named, was deliberately **left out of this landing**: its own survey verdict called for one live re-check
-before folding (`util_gc_dead_oracle.sh` re-run, count at the 18 backend-KEEP floor), and running that check
-fresh here found the oracle script itself currently fails to relink (`undefined reference to rt_outer_call`,
-`g_gva_active`, `bbprof_report`, `bin_audit_print` — a `--gc-sections` link-time gap, unrelated to whether dead
-code actually remains). That failure is orthogonal to this file's cluster and is left for whoever owns
-`GOAL-DEAD-CODE-SWEEP.md` next, noted in the task file's own ledger rather than silently retried into a
-guessed verdict here.
+2026-08-28 ruling steps (1)/(3) — grade against live source, consolidate by clustering. The first four files
+carried a clean, unanimous **HISTORICAL-CLOSED / safe-to-fold** verdict from the survey phase with no reserved
+question attached; this landing independently re-ran the load-bearing checks rather than trusting the survey
+blind (file existence, binary/symbol checks, a fresh commit-ancestry check on each cited hash) before folding.
+The fifth, `GOAL-DE-INTERP.md`, is a later addition (this session) — see its own section below.
+
+⛔ **`GOAL-DEAD-CODE-SWEEP.md` and `GOAL-SRC-REORG.md` were considered for this cluster, twice now, and both
+times deliberately EXCLUDED — this session RE-CHECKED both rather than trust the prior "confidently
+historical, pending one live check" framing, and found each has a reason it must NOT fold, not just a
+pending nice-to-have:**
+- **`GOAL-DEAD-CODE-SWEEP.md` is a live routing lane, not a closed project.** Its own 2026-06 worklist is
+  genuinely done (verified again this session), but at least three OTHER files — `ARCH-SNOBOL4-RTX.md`,
+  `GOAL-ICON-100.md`, `GOAL-SNOBOL4-100.md` — plus the `bb-fixup-az-cleanup` postoffice task file all
+  actively say some variant of "flagged for `GOAL-DEAD-CODE-SWEEP.md`, not deleted here" about dead code
+  discovered AFTER this file's own worklist closed (`bb_idx_get.cpp`/`bb_idx_set.cpp`, `bb_subject.cpp`,
+  `bb_initial.cpp` — none of which appear in `GOAL-DEAD-CODE-SWEEP.md`'s own text). Folding this filename
+  into a history file would silently break every one of those live pointers into a decision queue that no
+  longer functions as one. Left standalone, with a fresh addendum — see its own file.
+- **`GOAL-SRC-REORG.md` has one genuinely still-open item, not zero.** Its own watermark says "COMPLETE
+  except GMR-8 part (b)" (evict the `Σ`/`Δ`/`Ω`/`Σlen` externs + `TEMPLATE_ADDR_*` from the emitter globals
+  header). Verified fresh this session: `TEMPLATE_ADDR_SIGMA`/`_SIGLEN`/`_DELTA` are still live in
+  `src/emitter/emit.h` today, and the `Σ`/`Δ`/`Ω` globals are referenced in 11 files. `PLAN.md`'s own
+  `SRC REORG` row still says "Open GMR-8(b)" — correctly. This is real unfinished mechanical work, not a
+  reserved policy question, and archiving the file would bury a task `PLAN.md` still tracks as active. Left
+  standalone, with a fresh addendum — see its own file.
+
+Both addenda also record a related, freshly-confirmed fact: `src/parser/` → `src/frontend/` (documented,
+2026-08-26, `cf1f2961`/`d4312e86`/`c8ed9953`) → `src/parsers/` (2026-08-29, `96665b70`, Lon in-chat) — a THIRD
+name for the same directory in about a month. `GOAL-SRC-REORG.md`'s own target tree (`parser/contracts/
+machine/`) was already two renames behind before this session; root `CLAUDE.md`'s current text (`src/frontend/`)
+is now one rename behind too. Neither is this row's file to fix; noted so whoever next touches either doesn't
+re-derive it.
 
 ## The one4all → SCRIP rename
 
@@ -84,9 +104,34 @@ live projects in their own right.
   `SCRIP/scripts/` exactly as named. Its "scrip blocks on stdin only when the running program reads INPUT"
   finding is the same rule root `CLAUDE.md` states today ("Always redirect `< /dev/null` on scrip calls").
 
+## The interp-misnomer rename (DE-INTERP)
+
+- **`GOAL-DE-INTERP.md`** (was: 141 ln) — Lon's 2026-06-15 mandate: the IR-graph interpreter was already
+  deleted (`IR_interp_node`/`_once`/`_resume`/`_pump` excised to attic; mode-2 `--run` removed from the
+  driver), so every surviving `interp` token in a live file/dir/function/variable/guard/Makefile-target name
+  was a lie about what the code actually is — rename each to its true role. Four substrings are explicitly
+  NOT the interpreter and were never touched: `reinterpret_cast` (C++ keyword), Raku string
+  **interp**olation (`lower_interp_str` + the grammar's own term), the English word "interprets" in prose,
+  and bomb-tombstone strings naming the dead interpreter as provenance.
+  **Self-stamped `✅ DE-INTERP DONE — ALL 8 STEPS LANDED` (2026-06-15, SCRIP `6e87566`+`1d113eb`+`f60bb08`+
+  `4c9b6bd`)** — the whole driver `interp_*.c`/`.h` family renamed to `driver_*` (six files + two headers,
+  one atomic commit since they cross-include), `src/interp/` relocated and deleted (`rt_runtime.c` →
+  `runtime/`, `IR_interp_state.h` → `emitter/box_state.h`), `pl_interp.h` → `pl_resolve.h`, the eval rail
+  renamed `interp_eval*` → `eval_ast*`, and the `-Wl,--wrap=interp_eval` linker-wrap landmine in
+  `build_scrip_rs23_diag.sh` moved in lockstep so the diagnostic wrap didn't silently no-op.
+  **Independently re-verified this landing, not trusted from the file's own claim:** `src/interp/`,
+  `src/driver/interp.h`, `src/driver/interp_private.h`, `src/parsers/prolog/pl_interp.h` (checked at the
+  CURRENT `src/parsers/` path, post the frontend→parsers rename below, not the file's own stale
+  `src/parser/`) are all confirmed absent. A fresh completion grep does turn up more raw `interp` hits than
+  the file's own four-item allowlist names verbatim — `"the SM interpreter"` in two `scrip.c` abort
+  messages, an `interp.r` comment reference in `zeta_storage.c`, and `rk_interp_primary`/`rk_interp_subexpr`
+  in `raku.tab.c` — but every one is either the Raku-interpolation survivor by another name or plain English
+  prose, not a residual name of the deleted graph interpreter; none is a live file/dir/symbol/guard the rung
+  was chartered to rename. Disposition: 100% closed, nothing to route anywhere.
+
 ## RETIRED NAMES
 
-Four source files, all deleted, replaced entirely by this one file:
+Five source files, all deleted, replaced entirely by this one file:
 
 | Retired name | Where its content now lives |
 |---|---|
@@ -94,6 +139,7 @@ Four source files, all deleted, replaced entirely by this one file:
 | `GOAL-REMOVE-CMPILE.md` | § CMPILE removal — unifying on the bison/flex parser |
 | `GOAL-SESSION-SETUP-REFINEMENT.md` | § Session-setup and self-contained-script conventions |
 | `GOAL-SELF-CONTAINED-SCRIPTS.md` | § Session-setup and self-contained-script conventions |
+| `GOAL-DE-INTERP.md` | § The interp-misnomer rename (DE-INTERP) |
 
 **Symbols/paths from the retired files that a stray grep might still turn up** (all confirmed dead or
 superseded, listed once here rather than per-section): `CMPILE.c`/`CMPILE.h`, `cmpile_file`, `cmpile_lower`,
@@ -101,4 +147,9 @@ superseded, listed once here rather than per-section): `CMPILE.c`/`CMPILE.h`, `c
 `CMPND_t`, `build_full_session_environment.sh` (renamed to `install_everything_full_stack.sh`),
 `REPO-one4all.md` (renamed to `REPO-SCRIP.md`), `GOAL-README-ONE4ALL.md` (renamed to
 `GOAL-README-SCRIP.md`), `one4all` / `ONE4ALL` / `One4all` as a live path/URL/var token (the bare word still
-appears, correctly, inside frozen migration-history prose elsewhere — that is sanctioned, not a residual bug).
+appears, correctly, inside frozen migration-history prose elsewhere — that is sanctioned, not a residual bug);
+`src/interp/` (dir, gone), `src/driver/interp.h`/`interp_private.h`/`interp_globals.c`/`interp_label.c`/
+`interp_hooks.c`/`interp_data.c`/`interp_call.c`/`interp_ast_stubs.c` (renamed to the `driver_*` family),
+`src/parsers/prolog/pl_interp.h` (renamed `pl_resolve.h`), `interp_eval`/`interp_eval_pat`/`interp_eval_ref`
+(renamed `eval_ast`/`eval_ast_pat`/`eval_ast_ref`), `__real_interp_eval`/`__wrap_interp_eval`/
+`-Wl,--wrap=interp_eval` (renamed in lockstep), `scrip-interp` Makefile target (deleted).

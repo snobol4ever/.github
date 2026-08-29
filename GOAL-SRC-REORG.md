@@ -7,6 +7,36 @@
 **⛔ THE ASK ITSELF MUST BE A BANNER: any session requesting this permission MUST display the request in-chat as a large unmissable ⛔ banner — the proposed global's name, type, owning file, purpose, and why registers/the stack cannot carry it — so Lon cannot miss the ask.  A quiet or inline ask does not count as asking. (Lon 2026-08-13 s55, in-chat.)**
 
 
+## ⛔ UPDATE 2026-08-29 (seat07, `goal-files-major-consolidation` row) — NOT a fold candidate yet; GMR-8(b) reconfirmed genuinely open
+
+Considered for archiving into a closed-history cluster this session, alongside `GOAL-DEAD-CODE-SWEEP.md`, on
+the strength of an earlier survey verdict calling this file "STALE IN A WAY THAT MATTERS" (its target tree is
+superseded — see below) but otherwise complete. Pulled back out after re-checking the ONE item its own
+watermark already flags as unfinished, per this row's "GMR-8(b)" wording:
+
+1. **GMR-8(b) is still open, verified fresh against live source, not just against the file's own claim.**
+   The watermark says "Ladder COMPLETE except GMR-8 part (b) — the `Σ`/`Δ`/`Ω`/`Σlen` externs +
+   `TEMPLATE_ADDR_*` in `emit_globals.h`, DEFERRED because they are entangled with the in-flight REG ladder."
+   Checked today: `TEMPLATE_ADDR_SIGMA`/`TEMPLATE_ADDR_SIGLEN`/`TEMPLATE_ADDR_DELTA` are still defined in
+   `src/emitter/emit.h` (the file itself moved/renamed since this ladder ran, basename survived), and the
+   `Σ`/`Δ`/`Ω` globals themselves are referenced across 11 files in `src/`. `PLAN.md`'s own `SRC REORG` row
+   still reads "Open GMR-8(b)" — that row is correct, current, and would go silently untracked if this file
+   were archived as closed history.
+2. **The target tree this file documents (GMR-0..GMR-7, genuinely done) is now the SECOND-oldest of three
+   generations, not current, and every session touching it should know the chain, not just "it moved once":**
+   `src/parser/contracts/machine/` (this file's own target, done 2026-06-02) → `src/frontend/`+`src/ir/`
+   (undocumented in any GOAL file, 2026-08-26, `cf1f2961`/`d4312e86`/`c8ed9953`) → `src/parsers/` (2026-08-29,
+   TODAY, `96665b70`, Lon in-chat — "Rename src/frontend -> src/parsers"). Root `CLAUDE.md`'s own current text
+   still says `src/frontend/` and is therefore now one rename behind too, though its own hedge already tells
+   readers to `ls` before trusting a path — not this row's file to fix, noted for whoever next does.
+3. **When GMR-8(b) actually lands**, this file becomes a clean, single-item-away-from-`GOAL-SM-LOWER-REFACTOR.md`-
+   style closure — same "100% done, real commit trail, one named living successor" shape — and should fold
+   into `GOAL-HISTORY-PROCESS-HOUSEKEEPING.md`'s reorg-hygiene material at that point, with a loud caption
+   that its target tree is historical, not current (root `CLAUDE.md`'s own Architecture section is the
+   authority on today's layout).
+
+**Disposition: leave this file standing as a live (if narrow) open task until GMR-8(b) lands.**
+
 **Lon directive (2026-06-02):** "I am so tired of not being able to find things and being mis-labeled.
 Let's fix this." Re-slice the physical `src/` tree so every folder names its ROLE in the pipeline, and so a
 type's DEFINITION and its ALLOCATOR live together. This is a `grand master reorg` (touches Makefile + PLAN +
