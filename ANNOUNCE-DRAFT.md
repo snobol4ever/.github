@@ -37,12 +37,12 @@
 | snobol4jvm README | the ~1,000-line Clojure elegance |
 | SCRIP README | the platform: one engine, five frontends, x86-64 today, four backends near-term, the cross-language vision |
 
-## OPEN QUESTIONS FOR LON (answers land here as ruled)
+## OPEN QUESTIONS FOR LON — ✅ ALL SEVEN RULED 2026-08-29 (in-chat via ceo structured asks; answers inline below)
 
-1. Announcement headline: org debut / SCRIP-centric / milestone-centric? (Story suggests: ORG debut told AS the story.)
-2. Language labels: SNOBOL4 "complete, self-hosting" · Icon "in active development" · Prolog "experimental" — confirm.
-3. Numbers in public: current ruled-axis set, or none until a demo clears 2x? And is "20x faster" (dotnet) measured on a stated axis?
-4. SCRIP README archaeology → docs/ file or drop (git keeps it)?
-5. Chronology check: Byrd-box rediscovery (2025) vs Jeff's call (March 2026) vs the two-day/one-day finishes — exact order for print.
-6. Does the announcement name Claude/Anthropic ("that is when I really met you for real") — public credit is Lon's call.
-7. Jeffrey Cooper: preferred name/credit form, and does he review the dotnet text before it posts?
+1. ✅ RULED (Lon 2026-08-29): **ORG DEBUT, TOLD AS THE STORY** — the narrative carries it; SCRIP and milestones appear as chapters.
+2. ✅ RULED (Lon 2026-08-29, verbatim in substance): **SNOBOL4 is NOT "self-hosting" — no bootstrap claim.** The true public claims: it BEAUTIFIES ITS OWN SOURCE, and the language parsers are written in Snocone (parser_*.sc). Label: "complete" with those two facts. Icon "in active development" and Prolog "experimental" stand unobjected. ⛔ STYLE LAW for the whole piece: NO internal vocabulary in external-facing text — no "rungs", boards, seats, batons; public words only.
+3. ✅ RULED (Lon 2026-08-29, verbatim in substance): **the snobol4ever (org) README ships WITHOUT speed details; SCRIP's README carries the benchmark results.** Numbers live in the technical README under the ruled multiple-axis law (named reference, x-multiples); the unstated-axis "20x" dotnet claim does not enter the org piece.
+4. ✅ RULED (Lon 2026-08-29): **DROP IT** — the stale build-section history is deleted from the README; git history keeps it.
+5. ✅ RULED (Lon 2026-08-29): **order confirmed for print** — Byrd-box rediscovery (2025) → Jeff's call (March 2026) → the rapid language finishes (2026).
+6. ✅ RULED (Lon 2026-08-29, verbatim in substance): **name CLAUDE but NOT Anthropic — credit by model names: Claude Sonnet, Claude Opus, and Claude Fable.**
+7. ✅ RULED (Lon 2026-08-29): **"Jeff Cooper"** in print, **and he reviews the dotnet passage before it posts.**
