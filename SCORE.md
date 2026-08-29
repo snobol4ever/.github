@@ -3,7 +3,7 @@
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
 | Language | Blocking floor | Other suites (latest) | Master flat suite |
 |---|---|---|---|
-| SNOBOL4 | m3 **1439/0** · m4 **1439/0** (denominator 1377→1439: probe conversion landed, attributed corpus c06960a12) | csnobol4_suite UNGRADED (oracle gap) | ⭐ **BORN 2026-08-29**: tests/snobol4/master/ALL.{sno,ref,csv} — 1,460 entries, 127 families, 44 attribute columns, descriptive snake_case names (Lon's one-flat-suite + rename rulings); first board run pending |
+| SNOBOL4 | ⭐ **CUT OVER TO THE MASTER**: m3 **1444/0** · m4 **1435/0 SKIP=9** MISSING=0 GATE OK (floor grades the ONE pair; corpus dcdf7140f · SCRIP b072e7c3 · 2026-08-29 · ceo) | csnobol4_suite UNGRADED (oracle gap) | master v6: 1,495 entries, 157 families ABSORBED AND DELETED; board m3 1421/0 (71 xfail, 3 xpass) · m4 1412/0 (9 skip, 74 xfail); levels = rank prefixes |
 | Icon | rungs 258/9/1/29 of 297 (compile 257/10) | smoke 14/14 both · D2 ALL-GREEN incl. suspend_apply · **apply-to-generator CURED both modes** (SCRIP 42a6260f) | probe_witness.icn suite (11 entries) — master pending |
 | Prolog | smoke 5/5 both | parser 150/156 · crosscheck 101/0/34 + ORACLE_MISS=89 | probe_plz.pl suite (9, xfail) — master pending |
 | Raku | smoke 724/724 both | IR full suite 35/12 (open row) · roast unblocked, rerun pending | — |
