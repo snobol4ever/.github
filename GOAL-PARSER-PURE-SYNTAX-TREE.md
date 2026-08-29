@@ -285,6 +285,8 @@ path beauty uses — so the risk is low and bounded).
 **Stage 2 (post-Phase-2):** bulk rename `SM_*` → `IR_SM_*` and `IR_*` →
 `IR_BB_*`, then per-construct lowering for TT_AUGOP/IF/WHILE/FOR/CASE/
 LOOP_BREAK/NEXT/DEFINE/SCAN-SEQ-split/GOTO/Prolog-slot-alloc/Rebus.
-Will be restored as `GOAL-LOWER-REDESIGN.md` once Phase 2 lands.
+Will be restored as `GOAL-LOWER-REDESIGN.md` once Phase 2 lands. (Same note as above: that name
+belonged to a now-retired file whose content is consolidated into `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md`
+§ Lower redesign — a restoration here is a NEW file reusing the name, never a revival of that one.)
 
 .github @ (this commit)
