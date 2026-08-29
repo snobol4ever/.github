@@ -63,7 +63,6 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **BB-FIXUP** | `GOAL-BB-FIXUP.md` | Round-robin hygiene; cursor in `BB-REVAMP-TRACKER.md`. |
 | **SRC REORG** | `GOAL-SRC-REORG.md` | Open GMR-8(b). |
 | **RUNTIME RENAME / REORG** | `GOAL-RUNTIME-RENAME.md` / `GOAL-RUNTIME-REORG.md` | LI-CORE (Lon decision) / per-file CS subsystems. |
-| **SCRIP RENAME** | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename. |
 | **⛔⭐⭐⭐ ICON 100% — THE ONE ICON GOAL** ⬅ Lon 2026-08-15 s229: 15 Icon goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME on RBP, ζ-SPINE on RSP) | `GOAL-ICON-100.md` | R-0 = resurrect the default arm (fresh triple watermark at `07d6eae7`: default 1/262/30 · CELLS=1 235/28/30 · ZFRAME=0 78/185/30; bisect `8487d499..07d6eae7`, predicate proven at both ends). |
 | **⛔⭐⭐⭐ PROLOG 100% — THE ONE PROLOG GOAL** ⬅ Lon 2026-08-16 s165: 10 Prolog goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME, ζ-SPINE on RSP) | `GOAL-PROLOG-100.md` | R-0h harness honesty then R-0 reconquest (s165 live watermark: smoke 3/5 · rung 113/109 of 164 · bench-22 green=8); R-1 = ZK-5B per its restart protocol. |
 | **⛔⭐⭐⭐ PASCAL 100% — THE ONE PASCAL GOAL** ⬅ Lon 2026-08-27: consolidated into ONE file | `GOAL-PASCAL-100.md` | 7th frontend (P4 subset); toolchain in `corpus/programs/pascal/`. FRONT STATUS: restoration (`pascal-restore-prezeta`) + PAS-DISPLAY revival are the live front. |

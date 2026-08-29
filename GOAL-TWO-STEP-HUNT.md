@@ -70,7 +70,7 @@ python3 test/beauty_subexpr_gen.py \
 
 | Driver | First diverging test | Subsystem:line | Bug | Status |
 |--------|---------------------|----------------|-----|--------|
-| omega | test 2: TZ xTrace=1 returns STRING | omega.sno:41 | `EVAL(string)` — g_eval_str_hook wired → _eval_str_impl_fn → parse_expr_pat_from_str. BLOCKED on GOAL-REMOVE-CMPILE S-1: parse_expr_pat_from_str returns null (wrong wrapper). Fix: pass src direct to bison, return s->pattern else s->subject. | ☐ |
+| omega | test 2: TZ xTrace=1 returns STRING | omega.sno:41 | `EVAL(string)` — g_eval_str_hook wired → _eval_str_impl_fn → parse_expr_pat_from_str. Blocker resolved: `GOAL-REMOVE-CMPILE.md` (now folded into `GOAL-HISTORY-PROCESS-HOUSEKEEPING.md`, 2026-08-29 consolidation) recorded its S-1 fix (direct src to bison, return s->pattern else s->subject) and its own S-7 done-when as omega driver PASS=15/15 — not independently re-run by this edit, a live repro is still owed before flipping the status column. | ☐ |
 | Gen | test ? | ? | ARBNO upstream null DT_E | ☐ |
 | TDump | test ? | ? | DATA field ordering t/v | ☐ |
 | XDump | test ? | ? | Array bounds format `1` vs `1:1` | ☐ |
