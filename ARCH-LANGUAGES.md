@@ -132,6 +132,28 @@ Ladder home: **`GOAL-PROLOG-100.md`** *(the docs said `GOAL-PROLOG-BB.md`, which
 3. **Load-time directives are DROPPED whenever a `main/0` exists.** `:- write(fromdir), nl.` + `main :- write(frommain), nl.` → swipl prints `fromdir` under **both** invocations; SCRIP prints only `frommain`. Cause, measured at `src/parsers/prolog/prolog_lower.c:742`: a directive goal is seeded into `main`'s prologue **only if its clause head is `pl_dyn_is_marked`** (i.e. only `assertz`-into-dynamic setup). Every other load-time directive is silently discarded — no diagnostic. Cure row **`prolog-load-directives-dropped-when-main-exists`**.
 4. **A file with directives and no `main/0` is a HARD FATAL, not a diagnostic.** `[IBB] FATAL: mode-3 driver: main BB graph not found` + **core dump** (m3 rc=134); m4 fails at compile, rc=1. **36 real corpus files measured** across `tests/prolog` + `benchmarks/prolog` — including four `rung10_programs_puzzle_*.pl` that swipl solves correctly. A directive-only file is ordinary, legal Prolog: the convention is **mandatory** where it should be a **default**. Cure row **`prolog-directive-only-file-fatals-no-main-bb-graph`**.
 
+### ⭐ FAILURE-DRIVEN LOOP WITH NO FALLBACK CLAUSE — the rc gap is a ROLE difference, not an engine-convention disagreement (hq_C ruling, 2026-08-29, on seat03's question from `tests-consolidate-prolog`)
+
+**The question.** `corpus/tests/prolog/rung10_programs_puzzle_05.pl` ends `main :- …, display(…), fail.` with **no fallback clause** — the classic print-every-solution idiom, deliberate, not a bug. Its stdout matches the oracle byte-for-byte, but the process rc does not: oracle 0, SCRIP 1 (SCRIP's rc reported by seat03; not independently re-measured here — the local binary was mid-pristine-build). seat03 asked whether to grade content-only, or give the oracle invocation a per-family flag.
+
+⛔ **NEITHER. Once you name the ROLE `main` is playing, the disagreement disappears — the engines do not actually differ.** Measured here, same file, same tree:
+
+| invocation | stdout | rc | `main`'s role |
+|---|---|---|---|
+| `swipl -q -g halt` (harness pin) | solution **once** + `Warning: Initialization goal failed` | **0** | load-time **directive** |
+| `gprolog --consult-file … --entry-goal halt` | solution **once** + `warning: user directive failed` | **0** | load-time **directive** |
+| `swipl -q -g main -t halt` | solution **TWICE** + warning | **1** | **top-level goal** |
+
+**A failed load-time directive is a warning in BOTH oracles (rc=0). A failed top-level goal is a process failure (rc=1).** SCRIP assigns `main` the **top-level-goal** role — that is the ENTRY-POINT CONVENTION ruled above — so **SCRIP's rc=1 agrees exactly with the invocation whose role matches it.** SCRIP is not wrong, and no engine convention needs reconciling.
+
+⛔ **WHY IT LOOKED LIKE A DEFECT ANYWAY, and this is the reusable part: no single invocation reproduces the expected pair.** For a file that carries `:- initialization(main).`, `-g halt` gives *(printed once, rc=0)* and `-g main -t halt` gives *(printed **twice**, rc=1)* — the double-run documented above. **The two halves of the correct answer come from two different invocations**, so any single-invocation grader must disagree with SCRIP on one axis or the other. That is a property of the harness's choice, not of the program.
+
+✅ **THE RULE.** For the declared family — *the entry predicate has exactly one clause, its body ends in a bare `fail`, and the predicate has no further clause* — grade **stdout against the oracle** and **rc against a declared expectation recorded in the `.ref`**, naming this ruling as the justification. ⛔ **This is NOT "ignore rc".** A blanket rc exemption would hide real rc regressions across the whole suite; the exemption is per-family, declared per file, and the family is mechanically detectable from the source.
+
+⛔ **DO NOT FLIP `--on-warning=halt`. seat03 was right to refuse it, on both counts.** It is a **shared oracle instrument** — RULES.md § ORACLE-SWAP PROCEDURE requires a fleet-quiet boundary, Lon's go-ahead, an announcement to every mailbox, and a published re-baseline. And it is the wrong cure regardless: it papers over a role difference with a global flag, and would convert every benign warning elsewhere in the corpus into a false RED — exactly the risk seat03 named without having to be told.
+
+⚠️ **Inheritance:** `rung10_programs_puzzle_02/03/04/06-20` (19 files, same idiom) hit this the moment PZ-4 lands and they stop crashing. `tests-consolidate-prolog-pz4-blocked-33` inherits this ruling rather than re-discovering it file by file.
+
 ⭐ **The shape worth carrying off this row:** the question arrived as a binary — *cure the auto-invoke, or bless it*. Both answers were wrong, because the auto-invoke was never the defect; **being the only entry path** is. Gate: `bash SCRIP/scripts/test_gate_prolog_entrypoint_ruling.sh` re-derives the ruling's reason on every run (RULES.md § TWO-PART PROOF) and ratchets the 36.
 
 ### Prolog on `DESCR` + the three zetas — Lon's s273 ruling (design, absorbed with corrections)
