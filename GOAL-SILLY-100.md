@@ -1,34 +1,34 @@
-# GOAL-SILLY-100 — Silly SNOBOL4 (CSNOBOL4 hand-port oracle project)
+# GOAL-SILLY-100 — Silly SNOBOL4 (CSNOBOL4 hand-port oracle project) — CLOSED/ABANDONED
 
-Consolidates 4 files per Lon's 2026-08-28 GOAL-file-consolidation ruling (`goal-files-major-consolidation`
-task, `.github` postoffice): all still had real, unfinished, non-superseded design content ("STILL HAS
-MERIT" in every source verdict), so this is a **living home**, not an archive fold.
+⛔⭐⭐ **RULED CLOSED 2026-08-29 — Lon, verbatim in substance, in-chat to CEO: "Leave SILLY folder deleted,
+it was a failed experiment."** Authority: `.github FINDING-2026-08-29-ceo-silly-stays-deleted-failed-
+experiment-lon-ruling.md`. **No restore, to either repo, ever.** This file is now pure history — the
+design/progress record below is preserved for the record, not as resumable work. Do not start any step
+below; do not resurrect this project under this or any other name without a fresh Lon ruling.
 
-## ⛔⭐⭐ BLOCKING: THE SOURCE THIS FILE DESCRIBES DOES NOT CURRENTLY EXIST IN EITHER REPO
+## What happened, for the record
 
-**As of 2026-08-29, `SILLY/`'s entire 25-file C tree has been deleted from BOTH SCRIP and corpus** —
-verified fresh against a pulled HEAD of both repos at consolidation time, not inherited from a stale note.
-Full incident: `.github FINDING-2026-08-29-seat13-silly-snobol4-source-deleted-from-both-repos-no-live-
-home.md`. Short version:
-
+**`SILLY/`'s entire 25-file C tree was deleted from BOTH SCRIP and corpus on 2026-08-29** by two
+independently-reasonable, uncoordinated repo-hygiene commits, six minutes apart:
 ```
 corpus 29e47ac16   "miscellaneous/SILLY: add, relocated here from SCRIP/SILLY"
 SCRIP  ee0f1508    "Remove SILLY: relocated to corpus/miscellaneous/SILLY"          (09:50:49)
 corpus e42689daf   "Delete miscellaneous/SILLY: C source does not belong in corpus" (09:56:48, +6min)
 ```
-Two independently-reasonable repo-hygiene calls, uncoordinated, composed into total deletion. **Recovery
-is trivial today, not guaranteed to stay that way:**
+Full incident report (also carries these same recovery commands, for whoever investigates the deletion
+itself rather than the project): `.github FINDING-2026-08-29-seat13-silly-snobol4-source-deleted-from-
+both-repos-no-live-home.md`. **Git history is the archive, per the ruling — this is not a live recovery
+path, just the record of where the bytes last existed:**
 ```bash
-git show ee0f1508~1:SILLY/main.c              # SCRIP, confirms content still recoverable
-git checkout ee0f1508~1 -- SILLY/             # SCRIP, full tree restore
+git show ee0f1508~1:SILLY/main.c              # SCRIP, last commit with the tree present
+git checkout ee0f1508~1 -- SILLY/             # SCRIP, historical reference only
 git checkout 29e47ac16 -- miscellaneous/SILLY/  # corpus, same content, alternate source
 ```
-**Whether to restore (and to which repo, permanently) or formally abandon this project is NOT decided by
-this file** — routed to ceo per the reserved-question convention (INTERLOCK (d) of the consolidation
-task's own GOAL text: "a design idea's merit call that is genuinely reserved... routes... ASSIGNED asks,
-never dropped"). Everything below is the accurate, verified-as-of-2026-08-29-09:50 design/progress record
-— exactly what's needed to resume IF this is restored, preserved rather than lost by folding 4 files into
-1. **Do not start any step below until the source tree actually exists again in a chosen repo.**
+⚠️ **The cross-repo composition hazard this deletion exposed is a real, standing class regardless of this
+ruling** (hq_B's framing, `.github` mail): two locally-correct actions in two different repos' histories
+composed into total, silent loss — no single `git log` in either repo shows the composition, and no
+instrument was watching the aggregate. Abandoning SILLY does not moot that lesson for the next
+cross-repo relocate-then-hygiene sequence.
 
 ## ⛔ ABSOLUTE RULE — ZERO C BYRD BOX FUNCTIONS — applies if/when this resumes
 
