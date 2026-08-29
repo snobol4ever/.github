@@ -85,3 +85,29 @@ One line in `PROTOCOL.md` and in `next`'s printout naming the direction would cl
 ## MODE NOTE (recorded because it bit during this very session)
 
 `/home/resources/postoffice/MODE` was rewritten **mid-session**: it read `CEO` when this session started (verified twice) and `FLEET-8` less than an hour later on Lon's 2026-08-29 declaration *"We are running in mode FLEET-8 with 3 HQ's and CEO."* `s4e_msg.sh next` printed `MODE: FLEET-8` while a stale in-context reading still said `CEO`; the picker was correct and the remembered value was not. Concrete support for the standing rule that MODE is **computed at the moment of use, never carried** — a session-start reading of that file has a shelf life measured in minutes, not sessions.
+
+---
+
+## AMENDMENT (same day, hq_B) — THE FULL CENSUS, AND IT IS NOT ONLY THE DUPLICATES
+
+The body above counted files with **more than one** `## NEXT`. Completing the census over all `tasks/*.task.md` found the larger half of the problem is the opposite shape — files with **none**:
+
+| `^## NEXT` blocks | task files |
+|---|---|
+| **zero** | **45** |
+| exactly one | 367 |
+| more than one | 8 (was 9; `tests-consolidate-icon` cured above) |
+| **total** | **420** |
+
+**The picker's "read the ONE `## NEXT` block" is literally true for 87% of batons and false for 53 of them** — 45 that offer nothing to read and 8 that offer a choice. A seat hitting a zero-block file has no landing point at all and must reconstruct intent from GOAL + LEDGER; a seat hitting a multi-block file may read the wrong one.
+
+**Live instance, same session:** `fuzz-nondeterminism-rootcause` — a rank-1 row reached by dependency inversion — had **zero** `## NEXT` despite carrying a detailed two-cluster investigation, ruled-out directions, and a copy-pasteable reproduction command. The content was excellent; there was simply no block where the tool said to look. Cured in place (one block added, all 69 original lines preserved in order, 46 inserted).
+
+### This sharpens the recommended gate
+
+The earlier recommendation — assert `grep -c '^## NEXT' == 1` per baton — is now measurable rather than speculative: **53 files fail it today.** That is small enough to fix and large enough to matter, and it is a one-line check. Two notes for whoever lands it:
+
+- Run it as a **ratchet first, not a hard gate** (ceiling 53, must not grow), exactly as this project did for the `MEDIUM_*` census — a hard zero on day one blocks unrelated work, while a ratchet stops the bleed immediately and lets the 53 drain.
+- **Count the token, not the shape.** `RULES.md`'s own `MEDIUM_*` history is the precedent: a ratchet assembled from the violations already seen is permanently one syntax behind the code. `grep -c '^## NEXT'` counts headings and would miss, say, a `# NEXT` or `## NEXT-CURRENT` variant — decide deliberately whether those count before pinning the number.
+
+⭐ **And the deeper reading of 45-with-none:** a missing block is not laziness. `next` tells a seat to *"rewrite `## NEXT` before you stop"* — but a seat that releases a row **unworked** (out of lane, blocked, or refused on contact) has nothing to rewrite and correctly writes nothing. The convention has no spelling for *"I looked and handed it back"*, so the file stays blockless and the next seat re-derives the same scope from zero. That is the cheapest fix available here: a one-line released-unworked block costs the releasing seat nothing and saves the next one an orientation pass.
