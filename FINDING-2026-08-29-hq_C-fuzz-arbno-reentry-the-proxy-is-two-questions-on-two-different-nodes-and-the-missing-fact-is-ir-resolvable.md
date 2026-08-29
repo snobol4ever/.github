@@ -79,3 +79,20 @@ hq_B (relayed via seat11) flagged that `fz_red_m4b_blob_defer_fence` and `fz_red
 ⛔ **What does NOT survive is the word "deterministic" unqualified.** Every run in §3 was **mode 3**. hq_B's instability for the Cluster A pair is a **mode-4 crash-signal** effect, which m3-only runs cannot see — which is why their measurement and mine disagree while both are correct. ⭐ **My instrument answered a narrower question than my sentence claimed**, which is the exact family this FINDING is about, committed by its own author two hours after writing it up. The honest statement is: *10 of 10 identical in mode 3*, not *deterministic*.
 
 ✅ **ENDORSED AS A PREREQUISITE FOR THIS ROW:** hq_B's ask for an N-repeat-refuse-on-disagreement runner over the whole `probe/fuzz/` set, **covering both modes**, before anyone grades a cure against these witnesses. A witness set whose own stability is unmeasured cannot falsify anything, and this row has spent six sessions grading candidates against it.
+
+## ⚠️ SECOND CORRECTION, SAME DAY — I WAS WRONG ABOUT `fz_red_m4a` TOO, AND THE RUNNER I BUILT IS WHAT CAUGHT IT
+
+The prerequisite runner is now built (`scripts/util_fuzz_witness_stability.sh`, SCRIP `4026774a`): N repeats, **both modes**, **(stdout, rc) compared as a pair**, refusing on any disagreement. Its first run, N=10 at SCRIP `f5231fa6`, over 5 witnesses × 2 modes:
+
+| | pairs | detail |
+|---|---|---|
+| **UNSTABLE** | 5 | `fz_red_m1b` **m3+m4** (rc 0 vs **124** — a HANG, not a wrong answer) · `fz_red_m4a` **m3** (rc **132/133/139**) · `fz_red_m4b` **m3+m4** (rc 0 vs 139) |
+| **STABLE** | 5 | `fz_red_m4a` m4 · `fz_segv_09` m3+m4 (rc=139, a *deterministic* SEGV) · `fz_segv_24` m3+m4 (rc=0) |
+
+⛔ **In the correction above I wrote that `fz_red_m4a` was "30/30 empty — stable in m3". It is not stable.** Its **stdout is constant empty while its rc cycles 132/139** — re-confirmed directly (8 runs: rc=132 ×1, rc=139 ×7, stdout empty every time). My 30-run sample compared **stdout only**, so it was structurally incapable of seeing the axis hq_B measured. hq_B was right, in both of the two exchanges we had about it.
+
+⭐⭐ **NEITHER OF US WAS CARELESS, AND THAT IS THE POINT.** hq_B sampled rc; I sampled stdout; **each of us called our own instrument "the witness"**, and no step in either procedure could have reported the omission. This FINDING's own thesis — an instrument answering a narrower question than the sentence built on it — was then committed twice, within hours, by the two people writing it up. ⛔ **The cheap general test survives intact and would have caught both of us: *what would be different if my instrument were blind to half the answer?* If nothing observable, you are measuring a habit.**
+
+⚠️ **`fz_segv_24` now reads stable rc=0 in both modes, where §3's same-day baseline had it 4×empty / 6×`nomatch`.** Do **not** resolve that by declaring one measurement wrong — **the tree moved between them**, other seats landed codegen, and that is the REBASE-BASELINE COROLLARY. It is why the runner stamps its SCRIP and corpus hashes on every run.
+
+⛔ **CONSEQUENCE FOR THE ROW: every rejection in its ledger is partly suspect, §3's included.** Six sessions graded candidates against a set in which **5 of 10 witness×mode pairs disagree with themselves**. The order is now fixed — run the script, stabilise or explicitly exclude the unstable pairs, and only then grade a cure. ⭐ `fz_segv_09`'s deterministic rc=139 makes it the single witness that can falsify a **Cluster A** cure today; Cluster B has no usable arm until its three are stabilised.
