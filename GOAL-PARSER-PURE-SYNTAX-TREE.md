@@ -37,7 +37,7 @@ Verified per AUDIT-2 §2i.
 order. No mutate-in-place, no kind-inspection before wrap, no
 reorderings. Always wrap fresh.
 
-The three facets together make `corpus/SCRIP/parser_*.sc` reducible to
+The three facets together make `SCRIP/bootstrap/parser_*.sc` (moved from the retired `corpus/SCRIP/` path by the s267 REPO BOUNDARY ruling) reducible to
 **Shift** (push next token's leaf onto working stack) and
 **Reduce(kind, n)** (pop n items, wrap as children of new node of
 kind, push). That is the Phase 2 endpoint.
@@ -141,12 +141,12 @@ Do not track ⏳/✅ progress here; this table is a static index only.
 
 | Frontend | Phase 1 C | Per-language goal (live state) |
 |----------|-----------|-------------------|
-| SNOBOL4 | ✅ | `GOAL-PST-SNOBOL4.md` |
-| Icon    | ✅ | `GOAL-PST-ICON.md` |
+| SNOBOL4 | ✅ | `GOAL-PST-SNOBOL4.md` ⚠ does not currently exist (confirmed `ls`, 2026-08-29) — reserved gap, not resolved here: see `goal-files-major-consolidation` task, seat15's verdict |
+| Icon    | ✅ | `GOAL-PST-ICON.md` ⚠ does not currently exist (confirmed `ls`, 2026-08-29) — `GOAL-ICON-100.md` contains zero mentions of PARSER-PURE-SYNTAX-TREE/PST-; reserved gap, not resolved here |
 | Raku    | ✅ | `GOAL-RAKU-100.md` (§ TRACK 3) |
 | Snocone | ✅ | `GOAL-SNOCONE-100.md` (retired name `GOAL-PST-SNOCONE.md`) |
 | Rebus   | ✅ | `GOAL-REBUS-100.md` (retired name `GOAL-PST-REBUS.md`) |
-| Prolog  | ✅ | `GOAL-PST-PROLOG.md` |
+| Prolog  | ✅ | `GOAL-PST-PROLOG.md` — retired; absorbed into `GOAL-PROLOG-100.md`'s own retired-names list (git `94fa9093`, confirmed by grep 2026-08-29) |
 
 **Recommended Phase 2 ordering** (smallest first, biggest last; lets
 later sessions benefit from the idioms established in earlier ones):

@@ -20,8 +20,9 @@
 ║    • icn_bb_dcg    — infrastructure DCG driver, not a generator                                 ║
 ║                                                                                                  ║
 ║  If you just wrote DESCR_t foo(void *zeta, int entry) { ... } — DELETE IT.                     ║
-║  Implement it as an IR_block_t DCG (ir_exec.c + lower_icn.c) driven by icn_bb_dcg.             ║
-║  See IR_ICN_UPTO in ir_exec.c and lower_icn_upto() in lower_icn.c as the template.             ║
+║  ⚠ ir_exec.c/lower_icn.c (this banner's original template pointer) are GONE (confirmed 2026-08-29).║
+║  Current authority: RULES.md "NO C BYRD-BOX FUNCTIONS" — zero DESCR_t foo(void*,int entry),    ║
+║  only icn_bb_dcg exempt; Byrd boxes are x86(...) emitted by the templates in src/templates/bb/.║
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
@@ -34,9 +35,12 @@
 Find first diverging test. Identify which subsystem line causes it.
 
 ```bash
-cd /home/claude/SCRIP
-BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
-SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
+# ⚠ paths corrected 2026-08-29 (D-17 PORTABLE-HOME + s269-272 corpus re-grid): run from the sibling
+# root, never a hardcoded /home/claude/*; the beauty suite moved programs/snobol4/ -> tests/snobol4/;
+# the SPITBOL oracle is a SHARED resource, never per-seat-cloned -- use -bf, not -b (RULES.md § Oracles).
+cd SCRIP
+BEAUTY=../corpus/tests/snobol4/beauty_suite
+SNO_LIB=$BEAUTY /home/resources/x64/bin/sbl -bf $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
     > /tmp/spitbol.out
 SNO_LIB=$BEAUTY timeout 10 ./scrip --run $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
     > /tmp/scrip.out
@@ -120,6 +124,17 @@ return interp_eval_pat((EXPR_t *)compiled.ptr);
 OR: add a global hook `g_eval_str_hook` that scrip.c sets to point to
 `interp_eval_pat`, analogous to `g_eval_pat_hook` for DT_P input.
 
+## Dead fix-site filenames (flagged 2026-08-29, NOT resolved — needs a live repro, not a guess)
+`eval_code.c`/`snobol4_pattern.c`, named above as the fix sites for `EVAL_fn`/`CONVE_fn`/`EXPVAL_fn`/
+`eval_node`, no longer exist anywhere in `src/` (confirmed by grep). The functions themselves are still
+live, now spread across `runtime_eval.c`/`pattern_match.c`/`core.c`/`by_name_dispatch.c`/`driver_hooks.c`
+(per the `goal-files-major-consolidation` task's own seat07 verdict). **Whether this specific bug is
+already fixed under one of those files, or still open, is NOT determined by this note** — the proposed
+fix's own hook names (`interp_eval_pat`/`g_eval_str_hook`/`g_eval_pat_hook`) already exist live in
+current source, which is ambiguous on its face (already-landed-under-this-name vs. an unrelated hook).
+Resolving that needs an actual `omega_driver.sno` repro run against oracle vs scrip — out of scope for
+a path-citation pass, deliberately not guessed here.
+
 ## Steps
 
 - [ ] **S-1** — Fix omega: route EVAL(string) through interp_eval_pat.
@@ -150,7 +165,11 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 ## Session Setup
 
 ```bash
-bash /home/claude/SCRIP/scripts/install_system_packages.sh
-bash /home/claude/SCRIP/scripts/build_scrip.sh
-bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+# ⚠ paths corrected 2026-08-29 (D-17 PORTABLE-HOME) -- run from the sibling root, not /home/claude/*.
+# build_spitbol_oracle.sh is unverified current -- the oracle is now a SHARED resource
+# (/home/resources/x64/bin/sbl), never per-seat-built; confirm this script is still the right step
+# before relying on it, not chased here (out of this pass's path-citation scope).
+bash SCRIP/scripts/install_system_packages.sh
+bash SCRIP/scripts/build_scrip.sh
+bash SCRIP/scripts/build_spitbol_oracle.sh
 ```

@@ -8,7 +8,7 @@
 
 
 **Repo:** SCRIP + corpus + .github
-**Backend:** x86 — native binary. Modes: `--sm-native` (mode-3, in-process JIT) and `--compile --target=x64` (mode-4, GAS `.s` → assemble → link).
+**Backend:** x86 — native binary. Modes: `--run` (mode-3, DEFAULT, flat-wired in-process slab) and `--compile` (mode-4, GAS `.s` → assemble → link; `--target=x86` implies `--compile`). ⚠ was `--sm-native`/`--target=x64` — both flag spellings are gone from the current driver (confirmed 2026-08-29, `./scrip --help` has no output; usage prints on no args).
 **Read first:** `ARCH-ENGINE.md` · `RULES.md`
 
 ---
@@ -26,23 +26,30 @@ SM_Program, so the emitter is correct by construction when the interpreter passe
 ## Done when
 
 Every SM opcode and BB box-kind reachable from any of the six frontends has a non-stub
-x86 template arm (`IS_X86` in `SM_templates/` / `BB_templates/`), and every language's
-corpus runs green on both mode-3 (`--sm-native`) and mode-4 (`--compile --target=x64`),
-byte-identical to the mode-2 oracle where an oracle exists.
+x86 template arm (`IS_X86` in `src/templates/` — was `SM_templates/`/`BB_templates/`,
+both retired by the src reorg, confirmed gone 2026-08-29), and every language's
+corpus runs green on both mode-3 (`--run`) and mode-4 (`--compile`),
+byte-identical to the mode-2 oracle where an oracle exists. ⚠ Modes 3/4 are graded
+INDEPENDENTLY, not required to be byte-identical, per RULES.md § MODES MAY DIVERGE
+(Lon 2026-08-28) — this file predates that ruling.
 
 ## All-languages coverage
 
-| Language | mode-3 (`--sm-native`) | mode-4 (`--compile --target=x64`) |
+| Language | mode-3 (`--run`) | mode-4 (`--compile`) |
 |---|---|---|
-| SNOBOL4 | live state in `GOAL-SNOBOL4-BB.md` | live state in `GOAL-SNOBOL4-BB.md` |
+| SNOBOL4 | live state in `GOAL-SNOBOL4-100.md` (retired name `GOAL-SNOBOL4-BB.md`) | live state in `GOAL-SNOBOL4-100.md` |
 | Snocone | — | — |
-| Icon | live state in `GOAL-ICON-BB.md` | live state in `GOAL-ICON-BB.md` |
-| Prolog | live state in `GOAL-PROLOG-BB.md` | live state in `GOAL-PROLOG-BB.md` |
+| Icon | live state in `GOAL-ICON-100.md` (retired name `GOAL-ICON-BB.md`) | live state in `GOAL-ICON-100.md` |
+| Prolog | live state in `GOAL-PROLOG-100.md` (retired name `GOAL-PROLOG-BB.md`) | live state in `GOAL-PROLOG-100.md` |
 | Raku | live state in `GOAL-RAKU-100.md` | live state in `GOAL-RAKU-100.md` |
 | Rebus | — | — |
 
-The per-language x86 frontend ladders are the `GOAL-*-BB.md` files. This backend goal is
-the destination they all feed; per-language progress lives in those frontend files.
+The per-language x86 frontend ladders now live in the per-language `GOAL-*-100.md` files — corrected
+2026-08-29; the `GOAL-*-BB.md` names above are confirmed gone (`ls`) and none of the three `-100` files
+actually contain the string "GOAL-*-BB.md" (checked directly, no literal table entry exists), so this
+routing rests on CLAUDE.md's general per-language promise ("every deleted Icon/SNOBOL4/Prolog GOAL-*
+name resolves there") rather than a specific named lookup — flagging the gap rather than overclaiming
+one. This backend goal is the destination they all feed; per-language progress lives there.
 
 ## Backend-specific notes (detail in ARCH-ENGINE.md)
 

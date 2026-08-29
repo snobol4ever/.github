@@ -15,9 +15,9 @@
 
 ## ⛔ Session Start Protocol
 
-1. Clone `.github`, `corpus`, `SCRIP`, plus `snobol4ever/x64` to `/home/claude/x64` (prebuilt `bin/sbl` ships in repo — no build step needed). See `PLAN.md`.
+1. Clone `.github`, `corpus`, `SCRIP` as siblings under the sibling root (D-17 PORTABLE-HOME). ⚠ paths corrected 2026-08-29: the SPITBOL oracle is a SHARED resource now, never per-seat-cloned — use `/home/resources/x64/bin/sbl` directly (RULES.md § Oracles). See `PLAN.md`.
 2. `pdftotext /mnt/user-data/uploads/spitbol-manual-v3_7.pdf /tmp/spitbol.txt`. Required chapters: Ch 8 (Gimpel template, line 5806+), Ch 14 (statements, 9017+), Ch 15 (operator priorities, 9540+), Ch 18 (pattern matching, 10606+), App C (SPITBOL vs standard SNOBOL4, 13651+).
-3. Read `corpus/SCRIP/parser_snocone.sc` (the language we transpile FROM), `corpus/SCRIP/README.md` (runtime load order), `.github/ARCH-LANGUAGES.md` §"Lowering map".
+3. Read `SCRIP/bootstrap/parser_snocone.sc` (the language we transpile FROM; moved from the retired `corpus/SCRIP/` path by the s267 REPO BOUNDARY ruling), `SCRIP/bootstrap/README.md` (runtime load order), `.github/ARCH-LANGUAGES.md` §"Lowering map".
 
 ---
 
@@ -31,11 +31,11 @@ Get all six `parser_*.sc` programs producing AST trees matching the C `--dump-as
 
 ## ⛔ Implementation Constraints (Lon directive 2026-05-17)
 
-1. `parser_<lang>.sc` files may use ONLY six functions from `corpus/SCRIP/`: `shift`, `reduce`, `nPush`, `nInc`, `nTop`, `nPop` (semantic.sc + counter.sc).
+1. `parser_<lang>.sc` files may use ONLY six functions from `SCRIP/bootstrap/`: `shift`, `reduce`, `nPush`, `nInc`, `nTop`, `nPop` (semantic.sc + counter.sc).
 2. **No language-specific helpers.** `icon_helpers.sc` and `raku_helpers.sc` must be eliminated — logic folds into the grammar or migrates to C-side `lower.c` / `rebus_lower.c` / `icon_lower.c` / `raku_lower.c`.
 3. `pop`, `foldop`, `nDec`, `reduce_opsyn`, `reduce_prim`, `reduce_call`, `nPushName` may NOT be called from `parser_*.sc`.
 4. **No `*Var` deferred references** where Var is itself a Snocone function (triggers `bb_deferred_var` rebuild path).
-5. Transpiler output is **portable SNOBOL4**. Must run on SCRIP (`--run`, `--run`), SPITBOL x64 (`/home/claude/x64/bin/sbl -bf`).
+5. Transpiler output is **portable SNOBOL4**. Must run on SCRIP (`--run`), SPITBOL (shared oracle `/home/resources/x64/bin/sbl -bf`).
 
 ---
 
@@ -46,7 +46,7 @@ parser_<lang>.sc
        │  SCRIP frontend
        ▼
    tree_t AST                                  ← trust LOWER
-       │  lower_sno.c (new LOWER stage)
+       │  tree_to_sno.c (renamed from lower_sno.c, confirmed 2026-08-29)
        │  Driven by:  scrip --dump-sno
        ▼
 parser_<lang>_transpiled.sno
@@ -58,7 +58,7 @@ parser_<lang>_transpiled.sno
                                       (scripts/run_parser_sync_monitor.sh)
 ```
 
-`tree_to_sno(ast, FILE*)` in `src/lower/lower_sno.c` is the transpiler entry. Public CLI: `--dump-sno`.
+`tree_to_sno(ast, FILE*)` in `src/lower/tree_to_sno.c` (renamed from `lower_sno.c`, confirmed 2026-08-29) is the transpiler entry. Public CLI: `--dump-sno`.
 
 ---
 
@@ -92,7 +92,7 @@ parser_<lang>_transpiled.sno
 
 ### Phase 1 — Transpile MVP per language
 
-- [x] **SCT-1** parser_snobol4.sc → .sno (lower_sno.{c,h}, `--dump-sno`, all 30 TT_* tags)
+- [x] **SCT-1** parser_snobol4.sc → .sno (tree_to_sno.c, renamed from lower_sno.{c,h}, `--dump-sno`, all 30 TT_* tags)
 - [x] **SCT-1b** statement-position control flow + label-sanitize
 - [x] **SCT-1c** SNOBOL4 line-continuation for >1024-char emissions
 - [x] **SCT-1d** multi-file `--dump-sno` + `-CASE 0` prelude + tail dedup
@@ -115,13 +115,13 @@ parser_<lang>_transpiled.sno
 - [ ] **SCT-9g-rebus/icon/raku/prolog** Awaiting spec docs from Lon (Icon ref / Raku op table / Prolog op/3).
 - [ ] **SCT-9j** Wire `scripts/test_parser_sc_transpile.sh` (per-lang fixture gate) once SCT-9-arbno-fence lands.
 - [ ] **SCT-10** Delete sidecar helpers permanently from corpus.
-- [ ] **SCT-11** Document the Snocone subset (`corpus/SCRIP/SNOCONE-SUBSET.md`).
+- [ ] **SCT-11** Document the Snocone subset (`SCRIP/bootstrap/SNOCONE-SUBSET.md` — was `corpus/SCRIP/`, retired path).
 
 ---
 
 ## 🧠 Critical invariants
 
-1. **Transpiler is C code** (`src/lower/lower_sno.c`). Walks `tree_t*`, emits SNOBOL4 to stdout. Driven by `scrip --dump-sno`.
+1. **Transpiler is C code** (`src/lower/tree_to_sno.c`). Walks `tree_t*`, emits SNOBOL4 to stdout. Driven by `scrip --dump-sno`.
 2. **Trust LOWER.** Transpiler is mechanical — if it emits `oops`, LOWER probably emitted `oops` first. Fix LOWER.
 3. **6 functions only** in parser_*.sc: shift, reduce, nPush, nInc, nTop, nPop. Any 7th is a separate ticket.
 4. **Pattern functions run at BUILD time, not match time.** To defer, use `*FunctionCall()` (deferred operator). The runtime wrappers `nPush()`/`nPop()`/`nInc()` already return `epsilon . *XxxCounter()` patterns, so they ARE deferred — but their **side effects are not reversed on backtrack** (Manual Ch 18). This is the root cause of SCT-9-arbno-fence.
@@ -135,16 +135,18 @@ parser_<lang>_transpiled.sno
 
 ```bash
 apt-get install -y libgc-dev libgc1   # one-time
-cd /home/claude/SCRIP && make scrip
+cd SCRIP && make scrip
 ```
 
-Adding a new file under `src/lower/`: update both the SRC list (Makefile ~L90) and the explicit compile rule (~L286).
+Adding a new file under `src/lower/`: update both the SRC list and the explicit compile rule in the Makefile (line numbers not re-verified this pass — re-grep rather than trust a stale line citation).
 
 ### Transpile + run a fixture
 
 ```bash
-SD=/home/claude/corpus/SCRIP
-./scrip --dump-sno \
+# ⚠ paths corrected 2026-08-29: corpus/SCRIP/ (the old source location) is retired -- the bootstrap
+# sources now live INSIDE the SCRIP repo itself at SCRIP/bootstrap/, run from the sibling root.
+SD=SCRIP/bootstrap
+SCRIP/scrip --dump-sno \
     $SD/global.sc $SD/case.sc $SD/assign.sc $SD/match.sc \
     $SD/counter.sc $SD/stack.sc $SD/tree.sc $SD/ShiftReduce.sc \
     $SD/tdump.sc $SD/gen.sc $SD/qize.sc $SD/semantic.sc \
@@ -152,12 +154,12 @@ SD=/home/claude/corpus/SCRIP
     $SD/parser_snocone.sc \
   > /tmp/p_snocone.sno
 
-cat fixture.sc | /home/claude/x64/bin/sbl -bf /tmp/p_snocone.sno 2>&1 | grep -v '^$'
+cat fixture.sc | /home/resources/x64/bin/sbl -bf /tmp/p_snocone.sno 2>&1 | grep -v '^$'
 ```
 
-### `--dump-sno` lower_sno.c structure
+### `--dump-sno` tree_to_sno.c structure (renamed from lower_sno.c, confirmed 2026-08-29)
 
-`src/lower/lower_sno.c`, top-to-bottom:
+`src/lower/tree_to_sno.c`, top-to-bottom:
 1. `sno_ctx_t` — emission state
 2. `emit`, `emit_nl`, `sval_or` utilities + line-buffer for 1024-char continuation
 3. `emit_expr(c, e)` — recursive walker, big switch on `e->t`. Default: `'?TT_NN?'` placeholder.
@@ -170,8 +172,9 @@ To add a TT_* tag: expression-only → `emit_expr` switch case; statement-shape 
 ### Identify a `?TT_NN?` placeholder
 
 ```bash
+# ⚠ path corrected 2026-08-29: src/include/ no longer exists (src reorg merged it into src/ir/).
 python3 -c "
-import re; txt = open('/home/claude/SCRIP/src/include/ast.h').read()
+import re; txt = open('SCRIP/src/ir/ast.h').read()
 m = re.search(r'typedef enum tree_e \{([^}]+)\}', txt, re.S)
 tags = [t.strip() for t in m.group(1).split(',') if t.strip() and 'TT_' in t]
 import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
@@ -191,14 +194,21 @@ import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
 **SNOBOL4, Snocone, and SPITBOL are all run in case-sensitive mode.** The flag is `-f` ("don't fold source code case"). Always use `-bf` together:
 
 ```
-/home/claude/x64/bin/sbl -bf file.sno
+/home/resources/x64/bin/sbl -bf file.sno
 ```
 
 `-b` suppresses the signon banner. `-f` disables case-folding so that `x` and `X` are distinct identifiers. Omitting `-f` silently folds all names to upper-case and breaks every parser that uses lower-case identifiers (which is all of them). This applies to every SPITBOL invocation in this project — scripts, manual runs, and transpile gates.
 
 ### Build SPITBOL from source (rare)
 
-`/home/claude/x64/bin/sbl` ships prebuilt. Only rebuild if patching the runtime (e.g. SN-26-spl-bridge IPC wire). Recipe in `harness/oracles/spitbol/BUILD.md`. SPITBOL compatibility notes: no `&STNO` (use `&LASTNO`), no `LOAD()`, no `LABELCODE()`, `DATA()` returns lowercase type names. Invocation: `/home/claude/x64/bin/sbl -bf file.sno`.
+⚠ **Path + process corrected 2026-08-29: the oracle is now a SHARED resource, never per-seat-built.**
+`/home/resources/x64/bin/sbl` ships prebuilt at the shared asset root. Rebuilding it is no longer a
+casual per-seat action — RULES.md's ORACLE-SWAP PROCEDURE (fleet-quiet boundary, Lon's go-ahead,
+fleet-wide announcement before, re-baseline after) governs any change to the shared binary. The
+`harness/oracles/spitbol/BUILD.md` recipe cited below is unverified current (not chased this pass —
+`harness/` is not part of this workspace's standard 3-repo sibling set). SPITBOL compatibility notes:
+no `&STNO` (use `&LASTNO`), no `LOAD()`, no `LABELCODE()`, `DATA()` returns lowercase type names.
+Invocation: `/home/resources/x64/bin/sbl -bf file.sno`.
 
 ---
 
@@ -209,26 +219,30 @@ import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
 | `GOAL-REBUS-100.md` (retired name `GOAL-PST-REBUS.md`) | Independent path. PST-REBUS fixes direct Snocone runtime; this goal transpiles around it. Both converge later. |
 | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | This goal depends on LOWER producing correct `tree_t`. Sync-monitor reveals LOWER bugs as divergences. |
 | `GOAL-SNOCONE-100.md`            | Post-SCT-11, this defines the Snocone subset spec. |
-| `GOAL-PST-PROLOG.md`              | Orthogonal. SCT-6 can land independently. |
+| `GOAL-PST-PROLOG.md` (retired 2026-08-29, absorbed into `GOAL-PROLOG-100.md`'s retired-names list) | Orthogonal. SCT-6 can land independently. |
 
 ---
 
 ## 📝 Files touched
 
+**⚠ Repo/path column corrected 2026-08-29 — the bootstrap sources moved from `corpus/SCRIP/` into the
+SCRIP repo itself (`SCRIP/bootstrap/`, s267 REPO BOUNDARY ruling), and 3 SCRIP-side paths moved in the
+later src reorgs (verified against live source, not assumed from a single prior grading):**
+
 | Repo | Path | Role |
 |------|------|------|
-| SCRIP  | `src/lower/lower_sno.{c,h}`            | Transpile pass |
+| SCRIP  | `src/lower/tree_to_sno.c` (renamed from `lower_sno.{c,h}`) | Transpile pass |
 | SCRIP  | `src/driver/scrip.c`                   | `--dump-sno` CLI |
-| SCRIP  | `src/ast/ast_print.c`                  | TDump-matching length-budget formatter (SCT-9c) |
-| SCRIP  | `src/frontend/snocone/snocone_parse.y` | n-ary flatten for `+ - * /` (SCT-9d) |
-| SCRIP  | `Makefile`                             | build rule + SRC for lower_sno.c |
+| SCRIP  | `src/ir/ast_print.c` (was `src/ast/ast_print.c`) | TDump-matching length-budget formatter (SCT-9c) |
+| SCRIP  | `src/parsers/snocone/snocone_parse.y` (was `src/frontend/snocone/`) | n-ary flatten for `+ - * /` (SCT-9d) |
+| SCRIP  | `Makefile`                             | build rule + SRC for `tree_to_sno.c` |
 | SCRIP  | `scripts/run_parser_sync_monitor.sh`   | SCT-7 wrapper |
-| corpus   | `SCRIP/parser_*.sc`                    | the six inputs |
-| corpus   | `SCRIP/semantic.sc`                    | `qtag` (_qtag→qtag rename, REPLACE eq-length fix) |
-| corpus   | `SCRIP/parser_snocone.sc`              | notmatch dedup (2026-05-18) |
-| corpus   | `SCRIP/icon_helpers.sc`                | notmatch dedup; slated for deletion in SCT-4 |
-| corpus   | `SCRIP/qize.sc`                        | dead `LEQ` deleted (SCT-9e) |
-| corpus   | `programs/*/parser/*.ref`              | regenerated baseline (SCT-9b/9f) |
+| SCRIP  | `bootstrap/parser_*.sc` (was corpus `SCRIP/parser_*.sc`) | the six inputs |
+| SCRIP  | `bootstrap/semantic.sc` (was corpus `SCRIP/semantic.sc`) | `qtag` (_qtag→qtag rename, REPLACE eq-length fix) |
+| SCRIP  | `bootstrap/parser_snocone.sc` (was corpus `SCRIP/parser_snocone.sc`) | notmatch dedup (2026-05-18) |
+| SCRIP  | `bootstrap/icon_helpers.sc` (was corpus `SCRIP/icon_helpers.sc`) | notmatch dedup; slated for deletion in SCT-4 |
+| SCRIP  | `bootstrap/qize.sc` (was corpus `SCRIP/qize.sc`) | dead `LEQ` deleted (SCT-9e) |
+| corpus | `tests/<lang>/parser.ref` and/or `tests/<lang>/parser/*.ref` (was `programs/*/parser/*.ref`) — layout not uniform across languages, re-verify per-language before trusting a specific shape | regenerated baseline (SCT-9b/9f) |
 | .github  | `GOAL-PARSER-SC-TRANSPILE.md`          | this file |
 | .github  | `PRECEDENCE-AUDIT.md`                  | SCT-9g-snocone deliverable |
 | .github  | `ARCH-LANGUAGES.md` §"Lowering map"      | authority for stmt-shape lowering |
