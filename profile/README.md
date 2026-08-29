@@ -112,7 +112,7 @@ Status as of 2026-08-28 (that day's tree; the instrument is named per cell):
 
 |                       | **SNOBOL4/SPITBOL** | **Snocone** | **Rebus** | **Icon** | **Prolog** | **Raku** | **Pascal** |
 |-----------------------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **x86-64 native** (SCRIP) | ✅ 1299/1299 board, both modes | ✅ 5/5 smoke | ✅ 4/4 smoke | ✅ 14/14 smoke, both modes | ✅ 4/5 smoke | ✅ 83/83 parser suite | ✅ 96/96 suites, both modes |
+| **x86-64 native** (SCRIP) | ✅ 1,299-program corpus board, FAIL=0 both modes | ✅ 69-program test tree + 181-program crosscheck | ✅ 85-program test tree | ✅ 320-program test tree, 297-rung ladder, 870-program IPL corpus | ✅ 204-program test tree, all modes | ✅ 104-program test tree, 83-program parser suite | ✅ 96-block suites 96/96 + loose set 150/154, both modes |
 | **JVM bytecode**      | snobol4jvm ✅ (shipped) · SCRIP: returning | returning | — | returning | returning | — | — |
 | **.NET MSIL**         | snobol4dotnet ✅ (shipped) · SCRIP: returning | returning | — | returning | returning | — | — |
 | **JavaScript**        | returning | — | — | — | — | — | — |
