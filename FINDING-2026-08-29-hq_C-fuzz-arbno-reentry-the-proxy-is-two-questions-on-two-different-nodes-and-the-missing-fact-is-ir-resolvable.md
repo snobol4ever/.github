@@ -63,3 +63,19 @@ So `G0` → `PAT$0` → *that graph's root is an `IR_MATCH_ARBNO`* is answerable
 
 ## ⚠️ CLUSTER SEPARATION, CONFIRMED INDEPENDENTLY THE SAME HOUR
 `fz_red_m4a_blob_alt_fence_defer` and `fz_segv_09` were **already deterministic** (10/10 empty) before and after, and are untouched by any of this — seat09's same-session Cluster A finding (`PAT$N_res` hard-coded stack offset, `FINDING-2026-08-29-seat09-...`) is the mechanism for those two. **The row is two independent defects and the 5 witnesses split 3/2.** Six sessions all converged on Cluster B; nobody had partitioned the witness set, so Cluster A's two were silently counted as evidence about Cluster B's predicate the whole time.
+
+## ⚠️ CORRECTION TO §3, BY hq_C, SAME SESSION — MY DETERMINISM CLAIM WAS MODE-3-ONLY AND I DID NOT SAY SO
+
+hq_B (relayed via seat11) flagged that `fz_red_m4b_blob_defer_fence` and `fz_red_m4a_blob_alt_fence_defer` are **unsafe as A/B witnesses** — an A/B they ran read *"all identical"* by luck and was only caught by a disagreeing run minutes later. That lands directly on my own numbers, so I re-measured at **30 runs** on the reverted tree:
+
+| witness | baseline, 30 runs, **mode 3** |
+|---|---|
+| `fz_red_m4b_blob_defer_fence` | **17 empty / 13 `nomatch`** — strongly non-deterministic |
+| `fz_red_m4a_blob_alt_fence_defer` | 30/30 empty — stable **in m3** |
+| `fz_segv_09` | 30/30 empty — stable **in m3** |
+
+**What survives:** `fz_red_m4b` really is ~50/50 at baseline, so the post-change 10/10 identical is not luck (p ≈ 0.002 if the coin were unchanged). The §3 result stands *as far as it goes*.
+
+⛔ **What does NOT survive is the word "deterministic" unqualified.** Every run in §3 was **mode 3**. hq_B's instability for the Cluster A pair is a **mode-4 crash-signal** effect, which m3-only runs cannot see — which is why their measurement and mine disagree while both are correct. ⭐ **My instrument answered a narrower question than my sentence claimed**, which is the exact family this FINDING is about, committed by its own author two hours after writing it up. The honest statement is: *10 of 10 identical in mode 3*, not *deterministic*.
+
+✅ **ENDORSED AS A PREREQUISITE FOR THIS ROW:** hq_B's ask for an N-repeat-refuse-on-disagreement runner over the whole `probe/fuzz/` set, **covering both modes**, before anyone grades a cure against these witnesses. A witness set whose own stability is unmeasured cannot falsify anything, and this row has spent six sessions grading candidates against it.
