@@ -119,6 +119,21 @@ A **boxed-cell, GC-managed** model (tagged `Term*`, GC-allocated). The choice-po
 
 Ladder home: **`GOAL-PROLOG-100.md`** *(the docs said `GOAL-PROLOG-BB.md`, which does not exist — one GOAL file per language)*.
 
+### ⭐⭐ ENTRY-POINT CONVENTION — `main/0` auto-invoke is SANCTIONED; "`main/0` or nothing" is a DEFECT (hq_C ruling, 2026-08-29, row `prolog-scrip-auto-invokes-main-without-initialization-directive`)
+
+**The question.** SCRIP runs a Prolog file's `main/0` even when no `:- initialization(main).` asked for it (`src/lower/lower_prolog.c`, `if (!goal_key) goal_key = "main/0";`). Under the harness's standing invocation `swipl -q -g halt file.pl` the oracle runs **nothing** on such a file, so this read as an oracle divergence and sat unruled inside `tests-consolidate-prolog`, blocking a file cluster.
+
+✅ **RULED: SANCTIONED, not a defect** — concurring with hq_P (`FINDING-2026-08-29-hq_P-prolog-init-cluster-was-never-blocked-wrong-oracle-invocation.md`) and with the reason made measurable. `main/0` is an **entry-point convention**, the same one SWI exposes as a command-line flag; a compiler emitting a standalone binary must pick an entry point. ⭐ **MEASURED: on a directive-less file, `swipl -q -g main -t halt` and `scrip` are byte-identical.** The divergence was never semantic — it was manufactured by pinning **one** oracle invocation and applying it to files written for the other. Same family as RULES.md § A SIGNAL REACHABLE BY TWO CAUSES: `-g halt` answers *"what do the directives do"*, was read as *"what does this program do"*, and never said so.
+
+⛔ **BUT THE MATCHING INVOCATION IS PER-FILE, NEVER FLEET-WIDE — this is the half that bites.** `-g main -t halt` on a file that **does** carry `:- initialization(main).` runs `main` **TWICE** (measured: `hello|hello`; corroborated on `corpus/tests/prolog/rung66_current_stream.pl`, whose goal raises twice). **112 of 156 `tests/prolog` files carry a directive**, so adopting `-g main` as *the* invocation would corrupt the majority to rescue the minority. **Select the invocation on the presence of a directive; pin neither.**
+
+⛔ **THE RULING'S FRAME WAS TOO NARROW — TWO DEFECTS SURVIVE BOTH INVOCATIONS, so neither is an instrument artifact:**
+
+3. **Load-time directives are DROPPED whenever a `main/0` exists.** `:- write(fromdir), nl.` + `main :- write(frommain), nl.` → swipl prints `fromdir` under **both** invocations; SCRIP prints only `frommain`. Cause, measured at `src/parsers/prolog/prolog_lower.c:742`: a directive goal is seeded into `main`'s prologue **only if its clause head is `pl_dyn_is_marked`** (i.e. only `assertz`-into-dynamic setup). Every other load-time directive is silently discarded — no diagnostic. Cure row **`prolog-load-directives-dropped-when-main-exists`**.
+4. **A file with directives and no `main/0` is a HARD FATAL, not a diagnostic.** `[IBB] FATAL: mode-3 driver: main BB graph not found` + **core dump** (m3 rc=134); m4 fails at compile, rc=1. **36 real corpus files measured** across `tests/prolog` + `benchmarks/prolog` — including four `rung10_programs_puzzle_*.pl` that swipl solves correctly. A directive-only file is ordinary, legal Prolog: the convention is **mandatory** where it should be a **default**. Cure row **`prolog-directive-only-file-fatals-no-main-bb-graph`**.
+
+⭐ **The shape worth carrying off this row:** the question arrived as a binary — *cure the auto-invoke, or bless it*. Both answers were wrong, because the auto-invoke was never the defect; **being the only entry path** is. Gate: `bash SCRIP/scripts/test_gate_prolog_entrypoint_ruling.sh` re-derives the ruling's reason on every run (RULES.md § TWO-PART PROOF) and ratchets the 36.
+
 ### Prolog on `DESCR` + the three zetas — Lon's s273 ruling (design, absorbed with corrections)
 **Ruling (Lon s273, verbatim in substance):** *Prolog should not use `Term` at all, it should be using `DESCR`… Any allocations better live on (1) the SPINE, (2) the ACTIVATION FRAME, (3) the STANDING (ROOT) ACTIVATION FRAME — IN THAT ORDER… We use GC Heap! NO MALLOC!*
 
