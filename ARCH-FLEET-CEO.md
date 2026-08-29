@@ -31,7 +31,14 @@ v1's unit of work was a queue row + claim lock + static brief. Measured: the LOC
 Every task is ONE file: `/home/resources/postoffice/tasks/<topic>.task.md` — the suspension frame. QUEUE.tsv shrinks to a dispatch index (`rank · topic · owner · state`) pointing at it, nothing more.
 
 ```
-# TASK <topic> · owner: hq_C|hq_P · state: FREE|ASSIGNED:<seat>|RUNNING:<seat>|BLOCKED|DONE|CONCEDED
+# TASK <topic>
+  ⛔⭐ LINE 1 IS THE TOPIC IDENTITY AND NOTHING ELSE (ceo ruling 2026-08-29, row baton-state-header-single-record).
+  The old shape was `# TASK <topic> · owner: ... · state: ...` and it was THE SOURCE of the drift: park/done/
+  unclaim/assign write QUEUE.tsv's columns and append a ledger line but never rewrite a baton's line 1, so
+  81% of them disagreed with the queue (hq_B: agree=7, DISAGREE=29) while `next` tells every seat THE BATON IS
+  THE TASK FILE. ⭐ A state that exists in ONE file cannot go stale in two: QUEUE.tsv is the single record, and
+  the picker printout already carries owner/state on every serve. ⛔ Do NOT re-add them when minting -- this
+  template line is what re-dirties a swept tree, and test_gate_baton_state_header_single_record.sh catches it.
 GOAL: <one sentence>
 DONE-WHEN: <a COMMAND that exits 0 — never prose>              ← the γ gate
 LINKS: <goal file § rung> · ARCH/FINDINGs
