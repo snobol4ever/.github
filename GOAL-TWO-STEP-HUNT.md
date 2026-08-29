@@ -74,7 +74,7 @@ python3 test/beauty_subexpr_gen.py \
 
 | Driver | First diverging test | Subsystem:line | Bug | Status |
 |--------|---------------------|----------------|-----|--------|
-| omega | test 2: TZ xTrace=1 returns STRING | omega.sno:41 | `EVAL(string)` — g_eval_str_hook wired → _eval_str_impl_fn → parse_expr_pat_from_str. Blocker resolved: `GOAL-REMOVE-CMPILE.md` (now folded into `GOAL-HISTORY-PROCESS-HOUSEKEEPING.md`, 2026-08-29 consolidation) recorded its S-1 fix (direct src to bison, return s->pattern else s->subject) and its own S-7 done-when as omega driver PASS=15/15 — not independently re-run by this edit, a live repro is still owed before flipping the status column. | ☐ |
+| omega | test 2: TZ xTrace=1 returns STRING | omega.sno:41 | `EVAL(string)` — g_eval_str_hook wired → _eval_str_impl_fn → parse_expr_pat_from_str. **RE-VERIFIED LIVE 2026-08-29 (seat10, `goal-files-major-consolidation` row): FIXED, confirmed by actual repro run, not a doc read.** `SNO_LIB=$BEAUTY ./scrip --run $BEAUTY/omega_driver.sno` (both `--run` and `--compile`) produces output byte-identical to the committed `omega_driver.ref` — 15/15 `PASS:` lines, matching GOAL-REMOVE-CMPILE.md's own S-7 claim exactly. (A live SPITBOL oracle cross-check was attempted but not completed — `-I`/`SNO_LIB` include-path invocation for this specific oracle binary was not resolved in the time available; the scrip-vs-committed-`.ref` match stands on its own as the evidence here, flagged rather than silently treated as an oracle-verified run.) | ☑ |
 | Gen | test ? | ? | ARBNO upstream null DT_E | ☐ |
 | TDump | test ? | ? | DATA field ordering t/v | ☐ |
 | XDump | test ? | ? | Array bounds format `1` vs `1:1` | ☐ |
@@ -137,8 +137,10 @@ a path-citation pass, deliberately not guessed here.
 
 ## Steps
 
-- [ ] **S-1** — Fix omega: route EVAL(string) through interp_eval_pat.
-  Gate: omega driver PASS=15, all tests pass.
+- [x] **S-1** — Fix omega: route EVAL(string) through interp_eval_pat.
+  Gate: omega driver PASS=15, all tests pass. **CONFIRMED 2026-08-29 (seat10) — see Bug Queue table
+  above.** Whatever landed this (not identified by filename/commit this session — the fix-site functions
+  moved across the RUNTIME-REORG dissolution per the note below) already satisfies the gate.
 
 - [ ] **S-2** — Apply dance to Gen driver: monitor → first diverging test
   → inline probe → identify exact sub-expression → fix.
