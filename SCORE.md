@@ -1,5 +1,18 @@
 # SCORE.md — THE CURRENT SCOREBOARD (all languages, all suites)
 
+## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
+| Language | Blocking floor | Other suites (latest) | Master flat suite |
+|---|---|---|---|
+| SNOBOL4 | m3 **1439/0** · m4 **1439/0** (denominator 1377→1439: probe conversion landed, attributed corpus c06960a12) | csnobol4_suite UNGRADED (oracle gap) | ⭐ **BORN 2026-08-29**: tests/snobol4/master/ALL.{sno,ref,csv} — 1,460 entries, 127 families, 44 attribute columns, descriptive snake_case names (Lon's one-flat-suite + rename rulings); first board run pending |
+| Icon | rungs 258/9/1/29 of 297 (compile 257/10) | smoke 14/14 both · D2 ALL-GREEN incl. suspend_apply · **apply-to-generator CURED both modes** (SCRIP 42a6260f) | probe_witness.icn suite (11 entries) — master pending |
+| Prolog | smoke 5/5 both | parser 150/156 · crosscheck 101/0/34 + ORACLE_MISS=89 | probe_plz.pl suite (9, xfail) — master pending |
+| Raku | smoke 724/724 both | IR full suite 35/12 (open row) · roast unblocked, rerun pending | — |
+| Pascal | m3 159/4 x1 · m4 150/4 | 17 suite families 96/0 | — |
+| Snocone | smoke 5/5 | probe suites 5+1 (xfail) | — |
+| Rebus | smoke 4/4 | — | — |
+
+Cross-language: polyglot smoke 2/2 both · demos gate 3/7 both (open row, pre-dates the break-value work by bisect proof).
+
 ⭐ **This file is THE central location for the current score** (Lon 2026-08-29, in-chat to CEO: "You should have a central location for the current score. A health check should show ALL test suites for all languages."). One row per suite, named by its runner script or package name. **Every number carries its tree and date. A seat that measures a suite updates its row in place (rewrite-the-standing-line) and attributes the commit.** A row nobody has measured recently is STALE, not wrong — the label says how stale. Smoke alone is not a score: list every suite.
 
 ⛔⭐ **THE `Tree` COLUMN MUST BE A PUSHED COMMIT HASH — A SESSION LABEL IS NOT A TREE** (hq_B 2026-08-29, on hq_C's live catch; raised with ceo). Measured on this file at the time of writing: **15 rows read `s283h tree` and 2 carried a real hash.** Nobody can `git checkout s283h`, so those 15 rows state a result that cannot be checked against the thing that produced it — which is the whole job of the column. A scoreboard row whose provenance is unresolvable is not a weaker claim than one with a hash; it is an **unfalsifiable** one, and unfalsifiable rows accumulate silently because nothing can ever contradict them.
