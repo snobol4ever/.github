@@ -11,8 +11,8 @@ Shared axes: counts are PASS/FAIL over the suite's own printed denominator, mode
 ## SNOBOL4
 | Suite | Result | Tree · date · by |
 |---|---|---|
-| test_corpus_snobol4.sh (broad corpus, THE blocking floor) | m3 1377/1377 FAIL=0 · m4 1377/1377 FAIL=0 SKIP=0 MISSING=0 — re-run on s283h tree IN FLIGHT | 358a88d6 · 2026-08-29 · ceo |
-| test_gate_emit_no_lang.sh · test_gate_template_medium_invisible.sh | rc=0 · rc=0 (re-proving on s283h pristine, in flight) | 358a88d6/d1a447ea · 2026-08-29 |
+| test_corpus_snobol4.sh (broad corpus, THE blocking floor) | m3 1371/1371 FAIL=0 · m4 1371/1371 FAIL=0 SKIP=0 — GATE REFUSES (rc=2) on 4 boardless `probe/rtx*` suites, pre-existing/routed to `corpus-crosscheck-probe-total-conversion`, not a new regression; run 3x incl. against this exact tree, all agree | 8f6595be · 2026-08-29 · seat04 |
+| test_gate_emit_no_lang.sh · test_gate_template_medium_invisible.sh | rc=0 · rc=0 | 8f6595be · 2026-08-29 · seat04 |
 | packages/snobol4/csnobol4_suite (Phil's 120 .ref pairs) | UNGRADED — oracle is csnobol4, not sbl; no resolver in lib_oracle_flags.sh yet | standing (s261 FACT RULE) |
 
 ## Icon
