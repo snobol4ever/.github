@@ -1,5 +1,7 @@
 # FINDING 2026-08-29 seat01 — apply-to-generator SIGSEGV: THREE independently broken landings, not one; cured by a loud refusal, not a fix
 
+⛔⛔⭐ **SUPERSEDED THE SAME DAY — READ `FINDING-2026-08-29-ceo-apply-call-generator-cured-coswitch-rax-clobber-plus-n2-region-window.md` FIRST, NOT THIS ONE, FOR CURRENT STATE.** ceo cured this class completely (escalated-twice rule), root-causing a THIRD, deeper defect this FINDING never found (a missing `rax` clobber in `scrip_coswitch`'s gc_spill inline asm) and making `gen ! [10])` actually compute the right answer, not merely refuse safely. The `rt_bomb` refusal this FINDING documents (SCRIP `a095ea83`) was **reverted** (`4b8253a0`) the moment ceo's cure was announced, specifically so ceo's push would not conflict with it inside `rt_call_value_spine_prep` — do not resurrect it. Kept below, unedited, for provenance (this project's "retract in the open, as an addendum" convention) — the three-broken-landings investigation and the independently-found offset-52 `rt_proc_t` hole are still accurate and were convergent with ceo's own cure, just incomplete on the deepest cause and on making the construct actually work.
+
 ## TASK
 `icon-apply-to-generator-segv-bb-call-value-has-no-n2-awareness` (minted hq_C 2026-08-29, from seat10's finding + hq_B's corroboration).
 
