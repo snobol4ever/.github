@@ -40,8 +40,9 @@ a shared capability added to classic and new languages alike.
 SNOBOL4 has had `&STCOUNT` / `&STLIMIT` since SPITBOL. It is invaluable for:
 - Detecting infinite loops (set `&STLIMIT = 10000000`)
 - Instrumented testing (read `&STCOUNT` before and after a call)
-- The in-process sync monitor (`GOAL-INPROC-MONITOR`) — hooks at SM_STNO
-  (which already fires per statement and drives `&STCOUNT` in SNOBOL4)
+- The in-process sync monitor this file used to cite (`GOAL-INPROC-MONITOR`, now retired —
+  see `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md`) is disconnected from any build/test today; do not
+  plan a hook through it. `SM_STNO` itself is also part of that same retired generation.
 
 The same infrastructure (`kw_stcount` / `kw_stlimit` globals, `comm_stno()`
 function, `SM_STNO` opcode) already exists. Wiring it for the other five

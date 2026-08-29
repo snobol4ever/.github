@@ -156,7 +156,10 @@ Future: add division, parenthesised subexpressions (recursive), variables.
 
 ## Prerequisite
 
-U-22 (GOAL-UNIFIED-BROKER cross-call hook) should be complete before PC-3.
+U-22 (GOAL-UNIFIED-BROKER cross-call hook) was this dependency as originally planned; that file
+is now retired (see `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md`) and U-22 was never completed — its
+broker mechanism did not ship. Whoever resumes PC-3 needs to re-scope this prerequisite against
+today's actual cross-language call path (`src/driver/polyglot.c`), not wait on U-22 as written.
 PC-1 and PC-2 can proceed independently.
 
 ---

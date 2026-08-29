@@ -994,11 +994,14 @@ Other risks tracked but not blocking:
 - **GOAL-NET-BEAUTY-SELF.md** — the .NET self-host work in
   progress. CB-14 absorbs that ladder once the SCRIP-language
   port is the input.
-- **GOAL-UNIFIED-BROKER.md** — the `BB_SCAN`/`BB_PUMP`/`BB_ONCE`
-  three-mode broker is the active spec for what every backend's
-  `bb_driver` implementation must dispatch.
-- **GOAL-FULL-INTEGRATION.md** — the parallel-frontend integration
-  work. CB-1's mapping audit refines its module boundaries.
+- ~~GOAL-UNIFIED-BROKER.md~~ — retired; the broker dispatch mechanism
+  never shipped, superseded by today's flat-wired BB template
+  dispatch (see `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md`).
+- ~~GOAL-FULL-INTEGRATION.md~~ — retired, its goal closed 2026-04-14
+  against an architecture (SM_Program/sm_interp_run) since replaced
+  wholesale; see `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md`. CB-1's
+  module-boundary audit should cite current module boundaries
+  (`polyglot.c`/`stage2.h`) directly, not this closed file.
 - **ARCH-IR.md** — EXPR_t / STMT_t / EKind / five-phase statement
   / polyglot CODE_t* / three broker modes (BB_SCAN/BB_PUMP/
   BB_ONCE).  CB-6 and CB-8 inherit the SM_Program definition

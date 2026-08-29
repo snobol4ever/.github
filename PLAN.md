@@ -67,12 +67,9 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **⛔⭐⭐⭐ ICON 100% — THE ONE ICON GOAL** ⬅ Lon 2026-08-15 s229: 15 Icon goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME on RBP, ζ-SPINE on RSP) | `GOAL-ICON-100.md` | R-0 = resurrect the default arm (fresh triple watermark at `07d6eae7`: default 1/262/30 · CELLS=1 235/28/30 · ZFRAME=0 78/185/30; bisect `8487d499..07d6eae7`, predicate proven at both ends). |
 | **⛔⭐⭐⭐ PROLOG 100% — THE ONE PROLOG GOAL** ⬅ Lon 2026-08-16 s165: 10 Prolog goal files consolidated into ONE (THREE ZETAS: ζ-STANDING/ζ-ACTIVATION-FRAME, ζ-SPINE on RSP) | `GOAL-PROLOG-100.md` | R-0h harness honesty then R-0 reconquest (s165 live watermark: smoke 3/5 · rung 113/109 of 164 · bench-22 green=8); R-1 = ZK-5B per its restart protocol. |
 | **⛔⭐⭐⭐ PASCAL 100% — THE ONE PASCAL GOAL** ⬅ Lon 2026-08-27: consolidated into ONE file | `GOAL-PASCAL-100.md` | 7th frontend (P4 subset); toolchain in `corpus/programs/pascal/`. FRONT STATUS: restoration (`pascal-restore-prezeta`) + PAS-DISPLAY revival are the live front. |
-| **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **PST Parent / Snocone / Raku** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` + `GOAL-PST-*.md` | See files. (SNOBOL4 PST → `GOAL-SNOBOL4-100.md`; Prolog PST → `GOAL-PROLOG-100.md`.) |
 | **TEMPLATES X86 / JVM / .NET / JS / WASM** | `GOAL-TEMPLATES-*.md` | Per-backend; per-language state in `GOAL-*-BB.md`. |
 | **IR REDESIGN** | `GOAL-IR-REDESIGN.md` | IRD-0 open. |
-| **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed. |
-| **Universal Gen IR** | `GOAL-LOWER-REDESIGN.md` | LR-S2. |
 | **Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | SCT-1f or SCT-BEAUTY-SC-PARSE. |
 
 ---

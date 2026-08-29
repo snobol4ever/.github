@@ -972,9 +972,9 @@ GOAL-CORPUS-LAYOUT.md CL-1..CL-8."
 - **GOAL-POLYGLOT-CALC-DEMO.md** — the polyglot calculator
   demo; will exemplify Relationship 3 (polyglot program) when
   it lands. May produce the first canonical `.scrip` file.
-- **GOAL-UNIFIED-BROKER.md** — the cross-language call/return/
-  forward/backtrack runtime mechanism. Makes Relationship 3
-  (polyglot programs) actually runnable.
+- ~~GOAL-UNIFIED-BROKER.md~~ — retired; its broker mechanism never
+  shipped (see `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md`). Relationship
+  3's actual runnable path today is `src/driver/polyglot.c`.
 - **PLAN.md** — Milestone-3 grid (6 languages × 5 backends)
   is the bootstrap target. This Goal organizes the corpus to
   hold (6 × 5 = 30) emission cells per program, plus the

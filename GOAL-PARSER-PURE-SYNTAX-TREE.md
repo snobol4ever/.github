@@ -175,6 +175,10 @@ proceeds to the rename and per-construct lowering work:
 Full Stage 2 design lives in the historical archive of this file's
 prior revision (see git log for commits before 2026-05-19); will be
 restored as a fresh `GOAL-LOWER-REDESIGN.md` once Phase 2 lands.
+(Note: that name was previously used by a now-retired file, its
+content consolidated into `GOAL-HISTORY-INTERP-CHUNKS-BROKER.md` §
+Lower redesign — a restoration here would be a new file under a
+reused name, not a revival of the old one.)
 
 ---
 
