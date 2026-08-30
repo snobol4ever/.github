@@ -70,9 +70,29 @@ compute a wrong answer, because its inner loop is `.push`/`.shift`. Grammar work
 ## A separate stringification gap, and one that is NOT one
 
 ```
-my @a = (1,2,3); say @a;      oracle [1 2 3]     scrip 1 2 3      ⛔ brackets missing
+                        oracle      scrip
+say @a;                 [1 2 3]     1 2 3      Array -> SQUARE brackets
+say (1,2,3);            (1 2 3)     123        List  -> ROUND brackets, and see below
+say [1,2,3];            [1 2 3]     1 2 3
+my $l=(1,2,3); say $l;  (1 2 3)     1 2 3
+print @a;               1 2 3       1 2 3      ✅ AGREE — the .Str path is already correct
 ```
-`say @array` omits Raku's `.gist` brackets. Affects every kernel whose `.ref` prints an array.
+
+⛔ **I first wrote this up as a small, high-leverage fix, then measured it. It is not small.** The bracket
+*shape* depends on Array vs List, and `rt_make_flat_agg` does not distinguish them — a blanket `[...]`
+would be wrong for every List. The cure needs a type distinction the runtime does not have.
+
+⭐ The mechanism is otherwise well-placed, which is worth recording so the eventual fix is not built in the
+wrong layer: `by_name_dispatch.c:5668` already passes the say-vs-print flag **as** the `use_gist` flag —
+Raku-correct by construction — and gist reaches `rk_obj_stringify` only for `DT_DATA`. A flat aggregate
+falls through to `VARVAL_fn` and joins bare. So the fix belongs on the aggregate's own **type**, and does
+**not** require branching on language identity (which `RULES.md` forbids past lower anyway). It requires
+the type to exist.
+
+⛔⭐ **A separate and probably larger defect fell out of the same probe: `say (1,2,3)` prints `123`.** No
+separators at all, where `say @a` at least prints `1 2 3`. A parenthesised list literal is being taken as
+*multiple arguments* to `say` and concatenated, rather than as one List. `say (...)` is an extremely
+common form and it appears on no prior pass's list.
 
 ⭐ **But float stringification is already correct, and it is worth recording as a NEGATIVE result** so
 nobody re-derives it: `0.1e0+0.2e0`, `1e0/3e0`, `2e0**0.5e0`, `1e0/7e0`, `100e0/3e0` all print
