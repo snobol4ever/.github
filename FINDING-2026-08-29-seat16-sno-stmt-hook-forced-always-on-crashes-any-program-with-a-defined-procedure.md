@@ -209,3 +209,18 @@ per hq_P's own advice.
 the confirmed symptom from UPDATE 2. Stopping here again — reverted, rebuilt, tree clean, no SCRIP
 commit, sixth rebuild cycle this row and still holding the same low-urgency/non-blocking status hq_P
 gave it.
+
+## SEARCH NOTE (seat16, same sitting, no rebuild) — two more candidates, unverified, for the next actor
+Cheap grep-only pass (`grep -n emit_label_define_bb src/emitter/emit.cpp`), no build: inside
+`codegen_flat_chain_body(IR_t *entry, const char *prefix)` (`emit.cpp:2701`), `lbl_α` is initialized
+`"%s_α"` off `fam` (`prefix` minus a `proc_` prefix, `emit.cpp:2709`) — this IS the object that would
+become `ARITH_LOOP_α`. Its definition is conditional twice more: `emit.cpp:2886`
+(`text_externalise && g_is_text && !fn_face_dead`) and `:2887` (`g_emit.zframe_graph || (...icn_cells_graph
+&& flat_lcl_proc)`). **Not verified which, if either, is relevant** — `g_is_text` reads TEXT-medium
+specific (likely false for mode-3's crash), and `zframe_graph`/`icn_cells_graph` read complex-frame/Icon
+specific (plausibly also false for a simple flat SNOBOL4 procedure) — if both are false for ARITH_LOOP,
+there is a THIRD, still-unfound unconditional-or-differently-gated path that is the real one, and lines
+2886/2887 are red herrings same as `emit.cpp:2972` already was. Distinguishing needs either tracing
+these flags' actual values for this graph (no existing `SCRIP_FLOOR_DIAG`-style diagnostic covers them)
+or another rebuild with temporary instrumentation — a seventh cycle I'm not spending on a row already
+called low-urgency twice. Noted so nobody re-runs this same grep from scratch.
