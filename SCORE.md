@@ -3,7 +3,7 @@
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
 | Language | Blocking floor | Other suites (latest) | Master flat suite |
 |---|---|---|---|
-| SNOBOL4 | ⭐ **CUT OVER TO THE MASTER**: m3 **1444/0** · m4 **1435/0 SKIP=9** MISSING=0 GATE OK (floor grades the ONE pair; corpus dcdf7140f · SCRIP b072e7c3 · 2026-08-29 · ceo) | csnobol4_suite UNGRADED (oracle gap) | master v6: 1,495 entries, 157 families ABSORBED AND DELETED; board m3 1421/0 (71 xfail, 3 xpass) · m4 1412/0 (9 skip, 74 xfail); levels = rank prefixes |
+| SNOBOL4 | ⭐ **THE ONE FLAT SUITE, COMPLETE**: floor m3 **1517/0** · m4 **1508/0 SKIP=9** MISSING=0 GATE OK — tests/snobol4 is FLAT (ALL.{sno,ref,in,csv} + ONE config/), master **1576 entries** m3 1494/0 (79 xfail, 3 xpass) · m4 1485/0 (corpus 11a36c87f · SCRIP 211bd8e9 · 2026-08-30 · ceo) | csnobol4_suite UNGRADED (oracle gap) | levels = rank prefixes; SCRIP/test (594 files) imported at tests/scrip_test as absorption feed |
 | Icon | rungs 258/9/1/29 of 297 (compile 257/10) | smoke 14/14 both · D2 ALL-GREEN incl. suspend_apply · **apply-to-generator CURED both modes** (SCRIP 42a6260f) | probe_witness.icn suite (11 entries) — master pending |
 | Prolog | smoke 5/5 both | parser 150/156 · crosscheck 101/0/34 + ORACLE_MISS=89 | probe_plz.pl suite (9, xfail) — master pending |
 | Raku | smoke 724/724 both | IR full suite 35/12 (open row) · roast unblocked, rerun pending | — |
