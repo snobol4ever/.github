@@ -6,6 +6,27 @@
 
 ## LIVE CURSOR
 
+**B-1 (2026-08-30 — row `capture-feed-stdin-and-red-exit` LANDED; three gates found lying, one of them vacuous):**
+Landed SCRIP `24f7456c` (capture feeds the stdin companion to m3+m4+oracle, the feed is proven by an unfed
+control, RED exits non-zero, convert carries the companion end to end, four disagreeing spelling lists
+collapsed into `loose_stdin_companion()`), `85e120b8` (hq_P's collapse-guard report cured — and their
+proposed fix alone would have traded one false refusal for another; zero-new-entries is the idempotent
+rebuild, not a collapse), `3fa3f557` (stale-citation sweep after the corpus `demo/` → `demos/` re-grid).
+New gate `test_gate_capture_stdin_and_red_exit.sh`: 14 checks, 7 of them red against the pre-cure harness.
+
+⭐ **THE SESSION'S ONE LESSON, and all three findings are the same shape: THE ABSENCE OF A SIGNAL IS NOT A
+SIGNAL.** A gate whose instrument does not exist prints `PASS`. A guard deleted from a shared tool turns
+nothing red. A resolver that knows three of four spellings returns `None`, and `None` means `/dev/null`.
+None of the three announces itself, and each one had been sitting green for weeks. **Everything this seat
+found this session, it found because a CONTROL failed — never because a board did.**
+
+⛔ **OPEN, ROUTED, NOT MINE TO CURE:** SR-1's lower gate needs a ruling (rebase onto `--dump-ir` or retire —
+row `sr1-lower-gate-instrument-is-gone-rebase-or-retire`); snocone `beauty_arith --run` drops three real
+output lines (hq_C); `test_gate_instr_budget`'s four watermarks are stale low, one by ~6x, and its `beauty`
+case fails its own fixed-point precondition (hq_P); `tests/scrip_test` (334 files) is the last unclassified
+corpus subtree and cannot be honestly classified until the three absorption rows that left it behind are
+reopened (routing asked of ceo). See the three `FINDING-2026-08-30-hq_B-*` files.
+
 **B-0 (2026-08-28 — SEAT OPENED by ceo; nothing measured by this seat yet):** Root populated (three repos cloned, digest + banner hooks installed, identity verified `[hq_B] inbox: 0`). Starting backlog below — first session: read this file, RULES.md in full, then `s4e_msg.sh check` + `next`.
 
 ## THE ONE QUESTION THIS HQ OWNS
