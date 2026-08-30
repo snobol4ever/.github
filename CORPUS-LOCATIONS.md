@@ -22,6 +22,22 @@ sibling root," not literally the string `/home/claude/corpus/icon/`; the *previo
 file hardcoded `/home/claude/...` throughout, which is the fossil-path class this whole row exists to
 retire (`scripts/test_gate_no_fossil_src_paths.sh`, same commit).
 
+⛔⛔ **THIS FILE'S OWN WARNING CAME TRUE — THE TABLE BELOW IS STALE AGAIN, CONFIRMED 2026-08-29 (seat16,
+.github docs citation sweep, ALL-HANDS test consolidation).** The flat `corpus/<lang>/` layout this
+table documents (`corpus/icon/`, `corpus/snobol4/`, `corpus/prolog/`, etc.) **does not exist on disk —
+verified directly, zero hits.** The tree has since re-gridded "verbs on top": `corpus/tests/<lang>/`
+(graded suites), `corpus/demos/<lang>/` (renamed from `demo/`, corpus `924bd8bd0`), `corpus/packages/<lang>/`
+(vendored/third-party, currently icon/pascal/prolog/snobol4 only), `corpus/benchmarks/<lang>/` (unchanged
+in spirit). `crosscheck/` and `probe/` — both covered by name below — are **fully deleted**, consumed into
+`corpus/tests/{lang}/`; the probe deletion landed via corpus `c06960a12` ("Lon 2026-08-29 direct order").
+A fresh `corpus/README.md` exists again as of 2026-08-29 (it did not, when this file's 2026-08-24 revision
+was written) and currently describes the corpus better than this table does — but this project reorganizes
+its corpus on the order of once every few days, sometimes twice in one day, so **that file will drift too**.
+**Do not hand-patch the table below piecemeal from this note** — that would just add a fourth stale layer;
+someone should re-derive it whole against a live tree the next time this file is actually needed for its
+per-language filename-pattern detail (that part is NOT re-verified by this note, only the top-level paths
+are). Until then: `ls corpus/` first, this file never.
+
 ---
 
 ## Per-language corpus paths
