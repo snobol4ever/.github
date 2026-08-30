@@ -155,3 +155,5 @@ assertz_directive_2   scrip --run : rc=1, output "red green blue"
 ```
 
 Real, oracle-confirmed, still open, and now on the board where it belongs.
+
+**Erratum on this file's correction commit (`862f1fbb`):** four backticked words — `origin`, `family`, `entry`, `origin` — were eaten by shell command substitution in a `git commit -m` string, so that message reads "keyed on  (durable provenance" where it should read "keyed on the **`origin`** column". The file above is the authoritative text and is correct; the message is not amended because it is already pushed and history rewrites are forbidden. Noted rather than left for a reader to trip over — and it is a small instance of this page's own subject: an instrument silently altering what it was asked to report. Use a heredoc, not `-m`, for any message containing backticks.
