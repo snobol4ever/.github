@@ -67,3 +67,45 @@ to a well-bounded window and gives it a byte-exact success criterion to bisect a
   to read "improved; consider re-pinning down" reads why not, at the line where they would otherwise act on it.
 - The gate now exits 1 on beauty's precondition failure. **That is the correct verdict and must not be
   silenced** — it is the only instrument currently reporting that Milestone-1's self-host is broken.
+
+## ✅ ROOT CAUSE FOUND AND ISOLATED TO ONE MECHANISM — SCRIP `89571dd7` (slice-captures)
+**Bisected** (890 commits, byte-exact criterion "m4 output == beauty.sno", skip-on-unbuildable so an
+unbuildable commit is UNPROVEN and never a verdict): first bad commit **`89571dd7`** — *"slice-captures: a
+capture descriptor points INTO the subject instead of alloc+memcpy per capture"*. Parent `f93ba644` verified
+GOOD directly, not just inferred from the bisect.
+
+⭐⭐ **THEN CONFIRMED FAR MORE STRONGLY THAN A BISECT BOUNDARY, USING THE CURE'S OWN CONTROL ARM.** That commit
+shipped `SCRIP_CAP_SLICE=0` precisely so the cure could be re-measured without a source edit
+(`pattern_match.c:695`, and its comment states the polarity rule: a cure defaults ON and the flag is the
+control arm). On **HEAD's own binary, one executable, one environment**:
+```
+  default (slice ON)      →  10 lines            ⛔
+  SCRIP_CAP_SLICE=0       →  618 lines, BYTE-IDENTICAL to beauty.sno   ✅
+```
+No rebuild, no second tree, no bisect inference — causation isolated to one mechanism by the switch its own
+author installed for the purpose. ⭐ **The control arm the cure shipped is what convicted it.**
+
+## ⛔ WHY A CAREFULLY-VERIFIED COMMIT MISSED THIS, WHICH IS THE TRANSFERABLE PART
+`89571dd7` is not sloppy work — it is among the most thoroughly argued commits in this repo. It proved
+lifetime/relocation against the collector, built a purpose-made instrument for length authority
+(`SCRIP_CAP_POISON`, driven from 16 → 0 board FAILs), fixed the `sxt` extend-owner, and excluded `len == 0`
+from slicing with a stated reason. Its verdict set ran the SNOBOL4 board 891/891 both modes, the poison board,
+both emit gates, the Icon rung watermark, and five language smokes.
+⛔ **None of those arms is a beauty self-host.** So the property that broke — Milestone-1's `beauty.sno <
+beauty.sno` fixed point — was outside every population the commit measured, and a stronger battery would not
+have helped: `SCRIP_CAP_POISON` answers "does every consumer *on the board* read `.slen`", and beauty is not
+on the board. ⭐ **An instrument's reach is its population, not its cleverness.** The poison board is a good
+instrument that could not have seen this, because the program was not in it.
+✅ **ACTION THAT FOLLOWS:** the beauty self-host belongs in the pre-push battery for any capture/descriptor
+change, not only in a perf gate that happens to measure its Ir. It is currently reached ONLY by
+`test_gate_instr_budget.sh`, which measures instructions and checks the fixed point as a *precondition* — the
+one arm that noticed, and only because it refused to trust its own number.
+
+## ⚠️ STILL OPEN
+- Not fixed. `SCRIP_CAP_SLICE=0` is a diagnosis, not a cure — turning the flag off would discard a measured
+  +110% win (string_pattern m4 0.52x → 1.09x, crossing SPITBOL) and is not proposed.
+- The specific aliasing hazard is unidentified: beauty is a self-host whose subject IS its own source, so a
+  capture that points into the subject is exactly the shape most likely to be disturbed by it. That is a
+  hypothesis, not a measurement.
+- `test_gate_instr_budget.sh` never sets `SNO_LIB` and beauty's `.inc` files moved to `corpus/include`; the
+  beauty arm's environment was never pinned. Does not explain this (HEAD fails WITH `SNO_LIB`), fix alongside.
