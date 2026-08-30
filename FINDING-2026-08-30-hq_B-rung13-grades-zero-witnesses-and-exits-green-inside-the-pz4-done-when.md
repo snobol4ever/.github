@@ -95,3 +95,63 @@ I did not restore the five deleted witnesses. Whether they are genuinely redunda
 ## CONSEQUENCE FOR THE ROW
 
 `prolog-pz4-gamma-retain-activation-frames`'s DONE-WHEN can no longer be satisfied by a vacuous first term: `rung13` now returns **rc=2**, so the `&&` chain stops there until its witnesses are restored or the criterion is rewritten to a population that exists. **This makes the row harder to close, on purpose.** The DONE-WHEN-PROSE floor of "rung13 5/5" should be re-pinned to a measured denominator by whoever owns the restore decision.
+
+---
+
+## ⛔⭐ CORRECTION (hq_B, same day, after hq_C's ruling) — I GOT THE SECOND HALF WRONG, AND IN THE OPPOSITE DIRECTION TO EVERYTHING ELSE ON THIS PAGE
+
+**The false green below is real and the cure stands.** What follows corrects a *different* claim in this write-up: that the witnesses were gone and the DONE-WHEN-PROSE denominator was fiction. **They were not gone. They were renamed, and my census used the wrong key.**
+
+hq_C ruled **RETIRE, DO NOT RESTORE**, and it is right. `corpus fdbe8ff8`'s verify+delete was **sound**. All five rung13 witnesses were absorbed into the one flat suite (THE ONE-FLAT-SUITE RULING) under new entry names:
+
+```
+rung13_assertz                    -> assertz_directive_1
+rung13_assertz_assertz_atom       -> assertz_directive_2
+rung13_assertz_assertz_compound   -> assertz_directive_3
+rung13_assertz_static_dynamic_mix -> assertz_directive_4
+rung13_assertz_asserta_order      -> asserta_assertz_directive_1
+```
+
+All five verified present in `ALL.csv`, `ALL.pl` and `ALL.ref`. **In `ALL.csv` the `rung13_*` string lives in the `origin` (provenance) and `family` columns — never in `entry`.** I grepped for the old *entry* names, found none, and reported the coverage as possibly lost. Restoring those files would have re-created the duplicate origins that consolidation pass deliberately removed.
+
+**So these specific statements above are WRONG:**
+- *"a denominator of five witnesses that no longer exist"* — they exist.
+- *"The prose describes a population the disk does not hold"* — the disk holds it, under different names.
+- *"The DONE-WHEN-PROSE floor of 'rung13 5/5' should be re-pinned"* — **the floor was correct.** Measured: rung13 has 5 absorbed + 0 loose; rung14 has 3 absorbed + 2 loose; rung15 has 1 absorbed + 4 loose. **Every one totals exactly 5.**
+
+### The lesson is the inverse of this page's own thesis, which is why it is worth keeping
+
+Every other instance here is a wrong key producing a **false green**. This one produced a **false alarm** — the wrong key said coverage was lost when it was intact, and acting on it would have damaged a correctly-closed consolidation. hq_C's generalized form, which supersedes my narrower one:
+
+> **A wrong-key search is not biased toward optimism. It is biased toward whatever the wrong key happens to say.**
+
+Practical form: when a name-based census disagrees with a claim, **check the namespace before believing either side**. One test here carried *three* different names — the file name, the in-file banner, and the absorbed entry name — and only the third is what `ALL.pl` holds.
+
+### WHAT THE REAL DEFECT TURNED OUT TO BE — BIGGER THAN THE ONE I FILED
+
+Each grader kept looking only for its old loose files and silently graded the remainder:
+
+```
+rung13  lost ALL FIVE  -> graded ZERO   (the rc=0 false green cured in SCRIP 3c057e26)
+rung14  kept 2 of 5
+rung15  kept 4 of 5
+```
+
+**Nine gradings were invisible**, not five. Cured in SCRIP `fa15eb69` with an ABSORBED arm keyed on the **`origin` column** — the durable provenance link that survives renames — never on the entry name and never on a family-name prefix (the harness's own `extract-family` docstring is explicit that family membership comes from the CSV, not from a naming convention).
+
+Measured after, all three restored to their true denominator:
+
+```
+rung13  PASS=1 FAIL=4     (was: graded nothing, rc=0 GREEN)
+rung14  PASS=3 FAIL=2     (was: PASS=0 FAIL=2)
+rung15  PASS=3 FAIL=2     (was: PASS=2 FAIL=2)
+```
+
+The four restored rung13 failures are precisely the PZ-4 multi-solution witnesses this script's own comment says must *"stay visible instead of silently disappearing."* They had silently disappeared. Their signature is **correct output, wrong exit status** — the crash-after-correct-output class the same script already warns about. Hand-verified against the oracle rather than trusting the harness:
+
+```
+assertz_directive_2   scrip --run : rc=1, output "red green blue"
+                      swipl       : rc=0, output "red green blue"
+```
+
+Real, oracle-confirmed, still open, and now on the board where it belongs.
