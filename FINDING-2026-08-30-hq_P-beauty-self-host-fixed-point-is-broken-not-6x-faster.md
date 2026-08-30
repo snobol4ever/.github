@@ -28,6 +28,27 @@ program that exits early is not a fast program, it is a short one — and it arr
 win. This is the perf-side twin of the vacuous-test class: not "green by construction" but **"fast by
 construction"**, and it points in the direction people are hoping for, which is what makes it dangerous.
 
+## ⛔ CORRECTION TO THIS FINDING'S OWN FRAMING — PARTLY A RE-DISCOVERY, AND THE NEW PART IS NARROWER
+Checked for prior art AFTER writing the above, which is the wrong order and is why this section exists.
+**seat06 found the m3 half on 2026-08-22** (`FINDING-2026-08-22-seat06-beauty-m3-self-host-currently-diffs-from-oracle-not-fixed-point.md`),
+with the identical signature — 10 lines, a bare `Parse Error` — and established two things I had not:
+`Parse Error` is **beauty.sno's own output**, not SCRIP's (`grep -rn "Parse Error" src/` → zero hits), and the
+compile itself succeeds in both modes. So "beauty's self-host is broken" is eight days old, not news.
+
+⭐ **WHAT IS ACTUALLY NEW IS NARROWER AND WORSE: MODE-4 HAS REGRESSED SINCE THEN.** seat06 measured m4
+reproducing the fixed point **exactly**, byte-identical to beauty.sno (md5 `6f1671c0757729992ae01a6bdf16f081`)
+on 2026-08-22. Today m4 produces the same 10 lines as m3. Measured this session:
+```
+m3  --run                          → 10 lines
+m4  --compile → gcc      (PIE)     → 10 lines
+m4  --compile → gcc -no-pie        → 10 lines   (the gate's own link form, and seat06's)
+```
+⛔ **PIE vs -no-pie is RULED OUT as the explanation** — tested deliberately because this project has a standing
+row that the two links change behaviour, not just signal. Both are broken, so this is not that.
+✅ So the instr-budget gate is not merely inheriting a known m3 defect: it is the instrument that noticed
+**Milestone-1's mode-4 self-host stopped working**, some time in the last eight days. That narrows any bisect
+to a well-bounded window and gives it a byte-exact success criterion to bisect against.
+
 ## WHAT IS AND IS NOT KNOWN
 - **Known:** the fixed point fails; output is 10 lines vs 618; the divergence begins at line 8 with a
   `Parse Error` emitted by beauty itself; the `-INCLUDE` directives are absent from the output; rc=0 and
