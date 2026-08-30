@@ -87,3 +87,36 @@ bug in the mix, which if anything raises the bar for who should own landing this
   ending this session. **No SCRIP commit from this investigation** — the tree is exactly as it was
   before I started. Task file `## NEXT` rewritten to reflect this; old block demoted to
   `## SUPERSEDED-NEXT` per the baton-one-next-block-gate rule.
+
+## UPDATE (seat16, same day, second sitting) — DEFINE cleanly isolated as the trigger; root cause still open
+⭐ **Clean bisection, addressing the biggest gap in the original writeup above:** minted a DEFINE-free
+witness (`I=0` / `LOOP I=I+1` / `GT(100,I):S(LOOP)` / `OUTPUT`, no procedures) and re-ran it through the
+identical `if(1)` patch, same build. **It runs correctly** (`done, I = 100`, exit 0) — while `arith_loop.sno`
+crashes under that same binary. This is a real ASM-DIFF-FIRST-style minimal pair (one ingredient — `DEFINE`
+— differs) and it settles NEXT ACTOR item 1 from the block above: **the trigger is specifically a `DEFINE`d
+procedure, not statement density or any other property a generic loop shares.**
+
+⛔ **RETRACTING MY OWN OVER-READ, IN THE OPEN, NOT SILENTLY:** while comparing `--compile` output for
+`arith_loop.sno` baseline-vs-patched, I initially read the *absence* of the `# ARITH_LOOP  A = 0` comment
+banner in the patched `.s` as evidence the procedure's entry statement was being dropped outright. **On
+closer reading it is not that simple** — the actual `mov qword ptr [r9+32], rax # A` assignment IS still
+present in the patched output, just emitted without its own banner comment, immediately downstream of that
+statement's own hook call. The banner's absence may be a `bb_src_note`/comment-attachment artifact of the
+hook chain's node wiring rather than proof of dropped code — I do NOT have this fully explained, and said
+so more confidently than the evidence supported in an intermediate step of this investigation. Flagging
+per this project's own culture on retracting a claim after the fact, per the FACT RULE bank on this exact
+row's history (`s261` false-green retraction) — do not repeat my "missing statement" framing as settled.
+
+**Where this leaves root cause:** unresolved. What's solid: (1) DEFINE is the trigger, confirmed by clean
+bisection; (2) the crash's `rt_ab_undef_fn_stub` landing pad and the inability to unwind past JIT-emitted
+mode-3 frames, from the original writeup, stand; (3) raw `.s` comparison past the DEFINE block is hard to
+read because hook injection shifts every synthetic node ID (`n26`, `n27`, `n28`...) downstream of the first
+hooked statement, making a line-diff nearly useless — **the next actor should reach for `--dump-ir` or
+`--dump-bb` instead of more `--compile` archaeology**, since those should show the graph structurally
+rather than as post-node-numbering assembly text. I did not reach for either this pass; that is the honest
+gap, not a dead end I've already ruled out.
+
+Saved for reuse, not regenerated: `arith_loop_baseline.s`, `arith_loop_patched2.s`, and the DEFINE-free
+witness, all under this seat's scratchpad (session-local — regenerate from the recipe above if picking
+this up in a fresh session: patch `lower_snobol4.c:2351` to `if(1)`, `make pristine`, `--compile -o`).
+Tree confirmed clean again after this sitting (`git diff --stat` empty) — still no SCRIP commit.
