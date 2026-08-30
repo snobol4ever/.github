@@ -25,6 +25,25 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
+⛔⛔ **EVERY `/home/claude/corpus/programs/snobol4/...` PATH BELOW IS STALE (seat16, citation sweep,
+2026-08-29) — `grep -n '/home/claude/corpus/programs/snobol4' GOAL-NET-BEAUTY-SELF.md` for the current
+set (8 occurrences as of this sweep; line numbers themselves aren't cited here since this very edit
+shifts everything below it) — none are fixed individually below; this one banner covers all of them.**
+Two separate
+problems, confirmed against the live tree, not fixed with one substitution:
+1. **The hardcoded `/home/claude/` seat-root prefix** is a fossil path on this D-17 PORTABLE-HOME
+   project regardless of anything else — use `$S4E_HOME` (or the seat's own root) instead, always.
+2. **`corpus/programs/snobol4/beauty_suite/` and `corpus/programs/snobol4/demo/beauty/` are BOTH
+   confirmed gone** — not renamed, consumed: `beauty_suite/` into the master-suite consolidation
+   (loose `beauty_*_driver.sno` files no longer exist as files; only `beauty_suite_*`-prefixed
+   tracepoint configs survive, under `corpus/tests/snobol4/config/`), and the demo beauty source now
+   lives at `corpus/demos/snobol4/beauty/beauty.sno` (plural `demos`, no `programs/` segment).
+   **No verified single-command replacement recipe exists for the beauty_suite driver loop** — extracting
+   those entries from the master format now likely needs `lib_master_extract.sh` against `ALL.csv`
+   (per `corpus-suites-consolidation.task.md`), not a directory glob. Re-derive before running any
+   `cd .../beauty_suite` command in this file; do not assume the surrounding shell logic still works
+   once the path is merely substituted.
+
 **Repo:** snobol4dotnet
 **Depends on:** GOAL-NET-BEAUTY-19 must be complete (19/19)
 **Done when:** `dotnet Snobol4.dll -bf beauty.sno < beauty.sno` runs to
@@ -2217,8 +2236,10 @@ via baseline run):
     TEST_Csnobol4__8bit, _8bit2, _a, _alis, _alph, _atn, _base,
     _case1, _contin, _diag1, _diag2, _digits, _dump, _err
 
-Source programs at `corpus/programs/csnobol4-suite/{8bit,8bit2,a,alis,
-alph,atn,base,case1,contin,diag1,diag2,digits,dump,err}.sno` (Phil
+Source programs at `corpus/packages/snobol4/csnobol4_suite/{8bit,8bit2,a,alis,
+alph,atn,base,case1,contin,diag1,diag2,digits,dump,err}.sno` (path corrected 2026-08-29, seat16,
+citation sweep — same fix as `RULES.md`'s oracle-dialect rule; underscore, under `packages/`, not
+hyphenated under `programs/`) (Phil
 Budne's CSNOBOL4 test suite, 116 programs total — 8 already excluded
 per the suite header comment).
 

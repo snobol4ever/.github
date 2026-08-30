@@ -114,3 +114,39 @@ correctly flagged "PATH ABSENT" or "(deleted)" by earlier passes — nothing to 
 `REFERENCE-SPITBOL-BEAUTY-CONSTRUCTS.md`, `PROC-ICON-BENCH-ASM.md`) — still an open list, not claimed
 clean. `PLAN.md`'s and `RULES.md`'s own `corpus/programs/` mentions were spot-checked in the first
 sitting and found fine (dated ledger entries or already-correct `lon_cherryholmes` spelling).
+
+## UPDATE 2 (seat16, same day, third sitting) — the rest of the remaining list, and a real catch
+Cleared the remaining list from UPDATE 1. All eight files verified against `ls`/`find` before editing;
+none touched on guesswork.
+
+**Fixed:** `ARCH-ICON-RTX.md` (a reproducible measurement recipe's search path — corrected, but the
+265-artifact count it produces is explicitly NOT re-verified, only the path), `GOAL-IR-DEFINE-KIND.md`
+(an unexecuted checklist step whose target directory no longer exists as a single path — noted the
+scope now spans three), `LOWER-IRGEN-MAPPING.md` and `PROC-ICON-BENCH-ASM.md` (simple, unambiguous
+path swaps), `GOAL-NET-BEAUTY-19.md`/`GOAL-NET-BEAUTY-SELF.md`/`REPO-snobol4dotnet.md` (a `beauty_suite`
+directory of loose driver files — confirmed **gone, not renamed**, consumed into the master-suite
+consolidation; flagged honestly rather than guessing a replacement recipe I haven't verified, since
+only tracepoint config files with that name-prefix survive, under `corpus/tests/snobol4/config/`).
+
+⭐⭐ **The best find of this sitting: `SNOBOL4-SNOCONE-PRIMER.md`'s reference table resolves root
+`CLAUDE.md`'s own OPEN QUESTION from 2026-08-27** ("the self-hosted 'SCRIP written in SCRIP' tree...
+could not be found... it has moved or been renamed — search fresh"). It was never a `corpus/` tree at
+all: the bootstrap parser sources (`parser_snobol4.sc` and siblings) live in **the SCRIP repo's own
+`SCRIP/bootstrap/`**; the pattern library they consume (`tree.sc`, `Qize.sc`, `Gen.sc`, `TDump.sc`, …
+note the mixed case) is the separate, real `corpus/library/`. Root `CLAUDE.md` updated with the
+resolution alongside the primer fix — this is exactly the kind of thing a citation sweep exists to
+catch: not just "this path moved" but "this whole assumption was wrong from the start."
+
+⚠️ **A mistake caught in the same sitting, worth recording because it's the exact class this whole row
+is about:** `GOAL-NET-BEAUTY-SELF.md`'s banner originally cited its 8 stale occurrences by line number
+— which my own insertion, a few lines above them, immediately shifted, making the citation wrong within
+the same edit. Fixed to point at the `grep` command instead of a number. **Line numbers in a citation
+are themselves perishable** the moment anything above them changes; prefer a re-runnable command over
+a coordinate whenever the target isn't the line being edited.
+
+**Also fixed while there:** a second, already-known `corpus/programs/csnobol4-suite/` occurrence inside
+`GOAL-NET-BEAUTY-SELF.md` (same substitution as `RULES.md`'s earlier fix).
+
+**Original ~15-file list now fully cleared.** Corpus-layout citation staleness in `.github` is not
+proven exhausted — only the specific `corpus/programs/<lang>` grep pattern's hits are — but that
+specific, well-scoped hunt that this row's three sittings ran is done.

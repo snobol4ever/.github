@@ -913,13 +913,19 @@ means parity for everything in the fixture set; that does NOT mean
 beauty.sc parses. Always run beauty.sc separately before claiming
 "works":
 
+⛔ **PATHS + CASING CORRECTED 2026-08-29 (seat16, citation sweep) — this recipe would fail literally
+as originally written: `corpus/SCRIP/` never existed, and SCRIP's case-sensitivity means the
+lowercase `qize.sc`/`gen.sc`/`tdump.sc` never matched the real `Qize.sc`/`Gen.sc`/`TDump.sc` filenames
+either.** The pattern library and the parser sources are in two different repos, not one directory:
+
 ```bash
-SCRIP=/home/claude/SCRIP/scrip
-SRC=/home/claude/corpus/SCRIP
-cat /home/claude/corpus/programs/snocone/demo/beauty/beauty.sc | \
-  timeout 30 $SCRIP --run $SRC/global.sc $SRC/tree.sc $SRC/stack.sc \
-    $SRC/counter.sc $SRC/semantic.sc $SRC/ShiftReduce.sc $SRC/qize.sc \
-    $SRC/gen.sc $SRC/tdump.sc $SRC/assign.sc $SRC/parser_snocone.sc 2>&1
+SCRIP=$S4E_HOME/SCRIP/scrip
+LIB=$S4E_HOME/corpus/library
+BOOT=$S4E_HOME/SCRIP/bootstrap
+cat $S4E_HOME/corpus/demos/snocone/beauty/beauty.sc | \
+  timeout 30 $SCRIP --run $LIB/global.sc $LIB/tree.sc $LIB/stack.sc \
+    $LIB/counter.sc $LIB/semantic.sc $LIB/ShiftReduce.sc $LIB/Qize.sc \
+    $LIB/Gen.sc $LIB/TDump.sc $LIB/assign.sc $BOOT/parser_snocone.sc 2>&1
 ```
 
 Empty output = `Parse Error`. Each line of output is one IR statement.
@@ -1007,9 +1013,9 @@ Empty output = `Parse Error`. Each line of output is one IR statement.
 | `$` immediate assignment | SPITBOL Manual ch.7 (pp 87-) |
 | Canonical PARSER style | `GOAL-PARSER-SNOBOL4.md ## Style Guidelines for parser_*.sc` |
 | Per-language parser | `GOAL-PARSER-{SNOBOL4,SNOCONE,ICON,PROLOG,RAKU,REBUS}.md` |
-| Pattern library | `corpus/SCRIP/{tree,stack,counter,ShiftReduce,semantic,assign,qize,gen,tdump,global}.sc` |
-| Reference grammars | `corpus/SCRIP/parser_snobol4.sc` (canonical) |
-| Beauty source | `corpus/programs/snocone/demo/beauty/beauty.sc` |
+| Pattern library | `corpus/library/{tree,stack,counter,ShiftReduce,semantic,assign,Qize,Gen,TDump,global}.sc` (path + case corrected 2026-08-29, seat16, citation sweep — `corpus/SCRIP/` never existed as this doc assumed; confirmed present at this path, note SCRIP's case-sensitivity: `Qize`/`Gen`/`TDump`, not lowercase) |
+| Reference grammars | `SCRIP/bootstrap/parser_snobol4.sc` (canonical) — **in the SCRIP repo, not corpus** (corrected same pass; this resolves root `CLAUDE.md`'s own "could not be found" note about a `corpus/SCRIP/` self-hosted tree — it was never a corpus tree, it's the SCRIP repo's own `bootstrap/` directory) |
+| Beauty source | `corpus/demos/snocone/beauty/beauty.sc` (path corrected same pass) |
 
 Always cross-check `parser_snobol4.sc` for canonical idioms before
 inventing a new one in another `parser_*.sc`.

@@ -127,7 +127,14 @@ beauty_Gen, beauty_Qize, beauty_TDump, beauty_XDump, beauty_assign, beauty_case,
 ```bash
 export PATH=/usr/local/dotnet10:$PATH
 SNO4=/home/claude/snobol4dotnet/Snobol4/bin/Release/net10.0/Snobol4.dll
-cd /home/claude/corpus/programs/snobol4/beauty_suite
+cd $S4E_HOME/corpus/tests/snobol4  # ⛔ BEST-EFFORT ONLY, NOT VERIFIED (seat16, citation sweep, 2026-08-29):
+                                    # the old /home/claude/corpus/programs/snobol4/beauty_suite/ directory
+                                    # of loose beauty_*_driver.sno files is CONFIRMED GONE (consumed into
+                                    # the master-suite consolidation; only beauty_suite_*-prefixed tracepoint
+                                    # CONFIGS survive, under tests/snobol4/config/). This loop as written
+                                    # will not find anything — extracting these entries now likely needs
+                                    # lib_master_extract.sh against ALL.csv, not a directory glob. Re-derive
+                                    # this recipe against the current master format before trusting it.
 PASS=0; FAIL=0
 for driver in beauty_*_driver.sno; do
     name="${driver%_driver.sno}"

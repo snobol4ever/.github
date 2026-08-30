@@ -102,9 +102,13 @@ DEFINE('F(X)L1')
       `prescan_defines()` is the canonical handler for E_DEFINE; it
       already filters by `sval == "DEFINE"` and doesn't care about
       the kind tag, so it should keep working unchanged. Verify.
-- [ ] **Step 4 — corpus oracle re-baseline.** Every program in
-      `corpus/programs/snobol4/` that uses DEFINE needs its `.ref`
-      re-captured. Scriptable: `for f in $(grep -l DEFINE …); do
+- [ ] **Step 4 — corpus oracle re-baseline.** Every program that uses DEFINE needs its `.ref`
+      re-captured. ⛔ **PATH STALE, CORRECTED 2026-08-29 (seat16, citation sweep) — this step
+      pre-dates the corpus re-grid; `corpus/programs/snobol4/` no longer exists and there is no
+      single directory that replaces it.** DEFINE-using SNOBOL4 programs are now spread across
+      `corpus/tests/snobol4/`, `corpus/demos/snobol4/`, and `corpus/packages/snobol4/` — scope this
+      step against `grep -rl DEFINE corpus/{tests,demos,packages}/snobol4/` when it's actually run,
+      not the single old path. Scriptable: `for f in $(grep -rl DEFINE …); do
       scrip --dump-parse $f > $f.ref; done`. Audit the diff before
       committing — should be a pure tag swap, no structural changes.
 - [ ] **Step 5 — beauty.sno self-host.** Re-run Milestone 1 gate

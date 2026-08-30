@@ -25,7 +25,11 @@ export PATH=/usr/local/dotnet10:$PATH
 cd /home/claude/snobol4dotnet
 dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
 
-# One-time: symlink demo/inc into beauty/ so drivers find include files
+# ⛔ STALE, NOT VERIFIED (seat16, citation sweep, 2026-08-29): both paths below are gone. Includes
+# now live at $S4E_HOME/corpus/include/ (confirmed present, 16 modules); beauty_suite/ as a loose-file
+# directory is confirmed gone (consumed into the master-suite consolidation). This symlink step likely
+# doesn't apply to whatever the current extraction recipe is — re-derive before running.
+# One-time (ORIGINAL, now unusable as literally written): symlink demo/inc into beauty/ so drivers find include files
 ln -sf /home/claude/corpus/programs/snobol4/demo/inc/* \
        /home/claude/corpus/programs/snobol4/beauty_suite/ 2>/dev/null || true
 ```
@@ -43,11 +47,13 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 # baseline: 2375p/0f/2s
 ```
 
-**Beauty suite (19 drivers):**
+**Beauty suite (19 drivers):** ⛔ **STALE, NOT VERIFIED (seat16, citation sweep, 2026-08-29) — see the
+same flag in `GOAL-NET-BEAUTY-19.md`: this directory of loose drivers is confirmed gone, consumed into
+the master-suite consolidation. Re-derive against the current master format before running.**
 ```bash
 export PATH=/usr/local/dotnet10:$PATH
 SNO4=/home/claude/snobol4dotnet/Snobol4/bin/Release/net10.0/Snobol4.dll
-cd /home/claude/corpus/programs/snobol4/beauty_suite
+cd $S4E_HOME/corpus/programs/snobol4/beauty_suite  # path fossil, will not resolve
 PASS=0; FAIL=0
 for driver in beauty_*_driver.sno; do
     name="${driver%_driver.sno}"

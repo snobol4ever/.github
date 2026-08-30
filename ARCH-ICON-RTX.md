@@ -124,10 +124,14 @@ byte-identical binary and a false negative (`GOAL-ICON-BB.md` s197). ⚠ **The e
 
 **Method (reproduce it; do not trust the table):** static `call` targets across the **265 LIVE** Icon
 artifacts in `corpus/programs/icon/` + `corpus/benchmarks/icon/`, where LIVE = first line is
-`.intel_syntax noprefix`.
+`.intel_syntax noprefix`. ⛔ **PATH STALE, CORRECTED 2026-08-29 (seat16, citation sweep) —
+`corpus/programs/icon/` confirmed absent.** `.s` artifacts now live only beside benchmarks and demos
+(RULES.md handoff step 4), so the search below should be `benchmarks/icon` + `demos/icon` — **the 265
+count itself is NOT re-verified against that new pair**, only the path is corrected; re-run before
+trusting a number.
 
 ```bash
-for f in $(find programs/icon benchmarks/icon -name '*.s'); do
+for f in $(find benchmarks/icon demos/icon -name '*.s'); do
   head -1 "$f" | grep -q intel_syntax && echo "$f"; done > /tmp/live
 xargs grep -hoP '^\s*call\s+\K[^\s,]+@PLT' < /tmp/live | sed 's/@PLT//' | sort | uniq -c | sort -rn
 ```

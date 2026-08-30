@@ -6,7 +6,10 @@ attempts. If a transcription cannot be expressed via the mappings below, STOP an
 extend this document first — then transcribe.
 
 **JCON sources:** `/tmp/jcon-master/tran/ir.icn` (record definitions) and
-`/home/claude/corpus/programs/icon/jcon-ref/irgen.icn` (procedures).
+`corpus/packages/icon/jcon-ref/irgen.icn` (path corrected 2026-08-29, seat16, citation sweep —
+was `/home/claude/corpus/programs/icon/jcon-ref/...`, a hardcoded seat-root fossil pointing at a
+layout that no longer exists; confirmed present at the new path, repo-relative per this project's
+own D-17 PORTABLE-HOME convention) (procedures).
 
 **SCRIP targets:** `src/lower/lower_icn_new.c` + `src/include/BB.h` (read-only here).
 
@@ -295,7 +298,8 @@ must consult and update this section.
 
 ## 10. References
 
-- `irgen.icn` — the procedures to transcribe (1559 lines, in `corpus/programs/icon/jcon-ref/`).
+- `irgen.icn` — the procedures to transcribe (1559 lines, in `corpus/packages/icon/jcon-ref/` —
+  path corrected 2026-08-29, seat16, citation sweep; line count not re-verified).
 - `ir.icn` — the record definitions (`/tmp/jcon-master/tran/ir.icn`).
 - `LOWER-REWRITE-FROM-JCON.md` — the directive document (this file's parent).
 - `GOAL-ICON-BB.md` — the LFJ staircase (this file's caller).

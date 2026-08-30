@@ -6,7 +6,9 @@ GAS `.intel_syntax`). These are committed next to the source so a diff of the co
 over time, exactly how the emitted code for each benchmark changes as the Icon backend
 evolves. They are an emitter-regression snapshot, NOT hand-written.
 
-(NB: `corpus/programs/icon/` is the rung **test** suite, NOT the benchmark corpus; its legacy
+(NB: `corpus/programs/icon/` — renamed `corpus/tests/icon/` in the later corpus re-grid, confirmed
+absent under the old name 2026-08-29, seat16, citation sweep; doesn't change this note's point — is
+the rung **test** suite, NOT the benchmark corpus; its legacy
 NASM `.s` siblings predate this procedure and are out of scope here. The benchmark sources —
 queens, concord, deal, ipxref, rsg, micro, micsum, version, … — live in `benchmarks/icon/`.)
 
