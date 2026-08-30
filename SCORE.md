@@ -1,21 +1,39 @@
 # SCORE.md — THE CURRENT SCOREBOARD (all languages, all suites)
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
-| Language | Blocking floor | Other suites (latest) | Master flat suite |
-|---|---|---|---|
-| SNOBOL4 | ⭐ **THE ONE FLAT SUITE, COMPLETE**: floor m3 **1517/0** · m4 **1508/0 SKIP=9** MISSING=0 GATE OK — tests/snobol4 is FLAT (ALL.{sno,ref,in,csv} + ONE config/), master **1576 entries** m3 1494/0 (79 xfail, 3 xpass) · m4 1485/0 (corpus 11a36c87f · SCRIP 211bd8e9 · 2026-08-30 · ceo) | csnobol4_suite UNGRADED (oracle gap) | levels = rank prefixes; SCRIP/test (594 files) imported at tests/scrip_test as absorption feed |
-| Icon | rungs 258/9/1/29 of 297 (compile 257/10) | smoke 14/14 both · D2 ALL-GREEN incl. suspend_apply · **apply-to-generator CURED both modes** (SCRIP 42a6260f) | probe_witness.icn suite (11 entries) — master pending |
-| Prolog | smoke 5/5 both | parser 150/156 · crosscheck 101/0/34 + ORACLE_MISS=89 | probe_plz.pl suite (9, xfail) — master pending |
-| Raku | smoke 724/724 both | IR full suite 35/12 (open row) · roast unblocked, rerun pending | — |
-| Pascal | m3 159/4 x1 · m4 150/4 | 17 suite families 96/0 | — |
-| Snocone | smoke 5/5 | probe suites 5+1 (xfail) | — |
-| Rebus | smoke 4/4 | — | — |
 
-Cross-language: polyglot smoke 2/2 both · demos gate 3/7 both (open row, pre-dates the break-value work by bisect proof).
+⭐⭐ **COMPUTED, NOT TYPED (row `score-md-master-driven-display`, seat08 2026-08-30).** The grid below is the
+literal output of `SCRIP/scripts/util_build_score_md.py` — regenerate it with `python3 scripts/util_build_score_md.py`
+(from `SCRIP/`, after `make pristine`) rather than hand-editing a cell. It reads each language's
+`corpus/tests/<lang>/ALL.csv` master for entry/xfail counts and invokes that language's own existing,
+unmodified floor/smoke gate script for PASS/FAIL — no duplicated grading logic, no fabricated numbers — and
+the stamp line names the exact per-repo commit every number was measured against (never a session label like
+the `s283h tree` this section used to carry — see the two paragraphs below for why that mattered and still
+matters for the detail tables). `MASTER PENDING` means no master exists yet for that language (Icon, Pascal as
+of this writing); `UNPROVEN(2)` means the gate script is missing, its output didn't match the expected
+pattern, or it timed out — the generator refuses to guess rather than print a number it didn't measure.
+**Live catch, not a demo of the format:** this run found `test_corpus_snobol4.sh` itself currently REFUSES
+(`corpus/demos/snobol4` vs. the real `corpus/demo/snobol4`, a rename that reached 16 scripts but not the
+corpus tree) — flagged to hq_C (`snobol4-floor-gate-refuses-demos-vs-demo-path-mismatch`), not fixed here, and
+visible below exactly as UNPROVEN rather than a stale, wrong "GATE OK".
 
-⭐ **This file is THE central location for the current score** (Lon 2026-08-29, in-chat to CEO: "You should have a central location for the current score. A health check should show ALL test suites for all languages."). One row per suite, named by its runner script or package name. **Every number carries its tree and date. A seat that measures a suite updates its row in place (rewrite-the-standing-line) and attributes the commit.** A row nobody has measured recently is STALE, not wrong — the label says how stale. Smoke alone is not a score: list every suite.
+| Language | Master suite (`ALL.csv`) | Floor/smoke gate |
+|---|---|---|
+| snobol4 | 1576 entries, 82 xfail | UNPROVEN(2): gate ran (rc=2), output did not match the expected pattern: ⛔ GATE REFUSES: corpus subtree missing: `corpus/demos/snobol4` (see live-catch note above) |
+| icon | MASTER PENDING | interp PASS=259 FAIL=8 XFAIL=29 TOTAL=297 |
+| prolog | 364 entries, 9 xfail | m2 PASS=5 FAIL=0 / 5 (HARD GATE) |
+| raku | 96 entries | m3 PASS=724 FAIL=0 REFUSED=0 / 724 |
+| pascal | MASTER PENDING | m3 PASS=161 FAIL=2 NOREF=0 XFAIL=1 |
+| snocone | 264 entries, 24 xfail | PASS=5 FAIL=0 |
+| rebus | 174 entries | PASS=4 FAIL=0 |
 
-⛔⭐ **THE `Tree` COLUMN MUST BE A PUSHED COMMIT HASH — A SESSION LABEL IS NOT A TREE** (hq_B 2026-08-29, on hq_C's live catch; raised with ceo). Measured on this file at the time of writing: **15 rows read `s283h tree` and 2 carried a real hash.** Nobody can `git checkout s283h`, so those 15 rows state a result that cannot be checked against the thing that produced it — which is the whole job of the column. A scoreboard row whose provenance is unresolvable is not a weaker claim than one with a hash; it is an **unfalsifiable** one, and unfalsifiable rows accumulate silently because nothing can ever contradict them.
+_tree: SCRIP=d5ad5f08 corpus=49a4cfff .github=8a6dd4a3  generated 2026-08-30T01:15Z_
+
+Cross-language: polyglot smoke 2/2 both · demos gate 3/7 both (open row, pre-dates the break-value work by bisect proof). The richer per-suite detail this grid used to cram in — open rows, FINDING links, "other suites" — lives in the per-language tables below, unchanged; this top grid is deliberately just the computed at-a-glance floor now.
+
+⭐ **This file is THE central location for the current score** (Lon 2026-08-29, in-chat to CEO: "You should have a central location for the current score. A health check should show ALL test suites for all languages."). One row per suite, named by its runner script or package name. **Every number carries its tree and date. A seat that measures a suite updates its row in place (rewrite-the-standing-line) and attributes the commit.** A row nobody has measured recently is STALE, not wrong — the label says how stale. Smoke alone is not a score: list every suite. (The top grid above is now exempt from hand-editing entirely — regenerate it instead.)
+
+⛔⭐ **THE `Tree` COLUMN MUST BE A PUSHED COMMIT HASH — A SESSION LABEL IS NOT A TREE** (hq_B 2026-08-29, on hq_C's live catch; raised with ceo). Measured on this file **before** the top grid above went computed: **15 rows read `s283h tree` and 2 carried a real hash.** Nobody can `git checkout s283h`, so those 15 rows state a result that cannot be checked against the thing that produced it — which is the whole job of the column. A scoreboard row whose provenance is unresolvable is not a weaker claim than one with a hash; it is an **unfalsifiable** one, and unfalsifiable rows accumulate silently because nothing can ever contradict them. **This defect is now structurally impossible in the top grid** (the generator can only print a hash it just read); the detail tables below still carry `s283h tree` citations and still need the same discipline applied by hand — out of this row's own immediate scope, a natural follow-up.
 
 ⛔⭐ **AND ONE HASH IS NOT ENOUGH WHEN A MEASUREMENT SPANS TWO REPOS.** Witness, same day: the SNOBOL4 floor row below carried a real, checkable SCRIP hash (`8f6595be`, seat04, run 3x) and was *still* under-specified — that board folds DEMO + BEAUTY + crosscheck + probe out of the **corpus** repo, whose commit a SCRIP hash does not pin. Four runs of that one script have now returned four denominators, and the variable that separates them is a corpus relocation, invisible in every SCRIP hash quoted. **Name a hash for every repo the measurement reads** (`lib_gate.sh` and the board now emit them automatically since `f0d85f30`/`86ac501b`).
 
