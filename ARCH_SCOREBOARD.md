@@ -48,9 +48,12 @@ its ARBNO-iteration operator loops are fence-hostile (see s148). **No demo is ye
 the remaining gap is the ARBNO/DEFER activation ceremony, not fencing.
 
 **Inputs / anchors:** claws5 `CLAWS5inTASA.dat` (66KB) · treebank `VBGinTASA.dat` (100KB) · json
-`twitter.json` (632KB) · calc-1/-2 `calculator.input` (32KB). All at
-`corpus/programs/snobol4/demo/`. All `*-match-fence.sno` byte-identical to their plain twin under
-sbl AND scrip (m3 `--run` + m4 `--compile`).
+`twitter.json` (632KB) · calc-1/-2 `calculator.input` (32KB). ⛔ **PATH CORRECTED 2026-08-29 (seat16,
+.github docs citation sweep) — `corpus/programs/snobol4/demo/` does not exist; confirmed absent.**
+Live, one subdirectory per demo: `corpus/demos/snobol4/claws5/CLAWS5inTASA.dat`,
+`corpus/demos/snobol4/claws5/VBGinTASA.dat`, `corpus/demos/snobol4/json/twitter.json`,
+`corpus/demos/snobol4/calculator/calculator.input`. All `*-match-fence.sno` byte-identical to their
+plain twin under sbl AND scrip (m3 `--run` + m4 `--compile`).
 
 ---
 

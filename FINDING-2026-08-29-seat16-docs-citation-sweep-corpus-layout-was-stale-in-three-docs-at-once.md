@@ -76,3 +76,41 @@ the single most-cited document in the repo. The dialect *ruling itself* (grade a
   standing rule this whole finding is about. Pushed alongside this file: root `CLAUDE.md` (untracked,
   local-only edit, no commit possible per `corpus-suites-consolidation.task.md` STEP 0's own note that
   root `CLAUDE.md` is untracked in all three siblings), `.github/CORPUS-LOCATIONS.md`, `.github/RULES.md`.
+
+## UPDATE (seat16, same day, second sitting) — continuing the REMAINING scope named above
+Picked up item 2 from REMAINING: checked `ARCH-LANGUAGES.md`, `ARCH_SCOREBOARD.md`, and all seven
+`GOAL-*-100.md` consolidated files for `corpus/programs/<lang>` hits, verifying each against `ls`
+before touching anything.
+
+**Method note, worth keeping:** most GOAL-100 files are reverse-chronological logs of CLOSED sessions
+past their first `## ... LIVE CURSOR` heading (confirmed by reading `GOAL-SNOBOL4-100.md`'s structure
+directly) — hits inside that log are historical record, same as `FINDING-*.md`, and were correctly left
+untouched (`GOAL-SNOBOL4-100.md` alone had 17 hits; 16 were historical, 1 wasn't). Hits BEFORE the first
+`## LIVE CURSOR` (a standing-facts/open-tasks zone) are current-tense and worth checking against `ls`.
+`GOAL-PASCAL-100.md` additionally self-declares its own boundary in prose ("read everything below [a
+named line] as historical, never as Pascal's state today") — when a file says this explicitly, trust
+its own boundary over guessing from a `LIVE CURSOR` heading.
+
+**Fixed, all verified against `ls` first:**
+- `ARCH_SCOREBOARD.md`: demo input files (`CLAWS5inTASA.dat` etc.) cited at `corpus/programs/snobol4/demo/`
+  — that path doesn't exist; real locations are per-demo-subdirectory under `corpus/demos/snobol4/`.
+- `GOAL-SNOBOL4-100.md` (standing-facts zone, before its first LIVE CURSOR): Milestone 1's `beauty.sno`
+  cited at `corpus/programs/snobol4/demo/beauty/` — real path `corpus/demos/snobol4/beauty/beauty.sno`.
+- `GOAL-PASCAL-100.md` (current-tasks zone, before its own self-declared staleness boundary): the
+  `pascal-uplevel-nested-proc-hang` row's witnesses cited at `corpus/programs/pascal/bench/` — real path
+  `corpus/benchmarks/pascal/` (no `programs/` prefix, no `bench/` subdirectory).
+
+**Checked and correctly left alone:** `GOAL-ICON-100.md`/`GOAL-PROLOG-100.md` (zero hits),
+`GOAL-RAKU-100.md` (2 hits, both past its LIVE CURSOR), `GOAL-REBUS-100.md` (1 hit, already
+self-correcting prose comparing old vs new fixture counts), `GOAL-SNOCONE-100.md` (2 hits: one already
+a self-aware correction note, one a deferred/unexecuted future plan, neither a current-state claim),
+the remaining 16 `GOAL-SNOBOL4-100.md` hits (historical log), `ARCH-LANGUAGES.md` (3 hits, all already
+correctly flagged "PATH ABSENT" or "(deleted)" by earlier passes — nothing to do).
+
+**Still remaining, not reached this sitting:** the other ~15 files from the original candidate list
+(`ARCH-ICON-RTX.md`, `ARCH-SNOBOL4-RTX.md`, `GOAL-JCON-IN-SCRIP.md`, `GOAL-IR-DEFINE-KIND.md`,
+`GOAL-HQ-COMPLETE.md`, `GOAL-IR-IMMUTABLE-EMIT.md`, `GOAL-HQ-PERFORM.md`, `GOAL-NET-BEAUTY-19/SELF.md`,
+`GOAL-SCRIP-HQ.md`, `SNOBOL4-SNOCONE-PRIMER.md`, `LOWER-IRGEN-MAPPING.md`, `REPO-snobol4dotnet.md`,
+`REFERENCE-SPITBOL-BEAUTY-CONSTRUCTS.md`, `PROC-ICON-BENCH-ASM.md`) — still an open list, not claimed
+clean. `PLAN.md`'s and `RULES.md`'s own `corpus/programs/` mentions were spot-checked in the first
+sitting and found fine (dated ledger entries or already-correct `lon_cherryholmes` spelling).
