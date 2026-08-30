@@ -161,3 +161,29 @@ specifically as a cheap, clean differential witness, not queued as blocking anyt
 Replied to hq_P confirming the technique worked exactly as suggested. Task file's `## NEXT` and
 `DONE-WHEN` updated per the ruling (correctness gates the row now; the perf measurement is a
 downstream step, not concurrent with it). Tree still clean, no SCRIP commit, this pass either.
+
+## UPDATE 3 (seat16, same day, fourth sitting) — a specific hypothesis chased and RULED OUT, in the open
+`emit.cpp:2972` — `if (lbl_α_orig_p && xa_flat_class_c_pred() && !g_rt_fragment_emit)
+emit_label_define_bb(lbl_α_orig_p);` — looked like exactly the "definition gated on a shape predicate"
+site UPDATE 2 asked someone to find: `xa_flat_class_c_pred()` (`xa_flat.cpp:273`) tests per-graph shape
+flags (`flat_frame_bytes >= 48`, absence of `flat_pat`/`flat_gen`/`flat_lcl_proc`/`zframe_graph`/
+`flat_stmt_frame`), which looked plausibly sensitive to a hook call changing a procedure's shape.
+
+⛔ **RULED OUT BY MEASUREMENT, not reasoning — the code has its own built-in diagnostic
+(`SCRIP_FLOOR_DIAG=1`) and it settles this cheaply, no source change needed beyond the same `if(1)`
+patch already in hand.** Ran it on BOTH builds: **`xa_flat_class_c_pred()` bails on every single graph
+node checked in BOTH baseline and patched** (`bail=floor` or `bail=no_jmp_entry`, zero passes, either
+build). Since baseline still successfully defines `ARITH_LOOP_α` (established in UPDATE 2) while this
+gate never once returns true even in baseline, **`emit.cpp:2972` cannot be the site that normally
+defines this label — it's dead for this program in both arms, not a differentiator.** Retracting this
+specific lead in the open rather than letting it stand as the likely site.
+
+**Where this actually leaves the search:** `lbl_α_orig_p` (from `emit_label_alloc("%s_α", ...)`,
+`emit.cpp:2722`) must get its `emit_label_define_bb` call from somewhere OTHER than line 2972 in the
+successful case — that unconditional-or-differently-conditioned call site is still unfound. I am
+stopping here for now: this is the fifth rebuild cycle spent on a row hq_P explicitly ruled
+low-urgency and non-blocking, and continuing to trade rebuild cycles for narrowing a latent,
+non-shipping defect stops being proportionate past this point. What's banked is real: the crash, the
+clean DEFINE bisection, the referenced-but-undefined symptom, and now one concretely eliminated
+hypothesis with the measurement to back the elimination — a smaller search space for whoever
+continues, not a dead end.
