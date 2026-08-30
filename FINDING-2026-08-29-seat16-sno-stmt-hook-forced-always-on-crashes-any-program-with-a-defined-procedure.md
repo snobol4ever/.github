@@ -187,3 +187,25 @@ non-shipping defect stops being proportionate past this point. What's banked is 
 clean DEFINE bisection, the referenced-but-undefined symptom, and now one concretely eliminated
 hypothesis with the measurement to back the elimination — a smaller search space for whoever
 continues, not a dead end.
+
+## UPDATE 4 (seat16, same day, fifth sitting) — hq_P's discriminator, run: NOT the same code path
+hq_P turned UPDATE 2's finding into a real gate (`test_gate_no_undefined_alpha_label.sh`, SCRIP
+`7482db86` — worth reading their own reply for how the gate was ALSO vacuous on its first run, a
+second instance of the exact class this whole row is about) and handed back a one-command
+discriminator before I go further: **does `SCRIP_DEFINE_FN_DIRECT_ALPHA=0` change anything?** That
+env var disables the specific `bb_define_bind` direct-`lea` mechanism their own cure touched — if it
+made `ARITH_LOOP_α` resolve, this bug would be the same code path as theirs (nothing new to fix, just
+apply their existing pattern more broadly). If not, it's elsewhere.
+
+**Ran it: no change.** Identical crash, identical exit code, identical error text, with or without the
+flag, same patched build. Per hq_P's own framing, this **rules out `bb_define_bind`'s direct-alpha
+mechanism entirely** — whatever fails to define `ARITH_LOOP_α` under the always-on hook is a genuinely
+different site than the one hq_P already fixed. Cheap (an env var, zero rebuild needed once the patch
+was already applied) and decisive — exactly the kind of check worth running before more source-reading,
+per hq_P's own advice.
+
+**Net effect on the search:** two candidate mechanisms eliminated with receipts now
+(`xa_flat_class_c_pred()` in UPDATE 3, `bb_define_bind`'s direct-alpha path in this update) alongside
+the confirmed symptom from UPDATE 2. Stopping here again — reverted, rebuilt, tree clean, no SCRIP
+commit, sixth rebuild cycle this row and still holding the same low-urgency/non-blocking status hq_P
+gave it.
