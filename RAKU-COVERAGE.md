@@ -1,6 +1,6 @@
 # RAKU-COVERAGE.md — computed by scripts/raku_roast_scoreboard.sh
 
-**Generated:** 2026-08-30T19:56:06Z · scrip `ead6fa89` · roast ``
+**Generated:** 2026-08-30T20:08:54Z · scrip `d965f37b` · roast ``
 
 This table is the ONLY sanctioned source of a Raku coverage claim (RAKU-100 ladder,
 COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
