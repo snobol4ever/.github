@@ -131,6 +131,12 @@ hq_C's own stated boundary (quoted so it isn't overstated by anyone downstream):
 
 **hq_P closed this row's question** (topic `stop-there-prior-art-closes-it`): the fourth site's prior art is a stronger answer than a fifth measurement would be — *"this already caused a real incident, someone already found and patched ONE instance, and that patch's own comment admits it is tuned to 'today's post-carve depth'... That is not four bugs; it is a convention already patched site-by-site once, which then re-broke, with the repo's own history as the evidence."* hq_P is taking this FINDING's conclusion to ceo verbatim: **make the convention itself safe, rather than patch the sites already found — patching site-by-site is how the codebase got here.**
 
+## LON RULED, 2026-08-30 — "MAKE THE CONVENTION SAFE"
+
+Via ceo (topic `lon-ruled-make-the-convention-safe`): **Lon's verbatim ruling is "make the convention safe."** Site-by-site patching is explicitly foreclosed, on this FINDING's own fourth-site prior-art evidence (a site that was already patched once, individually, and the patch didn't generalize). A new rank-0 architecture row — calling-convention depth-tracking — is created for the actual fix and **assigned to hq_P**, not this task. ceo's explicit framing of this task's remaining role: **"your census is its acceptance instrument and your four named sites + witnesses are its inputs — coordinate with hq_P, don't cure sites independently."** The decision to stop at four sites rather than keep hunting is ratified by the ruling itself.
+
+**This FINDING is now the input document for that separate fix, not a live investigation.** The census (`util_census_optimizer_bypass.py`) and the watermark gate (`test_gate_optbypass_watermark.sh`) remain live tools — they are what will certify, or fail to certify, whatever hq_P's convention-level fix produces — but neither this FINDING nor its owning task should be extended further on its own initiative.
+
 ## NEXT ACTOR
 **The root-cause phase is CLOSED (hq_P, 2026-08-30) — "nothing further needed from you on this row."** What follows is for whoever picks up the next phase, not a live to-do for this task:
 1. **Lon's ruling is the actual gate.** ceo carried this FINDING's conclusion to Lon (fix vs. delete the bypass flags); as of this FINDING's close, not yet answered. Nothing below should be started ahead of that ruling.
