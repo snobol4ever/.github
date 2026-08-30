@@ -271,6 +271,55 @@ at this commit.
 
 ---
 
+## ⛔⭐⭐⭐ LON RULING 2026-08-30 (in-chat, direct to hq_C) — THE BISON/FLEX GRAMMAR IS THE WRONG INSTRUMENT
+
+**Lon, verbatim in substance:** *"You simply take the parser spec from Rakudo/Roast and do mass
+translation. Is the Raku parser written in Bison/Flex?"* — and, on being shown that Raku is not LALR:
+**"If Raku has non LALR, then you must use another way."**
+
+**This supersedes the incremental-construct strategy on row `raku-roast-100-percent-compile`.** That row
+stays rank 0 and its DONE-WHEN (PARSE-FAIL=0) is unchanged; what changed is the INSTRUMENT that gets there.
+
+**WHY — measured against `/home/resources/rakudo-main/src/Perl6/Grammar.nqp`, not asserted:**
+
+| feature | count | why bison cannot express it |
+|---|---|---|
+| `proto token`/`proto rule` + `<sym>` uses | 34 / 405 | **longest-token-match protoregex dispatch** — runtime candidate selection, not a fixed table |
+| `:my` parse-time locals | 390 | the grammar carries **mutable state** while parsing |
+| `$*W` (the World/symbol table) | 171 | **parser↔symbol-table feedback**: whether `foo` is a listop, type or term depends on what has been *declared so far* |
+| `$*IN_DECL` and friends | 45 | dynamic context variables steering the parse |
+| `$*LANG`/`%*LANG`/`LANG(`/`quote_lang` | 17/21/27/29 | **slang switching** — regex, quoting and pod are separate grammars swapped in mid-parse |
+| `<?before>`/`<!before>`/`<?after>` | 112/39/2 | arbitrary lookahead/lookbehind; LALR(1) has ONE token |
+| `nqp::` ops inline | 219 | VM ops embedded in productions |
+
+Grammar.nqp is **5,933 lines / 726 productions** (675 `token`, 47 `rule`, 4 `regex`); `Actions.nqp` is a
+further 489KB. ⛔ The decisive fact is not any count above: **Raku's grammar is user-extensible AT PARSE
+TIME** — `sub infix:<foo>` installs a new operator into the precedence table while the file is being
+parsed. A bison table is frozen at build time, so no amount of grammar-writing closes this. Raku is not a
+context-free language and `raku.y` can never be finished.
+
+⭐ **Every feature that is IMPOSSIBLE in bison is NATURAL in recursive descent** — `:my` becomes a local,
+`$*W` becomes a symbol table the parser consults, `<?before>` becomes a lookahead predicate, a protoregex
+becomes a dispatch function. That is why the answer is a port, not a bigger `.y`.
+
+**THE NEW INSTRUMENT: translate Grammar.nqp into a recursive-descent parser**, per Lon's "mass
+translation". This is a BOUNDED, MECHANICAL job (726 small productions, each mapping to one function),
+which is categorically different from the unbounded search the construct-by-construct approach was doing —
+that approach was measured at **~3 files of PARSE-FAIL per pass against 924 remaining**, and does not
+converge.
+
+⛔⛔ **THE ONE SEMANTIC TRAP THAT WILL SILENTLY CORRUPT A NAIVE PORT: in Raku regex `|` is
+LONGEST-TOKEN-MATCH, `||` is FIRST-MATCH (ordered).** A recursive-descent translation that renders `|` as
+ordered choice — the obvious and idiomatic RD reading — is WRONG, and wrong in the worst way: it parses
+most inputs correctly and silently mis-parses the ones where a later alternative matches longer. `|`
+outnumbers `||` heavily in Grammar.nqp. Any translator MUST implement `|` as LTM.
+
+⚠️ Precedent for a hand-written parser in this tree: the Snocone lexer is already a hand-written
+threaded-code FSM, not flex (`snocone_lex.c`) — so this does not break a structural law.
+⚠️ `raku.y`/`raku.l` STAY LIVE and are not to be deleted while the port is built: representation
+migrations keep the old path as a gated fallback so the suite never regresses (this file's own RK-GRAM
+flatten-fallback discipline, and the 724/0 `test_smoke_raku.sh` watermark rides on the bison parser).
+
 ## THE LADDERS — FOUR TRACKS
 
 ### TRACK 1 — GOAL-DIRECTED CORE (was GOAL-RAKU-BB.md)
