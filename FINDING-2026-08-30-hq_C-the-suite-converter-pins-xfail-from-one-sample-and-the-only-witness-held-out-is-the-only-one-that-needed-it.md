@@ -185,6 +185,15 @@ is RIGHT; a landing releases the frame the record sits above.** The two boxes di
 `IR_MATCH_DEFER` arm is `((op_seal==1) || emit_defer_carve_rbp()) && emit_defer_rbp()` — so **`op_seal`
 selects between a record-preserving and a record-destroying landing**, and nothing ties that choice to
 whether a suspend record will actually arrive.
+⚠️ **THAT LAST STEP IS A DEDUCTION, NOT AN OBSERVATION, AND THE REASON IS ITSELF WORTH RECORDING.**
+`emit_defer_carve_rbp()` defaults 0 and `emit_defer_rbp()` defaults 1, so under the default environment
+`dfrm() ≡ (op_seal == 1)`; both globals are process-wide constants, so two boxes in ONE program emitting
+different arms must differ in `op_seal`. The deduction is airtight given those defaults — but ⛔ **`seal` is
+exposed by NO dump**: `--dump-bb` prints the two `MATCH_DEFER` nodes (`b0_35` stmt:1, `b2_3` proc `PAT$1`)
+and `--dump-ir-verbose` prints them, and neither shows the field that decides which landing they get.
+⭐ A per-node flag that selects between a correct and an incorrect landing, and is invisible to every
+instrument the compiler ships, is a debugging trap independent of this defect: the next person will have to
+re-derive it from the predicate exactly as I did. Worth surfacing in a dump.
 
 ⚠️ **A/B ON THE EXISTING KILLSWITCH — IT MOVES THE SIGNATURE AND DOES NOT RESCUE THE PROGRAM, WHICH IS THE
 INFORMATIVE OUTCOME.** `SCRIP_DEFER_RBP=0` replaces `mov rsp,rbp; pop rbp` with `mov rsp,[rsp+256]`:
