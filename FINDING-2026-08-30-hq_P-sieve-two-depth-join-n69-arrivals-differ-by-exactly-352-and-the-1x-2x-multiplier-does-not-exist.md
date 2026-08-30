@@ -136,3 +136,45 @@ that was NOT re-measured here. Whether the 6/3 edge split generalises beyond thi
 population of two-depth joins across the corpus has not been censused, and per the row's own standing rule that
 is an argument FOR (c) rather than a reason to delay it — (c)'s correctness does not depend on that census
 being complete.
+
+## 7. ⛔⭐ CORRECTION TO MY OWN §4 CONCLUSION — "(c) IS ARITHMETIC" IS HALF TRUE, AND THE OTHER HALF IS THE OPEN PROBLEM
+
+After writing §4 I found that `emit.cpp` **already contains a static detector for exactly this class** —
+`zd_depth_census` (`emit.cpp:2630`, gated `SCRIP_ZD_DEPTH=1`), which reports a **WALL** for any join whose
+predecessors disagree on arrival depth and prints `<-- DISAGREES` per predecessor. ✅ It independently
+corroborates §3 on sieve (`walls=4`) — two instruments, one dynamic (gdb) and one static, agreeing, which is
+what the rule asks for. **But running it across all nine Pascal kernels refutes the cure rule §4 invites:**
+
+| kernel | walls | disagreeing edges | m4 |
+|---|---|---|---|
+| **sieve** | **4** | **26** | **rc=139** |
+| **queens** | **4** | **23** | **rc=0** |
+| bubble | 6 | 74 | rc=139 |
+| fbench | 5 | 99 | rc=139 |
+| **intmm** | **9** | **92** | **rc=0** |
+| quick | 3 | 42 | rc=0 |
+| perm | 2 | 7 | rc=0 |
+| towers | 1 | 7 | rc=0 |
+
+⛔⛔ **A DEPTH WALL IS NEITHER NECESSARY NOR SUFFICIENT FOR THE LEAK.** `queens` carries the SAME wall count and
+nearly the same edge count as `sieve` and runs clean; `intmm` carries more than twice as many walls and 3.5x the
+disagreeing edges and runs clean. Six of eight healthy kernels have walls. (`intmm` re-verified rc=0 3/3;
+`whet` is excluded — pre-existing `pascal parse error line 6`, unrelated to this row.)
+
+⭐ **SO THE PRECISE STATE OF THE DESIGN IS:**
+ · **(c)'s COMPENSATION is arithmetic** — for sieve's `n69` the delta is a static constant 352 on 6 named edges,
+   and §3 stands unqualified. That much of §4 survives.
+ · **(c)'s TARGETING is NOT solved, and my §4 phrasing "arithmetic, not analysis" overstated it.** Choosing
+   *which* joins to compensate is still analysis, and the obvious rule — "normalize every wall" — is now
+   REFUTED as a default: it would rewrite codegen at 6 healthy kernels' joins for no reason, which is how a
+   safe-looking normalization regresses a green floor.
+✅ **THIS IS EXACTLY THE GAP seat05 NAMED AND IT IS STILL OPEN** — *"the discriminating condition between a
+genuinely-leaking join and every other kernel's own legitimate non-zero `gpop` (which must keep working) is
+still not derived."* The contribution here is that the cheapest candidate discriminator is now measured and
+**eliminated**, which is worth more than another hypothesis.
+⭐ **THE NEXT HYPOTHESIS THE DATA POINTS AT, stated so it can be killed cheaply too:** the fatal property may
+not be a join's arity at all but the **provenance of the fixed pop downstream of it** — in sieve, `n72`'s
+`add rsp, 384` was computed for the via-`n65` arrival and is *reached from* a bypass arrival, whereas a benign
+wall may re-converge before any fixed pop is reached. That is testable per-wall (does a wall dominate a fixed
+pop computed for only one of its arrival depths?) and it predicts the sieve/queens split, which wall-counting
+does not. **Not tested here — offered as the next falsifiable step, not as a finding.**
