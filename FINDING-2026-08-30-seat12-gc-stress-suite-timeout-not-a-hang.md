@@ -27,6 +27,13 @@ Same call as the porter FINDING's own closing note: whether GC-stress collection
 - `SCRIP_GC_STRESS=1`'s actual completion time for `213_gc_exhaustion_churn` and `214_gc_exhaustion_live_set` — extrapolating linearly from the `STRESS=25`→`STRESS=7` scaling suggests several more minutes, not confirmed. Whoever next runs the full suite with the new `TIMEOUT=180` may still see these 2 cells FAIL; that is expected pending an actual measurement, not evidence of a new defect.
 - No `src/` changes — this was a corpus-path/timeout-budget issue throughout, not a runtime defect.
 
+## ADDENDUM (same session, arrived after the fix above was already committed and pushed)
+The killed background verification's output landed after this FINDING and the `TIMEOUT` fix were already pushed — recorded here rather than silently folded in, since it changes what's confirmed vs. extrapolated. The two `STRESS=1` witnesses were run sequentially in one script; killing `213`'s process (to close out the session) did not kill the parent shell, so `214` ran to completion regardless:
+- **`214_gc_exhaustion_live_set` @ `SCRIP_GC_STRESS=1`: completed in 3m58.8s, rc=0, output byte-identical to `.ref`.** Fully confirmed — not a hang, exactly the same non-bug shape, just slower than any per-cell budget this suite has ever used.
+- **`213_gc_exhaustion_churn` @ `SCRIP_GC_STRESS=1`: still not confirmed to completion** — killed at 4m50.9s (`rc=143`, SIGTERM), still short of an actual measured finish time. Consistent with "slower than 214, same pattern" (matches its own STRESS=7 result already being ~1s slower than would be predicted from 214's numbers alone), not evidence of anything different in kind.
+
+Net effect: 1 of the 2 open `STRESS=1` witnesses is now fully confirmed non-bug; the other remains in the same "highly likely, not yet measured" state this FINDING already described — the open item below is narrowed, not closed.
+
 ## EVIDENCE
 - Old default: `GCDIR="$CORPUS/crosscheck/gc"`, confirmed dead by `test_gate_no_fossil_src_paths.sh`.
 - `corpus` git log: `676851209 corpus-suites-consolidation: convert crosscheck/gc (15 files) to suite format`.
