@@ -12,22 +12,27 @@ the `s283h tree` this section used to carry — see the two paragraphs below for
 matters for the detail tables). `MASTER PENDING` means no master exists yet for that language (Icon, Pascal as
 of this writing); `UNPROVEN(2)` means the gate script is missing, its output didn't match the expected
 pattern, or it timed out — the generator refuses to guess rather than print a number it didn't measure.
-**Live catch, not a demo of the format:** this run found `test_corpus_snobol4.sh` itself currently REFUSES
-(`corpus/demos/snobol4` vs. the real `corpus/demo/snobol4`, a rename that reached 16 scripts but not the
-corpus tree) — flagged to hq_C (`snobol4-floor-gate-refuses-demos-vs-demo-path-mismatch`), not fixed here, and
-visible below exactly as UNPROVEN rather than a stale, wrong "GATE OK".
+**Live catch, not a demo of the format (kept for the record — since resolved):** an earlier run this same day
+found `test_corpus_snobol4.sh` REFUSING (`corpus/demos/snobol4` vs. the then-real `corpus/demo/snobol4`, a
+rename that had reached 16 scripts but not yet the corpus tree) — flagged to hq_C
+(`snobol4-floor-gate-refuses-demos-vs-demo-path-mismatch`) rather than guessed at. hq_C independently confirmed
+the rename completed shortly after (corpus went TO `demos`, matching the scripts) and sent the real verdict
+line below rather than taking directory-existence as proof of a pass — exactly the discipline this generator
+exists to enforce. **XFAIL/XPASS are reported PER MODE, never summed**, per hq_C's live catch:
+`simple_output_63` is m3 PASS / m4 SKIP, not an m4 XPASS — a summed or maxed count would have hidden that and
+invited promoting a non-promotable entry.
 
 | Language | Master suite (`ALL.csv`) | Floor/smoke gate |
 |---|---|---|
-| snobol4 | 1576 entries, 82 xfail | UNPROVEN(2): gate ran (rc=2), output did not match the expected pattern: ⛔ GATE REFUSES: corpus subtree missing: `corpus/demos/snobol4` (see live-catch note above) |
-| icon | MASTER PENDING | interp PASS=259 FAIL=8 XFAIL=29 TOTAL=297 |
-| prolog | 364 entries, 9 xfail | m2 PASS=5 FAIL=0 / 5 (HARD GATE) |
-| raku | 96 entries | m3 PASS=724 FAIL=0 REFUSED=0 / 724 |
-| pascal | MASTER PENDING | m3 PASS=161 FAIL=2 NOREF=0 XFAIL=1 |
+| snobol4 | 1576 entries, 82 xfail | m3 1519/0 · m4 1519/0 SKIP=0 · master total=1576 xfail/xpass m3=79/1 m4=80/0 (PER MODE, never summed — an XPASS in one mode can be a SKIP in the other, e.g. `simple_output_63`) |
+| icon | 434 entries, 1 xfail | interp PASS=259 FAIL=8 XFAIL=29 TOTAL=297 |
+| prolog | 371 entries, 9 xfail | m2 PASS=5 FAIL=0 / 5 (HARD GATE) |
+| raku | 97 entries | m3 PASS=724 FAIL=0 REFUSED=0 / 724 |
+| pascal | 149 entries | m3 PASS=161 FAIL=2 NOREF=0 XFAIL=1 |
 | snocone | 264 entries, 24 xfail | PASS=5 FAIL=0 |
-| rebus | 174 entries | PASS=4 FAIL=0 |
+| rebus | 48 entries | PASS=4 FAIL=0 |
 
-_tree: SCRIP=d5ad5f08 corpus=49a4cfff .github=8a6dd4a3  generated 2026-08-30T01:15Z_
+_tree: SCRIP=30680eaf corpus=7be2d699 .github=0840cfea  generated 2026-08-30T02:04Z_
 
 Cross-language: polyglot smoke 2/2 both · demos gate 3/7 both (open row, pre-dates the break-value work by bisect proof). The richer per-suite detail this grid used to cram in — open rows, FINDING links, "other suites" — lives in the per-language tables below, unchanged; this top grid is deliberately just the computed at-a-glance floor now.
 
