@@ -156,6 +156,59 @@ mine here: the wrong key across a rename). ⛔ It also inverts the direction the
 this one made the situation look **worse** than it was, so alarm rather than complacency was what needed
 checking. **A false alarm and a false all-clear come from the identical defect.**
 
+## 5b. ⭐⭐ CLUSTER A: THE s195 RESUME-RECORD CONTRACT IS VIOLATED IN THE EMISSION, CONFIRMED — AND ONE PROGRAM CARRIES BOTH ARMS AS ITS OWN CONTROL
+
+I opened §7.3 below as a labelled hypothesis and then measured it. **It is confirmed at the instruction
+level, and the ASM-diff needed no sibling program: `fz_segv_09` emits TWO defer boxes with DIFFERENT
+landing shapes.**
+
+`emit.cpp`'s ω arm states the contract in prose and enforces it nowhere: *"a γ-SUSPEND leaves the blob's
+resume record on top of the pair, so a landing-side add would eat the record instead (Lon s195: yielding is
+different from returning)."* The producer emits exactly that record (`--compile`, verbatim):
+```asm
+PAT$1_γ:  mov rcx,[rbp-16] ; push rbp ; push rcx ; mov rcx,[rbp-8] ; push rcx
+          lea rax,[rip+PAT$1_res] ; push rax ; mov rbp,[rbp+0] ; jmp rcx
+```
+and `PAT$1_res` reads it back at `mov rbp,[rsp+24]; add rsp,32` — **an offset that is CORRECT for that
+record** ([rsp+0]=res, +8=γ, +16=ω, +24=rbp). ⛔ **The consumer is the defect.** The two defer landings in
+the same file:
+```asm
+.Lmatch_defer_α_12_4:                      jmp .Lmatch_alternate_γ_2_s0     # box n5  — PRESERVES the record
+.Lmatch_defer_α_61_4:  mov rsp,rbp
+                       pop rbp ;           jmp n29_match_end_α              # box n61 — RELEASES it
+```
+`.Lmatch_defer_α_61_4/_5` are the exact labels seat09's gdb trace named. `mov rsp,rbp` resets rsp to the
+defer box's own frame — **below all four words `PAT$1_γ` just pushed** — so a later backtrack to `PAT$1_res`
+reads reclaimed stack. That is a *stronger* violation than the "landing-side add" the comment warns about.
+⭐ **This answers seat09's §6.2 open question in the direction they could not choose between: `_res`'s offset
+is RIGHT; a landing releases the frame the record sits above.** The two boxes differ on `dfrm()`, whose
+`IR_MATCH_DEFER` arm is `((op_seal==1) || emit_defer_carve_rbp()) && emit_defer_rbp()` — so **`op_seal`
+selects between a record-preserving and a record-destroying landing**, and nothing ties that choice to
+whether a suspend record will actually arrive.
+
+⚠️ **A/B ON THE EXISTING KILLSWITCH — IT MOVES THE SIGNATURE AND DOES NOT RESCUE THE PROGRAM, WHICH IS THE
+INFORMATIVE OUTCOME.** `SCRIP_DEFER_RBP=0` replaces `mov rsp,rbp; pop rbp` with `mov rsp,[rsp+256]`:
+
+| arm | m3 (N=10) | m4 (N=10) |
+|---|---|---|
+| default | `139`×10 | `139`×10 |
+| `SCRIP_DEFER_RBP=0` | `132`×4 / `139`×6 | `139`×10 |
+
+⛔ **Both landing shapes still RELEASE rsp**, one to `rbp` and one to a saved slot, so the record dies either
+way and only the garbage differs — the m3 SIGILL rate moves ~10% → 40%. **The cure is therefore "the landing
+must not release", not "release differently"**, exactly as the s195 comment already says in prose. ⛔ This is
+a diagnostic A/B, NOT a candidate cure: `SCRIP_DEFER_RBP` is global and its SNOBOL4 blast radius is unmeasured.
+
+## 5c. ⛔ AND N=10 IS NOT ENOUGH EITHER — THE SAME BINARY GAVE ME BOTH ANSWERS FOR `fz_segv_09` m3
+
+The default arm above reads **`139`×10 — perfectly stable**. My §2 stability run, *same binary, same tree*,
+read `132`×1 / `139`×9 — **unstable**. Both are correct samples of a ~10% minority arm: P(N=10 misses it) =
+0.9¹⁰ ≈ **0.35**, so about a third of honest N=10 runs call this pair stable. ⭐ Combined with §2b (N=6 misses
+it ~53% of the time) the honest statement is **a rate, not a verdict**: `fz_segv_09` m3 and `fz_red_m4a` m3
+carry a ~10–20% SIGILL arm against a SIGSEGV majority. ⛔ **I have corrected my own baton accordingly** — it
+briefly said those two pairs were simply "unstable", which is the same over-claim in the opposite direction
+from calling them stable. Neither binary label survives the measurement; the rate does.
+
 ## 6. WHAT THIS DOES *NOT* CLAIM
 
 - ✅ **The SNOBOL4 blocking floor is NOT contaminated today.** All four converted witnesses are XFAIL, every arm
