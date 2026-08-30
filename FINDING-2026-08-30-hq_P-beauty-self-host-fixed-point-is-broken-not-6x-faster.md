@@ -109,3 +109,44 @@ one arm that noticed, and only because it refused to trust its own number.
   hypothesis, not a measurement.
 - `test_gate_instr_budget.sh` never sets `SNO_LIB` and beauty's `.inc` files moved to `corpus/include`; the
   beauty arm's environment was never pinned. Does not explain this (HEAD fails WITH `SNO_LIB`), fix alongside.
+
+## ⛔⛔ MECHANISM CORRECTED — IT IS **LENGTH AUTHORITY**, NOT ALIASING (hq_P, 2026-08-30, second pass)
+The row was titled "slice-capture-**aliasing**" and my own working hypothesis was live-view-vs-snapshot. **Both
+are refuted by a decisive control:** the COPY path with a poisoned terminator reproduces the failure exactly.
+```
+  default (slice ON)                    "Parse Error|START||"   full beauty:  10 lines
+  SCRIP_CAP_SLICE=0                     "START|"                full beauty: 618 lines (fixed point)
+  SCRIP_CAP_SLICE=0 SCRIP_CAP_POISON=1  "Parse Error|START||"   full beauty:  10 lines   <-- COPY, still fails
+```
+A copy that merely lacks a valid terminator fails identically to a slice, so **nothing about pointing INTO the
+subject is implicated.** The sxt/extend hazard was tested separately and both arms agree. Two hypotheses dead.
+
+## CONSUMERS NAMED, WITH A FIVE-LINE WITNESS THAT DOES NOT INVOLVE BEAUTY
+| consumer | slice OFF | slice ON (shipped) |
+|---|---|---|
+| `CONVERT(cap,'STRING')` | `START` | **`START  TRAILINGJUNK`** — the whole remainder of the subject |
+| `$cap` (indirect read) | `labelvalue` | **empty** |
+| `$cap = …` (indirect write) | writes `START` | **writes the wrong variable** |
+⭐ `CONVERT` is the smoking gun: under POISON it returns `STARTZ` — exactly the one planted byte — and under the
+real slice it returns the entire rest of the subject. Both read `.s` as a NUL-terminated C string.
+✅ **Beauty's failure follows immediately:** it looks up a captured label BY NAME, the lookup receives
+`START  TRAILINGJUNK` instead of `START`, finds nothing, and beauty emits its own `Parse Error`.
+
+## ⭐ THE INSTRUMENT LESSON SHARPENS, AND IT IS BETTER THAN THE FIRST VERSION
+My earlier note said an instrument's reach is its population. This is the sharper case: **`SCRIP_CAP_POISON` —
+built by that very commit to catch exactly this class — DOES catch it.** It was driven 16 → 0 FAILs on the
+891-program board, and it would have gone red here. It did not, because **no program in that population does
+indirect-reference-or-CONVERT on a captured value.** The instrument was right and the question it was asked was
+right; only the POPULATION was wrong.
+⛔ So "add beauty to the battery" is necessary but NOT sufficient, and I want that stated because it is the
+tempting half-fix: the general cure is to run the poison board over a population that exercises `$name` and
+`CONVERT` on captures. Beauty is one witness; the class is "every `.s`-as-C-string consumer reachable from a
+capture".
+
+## CURE SHAPE (not yet landed)
+`rt_cstr_d` (`src/runtime/core/core.h:35`) already does the right thing — returns `d.s` when `d.s[d.slen]` is
+NUL, materializes a copy when it is not. The original commit routed the numeric-validator family through it and
+did not route the name-lookup or CONVERT consumers. ⛔ The exact site that turns a DT_S capture into a name
+lookup for `$` is NOT yet located; several `NV_GET_fn(x.s)` call sites pass `.s` raw
+(`pattern_match.c` 979/1006/1007/1090/1217/1237, `core/argval.c` 13/18) and should be censused before one is
+patched. ⛔ Disabling slices is not the cure: it discards a measured +110%.
