@@ -58,6 +58,7 @@ Shared axes: counts are PASS/FAIL over the suite's own printed denominator, mode
 ## Icon
 | Suite | Result | Tree · date · by |
 |---|---|---|
+| test_icon_jcon_suite.sh (jcon test suite, 82 graded pairs, NEW row) | m3 PASS=1 REJECT=79 CRASH=1 HANG=1 · m4 PASS=1 REJECT=79 CRASH=1 HANG=1 (identical both modes) — REJECT is the semicolon-required dialect gap on real unmodified upstream Icon, dominant and expected, not a regression signal; CRASH=recogn matches the already-tracked mutual-recursion gap (icn-recogn-genqueen-suspend-shape); HANG=toby matches seat01's already-ruled finding that the REAL icont/iconx oracle hangs on it too | SCRIP `6c7b5846` · corpus `ddfa6deb` · 2026-08-30 · seat15 |
 | test_icon_rung_suite.sh (297 rungs) | interp PASS=258 FAIL=9 BADEXIT=1 XFAIL=29 · run 258/9/1/29 · compile 257/10/1/29 (denominator 281→297 moved with reorg — read the printed total) | s283h tree · 2026-08-29 · ceo |
 | test_smoke_icon.sh | 14/14 m3 · 14/14 m4 (both HARD zero-FAIL bars) | SCRIP `6b60379a` · 2026-08-29 · seat02 (re-confirmed after `polyglot-define-entry-address` Bug B fix, `lower_icon.c` touched; supersedes the unpinned "s283h tree" citation, same result) |
 | test_icn_d2_suspend_witness.sh (N-2 acceptance instrument) | ⭐ EXTENDED with `suspend_apply` (the `!`-apply hole hq_B named); armed re-run in flight | s283h tree · 2026-08-29 · ceo |
