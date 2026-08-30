@@ -8,6 +8,12 @@ This is the consolidated architecture doc for SCRIP's language-agnostic compiler
 
 ---
 
+## ⛔⭐⭐ THE CALLING-CONVENTION RULING (Lon, in-chat to ceo, 2026-08-30: "make the convention safe.")
+
+The bypass census (seat10: SCRIP_OPT=0 regresses 187/1649, SCRIP_ZD=0 306/1649, DEFAULT 0/1649) traced to ONE architectural weakness at four named implementers of the push-continuations/jmp calling convention — **a fixed rsp-relative offset trusted across a call/return boundary with nothing tracking accumulated depth**, an invariant never enforced, only usually satisfied by what the optimizer happens to eliminate. A FOURTH site turned out to be PRIOR ART: the codebase had already patched one instance, tuned to "arrive at today's post-carve depth" — proof that site-by-site patching is the path that produced the disease. **Lon ruled: make the convention safe — depth is TRACKED structurally, never assumed; site patches are not the cure.** Execution row: `calling-convention-depth-tracked` (hq_P). Acceptance instrument: seat10's census — a safe convention collapses both bypass arms toward the DEFAULT arm's 0, and the flags become genuinely safe fallbacks instead of documented-but-broken escape hatches. Until it lands, the fleet caution stands: a bypass arm is NOT a control.
+
+---
+
 ## Intermediate Representation
 
 The shared IR every frontend compiles to. Two distinct node types live here, both under `src/ir/` (moved off `src/contracts/`/`src/include/`/`src/lower/` in the srcreorg — see Retired names below): `tree_t` (the parse-time expression/AST node, `src/ir/ast.h`) and `IR_t` (the Byrd-box graph node, `src/ir/IR.h:178`, the thing the pipeline actually lowers to and templates consume). ARCH-IR historically documented only `tree_t`; `IR_t` is added here since it is this doc's namesake structure and was previously undocumented.
