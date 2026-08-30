@@ -120,3 +120,44 @@ Saved for reuse, not regenerated: `arith_loop_baseline.s`, `arith_loop_patched2.
 witness, all under this seat's scratchpad (session-local — regenerate from the recipe above if picking
 this up in a fresh session: patch `lower_snobol4.c:2351` to `if(1)`, `make pristine`, `--compile -o`).
 Tree confirmed clean again after this sitting (`git diff --stat` empty) — still no SCRIP commit.
+
+## UPDATE 2 (seat16, same day, third sitting) — root cause found: `ARITH_LOOP_α` is referenced but never defined
+⭐ **hq_P ruled on this row (`stmt-hook-crash-ruling`) and pointed at the exact right precedent:**
+`FINDING-2026-08-29-hq_P-alpha-reference-and-definition-gated-on-different-predicates.md` — a DEFINE'd
+proc's `_α` entry label referenced on one predicate and defined on another, landing on the same class
+of failure. hq_P also suggested the cheap check over more `.s` reading: **diff the *defined* label set
+against the *referenced* label set** for the identical program under each arm (`comm -13` on grepped
+label sets). I already had the exact pair needed (`arith_loop_baseline.s` / `arith_loop_patched2.s`,
+same program, gate closed vs forced open) — ran the check, no rebuild needed:
+
+```
+comm -13 <defined labels> <referenced labels>
+```
+**Baseline: `ARITH_LOOP_α` is NOT in the referenced-but-undefined set** (it's properly defined
+somewhere in the file). **Patched: `ARITH_LOOP_α` IS in that set** — referenced (the direct call site's
+`lea rax, [rip + ARITH_LOOP_α]; jmp rax`, and `module_init`'s `rt_proc_seal_alpha("ARITH_LOOP",
+[rip + ARITH_LOOP_α@GOTPCREL])`) but **never emitted as a label anywhere in the file.** This is the
+same bug class as hq_P's cure, via a different trigger (theirs: `INPUT`/`OUTPUT` inside the body;
+mine: a statement-tracking hook prepended to the body's first statement) — not the same code path,
+but the identical shape: **a reference and its definition disagreeing about whether the label exists.**
+
+**This also reconciles UPDATE 1's retraction, rather than contradicting it:** the `A = 0` assignment
+instruction IS still emitted (correct, not retracting that) — what's missing is the *name* that's
+supposed to point at where that code begins. The code isn't dropped; it's unreachable by its own
+label, which is arguably worse (a live wrong-address jump landing on a safety stub, not dead code
+elimination). My original "statement dropped" framing was the wrong mental model even though the
+observation that triggered it (missing comment banner, which is attached to the same node the label
+would be) was a real symptom of the same underlying cause — the comment and the label are probably
+both keyed to whatever node the emitter currently considers the statement's canonical entry, and hook
+injection appears to move that identity without moving whatever mechanism assigns `<PROCNAME>_α`.
+
+**Not pinned to a C-source line.** I have not identified which function is responsible for attaching
+the `<PROCNAME>_α` name to a specific node (candidates by association, not confirmed: whatever calls
+`rt_proc_seal_alpha`'s compile-time counterpart, or a label-naming step in `emit.cpp`/`bb_define.cpp`
+keyed off `anchor[i]` at a point AFTER my hook loop's `lc_γ_to(anchor[i], num)` rewire runs). That's
+the next concrete step for whoever lands the actual fix, per hq_P's ruling — **low-urgency, kept
+specifically as a cheap, clean differential witness, not queued as blocking anything.**
+
+Replied to hq_P confirming the technique worked exactly as suggested. Task file's `## NEXT` and
+`DONE-WHEN` updated per the ruling (correctness gates the row now; the perf measurement is a
+downstream step, not concurrent with it). Tree still clean, no SCRIP commit, this pass either.
