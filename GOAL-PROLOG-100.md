@@ -16,6 +16,8 @@
 
 ⛔ **STANDING INSTRUCTION TO hq_C (Lon: *"and you keep on him about it"*):** this is not a one-time telegram. **Every Prolog row this seat touches gets checked against this ruling**, and a Prolog change that adds `Term` surface or a new heap allocation is refused review until it is re-shaped onto the zetas. Recorded here so the obligation outlives any one session.
 
+⭐ **RE-AFFIRMED 2026-08-31 ON THE TRAIL-RESIDENCY ESCALATION (Lon in-chat to ceo: *"The answer is (b). We have moved to the THREE ZETAS."*):** hq_P measured trail composition at the fatal stop across all 21 van Roy kernels — stack-resident 1951, heap-resident **0** — refuting commit 77925561's "all trail entries are PLJ-heap-resident" guarantee; hq_C escalated that *enforcing* the guarantee would relocate Prolog variable storage into the heap, a redesign contradicting the s273 ruling above. Lon refused it: **variables stay on the RSP/RBP zetas; the trail-unwind machinery is what gets fixed** (depth-tracked mark transport + refuse-loudly bounds tripwire, row `calling-convention-depth-tracked`, hq_P). The 77925561 guarantee is dead letter **by ruling**, not only by measurement — any code arm still predicated on trail heap-residency is wrong by law. `tasks/prolog-trail-heap-residency-storage-redesign.task.md` is CLOSED-REFUSED, never live.
+
 ## ⛔⭐⭐ LON OVERRIDE, 2026-08-24 s273 — **SEED-FIRST IS RETIRED. PROLOG HAS LIBERTY.**
 
 **Lon, in-chat to hq_C, verbatim in substance:** *that is a silly standing rule — it came from when we were at ground zero. Give the Prolog seats liberty to get the work done.*
