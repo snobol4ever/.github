@@ -24,15 +24,15 @@ invited promoting a non-promotable entry.
 
 | Language | Master suite (`ALL.csv`) | Floor/smoke gate |
 |---|---|---|
-| snobol4 | 1576 entries, 82 xfail | m3 1519/0 · m4 1519/0 SKIP=0 · master total=1576 xfail/xpass m3=79/1 m4=80/0 (PER MODE, never summed — an XPASS in one mode can be a SKIP in the other, e.g. `simple_output_63`) |
-| icon | 434 entries, 1 xfail | interp PASS=259 FAIL=8 XFAIL=29 TOTAL=297 |
+| snobol4 | 1726 entries, 80 xfail | m3 1677/0 · m4 1677/0 SKIP=0 · master total=1726 xfail/xpass m3=70/2 m4=70/2 (PER MODE, never summed -- an XPASS in one mode can be a SKIP in the other, e.g. simple_output_63) |
+| icon | 534 entries, 1 xfail | interp PASS=263 FAIL=7 XFAIL=27 TOTAL=298 |
 | prolog | 371 entries, 9 xfail | m2 PASS=5 FAIL=0 / 5 (HARD GATE) |
-| raku | 97 entries | m3 PASS=724 FAIL=0 REFUSED=0 / 724 |
+| raku | 129 entries, 14 xfail | m3 PASS=722 FAIL=0 REFUSED=2 / 724 |
 | pascal | 149 entries | m3 PASS=161 FAIL=2 NOREF=0 XFAIL=1 |
-| snocone | 264 entries, 24 xfail | PASS=5 FAIL=0 |
+| snocone | 273 entries, 24 xfail | PASS=5 FAIL=0 |
 | rebus | 48 entries | PASS=4 FAIL=0 |
 
-_tree: SCRIP=30680eaf corpus=7be2d699 .github=0840cfea  generated 2026-08-30T02:04Z_
+_tree: SCRIP=49f3afde corpus=18a99c4ca .github=8997b81c  generated 2026-08-31T00:37Z_
 
 Cross-language: polyglot smoke 2/2 both · demos gate 3/7 both (open row, pre-dates the break-value work by bisect proof). The richer per-suite detail this grid used to cram in — open rows, FINDING links, "other suites" — lives in the per-language tables below, unchanged; this top grid is deliberately just the computed at-a-glance floor now.
 
