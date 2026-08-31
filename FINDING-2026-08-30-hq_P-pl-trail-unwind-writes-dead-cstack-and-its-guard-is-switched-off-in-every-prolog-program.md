@@ -34,7 +34,7 @@ The 3 that report NONE (`meta_qsort`, `queens`, `queens_8`) are **not clean** �
 
 `plc_dead_cstack()` (`pl_cell.h:64–75`) exists precisely to suppress flavor 1. It is dead code in every Prolog zframe program:
 
-- `src/driver/scrip.c:1469` emits `call rt_plw_floor_bypass_on@PLT` into the **emitted main's preamble** (m4).
+- `src/driver/scrip.c:1469` (⚠️ **now `:1486` at HEAD** — hq_B's comment additions shifted it hours after this was taken; the line number was correct when measured, and this is why a finding cites a SYMBOL as well as a line: grep `rt_plw_floor_bypass_on`, never the number alone) emits `call rt_plw_floor_bypass_on@PLT` into the **emitted main's preamble** (m4).
 - `src/driver/scrip.c:1887/1890` sets `g_plw_floor_bypass = 1` directly around `rt_outer_call` (m3).
 - With the flag set, `dop_call:1495` and `dop_call_nothrow:1511` **skip the floor assignment**, so `g_plw_unwind_floor` keeps its initializer `0` (`by_name_dispatch.c:1486`).
 - `plc_dead_cstack`'s **first line** is `if (!g_plw_unwind_floor) return 0;` — *"not dead"*. Every dead address is reported live, and every write proceeds.
