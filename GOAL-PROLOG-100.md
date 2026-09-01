@@ -83,6 +83,30 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-01 seat15 (FLEET-16, Prolog #1) — **BOTH PROLOG MODE INSTRUMENTS WERE BLIND. CURED, NOW HONESTLY RED. `prolog-next` HAS A COMPUTABLE DONE-WHEN AT LAST.**
+
+**SCRIP `f85e1fdc`** (pristine `-O0`) · corpus `04177c4b3` · row `prolog-next` · full receipts `.github/FINDING-2026-09-01-seat15-prolog-both-mode-instruments-were-blind.md`.
+
+**Found, verified on a pristine tree, not read:** Prolog — the fleet's #1 correctness priority — had two automated m3/m4 instruments and **neither compared anything**, in opposite ways that hid each other.
+
+| Instrument | Before | Exit | After cure |
+|---|---|---|---|
+| `test_gate_pl_m34_parity.sh` | examined **0** programs | 2 UNPROVEN | **PASS=5 FAIL=7** |
+| `test_crosscheck_prolog.sh` | `PASS=13 FAIL=0 SKIP=25 ORACLE_MISS=0` | **0 (green)** | **m3 3/15 · m4 3/15**, exit 1 |
+
+- **Parity gate:** floored on `*.sno` inside `corpus/tests/prolog` (which holds **0** `.sno`, **45** `.pl`) — a SNOBOL4 copy-paste — so `gate_floor` exited UNPROVEN(2) before the first comparison. One-word cure surfaced **7 real divergences**: `findall`×2 (m4 SIGSEGV `rc=139`), `retract`×2 / `abolish`×2 / `setof`×1 (m4 `rc=1` where m3 answers correctly).
+- **Crosscheck:** compared `--run` against `--run` (**mode 4 never invoked** — the variable name `ir` is the fossil of deleted mode 2), read `.ref` where the corpus stores `.expected` (**0** vs **26** on disk, so the oracle was never consulted), and pre-skipped crashing programs (**25 of 38**) — hiding exactly the PZ-4 crash class. Cured to per-mode independent oracle grading per § MODES MAY DIVERGE.
+
+⭐ **Verified both directions before trusting the new instrument:** a reported FAIL (`rung66_current_stream`) is a genuine **silent wrong answer at rc=0** (`in_enum`→`not_in_enum`); a reported PASS hand-diffs identical. A third "disagreement" was my own ad-hoc `diff` mishandling `.expected`'s missing trailing newline — the instrument was right, I was wrong, recorded in the FINDING because that reflex is how a correct gate gets reverted.
+
+**`prolog-next`'s DONE-WHEN is now a command that can exit non-zero** — `test_crosscheck_prolog.sh && test_gate_pl_m34_parity.sh` — discharging the standing instruction hq_C left in that row on 2026-08-22. It is RED today, for a measured reason rather than because it was prose.
+
+⛔ **This row's own cursor chain is blocked, which is why this pass went to the instruments:** the PZ-4 cursor below names `prolog-pz4-gamma-retain-activation-frames`, which is `hq_C`-owned and `BLOCKED-ON:calling-convention-depth-tracked` (`ASSIGNED:hq_P`, rank 0, open). A seat following this file's cursor literally lands on a row it must not work — flagged to HQ, not resolved here.
+
+**NEXT:** root-cause the dynamic-database m4 cluster (retract/abolish/setof — one mechanism, five witnesses; minimal witness pair already minted: `rung15_abolish_abolish_existing` passes both modes, `rung15_abolish_abolish_one_of_two` fails m4). Then the `findall` SIGSEGV pair. Then close the **`NO-ORACLE=23`** gap — two thirds of this corpus has no `.expected`, and no instrument can grade what has no oracle.
+
+---
+
 ## ✅⭐⭐ LIVE CURSOR — 2026-08-27 seat05 (FLEET-8) — PZ-4 row: omega-wire caller/callee mismatch found+fixed, row still open (new SIGILL witness)
 
 **SCRIP `0c800c86`** (on `d4e6e971`+hq_C's `0e8cf4a4`) · corpus `49b4779f0`. Row `prolog-pz4-gamma-retain-activation-frames`, task file at `/home/resources/postoffice/tasks/`, full receipts `.github/FINDING-2026-08-27-seat05-pz4-omega-wire-never-loaded-bcps-spine-gen-arm.md`.
