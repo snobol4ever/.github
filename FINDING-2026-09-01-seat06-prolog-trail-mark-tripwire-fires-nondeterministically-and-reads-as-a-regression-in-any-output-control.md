@@ -1,7 +1,7 @@
 # FINDING — the corrupt-trail-mark tripwire fires NONDETERMINISTICALLY, and will read as a regression in any output-diff control arm
 
 **seat06, 2026-09-01, FLEET-16.** Found while running the control arm for slice
-`prolog-term-descr-s1-write-format-printers` (SCRIP `ae8f4d36b`).
+`prolog-term-descr-s1-write-format-printers` (SCRIP `6bfe74cf2`).
 ⛔ **Not mine to fix** — trail machinery belongs to hq_P's `calling-convention-depth-tracked`, which every
 Term→DESCR slice is told not to touch. Routing, not curing.
 
@@ -66,3 +66,19 @@ without emitting a board line. **Reproduced on the unmodified tree**, with the b
 other seats running the identical suite concurrently. ⭐ It is a REFUSAL — "cannot measure" — and must not
 be read as either green or red. A seat that quotes `make test` as passing here has quoted a run that never
 produced a verdict.
+
+## Postscript, same session — a third measurement hazard, this one self-inflicted and easy to repeat
+
+The first version of this FINDING cited SCRIP `ae8f4d36b`. **That commit does not exist on origin.**
+RULES mandates `git pull --rebase` before push and re-proving the gate afterward; the rebase rewrote the
+commit, and the real landed SHA is `6bfe74cf2`. I had already written the pre-rebase hash into this file,
+into the slice baton's `## NEXT`, and into its LEDGER.
+
+⭐ **The trap is ordering, and it is built into the required workflow:** you commit, you cite the SHA in
+the prose you write next, and only *then* does the mandatory rebase rewrite it. `handoff_status.sh`
+correctly reported `SYNCED` throughout — the *work* was pushed the whole time — so nothing flagged it.
+The dangling citation is invisible to every green check.
+
+⛔ **Verify a cited SHA with `git merge-base --is-ancestor <sha> origin/main` before leaving it in prose,
+not with `handoff_status.sh`.** SYNCED answers "is my tree pushed", never "does the hash I wrote down
+still exist". Corrected here and in the baton.
