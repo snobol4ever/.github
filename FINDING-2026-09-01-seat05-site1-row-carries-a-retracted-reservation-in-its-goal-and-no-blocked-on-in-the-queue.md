@@ -142,8 +142,16 @@ uplevel3  rc=0  OK
 before reporting any of it as a regression. Two observations for their owners rather than for this row:
 
 1. ⚠️ **`sieve` m4 is deterministic, not intermittent.** Its row is named `pascal-m4-intermittent-segv-pb30-sieve`,
-   but measured here it is **139 on 5/5 reps** under `setarch -R`. `sieve` m3 additionally prints `0` where
-   `sieve.ref` says `1899`. If "intermittent" is load-bearing in that row's reasoning it is now stale; if the row
+   but measured here it is **139 on 5/5 reps** under `setarch -R`. ⛔ **RETRACTED, same day, by my own re-measure:
+   the claim that `sieve` m3 prints `0` where `sieve.ref` says `1899` was MY MEASUREMENT ERROR, not a defect.**
+   I ran `echo 1 | scrip sieve.pas </dev/null` — the `</dev/null` overrides the pipe, so the program read EOF
+   instead of its input count and printed `0`. With the correct form (`echo 1 | scrip sieve.pas`, no redirect, as
+   every DONE-WHEN recipe on this family already uses) **sieve m3 prints `1899` = ref, rc=0** at SCRIP `3a1807bd`.
+   hq_P flagged it as not-reproduced on their tree and was right. ⭐ The trap is worth recording because it is
+   built into this project's own habit: CLAUDE.md/RULES.md say "always redirect `< /dev/null` on scrip calls",
+   which is correct for compile steps and **wrong for any program that reads stdin** — and it fails by printing a
+   plausible number rather than by erroring. The m4 measurements in this FINDING are unaffected: they all used
+   `echo 1 | setarch -R …` with no redirect. If "intermittent" is load-bearing in that row's reasoning it is now stale; if the row
    was minted when it genuinely was intermittent, the determinism is a *narrowing*, which is good news for whoever
    works it. Not investigated further — not this row's charter.
 2. `sieve` m4 crashing is also the acceptance witness of `calling-convention-depth-tracked` itself
