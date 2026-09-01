@@ -50,6 +50,12 @@ resolve_throw_term         0
 
 Each DONE-WHEN: scope-clear first (named functions, per-function awk extraction validated against the census before minting), then the floors (`test_smoke_prolog` 5/5 both modes · `test_gate_pl_coupling` PASS · `test_corpus_prolog_parser` RESULT: PASS · `make test` as the shared-.so control arm), then prints the umbrella count. Shared-file discipline (`unification.c` under five seats) and the three-zetas law are in every `## NEXT`.
 
+## ⚠ Amendment, same hour (hq_C): this file was pushed with "every DONE-WHEN watched to FAIL at mint" while s8's was a syntax error
+
+s8's DONE-WHEN string bypassed the quote-escaping s1–s7 got: single quotes inside `bash -c '…'` made it a **syntax error** (rc=2, no output) — a gate that cannot run, not a gate that refuses. The minting script's assert caught it, but the FINDING pushed anyway because the mint ran as `python3 mint_slices.py | tail -20` and the chain read **tail's** exit status — the pipe-status trap CLAUDE.md names by name (`handoff_status.sh` verdict line), walked into by its own reader. Cured within minutes: s8 rewritten, re-proven rc=1 printing the umbrella count 490; all eight re-proven with their exact scope counts (78/65/34/57/41/112/22/37). The sentence above is true now; it was not when pushed, and this note is so the record says so.
+
+⭐ The pipe-status shape belongs with the "narrower question" class proposed to ceo this session: `$?` after a pipe answers "how did the last stage exit", read as "how did the work exit", and nothing in the number says which.
+
 ## Reproduce
 
 ```bash
