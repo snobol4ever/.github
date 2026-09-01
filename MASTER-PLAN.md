@@ -44,8 +44,8 @@
 | rung | row | lane | gate |
 |---|---|---|---|
 | ⭐C1 | prolog-directive-only-file-fatals-no-main-bb-graph | seat | the 139-entry driver class dies; master board re-run, printed denominator |
-| C2 | TO-MINT:hq_C | hq_C | after C1: re-run the master board, classify every remaining red by stderr signature, mint one row per class (the 5 `fail` entries included); re-measure crosscheck ORACLE_MISS |
-| C3 | TO-MINT:hq_C | hq_C | rung suite: the 11 reds named (needs I4) and rowed by class |
+| C2 | prolog-master-board-remaining-reds-classified-by-stderr-signature | hq_C | after C1: re-run the master board, classify every remaining red by stderr signature, one row per class (the 5 `fail` entries included); re-measure crosscheck ORACLE_MISS (REFUSES rc=2 until C1 is DONE, by construction) |
+| C3 | prolog-rung-suite-reds-rowed-by-class | hq_C | rung suite: the 11 reds named (needs I4) and rowed by class (REFUSES rc=2 until I4 is DONE) |
 | C4 | prolog-backtracking-yields-first-solution-only | seat | row DONE-WHEN |
 | C5 | prolog-call-n-multiarg-target-wrong | seat | row DONE-WHEN |
 | C6 | prolog-existence-error-not-catchable-iso | seat | row DONE-WHEN |
@@ -69,18 +69,18 @@
 | C24 | prolog-between-generator-backtrack-crash | hq_C | PARKED-AWAITING C21 |
 | C25 | prolog-pz5-in-frame-resume-delete-pending-mailbox | hq_C | PZ-5, BLOCKED (spell the blocker) |
 | C26 | tests-consolidate-prolog-pz4-blocked-33 | hq_B | 33 entries join the master suite; re-check whether still PZ-4-gated |
-| C27 | TO-MINT:hq_C | hq_C | GNU conformance suite `test_prolog_gnu_suite.sh` — at 43e30f0d: `GNU_SUITE_BOARD total=62 lib=45 ok=15 ok_pass=6 ok_fail=9 reject=2 unexpected=0` (rc=1); the 9 ok_fail entries print 0 bytes in both modes vs gprolog's output — rowed by class, SCORE.md row |
-| C28 | TO-MINT:hq_C | hq_C | SWI conformance suite `test_prolog_swi_suite.sh` — at 43e30f0d: `Suite totals: PASS=92 FAIL=22 TOTAL=114 mode=--run` (m3 only — the m4 arm is owed by the runner); 22 reds rowed by class, SCORE.md row |
-| C29 | TO-MINT:hq_C | hq_C | ISO coverage (`audit_prolog_iso_coverage.sh`): the missing-builtin list becomes rows by family |
+| C27 | prolog-gnu-conformance-ok-fail-print-zero-bytes-both-modes | seat | GNU conformance suite `test_prolog_gnu_suite.sh` — at 43e30f0d (reproduced live at 54cf54fd): `GNU_SUITE_BOARD total=62 lib=45 ok=15 ok_pass=6 ok_fail=9 reject=2 unexpected=0` (rc=1); the 9 ok_fail entries print 0 bytes in both modes vs gprolog's output — rowed by class, SCORE.md row |
+| C28 | prolog-swi-conformance-22-reds-rowed-by-class | seat | SWI conformance suite `test_prolog_swi_suite.sh` — at 43e30f0d: `Suite totals: PASS=92 FAIL=22 TOTAL=114 mode=--run` (m3 only — the m4 arm is owed by the runner); 22 reds rowed by class, SCORE.md row |
+| C29 | prolog-iso-coverage-missing-builtins-rowed-by-family | seat | ISO coverage (`audit_prolog_iso_coverage.sh`): step one wires the gprolog builtin list from /home/resources/gprolog-master (the audit prints "MISSING canonical source" on this root today), then the missing-builtin list becomes rows by family |
 
 ### LADDER P — Prolog performance (owner hq_P · GATE: all 22 van Roy kernels output-exact and published on the two-number basis, three angles, vs swipl and gprolog (`bench_prolog_vanroy.sh` + `bench_triangulate_prolog.sh`); then the per-kernel multiples climb with the runtime services rewired — the T ladder's cell services are the substrate)
 
 | rung | row | lane | gate |
 |---|---|---|---|
-| ⭐P1 | calling-convention-depth-tracked | hq_P | sieve+bubble+fbench m4 rc=0, SNOBOL4 FAIL=0 both modes over the printed denominator (the critical path: C17, C21, P8 wait on it) |
+| ⭐P1 | calling-convention-depth-tracked | hq_P | = the row's DONE-WHEN: sieve+bubble m4 rc=0, optbypass not regressed, SNOBOL4 FAIL=0 both modes over the printed denominator (the critical path: C17, C21, P8 wait on it). fbench is NOT this class — measured: still SEGVs after both arms inside transitxsurface_omega with walls=0 in every proc; it is the nested-proc epilogue-γ promotion site and belongs to the port-exit value-contract row's witness list (ceo ruling 2026-09-01 on hq_P's ask) |
 | P2 | prolog-plw-floor-bypass-safety-unproven | seat | row DONE-WHEN once hq_P cuts it (REFUSE(2) today) |
 | P3 | bench-grids-rebase-to-two-number-basis | hq_B | the two shipped grids republished on WORK/OVERHEAD |
-| P4 | bench-triangulation-rerun-fixed-harness | hq_P | three angles re-run on the cured harness; AGREE rows published, DISAGREE withheld |
+| P4 | bench-triangulation-rerun-fixed-harness | hq_P | three angles re-run on the cured harness; PARKED-AWAITING P9 (the triangulation table is the MEASURED bucket P9's board reads); AGREE rows published, DISAGREE withheld |
 | P5 | prolog-hot-services-by-ir-with-owning-slice | seat | ranked census of the Prolog runtime's hottest services by callgrind Ir at fixed work, each tagged with the T slice that owns it (hq_P mint 2026-09-01) |
 | P6 | TO-MINT:hq_P | hq_P | Prolog builtins dispatched by NAME at run time → wired at compile time (Lon s264: the compiler does the extra work, not the runtime); measured on P5's top service first |
 | P7 | builtin-setjmp-mechanism-and-perf-reland | hq_P | the setjmp win re-landed with its mechanism established (hq_C's FENCE revert stands until then) |
@@ -92,12 +92,13 @@
 
 | rung | row | lane | gate |
 |---|---|---|---|
+| ⭐I8 | master-suite-board-refuses-under-fleet-load-slot-lock-or-load-scaled-timeout | seat | four concurrent master-suite runs on a loaded box all print SUITE_BOARD; a killed run names its killer (seat06 repro at loadavg ~17; hq_P 18:20 refusals; hq_C rc=143 at 4m50s) — every rung's DONE-WHEN runs through this instrument |
 | ⭐I7 | park-marks-last-row-only-when-clearing-own-claim | hq_B | `park` marks `.last-row` only on the branch that clears the caller's own claim; gate proves unclaim/done/park-own each write it and park-not-owned leaves it (seat14 FINDING 0803ecca; rank 0 because the FLEET-16 all-hands told seats to park) |
 | ⭐I1 | make-pristine-per-root-flock-second-builder-waits | seat | two concurrent `make pristine` in one root both exit 0 and the binary passes the smoke |
 | I2 | next-tiebreak-by-mint-time-not-file-order | hq_B | a newer row at equal rank is served first; proven both ways by a gate |
 | I3 | TO-MINT:hq_B | hq_B | SCORE.md carries the master-board row for every language that has an `ALL.*` suite (Prolog's is missing today) |
-| I4 | TO-MINT:hq_C | hq_C | `test_prolog_rung_suite.sh` prints the NAME of every red rung beside its totals (a FAIL=11 with no names is a count-only verdict) |
-| I5 | TO-MINT:hq_C | hq_C | per-file `Term` word-ref ratchet gate in `make test` (pins from the 490 census; red on any rise; refuses rc=2 when it cannot see src/) — unless a T slice already carries it, then name which |
+| I4 | prolog-rung-suite-prints-the-name-of-every-red-rung | seat | `test_prolog_rung_suite.sh` prints the NAME of every red rung beside its totals (proof at mint: "FAIL=11 but 0 RED lines name a rung") |
+| I5 | prolog-term-wordref-ratchet-gate-in-make-test | seat | per-file `Term` word-ref ratchet gate in `make test` (pins from the 490 census; red on any rise; refuses rc=2 when it cannot see src/); hq_C checked: no T slice carries a make-test gate |
 | I6 | sweep-free-rows-are-real | ceo | the standing ceo umbrella: every sitting runs the visibility census AND `util_ladder_walk.py`; the plan's tables are rewritten from the output (cadence widened 2026-09-01) |
 
 ## WHEN THE PLAN CHANGES
