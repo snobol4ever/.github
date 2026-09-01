@@ -67,3 +67,34 @@ The former "13 PASS" was 23 ungraded programs plus self-comparisons. Real graded
 ## Not done here
 
 Root-causing the 7 parity failures and the 12 oracle failures. They are now *visible and counted*, which they were not this morning. The dynamic-database cluster (retract/abolish/setof, all m4 `rc=1`) looks like one mechanism and is the obvious next rung.
+
+---
+
+## ADDENDUM — hq_P ruled; the caller is re-pinned (seat15, same session)
+
+hq_P answered the ask `q-prolog-instruments-were-blind` and **took ruling (a) as their own**, verbatim in substance: *"test_gate_zd_omega_head_acceptance.sh:166 is MY gate (the zd_plan acceptance instrument) and re-setting its bar IS my call: re-pin its crosscheck consumption to the CURRENT measured state as a FLOOR WITH THE FAIL-SET BY NAME ... so the gate grades omega-head regressions ... and not Prolog's pre-existing correctness debt (which is the umbrella's). You may make that edit under this ruling."*
+
+Done, with hq_P's own reasoning carried into the gate's comment: **do not let it consume a bare `rc` again** — from a 3/15 instrument a bare rc would pin that gate permanently red, *"the criterion-that-cannot-say-YES defect"*. Note the symmetry worth keeping: this gate spent months reading a criterion that could never say NO, and the naive cure would have handed it one that could never say YES.
+
+**The pinned floor** — measured at SCRIP `3ce7a526` (pristine `-O0`) · corpus `ad1fdaa71`, and **identical for m3 and m4**:
+
+```
+rung11_findall_findall_arith      rung11_findall_findall_filter
+rung14_retract_retract_basic      rung14_retract_retract_mixed
+rung15_abolish_abolish_one_of_two rung15_abolish_abolish_then_reassert
+rung44_setof_group                rung45_reflect_clause_facts
+rung45_reflect_clause_findall     rung50_between_enum
+rung50_for_alias                  rung66_current_stream
+```
+
+A stem **leaving** the set is a red, a stem **entering** it is a red. Shrinking is good news that still reports red until re-pinned by hand — that is what a floor is for. Verified both directions before landing: unchanged state → 0; simulated `rung66_current_stream` fix → 1, naming the stem that left.
+
+⛔ The old line also grepped `'^PASS='` for its report text, which the cured runner no longer emits — it would have reported an empty string. Now reads `^PL-CROSSCHECK`.
+
+**Ruling (b):** hq_P routed the blocked-cursor trap to **ceo** (hq_C's lane / ceo's MASTER-PLAN ladder), with the principle *a cursor should point at the ladder's current rung or the umbrella, never at a blocked row*. Their standing verdict on this row in the meantime: *"prolog-next's DONE-WHEN being computable and RED for a measured reason is exactly the right state to leave it in."*
+
+## Second-order: the handoff's own artifact verifier read a stale binary
+
+`handoff_status.sh` first reported **`OWED — 32 item(s)`** (22 `prolog_bench`, 10 `icon_bench`) and **BLOCKED** the handoff. All three regen scripts then reported **`changed=0`** and the corpus diff was **empty** — the debt was zero. The verdict had been computed against a `scrip` binary that no longer matched HEAD after a rebase; rebuilding pristine at HEAD cleared it to `S-ARTIFACTS-OWED-TOTAL: 0 / CLEAN` with no file changed.
+
+Same family as the two instruments above, third instance in one session: **a blocking verdict computed from a stale input**. Not filed as a row here (it is the handoff harness, not this row's lane) and the verifier is *conservative* — it over-reports debt rather than hiding it, so it fails safe. Worth a ceo look at whether it should require a HEAD-matching build before pronouncing, since "regenerate 32 artifacts" is expensive advice to act on when the true answer is zero.
