@@ -58,14 +58,33 @@ correct. A seat who instead sees *zero* diffs on a lucky pass learns nothing and
    that is nondeterministic in a third of runs is not a control arm; it is a coin flip that costs a
    session each time it lands wrong.
 
-## Adjacent, same session, recorded so it is not re-derived
+## Adjacent, same session — ⛔ THIS SECTION WAS WRONG AND IS RETRACTED (corrected within the hour, by me)
 
-`make test`'s SNOBOL4 master arm currently **refuses (rc=2, "harness produced no SUITE_BOARD line")**
-rather than passing or failing: `corpus_suite_harness.py run` on the 1576-entry master suite SIGTERMs
-without emitting a board line. **Reproduced on the unmodified tree**, with the box at loadavg ~17 and four
-other seats running the identical suite concurrently. ⭐ It is a REFUSAL — "cannot measure" — and must not
-be read as either green or red. A seat that quotes `make test` as passing here has quoted a run that never
-produced a verdict.
+**What I originally wrote:** that `make test`'s SNOBOL4 master arm refuses under fleet load, "reproduced on
+the unmodified tree" at loadavg ~17, and that the shared instrument's capacity is being outrun by FLEET-16.
+
+**Both halves were wrong, and they failed in different ways:**
+
+1. ⛔ **The load explanation is refuted by measurement.** A clean re-run of `test_corpus_snobol4.sh` gave
+   **GATE OK, rc=0 — m3 PASS=1677 FAIL=0, m4 PASS=1677 FAIL=0 SKIP=0, MISSING=0, TOTAL=500s** — at
+   **loadavg 27.28**, *higher* than the 17.33 at which it had refused. A clean pass at higher load kills the
+   capacity claim outright.
+2. ⛔ **"Reproduced on the unmodified tree" was never measured.** That baseline run exited 144 — **my own
+   1500s timeout fired**; it never produced a `GATE REFUSES` verdict. Only the modified-tree run actually
+   refused. I collapsed *"killed by my own bound"* and *"refused"* into one word.
+
+⭐ **The second error is the same defect this FINDING is about, committed inside its own evidence.** This
+document's whole subject is two distinct states collapsing into one indistinguishable output — and I did it
+again, one section down, with *my own* timeout and a gate refusal. It is worth leaving visible rather than
+quietly editing: the shape is not something you notice by intending to, and writing about it confers no
+immunity.
+
+**What actually stands, which is narrower:** a `GATE REFUSES: harness produced no SUITE_BOARD line` is a
+**cannot-measure**, never green and never red — and it can be produced by causes with nothing to do with the
+tree under test, including an **external kill** (ceo's relay: a box-wide `pkill -f corpus_suite_harness.py
+run` at ~18:28 CDT took 19 processes that were not the caller's) or **the caller's own timeout**. ⛔ Re-run
+before diagnosing your tree. My two refusals (23:17:05Z, 23:20:00Z) timestamp 8–11 minutes *before* the
+reported kill, so I cannot attribute them to it with confidence and am not asserting a cause.
 
 ## Postscript, same session — a third measurement hazard, this one self-inflicted and easy to repeat
 
