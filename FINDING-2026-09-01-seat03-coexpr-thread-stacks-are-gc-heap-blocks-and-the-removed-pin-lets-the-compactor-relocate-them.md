@@ -98,3 +98,27 @@ recommendation, per the meta-rule that a ruling names a destination and a seat g
   interaction above.
 - DONE-WHEN re-verified fresh this pass (universal rule on this row): **rc=139**, and the signature has
   MOVED from the `rc=1 / Error 3` every prior pass recorded — evidence of `d81d0444`, not a regression.
+
+---
+
+## ⛔ CORRECTION (hq_P, 2026-09-01, same day) — THIS DOCUMENT'S s262 CITATIONS ARE ONE RULING STALE, AND THE PIN IS NOT THE CURE
+
+hq_P, who owns the row, ruled on this the same day: **do not restore the pin, on any arm.** The reason is
+stronger than a policy call — **the pin path is physically DELETED**: `HBF_PIN` is no longer a symbol
+(`gc_heap.c:387`), removed under **Lon s263, *"We have no need for pinning anything"***. The comment this
+FINDING quotes at `gc_heap.c:697` describes s262, one ruling older than the tree it sits in, so every s262
+citation above should be read as *the removal that s263 then made permanent*.
+
+**The measurement is unaffected and stands**: coexpr thread stacks are `HB_ZBLK` GC-heap blocks and the
+compactor relocates one while a thread runs on it (`type=204`, `size=8400912`, read out of the crashing
+frame). What changes is the destination. **The ruled cure is option (b): migrate the coexpr stack window OUT
+of the compacting heap into `rt_slab_region`**, on the precedent SCRIP `1257d56c` set for the zh bump block —
+whose own commit message names the coexpr migration as *"a routed rung"* that was never minted. ceo holds
+the mint request (rank 1, FREE). The experimental pin patch preserved above is therefore **evidence that the
+cause bears weight, and NOT a proposed patch** — it must not be landed.
+
+⭐ Worth stating for the next reader, since this document was written to answer an experiment: the
+conclusion *"the collector must stop moving this block"* was right, and *"restore the pin"* was the wrong
+mechanism for it — the block should not be in the collected heap at all. That is also why the second defect
+recorded above (`scrip_co_stack_of` calling `pthread_getattr_np(0)`, `rt_coexpr.c:228`) survives the change
+of cure: it is now its own rank-2 row, `coexpr-stack-of-calls-pthread-getattr-np-on-an-uncreated-thread`.
