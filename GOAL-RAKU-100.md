@@ -320,6 +320,8 @@ threaded-code FSM, not flex (`snocone_lex.c`) — so this does not break a struc
 migrations keep the old path as a gated fallback so the suite never regresses (this file's own RK-GRAM
 flatten-fallback discipline, and the 724/0 `test_smoke_raku.sh` watermark rides on the bison parser).
 
+⭐ **EXTENDED 2026-09-01 (ceo ruling on seat08's escalation):** this ruling binds by METHOD, not by the row it was routed to — any row whose remaining work is construct-by-construct `raku.y` patching is on the retired instrument. `raku-frontend-real-world-syntax-gaps` (five kernels, 37 passes, count unmoved since pass 34) is RE-POINTED `BLOCKED-ON:raku-roast-100-percent-compile` (self-clearing at the rakugram cut-over; pass 39 re-measures the five kernels on rakugram and lands nothing in `raku.y`); `bench-rivals-raku-pascal` cascades honestly behind it. Swept the other five batons naming `raku.y`: two live rows cite it as evidence of existing behaviour, not as method — not re-pointed, re-check at claim. Routing class ("a ruling propagated to one row only") pooled for the next law slot.
+
 ## THE LADDERS — FOUR TRACKS
 
 ### TRACK 1 — GOAL-DIRECTED CORE (was GOAL-RAKU-BB.md)

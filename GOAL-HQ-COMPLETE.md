@@ -10,7 +10,7 @@
 
 | | |
 |---|---|
-| **priority** | **SNOBOL4 #1 · Icon #2 · Prolog #3** — in that order, always |
+| **priority** | ⭐ **PROLOG #1 (Lon 2026-09-01, in-chat to ceo: *"Prolog is the #1 priority. All around test, performance, Term struct eradication."*) · SNOBOL4 #2 · Icon #3** — SNOBOL4's blocking floor (`make test`) stays the universal control arm on every landing; the order names where the fleet's hands go, not what may regress. Was "SNOBOL4 #1 · Icon #2 · Prolog #3 — in that order, always" (Lon s256) until this ruling |
 | **instrument** | **oracle diff.** `x64/bin/sbl -bf` for SNOBOL4/Snocone (⛔ `-bf` ALWAYS, s189 — folding manufactures phantom duplicate labels); Arizona `icont`/`iconx` for Icon; GNU/SWI-Prolog for Prolog |
 | **verdict** | byte-identical to the oracle, or **named RED with a witness**. There is no third state |
 | **flagship** | **beauty self-host = the fixed point** — output byte-identical to `beauty.sno` itself (Lon s117; all md5 pins VOID, the checked-in file is its own oracle) |

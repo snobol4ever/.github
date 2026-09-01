@@ -17,7 +17,7 @@
 
 | | |
 |---|---|
-| **priority** | **SNOBOL4 #1 · Icon #2 · Prolog #3** |
+| **priority** | ⭐ **PROLOG #1 (Lon 2026-09-01, in-chat to ceo: *"Prolog is the #1 priority. All around test, performance, Term struct eradication."*) · SNOBOL4 #2 · Icon #3** — the vanroy 21-kernel board on the two-number basis is the Prolog perf instrument; CLAWS5/JSON stay the SNOBOL4 front. Was "SNOBOL4 #1 · Icon #2 · Prolog #3" (Lon s256) until this ruling |
 | **instrument** | **callgrind Ir at FIXED WORK.** Deterministic, layout-immune, load-immune |
 | **oracle** | **`/home/resources/spitbol-clean/sbl`** — the s255 benchmark oracle. ⛔ NEVER time against `x64/bin/sbl`: not because its clock is wrong (HQ measured both at ~1.0e9 ticks/sec, both nanoseconds) but because it is **2.30x handicapped** by monitor hooks |
 | **authority** | `scripts/lib_oracle_flags.sh` — `sbl_clean_bin()` for timing, `sbl_lang_flags()` → `-bf` for grading |
