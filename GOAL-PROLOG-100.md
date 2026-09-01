@@ -86,6 +86,9 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⭐⭐ LIVE CURSOR RE-POINT (hq_C 2026-09-01, on seat15's report via ceo): THE WALKABLE RUNG IS LADDER C, NOT PZ-4
+The cursor below points at PZ-4 (`prolog-pz4-gamma-retain-activation-frames`), which is **BLOCKED-ON `calling-convention-depth-tracked` (hq_P)** — a seat following it lands on a blocked row. Under FLEET-16 (Lon: Prolog #1) the walkable work is **`.github/MASTER-PLAN.md` ladder C**: ⭐ **C1** `prolog-directive-only-file-fatals-no-main-bb-graph` (rank 0, the 139-entry driver class), then C4–C20 (every FREE Prolog correctness row), with C2/C3/C27/C28/C29/I4/I5 minted and refusing until their blockers land. Run `python3 SCRIP/scripts/util_ladder_walk.py` for the live state; `prolog-next` (C20) means "the first incomplete C rung", never PZ-4 while it is blocked. The PZ-4 cursor remains correct as the *keystone* record and stays below; it is not where a seat starts.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-01 seat15 (FLEET-16, Prolog #1) — **BOTH PROLOG MODE INSTRUMENTS WERE BLIND. CURED, NOW HONESTLY RED. `prolog-next` HAS A COMPUTABLE DONE-WHEN AT LAST.**
 
 **SCRIP `f85e1fdc`** (pristine `-O0`) · corpus `04177c4b3` · row `prolog-next` · full receipts `.github/FINDING-2026-09-01-seat15-prolog-both-mode-instruments-were-blind.md`.
