@@ -22,6 +22,10 @@ Bootstrap here does NOT mean "SCRIP compiles its own C". It means **the compiler
 
 ---
 
+## ⭐⭐⭐ MASTER-PLAN.md — THE ORDER OF THE WORK UNDER FLEET-16 (Lon 2026-09-01: Prolog is the #1 priority — test, performance, Term eradication)
+
+Four ladders (T Term→DESCR · C correctness/tests · P performance · I instruments/dispatch), every rung a QUEUE row, rank 0/1 reserved for rungs; `python3 SCRIP/scripts/util_ladder_walk.py` is the instrument the ceo runs every sitting. HQs place every new Prolog row on a rung (`LADDER:<id> RUNG:<n>` on the LINKS line). Read it after this file, before any GOAL file, when the MODE file says FLEET-*.
+
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
