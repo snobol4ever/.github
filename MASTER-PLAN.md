@@ -92,6 +92,7 @@
 
 | rung | row | lane | gate |
 |---|---|---|---|
+| ⭐I7 | park-marks-last-row-only-when-clearing-own-claim | hq_B | `park` marks `.last-row` only on the branch that clears the caller's own claim; gate proves unclaim/done/park-own each write it and park-not-owned leaves it (seat14 FINDING 0803ecca; rank 0 because the FLEET-16 all-hands told seats to park) |
 | ⭐I1 | make-pristine-per-root-flock-second-builder-waits | seat | two concurrent `make pristine` in one root both exit 0 and the binary passes the smoke |
 | I2 | next-tiebreak-by-mint-time-not-file-order | hq_B | a newer row at equal rank is served first; proven both ways by a gate |
 | I3 | TO-MINT:hq_B | hq_B | SCORE.md carries the master-board row for every language that has an `ALL.*` suite (Prolog's is missing today) |

@@ -138,7 +138,7 @@ SPITBOL x64: `git clone https://github.com/snobol4ever/x64 /home/claude/x64`; in
 ## Testing
 - Run goal's gate before every commit. No broken commits.
 - `timeout 8s` unit/smoke; `timeout 30s` corpus runners.
-- Scripts in `SCRIP/scripts/`; `< /dev/null` on scrip calls.
+- Scripts in `SCRIP/scripts/`; `< /dev/null` on COMPILE steps and on runs that read no stdin — ⛔ NEVER on a run fed by a pipe or file: the redirect overrides the pipe, the program reads EOF and prints a plausible answer (seat05 2026-09-01: `echo 1 | scrip prog </dev/null` → 0; the old "always" wording was a habit from the compile step generalised into the run step — the class of the fifteenth batch). Corrected by ceo 2026-09-01.
 
 ## C code style
 - **200-char line max. Zero blank lines.**
