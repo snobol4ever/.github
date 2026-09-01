@@ -63,6 +63,8 @@ Lon's s81 register ruling (verbatim: *"RSP for ZETA SPINE, RBP for ZETA ACTIVATI
 5. Perf LAST, only under THE INSTRUMENT: emitted-instruction share ≥90% (s154 baseline 55.0%) · ≤1.2× then ≤1.0× GNU on the rail. **Wall time DISQUALIFIED in this container class (s164).**
 
 ## THE INSTRUMENT (boards are RUN, never transcribed; re-derive every count fresh)
+
+⭐ **MASTER BOARD BASELINE 2026-09-01 (ceo, SCRIP `8eac17da`, `python3 scripts/corpus_suite_harness.py run corpus/tests/prolog/ALL.pl corpus/tests/prolog/ALL.ref --lang prolog --modes m3,m4`, RT_OPT=-O0, oracle refs = ALL.ref):** `total=371 · m3 pass=218 fail=5 crash=139 xfail=1 xpass=8 · m4 pass=218 fail=5 crash=7 skip=132 xfail=1 xpass=8`. The 139 m3 crashes are ONE class — `signal 6`, stderr `[IBB] FATAL: mode-3 driver: main BB graph not found` on clause-only entries with no main (witness `foo(X,Y) :- X @>= Y.`); the 132 m4 `--compile failed` skips are the same population from the other mode. Row `prolog-directive-only-file-fatals-no-main-bb-graph` re-ranked to 0 on this measurement (37% of the board behind one driver defect). ⛔ SCORE.md's Prolog section at this writing shows smoke/parser/crosscheck only — the master board number was not on the scoreboard (routed to hq_B).
 ```bash
 bash scripts/test_smoke_prolog.sh                # 5-program tripwire, 3 columns
 bash scripts/test_prolog_bb_honest.sh            # counts + exit-gates ORACLE_CRASH
