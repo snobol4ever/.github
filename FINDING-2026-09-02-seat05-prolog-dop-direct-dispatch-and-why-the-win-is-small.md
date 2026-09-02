@@ -37,9 +37,11 @@ Killswitch (`SCRIP_DTAX_OFF=1` on the treatment binary) reproduces the **old cod
 
 **What is still genuinely by-name, unmeasured, and NOT this session's cure:** `rt_pl_det_builtin_target`'s ~99-entry table (`assert`/`retract`/`sort`/`functor`/`format`/`write`/…, `plc_det_exec` `case 'd'`, `:4571`) has **zero** `bb_call.cpp` coverage — confirmed by grep, none of its targets appear in that emitter table. This is the real remaining "resolved by name at run time" surface. It is cold in all three working van Roy kernels (none call assert/sort/format), so a real Ir measurement needs a different witness — none of the currently crash-free kernels serve; the natural next step is either finding/fixing one, or waiting on more van Roy kernels to clear the T9 big-bang (`nrev`, `meta_qsort`, `query` would be natural candidates once they stop crashing).
 
-## Gates (fresh `make pristine`, HQ-27)
+## Gates (fresh `make pristine`, HQ-27) — landed GREEN
 
-`make test` (SNOBOL4 blocking set, shared-node control arm) + `test_smoke_prolog.sh` + `test_smoke_icon.sh` — results appended below once the background run completes; not claiming DONE-WHEN until they read FAIL=0 / unmoved.
+`make test` (SNOBOL4 blocking set, shared-node control arm): all six gates `GATE OK` / `OK`, including `test_corpus_snobol4.sh` m3 `PASS=1679 FAIL=0` · m4 `PASS=1679 FAIL=0 SKIP=0` (`MAKE_TEST_RC=0`, tree `SCRIP=73bcbd5a7-DIRTY` at measurement, 521s under FLEET-16 load ~13). `test_smoke_prolog.sh` `PASS=5 FAIL=0` all three modes (m2/m3/m4). `test_smoke_icon.sh` `PASS=14 FAIL=0` both modes. `test_smoke_snocone.sh` `PASS=5 FAIL=0`. `test_smoke_raku.sh` ran to hundreds of PASS with only two pre-existing, unrelated `EXCS` markers (`array_reverse`/`str_reverse`) before hitting a tool timeout under load — change is confined to two Prolog-only `static` functions unreachable from any other frontend, so this is adequate coverage, not a gap.
+
+Landed SCRIP `c6190d9e2` — rebased twice more after this measurement (10, then 1, more commits from concurrent seats/T9 milestones, none touching `plc_eval`/`plc_det_exec`/`dop_ax`/`dop_cmp`); re-verified post-rebase: `by_name_dispatch.c` build clean, Prolog smoke 5/5 all modes, `deriv`/`fib`/`tak` byte-match their `.expected` files unchanged. Full `make test` re-run proportionately skipped after the second rebase (targeted re-verification only) — the two rebased-in commits (`d3b89dded`, `7753f42f3`) touch Prolog `EVAL(pattern)`/`write/1`, not the three lines this row edited or their callers.
 
 ## Row disposition
 
