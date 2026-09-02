@@ -1,0 +1,26 @@
+# FINDING — the second Prolog resolution machine was already unwired: all 22 prototypes in resolution.h had zero definitions and zero callers, and the cut flag's writer had no callers either
+
+**hq_B, 2026-09-02, T7 (`prolog-term-descr-s7-dead-resolution-env-layer-deleted`), measured on SCRIP `a32fc576` pristine, `RT_OPT=-O0`.** Recorded because the deletion itself is NOT landed (ceo's Term push cut the same machine first; hq_B's version is `postoffice/salvage/hq_B-prolog-term-descr-s7-*-2026-09-02.patch`, UNPROVEN) — the measurements are the durable part.
+
+## What ARCH-PROLOG-THREE-ZETAS § 0 called "a SECOND choice-point/trail/env machine" was a machine with no wires
+
+`src/runtime/builtins/resolution.h` (82 lines) declared **22 functions**: `resolve_cp_push/current/pop/truncate`, `resolve_pred_table_lookup_global`, `resolve_pred_entry_lookup`, `resolve_bb_env_push/save_push/bind_arg/pop/install`, `rt_env_current`, `resolve_catch_push/pop_top/take_exception/top_trail_mark/top_env/top_cp_mark`, `resolve_throw_term`, `rt_cp_trail_unwind/inc_cursor/get_cursor`. **Every one: 0 definitions** (`nm` over `libscrip_rt.so` + `./scrip`) **and 0 references anywhere in `src/`** outside the header (unfiltered `grep -rw`, so templates, `.S` and string literals are included — the `g_zeta_mode` check for a symbol read only by emitted code). The static data behind them — `resolve_cp_stack[4096]`, `g_resolve_catch_stack[64]`, `g_resolve_exception`, `g_resolve_bfr`, `g_resolve_cut_barrier`, `g_resolve_cp_stamp` — likewise 0 references outside the two files. **All 14 `Term` word-refs in resolution.{c,h} sit inside this dead machine.** Deleting it needs no PZ-4 and changes no reachable path.
+
+## The two "live" control globals
+
+- **`g_resolve_cut_flag` is write-only.** Two writers (`polyglot.c` `=0`, `rt_cut_set()` `=1`), zero readers. And **`rt_cut_set` has zero callers** — not from C, not from any template, not from emitted code. Cut through this path has been a no-op for as long as the flag has existed; nothing observable depends on it.
+- **`g_resolve_active`** (set at lower time when a Prolog clause is registered) has ONE reader: `driver_hooks.c:60`, a tombstone that `abort()`s with *"brokered Prolog call path removed"* when a by-name call resolves in the pred table — a tripwire for a path already deleted. Removing it changes behaviour only where the program would have aborted; Prolog smoke 5/5 both modes and the parser suite did not move.
+- **`g_resolve_trail`** (the Term-era `Trail`) was never pushed to. Its 7 external references are `trail_init` and the monitor (`sync_monitor.c:36-72,105`) snapshotting a permanently empty stack through `Term *`. It was the LAST user of `Trail`/`trail_*` outside T9's own files.
+
+## Two instrument lessons, both from the same hour
+
+1. **Reachability is a property of CALLERS; no measurement of the callee's state can answer it.** seat09's open lead on `g_stage2.bbp` readers (`bb_graph_of_proc` in `gen_runtime.h`, `bb_graph_of_pred` in `resolution.h`) queued a gdb step: *is `g_stage2.bbp.count` 0 in an m4 binary?* It would have returned 0, been correct, and proved nothing. The caller trace answered in one grep: `bb_graph_of_proc` → `bb_proc_entry` → four sites, **all in `src/driver/scrip.c` on the emission path**, and `objdump` counts **4 calls in the driver, 0 in the runtime .so** — the function is not in the runtime binary at all. `bb_graph_of_pred` → `resolve_bb_pred_name_at` → **zero call sites** (four textual hits: two duplicate `extern`s, a prototype, the definition). Cheapest instrument first, and it was the one the FINDING had already named.
+2. **File locality is not call-path evidence.** `bb_graph_of_proc` read as a core-language risk ("Icon generators silently broken under `--compile`") because it sits in `gen_runtime.h` beside `GenFrame`, `suspend_val` and `every_gen[]`. That adjacency carried zero information about who calls it. The severity ceiling came entirely from the filename.
+
+A third, smaller: the driver re-declared three of the five dead `resolve_bb_*` externs verbatim five lines below the originals (`scrip.c:479-481` on 2026-06-01, `:484-486` on 2026-06-04). Nobody was reading the block; that is what a duplicate three days apart means.
+
+## What is measured but not landed (in the salvage patch, re-appliable after ceo's push)
+
+10 files, −185/+1: the machine and its 14 Term lines; `pl_resolve.h` whole (11 lines, **included by nobody**); the two flags with their 8 external lines; the monitor's dead-trail block and `ExecSnapshot.resolve_*` fields; the 8 driver externs. Pristine green; all 10 § 4 symbols absent from `nm -D` and every symbol table; Prolog smoke 5/5 both modes; `test_gate_pl_coupling` PASS; Prolog parser suite PASS; Icon watermark held 398/398. **`make test` timed out at 600s under three concurrent HQ builds — no SNOBOL4 verdict, hence UNPROVEN.**
+
+Lon 11:00 (ceo `4ae9d92b`) moved rung 2 from relocation to deletion: `g_pl_trail`, `g_pl_env_area`, `rt_value_trail_*` go once PZ-4 puts the binding log in the frame — the frame boundary IS the mark. Nothing in resolution.c is relocated; the two compile-time registries are the only survivors, and their home is a beauty question after the files go.
