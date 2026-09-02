@@ -25,18 +25,18 @@ Line numbers below are at SCRIP `46db4457`; they will drift, the names will not.
 | **value services** | `g_pl_copy_slot_mode`, `g_pl_copy_slot_ctr`, `g_pl_functor_slot_ctr`, `g_rt_pl_nb` + `g_rt_pl_nb_n` (nb_setval store), `g_pl_flags[]` (prolog_flag table) | unification.c:1750-1751, :670, :1862-1863, :2185 | no |
 | **rtx gate** | `rtx_gate_plunify` (1 byte) | rtx_plunify.s | no |
 
-**Shared globals that only Prolog's emitted code addresses directly** (not Prolog-owned, listed because the compiled Prolog program is the only compiled program that touches them): `g_zeta_mode` (zeta_alloc.c:145, the constant `ZC_ZETA=1`; the `$trail_mark` sink compares it to 2 at run time, bb_call_fn.cpp:375 — 26/26 · 0 · 0; a mode switch surviving under ZETA HAS NO MODES), `g_hp_fr` (11/26 · 0 · 0), `g_gc_pending` and `g_call_args` (18/26 · 0 · 3/20 — Icon reaches them too, so not Prolog-only).
+**Shared globals that only Prolog's emitted code addresses directly** (not Prolog-owned, listed because the compiled Prolog program is the only compiled program that touches them): `g_zeta_mode` (zeta_alloc.c:145, the constant `ZC_ZETA=1`; the `$trail_mark` sink compares it to 2 at run time, bb_call_fn.cpp:375 — 26/26 · 0 · 0; a mode switch surviving under ZETA HAS NO MODES) — **the compare is DELETED, SCRIP `d42d2918`: emitted Prolog code no longer addresses `g_zeta_mode` (0/26 after regen); the DEFINITION stays (out of scope) and is now reader-less in `src/` and in emitted code — CLAUDE.md's keep-banner has lost its stated reason, routed to ceo**, `g_hp_fr` (11/26 · 0 · 0), `g_gc_pending` and `g_call_args` (18/26 · 0 · 3/20 — Icon reaches them too, so not Prolog-only).
 
 ## B. Prolog-only globals — COMPILE-TIME (compiler state; some are parked in the runtime `.so` because the TU is linked there)
 
 - `lower_prolog.c`: `g_pl_det_v[]` (96 KB), `g_pl_det_n`, `g_pl_det_done`, `g_pl_disj_ctr`, `pl_ll_ctr`, `g_pl_nl_arith[]`, `g_pl_nl_builtins[]`; function-scope statics at :15 (`cache[1024]`, `buf`), :21 (`buf[264]`), :717 (`cache[64]`, `buf`), :758 (`on`, env `SCRIP_PL_BOUNDED_DUMP`), :1086 (`nmbuf`), :1395-1397 (`pl_init_goals_acc[]`, `pl_init_ngoals_acc`, `pl_init_main_pi`).
-- `resolution.c:50-51`: `g_resolve_bb_table[]` (**268 KB of bss in the runtime**) + `g_resolve_bb_count` — the name→bb_idx registry; written and read only by `lower_prolog.c` (compile time). Nothing reads it at run time.
+- ~~`resolution.c:50-51`: `g_resolve_bb_table[]` (**268 KB of bss in the runtime**) + `g_resolve_bb_count` — the name→bb_idx registry; written and read only by `lower_prolog.c` (compile time). Nothing reads it at run time.~~ **STRUCK, SCRIP `d42d2918`: moved out of the runtime image into `lower_prolog.c` as a private lazily-calloc'd table (`pl_bb_tab`/`pl_bb_n`, 24-byte entries); `resolution.{c,h}` lose the storage, the five accessors and the never-defined `resolve_bb_graph_at`; bss −268,864 B measured.**
 - `prolog_atom.c`: `ATOM_CUT/DOT/FAIL/NIL/TRUE`, `atom_names`, `atom_len`, `atom_cap`, `ht`, `ht_size`, `ht_used`. `prolog_parse.c`: `BIN_OPS`, `g_uinfix/_n/_cap`, `dcg_var_counter` (:289), `PL_PRELUDE_SRC`, `arith`. `prolog_lower.c`: `g_pb_fresh_ctr`, `pj_dir_seq` (:526).
 - `polyglot.c:17`: `g_fi8_pl_init_count` — written (`++`), never read.
 
 ## C. DEAD today (definition is the only reference in `src/`; deletable without a behaviour change)
 
-`g_pl_yield_seq` (rt_runtime.c:246) · `g_resolve_b3_call_mark` (:55) · `g_resolve_tail_redirect_cfg` + `g_resolve_tail_redirect_entry` (:53-54) · `g_halt_rc` + `g_halt_set` (runtime_init.c:9-10) · `g_pl_catch_nodes[]` + `g_pl_catch_n` (emit.cpp:3746-3747) · `g_fi8_pl_init_count` (write-only).
+~~`g_pl_yield_seq` (rt_runtime.c:246) · `g_resolve_b3_call_mark` (:55) · `g_resolve_tail_redirect_cfg` + `g_resolve_tail_redirect_entry` (:53-54) · `g_halt_rc` + `g_halt_set` (runtime_init.c:9-10) · `g_pl_catch_nodes[]` + `g_pl_catch_n` (emit.cpp:3746-3747) · `g_fi8_pl_init_count` (write-only)~~ — **STRUCK, all nine deleted, SCRIP `d42d2918` (hq_C 2026-09-02, row `prolog-dead-globals-and-bb-table-out-of-runtime-image`).**
 
 ## D. Recently deleted (git log since 2026-08-28, removed file-scope definitions)
 
