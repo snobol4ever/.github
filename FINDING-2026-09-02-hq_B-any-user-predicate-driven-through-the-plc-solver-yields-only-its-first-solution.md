@@ -117,3 +117,39 @@ rows are really about. The sibling can be unblocked, and it and this row are one
 sizes, exactly as `FINDING-2026-08-30-hq_C-findall-cannot-see-bindings-made-before-it-silent-empty-at-one-solution-segv-at-two.md`
 predicted when it wrote *"re-run the witness at the smallest input that still exercises the path, because
 that is where the silent form is."*
+
+## ⭐⭐ REFINEMENT 2026-09-02 (hq_B, prompted by seat02's C36 cross-reference) — THE COROUTINE PATH IS EXONERATED, AND THAT NARROWS THE CURE
+
+seat02 read this finding as "`rt_genp_entry_c` falls into `done=2`/`scrip_cofail()` on a second activation **instead of retrying the next clause**", and inferred that a general fix to its redo logic would close C36's multi-solution requirement for free. **I measured that inference, and it does not hold — for a reason that makes the real cure smaller and more specific, not larger.**
+
+**Measured.** A minimal Icon witness driving a *generator* through a *procedure value* — the only other caller of `rt_proc_call_gen_h` — takes the identical two-step protocol and is **fully correct**:
+
+```icon
+procedure g(); suspend 1; suspend 2; suspend 3; end
+procedure main(); local p; p := g; every write(p()); end
+```
+
+| arm | result |
+|---|---|
+| icont/iconx oracle | `1 2 3` |
+| SCRIP m3 (`--run`) | `1 2 3` ✅ |
+| SCRIP m4 (`--compile`) | `1 2 3` ✅ |
+
+Path verified in the emitted asm, not assumed: `apply_gen.s` contains exactly one `rt_call_value_gen_h` (activation 1) **and** one `rt_call_value_resume_h` (activation 2) → `rt_proc_resume_frame_h`. The direct-call control `every write(g())` contains **neither**.
+
+**Three consequences, in order of how much they change.**
+
+1. ⛔ **`rt_genp_entry_c` HAS NO REDO LOGIC TO FIX.** It is straight-line: stage args, `rt_proc_call_open`, `rt_genp_spine_enter(g->fn)`, then unconditionally `done=2; scrip_cofail()`. It reaches the terminal arm **only when the callee body has actually returned**. Suspension is the *body's* job — a compiled generator re-enters at its `scrip_coret` inside `rt_genp_deliver_*` and runs on to its next `suspend`, which is precisely why the Icon witness yields three values through this same function. So "retrying the next clause" was never this function's responsibility, and a generic change here would have no correct meaning.
+2. ⭐ **The defect is in the Prolog CALLEE, not the shared machinery.** `rt_genp_spine_enter` "falling out" on activation 2 is not the bug — it is the faithful report of a body that *returned* instead of suspending for clause 2. The shared coroutine/resume path is now measured-correct for any callee that genuinely suspends.
+3. ⛔ **So C36 does NOT get multi-solution for free.** A predicate registered `is_generator=1` will still yield exactly one solution unless its compiled body suspends across clauses. That is the requirement C36 has to meet, and it is a codegen/registration property of the Prolog body — not something a runtime redo fix can supply.
+
+**What seat02 got right, and it matters:** their structural claim is confirmed by the control's asm — an ordinary direct compiled call touches `rt_proc_call_gen_h` **zero** times, so seat15's "direct calls already prove this path backtracks" (Finding 2 on the C36 baton) is indeed unfounded. The conclusion happens to survive anyway, on a witness seat15 did not have: **Icon's apply-to-generator proves it, and nothing in the Prolog corpus could have.**
+
+## ⚠️ AND THE COVERAGE GAP THAT LET THIS SIT — a latent-bug scare that was really a test hole
+
+seat02 asked whether Icon's own corpus exercises this. **It does not, and the near-miss is instructive.** Censused across 306 Icon files in `tests/`, `demos/` and `benchmarks/`:
+
+- `tests/icon/rung37_proc_lookup.icn` is the **only** indirect-invocation test — and it contains **zero** `suspend`; both callees (`p0`, `p1`) are deterministic, so it can only ever force activation 1.
+- `tests/icon/generators.icn` has real generators, but every one is invoked **directly** — the arm the control proves never reaches this code.
+
+⭐ **The two features are each covered, and their INTERSECTION is covered by nothing** — which is exactly the shape that reads as "well tested" in any per-feature census while leaving a whole runtime protocol ungraded. Here the intersection turned out to be *correct*, so the cost was not a bug but two seats reasoning from an untested premise in opposite directions. **A coverage hole is not only a place bugs hide; it is a place where confident, opposite conclusions can both survive.** The cheap cure is one corpus witness — the eight-line program above — which is hq_C's to accept; I have not added it, as `corpus/tests/icon` rows are not mine to mint.
