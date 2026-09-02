@@ -148,6 +148,21 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s287 (2026-09-02, Fable 5.1, TRIO) — ⭐⭐⭐ RUNG 1 OF THE PROLOG REBUILD LANDED IN ONE PUSH: HEAD ARGUMENTS AND `X = T` UNIFY THROUGH THE SHARED `bb_call` LEAF, THE TRAIL LIVES ON `r12` WITH THE LOG RULE READ THROUGH `r13` INSIDE THE UNIFY SERVICE, AND EMITTED CODE WRITES NONE OF `r12`–`r15` — THE FIVE WRITERS ARE NAMED rtx HELPERS.**
+
+Rows: `prolog-rung-1-fact-with-arguments-rule-body-conjunction-and-the-trail-log-rule` (LANDED — SCRIP `7d0ed0f8`, corpus `e5ba308f`; receipt `FINDING-2026-09-02-hq_C-rung-1-lands-head-unification-through-the-shared-call-leaf-the-trail-on-r12-with-the-log-rule-through-r13-and-zero-quad-writes-in-emitted-code.md`) · `prolog-rung-0-the-cut-and-hello-world-with-zero-globals` (DONE on the computed verdict). Ladder `--to 1` PASS 4/4; trace refs re-cut for rung 1 only (merging `--cut`, 42 blocks kept); quad gate PASS(0) under the named allow-list; master board REPORTED 50/383 both modes (rung 0: 6); SNOBOL4 1679/1679 both modes and the Icon watermark 264/6/1/27 unchanged.
+
+### ⭐⭐ THE OBSERVABLE OF A MECHANISM CAN BE NIL BY CONSTRUCTION — THEN THE MECHANISM NEEDS ITS OWN INSTRUMENT
+Rung 1 opens no choice, so `r13` is 0 for the whole run and the trail logs nothing: the ladder witness passes with the trail present or absent. A rung whose landing gate cannot see its mechanism is a rung whose mechanism is unproven — so the trail got a gate that drives the exported unify bodies directly (`test_gate_pl_trail_mechanism.sh`, 12 checks: the log rule against B, the entry, undo, the young-cell skip, atomicity on a partial mismatch, the rc=2 refusal), shown to say NO on a flipped expectation before it was allowed to say YES. The general form: when the construct ladder's witness cannot reach a piece of machinery, the receipt must say how that piece was measured, or admit it was not.
+
+### ⭐ A GATE THAT WAS RED ON THE TREE I HAD ALREADY CALLED GREEN
+`test_gate_pl_no_new_global.sh` was RED on `db299d41` — five compile-time rung tables I named `g_pl_rung*_builtins` at rung 0 — and the rung-0 receipt quoted its ratchet line as the verdict. Two arms, one read: the transcription defect RULES names, on my own instrument. Cured by renaming (they are `static const`), reported here so the rung-0 receipt is corrected in the open rather than silently.
+
+### DUTIES
+ceo's receipt shape (three hashes, handoff verdict, the reported board, quad-gate before/after 5→0 emitted, DONE-WHEN rc) honoured after the push; the five-name allow-list and the m4 veneer suppression are § 3 judgement calls for ceo to rule on · hq_P: `QUAD_HELPER_RX` default now names the helpers, `--self-test` green; rung 6 owes a gate per binder for the `pl_unify` inline family (43 sites, unreachable today) · hq_B: rung-1 trace block re-cut, every other block byte-identical; one master entry reads XPASS (the harness summary does not name it) · memory updated.
+
+## LIVE CURSOR — hq_C (s286, superseded by s287 above)
+
 **s286 (2026-09-02, Fable 5.1, TRIO) — ⭐⭐⭐ RUNG 0 OF THE PROLOG REBUILD LANDED IN ONE PUSH: THE CUT DELETED EVERY PROLOG-ONLY GLOBAL (26 → 0 EXPORTS, −5,050 LINES) AND HELLO WORLD RUNS AS ONE CALL BOX CARRYING THE § A.1 HEADER, BOTH MODES, SNOBOL4 AND ICON BYTE-IDENTICAL.**
 
 Rows: `prolog-delete-g-zeta-mode-definition-zeta-has-no-modes` (DONE on the computed verdict) · `prolog-rung-0-the-cut-and-hello-world-with-zero-globals` (LANDED — SCRIP `db299d41`, corpus `9c648987`; receipt `FINDING-2026-09-02-hq_C-rung-0-lands-the-cut-deletes-every-prolog-only-global-26-exports-to-0-and-hello-world-runs-as-one-call-box-with-the-header-at-the-top.md`). Lon's six rulings (CEO-149 `9fd7c67a`) superseded PZ-4 (b)-(f)/rung 2.0/PZ-5 into rungs 0/2; the ladder is the gate, the master board a reported number until rung 10.
