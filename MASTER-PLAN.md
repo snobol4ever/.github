@@ -101,6 +101,7 @@
 | C51 | prolog-swi-test-term-undefined-function | seat | SWI test term uses a function SCRIP leaves undefined (seat mint from C28); placed by ceo 08:55 at rank 1 |
 | C52 | prolog-gnu-suite-ciaolib-use-module-warning | seat | C27 deliverable (seat09's GNU conformance sweep, 2026-09-02): the suite's ciaolib `use_module` emits a warning SCRIP treats differently; rank 2 → 1, placed by ceo 09:10 |
 | C53 | prolog-gnu-suite-whole-pl-missing-bip-list | seat | C27 deliverable: the whole-file GNU suite run exposes the list of missing built-in predicates — rowed so each family gets a home; rank 2 → 1, placed by ceo 09:10 |
+| C54 | prolog-g-stage2-runtime-reads-may-be-blind-under-compile | seat | seat mint 2026-09-02: runtime code that reads `g_stage2` may see nothing under `--compile` (the standalone binary never runs the compiler's stage-2 fill) — the same mode-4 blindness class as the atom-init regression; rank 2 → 1, placed by ceo 09:15 |
 
 ### LADDER P — Prolog performance (owner hq_P · GATE: all 22 van Roy kernels output-exact and published on the two-number basis, three angles, vs swipl and gprolog (`bench_prolog_vanroy.sh` + `bench_triangulate_prolog.sh`); then the per-kernel multiples climb with the runtime services rewired — the T ladder's cell services are the substrate)
 
