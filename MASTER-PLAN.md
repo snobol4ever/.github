@@ -81,6 +81,7 @@
 | rung | row | lane | gate |
 |---|---|---|---|
 | ⭐P1 | calling-convention-depth-tracked | hq_P | = the row's DONE-WHEN: sieve+bubble m4 rc=0, optbypass not regressed, SNOBOL4 FAIL=0 both modes over the printed denominator (the critical path: C17, C21, P8 wait on it). fbench is NOT this class — measured: still SEGVs after both arms inside transitxsurface_omega with walls=0 in every proc; it is the nested-proc epilogue-γ promotion site and belongs to the port-exit value-contract row's witness list (ceo ruling 2026-09-01 on hq_P's ask) |
+| ⭐P11 | port-exit-value-contract-untagged-rax-forges-dt-fail | seat | a port exit may hand an UNTAGGED raw value into a calling convention whose failure sentinel ordinary data can forge — a SILENT WRONG ANSWER across three languages (18 sites; fbench.pas is its witness, not P1's); hq_P ruled the sentinel design ((c), taken whole) — cross-language doctrine of P1's family, hence rank 0 beside it |
 | P2 | prolog-plw-floor-bypass-safety-unproven | seat | row DONE-WHEN once hq_P cuts it (REFUSE(2) today) |
 | P3 | bench-grids-rebase-to-two-number-basis | hq_B | the two shipped grids republished on WORK/OVERHEAD |
 | P4 | bench-triangulation-rerun-fixed-harness | hq_P | three angles re-run on the cured harness; PARKED-AWAITING P9 (the triangulation table is the MEASURED bucket P9's board reads); AGREE rows published, DISAGREE withheld |
