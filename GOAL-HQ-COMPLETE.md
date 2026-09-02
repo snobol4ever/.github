@@ -148,6 +148,21 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s286 (2026-09-02, Fable 5.1, TRIO) — ⭐⭐⭐ RUNG 0 OF THE PROLOG REBUILD LANDED IN ONE PUSH: THE CUT DELETED EVERY PROLOG-ONLY GLOBAL (26 → 0 EXPORTS, −5,050 LINES) AND HELLO WORLD RUNS AS ONE CALL BOX CARRYING THE § A.1 HEADER, BOTH MODES, SNOBOL4 AND ICON BYTE-IDENTICAL.**
+
+Rows: `prolog-delete-g-zeta-mode-definition-zeta-has-no-modes` (DONE on the computed verdict) · `prolog-rung-0-the-cut-and-hello-world-with-zero-globals` (LANDED — SCRIP `db299d41`, corpus `9c648987`; receipt `FINDING-2026-09-02-hq_C-rung-0-lands-the-cut-deletes-every-prolog-only-global-26-exports-to-0-and-hello-world-runs-as-one-call-box-with-the-header-at-the-top.md`). Lon's six rulings (CEO-149 `9fd7c67a`) superseded PZ-4 (b)-(f)/rung 2.0/PZ-5 into rungs 0/2; the ladder is the gate, the master board a reported number until rung 10.
+
+### ⭐⭐ THE LIST NAMED THE GLOBALS; THE COMPILER NAMED THE OWNERS
+Three of the brief's "Prolog-only" deletions had a second owner the census could not see: `g_pl_trail` was SNOBOL4's DEFINE value-trail mark (`bb_define.cpp` inline enter/leave_env, `rt_ab_*_env`, the `rt_pl_dc_*` direct-call path — misnamed `pl_`, it admits any language's det proc), `script_try_call_builtin_by_name` is the shared Raku/Pascal/SNOBOL4 cascade with 113 Prolog `$`-arms inside it, and `rt_call_arr_bl` is SNOBOL4's by-name dispatch that Prolog merely routed into. A census keyed on emitted `.s` references reads 0 for an arm no committed program exercises. The instrument that found each owner was the same every time: delete, build, read the linker. **The control that made it safe:** two `.s` captured on the pre-cut pristine build and diffed after every phase — byte-identical all three times.
+
+### ⭐ THREE INSTRUMENTS IN THE DONE-WHEN COULD NOT MEASURE, AND RUNNING THEM SAID SO
+`\[rbp[+-]` never matches SCRIP's spaced text medium (red on both sides of the cut); the harness `extract` wants an ENTRY name and hq_B had absorbed the witness under `directive_82` (origin column carries the ladder name); hq_P's p7 gate defaults its root to `/home/claude_P` and graded the wrong checkout. Each was re-cut in place with a ledger line, none weakened. The trace gate gained `--to N` and a MERGING `--cut` — without it the rung-0 cut would have dropped hq_B's 30 blocks for rungs 1–5.
+
+### DUTIES
+ceo's check-in order (telegram + pointer with hashes, handoff verdict, board, `nm -D`, DONE-WHEN rc, ladder denominator) honoured after the push · hq_B: runner + refs acknowledged, the `--to`/merge-cut extension of their gate reported · hq_P: van Roy CLEAN 0 by design until rung 8, loop_check deferred there, the p7 root default reported · memory updated.
+
+## LIVE CURSOR — hq_C (s285, superseded by s286 above)
+
 **s285 (2026-09-02, Fable 5.1, DUO) — ⭐⭐ THE ZERO-RISK RUNG LANDED THROUGH A 6,387-LINE SWEEP UNTOUCHED, BECAUSE ITS ANCHORS WERE CODE; THE ONE RED CONJUNCT WAS THE BOX'S AND HAD A COMMIT; AND "r12 IS FREE" WAS THE ABI HEADER'S OWN (a)-CLASS ROT.**
 
 Rows: `prolog-dead-globals-and-bb-table-out-of-runtime-image` (LANDED — SCRIP `d42d2918`, corpus `a0cca818`; `done` run this session) · `prolog-pz4-gamma-retain-activation-frames` (held, design inputs ledgered). SCRIP `2748100d` (watermark re-pin + gate prints its regressing list and wall clock). FINDINGs: `FINDING-2026-09-02-hq_C-nine-dead-prolog-globals-the-zeta-mode-compare-and-the-268kb-bb-table-leave-the-runtime-image-with-zero-behaviour-change.md` · `FINDING-2026-09-02-hq_C-translation-page-review-the-base-header-lands-on-the-lexprep2-region-and-r12-is-the-live-cas-cursor-inside-every-snobol4-match-blob.md`. Inbox: ceo `sweep-landed` (3 items, all answered by telegram `dead-globals-landed-watermark-bisected-and-the-page-review`).
