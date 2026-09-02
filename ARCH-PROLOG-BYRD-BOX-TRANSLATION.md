@@ -196,7 +196,7 @@ The order respects `ARCH-PROLOG-THREE-ZETAS.md` § 6 and reuses its row names; B
 | 10 | **BX-IX** indexing as a static choice cut | `switch_on_term` at α, candidate bitmask per key, singleton ⇒ bounded activation | on `fact/2` with distinct constant first args, `--compile` emits ZERO β labels for the predicate (grep the `.s`); the trace shows `Exit` not `*Exit` for a ground first-arg call |
 | 11 | **BX-LCO** | § B.18 frame reuse | `nreverse` on a 10⁵-element list and `count(N)` to 10⁶ run under `ulimit -s 512`; rss flat across N (`tools/bench_rusage`) |
 | 12 | **BX-DET** | § D determinism from β-reachability replaces `pl_det_compute`'s whitelist | `SCRIP_DET_REPORT` DET count on the 371-entry master ≥ today's count, and every predicate it marks DET emits no β chunk (grep per predicate in the `.s`) |
-| 13 | **T7 / T9** (hq_B) | the second CP/trail/env machine and `Term` to zero | `grep -rcw Term src` = 0; `resolution.{c,h}` hold no `resolve_choice` |
+| 13 | **T7 / T9** (hq_B) | the second CP/trail/env machine and `Term` to zero | `grep -rcw Term src` = 0; `resolution.{c,h}` hold no `resolve_choice` — **measured 0 and 0 on 2026-09-02 (hq_B); both clauses policed by `test_gate_term_wordref_ratchet.sh` since SCRIP `a29ea1fd`** |
 
 Program gate unchanged: rung suite 15/15 both modes, van Roy REFUSE 0 AND CRASH 0 AND CLEAN ≥ floor WORST-OF-N, `nm -D` names none of § C's deleted symbols, the `fact/2` witness rbp-relative, master ≥ 351/351.
 

@@ -176,6 +176,12 @@ By directory (files needing work / total in-scope files):
 
 **Landed:** SCRIP `922cfaf4` · law RULES.md § C code style (this .github tree) · `FINDING-2026-09-02-ceo-R5-zero-comments-sweep-98-files-267-of-267-objects-identical-flex-hazard-bit-again.md`.
 
+## Reactivation 5.1 (R5.1) — 2026-09-02 — hq_B on ceo's standup — **THE FOUR R5 INSTRUMENT DEBTS CURED · SCRIP `e01327e4` + `a29ea1fd`**
+
+**LIVE CURSOR (R5.1):** both oracles now read the build's flags from the Makefile (`scripts/lib_build_flags.sh`), fingerprint with `objdump -d -r` + every non-debug section, compile both sides under the file's own basename, generate grammars under their real `X.tab.c` name, and REFUSE rc=2 on a zero denominator. Re-proof of R5 with the cured instrument: **C oracle 78/78 byte-identical vs `46db4457` (measured 78 of 98; 14 headers, 6 not-a-TU) · Y/L oracle measured 9 of 9.** All 14 generated parser outputs regenerate from their sources again (two had been hand-pruned in June — `lex.rebus.c`, `snocone_parse.tab.c` — and `rebus.y` included a dead path); 266/267 objects byte-identical to the `922cfaf4` pristine build, the 267th (`lex.rebus.o`) 24/24 functions identical plus the 18 flex API functions its siblings already export. `strip_comments.py`'s `.l` arm is flex-aware (patterns byte-for-byte, C regions stripped; round trip identity 4/4, injection round trip 4/4). **Next step for whoever resumes:** (1) `scripts/test_parser_snocone.sh` SKIPs with rc=0 on a wrong binary path and an empty fixtures dir — make it REFUSE rc=2 or retire it; (2) `pascal.y` carries a useless nonterminal `selector_list` (bison `-Wother`) — delete it and re-prove with the Y/L oracle. Receipts: `FINDING-2026-09-02-hq_B-two-generated-parsers-were-hand-pruned-and-both-style200-oracles-graded-zero-files-while-printing-OK.md`.
+
+⛔ **Correction to R5 above:** the "8/8 grammar objects identical" proof compared HEAD-regenerated against stripped-regenerated. It could not see that two committed outputs no longer matched any regeneration at all; only regenerated-vs-COMMITTED (this session) sees that. Both comparisons are needed: the first proves the reformat, the second proves the artifact.
+
 ## Watermark
 
 **CORRECTIONS PASS 2026-07-03 (same session, continuation) — Lon directive: "Update the GOAL-*-200char* with this and all of the other corrections you are realizing in this session. Wherever the MD files are wrong, fix it."** Three corrections landed:
