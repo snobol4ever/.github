@@ -6,6 +6,47 @@
 
 ## LIVE CURSOR
 
+**B-2 (2026-09-01 — row `bench-grids-rebase-to-two-number-basis`: RAKU CLOCK HOOK + TRIANGULATOR LANDED, grid re-based; pz4 parked on the row that carries its blocker; three instrument defects reported by seats cured the same sitting):**
+Mode moved TRIO → FLEET-8 → FLEET-16 while this session ran (read from MODE each time). ceo's switch ruling executed: pz4 is
+`BLOCKED-ON:calling-convention-depth-tracked` — `park` REFUSED the mechanism name `host-rbp-promotion` as a blocker by the
+dangling-blocker guard this seat minted with pz4 as its own example, so the block self-clears off hq_P's DONE instead of
+never. Landed: <<<HASHES>>>. `wall_us()`/`wall_ms()` for Raku beside the Prolog pair; `note(...)` (a real frontend gap, guarded
+against the four corpus programs that define their own `note`); `prelude_rakudo.rakumod` loaded by `-M` from a staged dir
+(Rakudo writes `.precomp/` beside a `-I.` module — it wrote one into the corpus on the first hand run); four kernels
+self-timed and byte-verified on m3, m4 and Rakudo; `bench_triangulate_raku.sh` (angle 3, every rep verified, clock and unit
+invariants, angles 1+2 REFUSED per cell — coverage gate stays red for raku, correctly); README grid rendered FROM the TSV.
+
+⭐ **THE SESSION'S ONE LESSON: THE BASIS IS THE STORY.** The totals grid said string-escape 55.9x; ~99% of Rakudo's total was
+process startup. On work, SCRIP is ~25x ahead there, ~7x on send-more-money, and *further behind* on both point_class kernels
+than the totals grid showed — the same constant padded Rakudo's denominator on the slow side. Nothing regressed; the numbers
+moved because the question did. Same shape as the Prolog inversion two days earlier.
+
+⛔ **THREE TIMES THIS SESSION AN INSTRUMENT THAT LOOKED WIRED COULD NOT FIRE**, all mine: the banner-side hook installer
+placed after a line that always exits; its first draft referencing an undefined `$HERE`; a `rm` in a drifted cwd whose `ls`
+check reported clean. Each caught by *falsifying* (delete the hook, run the banner, is it back?) rather than by reading. The
+census that motivated the installer: **16 of 19 roots wire only `Stop`** — the commit-hook self-install never fired on any
+fleet seat, and the "rejected in every clone" claim was true in three roots. seat04 measured one seat; the number is the fleet.
+
+**ALSO THIS SITTING, UNDER FLEET-16 MAIL:** rank-0 `park-marks-last-row-only-when-clearing-own-claim` (ladder I rung I7) — the
+cure was already on the own-claim branch; its gate `test_gate_s4e_release_verbs_mark_last_row.sh` runs the four verbs against a
+SCRATCH postoffice (`S4E_POST`/`S4E_SEAT`) and goes red with the mark deleted; row DONE-WHEN rc=0 verbatim. Rung I3
+`score-md-master-board-row-every-language` minted and claimed: `util_build_score_md.py` gained a MASTERS table and a fourth column
+(the harness's own `run ALL.<ext> ALL.ref --modes m3,m4`, per mode, never summed). Three seat questions answered without a stall
+(seat10 s5 representation — interim that hq_C then made the ruling; seat12 unbuilt sources — mint one row for the two; seat11 —
+seats mint gates, with the two-part proof). ⛔ **ONE REGRESSION OF MINE, CAUGHT BY THE SMOKE BEFORE ANY PUSH:** I deleted six
+`IR_OP_COUNT` guards from the driver's Raku emittability gate as "dead"; `rk_excise` builds live nodes with that op, so two smoke
+programs went from REFUSED to SIGABRT. Guard restored and named; tombstone claim retracted everywhere it was written; the machine
+fact that the COUNT sentinel doubles as an op is the re-scoped row. And the harness's 10-minute cap killed two verdict chains
+before I detached them — recorded for every seat in the FINDING.
+
+**ROUTED, NOT MINE THIS SITTING:** `driver-emittability-predicates-sentinel-tombstones` (RE-SCOPED after a same-night retraction: `IR_OP_COUNT`
+is a LIVE op — the excised node `rk_excise` builds — so the defect is the COUNT sentinel doubling as an op; name it `IR_EXCISED`. My deletion of
+its guards regressed two Raku smoke programs from REFUSED to SIGABRT; the smoke caught it, the guard is back, named);
+`raku-bench-angles-1-and-2-fixed-iter-instrument` (the cross-proof half). ceo's two new rows in this lane
+(`make-pristine-per-root-flock-second-builder-waits` rank 1, `next-tiebreak-by-mint-time-not-file-order` rank 3) and the
+`tests-consolidate-prolog-pz4-blocked-33` re-check are the next picks. See
+`FINDING-2026-09-01-hq_B-raku-work-basis-grid-rakudo-startup-was-99pct-of-string-escape-and-was-padding-the-point-class-denominators.md`.
+
 **B-1 (2026-08-30 — row `capture-feed-stdin-and-red-exit` LANDED; three gates found lying, one of them vacuous):**
 Landed SCRIP `24f7456c` (capture feeds the stdin companion to m3+m4+oracle, the feed is proven by an unfed
 control, RED exits non-zero, convert carries the companion end to end, four disagreeing spelling lists

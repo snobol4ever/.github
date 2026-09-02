@@ -5,8 +5,10 @@
 ⭐⭐ **COMPUTED, NOT TYPED (row `score-md-master-driven-display`, seat08 2026-08-30).** The grid below is the
 literal output of `SCRIP/scripts/util_build_score_md.py` — regenerate it with `python3 scripts/util_build_score_md.py`
 (from `SCRIP/`, after `make pristine`) rather than hand-editing a cell. It reads each language's
-`corpus/tests/<lang>/ALL.csv` master for entry/xfail counts and invokes that language's own existing,
-unmodified floor/smoke gate script for PASS/FAIL — no duplicated grading logic, no fabricated numbers — and
+`corpus/tests/<lang>/ALL.csv` master for entry/xfail counts, invokes that language's own existing,
+unmodified floor/smoke gate script for PASS/FAIL — no duplicated grading logic, no fabricated numbers —
+**and (since 2026-09-01, ceo → hq_B) runs every language's MASTER BOARD with one instrument, the harness's own
+`corpus_suite_harness.py run ALL.<ext> ALL.ref --modes m3,m4`, reported PER MODE and never summed** — and
 the stamp line names the exact per-repo commit every number was measured against (never a session label like
 the `s283h tree` this section used to carry — see the two paragraphs below for why that mattered and still
 matters for the detail tables). `MASTER PENDING` means no master exists yet for that language (Icon, Pascal as
