@@ -237,6 +237,7 @@ Compile-time globals (census § B: `g_pl_det_v[]`, `g_pl_disj_ctr`, `pl_ll_ctr`,
 | row | disposition |
 |---|---|
 | BX-0 the instrument | LANDED `f4532dea` (hq_P) — the ladder's grading arm |
+| the quad gate (instrument lane) | LANDED `9623ff55` (hq_P) — `test_gate_pl_quad_regs.sh` + `pl_quad_regs_scan.py`, last in `make test`: every r12–r15 write in emitted mode-4 TEXT is graded by (site, register, shape) against an explicit enrolment table; rtx routines the program reaches are swept transitively, TR helpers admitted by routine NAME (`QUAD_HELPER_RX`); three canaries red on every run. GREEN on rung 0 (5 writes = the § A.1 ROOT seeds; rtx 3 reachable / 0 writes). Supersedes the born-red label allow-list of `4253dd88`. A rung that adds a B/TR/BALL writer enrols ONE shape row, never a box-wide admission — `FINDING-2026-09-02-hq_P-quad-gate-lands-green-at-rung-0-by-site-and-shape-superseding-the-born-red-label-allow-list.md` |
 | 2.0 re-home r12/r9 (`prolog-rung-2-0-rehome-scratch-r9-and-r12-off-prolog-reachable-templates`) | SUPERSEDED: the 16 sink sites are deleted by the cut; what survives is hq_P's quad gate above. Two brief corrections from hq_B's measurement (2026-09-02, zero source changed) are kept: the corpus is a SIBLING root (`$S4E_HOME/corpus`, never `$S4E_HOME/SCRIP/corpus`), and in `xa_flat`'s PL-DC γ/ω shims `rcx` is a live argument, so the return-address temp there is `r8`, the dead one |
 | PZ-4 (b)-(f) | rungs 0 and 2 |
 | PZ-5 | rung 2 |
