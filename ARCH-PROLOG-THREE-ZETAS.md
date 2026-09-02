@@ -85,6 +85,8 @@ withheld from this step to keep the rebase pure and gradeable.
 
 ## 4. The deletion list (each a rung; DONE-WHEN = the symbol absent from `src/` and from `nm -D out/libscrip_rt.so`, boards not worse)
 
+**The complete denominator for this table (ceo 2026-09-02, at SCRIP `46db4457`): 56 live Prolog-only globals (41 runtime, 15 compile-time) and 9 dead ones, each with file, line, and whether emitted code addresses it — `.github/FINDING-2026-09-02-ceo-prolog-only-globals-census-56-live-9-dead-and-what-the-term-deletion-removed.md`. A rung that deletes a symbol strikes it there.**
+
 | what leaves | where it is today | row |
 |---|---|---|
 | the `plc_*` solver (23 definitions), `rt_pl_call_gen`, `rt_call_arr_impl`'s route into it, the `plc_rd_*` runtime term reader | `by_name_dispatch.c:1135-1236, 4565-4893, 4992` | C36 |
