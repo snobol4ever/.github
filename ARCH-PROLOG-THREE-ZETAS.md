@@ -15,6 +15,8 @@
 
 ## 1. The law, applied to Prolog (no new law — the existing one, obeyed)
 
+⛔⭐ **Lon, in-chat to ceo, 2026-09-02 ~14:20 (sixth ruling, box clock):** *"We are the main architects here. Let ensure we use the THREE ZETA's, and do not mis-use the STANDING ZETA as a surrogate global for things program wide."* ζ-STANDING is the ROOT GRAPH'S OWN WORKING STORAGE — the program's named variables, declared or discovered at compile time (a SNOBOL4 natural variable, a `:- dynamic p/1` predicate, a constant-keyed `nb_setval` cell) — reached through `r14`; it is NEVER a surrogate global: no runtime-machine state (trail, choice, cursor, ball, counter, mode, flag of the engine) and no "table of everything" slot goes there. Under the FRAME-PLACEMENT CRITERION each datum belongs to the box whose lifetime it has: ζ-SPINE for fixed-offset temporaries within one activation, ζ-ACTIVATION-FRAME for what must survive a γ→β window, the HEAP for genuine escapers (strings, asserted clauses, collected terms, the ball), reached from the owning box's cell. Compile-time-constant data (the proc table, constant flags, the interned `'.'`) is RO in the code slab, not storage at all. Per-row dispositions: `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` § C ruling paragraph; law `RULES.md` § THE PROLOG REBUILD GATE clause 6.
+
 Prolog is the language the Byrd box came from; it is not a special case of THE THREE ZETAS. For every Prolog graph:
 
 - **ζ-SPINE on RSP** — a box's operands whose every consumer reaches them at a fixed compile-time offset inside ONE activation with no unbounded growth between producer and consumer (head-unification temporaries, arithmetic scratch, builtin argument staging).
@@ -105,6 +107,8 @@ withheld from this step to keep the rebase pure and gradeable.
 `unification.c`'s cell services (132 definitions: unify, bind, compare, sort, copy_term, write/format on cells, findall collect, bag group), arithmetic on cells (`rt_runtime.c:111-255`), the trail primitives (`pl_cell.h:53,55,81` — the mark's HOME moves into the frame, the primitives stay), atom interning (`prolog_atom.c`), cell allocation and GC roots (shared), the 22 `dop_*` bodies (called directly), stream and I/O builtins. A value service returns a value and touches nothing else; a call that also initialises, interns, or marks is named as such on its baton (the milestone-3 lesson: a deleted round-trip carried the atom-table init).
 
 ## 6. Order and gates
+
+⛔ **ORDER SUPERSEDED 2026-09-02 (Lon, in-chat to ceo, ~13:40–13:55):** the mechanism order below is RETIRED; the construct ladder in `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` § E is sovereign — the cut (every § 4 / § C global and the control machine deleted in ONE push), then rung 0 = hello world with zero Prolog-only globals, climbing by construct; § E.2 maps every row below to its rung; law `RULES.md` § THE PROLOG REBUILD GATE. The gates paragraph below stays as the post-rung-10 program gate.
 
 **Order:** PZ-4 (the frame; C21, hq_C, first) → PZ-5 (in-frame resume; the mailbox goes) → C36 (call/N through the runtime compiler; solver deleted) → P7 (setjmp failure/cut out; hq_P) → P6 (by-name cascade out; hq_P) → C37 (exceptions through ports) → T9 to zero and T7 (resolution layer gone; hq_B). Every other Prolog rung queues behind these; the seats' partial branches (`wip/prolog-call-n-metacall-synthesis`) are inputs, not rungs.
 
