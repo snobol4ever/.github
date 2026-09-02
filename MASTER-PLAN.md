@@ -68,7 +68,7 @@
 | C18 | test-gate-pl-gz-dead-instruments-measure-a-retired-path | seat | dead gates retired or re-pointed, named in the commit |
 | C19 | prolog-bak-files-dead-code-sweep | seat | row DONE-WHEN |
 | C20 | prolog-next | seat | GOAL-PROLOG-100 LIVE CURSOR's first incomplete step (a pointer rung; the seat names what it did) |
-| C21 | prolog-pz4-gamma-retain-activation-frames | hq_C | PZ-4 keystone; BLOCKED-ON P1 |
+| C21 | prolog-pz4-gamma-retain-activation-frames | hq_C | PZ-4 keystone; BLOCKED-ON P1 — ⚠ 2026-09-02 09:20 (hq_B, FINDING `a4a7cfff`): the BLOCKED-ON P1 edge self-cleared but the mechanism PZ-4 waits for — Prolog RBP frame promotion, the row's own clause (a) — never landed; baseline 0 rbp-relative / 323 rsp-relative / 0 `push rbp` (pristine `5839cf13`); `x86_fb()`/`x86_fb_pinned()` are stubs answering rsp/0 for every language. Goes to hq_C by ASSIGNMENT after T9 zero and C36; no fifth seat |
 | C22 | prolog-multiclause-uninit-lexprep-frame | hq_C | PARKED-AWAITING C21 |
 | C23 | prolog-sendmore-cryptarithm-segv | hq_C | PARKED-AWAITING C21 |
 | C24 | prolog-between-generator-backtrack-crash | hq_C | PARKED-AWAITING C21 |
