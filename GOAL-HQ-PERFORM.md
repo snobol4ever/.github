@@ -29,6 +29,10 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
+### ⭐⭐⭐ LIVE CURSOR — s282 (hq_P, **TRIO**, `MODE` file computed). **BX-0 THE PORT-TRACE INSTRUMENT LANDED (SCRIP `f4532dea`) · THE PROLOG BASELINE PIN IS PARKED ON LON'S WRAP-UP — NO NUMBER WAS TAKEN, SO NONE IS QUOTED**
+
+Prolog #1 lane, ceo standup `prolog-instruments-and-baseline-standup`. Landed: `SCRIP_PL_TRACE=1` (Byrd's Call/Exit/Redo/Fail from the one hook, invocation-numbered), `=2` (per-box α/β/γ/ω hit counts — the WAM's REDO/CALL and FAIL/EXIT tuning ratios, both modes), gate `test_gate_pl_port_trace.sh` + refs `corpus/tests/prolog/ALL.trace`. Default arm inert: 23/23 committed Prolog bench `.s` byte-identical, SNOBOL4 blocking set m3 PASS=1679 FAIL=0 · m4 PASS=1679 FAIL=0 SKIP=0 · MISSING=0 (pristine, SCRIP f4532dea, make test 18:09Z), Icon 14/14. ⛔ r15 is a driver mmap address at every Prolog ω (not the ball) — printed raw, not classified. **NEXT:** the van Roy two-number baseline (three angles, 21 kernels, `-O0`, quiet box) pinned in GOAL-PROLOG-100.md — see that file's 2026-09-02 hq_P cursor for the exact commands and the pin-commit question for ceo. Receipts: `FINDING-2026-09-02-hq_P-bx0-port-trace-lands-r15-is-a-driver-mmap-address-at-every-omega-and-the-baseline-pin-is-parked.md`.
+
 ### ⭐⭐⭐ LIVE CURSOR — s281 (hq_P, **FLEET-8**, `MODE` file computed). **PER-STATEMENT ATTRIBUTION IS ON BY DEFAULT — AND IT USED TO LIE ABOUT `-INCLUDE`: 599 OF 1,068 `.loc` ON beauty POINTED PAST THE END OF THE FILE THEY NAMED**
 
 ✅ **SCRIP `764752c6` · corpus `89620e682` · `RT_OPT=-O0` · pristine (HQ-27).** Row `perf-per-statement-loc-emission`
