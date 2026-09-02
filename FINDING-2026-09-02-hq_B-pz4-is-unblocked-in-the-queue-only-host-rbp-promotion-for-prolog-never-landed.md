@@ -82,6 +82,16 @@ is why `icn_gen_regime()` exists as a language-specific key instead of the bare 
 promotion needs its **own** key, and `pl_cells_graph` is not a free substitute — it is gated on
 `SCRIP_PL_CELLS`, default OFF (`lower_prolog.c:12`).
 
+   ⛔⭐ **AND THE OBVIOUS KEY IS ILLEGAL, NOT MERELY WRONG — DO NOT REACH FOR `is_prolog`.**
+   `test_gate_emit_no_lang.sh` is a BLOCKING gate and bans the identifiers `g_lang` / `LANG_` / `IR_LANG_` /
+   `rt_set_lang` / **`is_<language>`** anywhere under `src/emitter` and `src/templates` — identifier-scoped, so
+   a diagnostic string is fine but a live code reference is not. RULES.md line 86: the emitter is "past language
+   and into PLATFORM" and may condition only on the IR graph and platform state. So the Prolog key must be a
+   **behavioural description of the storage regime**, which is exactly what `pl_cells_graph`/`icn_cells_graph`
+   already are and why they are spelled that way rather than as language names. Whatever key clause (a) needs,
+   mint it as a regime predicate on that model — and run this gate before believing the arm exists.
+
+
 ⛔ **And the shared pin machinery this row's GOAL says to land through is currently inert for every language:**
 `x86_asm.h:478` `x86_fb_pinned() { return 0; }` and `:484` `x86_fb() { return "rsp"; }` are unconditional
 stubs. The GOAL's *"through the SHARED pin machinery (`emit_rec_pin`/`x86_fb`/adopt), not bespoke arms"* names
