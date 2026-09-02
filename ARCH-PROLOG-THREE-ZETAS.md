@@ -45,6 +45,42 @@ Prolog is the language the Byrd box came from; it is not a special case of THE T
 - **The killswitch is the existing one.** `icn_genframe2()` (env `SCRIP_ICN_GENFRAME2`, default ON) becomes the cells-frame killswitch for both languages — one control arm, proven in the FAIL direction on the `fact/2` witness before the cure lands (INSTRUMENT LAWS).
 - **GC roots.** The collector scans by address range (`src/runtime/rt/gc_heap.c:341-351, 606, 661, 668`), not by frame kind; whether a region-resident Prolog frame's cells fall inside a scanned range is NOT verified — a rung of PZ-4 with a witness that allocates during a retained frame and collects.
 
+
+### 3a. What landed (hq_C, 2026-09-02, PZ-4 clause (a) — SCRIP commit named in the FINDING below)
+
+**The pin, and the measured reason it is post-carve.** Every Prolog predicate graph now carries its ζ-ACTIVATION
+frame in a pinned base register: α is `sub rsp,kt` · wire header `[kt-24]=γ [kt-16]=ω` · **`[kt-8]=caller base`** ·
+**`rbp = rsp`**. γ and ω restore the caller's base through the pin (`mov rbp,[rbp+kt-8]`) before releasing. The
+storage decision this section left open is taken: **the machine stack directly under RBP, pinned AFTER the carve**
+— not Icon's region-resident frame, and not Icon's pre-carve pin. The reason is measured, not preferred:
+hq_P (`adc17766`) showed Icon's `[rbp + off - ft]` rebase rests on an invariant ("rsp does not move between α and
+γ") that is FALSE for a Prolog body — 34 rsp moves on the fact/2 witness including a `pop rsp`, past which no
+static displacement exists. Pinning after the carve makes the rebase plain `off`, needs no per-site rsp-delta,
+adds no `push` (so the two PL-CALL-ALIGN pads stay correct), and needs no new slot: `[kt-8]` was a write-only
+self-anchor (s247) and now holds the caller base. Proof it is a pure rebase: normalising `rbp→rsp` in the pinned
+`.s` and diffing against the killswitch arm of the same binary leaves exactly the pin/restore lines — **zero ζ
+offsets changed**. Witness census: rbp-relative lines 0 → 164.
+
+**The key, and why it is not the `cells_graph` rename above.** The pin is keyed on a new language-blind IR graph
+property `zframe_pinned_base`, set by `lower_prolog.c` alone; the emitter asks `emit_zframe_pinned()` and nothing
+else. It is NOT `zframe_graph` (Raku and Pascal set that too — they would have been re-homed silently) and it is
+deliberately NOT the `icn_cells_graph → cells_graph` widening proposed above: that grant carries Icon's
+region-resident α, host reserve and bcps generator arm along with the rebase, which is the exact widening the ⚠
+hazard at `x86_asm.h:2111` records as dropping Prolog smoke 5/5→3/5. Two regimes with different pin arithmetic
+cannot share one `ft`; they share the ACCESSOR (`x86_fb`/`x86_zop`/`x86_zref`) and keep their own keys.
+
+**The stubs answer.** `x86_fb_pinned()` = `emit_zframe_pinned()`; `x86_fb_num()` answers 5 under it; `x86_fb()`
+is DERIVED from the number (never a second literal). Both ζ families (FR through `x86_fb`, SPINE through
+`x86_zref`/`x86_zop`) move on the same predicate; `x86_frame_off()` drops `op_zdepth` under the pin. Killswitch:
+`SCRIP_PL_ZA=0` — byte-identical `.s` to the pre-change build, proven on the fact/2 witness.
+
+**Not landed by this step — the row is open:** (c) the caller landing re-anchoring off its own pin (the
+`bb_call_proc_staged.cpp:773` bomb's stated blocker is now false and its text needs (c)); (d) the CP stack stores a
+bare address with no base (`rt.c:1746-1765`) — the nested-activation backtrack witnesses (`nested.pl`, `deep.pl`)
+crash in BOTH arms today, pre-existing, and are the graded witnesses for (d); (f) top-graph exclusion and the
+`SCRIP_PL_GAMMA_RETAIN` flip; and the exact release `lea rsp,[rbp+kt]` in place of `add rsp,kt`, deliberately
+withheld from this step to keep the rebase pure and gradeable.
+
 ## 4. The deletion list (each a rung; DONE-WHEN = the symbol absent from `src/` and from `nm -D out/libscrip_rt.so`, boards not worse)
 
 | what leaves | where it is today | row |
