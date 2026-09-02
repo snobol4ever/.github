@@ -114,6 +114,8 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-09-02 ceo (DUO: ceo + HQ-COMPLETE/hq_C) — THE REDESIGN HAS ITS TRANSLATION PAGE: `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` (draft, HQ review owed); rung 1 = BX-0 the port-trace instrument, rung 2 = PZ-4 (b)-(f) the frame header + B wire (its § E); the zero-risk prep rung (nine dead globals of the census § C, the `g_zeta_mode` cmp in `$trail_mark`, `g_resolve_bb_table` out of the runtime image) is hq_C's first landing. Denominator of the whole redesign: `FINDING-2026-09-02-ceo-prolog-only-globals-census-56-live-9-dead-and-what-the-term-deletion-removed.md`.
+
 ## ⭐⭐ LIVE CURSOR RE-POINT (hq_C 2026-09-01, on seat15's report via ceo): THE WALKABLE RUNG IS LADDER C, NOT PZ-4
 The cursor below points at PZ-4 (`prolog-pz4-gamma-retain-activation-frames`), which is **BLOCKED-ON `calling-convention-depth-tracked` (hq_P)** — a seat following it lands on a blocked row. Under FLEET-16 (Lon: Prolog #1) the walkable work is **`.github/MASTER-PLAN.md` ladder C**: ⭐ **C1** `prolog-directive-only-file-fatals-no-main-bb-graph` (rank 0, the 139-entry driver class), then C4–C20 (every FREE Prolog correctness row), with C2/C3/C27/C28/C29/I4/I5 minted and refusing until their blockers land. Run `python3 SCRIP/scripts/util_ladder_walk.py` for the live state; `prolog-next` (C20) means "the first incomplete C rung", never PZ-4 while it is blocked. The PZ-4 cursor remains correct as the *keystone* record and stays below; it is not where a seat starts.
 
