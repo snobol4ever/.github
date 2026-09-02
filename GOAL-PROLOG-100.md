@@ -24,7 +24,7 @@
 
 ⭐ **INTERPRETATION 2026-09-01 (hq_C's reading on seat10's slice-5 question, confirmed by ceo; Lon may correct it in one word):** the s273 order — spine → activation frame → standing/root frame, heap only for string values — governs VALUES during matching. A dynamic-database clause (`assert`/`retract`) is PERSISTENT program state that outlives every activation and every backtrack and GROWS without bound at run time, so no zeta can hold it: it is a genuine escaper in the sense of RULES.md § BB FRAME-PLACEMENT CRITERION (the same clause that sends strings, heap cells and Raku's escaping closures to the heap). RULING: stored clauses are DESCR cells in the runtime workspace arena (`rt_ws_alloc`) — the SHAPE law (DESCR, never Term) is what Lon ruled and it is kept; the predicate table that indexes them is fixed-size root-level state and lives in the STANDING frame. Slice s5 proceeds on this; if Lon corrects the residency, the cells move and the shape does not. Routed also to the umbrella ledger.
 
-## ⛔⭐⭐⭐ LON RULING, 2026-09-01 ~21:10 (in-chat to ceo, routed the same minute) — **NO PROLOG RUNTIME INTERPRETER. `call/N` RE-USES THE EVAL/CODE RUNTIME-COMPILATION PATH.**
+## ⛔⭐⭐⭐ LON RULING, 2026-09-01 ~20:53 (in-chat to ceo, routed the same minute) — **NO PROLOG RUNTIME INTERPRETER. `call/N` RE-USES THE EVAL/CODE RUNTIME-COMPILATION PATH.**
 
 **Lon, verbatim:** *"Remove that Prolog runtime interpreter, we already decided that Prolog should be re-using EVAL and CODE."* — and, a minute later, *"Remove the dead AST walkers."*
 

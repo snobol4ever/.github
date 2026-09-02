@@ -1,6 +1,6 @@
 # FINDING 2026-09-01 (ceo, on Lon's in-chat order ~20:35: *"ensure that no AST or IR walking occurs whatsoever in mode 3 and mode 4. Go check and report back which is the case."*)
 
-**Tree:** SCRIP `6ede7c31`, `make pristine`, `RT_OPT=-O0`, this root (`/home/claude`), 2026-09-01 20:40–20:55. Law audited: RULES.md:82 **NO AST WALKING IN MODES 2/3/4** and RULES.md:84 **NO SM/BB WALKING AT RUNTIME IN MODES 3/4**. Sweep by a read-only agent over `src/`, every non-obvious claim re-verified by ceo by hand; runtime behaviour measured with gdb witnesses, not inferred.
+**Tree:** SCRIP `6ede7c31`, `make pristine`, `RT_OPT=-O0`, this root (`/home/claude`), 2026-09-01 20:30–20:45. Law audited: RULES.md:82 **NO AST WALKING IN MODES 2/3/4** and RULES.md:84 **NO SM/BB WALKING AT RUNTIME IN MODES 3/4**. Sweep by a read-only agent over `src/`, every non-obvious claim re-verified by ceo by hand; runtime behaviour measured with gdb witnesses, not inferred.
 
 ## VERDICT, in four layers
 
