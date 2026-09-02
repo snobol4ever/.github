@@ -94,7 +94,7 @@
 
 | rung | row | lane | gate |
 |---|---|---|---|
-| ⭐I8 | master-suite-board-refuses-under-fleet-load-slot-lock-or-load-scaled-timeout | seat | four concurrent master-suite runs on a loaded box all print SUITE_BOARD; a killed run names its killer (seat06 repro at loadavg ~17; hq_P 18:20 refusals; hq_C rc=143 at 4m50s) — every rung's DONE-WHEN runs through this instrument |
+| ⭐I8 | master-suite-board-refuses-under-fleet-load-slot-lock-or-load-scaled-timeout | seat | WHO KILLS HARNESS RUNS BY NAME: four refusals across two seats in one 3-minute window (18:17–18:20) BEFORE the known 18:28 pkill → a FINDING names the sender with evidence, and a killed run prints its signal and cause (depends on I9). The capacity premise in the slug is RETRACTED by its author (seat06: board PASSED at loadavg 27 in 500 s); seat04's 748 s under load stands — callers' budgets exceed it or run detached |
 | I9 | test-corpus-snobol4-refusal-discards-the-harness-stderr | seat | the board stops piping the harness through 2>/dev/null: a refusal, a kill and a crash print DIFFERENT things (precondition of I8's "who sent the SIGTERM" step; hq_C mint from seat11's finding) |
 | ⭐I7 | park-marks-last-row-only-when-clearing-own-claim | hq_B | `park` marks `.last-row` only on the branch that clears the caller's own claim; gate proves unclaim/done/park-own each write it and park-not-owned leaves it (seat14 FINDING 0803ecca; rank 0 because the FLEET-16 all-hands told seats to park) |
 | ⭐I1 | make-pristine-per-root-flock-second-builder-waits | seat | two concurrent `make pristine` in one root both exit 0 and the binary passes the smoke |
