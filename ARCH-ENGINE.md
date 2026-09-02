@@ -28,6 +28,10 @@ The bypass census (seat10: SCRIP_OPT=0 regresses 187/1649, SCRIP_ZD=0 306/1649, 
 
 ---
 
+## ⛔⭐⭐ THE RUNTIME-GOAL RULING (Lon, in-chat to ceo, 2026-09-01 ~21:10: *"Remove that Prolog runtime interpreter, we already decided that Prolog should be re-using EVAL and CODE."*)
+
+Prolog has NO runtime interpreter. A goal unknown at compile time (`call/N`, `catch/3`'s goal, the goal arm of the all-solutions and negation builtins, later-invoked asserted bodies) is compiled AT RUN TIME through the one runtime-compilation path the engine already has — the EVAL/CODE path (`src/runtime/runtime_eval.c`: graph → `optimizer_run` → `emit_chain` → jump) and the pattern JIT's shape (`src/runtime/rt/bb_pat_build.cpp:84-110`: compile once at construction, cache the blob) — and then runs as wired Byrd boxes like every other goal. The `plc_*` solver family in `src/runtime/by_name_dispatch.c` (a solver tree built by `strcmp` on functor names and driven by a `switch` — the last dispatch loop over data in the tree, measured 2026-09-01) is deleted under this ruling. Corollary of RULES.md:84 (NO SM/BB WALKING AT RUNTIME): a dispatch loop over runtime-constructed goal terms is walking by another name. Same order, same minute: the dead AST walkers still linked into `libscrip_rt.so` (`scope_patch`, `static_get/set`, `driver_call.c:139-380`, the `eval_*`/`exec_stmt` stubs) are deleted, never re-stubbed. Rungs: MASTER-PLAN ⭐C36 and ⭐I14. Evidence: `FINDING-2026-09-01-ceo-modes-3-4-no-ast-or-ir-walking-emission-path-clean-runtime-evaluators-bomb-prolog-call-n-solver-is-the-one-live-interpreter.md`.
+
 ## Intermediate Representation
 
 The shared IR every frontend compiles to. Two distinct node types live here, both under `src/ir/` (moved off `src/contracts/`/`src/include/`/`src/lower/` in the srcreorg — see Retired names below): `tree_t` (the parse-time expression/AST node, `src/ir/ast.h`) and `IR_t` (the Byrd-box graph node, `src/ir/IR.h:178`, the thing the pipeline actually lowers to and templates consume). ARCH-IR historically documented only `tree_t`; `IR_t` is added here since it is this doc's namesake structure and was previously undocumented.
