@@ -4,6 +4,31 @@
 
 **This file REPLACES (deleted this session, full text in `.github` git history at `1e5db2cf` and before):** `GOAL-RBP-EARN.md` · `GOAL-SN4-HOME.md` · `GOAL-SN4-HOME-{BOARD,LOWER,RBX,WIRES}.md` · `GOAL-SN4-ZETA-{MECH,CLIMB}.md` · `GOAL-SNOBOL4-100.md` (+`-ALPHA`,`-OMEGA`) · `GOAL-SNOBOL4-RTX.md` · `GOAL-SNOBOL4-PAT-IR.md` · `GOAL-MILESTONE-1-BEAUTY.md` · `GOAL-LANG-SNOBOL4.md` · `GOAL-PARSER-SNOBOL4.md` · `GOAL-PST-SNOBOL4.md` · `GOAL-SNO-{CLAWS5,TREEBANK-ARRAY,TREEBANK-LIST}.md` · `GOAL-SCRIP-BEAUTY.md` · `GOAL-CSNOBOL4-{FENCE,HARNESS}.md` · `GOAL-CSN-FENCE-FIX.md` · **(s93, text at `1ccb3e59` and before)** `GOAL-ZETA-FOUR.md` · `GOAL-SUBEXPR-ORACLE.md` · `GOAL-DATATYPE-PORTABLE-TESTS.md`. Any reference to one of those names, anywhere in `.github`/SCRIP/corpus, resolves HERE. Their laws that still bind are restated below; their rungs are dispositioned in the LEDGER at the bottom (verified against SCRIP `2a6a76ab`, corpus `20a2387a`, live tree, 2026-08-15). **NOT absorbed (platform, all-language, untouched):** `GOAL-RTCC.md`, `GOAL-MODE34-IDENTICAL.md`, `GOAL-DESCR-TAG-ENCODING.md`, monitor/harness goals, every Icon/Prolog/Snocone/Raku/Pascal/Rebus goal.
 
+## ⛔⛔⭐ INTERIM PROMOTION PROTOCOL — A MARKER PROMOTION IS PROVEN ON THE RESULT, NEVER ON THE EXTRACT
+**(ceo ruling 2026-09-01, written here and into `SCRIP/scripts/lib_master_extract.sh`'s header by hq_C. INTERIM until row `optbypass-pin-stable-subset` lands.)**
+
+An XFAIL marker lives in **three** places: the banner in `ALL.sno`, the **same** banner in `ALL.ref`, and the reason line in `ALL.xfail`. `read_suite` compares the `.sno` and `.ref` banners and **raises** on a mismatch — so a half-applied promotion does not degrade gracefully, it makes the master suite **unreadable for every seat on the box**. ⛔ **Measured 2026-09-01:** corpus `2d75933ec` dropped `' XFAIL'` from `ALL.sno` and `ALL.xfail` but **not** `ALL.ref`; every SNOBOL4 board, census and optbypass count on the box refused until `5eb68cb8` restored the pair.
+
+**THE RULE — two clauses:**
+1. A marker promotion is **proven by running `read_suite` (or the board) on the RESULT, in the same commit** — never by the extract alone.
+2. A promotion that **moves the graded population re-pins the optbypass watermark in the same commit**, or it is not pushed.
+
+⭐ **THE CHECK COSTS 0.046 s, so there is no budget excuse** (hq_C, measured — the 400–650 s board is what promoters were actually skipping, and skipping it was rational until someone measured the cheap arm). `list` runs the same `read_suite` the board does:
+
+```bash
+python3 "$S4E_HOME/SCRIP/scripts/corpus_suite_harness.py" list \
+        "$S4E_HOME/corpus/tests/snobol4/ALL.sno" "$S4E_HOME/corpus/tests/snobol4/ALL.ref"
+```
+
+**Proven both directions on the real tear** (hq_C 2026-09-01 — run, not asserted):
+
+| arm | result |
+|---|---|
+| torn pair (`2d75933ec`) | **rc=1** · `ValueError: family.ref banner mismatch at seq 1678: sno='… 1678 user_function_indirect_replace_2' ref='… 1678 user_function_indirect_replace_2 XFAIL'` |
+| fixed pair (`5eb68cb8`) | **rc=0** · 1726 entries listed |
+
+⛔ **Read the rc, not the tail.** A wrong *path* to the harness also exits nonzero and reads almost identically at a glance (`can't open file …`). That mistake was made while proving this very line — the instrument answered "can python open this file" while being asked "is the suite torn" (CLAUDE.md § *any instrument that answers a narrower question than you think you asked will never say so*).
+
 ## ⭐⭐ FUTURE FEATURE, RULED — PHI: EXPOSE THE FULL REGULAR-EXPRESSION ENGINE TO SNOBOL4 (Lon, 2026-08-23 s264, in-chat to CEO)
 Verbatim in substance: *"we'll want to add the same feature that I did for snobol4python through the Φ and φ functions, where we expose the entire REGULAR EXPRESSION engine to SNOBOL4."* ⛔ The names are the GREEK LETTERS `Φ` and `φ` — corrected by Lon s264 after CEO first wrote them as ASCII "PHI/phi" — and they are TWO pattern primitives, not one, mapping regex named groups onto SNOBOL4's two assignment operators. Precedent (the PY code, read at `snobol4python/src/SNOBOL4python/_backend_pure.py`): **`Φ` (:626) = regex match with IMMEDIATE assignments** — every named group `(?P<name>…)` assigns into globals the moment the regex matches (SNOBOL4 `$` semantics, `_env._g[N] = STRING(V)`); **`φ` (:649) = regex match with CONDITIONAL assignments** — named groups assign only on overall pattern success (SNOBOL4 `.` semantics). Both compile-and-cache the regex (`_rexs`), anchor at the cursor, yield the matched slice, restore position on backtrack — i.e. each is already a well-behaved Byrd box. In SCRIP this lands as two boxes with the same Greek names. ⛔ NOT scheduled — recorded so it is not lost; it becomes rungs when Lon opens it. Routed by CEO s264.
 
