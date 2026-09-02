@@ -29,6 +29,27 @@ python3 "$S4E_HOME/SCRIP/scripts/corpus_suite_harness.py" list \
 
 ⛔ **Read the rc, not the tail.** A wrong *path* to the harness also exits nonzero and reads almost identically at a glance (`can't open file …`). That mistake was made while proving this very line — the instrument answered "can python open this file" while being asked "is the suite torn" (CLAUDE.md § *any instrument that answers a narrower question than you think you asked will never say so*).
 
+### ⛔⛔ CLAUSE 3, ADDED THE SAME DAY — `read_suite` AND THE BOARD GRADE THE **DEFAULT ARM ONLY**
+
+Found by **hq_P** hours after the protocol above landed; **verified independently by hq_C before adoption** (measure, don't relay).
+
+An entry that **passes by default** and **fails under a bypass arm** can be promoted with a *perfect* default-arm proof, silently push the optbypass watermark up, and turn the gate **red on the next seat's push** for a reason that has nothing to do with their change. **Both of the 2026-09-01 promotions did exactly this, in different arms.** So the same-commit proof takes a second line, costing seconds:
+
+```bash
+python3 "$S4E_HOME/SCRIP/scripts/util_census_optimizer_bypass.py" --only <entry-name>
+```
+
+| entry promoted 2026-09-01 | default | `SCRIP_OPT=0` | `SCRIP_ZD=0` |
+|---|---|---|---|
+| `user_function_indirect_replace_2` | PASS | PASS | **non-PASS** |
+| `user_function_eval_arbno_replace_branch_2` | PASS | **CRASH rc=-6** | **non-PASS** |
+
+If any bypass arm is non-PASS, **say so in the commit note** and expect the watermark to move. The promotion is still correct — but the next seat must not have to attribute your entry's crash to their own change. (This is the false-attribution trap of the whole evening, arriving from a third direction.)
+
+⚠️ **Do not classify a bypass arm by its verdict KIND — it is bimodal.** The `SCRIP_ZD=0` arm of `user_function_eval_arbno_replace_branch_2` read **HANG, CRASH, CRASH** on three consecutive runs here, and hq_P read CRASH where hq_C first read HANG. **Neither reading was wrong.** *Non-PASS* is stable; *which* non-PASS is not — so a classification keyed to the verdict kind will disagree with itself between runs.
+
+⛔ **Corollary — hq_P's own retraction, and why I10 is rank 0:** a **carried MAX** watermark is an upper bound **only under shrinkage**. Every entry promoted *into* the graded set brings its own bypass-arm verdict with it, so under **growth** — the direction this corpus actually moves — a carried max is not conservative, it is **wrong**.
+
 ## ⭐⭐ FUTURE FEATURE, RULED — PHI: EXPOSE THE FULL REGULAR-EXPRESSION ENGINE TO SNOBOL4 (Lon, 2026-08-23 s264, in-chat to CEO)
 Verbatim in substance: *"we'll want to add the same feature that I did for snobol4python through the Φ and φ functions, where we expose the entire REGULAR EXPRESSION engine to SNOBOL4."* ⛔ The names are the GREEK LETTERS `Φ` and `φ` — corrected by Lon s264 after CEO first wrote them as ASCII "PHI/phi" — and they are TWO pattern primitives, not one, mapping regex named groups onto SNOBOL4's two assignment operators. Precedent (the PY code, read at `snobol4python/src/SNOBOL4python/_backend_pure.py`): **`Φ` (:626) = regex match with IMMEDIATE assignments** — every named group `(?P<name>…)` assigns into globals the moment the regex matches (SNOBOL4 `$` semantics, `_env._g[N] = STRING(V)`); **`φ` (:649) = regex match with CONDITIONAL assignments** — named groups assign only on overall pattern success (SNOBOL4 `.` semantics). Both compile-and-cache the regex (`_rexs`), anchor at the cursor, yield the matched slice, restore position on backtrack — i.e. each is already a well-behaved Byrd box. In SCRIP this lands as two boxes with the same Greek names. ⛔ NOT scheduled — recorded so it is not lost; it becomes rungs when Lon opens it. Routed by CEO s264.
 
