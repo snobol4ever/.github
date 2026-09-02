@@ -1,6 +1,6 @@
 # FINDING 2026-09-02 (ceo, TRIO, second account) — RUNG 6 LANDS: every deterministic builtin of the rung is a direct leaf through the shared `bb_call` box, binding leaves carry the trail context through one rtx trampoline each, and the REPORTED master board moves 50 → 169 of 400 in both modes
 
-**Trees:** SCRIP `c286e513` (step 1: `is/2`, the arithmetic tree, the six arithmetic comparisons) + `b19efced` (the rest of the rung), both rebased on origin `52904468` (scripts-only since `7d0ed0f8`); corpus `62dc7995` (hq_B's re-cut of witness (d) and the power re-pins) + the ceo's promotion commit (below); `.github` this commit. `RT_OPT=-O0`. Box clock 17:05–18:15 CDT. Lon's orders that started it, in-chat to ceo 16:55–17:05: *"Let's get Prolog to 100%."* · *"Just start climbing the rungs from simple syntax to more complex syntax as you go along."* · *"Get back on Prolog now that we are cooking with it."*
+**Trees:** SCRIP `943c1b8c` (step 1: `is/2`, the arithmetic tree, the six arithmetic comparisons) + `81b40ceb` (the rest of the rung), both rebased on origin `52904468` (scripts-only since `7d0ed0f8`); corpus `62dc7995` (hq_B's re-cut of witness (d) and the power re-pins) + the ceo's promotion commit (below); `.github` this commit. `RT_OPT=-O0`. Box clock 17:05–18:15 CDT. Lon's orders that started it, in-chat to ceo 16:55–17:05: *"Let's get Prolog to 100%."* · *"Just start climbing the rungs from simple syntax to more complex syntax as you go along."* · *"Get back on Prolog now that we are cooking with it."*
 
 ## 1. What landed, in the rung's own order (simple syntax first)
 
@@ -15,7 +15,7 @@
 
 ## 2. Measured
 
-| measurement | rung-1 tree `7d0ed0f8` | this tree `b19efced` | instrument |
+| measurement | rung-1 tree `7d0ed0f8` | this tree `81b40ceb` | instrument |
 |---|---|---|---|
 | ladder `--only 6` | REFUSE (no witnesses) → RED 0/12 on corpus `6936651c` (hq_P's fail-once) | **PASS 12/12** (6 witnesses × 2 modes) on corpus `62dc7995` | `test_prolog_ladder.sh --only 6` |
 | ladder `--to 1` | PASS 4/4 | PASS 4/4 | `test_prolog_ladder.sh --to 1` |
@@ -29,6 +29,8 @@ The two XPASS entries the board now reports are named in the promotion commit fo
 **Hard arms (SHARED-NODE VERDICT SCOPE — `bb_call` is every language's box), pristine build of the rebased tree in an isolated sibling root (`scratchpad/root6`, SCRIP worktree + corpus worktree), script `scratchpad/gates6c.sh`:** `make` rc=0 · `nm -D` Prolog-only data symbols 0 · `strip_comments.py --check` rc=0 · Icon smoke 14/14 both modes · Icon STRICT rung suite `PASS=264 FAIL=6 BADEXIT=1 XFAIL=27 TOTAL=298` in all three modes (the pinned watermark, unchanged) · `make test` rc=0: SNOBOL4 `m3 PASS=1679 FAIL=0 · m4 PASS=1679 FAIL=0 SKIP=0 · MISSING=0` GATE OK, every gate OK, quad gate `GATE PASS(0)` 0 unenrolled r12–r15 writes over 9 compiled witnesses (was 4 — the rung-6 witnesses now compile), canaries c1/c2/c3 OK (script `scratchpad/gates6c.sh`, 17:50–18:03 CDT, corpus `6936651c` for the non-Prolog arms)
 
 Step 1 alone (`efafb6fc`, pre-rebase, same `src`) had already passed the same set: SNOBOL4 m3/m4 1679/0, Icon smoke 14/14, STRICT rung suite `264/6/1/27 of 298` in all three modes, `nm -D` 0, strip 0, quad gate 0 unenrolled writes, `make test` rc=0.
+
+**MERGED RE-PROOF (hq_C's rung 2 `2fc5ce73` landed under the ceo's first push; rung 6 rebased onto it as `943c1b8c` + `81b40ceb`, the only conflict the quad scanner's allow-list merged to the union; box clock 18:08–18:23 CDT):** ladder `--only 6` PASS 12/12 · ladder `--to 2` PASS 6/6 (hq_C's rung intact on the merged tree) · trace gate `--to 2` PASS against hq_C's re-cut refs (corpus `100db9e3`) · fresh `--compile` of the six witnesses 0 by-name 0 `_rkfn` · census on the merged tree: **195 of 400 compile, 194 pass m3**, first refusals rung 3: 15 · 4: 14 · 5: 68 · 6: 2 · 7: 6 · 8: 18 · 9: 50 · 10: 32 (rung 2's 83 are gone) · REPORTED board **186/400 both modes** (m3 fail=190 are refusals, m4 fail=5, xfail 20, xpass 4) · hard arms in the isolated root (`scratchpad/gates6d.sh`): `make` rc=0, `nm -D` 0, strip 0, Icon smoke 14/14, Icon STRICT `264/6/1/27 of 298` all three modes, `make test` rc=0 with SNOBOL4 `1679/0` both modes and the quad gate `PASS(0)` (0 violations, 107 enrolled writes over 24 compiled witnesses — hq_C's rung-2 enrolments), canaries OK. **PUSHED: SCRIP `81b40ceb` (origin), corpus `1f60f815` (origin).**
 
 ## 3. What is NOT closed, honestly
 
