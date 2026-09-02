@@ -104,14 +104,127 @@ The four items originally listed here (review the 57 runtime sites, classify the
 - **Nothing else is pushed.** No tracked source file changes ship from this row this session — `git status` on SCRIP shows only the new scripts + baseline TSV as untracked additions. The 270-site compile-time conversion never left the stash/salvage patch.
 - **Salvage:** `/home/resources/postoffice/salvage/seat07-census-function-scope-mutable-statics-under-src-compile-time-DISCARDED-2026-09-02.patch` — the discarded diff, kept for provenance and as the cautionary witness described in the amendment. Also referenced from `util_convert_getenv_cache_statics_to_read_at_use.py`'s own header, since that script's default targeting still points at the now-out-of-scope compile-time dirs and must not be `--apply`'d as-is.
 
+## AMENDMENT 2, same day, after the DONE-WHEN instrument was confirmed pushed — the 96 remaining runtime sites, classified
+
+Picked back up after confirming `e534efdc` (the census+gate landing) was on `origin/main` and re-proving DONE-WHEN fresh
+post-pull (commit `72c7ec09` absorbed in between, one runtime touch — `by_name_dispatch.c`'s `dop_call_nothrow` floor
+fix — verified to add no function-scope statics). This amendment covers NEXT items 4 and 5 from the re-cut baton: measure
+the 57 getenv-cache sites, classify the 39 "everything else" sites (the row's 192-count shrank to this once re-scoped to
+`src/runtime/` only: 108 mutable − 57 getenv = 51 everything-else at the time, minus 12 reclassified below = 39).
+
+**Method for the 57 getenv sites:** grouped by enclosing function (a brace-depth walker reusing the census's own
+`looks_like_function_opener`, skipping `if`/`while`/`for`/`switch` blocks to find the true outer function), then measured
+call-site count per function (`grep -c` across `src/`) and read each function's file/name/immediate context. **Verdict:
+all 57 are hot-path, none converted.** No file among the 13 involved (`aggregates.c`, `by_name_dispatch.c`, `keywords.c`,
+`pattern_match.c`, `runtime_eval.c`, `runtime_init.c`, `core/core.c`, `rt/bbprof.c`, `rt/gc_heap.c`, `rt/portcount.c`,
+`rt/rt.c`, `rt/rt_arena.c`, `rt/zeta_alloc.c`) is init-only — every one is reachable from pattern matching, GC, eval-chain
+construction, by-name dispatch, or Prolog term/cell allocation, i.e. code whose call count scales with the COMPILED
+PROGRAM's own workload, not with compilation count. Concrete evidence, not just file-level vibes: `NV_SET_fn` (named-
+variable store, `core/core.c`) has 48 call sites and an adjacent comment already measuring it at **17,600 calls in a
+single benchmark** (`roman.sno`); its own `_xd` getenv-cache already carries an inline WHY-comment citing a real row
+(`perf-match-begin-beta-cure`) — this is the row's OWN cited-precedent shape, just without the literal `GRANT:` token.
+`runtime_init.c`'s `zsm_aexp_on()` looked plausibly init-time from the filename alone but is read from a per-α-port-entry
+RSP assertion (`runtime_init.c:119`) — i.e. every box activation, not process start; reading the actual call site rather
+than trusting the filename mattered here. Full per-function call-count table: reproduce via the query in AMENDMENT-2
+REPRODUCE below (`by_func.json` intermediate not checked in — regenerate, don't hunt for it).
+
+**The 51 everything-else sites split into two groups on inspection:**
+
+1. **12 near-const lookup tables, reclassified (not GRANTed) — landed this commit (`0dfeca9f`):** `static const char
+   *name[] = {...}` / `static const char *name = "...";` tables/strings that the census correctly calls MUTABLE (the
+   binding itself isn't const-qualified) but that are, in fact, never written after their initializer — verified by
+   grepping every one of the 12 for `name =` / `name[N] =` outside the declaration line (zero hits, all twelve) before
+   touching anything. Tightened to `static const char *const name...`; the compiler, not just the grep, now enforces it
+   — a future write would fail to build rather than silently regress. Sites: `icn_known`, `known`, `builtins`, `op2`,
+   `op1`, `UCASE`, `LCASE` (`by_name_dispatch.c`), `names`, `feats` (`keywords.c`), `known_kw` (`core/core.c`), `S`
+   (`rt/rt.c`), `graphic` (`unification.c`). This is the row's own predicted bucket — "near-const tables merely missing
+   a const qualifier (tighten the declaration instead of converting or granting)" — landing exactly as anticipated.
+   Runtime census: 108 → 96 mutable, 5 → 17 immutable. Verified: `make pristine` clean; smokes icon 14/14, prolog 5/5,
+   snocone 5/5, rebus 4/4 unchanged; 6 invariant gates clean; SNOBOL4 blocking corpus **mode-3 PASS=1679 FAIL=0, mode-4
+   PASS=1679 FAIL=0 SKIP=0** — strictly cleaner than the discarded compile-time pass, which had a mode-3 regression.
+   Baseline re-lowered same commit (manual ratchet, per the TSV's own header law): `by_name_dispatch.c` 27→20,
+   `core/core.c` 9→8, `keywords.c` 12→10, `rt/rt.c` 11→10, `unification.c` 1→0 (row dropped — its only mutable site is
+   gone, and the TSV's own convention is that an absent file has an implicit ceiling of 0, so the row was removed
+   rather than written as an explicit 0).
+
+2. **39 genuine-state sites, classified by shape, NONE converted or GRANT-marked — not committed, this is a reading, not
+   a diff.** Sub-buckets, with the two riskiest confirmed by reading the actual code rather than inferred from the name:
+   - **One-time registration / idempotency guards (6):** `done` (`keywords.c:213` `kwb_init_once`, `runtime_init.c:94`
+     `rt_zdp_sm_init`), `already` (`core/core.c:222` `mon_at_exit`), `armed` (`core/core.c:2641`
+     `rt_dump_atexit_arm`), `primed` (`keywords.c:82` `kw_cset_prime`), `hooked` (`rt/portcount.c:58`). Converting any
+     of these to read-at-use does not just cost perf — it breaks the guard, running one-time setup on every call. Not
+     a judgment call.
+   - **`_reg`-suffix one-time `DEFDAT_fn` registration guards (5), confirmed by reading all five, same idiom exactly:**
+     `list_reg3` (`by_name_dispatch.c:4992` `rt_make_list`), `list_reg2` (`by_name_dispatch.c:6523`
+     `try_call_builtin_by_name_bl`), `list_empty_reg`, `list_slice_reg` (`pattern_match.c:377,385` `rt_list_view`),
+     `so_list_reg` (`string_ops.c:26` `so_is_list`) — all five are `if (!X) { DEFDAT_fn("list(...)"); X = 1; }`,
+     registering the same `list(...)` frame-datatype once per process, not a cache of a computed value. Same bucket as
+     the idempotency guards above, not the "needs individual judgment" scratch-buffer bucket a name-only guess
+     ("_reg" reads like "cached register") would have placed them in.
+   - **Monotonic unique-ID counters (2):** `opq_uid` (`pattern_match.c:51`), `arb_uid` (`pattern_match.c:81`) —
+     converting these to read-at-use breaks uniqueness, i.e. a correctness bug, not a perf question.
+   - **Lazy-init cache, same risk profile as the 57 getenv sites (1 function, 2 declared names but really one site
+     read twice in a comma-declarator):** `dot_sl` (`by_name_dispatch.c:1431` `dop_unify_lst`, and `1455`
+     `dop_ix_g` — two different functions, same name and shape) memoizes a `prolog_atom_intern(".")` result packed
+     with an arity into one `uint32_t`, guarded by `if (!dot_sl)`, on Prolog **unification** — as hot a path as this
+     codebase has. Should have been caught by the getenv-shaped classifier and wasn't, because it isn't `getenv(
+     )`-shaped; same disposition as the 57 (flagged, not converted) applies here by the identical reasoning, not by
+     the shape match.
+   - **`cs` × 2 (`keywords.c:318,336`):** `static const char *cs = NULL;`, confirmed reassigned elsewhere in the
+     same function (`cs = stable;`) — a genuine lazy pointer cache, correctly excluded from the Bucket-1 "never
+     reassigned" tightening (this is exactly why every Bucket-1 candidate was grepped individually rather than
+     pattern-matched on declaration shape alone).
+   - **Small rotating/scratch state, read in context but not exhaustively call-counted (6):** `g_rm`/`g_rm_off`
+     (`by_name_dispatch.c:5380-5381`, `bn_replace` — REPLACE builtin; sits directly below an existing WHY-comment
+     about a measured 26,400-call/run killswitch-hoisting fix in the same function, strong circumstantial evidence
+     this is hot too) and `stress_n`/`stress_c` (`rt/gc_heap.c:182`, GC stress-testing counters).
+   - **Scratch/accumulator buffers, shape-classified only, not individually read (13):** `a`×2, `ascii_str`,
+     `cset_str`, `hbuf` (`keywords.c`, 128B–256B char buffers, formatting/charset scratch), `ub` (`by_name_dispatch.c`,
+     32B), `acc_names`/`acc_types`/`acc_idx`/`acc_var`/`acc_fixed` (`by_name_dispatch.c:869,2718` — the largest,
+     `[256][192]` and `[256][8][32]` accumulator tables, tens of KB each, baked permanently into `libscrip_rt.so`'s
+     BSS). The large `acc_*` tables in particular are exactly the SUPERSEDED-NEXT's "larger accumulator buffers —
+     needs individual judgment" bucket, not a rubber-stamp GRANT: why 256 slots, why static instead of stack or
+     heap, is a real design question this session did not chase.
+   - **Test-fixture (5, matches the original FINDING's own precedent bucket, lower priority):** `rtx_str_test.c`
+     (`big`, `big2`), `rtx_varval_test.c` (`abc`, `empty`, `longs`) — both inside `main()` of a `*_test.c` file.
+
+   **Why none of the 39 got a `GRANT:` comment this session, even the unambiguous ones:** the gate is a per-file
+   *ratchet* against the checked-in baseline, not a per-site allowlist — it already passes with all 96 remaining sites
+   present and does not require an individual grant to stay green. Minting `GRANT:` on 39 sites (or even just the 8
+   unambiguous guard/counter ones) without an actual citation would be manufacturing the citation after the fact — the
+   row's own brief calls this out by name ("if none exists say so LOUDLY rather than minting one retroactively"). This
+   amendment IS the loud say-so; a `GRANT:` marker citing it is a defensible next step for whoever has ruling authority
+   to bless, not something to self-issue.
+
+## AMENDMENT-2 REPRODUCE
+```bash
+cd SCRIP
+python3 scripts/util_census_function_scope_statics.py --root src/runtime --csv /tmp/rc.csv   # 113/96/17 post-tightening
+bash scripts/test_gate_no_new_function_scope_static.sh                                        # 96/96, zero slack
+# per-function call-site counts for the 57 (hot-path) getenv/atom-intern sites: group AMENDMENT 2's CSV rows whose
+# 3-line window contains `getenv(` (or, for dot_sl, `prolog_atom_intern(`) by enclosing function, then
+#   grep -rn '\bFNNAME\s*(' src/ | wc -l   per function name.
+```
+
 ## REPRODUCE
 ```bash
 cd SCRIP
 python3 scripts/util_census_function_scope_statics.py --selftest              # 10/10 PASS, general-purpose, root-agnostic
-python3 scripts/util_census_function_scope_statics.py --root src/runtime     # THE current census: 113/108/5
+python3 scripts/util_census_function_scope_statics.py --root src/runtime     # THE current census, post-tightening: 113/96/17
 bash scripts/test_gate_no_new_function_scope_static.sh --selftest            # gate self-proof, both directions
-bash scripts/test_gate_no_new_function_scope_static.sh                       # the gate itself, runtime-scoped
+bash scripts/test_gate_no_new_function_scope_static.sh                       # the gate itself, runtime-scoped, 96/96
 ```
 
 ## LEDGER
+- [seat07 · 2026-09-02, AMENDMENT 2] Resumed the claim: confirmed `e534efdc` (census+gate) was already on `origin/main`,
+  pulled fresh (`72c7ec09`, one runtime touch verified to add no statics), re-proved DONE-WHEN fresh post-pull. Measured
+  and classified all 96 remaining runtime mutable sites (57 getenv/atom-intern hot-path caches by call-site count +
+  context; 51 everything-else by shape, 12 confirmed never-reassigned and read). Landed `0dfeca9f`: tightened the 12
+  near-const lookup tables to `const`, re-lowered the baseline (96/96, zero slack), rebased clean over 5 more concurrent
+  commits (none touching statics), re-proved DONE-WHEN a third time post-rebase, pushed. Full verification: `make
+  pristine` clean, 4 smokes unchanged, 6 invariant gates clean, SNOBOL4 blocking corpus PASS=1679/1679 both modes
+  FAIL=0 (cleaner than the discarded compile-time pass). Remaining 84 non-tightened sites documented by bucket with
+  evidence in AMENDMENT 2 above; none converted or GRANT-marked — several would be correctness bugs if silently
+  converted, and minting GRANT: without a real citation is the retroactive-minting the row's own brief forbids. Routed
+  the GRANT-marking question to ceo/Lon rather than deciding it unilaterally; task baton NEXT updated accordingly.
 - [seat07 · 2026-09-02] Census instrument built, 3 bugs found and fixed in it (all now permanent `--selftest` regression cases; general-purpose, unaffected by the later scope question). First pass censused all of `src/` (547/529/18) and converted 270 compile-time getenv-cache sites (31 files) — build clean pristine, 4 smokes + 6 invariant gates unchanged, but the SNOBOL4 corpus board came back mode-3 FAIL=1 (`pos_rpos_alt_branch_5`), bisected cleanly to the conversion (stash + rebuild + rerun: pre-conversion 2/2 clean, converted 3/3 broken, deterministic `ERROR 246` stack overflow). Independently, before that regression was fully chased down, ceo (routed hq_B) re-cut the row's scope to `src/runtime/` only, on Lon's ruling that compile-time state was never covered by NO-NEW-GLOBALS — verified not yet on origin, so in time. Discarded the compile-time conversion (salvage patch saved), re-censused and re-baselined `src/runtime/` only (108 mutable / 17 files), re-scoped the gate's default root, re-proved it in both directions again against a real runtime file (`rt/bbprof.c`). Pulled fresh (`b297334b`, absorbing hq_C's large concurrent Term-eradication landing) and re-confirmed the runtime census is byte-identical before finalizing. Nothing but new, additive tooling files ships from this session.
