@@ -33,7 +33,7 @@ month, "there is a big .s in git" is not evidence about today's compiler. **Size
 `corpus/tests/prolog/coverage/KEEP.md` carries hq_C's ruling of **2026-08-28**: `coverage_pl_nodes.pl` is
 an AST/IR node-coverage fixture, *"NOT a runtime test. Out of this row's scope."* It has bare top-level
 `:- Goal.` directives **by design**, no `main`, and is graded by `--dump-ast`/`--dump-ir`. Its
-"main BB graph not found" is the known general no-man mechanism, measured in that file.
+"main BB graph not found" is the known general no-main mechanism, measured in that file.
 
 The baton was minted **2026-08-24, four days earlier**. The ruling never propagated into it, so the row
 kept asking a seat to fix a file a standing ruling forbids converting. This is the same shape as
