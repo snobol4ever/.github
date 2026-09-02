@@ -54,7 +54,7 @@
 |---|---|---|---|
 | ⭐C1 | prolog-directive-only-file-fatals-no-main-bb-graph | seat | the 139-entry driver class dies; master board re-run, printed denominator |
 | C2 | prolog-master-board-remaining-reds-classified-by-stderr-signature | hq_C | after C1: re-run the master board, classify every remaining red by stderr signature, one row per class (the 5 `fail` entries included); re-measure crosscheck ORACLE_MISS (REFUSES rc=2 until C1 is DONE, by construction) |
-| C3 | prolog-rung-suite-reds-rowed-by-class | hq_C | rung suite: the 11 reds named (needs I4) and rowed by class (REFUSES rc=2 until I4 is DONE) |
+| C3 | prolog-rung-suite-reds-rowed-by-class | hq_C | DONE 2026-09-02 (hq_B, post-cut SCRIP `7432838a` / corpus `542de174`): the suite grades rc (3 greens were vacuous refusals of empty-output witnesses) and names every red with the driver's ladder rung (`REFUSED-LADDER rung N`); **0/15 both modes today**, all 15 classed by HIGHEST construct into four `prolog-rung-red-class-*` rows parked under the ladder umbrella — rungs 6 (1), 8 (5), 9 (1), 10 (8); 15/15 is reached at rung 10 by construction and is REPORTED until then (RULES § THE PROLOG REBUILD GATE cl. 4) |
 | C4 | prolog-backtracking-yields-first-solution-only | seat | row DONE-WHEN |
 | C5 | prolog-call-n-multiarg-target-wrong | seat | row DONE-WHEN — SUPERSEDED 2026-09-01 ~20:22: folded into C10 `prolog-variable-goal-dispatch-to-user-predicate` (hq_C's ablation: one runtime-dispatch defect, unknown functor to a user predicate of arity ≥ 1, wearing three row numbers; `prolog-master-red-class-initialization-goal-fails-with-main` PARKED-AWAITING C10, P1 exonerated) |
 | C6 | prolog-existence-error-not-catchable-iso | seat | row DONE-WHEN |
