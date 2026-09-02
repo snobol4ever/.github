@@ -206,13 +206,121 @@ bash scripts/test_gate_no_new_function_scope_static.sh                          
 #   grep -rn '\bFNNAME\s*(' src/ | wc -l   per function name.
 ```
 
+## AMENDMENT 3, same day — the two least-verified buckets from AMENDMENT 2, individually read
+
+Resumed the claim after finding the `census-function-scope-grant-policy` ask (routed to `hq_B`, the row's ladder-I
+owner — correctly, per `s4e_hq()`'s per-seat routing) still sitting unread. Per RULES.md, a pending question is a
+finding not a blocker, so this amendment is the "productive work that doesn't require the ruling" the baton's NEXT
+block called for: reading, start to finish, the two buckets AMENDMENT 2 had only shape-classified — the 13
+scratch/accumulator sites and the 6 small-rotating-state sites — and confirming or correcting each. It does not
+touch the GRANT-marking question at all.
+
+**The 13 scratch/accumulator sites, read individually — 5 confirmed genuinely safe to convert, 1 reclassified out
+of this bucket entirely, 7 (2 sites) confirmed needs-individual-judgment with a concrete reason instead of a shape
+guess:**
+
+- **5 converted this session (landed): `a`×2 (`keywords.c:87-88`, inside `kw_cset_prime()`), `ascii_str`
+  (`keywords.c:320`), `cset_str` (`keywords.c:338`), `ub` (`by_name_dispatch.c:5506`, the `DATATYPE` builtin).**
+  All five share one shape: filled fresh from index 0 by a loop, then immediately copied out (`kw_cset_reg`'s
+  `rt_ws_alloc`+`memcpy`, or `rt_ws_strdup_c`) before the function returns, and never read again afterward — not a
+  cache in any sense, since nothing depends on the value surviving to the next call. `a`×2 sit inside
+  `kw_cset_prime()`, itself guarded by the already-classified `primed` idempotency flag, so they execute at most
+  once ever regardless of `static`; `ascii_str`/`cset_str` are nested inside `kw_read()`'s own once-only `if (!cs)`
+  guard for the same reason. `static` was contributing nothing but permanent BSS (768 bytes across the four
+  buffers) for state that only ever needs to live for the duration of one call. Verified before touching: grepped
+  each name for any read outside its own initializing block (zero hits, all five). `git diff --stat`: 2 files
+  changed, 5 insertions(+), 5 deletions(-) (pure `static ` token removal, no other byte touched, same discipline as
+  the row's own `util_convert_getenv_cache_statics_to_read_at_use.py`, applied by hand since these aren't
+  getenv-shaped). Baseline lowered same commit: `keywords.c` 10→6, `by_name_dispatch.c` 20→19.
+- **1 reclassified, not converted: `hbuf` (`keywords.c:426`, the `&host` keyword).** AMENDMENT 2 filed this as
+  scratch by shape (a char buffer) without reading it. Read: `static char hbuf[256]; if (!hbuf[0]) { ...
+  gethostname(hbuf,...) ...} return STRVAL(hbuf);` — this is a lazy-init cache that MUST persist across calls
+  exactly like the 57 getenv sites, just keyed on a `gethostname()` syscall instead of `getenv()`. Removing
+  `static` would pay a fresh `gethostname()` syscall on every `&HOST` reference instead of once. Same
+  misclassification shape AMENDMENT 2 already caught once for `dot_sl` ("should have been caught by the
+  getenv-shaped classifier and wasn't, because it isn't `getenv()`-shaped") — `hbuf` is the same near-miss, just
+  never individually read until now. Moved to the getenv-cache disposition (leave alone); not converted.
+- **7 declarators (2 call sites) confirmed still needs-individual-judgment, now for a verified reason, not a
+  size guess: `acc_names`/`acc_types` (`rt_multi_meth_dispatch()`, `by_name_dispatch.c:870`, ~112,688 bytes) and
+  `acc_idx`/`acc_names`/`acc_types`/`acc_var`/`acc_fixed` (`script_try_call_builtin_by_name()`'s `__multi_call`
+  branch, `by_name_dispatch.c:2733`, ~109,568 bytes).** Both are genuinely call-scoped, not cross-call state — the
+  enclosing `nacc` is a plain (non-static) local reset to 0 every call, and every array slot is written before
+  it's read within that same call — so in principle neither needs `static` to be correct. But both are ~110KB, and
+  both sit in a call path that is verifiably reentrant: `rt_multi_meth_dispatch` resolves to
+  `invoke_method_proc()`, which calls arbitrary user method bodies (`ir_call_proc`/`rt_call_proc_descr`), and
+  `__multi_call` ends the same way via `rt_call_proc_descr(wname, na)` — a called method/procedure can itself
+  contain another multi-method or `__multi_call` dispatch (ordinary polymorphic call chains, not a contrived
+  case). A naive `static`→stack-auto conversion would put ~110KB on the stack of every nested dispatch in such a
+  chain — a real stack-exhaustion hazard, i.e. a correctness/robustness risk, not merely a perf one, which is a
+  strictly stronger reason to leave alone than anything in the row's own "measure hot-path perf first" guard. The
+  brief's own text already anticipated this without the confirming read: "why 256 slots, why static instead of
+  stack or heap, is a real design question this session did not chase." Confirmed: it's still not chased, but now
+  for a load-bearing reason (recursion-safe sizing), and the right fix if ever taken is arena/`rt_ws_alloc`-backed
+  transient storage sized to actual `nacc` — a redesign, not a rubber-stamp `GRANT:` and not a rubber-stamp
+  convert. Not touched.
+
+**The 6 small-rotating-state sites, read individually — all confirmed genuine cross-call state (none converted),
+one bucket-count gap closed, and the row's own "8 correctness-bug sites" figure corrected to at least 10:**
+
+AMENDMENT 2 named only 4 of the 6 (`g_rm`, `g_rm_off`, `stress_n`, `stress_c`) though its own sub-bucket count said
+"(6)" — reading `rt/gc_heap.c`'s `c_rt_gcheap_alloc()` in full (not just the cited line 182) turned up the other
+two, `since` and `budget` (line 187), which the count already implicitly included but had never been named or
+read:
+
+- **`g_rm[4]` (`by_name_dispatch.c:5396`, `bn_replace` — the REPLACE builtin's translation-map cache): confirmed
+  genuine, hot, and already the best-evidenced GRANT candidate of the remaining sites.** Not shape-classified this
+  time but read against its own adjacent comment (`by_name_dispatch.c:5378-5381`, hq_P's "THE CEREMONY, NOT THE
+  LOOP" callgrind measurement on `roman.sno`): the comment explicitly attributes measured Ir-per-call cost to "the
+  4-slot map cache" as a deliberate, already-optimized design, the same "cited-precedent shape, just without the
+  literal `GRANT:` token" AMENDMENT 2 used to describe `NV_SET_fn`'s `_xd`. Converting `g_rm` to read-at-use would
+  silently undo that prior, measured optimization work. Not converted.
+- **`g_rm_off` (same function): getenv-shaped (`getenv("SCRIP_REPLMAP_OFF")`, guarded by `if (g_rm_off < 0)`) —
+  bucket-label correction, not a disposition change.** This is the same shape as the 57-strong getenv bucket and
+  belongs with its reasoning, not really "rotating state"; it was only grouped here because nobody had read it
+  yet. Same "leave alone" outcome either way.
+- **`stress_n` (`rt/gc_heap.c:182`, `c_rt_gcheap_alloc`): getenv-shaped (`getenv("SCRIP_GC_STRESS")`) — same
+  bucket-label correction as `g_rm_off`, and worth flagging as plausibly the single hottest site of all 57+ getenv
+  caches in this codebase: `c_rt_gcheap_alloc` is the heap allocator itself, on the path of every allocation any
+  compiled program makes.**
+- **`stress_c` (same site): confirmed genuine, and a 9th correctness-bug site, not counted in AMENDMENT 2's "8."**
+  It counts allocations since the last trigger and resets to 0 on threshold (`if (stress_n > 0 && ++stress_c >=
+  stress_n) { stress_c = 0; g_gc_pending = 1; }`), driving `SCRIP_GC_STRESS`'s forced-GC-every-N-allocations test
+  feature. De-static-ing it doesn't just cost perf — it breaks the feature outright (it would either never
+  accumulate to threshold, or fire on every single call, depending on how `stress_n` compares), exactly the same
+  class of hazard as the 2 UID counters and 6 idempotency guards AMENDMENT 2 already called out by name.
+- **`budget` (`rt/gc_heap.c:187`) — not previously named: getenv-shaped (`getenv("SCRIP_GC_BUDGET_MB")`, guarded
+  by `if (budget < 0)`), same bucket-label correction as `g_rm_off`/`stress_n`.**
+- **`since` (same line) — not previously named: confirmed genuine, and a 10th correctness-bug site.** Accumulates
+  bytes allocated since the last budget-triggered GC (`since += (long)total`), resets to 0 when `since >= budget`
+  fires a collection. Structurally identical to `stress_c` — a rotating accumulator whose entire job is to survive
+  across calls — and breaks the same way if converted (the memory-budget GC trigger would never accumulate
+  correctly).
+
+**Net effect on the row's own numbers:** the "8 correctness-bug sites" in the GOAL/AMENDMENT-2 framing is
+corrected to **at least 10** (`stress_c`, `since` added; both are in `src/runtime/`, in scope). The 96 remaining
+mutable sites this session started with are now 91 (5 converted, landed `<pending commit — see LEDGER>`). Zero
+`GRANT:` markers minted, same reasoning as AMENDMENT 2 — the ratchet gate doesn't require one to stay green, and
+minting one without a real citation is the retroactive-minting the brief forbids. `g_rm` is now the single most
+evidenced candidate for an actual future `GRANT:` citation of anything in the remaining 91, if/when the routed
+policy question (`census-function-scope-grant-policy`, still unread in `hq_B`'s inbox as of this session) is
+ruled on.
+
+## AMENDMENT 3 REPRODUCE
+```bash
+cd SCRIP
+python3 scripts/util_census_function_scope_statics.py --root src/runtime     # 108 total / 91 mutable / 17 immutable
+bash scripts/test_gate_no_new_function_scope_static.sh                       # 91/91, zero slack
+grep -n 'a\[128\]\|a\[256\]\|ascii_str\[128\]\|cset_str\[256\]' src/runtime/keywords.c        # the 4 converted keywords.c sites, static removed
+grep -n 'char ub\[32\]' src/runtime/by_name_dispatch.c                                        # the 1 converted by_name_dispatch.c site
+```
+
 ## REPRODUCE
 ```bash
 cd SCRIP
 python3 scripts/util_census_function_scope_statics.py --selftest              # 10/10 PASS, general-purpose, root-agnostic
-python3 scripts/util_census_function_scope_statics.py --root src/runtime     # THE current census, post-tightening: 113/96/17
+python3 scripts/util_census_function_scope_statics.py --root src/runtime     # THE current census, post-AMENDMENT-3: 108/91/17
 bash scripts/test_gate_no_new_function_scope_static.sh --selftest            # gate self-proof, both directions
-bash scripts/test_gate_no_new_function_scope_static.sh                       # the gate itself, runtime-scoped, 96/96
+bash scripts/test_gate_no_new_function_scope_static.sh                       # the gate itself, runtime-scoped, 91/91
 ```
 
 ## LEDGER
