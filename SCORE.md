@@ -11,9 +11,18 @@ unmodified floor/smoke gate script for PASS/FAIL — no duplicated grading logic
 `corpus_suite_harness.py run ALL.<ext> ALL.ref --modes m3,m4`, reported PER MODE and never summed** — and
 the stamp line names the exact per-repo commit every number was measured against (never a session label like
 the `s283h tree` this section used to carry — see the two paragraphs below for why that mattered and still
-matters for the detail tables). `MASTER PENDING` means no master exists yet for that language (Icon, Pascal as
-of this writing); `UNPROVEN(2)` means the gate script is missing, its output didn't match the expected
-pattern, or it timed out — the generator refuses to guess rather than print a number it didn't measure.
+matters for the detail tables). **The last two columns answer DIFFERENT questions and must not be read as a pair of attempts at one:**
+`Floor/smoke gate` is that language's own hand-built floor — a small curated set that must never regress —
+while `Master board` is the whole `ALL.<ext>` suite run end to end. A language can be green on its floor and
+carry hundreds of master crashes; that is not a contradiction, it is the two questions doing their jobs.
+`MASTER PENDING` means no master exists yet for that language — ⛔ **as of 2026-09-02 that applies to NONE of
+the seven: every one has both `ALL.<ext>` and `ALL.ref`** (this sentence read "(Icon, Pascal as of this
+writing)" until then, and both acquired masters after it was written — verify with
+`ls corpus/tests/*/ALL.ref`, do not trust this clause either). `UNPROVEN(2)` means the gate script is missing,
+its output didn't match the expected pattern, or it timed out — the generator refuses to guess rather than
+print a number it didn't measure. ⭐ **A timeout is the likeliest cause of an UNPROVEN cell here and it is
+load-dependent, not a property of the suite:** the seven master boards take ~30–40 min on a loaded box, so an
+UNPROVEN cell means *re-run it quieter*, never *that language is broken*.
 **Live catch, not a demo of the format (kept for the record — since resolved):** an earlier run this same day
 found `test_corpus_snobol4.sh` REFUSING (`corpus/demos/snobol4` vs. the then-real `corpus/demo/snobol4`, a
 rename that had reached 16 scripts but not yet the corpus tree) — flagged to hq_C
@@ -24,17 +33,17 @@ exists to enforce. **XFAIL/XPASS are reported PER MODE, never summed**, per hq_C
 `simple_output_63` is m3 PASS / m4 SKIP, not an m4 XPASS — a summed or maxed count would have hidden that and
 invited promoting a non-promotable entry.
 
-| Language | Master suite (`ALL.csv`) | Floor/smoke gate |
-|---|---|---|
-| snobol4 | 1726 entries, 80 xfail | m3 1677/0 · m4 1677/0 SKIP=0 · master total=1726 xfail/xpass m3=70/2 m4=70/2 (PER MODE, never summed -- an XPASS in one mode can be a SKIP in the other, e.g. simple_output_63) |
-| icon | 534 entries, 1 xfail | interp PASS=263 FAIL=7 XFAIL=27 TOTAL=298 |
-| prolog | 371 entries, 9 xfail | m2 PASS=5 FAIL=0 / 5 (HARD GATE) |
-| raku | 129 entries, 14 xfail | m3 PASS=722 FAIL=0 REFUSED=2 / 724 |
-| pascal | 149 entries | m3 PASS=161 FAIL=2 NOREF=0 XFAIL=1 |
-| snocone | 273 entries, 24 xfail | PASS=5 FAIL=0 |
-| rebus | 48 entries | PASS=4 FAIL=0 |
+| Language | Master suite (`ALL.csv`) | Floor/smoke gate | Master board (`ALL.<ext>` via `corpus_suite_harness.py run`, m3 · m4) |
+|---|---|---|---|
+| snobol4 | 1726 entries, 80 xfail | m3 1679/0 · m4 1679/0 SKIP=0 · master total=1726 xfail/xpass m3=70/0 m4=70/0 (PER MODE, never summed -- an XPASS in one mode can be a SKIP in the other, e.g. simple_output_63) | total=1726 · m3 pass=1656 fail=0 crash=0 xfail=70 · m4 pass=1656 fail=0 crash=0 xfail=70 (PER MODE, never summed) |
+| icon | 534 entries, 1 xfail | interp PASS=263 FAIL=7 XFAIL=27 TOTAL=298 | total=534 · m3 pass=398 fail=120 crash=13 hang=2 xfail=1 · m4 pass=398 fail=120 crash=1 hang=2 skip=12 xfail=1 (PER MODE, never summed) |
+| prolog | 371 entries, 9 xfail | m2 PASS=5 FAIL=0 / 5 (HARD GATE) | total=371 · m3 pass=217 fail=137 crash=8 xfail=1 xpass=8 · m4 pass=217 fail=138 crash=7 xfail=1 xpass=8 (PER MODE, never summed) |
+| raku | 129 entries, 14 xfail | m3 PASS=722 FAIL=0 REFUSED=2 / 724 | total=129 · m3 pass=31 fail=83 crash=0 hang=1 xfail=14 · m4 pass=31 fail=41 crash=0 hang=1 skip=42 xfail=14 (PER MODE, never summed) |
+| pascal | 149 entries | m3 PASS=161 FAIL=2 NOREF=0 XFAIL=1 | total=149 · m3 pass=148 fail=0 crash=1 · m4 pass=148 fail=0 crash=1 (PER MODE, never summed) |
+| snocone | 273 entries, 24 xfail | PASS=5 FAIL=0 | total=273 · m3 pass=175 fail=70 crash=0 hang=4 xfail=18 xpass=6 · m4 pass=175 fail=64 crash=0 hang=4 skip=6 xfail=18 xpass=6 (PER MODE, never summed) |
+| rebus | 48 entries | PASS=4 FAIL=0 | total=48 · m3 pass=0 fail=45 crash=0 hang=3 · m4 pass=0 fail=43 crash=0 hang=3 skip=2 (PER MODE, never summed) |
 
-_tree: SCRIP=49f3afde corpus=18a99c4ca .github=8997b81c  generated 2026-08-31T00:37Z_
+_tree: SCRIP=e182a71a corpus=e7bbc675 .github=8e4fc55d-DIRTY  generated 2026-09-02T02:35Z_
 
 Cross-language: polyglot smoke 2/2 both · demos gate 3/7 both (open row, pre-dates the break-value work by bisect proof). The richer per-suite detail this grid used to cram in — open rows, FINDING links, "other suites" — lives in the per-language tables below, unchanged; this top grid is deliberately just the computed at-a-glance floor now.
 
