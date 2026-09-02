@@ -1,5 +1,22 @@
 # FINDING 2026-09-01 seat02 — port-exit value contract: the census, 9 live sites across 3 languages, and a NEW link-layout-dependent arm
 
+> ⛔⛔ **CORRECTION, SAME DAY, BY seat03 — THE NUMBER IN THIS FILE'S TITLE IS WRONG. THE POPULATION IS 18, NOT 9.**
+> My scanner's `OK_CALL` arm returned "rax:rdx from a DESCR-returning call" for **every** `call` reaching a
+> promotion site — **a cause it never tested**. Measured by seat03: 9 of those 10 call `rt_relop_overload`
+> (`arithmetic.c:58`) or `rt_jct_relop` (`by_name_dispatch.c:4951`), both of which return `int` and pass the
+> DESCR out through `*out`; only `rt_assign_var` genuinely returns `DESCR_t`. Gate re-run after their fix:
+> **RAW=18, OK_CALL=1.** ⭐ It mattered beyond bookkeeping — **curing "the 9" would have turned the gate GREEN
+> with 9 real violations still standing**, the exact outcome this row's DONE-WHEN exists to prevent.
+> ⛔ **And two of the hidden sites are FORGEABLE, which this file's "no data-dependent arm outside Pascal"
+> reading understated:** `rsg.icn:1195` and `:7401` arrive with `rt_scan_sync_in`'s return (`uint64_t`,
+> `scan_pos - 1`) — **scan position 105 gives low byte 104 = `DT_FAIL`.**
+> **Authoritative account: `.github/FINDING-2026-09-01-seat03-port-exit-gate-ok-call-arm-asserted-descr-returning-without-checking-and-hid-half-the-population.md`; fix landed SCRIP `b4e78819`.**
+> ⭐ The census AXIS below is sound and seat03 confirms it; only the call arm was not. This is the twelfth
+> batch's clause landing on my own instrument: **the gap between the predicate you state and the predicate
+> your script implements is invisible in the output** — my verdict string asserted the check, and the code
+> never did it. Left in place, corrected here rather than rewritten, because the whole point is that it read
+> as a measured result.
+
 Row: `port-exit-value-contract-untagged-rax-forges-dt-fail` (rank 0, owner `hq_P`, class-triaged by `hq_C` from seat09's Pascal root-cause).
 Mode at execution: **FLEET-8** (read from `/home/resources/postoffice/MODE`, not assumed). Tree: SCRIP `8eac17da`, corpus `90582d05`, .github `3a80d743`.
 Deliverable per the baton's `## NEXT`: **the census, not a fix.** No cure was attempted — deliberately, per the brief and per the `pascal-m4-site1-forloop-backedge-64byte-excess` cure-then-revert precedent.
