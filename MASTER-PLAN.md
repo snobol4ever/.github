@@ -21,11 +21,11 @@ A ladder written by hq_T is CURED by the language's lane owner: the writer files
 
 | # | line | command (from `/home/claude`) | must read | reading 2026-09-03 19:30 |
 |---|---|---|---|---|
-| 1 | every ⭐ rung on every ladder has a baton with a runnable DONE-WHEN | `python3 SCRIP/scripts/util_ladder_walk.py --quiet \| grep -c 'V1 RUNG-WITHOUT-ROW'` and the same for `V5` | 0 and 0 | 20:40: V1 = 8 (hq_P 6: SNO1 SNO4 SC1 PAS2 PAS3 I26 · hq_B 2: ICN8 I25; hq_T's ten and hq_C's are minted) · V5 = 1 (P/P7 park, hq_P) — NOT READY |
-| 2 | sixteen seats can each step onto a rung (V1 = 0 alone supplies ~40 rungs; this line guards against a queue where off-ladder rows sit ahead of them) | `awk -F'\t' '!/^#/ && NF>=4 && $1<=1 && $4=="FREE"' /home/resources/postoffice/QUEUE.tsv \| wc -l` with walker V4 = 0 (nothing off-ladder ahead of a rung) across ≥ 3 lanes | ≥ 16 and V4 = 0 | 20:40: 23 FREE at rank ≤ 1 (7 still off-ladder, V4) — green once the eight above are minted and the HQs re-rank |
+| 1 | every ⭐ rung on every ladder has a baton with a runnable DONE-WHEN | `python3 SCRIP/scripts/util_ladder_walk.py --quiet \| grep -c 'V1 RUNG-WITHOUT-ROW'` and the same for `V5` | 0 and 0 | ✅ 21:45: V1 = 0 · V5 = 0 — hq_T minted its ten; the ceo minted the last eight under CEO mode (Lon: *"tag you are it"*), each with a runnable DONE-WHEN proven to fail today (three live, five by clause on today-shaped and clean-shaped output) |
+| 2 | sixteen seats can each step onto a rung (V1 = 0 alone supplies ~40 rungs; this line guards against a queue where off-ladder rows sit ahead of them) | `awk -F'\t' '!/^#/ && NF>=4 && $1<=1 && $4=="FREE"' /home/resources/postoffice/QUEUE.tsv \| wc -l` with walker V4 = 0 (nothing off-ladder ahead of a rung) across ≥ 3 lanes | ≥ 16 and V4 = 0 | ✅ 21:45: 25 FREE on-ladder rows at rank ≤ 1, V4 = 0 |
 | 3 | the seat map matches THE 16-SEAT CUT | `for s in 01 02 03 16; do cat /home/resources/postoffice/seat$s/HQ; done` (hq_B) and likewise 04 05 08 (hq_C), 06 09 10 12 13 15 (hq_P), 07 11 14 (hq_T) | all match | matches (rewritten CEO-175 to the by-function cut) |
 | 4 | every seat digest carries the 2026-09-03 proclamation (pristine lifted · QUARTET/FLEET series · `send` to the HQ-file target) | `grep -L 'THE PRISTINE BUILD IS LOOSENED' /home/claude??/CLAUDE.md /home/claude_?/CLAUDE.md \| wc -l` | 0 | ✅ 20:35: Lon ran `propagate_pristine_and_quartet.py` — 20 of 20 carry the proclamation, 0 say `send hq`, 20 carry the QUARTET line (10 digests keep a superseded pristine sentence below the proclamation, which names itself as superseding) |
-| 5 | MODE flipped by the ceo on Lon's word and every seat told to run `next` | `head -1 /home/resources/postoffice/MODE` | FLEET-16 | QUARTET — Lon's word, after 1–4 read true |
+| 5 | MODE flipped by the ceo on Lon's word and every seat told to run `next` | `head -1 /home/resources/postoffice/MODE` | FLEET-16 | CEO at handoff (Lon ~21:30: *"No HQ is currently running … We are in CEO mode."*) — Lon 2026-09-03 ~20:55: *"when I start a new CEO I will switch to FLEET-16 mode with 4 HQ's and one CEO"*; the next ceo runs ONE command on his word: `bash /home/claude/.scratch/fleet16_go.sh` (rewrites MODE line 1 keeping the history, telegrams the 16 seats their role from THE 16-SEAT CUT and the 4 HQs their first act — assign each seat its first row — and prints the ARCH-FLEET-CEO.md mode-history line to commit) |
 
 The HQs mint their TO-MINT rungs tonight (each DONE-WHEN runnable, proven to fail once, `S4E_DONE_TIMEOUT` unset) and re-rank off-ladder rank-0/1 rows to ≥ 2; the ceo re-runs lines 1–4 every sitting and telegrams Lon READY with the five readings.
 
@@ -34,7 +34,7 @@ The HQs mint their TO-MINT rungs tonight (each DONE-WHEN runnable, proven to fai
 | window | what is true at the end of it |
 |---|---|
 | **H0 → H+2 (19:35–21:35 09-03)** | every ⭐ rung minted with a runnable DONE-WHEN (walker V1 = 0 — that alone puts ~40 rungs in the queue, more than 16 seats need); off-ladder rank-0/1 rows re-ranked ≥ 2; the digests carry the proclamation (Lon's script); the ceo reports READY and Lon flips MODE to FLEET-16; every STALE cell re-run on origin by its lane (snocone, rebus, the csnobol4 52-vs-58, Icon's three readings, the polyglot pair) so the walk starts from measured numbers |
-| **H+2 → H+32 (21:35 09-03 → ~03:35 09-05)** | THE WALK, cheapest 100% first: masters within ten reds (Raku 1 · Pascal 5 · Icon 4 + the reconciliation) go to FAIL=0 first; then every ladder green to every rung that exists (the census names its unbuilt rungs as OWED beside the cell); then package suites by class, largest classes first; a red that will not be cured by H+32 becomes a REASONED xfail — the cell reads 100% of its gradable denominator with the xfail count beside it, never a bare 100% |
+| **H+2 → H+32 (21:35 09-03 → ~03:35 09-05)** | THE WALK, cheapest 100% first: masters within a dozen reds (Raku 1 · Icon 4 + the reconciliation · Pascal 11) go to FAIL=0 first; then every ladder green to every rung that exists (the census names its unbuilt rungs as OWED beside the cell); then package suites by class, largest classes first; a red that will not be cured by H+32 becomes a REASONED xfail — the cell reads 100% of its gradable denominator with the xfail count beside it, never a bare 100% |
 | **H+32 → H+36.5 (~03:35–08:05 09-05)** | CHECKPOINT (loose, no pristine): one pushed tree; every cell re-run on it by its runner; hq_P publishes every README grid on the two-number three-angle basis (the B cells); `.s` artifacts regenerated; the announcement text with the xfail counts beside each 100% in front of Lon |
 | **H+36.5 → H+37.5** | Lon's read; announce or hold |
 
@@ -76,7 +76,7 @@ Honesty line, written before the walk starts: in 37.5 hours Prolog's master (271
 | **seat06** | SNOBOL4 ladder walker — rungs 10 → top from the green-book census; the 70 master xfails reasoned or cured on the way | hq_P |
 | **seat09** | SNOBOL4 packages — csnobol4_suite (the 52-vs-58 reconciliation, then 66 non-pass by class), then gimpel · snoflake · aisnobol · dotnet | hq_P |
 | **seat10** | PASCAL ladder walker — rung09 packed-array `=`, then rungs 10 → top from the ISO 7185 §6 census | hq_P |
-| **seat13** | PASCAL suites — the master's 5 reds, fpc_tests 59 by class, the ISO 7185 PAT suite once hq_T vendors it | hq_P |
+| **seat13** | PASCAL suites — the master's 11 reds, fpc_tests 59 by class, the ISO 7185 PAT suite once hq_T vendors it | hq_P |
 | **seat15** | SNOCONE ladder walker + master — re-measure the 08-29 175/273 on origin, classes, cure; climb hq_T's skeleton | hq_P |
 | **seat12** | **BENCHMARKS** — every language's README grid on the two-number three-angle basis vs its rival (the B cells, I26): SNOBOL4/Prolog/Raku re-measured off the totals basis, Icon beyond the JCON demo, Pascal vs fpc, Snocone, and a Rebus benchmark set before its grid | hq_P |
 | **seat07** | RAKU ladder walker — rungs 10 → top from the roast S-number census (subs+signatures, classes/roles, regex/grammars, exceptions, lazy lists) | hq_T |
@@ -265,7 +265,7 @@ Seven walkers (01 04 06 07 10 14 15) · eight suite census-and-witness seats (02
 | ⭐ICN3 | icon-jcon-suite-39-non-pass-censused-by-class-and-cured | seat02 → hq_B | 43/81 · 41/81 → 81/81 both modes; the 2 "not fully reconciled" named first; child `icon-jcon-class-genhost-recursive-generator` seat14 → hq_B; the jtran link (the former ICN6) was CURED by hq_C before its mint — SCRIP `f4d69ac83`, no frozen-model change — so `test_demo_icon_jcon.sh` 4/4 byte-identical rides here |
 | ⭐ICN4 | icon-master-board-is-two-below-watermark-and-the-board-never-names-the-failures | hq_B (ASSIGNED, re-ranked 1 → 0 CEO-174) | FIRST: the board names every failure (`--by-modes-column` prints only the two summary lines — hq_C confirmed independently) and the three readings in one day (377 hq_B `e751405f` · 378 hq_C `f4d69ac83` · floor 379) become ONE tree-labelled number; ICN1 cannot start without it |
 | ICN5 | icon-ipl-runner-and-denominator | TO-MINT:hq_T (gate) · hq_B (cure) | 851 `.icn` graded (compile-graded at least; run-graded where a `.std` exists) with a printed denominator and a SCORE.md row |
-| ICN7 | icon-construct-ladder-from-rung-0 | TO-MINT:hq_T | rungs 0–≥5 by D1 from the Icon book's chapter census; red rungs to hq_B |
+| ⭐ICN7 | icon-construct-ladder-from-rung-0 | hq_T (minted, FREE rank 0) | CHEAPER than assumed (hq_T): `test_icon_ladder.sh` already exists on the shared `lib_ladder.sh` body and refuses rc=2 correctly — the work is cutting witnesses and absorbing them into the master, not building a runner (the same for snocone and rebus); rungs 0–≥5 by H+2 from the Icon book's chapter census; red rungs to hq_B |
 | ICN8 | icon-strict-rung-suite-reds-and-xfails-reasoned | TO-MINT:hq_B | 4 FAIL + 1 BADEXIT cured, 26 XFAIL each with a reason, 1 XPASS promoted |
 | ICN9 | icon-bench-correct-suspend-residue | hq_P (FREE, rank 0) | the perf arm; stays with hq_P |
 
@@ -274,7 +274,7 @@ Seven walkers (01 04 06 07 10 14 15) · eight suite census-and-witness seats (02
 | rung | row | lane | gate |
 |---|---|---|---|
 | ⭐PAS1 | pascal-fpc-suite-62-reds-censused-by-class-and-cured | seat10 → hq_P | 122/181 → 181/181; the 59 by class |
-| ⭐PAS2 | pascal-master-five-reds-cured | TO-MINT:hq_P | 144/149 → 149/149 both modes (the same five in both modes: one census) |
+| ⭐PAS2 | pascal-master-eleven-reds-cured | hq_P (minted by ceo CEO-175, FREE rank 0) | m3 153/164 · m4 153/164 → 164/164: ELEVEN reds, not five (hq_P 21:00 — seat09's five plus rung09_strings and five `parser__*` in nobody's ledger); one census, cured by class |
 | PAS3 | pascal-ladder-rung09-strings-packed-array-equality | TO-MINT:hq_P | rung09 green both modes (ISO 7185 packed-array `=`, run-time error 102) |
 | PAS4 | pascal-parser-fixtures-and-the-iso-7185-pat-suite | FREE → hq_T (vendor + gate) · hq_P (cure) | the public suite ANNOUNCEMENT.md names: vendored under `packages/pascal/`, graded vs fpc, SCORE.md row |
 | PAS5 | pascal-m4-site1-forloop-backedge-64byte-excess | hq_P | frame/perf row (its two siblings `pascal-fbench-nested-function-self-assign-null-name` and `pascal-quick-m3-recursive-reps-cliff-13` stay BLOCKED-ON `pascal-m4-for-spine-leak-64b-per-iter`); behind PAS1–3 in rank |
@@ -299,7 +299,7 @@ Seven walkers (01 04 06 07 10 14 15) · eight suite census-and-witness seats (02
 
 | rung | row | lane | gate |
 |---|---|---|---|
-| ⭐REB1 | rebus-master-remeasured-on-origin-and-reds-classified | TO-MINT:hq_T | the 08-29 0/48 is STALE and reads as "never ran": re-run on origin, tree-labelled; reds by class (parser-level first — the Rebus cursor records no engineering since 08-27) |
+| ⭐REB1 | rebus-master-remeasured-on-origin-and-reds-classified | hq_T (minted, FREE rank 0) | RE-MEASURED by hq_T at the mint (SCRIP `ac4e0bf4f` corpus `91a05530`, .github `309566d5`): the 0/48 is REAL — m3 0/48 with 45 FAIL + 3 HANG, m4 0/48 with 43 FAIL + crashes; the three hangs had been hidden for five days behind a bare 0/48. Reds by class, hangs first (a hang and a wrong answer are different defects); the least likely of the seven to reach a bare 100% in 37.5 hours — the plan says so here, not at H+30 |
 | ⭐REB2 | rebus-construct-ladder-parser-fixtures-and-a-real-master | seat12 → hq_T (re-ranked 1 → 0 CEO-174) | rungs 0–≥5 by D1; the manual's census to top |
 
 ## WHEN THE PLAN CHANGES
