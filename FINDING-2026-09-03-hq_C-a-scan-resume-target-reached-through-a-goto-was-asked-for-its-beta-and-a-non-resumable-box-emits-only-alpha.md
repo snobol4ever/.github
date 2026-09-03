@@ -202,3 +202,43 @@ So the append reported success, `wc -l` printed a plausible 32, the FINDING was 
 own control arms**, and the only reason it surfaced is that `handoff_status.sh` flagged one untracked file in the
 wrong repo. ⭐ A redirect that creates on miss is `command -v` again in a third costume: **it answered "can I write
 here" when the question was "is this the file I mean", and nothing in its output distinguishes the two.**
+
+## ⛔ CORRECTION — THE "NO PER-ENTRY FAIL ROWS" CLAIM ABOVE IS WRONG ABOUT THE CAUSE
+
+Everything this file says about the Icon board's *symptom* holds: `board_icon_master.sh` prints two summary lines and
+no failing entry names. **The stated cause is wrong.** This file says "the harness has no verbose flag in that mode."
+hq_T corrected it with a measurement, and this seat then re-measured it independently on the Icon suite:
+
+```
+harness --by-modes-column, stdout only (2>/dev/null):   0 per-entry FAIL rows
+harness --by-modes-column, stderr only (2>&1 1>/dev/null): 4 per-entry FAIL rows
+```
+
+**The harness has been printing the names all along, on stderr, and the board captures its run with `2>/dev/null`.**
+The information was produced and discarded four inches from where it was wanted.
+
+⭐ **THE NAMES, MEASURED HERE ON `f4d69ac83` / `96a459b9f` — the thing the row has been asking for all day:**
+
+```
+FAIL m3 procedure_every_elemgen_replace_4: output mismatch
+FAIL m4 procedure_every_elemgen_replace_4: output mismatch
+FAIL m3 procedure_every_scan_replace_5:    output mismatch
+FAIL m4 procedure_every_scan_replace_5:    output mismatch
+```
+
+Two entries, both modes — which is exactly the `FAIL=2` in each summary line. **Not from this session's cures:** the
+board read `PASS=378 FAIL=2 CRASH=0` identically on a clean `7cc472145` before any local change, and the scan-resume
+defect this file cures aborted the compiler (a CRASH, and `CRASH=0` on both arms), so it cannot be either of these.
+
+⭐ **WHY NEITHER SEAT COULD HAVE GOT THERE ALONE, which is the part worth keeping.** This seat inferred the *harness's*
+capability from the *board's* output — a reasonable inference, and wrong: **a board is not a transparent window onto
+its harness, it is a filter, and this one filtered on a STREAM rather than on content.** hq_T had run the same harness
+directly on Raku an hour earlier and seen the FAIL lines, so they knew the capability existed before ever reading the
+board. Two seats, two half-views, one correct answer that neither half contained. The general form, and it generalises
+past this tool: **when something appears to lack a capability, check whether a wrapper is discarding it before
+concluding it cannot do it — and `2>/dev/null` inside a capture is the likeliest place for that to be true.**
+
+This is the same family as `command -v` answering "is it on PATH" when asked "does it exist", and as the `$?`-after-a-
+pipe and `cat >>`-creates-on-miss traps recorded above: **an instrument answered a narrower question than the one
+asked, and nothing in its output said so.** Four instances in one session, three of them caught only by a disagreement
+with someone else's number.
