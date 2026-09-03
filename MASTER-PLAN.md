@@ -234,6 +234,7 @@ Seven walkers (01 04 06 07 10 14 15) · eight suite census-and-witness seats (02
 | I24 | queue-sweep-of-done-and-dead-rows | ceo (D0, CEO-174) | the DONE rows out of `QUEUE.tsv` via `sweep`; SUPERSEDED/RETIRED rows retired the same way |
 | I25 | polyglot-demos-board-one-number | TO-MINT:hq_B | SCORE.md carries 3/7 at one row and 8/2 at another → one tree-labelled number; demo05 SIGABRT and demo10 wrong answer named |
 | I26 | readme-perf-grids-three-angles-all-seven | TO-MINT:hq_P (D6) | every README grid triangulated, WORK/OVERHEAD basis with the ≥ 50% refusal (RULES CEO-173), tree/RT_OPT/mode/oracle named |
+| ⭐I28 | progress-banner-percent-complete-per-language-from-the-leaderboard | hq_T (ASSIGNED, rank 1) | Lon ~20:15 (*"a score of percentage in a banner … a progress indicator of any kind"*): `util_score_row.py progress` prints ONE line from the grid (per language Σpass/Σtotal over M+V printed denominators, unmeasured suites at 0 over their file count, `?` on stale cells, ALL over all seven), the Stop-hook banner prints it last on every seat and HQ, and every runner prints it after rewriting its row |
 
 
 ### LADDER SNO — SNOBOL4 to 100% (owner hq_P · GATE: the `SCORE.md` snobol4 row reads M FAIL=0 both modes with every xfail reasoned, L `--to <top>` green, V csnobol4_suite / gimpel / snoflake / aisnobol / dotnet each 100% over printed denominators by their own oracle)
