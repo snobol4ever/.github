@@ -148,6 +148,24 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s290 (2026-09-02, Opus 5, TRIO) — ⭐⭐⭐ RUNG 4 LANDED: THE CUT IS THE BARRIER IN TWO HALVES — AND IT FOUND TWO RUNG-2 DEFECTS THAT HAD NEVER BEEN LOAD-BEARING.**
+
+Rows: `prolog-rung-4-the-cut-is-the-barrier-f-b0-f-cur-exhausted-and-the-omegas-to-its-right` (LANDED — SCRIP `8d9809e5`, corpus `9dd195f2`; receipt `FINDING-2026-09-02-hq_C-rung-4-lands-the-cut-in-two-halves-and-rung-3-encoded-has-no-resume-and-must-not-be-resumed-with-one-spelling.md`). Fail-once on clean origin `f5bf7357` (`--to 4` rc=1, 6 of 14); pass-once pristine on the MERGED tree, DONE-WHEN **rc=0**. Ladder `--to 4` 14/14 and `--only 7` 4/4; trace gate PASS(0) with the three rung-4 blocks cut (rungs 0–3 byte-identical, 62 → 62); SNOBOL4 **1679/0 both modes**; Icon watermark **264/6/1/27 UNCHANGED**; cut battery 10/10, disjunction battery 12/12. Master board REPORTED **221/404 both modes** (rung 3: 189/400), `m4_fail` down to the single known rung-9 witness. New rows: `strip-comments-check-is-not-in-make-test-so-src-style-goes-red-on-origin`.
+
+### ⭐⭐ THE RUNG'S OWN WITNESSES CANNOT FIND A DEFECT IN THE CONSTRUCT IT MERELY UNBLOCKED
+The ladder was **14/14 with two rung-2 defects live**. Both were found by reading the REPORTED board's new FAILs *by name* — and the board's 40-line sample had hidden the names behind 170 SKIPs until `SUITE_LIST_ALL=1`. (a) The clause step's local re-seed addressed the wrong region entirely: `lea rdi,[rbp+16+nparams*16]` guessed a stride, while a Prolog local's offset comes from the graph's vslot table — the locals sat at `[rbp+640]` and the stosb cleared `[rbp+64]`. It was a no-op for two rungs because nothing had re-used a local slot across clauses; `d(X,_,X)` then `d(_,_,_)` does, because the anonymous `_` takes the slot the next clause's `_` wants — and `d(X,Y,X)` with a *named* Y passed, which made the shape look absurd until the AST dump showed slot 3 twice. (b) A γ-chased `alt_fail` resolved to the graph ω instead of the clause step, so `d(a) :- fail.  d(b).` conceded out of the predicate; the rewrite existed for **ω alone** because nothing had ever reached `alt_fail` through γ. ⭐ Which is exactly why rung 4 made `cut_ω` a *distinct* `IR_FAIL`: two opposite meanings at one port need two nodes to say so.
+
+### ⭐ "HAS NO RESUME" AND "MUST NOT BE RESUMED" HAD SHARED ONE SPELLING
+`( write(a), ! ; write(b) )` printed `a b`. Rung 3 encodes a non-resumable branch as *the branch naming the disjunction itself*, which the driver maps to the φ landing — **advance the cursor**. Right for a det branch, wrong for a cut. A branch containing an `IR_CUT` now names `cut_ω`, using the same fall-through that had bitten rung 3 as a defect, deliberately.
+
+### ⭐ A WHOLE-FILE REWRITE THAT EVERY VIEW SHOWING CONTENT WILL HIDE
+`ALL.csv` is CRLF; Python's default `open()` translates it to LF on read and back to LF on write, so my rung-3 one-cell edit rewrote **401 lines** and nobody saw it — the diff text was identical line for line, `file` said "CSV ASCII text" for both, and only `od -c` disagreed. It surfaced when hq_B's regeneration collided with it. `newline=''` on both ends; `git diff --numstat` must read `1 1`.
+
+### ⭐ A RULE ENFORCED BY A CLAUSE PEOPLE COPY IS NOT ENFORCED
+`strip_comments.py --check` is not in `make test` — it is a DONE-WHEN clause. Two seats in one evening pushed comments into `src/` and origin's gate went red while `make test` said green, both times caught only by the next seat's DONE-WHEN on the merged tree. Cured with the project's own `--apply`; rowed, not patched around.
+
+## LIVE CURSOR — hq_C (s289, superseded by s290 above)
+
 **s289 (2026-09-02, Opus 5, TRIO) — ⭐⭐⭐ RUNG 3 LANDED: THE INLINE DISJUNCTION IS THE SHARED BOX WITH ZERO NEW WIRING CODE, AND A CHOICE OPENED *INSIDE* A FRAME FORCED `F.HI` BACK.**
 
 Rows: `prolog-rung-3-inline-disjunction-as-the-choice-with-f-resd-in-the-enclosing-frame` (LANDED — SCRIP `9af884bd`, corpus `b26f38ea`; receipt `FINDING-2026-09-02-hq_C-rung-3-lands-the-inline-disjunction-on-the-shared-box-with-zero-new-wiring-code-and-a-choice-opened-inside-a-frame-forces-f-hi-back.md`). Fail-once proven on clean origin `81b40ceb` (ladder `--to 3` rc=1); pass-once on a `make pristine` tree, DONE-WHEN **rc=0**. Ladder `--to 3` PASS 8/8 and `--only 6` PASS 12/12; trace gate `--to 3` PASS(0) with the rung-3 block re-cut whole 56→26 (rungs 0–2 byte-identical, 42 blocks → 42); quad gate PASS(0) 118/118 enrolled; trail gate PASS(0), now 13 checks; `nm -D` 0; SNOBOL4 **1679/0 both modes**; Icon smoke 14/14 and the STRICT rung suite **264/6/1/27 of 298 UNCHANGED in all three modes**. Master board REPORTED **189/400 both modes** (rung 6: 169 on the same suite). New rows: `prolog-directive-less-entries-run-main-but-the-oracle-does-not`, `prolog-master-seven-stale-xfail-markers-xpass-on-the-rung-3-tree`.

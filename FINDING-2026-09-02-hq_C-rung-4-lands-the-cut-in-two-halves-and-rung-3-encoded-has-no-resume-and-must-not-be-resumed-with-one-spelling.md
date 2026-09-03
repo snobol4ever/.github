@@ -68,9 +68,75 @@ instruction:
 The release **doubles** the achievable depth. So it is real, and the 10⁶ is not rung 4's to earn. This is why the
 row's DONE-WHEN does not contain it — deliberately, and stated here rather than silently.
 
-## 5. Verdict arms — `make pristine` first (HQ-27)
+## 5. TWO RUNG-2 DEFECTS THIS RUNG EXPOSED AND CURED
 
-Filled from the pristine DONE-WHEN run; see the commit message for the measured numbers.
+Both were **pre-existing on clean origin `f5bf7357`** (A/B proven by `git stash` + rebuild), and both were invisible
+until the cut made these programs compile at all. Rung 4 moved them from "refuses" to "graded", which for a
+correctness seat means they had to be cured, not rowed.
+
+**(a) The clause step's local re-seed addressed the wrong region entirely.** It emitted
+`lea rdi,[rbp + 16 + nparams*16]; ecx = nlocals*16; rep stosb` — a *guess* at the layout. A Prolog local's frame
+offset comes from the graph's vslot table (`ir_varslot_of`), and on the witness that found it the locals sat at
+`[rbp+640]` while the stosb was diligently clearing `[rbp+64]`.
+⭐ **It was a no-op for two rungs because nothing had ever re-used a local slot across clauses.** The first head
+that did — `d(X, _, X)` then `d(_, _, _)`, where the anonymous `_` takes the slot the next clause's first `_` wants
+— read the previous clause's binding and the predicate failed. `d(X, Y, X)` with a *named* `Y` passed, which is why
+the shape looked absurd until the AST dump showed `_` at slot 3 in both clauses. It now zeroes the **named** slots,
+and uses no registers at all, unlike the `rep stosb` it replaces. Params are deliberately not re-seeded: they are
+the incoming arguments the next clause unifies against.
+
+**(b) A γ-chased `alt_fail` resolved to the graph ω instead of the clause step.** A Prolog `fail` goal lowers to an
+`IR_GOTO` whose γ is the clause-step node, and the resolver *chases γ through `IR_GOTO`*; the chase lands on
+`alt_fail`, an `IR_FAIL`, which the generic rule had already turned into the graph's ω. So `d(a) :- fail.  d(b).`
+conceded straight out of the predicate and clause 2 was never tried. The `alt_fail` rewrite existed for **ω alone**,
+because until now nothing reached `alt_fail` through γ.
+⭐ And this is why rung 4 made `cut_ω` a *distinct* `IR_FAIL` rather than reusing `alt_fail`: the two now mean
+opposite things at the same port, and only separate nodes can say so.
+
+⭐ **Both were found by the board, not by the ladder.** The ladder graded 14/14 with both defects live. The rung's
+own witnesses cannot find a defect in a *neighbouring* construct that the rung merely unblocked — which is the
+argument for reading the REPORTED board's new FAILs by name every rung, not just its total.
+
+## 6. Verdict arms — `make pristine` first (HQ-27), on the merged tree
+
+Landed at SCRIP `8d9809e5` · corpus `9dd195f2`, with hq_P's rung 7 and hq_B's synthetic-main deletion underneath.
+`make pristine` rc=0, then the row's DONE-WHEN verbatim: **rc=0**.
+
+| arm | reading |
+|---|---|
+| `test_prolog_ladder.sh --to 4` | ✅ **PASS 14/14** (7 witnesses × 2 modes); rung 4 PASS=6 FAIL=0 |
+| `test_prolog_ladder.sh --only 7` | ✅ **PASS 4/4** — hq_P asked for this rather than assume rung 7 survives the re-seed cure; it does |
+| `test_gate_pl_port_trace.sh --to 4` | ✅ **GATE PASS(0)**, 14 checks; the three rung-4 blocks cut for the first time, rungs 0–3 byte-identical, 62 → 62 blocks |
+| `nm -D` Prolog-only data symbols · `strip_comments --check` | ✅ 0 · ✅ rc=0 |
+| `test_smoke_icon.sh` | ✅ 14/14 both modes |
+| `make test` | ✅ rc=0 — SNOBOL4 **m3 1679/0 · m4 1679/0 SKIP=0** |
+| **Icon STRICT rung suite** (control arm) | ✅ **264/6/1/27 of 298 in all three modes — UNCHANGED** |
+| cut battery · disjunction battery, stdout vs swipl, both modes | ✅ **10/10** · ✅ **12/12** |
+
+**REPORTED, not gating until rung 10:**
+
+```
+SUITE_BOARD family=ALL total=404
+  m3_pass=221 m3_fail=171 m3_skip=0   m3_xfail=9 m3_xpass=3
+  m4_pass=221 m4_fail=1   m4_skip=170 m4_xfail=9 m4_xpass=3
+```
+
+**221 of 404 both modes** (rung 3: 189/400; 213 at hq_P's rung-7 reading). `m4_fail` is down to **one**:
+`simple_program_103`, already routed by ceo as a named rung-9 witness (its old ref recorded SCRIP's own
+gprolog-permissive `atom_to_term/3` arm — a test graded against its subject). The four directive-less `want_rc`
+FAILs rung 3 reported are gone, cured by hq_B's synthetic-main deletion under CEO-152.
+
+## 7. A whole-file rewrite I shipped in rung 3 and caught in rung 4
+
+`corpus/tests/prolog/ALL.csv` is **CRLF**. Python's `open(p, encoding='utf-8')` uses universal newlines: it
+translates `\r\n` to `\n` on read and writes `\n` back. So a one-cell edit through it rewrites **every line**.
+Rung 3's `b26f38ea` shipped exactly that — `401 401` in `--numstat` for a single `xfail` flip — and nobody saw it
+because the diffstat was dominated by the trace file beside it. It surfaced only when hq_B's regeneration of the
+same file collided with it on rebase.
+⭐ **A whole-file rewrite of a shared file is invisible in every view that shows content rather than bytes**: the
+`git diff` text looked identical line for line, `file` reported "CSV ASCII text" for both, and only `od -c` on one
+line said `\r\n` versus `\n`. The cure is `newline=''` on **both** the read and the write; the check is
+`git diff --numstat`, where a one-cell edit must read `1 1`, not `401 401`.
 
 ## 6. Witness batteries, both modes, stdout diffed against swipl
 
