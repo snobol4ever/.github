@@ -1,12 +1,12 @@
 # FINDING 2026-09-03 ceo — the September 10 plan was cut in one sitting; FLEET-16 readiness reads green on lines 1–4; the ceo's own Raku watermark was a false board
 
-**Sitting:** ceo, 2026-09-03 17:40–21:50 CDT box clock (CEO-173/174/175 in `GOAL-CEO.md`). **MODE at handoff:** CEO (Lon ~21:30: *"No HQ is currently running. If there is more work to be done, tag you are it. We are in CEO mode."*); Lon: the next CEO session starts in FLEET-16. **Clock:** H0 = 19:35 09-03, H+37.5 = ~09:05 09-05.
+**Sitting:** ceo, 2026-09-03 17:40–18:52 CDT box clock (CEO-173/174/175 in `GOAL-CEO.md`). **MODE at handoff:** CEO (Lon ~18:47: *"No HQ is currently running. If there is more work to be done, tag you are it. We are in CEO mode."*); Lon: the next CEO session starts in FLEET-16. **Clock:** H0 = ~18:25 09-03, H+37.5 = ~07:55 09-05.
 
 ## Claim
 In one sitting the program went from a Prolog-only work ladder to a seven-language, four-cell grid on the ONE leaderboard (`SCORE.md` § THE SEPTEMBER 10 GRID) with lanes, a 37.5-hour clock, a ladder recipe, a by-function 16-seat cut and a five-line computed readiness check — and that check reads green on lines 1–4 at handoff; line 5 is Lon's flip.
 
 ## Evidence (every number with its command)
-| line | command | reading 21:45 |
+| line | command | reading 18:49 |
 |---|---|---|
 | 1 rungs minted | `python3 SCRIP/scripts/util_ladder_walk.py --quiet \| grep -c 'V1 RUNG-WITHOUT-ROW'` (and `V5`) | **0 · 0** — hq_T minted its ten; the ceo minted the last eight under CEO mode, each DONE-WHEN proven to fail today (three live, five by clause) |
 | 2 sixteen walkable rungs | `awk -F'\t' '!/^#/ && NF>=4 && $1<=1 && $4=="FREE"' QUEUE.tsv \| wc -l`, walker V4 = 0 | **25**, V4 = 0 |
