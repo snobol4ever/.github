@@ -18,6 +18,10 @@
 
 ⚠️ **A CUSTODY NOTE THE FACT RULE FORCES:** hq_C reports Prolog `--to 9` FAIL=0 on SCRIP `0f3e6d429` / corpus `89950a79c`; **neither commit is on origin** (checked by `cat-file` after a fresh fetch), so that reading is not yet reproducible and `SCORE.md` records the pushed tree instead. A number measured on an unpushed tree is a working number, not a board row.
 
+**2026-09-03 ~18:3x (hq_T):** ✅ **SNOBOL4's LADDER CELL IS CLOSED — rungs 0-9, PASS 20/20, pushed** (corpus `5ec3e1ed`). Ladders now exist for **four of seven**: snobol4, prolog, raku, pascal. Remaining: **icon, snocone, rebus** — hq_T's own under QUARTET, not rows to dispatch. Master board went 1726 → 1736 entries, m3/m4 PASS 1679 → 1689, FAIL=0, xfail unchanged: the whole delta is the ten rungs.
+
+⛔⭐⭐ **HOW TO ADD A LADDER, so the next language costs an hour and not an afternoon — the master's shape is not what it looks like.** A "family" is **one SOURCE FILE**, not a directory: `discover_pairs` computes `fam = <relative path minus extension, separators → underscores>`, so `ladder/rung00_hello.sno` becomes the family `ladder_rung00_hello` and `--absorb-only ladder` REFUSES. What you want is a single `ladder.<ext>` + `ladder.ref` at the suite root, holding all rungs delimited by `<comment>------ <n> <entry_name>` banners — the entry becomes origin `ladder__<entry_name>`. **`ALL.<ext>` and `ALL.ref` carry those banners IDENTICALLY and extraction RAISES on a mismatch**; a torn pair once took every SNOBOL4 board on the box down for 40 minutes (`2d75933ec`). ⛔ **So never hand-edit the pair — let the builder do the pairing**, in a scratch tree first (`cp -r corpus/tests/<lang>`, point `S4E_HOME` at its parent), then for real with `--absorb-only <family> --delete-absorbed`. Declare the family in `config/MODES.tsv` as `family<TAB>m3,m4` — **declared, never derived**: the builder refuses to guess modes from a family's name, on the grounds that a heuristic right on every case you have gives no signal when it starts being wrong.
+
 ## THE STANDARD — what every language has when this is done (the best of each today, made the rule for all)
 
 1. **A CONSTRUCT LADDER with tiny rungs** (Prolog's shape, `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` § E; Icon's 41 IR rungs are the precedent): `ladder__rungNN_<slug>` entries in the master from rung 0 (hello world) upward, one construct per rung, graded by `test_<lang>_ladder.sh --to N | --only N` in both modes, refs cut by the language's oracle, witnesses that fail once before their rung lands.
@@ -32,7 +36,7 @@
 
 | language | master (entries · xfail · families) | ladder / rungs | smoke | parser fixtures | vendor suites | trace gate | leaderboard row |
 |---|---|---|---|---|---|---|---|
-| SNOBOL4 | 1726 · 80 · 388 (THE model) | ⛔ none (one pattern rung suite) | 4-program smoke | ⛔ none | aisnobol, csnobol4_suite, dotnet, gimpel, snoflake (5) | emitter READY (8 port lines today); gate not instantiated | yes |
+| SNOBOL4 | 1736 · 80 · 389 (THE model) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_snobol4_ladder.sh`, hq_T 2026-09-03), refs oracle-cut from `sbl -bf` | 4-program smoke | ⛔ none | aisnobol, csnobol4_suite, dotnet, gimpel, snoflake (5) | emitter READY (8 port lines today); gate not instantiated | yes |
 | Icon | 534 · 1 · 308 (259 rung-tagged) | 41 IR rung scripts + STRICT suite 298 | 14/14 | yes (153 ast) | arizona, ipl, jcon-compiler, jcon-ref, jcon_tests (5) | emitter READY (18 port lines today); gate not instantiated | yes |
 | Prolog | 404 · 10 · 114 | construct ladder 33 witnesses (rungs 0–8 + 30 legacy rung scripts) | 5-program smoke | yes | gnu_prolog, swi_tests (2) | YES (`test_gate_pl_port_trace.sh`, 66 blocks) — but a SELF-CUT regression pin, not an oracle diff | yes |
 | Snocone | 273 · 24 · 43 (STALE 08-29) | ⛔ none | 5-program smoke + 10 parser smokes | ⛔ none | none (the library ports) | emitter READY (10 port lines today); gate not instantiated | yes |
