@@ -6,6 +6,8 @@
 
 **2026-09-03 16:25 (ceo):** inventory measured (below), the standard written, the umbrella row `test-suite-consistency-seven-languages-one-standard` (hq_B, rank 0) and one gap row per language minted and assigned by lane. Nothing built yet. Whoever resumes: the per-language rows in the queue are the work; this file's table is rewritten by the seat that closes each gap (tree-labelled), and `SCORE.md` gets the new instruments' rows the day they print.
 
+**2026-09-03 ~16:35 (seat11):** Raku's "ladder / rungs" cell closed — see INVENTORY row below. `test_raku_ladder.sh` built (mirrors `test_prolog_ladder.sh` exactly: `--to N`/`--only N`/`--list`, both modes m3+m4, REFUSE rc=2 when it can't measure). 10 witnesses, `ladder__rung00_hello` through `ladder__rung09_string_methods` (one construct-topic per rung: hello, variables, arithmetic, strings, arrays, hashes, if/while, subs, for-loops, string methods), refs oracle-cut from real Rakudo (`rakudo-local`, `rakudo_bin()`) — not hand-authored. `--to 9` (the whole ladder built so far) is PASS 20/20, not just the `--to 5` DONE-WHEN floor. Row raku-construct-ladder-from-rung-0 stays OPEN for whoever climbs past rung 9 (subs+signatures beyond a bare 2-arg sub, classes/roles, regexes/grammars, exceptions, lazy lists are the named-but-unbuilt topics) — this session scoped to a solid, fully-green rung 0-9 foundation rather than reaching for red stretch rungs.
+
 ## THE STANDARD — what every language has when this is done (the best of each today, made the rule for all)
 
 1. **A CONSTRUCT LADDER with tiny rungs** (Prolog's shape, `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` § E; Icon's 41 IR rungs are the precedent): `ladder__rungNN_<slug>` entries in the master from rung 0 (hello world) upward, one construct per rung, graded by `test_<lang>_ladder.sh --to N | --only N` in both modes, refs cut by the language's oracle, witnesses that fail once before their rung lands.
@@ -25,7 +27,7 @@
 | Prolog | 404 · 10 · 114 | construct ladder 33 witnesses (rungs 0–8 + 30 legacy rung scripts) | 5-program smoke | yes | gnu_prolog, swi_tests (2) | YES (`test_gate_pl_port_trace.sh`, 66 blocks) | yes |
 | Snocone | 273 · 24 · 43 (STALE 08-29) | ⛔ none | 5-program smoke + 10 parser smokes | ⛔ none | none (the library ports) | ⛔ none | yes |
 | Rebus | 48 · 0 · 34 (STALE 08-29) | ⛔ none | 4-program smoke | ⛔ none | none | ⛔ none | yes |
-| Raku | 129 · 14 · 47 (STALE 08-29; 724 inline probes being absorbed) | 2 IR rung scripts | 724-probe script (a rung suite in disguise) | yes | roast (in `refs/`, scoreboard script) | ⛔ none | yes |
+| Raku | 139 · 14 · 57 (STALE 08-29; 724 inline probes being absorbed) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_raku_ladder.sh`, seat11 2026-09-03), refs cut from real Rakudo | 724-probe script (a rung suite in disguise) | yes | roast (in `refs/`, scoreboard script) | ⛔ none | yes |
 | Pascal | 149 · 0 · 70 (STALE 08-29) | ⛔ none | ⛔ NONE | ⛔ none | fpc_tests, p5, ISO 7185 PAT (row) | ⛔ none | yes |
 
 ## THE ROWS (one per gap; the umbrella closes when every cell above reads yes)

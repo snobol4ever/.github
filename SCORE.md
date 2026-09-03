@@ -103,6 +103,7 @@ Shared axes: counts are PASS/FAIL over the suite's own printed denominator, mode
 ## Raku
 | Suite | Result | Tree · date · by |
 |---|---|---|
+| test_raku_ladder.sh (construct ladder, GOAL-TEST-SUITE-CONSISTENCY row raku-construct-ladder-from-rung-0) | rungs 0-9 built, one witness each (hello, variables, arithmetic, strings, arrays, hashes, if/while, subs, for-loop, string methods); refs oracle-cut from real Rakudo (`rakudo-local`, `rakudo_bin()`), never hand-authored. `--to 5` (this row's DONE-WHEN floor) PASS 12/12 · `--to 9` (the whole ladder built so far) PASS 20/20 · `--only 7` alone PASS 2/2, both modes m3+m4. Instrument proven both directions: a deliberately-corrupted rung00 `.ref` line correctly FAILed (rc=1) before being restored to PASS (rc=0) — see task LEDGER. Row stays OPEN past rung 9 for subs+signatures/classes+roles/regexes+grammars/exceptions/lazy lists. | SCRIP `3ce6b353` · corpus `07172985f` · 2026-09-03 ~16:45 · seat11 |
 | test_smoke_raku.sh (the 724 set) | m3 724/724 FAIL=0 REFUSED=0 · m4 724/724 FAIL=0 REFUSED=0 | s283h tree · 2026-08-29 · ceo |
 | test_raku_ir_full_suite.sh | **PASS=35 FAIL=12** (identical across 3 arms) — suite verdict FAIL; pairs with open row raku-frontend-real-world-syntax-gaps (seat11) | s283h tree · 2026-08-29 · ceo |
 | raku_roast_scoreboard.sh (rakudo spectest manifest) | was BLOCKED on refs/rakudo-main — ceo repopulated refs/ from /home/resources 2026-08-29; rerun pending | ceo 2026-08-29 |
