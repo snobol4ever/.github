@@ -154,6 +154,38 @@ readings — 377, 378, 379 — across three trees. **None of them is wrong; they
 that is exactly why the row's second half (name the failures) is the load-bearing one: a per-entry list reconciles
 three denominators in one reading, and three more summary numbers never will.
 
+## RECEIPT — re-proven on the PUSHED tree, because the first proof was voided by a rebase
+
+The gate was first proven on `7cc472145`; the push rebased onto three commits that had landed meanwhile
+(`9bd2e1950`, `ca96ba948`, `8412955e6` — bus and leaderboard work, **zero `src/` files**, but `Makefile` grew and
+`make test` grew two arms with it). ⛔ **A gate proven before a rebase is not a gate** (RULES.md § re-prove your gate
+after a rebase), so every number below is from a rebuild and re-run on the merged, pushed tree.
+
+**SCRIP `f4d69ac83` · corpus `96a459b9f` · `RT_OPT=-O0` · incremental build (HQ-27 loosened, Lon 2026-09-03 15:58).**
+
+| arm | result |
+|---|---|
+| `make test` blocking set + ladder + trace gate + smoke + strip_comments (the row's whole DONE-WHEN) | **rc=0** |
+| SNOBOL4 master `test_corpus_snobol4.sh` | m3 **PASS=1689 FAIL=0** · m4 **PASS=1689 FAIL=0 SKIP=0 MISSING=0** ✅ |
+| Icon smoke `test_smoke_icon.sh` | m3 **14/14** · m4 **14/14** |
+| Icon master `board_icon_master.sh` | run-graded **378/381 · 378/381**, ast **153/153** — RED vs floor 379, **identical before and after this change** |
+| JCON demo gate `test_demo_icon_jcon.sh` | **PASS(0)**; jtran built/linked/ran in both modes; **the `⚠ jlink: exit status diverges` line is GONE** |
+| Prolog ladder `--to 8` · port-trace gate `--to 8` · quad gate | 50/50 · PASS · PASS |
+| `strip_comments.py --check` | 0 files |
+
+⭐ **The SNOBOL4 denominator moved under the routing message.** hq_B's control arm read `PASS=1679`; the same script on
+the merged tree prints **1689**. Neither seat mistyped — the suite grew between the two runs. This is CLAUDE.md's
+"never quote a number you did not produce" with the emphasis on *when*: a denominator has a timestamp as surely as a
+numerator, and a control arm quoted from an hour ago is a different control arm. `SCORE.md`'s snobol4 and icon rows
+are rewritten in place from these runs (FACT RULE, Lon 2026-09-03 ~16:05).
+
+⛔ **A caught near-miss, recorded because it would have shipped a false green.** The first full DONE-WHEN run reported
+`rc=0` and it was **not** green: the command was `( … ) > log 2>&1; echo "rc=$?"`, so the reported status was the
+`echo`'s. The real chain had exited **1** at `strip_comments --check` — this seat's own new `/*---*/` separator was 202
+characters where the sanctioned one is 200, and the checker normalises it. Caught only by reading the log instead of
+the status. ⭐ Same family as the pipeline trap above and as `command -v`: **the instrument answered a narrower question
+than the one asked, and said nothing.** The re-run puts the rc *inside* the log, where it cannot be intercepted.
+
 ⭐ **The SCORE.md write hit a real concurrent-edit conflict, and it was MERGED, not forced.** Between this seat's
 `util_score_row.py write` and its push, another session rewrote both the snobol4 and icon rows. Resolution: **their**
 snobol4 row was kept whole — it carries the identical `PASS=1689 FAIL=0` board plus a genuinely newer entries column
@@ -161,3 +193,12 @@ snobol4 row was kept whole — it carries the identical `PASS=1689 FAIL=0` board
 theirs — and **this seat's** icon row was kept, because 378 on `f4d69ac83` supersedes 377 on `ca96ba948`'s ancestor.
 ⛔ `--force` was never a candidate. On a leaderboard whose whole value is that every row names a real run, "my arm won
 the race" is not a reason to drop someone else's measurement.
+
+
+⛔ **AND THE SECTION ABOVE WAS ITSELF NEARLY LOST TO A ONE-WORD MISTAKE — recorded because it is the same shape as
+everything else in this file.** The receipt was appended with `F=… && cat >> "$F"` from a shell whose cwd was
+`SCRIP/`, not `.github/`. `cat >>` on a name that does not exist there does not complain: it **creates** the file.
+So the append reported success, `wc -l` printed a plausible 32, the FINDING was committed and pushed **without its
+own control arms**, and the only reason it surfaced is that `handoff_status.sh` flagged one untracked file in the
+wrong repo. ⭐ A redirect that creates on miss is `command -v` again in a third costume: **it answered "can I write
+here" when the question was "is this the file I mean", and nothing in its output distinguishes the two.**
