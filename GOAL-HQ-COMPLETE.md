@@ -148,6 +148,21 @@ cd SCRIP && make pristine                    # HQ-27: required before any gate v
 
 ## LIVE CURSOR — hq_C
 
+**s291 (2026-09-03, Opus 5, TRIO) — ⭐⭐⭐ RUNG 5 LANDED: IF-THEN-ELSE ON A GATE PAIR THAT WAS DEAD CODE, AND THE RULE THAT A CONSTRUCT WHICH MUST UNDO MUST FIRST BE A CHOICE.**
+
+Rows: `prolog-rung-5-if-then-else-negation-once-forall-ignore-and-the-plain-directive-goal` (LANDED — SCRIP `54536fbf`, corpus `33944ab1`; receipt `FINDING-2026-09-03-hq_C-rung-5-lands-if-then-else-on-a-dead-gate-pair-and-a-construct-that-must-undo-must-first-be-a-choice.md`). Fail-once on clean origin `8d9809e5` (`--to 5` rc=1, rung 5 PASS=0 FAIL=10); pass-once pristine, DONE-WHEN **rc=0**. Ladder `--to 5` **22/22**, `--only 6` 20/20, `--only 7` 4/4; trace gate PASS(0), four rung-5 blocks cut, rungs 0–4 byte-identical, 66 → 66; SNOBOL4 **1679/0 both modes**; Icon watermark **264/6/1/27 UNCHANGED**; ITE 10/10, cut 10/10, disjunction 12/12. `forall` moved out of the rung-8 refusal list; ceo's re-labelled plain directive goals land with it (file order, before the initialization goals, `ignore/1`-wrapped).
+
+### ⭐⭐ A CONSTRUCT THAT MUST UNDO MUST FIRST BE A CHOICE
+`\+ q(X)` left `X` bound where swipl leaves it unbound: `q(X)` succeeds, `\+` fails, and **no enclosing choice ever backtracks past the binding** — the outer ITE just takes its else arm. § B.8 names this as *the* place a SUCCESSFUL goal's bindings are undone. The ITE now carries an `IR_BOUND` mark and two `IR_UNMARK` landings, pairing by operand as Icon's loop marks do. ⭐ **And the mark was useless alone** — with the unwind wired the witness stayed red, because with no live choice `pl_tr_needs_log` returns 0 for every cell and the unwind walked an empty suffix. The pinned arm also calls `rt_pl_disj_open`: the **third** construct to need it after rung 3's disjunction and rung 7's generator. Three coincidences are a rule, and § B.7 now says so.
+
+### ⭐⭐ THE GATE PAIR SHIPPED, COMPILED, AND WAS REACHABLE FROM NO LOWERER
+`bb_indirect_goto` and `bb_move_label` had no user since the cut. Reviving them cost five fixes in shared machinery: no drive case at all; **no slot granted for the gate word both templates had always written** (harmless with one gate box, a core dump with two — invisible until an ITE sat inside another ITE's condition); the RPO walk never pushed the box's ω target; the ports were inverted (α must concede, β must resume) and a det arm banking its own resume port makes the gate jump to itself; and `IR_MOVE_LABEL` dropped the σ/φ marker it inherits. ⭐ **Dead code is not neutral — it is untested code wearing the costume of tested code**, and every one of these would have been caught the first time anything used it.
+
+### ⭐ A WITNESS CAN BE MIS-FILED TOO
+`ite_condition_throws` needs `throw/1`, a rung-9 builtin that refuses at compile time, so it emits no stdout and could never pass at rung 5. Re-filed to rung 9 — the same shape as row 4's 10⁶ criterion belonging to row 11. **What it tests is kept**: an ITE must not swallow an exception, and the C9 `r15` guard is deliberately *not* added yet because § A.1 measured `r15` non-zero at every Prolog ω today, so it would fire unconditionally. Rung 9 is the first rung that can both add it and witness it.
+
+## LIVE CURSOR — hq_C (s290, superseded by s291 above)
+
 **s290 (2026-09-02, Opus 5, TRIO) — ⭐⭐⭐ RUNG 4 LANDED: THE CUT IS THE BARRIER IN TWO HALVES — AND IT FOUND TWO RUNG-2 DEFECTS THAT HAD NEVER BEEN LOAD-BEARING.**
 
 Rows: `prolog-rung-4-the-cut-is-the-barrier-f-b0-f-cur-exhausted-and-the-omegas-to-its-right` (LANDED — SCRIP `8d9809e5`, corpus `9dd195f2`; receipt `FINDING-2026-09-02-hq_C-rung-4-lands-the-cut-in-two-halves-and-rung-3-encoded-has-no-resume-and-must-not-be-resumed-with-one-spelling.md`). Fail-once on clean origin `f5bf7357` (`--to 4` rc=1, 6 of 14); pass-once pristine on the MERGED tree, DONE-WHEN **rc=0**. Ladder `--to 4` 14/14 and `--only 7` 4/4; trace gate PASS(0) with the three rung-4 blocks cut (rungs 0–3 byte-identical, 62 → 62); SNOBOL4 **1679/0 both modes**; Icon watermark **264/6/1/27 UNCHANGED**; cut battery 10/10, disjunction battery 12/12. Master board REPORTED **221/404 both modes** (rung 3: 189/400), `m4_fail` down to the single known rung-9 witness. New rows: `strip-comments-check-is-not-in-make-test-so-src-style-goes-red-on-origin`.
