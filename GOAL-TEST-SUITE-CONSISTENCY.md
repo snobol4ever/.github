@@ -23,7 +23,7 @@
 | language | master (entries · xfail · families) | ladder / rungs | smoke | parser fixtures | vendor suites | trace gate | leaderboard row |
 |---|---|---|---|---|---|---|---|
 | SNOBOL4 | 1726 · 80 · 388 (THE model) | ⛔ none (one pattern rung suite) | 4-program smoke | ⛔ none | aisnobol, csnobol4_suite, dotnet, gimpel, snoflake (5) | ⛔ none (`&TRACE` exists) | yes |
-| Icon | 534 · 1 · 308 (259 rung-tagged) | 41 IR rung scripts + STRICT suite 298 | 14/14 | yes (153 ast) | arizona, ipl, jcon-compiler, jcon-ref, jcon_tests (5) | ⛔ none (`&trace` exists) | yes |
+| Icon | 534 · 1 · 308 (259 rung-tagged) | 41 IR rung scripts + STRICT suite 298 | 14/14 | yes (153 ast) | arizona, ipl, jcon-compiler, jcon-ref, jcon_tests (5) | YES (`test_gate_icn_port_trace.sh`, 4 blocks, rung 3 generator witnesses only — plain non-suspend calls are a follow-up gap) | yes |
 | Prolog | 404 · 10 · 114 | construct ladder 33 witnesses (rungs 0–8 + 30 legacy rung scripts) | 5-program smoke | yes | gnu_prolog, swi_tests (2) | YES (`test_gate_pl_port_trace.sh`, 66 blocks) | yes |
 | Snocone | 273 · 24 · 43 (STALE 08-29) | ⛔ none | 5-program smoke + 10 parser smokes | ⛔ none | none (the library ports) | ⛔ none | yes |
 | Rebus | 48 · 0 · 34 (STALE 08-29) | ⛔ none | 4-program smoke | ⛔ none | none | ⛔ none | yes |
