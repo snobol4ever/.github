@@ -242,3 +242,44 @@ This is the same family as `command -v` answering "is it on PATH" when asked "do
 pipe and `cat >>`-creates-on-miss traps recorded above: **an instrument answered a narrower question than the one
 asked, and nothing in its output said so.** Four instances in one session, three of them caught only by a disagreement
 with someone else's number.
+
+## POSTSCRIPT — a fifth instance of the same family, found on the way out
+
+Closing the rung-6 row's computed `done` refused, on an arm the ceo had already seen refuse and not chased:
+`GATE FAIL(1) [test_gate_pl_port_trace]: 2 failed checks`. Chased here. The cause is unrelated to this file's cures
+and is worth recording because it is the same shape one more time.
+
+`ladder__rung03_disjunction` read `trace m3=FAIL(total 25 != ref 26)`, m4 identical, **with `answer=ok`**. hq_P's
+rung-11 last-call optimisation had landed; they re-cut the port-trace ref for the rung-11 witness that motivated it
+(`corpus 54d5b5cf4`) and not for the earlier rungs LCO also changes. ⭐ **An optimisation that removes a FRAME changes
+the trace of every earlier witness with a last call, not only the witness that motivated it** — trace refs are a
+cross-rung artifact and LCO is a cross-rung change.
+
+The removed line, from the full diff:
+
+```
+-  (2) Exit: call_proc_staged p/0   -> main/0_ret0
+   (…) Exit: call_proc_staged main/0 -> pat_flat_γ
+```
+
+The witness is `main :- p.` with `p` as main's only goal — textbook last call. Under LCO main's frame is released
+before `p` is entered, so `p` never returns into main and `p`'s exit *is* the exit. **One frame, one Exit port: not a
+lost port, a box that no longer exists.** Re-cut with `--only 3 --cut` (whose merge semantics keep every other block)
+rather than hand-edited, and the ref moved 26→25 lines.
+
+⛔ **"Re-cut the ref until the gate passes" is the false-green trap, so the re-cut carries its argument:** the answer
+is unchanged and still matches live `swipl` (not a pinned string); the single removed port is exactly the elided
+frame; all **78** blocks were diffed and only rung 3's two changed; fail-once and pass-once both observed (`--to 9`
+red 2-of-56 before, `PASS(0)` 56/56 after, ladder 56/56).
+
+⚠️ **One thing was NOT swept under the re-cut.** The two modes now disagree on that final Exit's box id — m3 reports
+it from box `(2)`, m4 from box `(1)`; before the landing both were `(1)`. Totals and answers agree, so `MODES MAY
+DIVERGE` sanctions it and it was cut as-is; but a re-cut *pins* whatever it records, so it went to hq_P as an explicit
+question rather than into the ref silently. **A ref is not a place to park an uncertainty.**
+
+⭐ **And the family closes at five.** `command -v` answering *is it on PATH* for *does it exist*; `$?` after a pipe
+answering *how did the pager exit*; `cat >>` answering *can I write here* for *is this the file I mean*; `2>/dev/null`
+in a board's capture answering *what did stdout say* for *what did the harness report*; and a green summary line
+answering *did the answers match* for *did anything change*. **Every one produced a confident, plausible, wrong
+answer, and not one of them said it had been asked something narrower.** Four of the five were caught only because a
+number disagreed with somebody else's.
