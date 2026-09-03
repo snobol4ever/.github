@@ -209,17 +209,36 @@ correct reason*. **A specification clause is a number** (`RULES.md:105`): quotin
 failure as quoting a benchmark you did not run, and it is more portable, because a wrong measurement gets re-measured
 while a wrong citation gets quoted. See `FINDING-2026-08-28-hq_C-RETRACTION-i-supplied-the-uppercase-E-premise-lon-ruled-on-and-i-cannot-source-it.md`.
 
-### ⛔ NOT settled by the above: `writeln(<enum>)` — no oracle, and the ISO question is OPEN
-`fpc -Miso` cannot compile it (`Fatal: Unknown compilerproc "fpc_write_text_enum_iso"`), so two crosscheck witnesses
-(`pb:1 pb36`, and the loose `pb37`) have **no oracle at all** and their refs are SCRIP-self-derived. ⛔ This is **not**
-a real-formatting question and is **not** covered by the delegation ruling — it was bundled with the other four only
-because it was held in the same batch. **Whether ISO 7185 permits writing an enumerated value directly is UNRESOLVED
-here, and the local evidence points both ways:** the ISO 7185 acceptance test writes enums exclusively as `ord(e):1`,
-never `writeln(e)` (`iso7185pat.pas:559,562,570`), which suggests it is not standard — while the fpc routine's own name,
-`fpc_write_text_enum_ISO`, suggests fpc intended to support it in ISO mode and the routine is merely missing.
-⚠️ `tests/pascal/KEEP.md` §4 calls this "a real gap in this fpc build's `-Miso` RTL, not a SCRIP or ref defect." That
-characterization is **asserted, not sourced**, and may be the same class of error as the uppercase-`E` premise above.
-Row `pascal-writeln-enum-iso-conformance-unresolved` carries it. Do not cite KEEP.md §4 as settled.
+### ✅ SETTLED: `writeln(<enum>)` is a non-standard EXTENSION — ISO 7185 forbids it (seat10, row `pascal-writeln-enum-iso-conformance-unresolved`, 2026-09-03)
+
+**ISO 7185 does not permit writing an enumerated value directly.** Sourced: *Moore's Rules of ISO 7185* — the
+same secondary source as the delegation ruling above — <https://standardpascal.org/iso7185rules.html>, §
+"Predefined procedures and text files": *"Integers and reals can be read from a text file, and integers, reals,
+booleans, and strings can be written to text files."* This is a closed enumeration of what CAN be written, not
+an incomplete example, and enumerated/scalar types are not in it. Corroborated independently by the ISO 7185
+acceptance test itself, which writes every enum exclusively as `ord(e):1`, never `writeln(e)`
+(`iso7185pat.pas:559,562,570`, confirmed present at `/home/resources/Pascal-P5/standard_tests/`). ⚠️ Stated as
+what it is: a secondary source carrying its own disclaimer ("the following description could be wrong or
+incomplete... consult [a formal reference] for definitive answers") — the same class of source as the
+delegation ruling above, not a stronger one; ISO 7185's normative text is still not on this machine.
+
+**CONSEQUENCE:** SCRIP's `writeln(<enum>)` support is a **non-standard extension**, not a defect, and is **not**
+covered by the delegation ruling above — this is not a case where the standard declines to mandate a shape, it
+forbids the construct outright and SCRIP goes beyond it. `pb:1 pb36` and the loose `pb37` are re-marked
+**`ISO-EXTENSION`** (not `ISO-DELEGATED-SCRIP-DEFAULT`). Their refs stay SCRIP-self-derived — no oracle exists
+that can grade a construct outside its own conformance mode — which is now the CORRECT provenance to record,
+not a placeholder awaiting replacement. Full audit: `crosscheck/PROVENANCE.md`.
+
+`fpc -Miso`'s failure to compile `pb37.pas` (`Fatal: Unknown compilerproc "fpc_write_text_enum_iso"`) is best
+read as fpc **still accepting the extension syntactically under `-Miso`** — routing it to an ISO-mode-specific
+compilerproc, distinct from default mode's `fpc_write_text_enum` (confirmed present and implemented, writing
+the enum's *name*, at `/usr/share/fpcsrc/3.2.2/rtl/inc/text.inc:1191`) — **but never finishing that routine's
+RTL implementation**, rather than fpc cleanly rejecting a non-ISO construct at compile time. Grep of the local
+FPC compiler source (`/home/resources/FPCSource/compiler/`) found no literal `write_text_enum_iso` callsite,
+so the exact suffix-selection mechanism is unconfirmed — this reading is circumstantial, not traced to the
+compiler's own decision point, and is not load-bearing for the ISO ruling above (which rests on Moore's Rules
++ the acceptance test, not on fpc's failure mode). `tests/pascal/KEEP.md` §4's "a real gap in this fpc build's
+`-Miso` RTL, not a SCRIP or ref defect" is corrected accordingly.
 
 ---
 
