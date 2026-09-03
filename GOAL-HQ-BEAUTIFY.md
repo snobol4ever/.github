@@ -6,6 +6,20 @@
 
 ## LIVE CURSOR
 
+**B-11 (2026-09-03, MODE FLEET-12 — row `picker-skips-a-row-owned-by-another-seat-unless-that-seat-picks` CLOSED; SCRIP `a79c2af7`):** `next` PASS 3 now skips a FREE row whose owner names another seat. Serving is unchanged when the owner is the picker, `unassigned`, or empty; PASS 1 (HQ dispatch) and PASS 2 (own unfinished work) untouched; `assign` still moves ownership and `claim` is still the deliberate override. Gate `test_gate_s4e_next_honours_owner.sh`, 8 checks, hermetic — **8/8 green, 4/8 red pre-cure**, and the red reproduces the original defect in its own words.
+
+⭐ **WHY SKIP IS THE RIGHT DEFAULT — THE COST IS ASYMMETRIC.** A wrongly-served row puts two seats on one piece of work and, because a claim **hides** the row from its owner's own picker, locks the owner out *silently*. A wrongly-skipped row costs one `claim` typed on purpose. **The picker cannot tell an idle owner from a busy one, so it must not guess — and when it must, it should guess in the direction that is cheap to undo.**
+
+⛔ **MY OWN DISPATCH-PRESERVATION ARM FAILED FIRST, AND THE ARM WAS WRONG, NOT THE CHANGE.** I modelled HQ dispatch as a QUEUE state column; it actually lives in the claim file (first line the owning seat, then `ASSIGNED-BY <seat>`). Running the failing arm against the **pre-cure** picker showed it failing identically — one command, and it settled it. ⭐ **A control that only ever runs against the cured build cannot tell "I broke this" from "this never worked that way."** Third time today a control, not a board, is what caught me.
+
+⭐ **The skip REPORTS ONCE** — count plus topmost row, on both the serve and queue-empty paths. Not per row (18 of 178 FREE rows carry an owner), never silent: a skip nobody can see is indistinguishable from the row not existing, which is the failure this picker has now been fixed for **three times** (file-order picking, decorative state column, this).
+
+⛔ **RISK ON RECORD, not a defect today:** a FREE row owned by a seat that no longer exists becomes unpickable except by explicit `claim`. All four owners on FREE rows have live mailboxes now; **this bites on a mode change** — and the modes have moved TRIO → FLEET-8 → FLEET-12 in one sitting. Cure if it happens is `assign <topic> unassigned` per row, not a revert.
+
+**Routed masters disposed by ceo as reasoned:** raku resort → seat07; snobol4 resort → PARKED-AWAITING a fleet-quiet boundary plus explicit go, because its board is the blocking arm of `make test` for every seat and it lands like an oracle swap. **Icon 530/534 is now the number Lon reads**, and seats 01/02/03 are told to grade with `--by-modes-column`.
+
+⛔ **EXACT NEXT STEP:** rung 13. Ask targets under FLEET-12: seat01, seat02, seat03, seat08, seat11.
+
 **B-10 (2026-09-03, MODE FLEET-8 — two rows CLOSED: the Icon board and the master resort; SCRIP `668b308b`+`1bcfba40`, corpus `353cd537`):**
 
 **Icon board now grades each entry the way its `modes` column says.** 153 of 534 entries are parser fixtures whose `.ref` is a `--dump-ast` dump, and the runner was *executing* them. Measured: old (all run-graded) m3/m4 377 PASS / 141 FAIL / 13 CRASH / 2 HANG → new **ast-graded 153/153 PASS, run-graded 377/381 both modes, 3 FAIL, ZERO crashes, ZERO hangs.** Honest total **530/534**. ⭐ **Every crash and hang on the old board was a parser fixture being run.** Two populations, two denominators, never summed.
