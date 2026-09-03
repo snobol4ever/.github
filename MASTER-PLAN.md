@@ -10,10 +10,10 @@ The 100% denominator is `SCORE.md` § THE SEPTEMBER 10 GRID: seven languages × 
 
 | lane | languages / cells | why this split | FLEET-16 seats (postoffice `<seat>/HQ` rewritten 2026-09-03 to match) |
 |---|---|---|---|
-| **hq_C** correctness | PROLOG: M 404 · L rungs 10–12 then the § E top · V swi_tests + gnu_prolog — plus every SHARED-ENGINE class defect any lane routes (frozen-model changes, shared boxes, the scan+while+suspend resume-at-α that blocks jtran) | the deepest hole (271/404, 31 parked umbrella rows) and the one lane that changes shared nodes | 04 · 05 · 08 · 15 |
+| **hq_C** correctness | PROLOG: M 404 · L rungs 10–12 then the § E top · V swi_tests + gnu_prolog — plus every SHARED-ENGINE class defect any lane routes (frozen-model changes, shared boxes, the scan+while+suspend resume-at-α that blocks jtran) | the deepest hole (271/404, 31 parked umbrella rows) and the one lane that changes shared nodes | 04 · 05 · 08 |
 | **hq_B** beautify / Icon | ICON: M red-by-2 + the STRICT suite · L · V arizona 89 · jcon_tests 81 · ipl 851 · jcon demo 4/4 — plus the public face: README, demos, the polyglot board | Icon is the second-largest gap and all presentation is hq_B's | 01 · 02 · 03 · 16 |
-| **hq_P** speed | SNOBOL4: V csnobol4_suite 118 + gimpel/snoflake/aisnobol/dotnet, the 70 xfails reasoned · SNOCONE: M 273 re-measured and cured · PASCAL: M 5 reds · V fpc_tests 59 + the ISO 7185 PAT suite · rung09 — plus the **B cell for all seven**: every README grid on the two-number three-angle basis vs the rival by D6 (I26; Rebus needs a benchmark set first) | SNOBOL4/Snocone/Pascal are already hq_P's perf languages; their remaining work is suites, not engine | 06 · 09 · 10 · 13 |
-| **hq_T** test suites | THE STANDARD: the three missing ladders written (icon, snocone, rebus), the top-rung census for all seven, the four missing package gates (snoflake, gimpel, ipl, aisnobol+dotnet), `board_packages.sh` into `make test`, `util_score_row.py`, the walker over all seven ladders, the xfail-reason gate · RAKU: M 139 (42 ast_fail) · V roast graded · REBUS: M 48 re-measured and cured · L | instruments are one body for seven languages; Raku and Rebus are the two lanes with no engine owner | 07 · 11 · 12 · 14 |
+| **hq_P** speed | SNOBOL4: V csnobol4_suite 118 + gimpel/snoflake/aisnobol/dotnet, the 70 xfails reasoned · SNOCONE: M 273 re-measured and cured · PASCAL: M 5 reds · V fpc_tests 59 + the ISO 7185 PAT suite · rung09 — plus the **B cell for all seven**: every README grid on the two-number three-angle basis vs the rival by D6 (I26; Rebus needs a benchmark set first) | SNOBOL4/Snocone/Pascal are already hq_P's perf languages; their remaining work is suites, not engine | 06 · 09 · 10 · 12 · 13 · 15 |
+| **hq_T** test suites | THE STANDARD: the three missing ladders written (icon, snocone, rebus), the top-rung census for all seven, the four missing package gates (snoflake, gimpel, ipl, aisnobol+dotnet), `board_packages.sh` into `make test`, `util_score_row.py`, the walker over all seven ladders, the xfail-reason gate · RAKU: M 139 (42 ast_fail) · V roast graded · REBUS: M 48 re-measured and cured · L | instruments are one body for seven languages; Raku and Rebus are the two lanes with no engine owner | 07 · 11 · 14 |
 
 A ladder written by hq_T is CURED by the language's lane owner: the writer files the red rung with its witness, the owner cures it. A red found in any suite is a class row in the owner's lane; a class that lives in a shared node is routed to hq_C with the witness and graded on every frontend that lowers to the node (RULES § SHARED-NODE VERDICT SCOPE). Prolog's ladders stay T, C, P below; hq_C's current rungs are § E rungs 10–12 and the master/swi/gnu census rows.
 
@@ -23,7 +23,7 @@ A ladder written by hq_T is CURED by the language's lane owner: the writer files
 |---|---|---|---|---|
 | 1 | every ⭐ rung on every ladder has a baton with a runnable DONE-WHEN | `python3 SCRIP/scripts/util_ladder_walk.py --quiet \| grep -c 'V1 RUNG-WITHOUT-ROW'` and the same for `V5` | 0 and 0 | V1 = 20 · V5 = 1 — NOT READY |
 | 2 | sixteen seats can each step onto a rung (V1 = 0 alone supplies ~40 rungs; this line guards against a queue where off-ladder rows sit ahead of them) | `awk -F'\t' '!/^#/ && NF>=4 && $1<=1 && $4=="FREE"' /home/resources/postoffice/QUEUE.tsv \| wc -l` with walker V4 = 0 (nothing off-ladder ahead of a rung) across ≥ 3 lanes | ≥ 16 and V4 = 0 | 14 FREE, of which 7 off-ladder (V4) and 6 walkable — NOT READY |
-| 3 | the seat map matches THE LANES | `for s in 01 02 03 16; do cat /home/resources/postoffice/seat$s/HQ; done` (hq_B) and likewise 04 05 08 15 (hq_C), 06 09 10 13 (hq_P), 07 11 12 14 (hq_T) | all match | matches (rewritten CEO-174) |
+| 3 | the seat map matches THE 16-SEAT CUT | `for s in 01 02 03 16; do cat /home/resources/postoffice/seat$s/HQ; done` (hq_B) and likewise 04 05 08 (hq_C), 06 09 10 12 13 15 (hq_P), 07 11 14 (hq_T) | all match | matches (rewritten CEO-175 to the by-function cut) |
 | 4 | every seat digest carries the 2026-09-03 proclamation (pristine lifted · QUARTET/FLEET series · `send` to the HQ-file target) | `grep -L 'THE PRISTINE BUILD IS LOOSENED' /home/claude??/CLAUDE.md /home/claude_?/CLAUDE.md \| wc -l` | 0 | 20 of 20 lack it — waits on Lon: `! python3 /home/claude/.scratch/propagate_pristine_and_quartet.py` (the ceo's writes into sibling roots are refused by the harness) |
 | 5 | MODE flipped by the ceo on Lon's word and every seat told to run `next` | `head -1 /home/resources/postoffice/MODE` | FLEET-16 | QUARTET — Lon's word, after 1–4 read true |
 
@@ -59,16 +59,28 @@ Honesty line, written before the walk starts: in 37.5 hours Prolog's master (271
 4. **Rung N+1 opens when rung N is green in both modes; rungs on disjoint function families run in parallel** (the T ladder's seams table is the precedent). That is how sixteen seats walk seven ladders without a register or template collision: one seat per rung, one rung per seat, and a shared-node change goes to hq_C.
 5. **One runner body** (`lib_ladder.sh`) serves seven stanzas: a runner fix lands for all seven at once; `test_<lang>_ladder.sh --to <top>` is the lane's landing gate on every push; SNOBOL4 FAIL=0 and Icon's watermark stay the control arms on every push regardless of lane. Stale runner headers (`test_snobol4_ladder.sh` still says ZERO origins) are hq_T's D1.
 
-## THE 16-SEAT CUT (what one seat holds; four per lane; no two seats on one src/ family)
+## THE 16-SEAT CUT — seven ladder walkers · eight suite fixers · one benchmark seat (Lon 2026-09-03 ~19:55: *"A seat for each language walking the ladder is 7 of 16 sessions. The 9 bug fixers? … And do not forget a seat for benchmarks."*)
 
-| lane | seat A | seat B | seat C | seat D |
-|---|---|---|---|---|
-| hq_C | Prolog current rung (10 → 11 → 12) | Prolog master reds classified by stderr signature, cured by class | swi_tests: the m4 0/114 single cause, then the m3 32 by class | gnu_prolog: the lib=51 filter justified in writing or lifted; the shared-engine class rows routed from other lanes |
-| hq_B | Icon master reds (red-by-2, the six; one reconciled number) | arizona 44 reds by class | jcon_tests 38 non-pass by class (the 2 "unreconciled" first) | ipl runner + jcon demo (jtran link, with hq_C's resume-at-α row) |
-| hq_P | csnobol4_suite 66 non-pass by class (after the 52-vs-58 reconciliation) | gimpel · snoflake · aisnobol · dotnet measured, then cured by class | Pascal master 5 + fpc_tests 59 by class + rung09 | Snocone master re-measured, then cured by class |
-| hq_T | ladders icon / snocone / rebus written to rung ≥ 5, then the seven censuses | package gates (snoflake, gimpel, ipl, aisnobol+dotnet) + `board_packages.sh` + `make test` wiring + `util_score_row.py` + the walker over seven ladders | Raku master 42 by class + roast scoreboard graded | Rebus master re-measured, then cured by class |
+| seat | role (its first row is the ⭐ rung of that ladder; it never holds two languages' `src/` at once) | HQ |
+|---|---|---|
+| **seat01** | ICON ladder walker — climbs `test_icon_ladder.sh` rung by rung from hq_T's rung-0–5 skeleton; every red it meets becomes a rung witness before its cure | hq_B |
+| **seat02** | ICON suites — jcon_tests 81 by class, then ipl's runner + denominator, then the jcon demo to 4/4 | hq_B |
+| **seat03** | ICON master — the reconciliation (ICN4), the run-graded reds (ICN1), the STRICT rung suite (ICN8) | hq_B |
+| **seat16** | ICON arizona 89 by class (ICN2 and its class children) | hq_B |
+| **seat04** | PROLOG ladder walker — rungs 10 → 11 → 12 then the § E top (LADDER C's current rung) | hq_C |
+| **seat05** | PROLOG master — 133 reds classified by stderr signature, cured by class (the parked umbrella's classes) | hq_C |
+| **seat08** | PROLOG suites — swi_tests (the m4 0/114 single cause, then the m3 32 by class) and gnu_prolog (the lib=51 filter justified or lifted) | hq_C |
+| **seat06** | SNOBOL4 ladder walker — rungs 10 → top from the green-book census; the 70 master xfails reasoned or cured on the way | hq_P |
+| **seat09** | SNOBOL4 packages — csnobol4_suite (the 52-vs-58 reconciliation, then 66 non-pass by class), then gimpel · snoflake · aisnobol · dotnet | hq_P |
+| **seat10** | PASCAL ladder walker — rung09 packed-array `=`, then rungs 10 → top from the ISO 7185 §6 census | hq_P |
+| **seat13** | PASCAL suites — the master's 5 reds, fpc_tests 59 by class, the ISO 7185 PAT suite once hq_T vendors it | hq_P |
+| **seat15** | SNOCONE ladder walker + master — re-measure the 08-29 175/273 on origin, classes, cure; climb hq_T's skeleton | hq_P |
+| **seat12** | **BENCHMARKS** — every language's README grid on the two-number three-angle basis vs its rival (the B cells, I26): SNOBOL4/Prolog/Raku re-measured off the totals basis, Icon beyond the JCON demo, Pascal vs fpc, Snocone, and a Rebus benchmark set before its grid | hq_P |
+| **seat07** | RAKU ladder walker — rungs 10 → top from the roast S-number census (subs+signatures, classes/roles, regex/grammars, exceptions, lazy lists) | hq_T |
+| **seat11** | RAKU suites — the master's one red (`method_sub_for_replace_1`), roast graded with a number and a hash, the 724 probes absorbed | hq_T |
+| **seat14** | REBUS ladder walker + master — re-measure the 08-29 0/48 on origin, classes, cure; climb hq_T's skeleton | hq_T |
 
-Under QUARTET each HQ walks its four columns itself, left to right. Under FLEET-16 each HQ hands one column per seat; the picker serves rank 0 first, so the current rungs and the census rows sit at rank 0 in every lane (RANK LAW: the rank IS the priority; prose priority reached zero seats for a day on 08-29).
+Seven walkers (01 04 06 07 10 14 15) · eight suite fixers (02 03 05 08 09 11 13 16) · one benchmark seat (12). The HQs keep their own hands on the instrument and shared-engine work (hq_T: the three ladder skeletons, the seven censuses, the package gates, `board_packages.sh`, the walker, the xfail gate; hq_C: every shared-node class row any seat routes; hq_B: the public face; hq_P: the B cells' review). A seat's HQ is the content of its postoffice `HQ` file (rewritten to this table 2026-09-03 ~20:00): hq_C 04 05 08 · hq_B 01 02 03 16 · hq_P 06 09 10 12 13 15 · hq_T 07 11 14. Under QUARTET each HQ walks its own rows in this order; under FLEET-16 the picker serves rank 0 first, so every seat's first row sits at rank 0 in its lane (RANK LAW: the rank IS the priority; prose priority reached zero seats for a day on 08-29).
 
 ### Provenance — the 2026-09-01 opening order and the 2026-09-02 TRIO block, kept verbatim (SUPERSEDED as orders by QUARTET 2026-09-03 17:20 and by the lanes above; Prolog stays the deepest lane, no longer the only one)
 
