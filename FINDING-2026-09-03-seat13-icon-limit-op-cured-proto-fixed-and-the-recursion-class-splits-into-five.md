@@ -6,11 +6,32 @@ censused into four independent SIGSEGV causes with follow-up rows minted for eac
 `icon-arizona-class-unresolved-forward-reference-emit` (CURED), `icon-arizona-class-silent-segv-no-diagnostic`
 (census complete, split into 4 rows). Dispatched FLEET-16, ceo, 2026-09-03 ~16:15 CDT. **Ask target:** hq_P.
 
-**Tree:** SCRIP `3a37313a0` · corpus `39f1c505c` · .github `7eb62e4c`, RT_OPT=-O0, `make` incremental (per
-Lon's 2026-09-03 ~15:58 pristine-loosening ruling — `make pristine` reserved for ceo audits/release points/
-stale-binary refusals; this session's verdict runs on an incremental rebuild, per that ruling).
+**Tree:** SCRIP `131dddd32` (post-rebase — see §1's correction) · corpus `39f1c505c` · .github (this push),
+RT_OPT=-O0, `make` incremental (per Lon's 2026-09-03 ~15:58 pristine-loosening ruling — `make pristine`
+reserved for ceo audits/release points/stale-binary refusals; this session's verdict runs on an
+incremental rebuild, per that ruling).
 
-## 1. `icon-arizona-class-unresolved-forward-reference-emit` — CURED
+## 1. `icon-arizona-class-unresolved-forward-reference-emit` — CURED (by `bfe63a037`, not this seat — see
+correction below; this seat's own verification and Arizona-board measurement stand)
+
+⚠️ **CORRECTED BEFORE PUSH, kept visible rather than quietly fixed:** this seat independently found and
+fixed the identical defect (commit `3a37313a0`), but `git pull --rebase` at push time surfaced `bfe63a037`
+("IR_LIMIT: guard the generator-beta lookup with ir_is_generator_kind, fix the non-generator fallback")
+already landed on `origin/main` — another session, minutes earlier. The two fixes diverge on the
+non-generator fallback target: `bfe63a037` routes to `IR_LIMIT`'s own omega (concede — correct, matches
+real Icon's "succeeds once, then fails" semantics for a plain value); this seat's version routed to the
+operand's own entry label, reasoned by analogy to `\`'s "re-invoke" wording but WRONG when checked against
+the real Arizona-suite icont oracle (`every write(x \ 3)` on a plain `x` prints `5` exactly once against
+real Icon; this seat's fix would have printed it up to 3 times). Rebase conflict resolved by taking
+`bfe63a037` outright (`git rebase --skip` on `3a37313a0`, now fully redundant) — **no SCRIP commit from
+this seat survives on this row**; the tree above is `bfe63a037`'s, pulled in by the rebase. What this
+seat's own work still adds, independently verified against real icont post-merge: the `proto.icn`
+bisection to a 1-statement repro, confirmation of BOTH the non-generator case AND a genuine
+generator-**procedure**-call case (`gen() \ 2` where `gen` suspends multiple values — `bfe63a037`'s own
+message only checked a builtin generator kind, `(1 to 10) \ 3`; the procedure-call case works because a
+call to a known generator procedure lowers to `IR_PROC_GEN`, already covered by `ir_is_generator_kind`,
+not a bare `IR_CALL` — so `bfe63a037`'s simpler guard has no gap there, a real property of the fix rather
+than an oversight in either version), and the Arizona-board delta below.
 
 Minimal repro bisected from `proto.icn` (44 statements in one procedure → 1): a bare `x \ i;` — Icon's `\`
 LIMIT operator applied to a **non-generator** operand (a plain variable) — aborts `bb_emit_end: 1
@@ -22,16 +43,17 @@ resume-beta label — without checking whether that operand kind ever actually *
 A plain `IR_VAR` doesn't (nothing ever resumes into a bare variable), so the label is referenced but never
 defined. The identical hazard for `IR_SUSPEND`'s do-body, three lines above in the same function, is
 already correctly guarded (`ir_is_generator_kind(...) || IR_CALL || IR_CALL_PROC_STAGED`); `IR_LIMIT` had
-simply never been given the same guard. Fix: one line, `src/emitter/emit.cpp` (chain-walk driver, ~line
-3192), mirroring the SUSPEND guard exactly — verified SCRIP `3a37313a0`, pushed.
+simply never been given the same guard until `bfe63a037` landed it (see correction above for the exact
+fallback-target divergence between that fix and this seat's independent, dropped one).
 
-**Verified:** minimal repros correct; `proto.icn` byte-identical to `.std` (was empty); Arizona suite board
-m3/m4 `44/45 → 45/44` (both modes, +1 PASS); STRICT rung suite **unchanged** `PASS=266 FAIL=4 BADEXIT=1
-XFAIL=26 XPASS=1 TOTAL=298` all three modes (this session's own re-measurement — the dispatch message's
-cited `264/6/1/27` is stale, superseded by `0376cf07`'s `&level` cure before this session started); Icon
-smoke `14/14` both modes; `IR_LIMIT` confirmed Icon-exclusive (`grep` across `src/lower/`, `src/parsers/`
-— sole producer `lower_icon.c`), zero cross-language risk. `git diff --stat`: exactly
-`src/emitter/emit.cpp | 2 +-`.
+**Verified post-rebase, SCRIP `131dddd32`:** minimal repros correct (both the non-generator case and a
+genuine generator-procedure-call case, `gen() \ 2`, against real icont); `proto.icn` byte-identical to
+`.std` (was empty); Arizona suite board m3/m4 `44/45 → 45/44` (both modes, +1 PASS); STRICT rung suite
+**unchanged** `PASS=266 FAIL=4 BADEXIT=1 XFAIL=26 XPASS=1 TOTAL=298` all three modes (this session's own
+re-measurement, both pre- and post-rebase — the dispatch message's cited `264/6/1/27` is stale, superseded
+by `0376cf07`'s `&level` cure before this session started); Icon smoke `14/14` both modes; `IR_LIMIT`
+confirmed Icon-exclusive (`grep` across `src/lower/`, `src/parsers/` — sole producer `lower_icon.c`), zero
+cross-language risk.
 
 `evalx.icn` no longer hits this class's abort at all — confirming the cure, not merely masking it — but
 now fails later, at `FATAL emit_drive: IR op=121 has no template in the universal driver` (`IR_SWAP`,
@@ -104,7 +126,9 @@ hypothesis so the next picker-up starts past the census step (INHERITED-CLAIM LA
 the repro fresh before trusting any of this).
 
 ## Everything landing in this push
-SCRIP: one-line `emit.cpp` fix (§1). corpus: unchanged (no corpus edits this session). .github: this
+SCRIP: nothing from this seat (§1's fix landed as `bfe63a037` from another session; this seat's matching
+commit was dropped as redundant during rebase, see correction). corpus: unchanged (no corpus edits this
+session). .github: this
 FINDING, the three original task batons rewritten in place (LEDGER/NEXT/QA per baton-one-next-block-gate),
 5 new task files minted (`icon-swap-op-general-lvalue-no-emitter-template`, and the four
 `icon-arizona-segv-*` rows), `QUEUE.tsv` rows for same (via `s4e_msg.sh mint`), `SCORE.md`'s Icon rows for
