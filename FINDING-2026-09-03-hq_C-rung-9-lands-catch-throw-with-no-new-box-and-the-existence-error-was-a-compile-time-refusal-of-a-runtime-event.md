@@ -139,6 +139,37 @@ is straight-line code between two labels. `nm -D` Prolog-only data symbols **0**
 ζ-ACTIVATION-FRAME, the ball on the heap (an escaper by definition — it must outlive every frame
 between throw and catch), nothing in ζ-STANDING.
 
+## ⭐ AND ONE MORE DEFECT THIS SITTING, REPORTED BY seat15 — MY OWN CURE HAD TRADED A LOUD HANG FOR A SILENT WRONG ANSWER
+
+seat15 flagged: *every top-level `:- Goal.` directive after the first one containing a variable
+silently produces no output, both modes.* Reproduced, root-caused, and **it is a regression from
+this seat's own nslots cure (`5b681bd47`) landed earlier the same day** — the cure that stopped the
+compiler grinding on a ~71 MB frame.
+
+`pl_dir_number_vars` numbered each directive's variables densely **from zero**, but every directive
+is lowered as a goal in the **one** root graph, so directive 2's first variable *aliased* directive
+1's — a cell already bound, and never undone between directives. `:- X = 1.` then
+`:- Y = 2, write(Y), nl.` is really `slot0 = 1` then `slot0 = 2`, which **fails**, and the
+`ignore/1` wrapper every plain directive carries **swallows the failure**. Hence silence — not an
+error, not a wrong value, nothing.
+
+⭐ **Confirmed by prediction rather than by inspection.** If the mechanism is aliasing then a second
+directive unifying its variable with the value already in the reused slot must *succeed* while the
+defect still stands. Measured, before the fix: `:- X = 1, write(X), nl.` + `:- Y = 1, write(Y), nl.`
+printed `1 1` under **both** scrip and swipl, and with a third fresh variable `1 9` under both.
+A/B across the original cure: at `5b681bd47~1` the repro **times out** (rc=143, the old grind); at
+`5b681bd47` it compiles and silently drops.
+
+⛔⭐ **THE LESSON, AND IT IS ABOUT THE WITNESS, NOT THE CODE: the nslots cure's witness was a SINGLE
+directive, and a single-directive witness cannot see a cross-directive slot collision.** The cure
+was verified against exactly the shape that could not expose its own regression — and it passed,
+honestly, on a tree where the defect it introduced was already present. **A cure whose witness is
+the minimal repro of the bug it fixes is a cure with no control arm.** The repro tells you the
+symptom is gone; only a *wider* shape can tell you nothing else broke. Cured here with a running
+slot base across the directive loop and name scoping still per-directive; five shapes now byte-match
+swipl, including two directives that reuse the same variable *name* and correctly get independent
+slots. Row `prolog-directive-slot-numbering-restarts-at-zero-so-later-directives-alias-the-first`.
+
 ## OWED TO ceo, ANSWERED
 - **The board's m3 hang IS hq_C's** — the rung-5 `nslots` regression (a directive's variables were never slot-numbered, so `max_var_slot` read the low 32 bits of a `char *`). Cured and landed separately before this rung.
 - **The board's m4 `copy_term_ite_list_replace_1` rc=1 did NOT reproduce** — 0 in both modes on a quiet box; a 12-seat-load artefact of the per-entry timeout, not a defect.
