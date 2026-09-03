@@ -6,6 +6,22 @@
 
 ## LIVE CURSOR
 
+**B-10 (2026-09-03, MODE FLEET-8 — two rows CLOSED: the Icon board and the master resort; SCRIP `668b308b`+`1bcfba40`, corpus `353cd537`):**
+
+**Icon board now grades each entry the way its `modes` column says.** 153 of 534 entries are parser fixtures whose `.ref` is a `--dump-ast` dump, and the runner was *executing* them. Measured: old (all run-graded) m3/m4 377 PASS / 141 FAIL / 13 CRASH / 2 HANG → new **ast-graded 153/153 PASS, run-graded 377/381 both modes, 3 FAIL, ZERO crashes, ZERO hangs.** Honest total **530/534**. ⭐ **Every crash and hang on the old board was a parser fixture being run.** Two populations, two denominators, never summed.
+
+⭐ **THE SHARPEST EVIDENCE THE OLD NUMBER MEASURED NOTHING WASN'T AN ARGUMENT ABOUT DENOMINATORS — IT WAS THE DIRECTION IT MOVED.** The row was minted at 398/534; on today's tree the *same* instrument reads 377/534, because ceo's re-cut of 30 stale AST pins gave those fixtures **correct** dumps, which match run output even less. **An instrument that gets worse as its subject gets better is not miscalibrated; it is measuring something else.** I re-measured rather than quoting either of the brief's two numbers.
+
+**Master resort:** ceo ruled my routed question answer (1) — a promotion re-sorts. `--resort` landed and the Prolog master is back in the builder's order (261 of 404 positions moved, **bodies byte-identical**, ref/stdin/want_rc/xfail_reason unchanged, diff symmetric 261/261 · 700/700 · 463/463, zero net lines). `master_sort_key()` extracted so the gate **imports** the rule instead of re-typing it.
+
+⛔ **I ALMOST SHIPPED A WRONG NUMBER TWICE IN ONE ROW, AND BOTH TIMES A CONTROL SAVED IT.** (1) The order gate first claimed 403 of 404 prolog entries out of order against my earlier measured 265 — `COLS` is per-language and `main()` rebinds it as a *global*, so importing the module left the SNOBOL4 table bound and scored prolog on the wrong features. **I only caught it because I had a prior number to contradict it; a first-ever measurement would have been believed.** (2) The post-resort board read 221/404 against my remembered 209 — I nearly reported the resort as having moved the board, when the tree had simply moved under me. Took the before-arm by stashing: **221 = 221, identical.** ⭐ An absolute number cannot tell a permutation from progress.
+
+⛔ **ROUTED, NOT LANDED (FLEET-8 — a queue row is a real handoff again):** `resort-the-raku-master-into-the-builders-order` (125/129 out of order) and `resort-the-snobol4-master-into-the-builders-order` (1639/1726). The snobol4 one is deliberately not mine to land unilaterally — its board is the blocking arm of `make test` for every seat on the box. Finishing step for whoever lands the last of the three: drop the `LANGS=` scope and put the **unscoped** order gate in `make test`, so the law is enforced rather than measured.
+
+⛔ **MY COMMENT BROKE ORIGIN'S GATE FOR EVERY SEAT** (`92d300f0`, 665 chars in `src/`); hq_C caught and fixed it. **Tell: if a comment carries an ARGUMENT rather than a separator, it belongs in a FINDING — in `src/` that is not taste, it is the gate.**
+
+⛔ **EXACT NEXT STEP:** `picker-skips-a-row-owned-by-another-seat-unless-that-seat-picks` (ceo ruled the owner column constrains the pick; my own release of hq_P's rank-0 row is the witness), then rung 13.
+
 **B-9 (2026-09-03 TRIO — row `master-builder-needs-a-csv-only-reindex-path` CLOSED; SCRIP `4f847224`):** `util_build_master_suite.py --reindex` recomputes every `ALL.csv` column from the master already on disk, writes **only** that file, absorbs nothing and reorders nothing. Refuses rc=2 on an unacknowledged loose pair and rc=2 beside any absorption flag. **Oracle met: byte-identical to the hand-edited CSV of `3196897d`/`2b71e9a2`, 404 entries** — which retroactively validates that hand-edit on the `rank` column my original scratch check never compared. Gate `test_gate_master_builder_reindex_only.sh`, 13 checks, hermetic; 13/13 green, 5/11 red pre-cure.
 
 ⭐ **THE ARM THAT EARNS ITS PLACE:** (b) corrupt one derived cell, re-index, watch it come back. Without it the byte-identity arm passes against an implementation that merely **copies** the file — the exact failure a round-trip test invites. **Identity is never proof of computation.**
