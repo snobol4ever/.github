@@ -28,7 +28,7 @@
 | Snocone | 273 · 24 · 43 (STALE 08-29) | ⛔ none | 5-program smoke + 10 parser smokes | ⛔ none | none (the library ports) | ⛔ none | yes |
 | Rebus | 48 · 0 · 34 (STALE 08-29) | ⛔ none | 4-program smoke | ⛔ none | none | ⛔ none | yes |
 | Raku | 139 · 14 · 57 (STALE 08-29; 724 inline probes being absorbed) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_raku_ladder.sh`, seat11 2026-09-03), refs cut from real Rakudo | 724-probe script (a rung suite in disguise) | yes | roast (in `refs/`, scoreboard script) | ⛔ none | yes |
-| Pascal | 149 · 0 · 70 (STALE 08-29) | ⛔ none | ⛔ NONE | ⛔ none | fpc_tests, p5, ISO 7185 PAT (row) | ⛔ none | yes |
+| Pascal | 159 · 0 · 71 (fresh 2026-09-03, seat10) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_pascal_ladder.sh`, seat10 2026-09-03), refs cut from real `fpc -Miso`; rung 9 honestly RED | ✅ 9/9 both modes (`test_smoke_pascal.sh`, seat10 2026-09-03) | ⛔ none | fpc_tests, p5, ISO 7185 PAT (row) | ⛔ none | yes |
 
 ## THE ROWS (one per gap; the umbrella closes when every cell above reads yes)
 
