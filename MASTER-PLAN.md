@@ -17,7 +17,7 @@ The 100% denominator is `SCORE.md` § THE SEPTEMBER 10 GRID: seven languages × 
 
 A ladder written by hq_T is CURED by the language's lane owner: the writer files the red rung with its witness, the owner cures it. A red found in any suite is a class row in the owner's lane; a class that lives in a shared node is routed to hq_C with the witness and graded on every frontend that lowers to the node (RULES § SHARED-NODE VERDICT SCOPE). Prolog's ladders stay T, C, P below; hq_C's current rungs are § E rungs 10–12 and the master/swi/gnu census rows.
 
-## THE DAYS (box clock; every day ends with `SCORE.md` rewritten by the runners and the ceo's remaining-to-100% read off it)
+## THE DAYS (box clock; every day ends with `SCORE.md` rewritten by the runners and the ceo's remaining-to-100% read off it — the instrument is `python3 scripts/util_score_row.py check` (hq_T, SCRIP `8f4d0d9b1`): contacts origin, runs no suite, names every row past the 25-commit staleness threshold and every row with no checkable hash, in seconds)
 
 | day | what is true at the end of it |
 |---|---|
@@ -225,9 +225,9 @@ Under QUARTET each HQ walks its four columns itself, left to right. Under FLEET-
 | ⭐ICN1 | icon-master-six-run-graded-reds-cured | seat03 → hq_B | 381/381 both modes; the three disagreeing readings (376/377/377) reconciled to one tree-labelled number first |
 | ⭐ICN2 | icon-arizona-suite-49-reds-censused-by-class-and-cured | seat01 → hq_B | 45/89 → 89/89; the children `icon-arizona-class-*` (generator-forward-reference-reservation seat13, silent-segv-no-diagnostic seat13, vendored-ipl-library-residual-defects seat05 CLAIMED) re-laned to hq_B |
 | ⭐ICN3 | icon-jcon-suite-39-non-pass-censused-by-class-and-cured | seat02 → hq_B | 43/81 · 41/81 → 81/81 both modes; the 2 "not fully reconciled" named first; child `icon-jcon-class-genhost-recursive-generator` seat14 → hq_B |
-| ICN4 | icon-master-board-is-two-below-watermark-and-the-board-never-names-the-failures | FREE → hq_B | the board names every failure; folds into ICN1 |
+| ⭐ICN4 | icon-master-board-is-two-below-watermark-and-the-board-never-names-the-failures | hq_B (ASSIGNED, re-ranked 1 → 0 CEO-174) | FIRST: the board names every failure (`--by-modes-column` prints only the two summary lines — hq_C confirmed independently) and the three readings in one day (377 hq_B `e751405f` · 378 hq_C `f4d69ac83` · floor 379) become ONE tree-labelled number; ICN1 cannot start without it |
 | ICN5 | icon-ipl-runner-and-denominator | TO-MINT:hq_T (gate) · hq_B (cure) | 851 `.icn` graded (compile-graded at least; run-graded where a `.std` exists) with a printed denominator and a SCORE.md row |
-| ICN6 | icon-jcon-demo-jtran-links-resume-at-alpha-for-scan-while-suspend | TO-MINT:hq_C | hq_B's witness (FINDING 09-03 jcon-is-a-demo-now): the scan's resume path lands on the loop condition's β and a non-resumable condition emits only α — a frozen-label-model change, hq_C's verdict; jtran links and `test_demo_icon_jcon.sh` grades 4/4 |
+| ICN6 | (jtran link — CURED by hq_C before the mint: SCRIP `f4d69ac83`, corpus `96a459b9f`, .github `6b95063c`; no new IR_ref_t, the FROZEN LABEL MODEL did not move) | hq_C → done | jtran builds, links and runs rc=0 in both modes, a KNOWN-DIFF on an owned class; the third routed defect is row `icon-create-of-an-undeclared-name-aborts-the-compiler-at-the-coret-guard-sink` (rank 1 FREE, hq_B's lane); `test_demo_icon_jcon.sh` 4/4 byte-identical is what remains, under ICN3/ICN1 |
 | ICN7 | icon-construct-ladder-from-rung-0 | TO-MINT:hq_T | rungs 0–≥5 by D1 from the Icon book's chapter census; red rungs to hq_B |
 | ICN8 | icon-strict-rung-suite-reds-and-xfails-reasoned | TO-MINT:hq_B | 4 FAIL + 1 BADEXIT cured, 26 XFAIL each with a reason, 1 XPASS promoted |
 | ICN9 | icon-bench-correct-suspend-residue | hq_P (FREE, rank 0) | the perf arm; stays with hq_P |
