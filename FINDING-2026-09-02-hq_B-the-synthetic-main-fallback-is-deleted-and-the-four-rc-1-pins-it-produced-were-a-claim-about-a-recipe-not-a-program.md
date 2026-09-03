@@ -48,3 +48,21 @@ While gathering the control-arm numbers for this very commit:
 - Cleaning up after that, `pkill -f test_corpus_snobol4` **matched its own command line and killed itself**, then `pgrep -f` reported "still running" for the same reason — the pattern was in the searching process's own `argv`. I read that as a survivor and killed a run that no longer existed, twice.
 
 ⭐ Both are the family this org keeps paying for, and the second is the purer specimen: **`pgrep -f` answered "does any process's command line contain this string", which is not "is that job running", and the difference is invisible because the answer has the right shape.** The general defence is the one already written down — capture first, then test (`out=$(cmd 2>&1); rc=$?`) — plus, for process patterns, never trust a `-f` match without excluding the searcher. Recording it here rather than in a private note because the last four specimens all became cheaper to spot once somebody wrote the shape down.
+
+## ⛔⭐ Postscript 2 — the stale-binary preflight I landed an hour earlier declared MY OWN correct binary stale, and the row's specified mechanism is why
+
+`util_verify_s_artifacts_owed.sh` (SCRIP `c9b9e144`) compared the binary against **max(newest `src/` commit time, newest `src/` file mtime)**. The commit half was the row's specified rule; I kept it and added the file half, arguing in the baton QA that the max was a *strict superset*. **It is not a superset. It is wrong**, and it fired on this very session's handoff:
+
+```
+scrip built        20:06:35
+newest src FILE    19:58:46   <- binary genuinely current
+newest src COMMIT  20:19:47   <- my own commit of source I had already built
+VERDICT: REFUSED — stale binary
+```
+
+⭐ **A commit's `%ct` is when it was authored, and committing source you have already built moves it past your binary without changing a byte of source.** That is the ordinary order of work — build, test, commit — so the commit half declares a correct binary stale for *everybody who follows it*. The file half loses nothing: `git checkout` stamps now onto every file it updates, so the pull-after-build case the commit half was reaching for moves the file mtimes anyway. Cured: file mtime only.
+
+**What caught it was the gate's own strictness.** `test_gate_s_artifacts_verifier_stale_binary_refuses.sh` asserts the refusal *prints the `src/` timestamp it compared against*, so the moment the printed number stopped being the file mtime, the gate went red — 12/13. Had the refusal merely said "stale", the gate would have stayed green through the regression. ⭐ **An instrument that quotes its own reference can be caught disagreeing with itself; one that only reports a verdict cannot.** That is the same family as everything else in this file, arriving this time as an argument *for* a design choice rather than as a post-mortem.
+
+⛔ And the honest part: I wrote the superset argument into a baton QA as a considered correction of the row, with a worked example, and it was wrong. A rationale that sounds like measurement is not measurement — the worked example I gave (pull at 20:00, binary at 19:00) was hypothetical, and the case that actually occurs every session is the one I never ran.
+
