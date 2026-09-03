@@ -4,7 +4,7 @@
 
 ## THE GRID IS SCORE.md (one leaderboard; nothing in this file restates a number)
 
-The 100% denominator is `SCORE.md` § THE SEPTEMBER 10 GRID: seven languages × three measured cells — **M** master suite FAIL=0 both modes · **L** construct ladder green to its top rung · **V** vendor/package suites 100% against their own oracle — plus the cross-language cells. A cell is 100% only over its PRINTED denominator with every xfail reasoned in writing (the xfail count is published beside the 100%). The runner that measures a cell rewrites it (FACT RULE); the ceo reads the grid to say what is left and never re-runs a suite to answer.
+The 100% denominator is `SCORE.md` § THE SEPTEMBER 10 GRID: seven languages × four measured cells — **M** master suite FAIL=0 both modes · **L** construct ladder green to its top rung · **V** vendor/package suites 100% against their own oracle · **B** benchmarks, the README grid on the two-number three-angle basis vs the rival the public runs (Lon 2026-09-03 ~19:30: *"100% coverage of features, and 100% package test suites and benchmarks"*; hq_P owns B for all seven, I26) — plus the cross-language cells. A cell is 100% only over its PRINTED denominator with every xfail reasoned in writing (the xfail count is published beside the 100%). The runner that measures a cell rewrites it (FACT RULE); the ceo reads the grid to say what is left and never re-runs a suite to answer.
 
 ## THE LANES (four HQs; each owns whole languages end to end — measure AND cure — so every cell has exactly one owner)
 
@@ -12,12 +12,35 @@ The 100% denominator is `SCORE.md` § THE SEPTEMBER 10 GRID: seven languages × 
 |---|---|---|---|
 | **hq_C** correctness | PROLOG: M 404 · L rungs 10–12 then the § E top · V swi_tests + gnu_prolog — plus every SHARED-ENGINE class defect any lane routes (frozen-model changes, shared boxes, the scan+while+suspend resume-at-α that blocks jtran) | the deepest hole (271/404, 31 parked umbrella rows) and the one lane that changes shared nodes | 04 · 05 · 08 · 15 |
 | **hq_B** beautify / Icon | ICON: M red-by-2 + the STRICT suite · L · V arizona 89 · jcon_tests 81 · ipl 851 · jcon demo 4/4 — plus the public face: README, demos, the polyglot board | Icon is the second-largest gap and all presentation is hq_B's | 01 · 02 · 03 · 16 |
-| **hq_P** speed | SNOBOL4: V csnobol4_suite 118 + gimpel/snoflake/aisnobol/dotnet, the 70 xfails reasoned · SNOCONE: M 273 re-measured and cured · PASCAL: M 5 reds · V fpc_tests 59 + the ISO 7185 PAT suite · rung09 — plus the README perf grids (three angles) for all seven on D6 | SNOBOL4/Snocone/Pascal are already hq_P's perf languages; their remaining work is suites, not engine | 06 · 09 · 10 · 13 |
+| **hq_P** speed | SNOBOL4: V csnobol4_suite 118 + gimpel/snoflake/aisnobol/dotnet, the 70 xfails reasoned · SNOCONE: M 273 re-measured and cured · PASCAL: M 5 reds · V fpc_tests 59 + the ISO 7185 PAT suite · rung09 — plus the **B cell for all seven**: every README grid on the two-number three-angle basis vs the rival by D6 (I26; Rebus needs a benchmark set first) | SNOBOL4/Snocone/Pascal are already hq_P's perf languages; their remaining work is suites, not engine | 06 · 09 · 10 · 13 |
 | **hq_T** test suites | THE STANDARD: the three missing ladders written (icon, snocone, rebus), the top-rung census for all seven, the four missing package gates (snoflake, gimpel, ipl, aisnobol+dotnet), `board_packages.sh` into `make test`, `util_score_row.py`, the walker over all seven ladders, the xfail-reason gate · RAKU: M 139 (42 ast_fail) · V roast graded · REBUS: M 48 re-measured and cured · L | instruments are one body for seven languages; Raku and Rebus are the two lanes with no engine owner | 07 · 11 · 12 · 14 |
 
 A ladder written by hq_T is CURED by the language's lane owner: the writer files the red rung with its witness, the owner cures it. A red found in any suite is a class row in the owner's lane; a class that lives in a shared node is routed to hq_C with the witness and graded on every frontend that lowers to the node (RULES § SHARED-NODE VERDICT SCOPE). Prolog's ladders stay T, C, P below; hq_C's current rungs are § E rungs 10–12 and the master/swi/gnu census rows.
 
-## THE DAYS (box clock; every day ends with `SCORE.md` rewritten by the runners and the ceo's remaining-to-100% read off it — the instrument is `python3 scripts/util_score_row.py check` (hq_T, SCRIP `8f4d0d9b1`): contacts origin, runs no suite, names every row past the 25-commit staleness threshold and every row with no checkable hash, in seconds)
+## ⛔ FLEET-16 READINESS — a computed check; the ceo reports READY to Lon when every line reads true (Lon ~19:30: *"Let me know when you have locked down a good plan and we are ready to start up all 16 fleet workers."*)
+
+| # | line | command (from `/home/claude`) | must read | reading 2026-09-03 19:30 |
+|---|---|---|---|---|
+| 1 | every ⭐ rung on every ladder has a baton with a runnable DONE-WHEN | `python3 SCRIP/scripts/util_ladder_walk.py --quiet \| grep -c 'V1 RUNG-WITHOUT-ROW'` and the same for `V5` | 0 and 0 | V1 = 20 · V5 = 1 — NOT READY |
+| 2 | sixteen seats can each step onto a rung (V1 = 0 alone supplies ~40 rungs; this line guards against a queue where off-ladder rows sit ahead of them) | `awk -F'\t' '!/^#/ && NF>=4 && $1<=1 && $4=="FREE"' /home/resources/postoffice/QUEUE.tsv \| wc -l` with walker V4 = 0 (nothing off-ladder ahead of a rung) across ≥ 3 lanes | ≥ 16 and V4 = 0 | 14 FREE, of which 7 off-ladder (V4) and 6 walkable — NOT READY |
+| 3 | the seat map matches THE LANES | `for s in 01 02 03 16; do cat /home/resources/postoffice/seat$s/HQ; done` (hq_B) and likewise 04 05 08 15 (hq_C), 06 09 10 13 (hq_P), 07 11 12 14 (hq_T) | all match | matches (rewritten CEO-174) |
+| 4 | every seat digest carries the 2026-09-03 proclamation (pristine lifted · QUARTET/FLEET series · `send` to the HQ-file target) | `grep -L 'THE PRISTINE BUILD IS LOOSENED' /home/claude??/CLAUDE.md /home/claude_?/CLAUDE.md \| wc -l` | 0 | 20 of 20 lack it — waits on Lon: `! python3 /home/claude/.scratch/propagate_pristine_and_quartet.py` (the ceo's writes into sibling roots are refused by the harness) |
+| 5 | MODE flipped by the ceo on Lon's word and every seat told to run `next` | `head -1 /home/resources/postoffice/MODE` | FLEET-16 | QUARTET — Lon's word, after 1–4 read true |
+
+The HQs mint their TO-MINT rungs tonight (each DONE-WHEN runnable, proven to fail once, `S4E_DONE_TIMEOUT` unset) and re-rank off-ladder rank-0/1 rows to ≥ 2; the ceo re-runs lines 1–4 every sitting and telegrams Lon READY with the five readings.
+
+## ⛔⭐ THE HOURS — THE BUDGET IS 25 HOURS OF USAGE, NOT A WEEK (Lon 2026-09-03 ~19:35 CDT, in-chat to ceo, verbatim: *"I should make more clear that instead of 1 week due to usage credits we really have only 25 hours."*). H0 = 2026-09-03 19:35 CDT · H+25 = 2026-09-04 ~20:35 CDT. The D-labels elsewhere in this file map through this table: D0/D1 = H0→H+2 · D2–D4 = H+2→H+20 · D5 = H+20 · D6 = H+24 · D7 = H+25.
+
+| window | what is true at the end of it |
+|---|---|
+| **H0 → H+2 (19:35–21:35 09-03)** | every ⭐ rung minted with a runnable DONE-WHEN (walker V1 = 0 — that alone puts ~40 rungs in the queue, more than 16 seats need); off-ladder rank-0/1 rows re-ranked ≥ 2; the digests carry the proclamation (Lon's script); the ceo reports READY and Lon flips MODE to FLEET-16; every STALE cell re-run on origin by its lane (snocone, rebus, the csnobol4 52-vs-58, Icon's three readings, the polyglot pair) so the walk starts from measured numbers |
+| **H+2 → H+20 (21:35 09-03 → 15:35 09-04)** | THE WALK, cheapest 100% first: masters within ten reds (Raku 1 · Pascal 5 · Icon 4 + the reconciliation) go to FAIL=0 first; then every ladder green to every rung that exists (the census names its unbuilt rungs as OWED beside the cell); then package suites by class, largest classes first; a red that will not be cured by H+20 becomes a REASONED xfail — the cell reads 100% of its gradable denominator with the xfail count beside it, never a bare 100% |
+| **H+20 → H+24 (15:35–19:35 09-04)** | CHECKPOINT (loose, no pristine): one pushed tree; every cell re-run on it by its runner; hq_P publishes every README grid on the two-number three-angle basis (the B cells); `.s` artifacts regenerated; the announcement text with the xfail counts beside each 100% in front of Lon |
+| **H+24 → H+25** | Lon's read; announce or hold |
+
+Honesty line, written before the walk starts: in 25 hours Prolog's master (271/404, rungs 10–12 unbuilt) and the largest package suites (csnobol4 66 non-pass · fpc 59 · arizona 44 · jcon_tests 38 · swi 32 + an m4 cause) will not all reach a bare 100%. The product at H+24 is every cell HONEST — FAIL=0 over its gradable denominator, reasoned xfails counted beside it, every number tree-labelled with its command — and Lon reads the counts.
+
+## THE DAYS (box clock — SUPERSEDED as a clock by THE HOURS above; the day rows keep their content as the order of the work; every day ends with `SCORE.md` rewritten by the runners and the ceo's remaining-to-100% read off it — the instrument is `python3 scripts/util_score_row.py check` (hq_T, SCRIP `8f4d0d9b1`): contacts origin, runs no suite, names every row past the 25-commit staleness threshold and every row with no checkable hash, in seconds)
 
 | day | what is true at the end of it |
 |---|---|
