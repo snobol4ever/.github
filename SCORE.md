@@ -33,15 +33,19 @@ exists to enforce. **XFAIL/XPASS are reported PER MODE, never summed**, per hq_C
 `simple_output_63` is m3 PASS / m4 SKIP, not an m4 XPASS — a summed or maxed count would have hidden that and
 invited promoting a non-promotable entry.
 
-| Language | Master suite (`ALL.csv`) | Floor/smoke gate | Master board (`ALL.<ext>` via `corpus_suite_harness.py run`, m3 · m4) |
-|---|---|---|---|
-| snobol4 | 1726 entries, 80 xfail | m3 1679/0 · m4 1679/0 SKIP=0 · master total=1726 xfail/xpass m3=70/0 m4=70/0 (PER MODE, never summed -- an XPASS in one mode can be a SKIP in the other, e.g. simple_output_63) | total=1726 · m3 pass=1656 fail=0 crash=0 xfail=70 · m4 pass=1656 fail=0 crash=0 xfail=70 (PER MODE, never summed) |
-| icon | 534 entries, 1 xfail | interp PASS=263 FAIL=7 XFAIL=27 TOTAL=298 | total=534 · m3 pass=398 fail=120 crash=13 hang=2 xfail=1 · m4 pass=398 fail=120 crash=1 hang=2 skip=12 xfail=1 (PER MODE, never summed) |
-| prolog | 371 entries, 9 xfail | m2 PASS=5 FAIL=0 / 5 (HARD GATE) | total=371 · m3 pass=217 fail=137 crash=8 xfail=1 xpass=8 · m4 pass=217 fail=138 crash=7 xfail=1 xpass=8 (PER MODE, never summed) |
-| raku | 129 entries, 14 xfail | m3 PASS=722 FAIL=0 REFUSED=2 / 724 | total=129 · m3 pass=31 fail=83 crash=0 hang=1 xfail=14 · m4 pass=31 fail=41 crash=0 hang=1 skip=42 xfail=14 (PER MODE, never summed) |
-| pascal | 149 entries | m3 PASS=161 FAIL=2 NOREF=0 XFAIL=1 | total=149 · m3 pass=148 fail=0 crash=1 · m4 pass=148 fail=0 crash=1 (PER MODE, never summed) |
-| snocone | 273 entries, 24 xfail | PASS=5 FAIL=0 | total=273 · m3 pass=175 fail=70 crash=0 hang=4 xfail=18 xpass=6 · m4 pass=175 fail=64 crash=0 hang=4 skip=6 xfail=18 xpass=6 (PER MODE, never summed) |
-| rebus | 48 entries | PASS=4 FAIL=0 | total=48 · m3 pass=0 fail=45 crash=0 hang=3 · m4 pass=0 fail=43 crash=0 hang=3 skip=2 (PER MODE, never summed) |
+
+⭐⭐ **THE LEADER BOARD RULE (Lon 2026-09-03 ~15:55 CDT, in-chat to ceo, verbatim in substance: *"go to a LEADER BOARD that is kept up-to-date. So whenever we want to know the state it is there, not an hour away of running tests."*):** this grid is the answer to *"what's the score"* — nobody re-runs a suite to answer it. Every row names its tree, clock and measurer; a row whose tree is behind origin's is STALE and says so. The runner that measures a suite rewrites its row in the same landing (row `score-md-rows-are-rewritten-by-the-runner-that-measured-them`, hq_B, the mechanism); until it lands, the seat that measures a suite edits its row by hand in the commit that carries the measurement.
+
+| Language | Master suite (`ALL.csv`) | Floor / smoke gate | Master board (m3 · m4, PER MODE, never summed) | Vendor / package suites | Tree · box clock · by |
+|---|---|---|---|---|---|
+| snobol4 | 1726 entries, 70 xfail | `make test` GATE OK | m3 1679/1679 FAIL=0 · m4 1679/1679 FAIL=0 SKIP=0 MISSING=0 | csnobol4_suite 58/58 vs csnobol4 (`test_snobol4_csnobol4_suite.sh`, seat12 `4118b58f`); snoflake/gimpel/aisnobol scorecard: last measured before 09-01 (see the SNOBOL4 table) | SCRIP `6fceb3e9` · corpus `1feca4aa4` · 2026-09-03 15:03 · ceo (rung-8 audit) |
+| icon | 534 entries (381 run-graded + 153 ast-graded), 1 xfail | smoke 14/14 · 14/14; STRICT rung suite 264/6/1/27 of 298 all three modes | **run-graded 377/381 · 377/381, ast-graded 153/153 → 530/534 honest** (`board_icon_master.sh` by the modes column; the old 398/534 ran the ast fixtures and counted nothing) | Arizona 40/89 · 41/89 (`test_icon_arizona_suite.sh`); JCON 42/81 · 40/81 (`test_icon_jcon_suite.sh`) | master: SCRIP `668b308b` · 2026-09-03 ~14:20 · hq_B; suites: `4f847224` · 13:50 · ceo |
+| prolog | 404 entries, 6 xfail | REPORTED until rung 10 (RULES § THE PROLOG REBUILD GATE); ladder `--to 5` 22/22, `--only 6/7/8` green | m3 271/404 · m4 270/404 (m3 hang cured after by hq_C `5b681bd4`) | SWI 0/114 (`test_prolog_swi_suite.sh`, every red = rung 10 `call/N`); GNU 1 pass of 11 graded, 51 library files (`test_prolog_gnu_suite.sh`, reds = rungs 9/7/5) | master: SCRIP `6fceb3e9` · corpus `1feca4aa4` · 15:03 · ceo; suites: `4f847224` · 14:07 · ceo |
+| raku | 129 entries, 14 xfail | smoke m3 722/724 · m4 722/724 (REFUSED 2, FAIL 0) | master: last measured 2026-08-29 (31/129 m3, below) — re-measure owed | roast: parked by Lon's word behind the Prolog rebuild | smoke: SCRIP `f5bf7357` · 2026-09-02 20:13 · ceo |
+| pascal | 149 entries | — | master: last measured 2026-08-29 (148/149 m3 · 148/149 m4, below) — re-measure owed | fpc suite 119/181 · 119/181 (`test_pascal_fpc_suite.sh`, oracle `fpc -Miso`) | fpc: SCRIP `f5bf7357` · 2026-09-02 20:13 · ceo |
+| snocone | 273 entries, 24 xfail | corpus suite 10/10 · 10/10 (`test_snocone_corpus_suite.sh`) | master: last measured 2026-08-29 (175/273 m3, below) — re-measure owed | — | `f5bf7357` · 2026-09-02 20:13 · ceo |
+| rebus | 48 entries | smoke 4/4 (`test_smoke_rebus.sh`) | master: last measured 2026-08-29 (0/48, below) — re-measure owed | — | `f5bf7357` · 2026-09-02 20:13 · ceo |
+| polyglot | — | smoke 2/2 · 2/2 (`test_smoke_polyglot.sh`) | — | — | `f5bf7357` · 2026-09-02 20:13 · ceo |
 
 _tree: SCRIP=e182a71a corpus=e7bbc675 .github=8e4fc55d-DIRTY  generated 2026-09-02T02:35Z_
 
