@@ -29,7 +29,17 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐⭐⭐ LIVE CURSOR — 2026-09-04 (hq_P, **MODE `CEO`**, computed from `/home/resources/postoffice/MODE`). **PARKED PER ceo's FINISH-OR-PARK ORDER. NO REPO TOUCHED THIS SITTING — the sitting's work was a Lon-ordered root-digest refresh (`/init`), which is not version-controlled.**
+### ⭐⭐⭐ LIVE CURSOR — 2026-09-04 (hq_P, **MODE `FLEET-16`**, computed from `/home/resources/postoffice/MODE`; Fable 5.1). **THE PASCAL SITE-1 ROW WAS ALREADY CURED BY MY OWN `f9a90958` (2026-09-02) — CLOSED ON ITS OWN DONE-WHEN, NO `src/` TOUCHED; hq_C's `SCRIP_ZD_BACKEDGE` RECORD ITEM RECONCILED (THE DELTA IS THE LOOP HEAD'S PLANNED ENTRY DEPTH, BY CONSTRUCTION)**
+
+**SCRIP `59589ee97` · corpus `34cf6472d` · .github `dea6d593` (all three ff-only'd from BEHIND at session start) · incremental `make` · `RT_OPT=-O0`.**
+
+- ✅ **`pascal-m4-site1-forloop-backedge-64byte-excess` DONE on its own DONE-WHEN** (`site1 complete: bubble m4 rc=0 5/5 and output == .ref`, rc=0). Served by `next` as ASSIGNED:hq_P (ceo CEO-230, the "9 floundering rows assigned to HQs"). The baton's NEXT was seat05's of 2026-09-01; the cure landed the next day (`f9a90958`, NORMALIZE ARRIVALS arm 2, row `calling-convention-depth-tracked`). Third closure of this class on this seat (bubble-m3, floor-cutover, now site1): **run the DONE-WHEN before reading the baton.**
+- ⭐ **Pascal m4 kernels on the same tree: 9 REF-OK** (bubble intmm perm queens quick sieve towers uplevel2 uplevel3) · fbench rc=1 DIFF (own row, `EXCLUDED.tsv`) · whet no `.ref`. Not a suite run; no SCORE.md cell touched.
+- ✅ **hq_C's binding record item reconciled by arithmetic** (`emit.cpp:2640-2642`, `SCRIP_ZD_DIAG=1`): `gpop = zout[site1] - (zout[head] - K[head])` with the flag on, `zout[site1]` with it off. bubble `768 - (240-16) = 544`; quick `768 - (704-16) = 80`. The 224/192 that matched Site 2's old excess is the loop head's planned entry depth — one shared base quantity, no dependency. `SCRIP_ZD_BACKEDGE=0` still re-arms Site 1 (both kernels rc=139): a killswitch that says NO.
+- ⚠️ **ROUTED to hq_B + ceo, not cured — a criterion-shape defect:** this DONE-WHEN (and the ~11 on its template) exits **1** when `SCRIP/scrip` is absent or stale, so the assign-side dispatch probe reads "could not measure" as RED and serves the row silently. The compile step of a DONE-WHEN should REFUSE `rc=2` — V2-5's three exit codes applied to criteria.
+- Receipt: `FINDING-2026-09-04-hq_P-pascal-site1-row-was-cured-by-f9a90958-two-days-before-its-assign-and-the-zd-backedge-coupling-is-the-loop-heads-entry-depth.md`.
+
+### ⭐⭐⭐ LIVE CURSOR (SUPERSEDED) — 2026-09-04 earlier sitting (hq_P, **MODE `CEO`**, computed from `/home/resources/postoffice/MODE`). **PARKED PER ceo's FINISH-OR-PARK ORDER. NO REPO TOUCHED THIS SITTING — the sitting's work was a Lon-ordered root-digest refresh (`/init`), which is not version-controlled.**
 
 **SCRIP `4c7253e99` · corpus `c2c7d8396` · .github `86cbe5e6` (all three ff-only'd from BEHIND at session start) · no build taken, no `src/` touched.**
 
