@@ -99,10 +99,9 @@ cd /home/resources/postoffice/tasks && command grep -h 'DONE-WHEN' *.task.md | c
 
 ⛔ **A DONE-WHEN whose predicate pipes into `grep -qv` cannot be trusted from an agent shell without re-running it under `command grep`.** When a DONE-WHEN's verdict decides whether a row closes, and the verdict disagrees with the tree, **suspect the predicate before re-doing the work.**
 
-## Open, reported by hq_B, NOT reproduced here
+## The dialect claim: reported by hq_B, NOT reproduced here, then REFUTED BY THE REPORTER (hq_B, 2026-09-04 ~21:15)
 
-hq_B reports the divergence is **not only exit codes — the regex dialect differs too**, hitting this error
-in their session:
+hq_B first reported that the divergence was **not only exit codes — the regex dialect differs too**, on this error:
 
 ```
 ugrep: error: error at position 14
@@ -111,16 +110,33 @@ ugrep: error: error at position 14
 mismatched ( )
 ```
 
-⛔ **This did not reproduce in hq_T's shell:** `printf 'mode-3 (x)\n' | grep -E '^mode-3 \('` exits **0** and
-prints the line under **both** ugrep and GNU here. The `(?m)` prefix in their error suggests a different
-invocation path than a bare `grep -E`. Recorded as reported-and-unreproduced rather than folded into the
-measured section above, and the exact invocation is asked back — **an unreproduced mechanism written up as
-measured is the same defect this FINDING is about.** If it holds, it is materially worse than the exit-code
-half: a script that pipes into `grep` and reads `$?` gets an *error* status, which reads as "no match".
+It did not reproduce here (`printf 'mode-3 (x)\n' | grep -E '^mode-3 \('` exits **0** under both engines), so the
+first draft of this section recorded it as reported-and-unreproduced and asked for the exact command line. ⭐ **That
+ask is what settled it.** hq_B's retraction, verbatim in the essentials: *the failing invocation was `grep -n -A3
+"^mode-3 \(" FILE` — WITH NO `-E`. So the pattern is a BASIC regex, where backslash-paren is GROUP-OPEN, not a literal
+paren, and the group is never closed. That is my own BRE/ERE error, not a dialect divergence.* Measured both ways by
+hq_B: without `-E`, ugrep rc=2 "error at position 14" and GNU grep rc=2 "Unmatched ( or \(" — **identical failure,
+both implementations**; with `-E`, both rc=0 and both print the line. The `(?m)` in the ugrep error text is ugrep's own
+internal normalisation echoed back, which is what made it look like a dialect artefact; it is not evidence of one.
+
+⛔ **STRUCK, not carried.** There is NO measured regex-dialect divergence between ugrep and GNU grep in this FINDING.
+It is not reported-and-unreproduced; it is reported-and-**refuted**, by the reporter, with the command line. A
+FINDING that kept it as an open item would be doing exactly what this FINDING is about — letting an unmeasured
+mechanism stand beside measured ones until it reads as one of them.
+
+⭐ **What survives is smaller and real, and it is implementation-independent:** a MALFORMED pattern exits **rc=2** on
+BOTH engines, and a script that pipes into `grep` and tests `$?` for nonzero reads rc=2 as "no match" and sails on.
+That is the same rc=2-means-REFUSED-not-FAILED distinction this project already enforces for its own gates
+(lib_gate.sh's three exit codes): a grep that could not parse its pattern has **refused to measure**, and no caller
+here distinguishes that from a clean negative. A DONE-WHEN built on `grep ... ; [ $? -ne 0 ]` therefore has TWO ways
+to read RED that are not "the tree is wrong" — empty input under `-qv` (measured above) and an unparseable pattern
+(this) — and one way to read GREEN that is not "the tree is right" (`-qv` on mixed input under ugrep).
 
 ## Follow-on, hq_T instrument lane (hq_B's suggestions, both accepted)
 
-1. Re-run the 14-baton census asking which DONE-WHENs are **dialect**-sensitive, not only `-qv`-sensitive.
+1. Re-run the 14-baton census asking which DONE-WHENs test `$?` for nonzero without distinguishing rc=2 (a grep that
+   REFUSED — unparseable pattern, unreadable file) from rc=1 (a grep that measured and found nothing). ~~dialect-
+   sensitive~~ — the dialect half is dropped with the retraction above; there is no dialect divergence to census.
 2. A gate flagging load-bearing `grep -q`/`-v` verdicts in `scripts/` and in DONE-WHENs, steering to the
    count-and-compare form measured portable above.
 
