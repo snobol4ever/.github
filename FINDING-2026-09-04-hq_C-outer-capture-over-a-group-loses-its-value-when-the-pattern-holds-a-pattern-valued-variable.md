@@ -3,6 +3,39 @@
 **Seat:** hq_C (HQ-CORRECTNESS) · **Date:** 2026-09-04 ~18:30 CDT · **Tree:** SCRIP `cfde5756f` · corpus `31d94b2cc` · RT_OPT `-O0`, incremental `make` · oracle `sbl -bf` (the patched 18:25 build)
 **Row:** `snobol4-outer-capture-over-a-group-containing-a-pattern-valued-variable` (rank 1, hq_C), found while walking the gimpel suite under the SNOBOL4-only order.
 
+## ⛔⛔ CORRECTION, 2026-09-04 ~19:05 — THIS FILE'S TITLE AND ORIGINAL CLAIM NAME THE WRONG INGREDIENT
+
+**The trigger is NOT a pattern-valued variable.** It is **an ALTERNATION as the second element of a concatenation inside a captured group**. The variable in my original witness merely *held* an alternation (`SEIZE = BREAK(",") | REM`) — correlated, never causal. Everything below about the MECHANISM stands and was measured directly; only the attribution of the trigger changes. The title is left as landed so the correction is findable from what people already cite.
+
+**The factorial that settled it**, all at top level, all against `sbl -bf`:
+
+| pattern | SCRIP |
+|---|---|
+| `(LEN(1) . IC REM) . COMMON` | ✅ correct |
+| `POS(0) "," (LEN(1) . IC REM) . COMMON` | ✅ correct |
+| `(LEN(1) . IC (BREAK\|REM)) . COMMON` | ⛔ loud refusal |
+| `POS(0) "," (LEN(1) . IC (BREAK\|REM)) . COMMON` | ⛔ loud refusal |
+| `(LEN(1) (BREAK\|REM)) . COMMON` | ⛔ **silent `COMMON=[]`** |
+| `(ANY("a") (BREAK\|REM)) . COMMON` | ⛔ silent |
+| `("a" (BREAK\|REM)) . COMMON` | ⛔ silent |
+| `(ARB (BREAK\|REM)) . COMMON` | ⛔ loud refusal |
+| `(BAL . IC (BREAK\|REM)) . COMMON` | ✅ correct |
+| `((BREAK\|REM)) . COMMON` | ✅ correct |
+| `(LEN(1) . IC) . COMMON` | ✅ correct |
+| `(LEN(1) (BREAK REM)) . COMMON` | ✅ agrees (`nomatch`) |
+
+The prefix is irrelevant. An alternation **alone** is fine. A concatenation **without** an alternation is fine. Any ordinary element — literal, `ANY`, `LEN`, `ARB` — followed by an alternation breaks it. ⭐ **`BAL` is the one exception that does NOT trigger it**, which is a lead rather than a curiosity. The inner capture only decides the SYMPTOM: silent empty without it, loud `rt_dcap_pump` refusal with it.
+
+## ⛔⭐ HOW THE WRONG TRIGGER SURVIVED NINE ABLATIONS — THE PART WORTH REUSING
+
+My original witness carried **four** unusual ingredients at once: two pattern-valued variables, `BAL`, an inner capture, and an alternation. I ablated the ones I *suspected* — `BAL`, the function activation, local-vs-global, the nested capture — and when removing each left the failure standing, I credited the one ingredient I had never removed.
+
+**Every one of those ablations was individually sound. The SET was not exhaustive.** And an ablation set that never removes the true cause will confidently name whatever is left standing, with as many confirmations as you care to run. The eight negative results I was proud of are all still true; they simply could not reach the answer.
+
+⭐ **The fix is not more single ablations, it is the factorial** — vary the ingredients against each other rather than removing them one at a time from a fixed witness. Nine one-at-a-time removals produced a confident wrong answer; twelve crossed cells produced the right one, and cost less.
+
+⚠ Note this is the SECOND correction on this defect in one session — the first overturned a base-mismatch theory. The mechanism survived both, because it was **measured** (`c->subj == Σ`, end offset correct, start garbage by exactly `len`) rather than inferred. **A measured mechanism outlives a wrong trigger.** That is the whole argument for spending the extra command on the `fprintf`.
+
 ## THE CLAIM
 
 `P . VAR` over a group returns the WRONG value whenever the matched pattern contains a pattern held in a **variable**. The inner capture is always right; only the outer one is lost. Depending on where the variable sits it is either **silent** (the target becomes the null string, rc=0) or **loud** (`rt_dcap_pump: CORRUPT CAPTURE ENTRY refused`).
