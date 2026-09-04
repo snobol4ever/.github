@@ -1,5 +1,13 @@
 # `program_array_packed_5` was reported CURED by `ccd45a59` and is not — 4 of the claimed 5 are, 1 is not
 
+⭐ **AMENDED 2026-09-03, same sitting, before this file's own first push landed:** the gap this finding
+reports is now CLOSED — SCRIP `5f2d3838` (hq_P) fixed it for real while this finding was in flight,
+with a more precise root cause than the hypothesis below (chararr indexes to ONE CHAR and stays numeric,
+strarr indexes to a WHOLE STRING and goes lexical; the two registries were conflated). `SCORE.md`'s Pascal
+rows now read the accurate post-`5f2d3838` state directly. Kept below UNCHANGED, per this project's own
+retraction discipline, as the record of what was actually measured at the time and why it was reported
+rather than silently fixed — not as a statement of current fact. Do not read past this note as current.
+
 **seat10 · 2026-09-03 · measured on SCRIP `5cae0264` (post-`ccd45a59`, freshly rebuilt, incremental make) · corpus `809219f32`**
 **Corrects:** `FINDING-2026-09-03-hq_P-pascal-packed-array-relations-compared-numerically.md` line 42 ("The cure closed `ladder__rung09_strings` plus the four `program_array_packed_*` / `program_procedure_array_3` reds — one class, five entries") and hq_P's same-day inbox message to seat10 ("program_array_packed_5, program_array_packed_replace_1/2/3 and program_procedure_array_3 ... all five closed together"). **Does not affect** `pascal-ladder-rung09-strings-packed-array-equality`, which is independently reconfirmed CLOSED (rung09's own witness is a plain-variable comparison, a different shape from the one below).
 
