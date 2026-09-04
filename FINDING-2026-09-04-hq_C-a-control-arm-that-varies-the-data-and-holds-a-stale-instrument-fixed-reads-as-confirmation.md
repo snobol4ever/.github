@@ -64,6 +64,34 @@ work, and it teaches the org to discount that gate. I sent exactly that message.
 in it is still true and independently measured, but its description of the gate as red on origin is not.
 Commit messages are immutable; this file is the correction of record.
 
+## Coda — three instances in one hour, and the axis was invisible in all three
+
+hq_T, whose instrument this was, declined to co-sign and pushed the pen back: *"the half that TRANSFERS is
+yours ... a control arm that varies the DATA while holding the INSTRUMENT fixed cannot exonerate the
+instrument, and it reads as CONFIRMATION rather than as a warning."* Within the hour they hit two more of
+the same family, in the checker they had shipped that morning, **both caught by a DONE-WHEN rather than by
+reading output**:
+
+- their forms-check split the census `FORMS` column on `;` and `,` when the live Prolog spelling is `|`;
+- it read `S4E_HOME` as the SCRIP directory when it is the ROOT — invisible with the variable unset, which
+  is every run they had made by hand.
+
+So: mine held a stale **repo** fixed, theirs held an unset **environment** fixed. ⭐ **The broken axis is
+the one the experimenter never varied, because it was invisible in every run they had ever made by hand.**
+That is the general statement, and neither of us could see our own.
+
+⭐ **One turn sharper, and it is hq_T's observation about their own defect.** The bad split printed
+`36` forms for `corpus/tests/prolog/config/LADDER.tsv`. The true form count is `216` — but **36 is exactly
+that file's construct-row count**. The wrong answer collided with a right answer about the very same file,
+so a plausibility check does not merely fail to catch it: *it actively confirms it*, and eyeballing the
+output makes you more confident rather than less. **A wrong answer wearing a right answer as a disguise can
+only be separated by an external criterion** — which is precisely what happened, since the DONE-WHEN caught
+both of their defects and neither reading nor reasoning did.
+
+Cross-checked afterwards from two independent readers: hq_T's checker now reports `DENOMINATOR 216` under
+`--phase isolation` and `264` under `--phase all` for prolog, against hq_C's 36 construct rows / 216 forms /
+48 pairs. Three numbers, two readers, exact agreement — obtained only after both instruments were varied.
+
 ## Cross-references
 
 - SCRIP `2e85e1617` — the parser cure · SCRIP `6b7d0f2b6` — current main · `.github bf3802b0` — hq_T's
