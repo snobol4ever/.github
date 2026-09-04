@@ -183,6 +183,65 @@ confirmed by two INDEPENDENT real SNOBOL4 implementations agreeing with each oth
 unambiguously the specified behavior, not a matter of convention. That distinction is worth whoever
 reconciles the two Icon-named rows keeping in mind, but reconciling them is out of scope here.
 
+## 8. `genc` — ADDENDUM (same sitting, second pass): NOT "needs external resources", needs a real
+   multi-file invocation the generic harness cannot give it, AND surfaced a genuine SCRIP defect
+
+Every prior session on this row (three, going back to the 2026-08-27 triage) deferred `genc.sno` as
+"needs `global.procs` and other external resources, not a quick trace" and moved on. That framing turned
+out to be imprecise in a way worth correcting for whoever next has to decide whether it's worth chasing:
+the resources are NOT actually missing, and going one level deeper surfaced a real, cleanly-isolated SCRIP
+defect independent of genc itself.
+
+**genc.sno is a real, faithfully-vendored Budne test with a genuinely different SHAPE from the other 117
+members**, confirmed against `/home/resources/csnobol4` (a proper snobol4ever-lineaged clone of Phil
+Budne's own upstream, already present on this box — not fetched or vendored new this sitting):
+- Its real invocation, per Budne's own `test/test.genc.sh`: `$SNOBOL genc.sno v311.sil`, comparing FOUR
+  output files, not one — stdout vs `genc.ref` (the only one this suite vendors), PLUS three side-effect
+  files genc.sno writes itself: `proc.h2`/`callgraph`/`static.h2` vs `proc.h.ref`/`callgraph.ref`/
+  `static.h.ref` (present at `/home/resources/csnobol4/test/`, none vendored into
+  `corpus/packages/snobol4/csnobol4_suite/`).
+- Its error message "`FATAL: could not open global.procs`" is NOT naming a real file — genc.sno's own
+  source (lines 597, 615) opens two SEPARATE files, `"globals"` and `"procs"` (944 and 1607 bytes,
+  present at `/home/resources/csnobol4/{globals,procs}`), and the message is just descriptive prose. A
+  concatenated `global.procs` (my first, wrong guess) does not satisfy it; the two separate files do.
+- `v311.sil` (Budne's own SIL bootstrap source, the actual input genc.sno compiles) is at
+  `/home/resources/csnobol4/test/v311.sil`, also not vendored into the corpus suite.
+
+None of `v311.sil`/`globals`/`procs`/the three extra `.ref` files are exotic or hard to obtain — they are
+sitting on this exact box, in a repo CLAUDE.md already documents. The real reason genc has never been
+graded is that `test_snobol4_csnobol4_suite.sh`'s generic per-`.sno`-file loop (one stdin, one stdout
+capture, one `.ref` diff) cannot express "one extra CLI arg plus three side-output-file comparisons" for
+a single suite member without a special case — the same reason Budne's OWN suite gives genc a dedicated
+driver script instead of folding it into the generic one. That is a harness-SHAPE gap, not a missing-file
+gap, and fixing it (vendor the four extra fixtures, special-case genc's invocation the way `DUMP_TESTS`/
+`TRACE_TESTS`/`STDIN_TESTS` already special-case by name in the same file) is a real but separate,
+larger undertaking than this row's own census scope — noted here, not attempted.
+
+**Supplying the correct arguments by hand surfaced something more valuable than genc itself**: with
+`globals`/`procs`/`v311.sil` all present and `v311.sil` passed as `-- v311.sil`, genc.sno still produced
+only `FATAL: EOF on  before END op` — and its own `SILPATH` variable (read from `HOST(2,N)`) printed
+EMPTY throughout, meaning the `--` argument was not reaching the program at all. Isolated with a two-line
+witness with no `DEFINE`, no function, nothing genc-specific: `OUTPUT=HOST(3); OUTPUT=HOST(2,1)` invoked
+as `./scrip --run w.sno -- v311.sil` prints `argc=0` / `arg1=` (empty) instead of `argc=1` /
+`arg1=v311.sil`. Read `src/driver/scrip.c` directly rather than guess further: `g_prog_argv`/
+`g_prog_argc` ARE correctly captured from `--` (~line 952), but the call that stages them for `HOST()` to
+read, `rt_main_args_stage(g_prog_argv, g_prog_argc)`, is gated behind `nparams >= 1` on the entry graph at
+BOTH its call sites (~1751, ~1850) — a condition about whether the SNOBOL4 source happens to define its
+top level as a parameterized function, which has nothing to do with whether `--` arguments were passed at
+all. A plain top-level program (genc.sno's own shape, and most programs') can never see its own argv.
+
+Minted `snobol4-host-argv-not-staged-for-zero-param-entry` (rank 2, owner hq_P) for this — checked it is
+not already covered by the two closest-sounding existing rows (`icon-suite-format-has-no-argv-sidecar-...`,
+`suite-harness-argv-echoes-a-mktemp-path-...`), both different mechanisms (suite/grading-format concerns,
+not whether `HOST()` itself observes passed args). Fixing it is very likely necessary, but NOT
+independently confirmed sufficient, to get genc.sno reading its real input at all — the harness-shape gap
+above still blocks a byte-match against `genc.ref` regardless.
+
+`genc` is therefore best read as: BLOCKED on a real, now-precisely-diagnosed SCRIP defect (minted, hq_P's
+to cure) plus a separate, larger harness-shape gap (documented, not minted as its own row — see the
+parent task's own ledger) — not "untraced," and not a quick win either. That is a more useful state to
+leave it in than either label alone.
+
 ## Control arm
 
 `bash scripts/test_snobol4_csnobol4_suite.sh` before this sitting's tracing began: `total=118 m3
@@ -190,4 +249,5 @@ PASS=55 FAIL=23 REJECT=39 CRASH=1` — exact match to seat09's last-recorded sta
 nothing drifted between sessions. No `src/` files touched this sitting (role is census/classify/witness
 only, per this row's own brief; class cure is hq_P's). Re-ran after minting to confirm the board is
 unchanged (minting a class row does not itself change suite output): same `total=118 m3 PASS=55 FAIL=23
-REJECT=39 CRASH=1` on SCRIP `fc4d4326c`.
+REJECT=39 CRASH=1` on SCRIP `fc4d4326c`. The genc.sno/HOST() investigation (§8) used scratch witnesses
+outside the suite tree throughout and touched no suite fixtures or `src/` files either.
