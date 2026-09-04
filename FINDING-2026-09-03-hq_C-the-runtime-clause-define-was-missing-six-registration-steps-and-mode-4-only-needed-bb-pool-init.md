@@ -43,6 +43,29 @@ CLAUDE.md already carries the rule — *"SCOPED TO ONE MODE since MODES MAY DIVE
 
 The instrument that makes the correct diff cheap is now in the tree: `SCRIP_PL_RTASM=1` dumps the emission as text on **both** the runtime and the compile-time path, so the within-mode comparison is one `diff`.
 
+## ⭐⭐ ROOT CAUSE FOUND AND CURED — a runtime-built graph inherited another graph's frame offsets
+
+**`ze[]`/`zx[]` are a GLOBAL, append-only index keyed by NODE POINTER**, and `zx_find` resolves purely by that pointer (`src/ir/zeta_storage.c`). A graph built at **run time** — an asserted clause — is built *after* earlier graphs have come and gone, so a **recycled node address silently inherits the earlier graph's offset**.
+
+Measured, with the instrument added on the branch:
+
+```
+[RTASM] p/1: nodes=7 nparams=1 zls_region=128 max_granted_cell=160 *** CELL OUTSIDE REGION ***
+[RTASM]   node[6] op=49 off=160 scope=1 root_scope=3 *** STALE ENTRY FROM ANOTHER GRAPH ***
+```
+
+The asserted clause's `IR_LIT_INTEGER` resolved to an entry in **scope 1** while its own graph's root scope was **3**, taking offset **160** into a graph whose region is **128** — and 160 is exactly `main/0`'s `+160` local in the `--dump-zeta` listing.
+
+**Why an out-of-region cell is fatal.** The prologue saves `r13` at `[rsp+168]`; `p/1_γ` compares `[rbp+168]` against `r13` and `p/1_ω` restores `r13` from it. The literal's payload overwrote that slot, so `p/1_ω` restored **`r13 = 1`** and the backtrack register was destroyed — surfacing as a self-referential binding and an unbounded `c_VARVAL_fn` deref (ERROR 246). `rt_jmp_frame_lexprep2(fb, 128, 144)` memsets exactly `[0,144)`, so nothing zeroes or protects `[144,208)`.
+
+**Cure:** `zls_forget_graph_nodes()` drops a graph's nodes from the index before granting, so every node is granted fresh in its own scope. **Additive** — compile-time graphs never meet this (all are built before any is emitted, nothing is freed between) and no existing caller invokes it, so no other frontend's behaviour changes. Gate now **GREEN on all four arms**, rungs 0-9 at 56/56.
+
+## ⭐ Why it read as a heisenbug, and what that shape means
+
+Whether an address is recycled depends on allocation history, so **anything** that shifts allocation moved the colliding cell onto something benign: `SCRIP_PL_TRACE=1`, `SCRIP_PORT_COUNTS=1`, and merely writing `write(a), nl,` before the assert each "cured" it. Two *independent* instruments cured it, which is what finally ruled out the instruments themselves and pointed at storage.
+
+⛔ **The trap this sets:** every one of those cures is a plausible fix. Switching on a trace and seeing the right answer invites "the trace is fine, ship it". The discriminator was the **control**: a static clause (`p(1).`) passes the *canonical* unbound variable — a 2-hop chain ending in a zeroed cell — while the failing run passed a **self-reference**. Without that control arm, the self-reference reads as the normal WAM representation of *unbound* and the whole investigation goes the wrong way.
+
 ## Handoff
 
 Rank-0 row `prolog-rung-10b-m3-unbound-arg-self-binds-when-the-clause-is-runtime-compiled` minted and assigned to **seat06**, DONE-WHEN = the gate above, proven RED as written.
