@@ -1,0 +1,41 @@
+# FINDING — absorbing the 724 Raku smoke probes into the master surfaced 142/720 (20%) where SCRIP disagrees with real Rakudo
+
+**Measured** 2026-09-03 by seat15, row `raku-smoke-724-inline-probes-absorbed-into-the-master-with-rakudo-refs`, RT_OPT=-O0, incremental `make` (2026-09-03 pristine-loosening FACT RULE). This is a MEASUREMENT finding, not a cure — per FLEET-16 role division the seat censuses and witnesses, the HQ (Opus) cures. hq_T owns the Raku lane.
+
+## What this row did
+
+`scripts/test_smoke_raku.sh` carried 720 inline probes (703 `raku` + 17 `raku_dies`, not quite the task's named "724" — measured, not assumed) graded only against **hand-typed expected values the smoke script's own authors wrote**, never against a real Raku oracle. Absorbed all 720 into `corpus/tests/raku/ALL.raku`/`ALL.csv`/`ALL.ref` as master entries (family `smoke`, origin `smoke__<original label>__...`, `grep -c 'smoke__' ALL.csv` = 720), with **every ref re-cut fresh from the real oracle** (`rakudo_bin()` → `/home/resources/rakudo-local/bin/raku`, Rakudo™ v2026.05 / Raku v6.d / MoarVM 2026.05) — never copied from the hand-typed value. `sub main() { ... }` wrappers (SCRIP's own entry-point convention, not real Raku's) were unwrapped into top-level statements before oracle-cutting and absorption, since the master's own convention is top-level code and real Raku only auto-runs a sub literally named `MAIN`. Master denominator: 139 → 859. `test_smoke_raku.sh` shrunk to a 10-program floor gate (10/10 PASS both modes); the 710 retired probes' content lives on in the master, not lost.
+
+## The headline number
+
+Of the 720, **119 (16.5%) had a hand-typed expected value the real oracle contradicts**, and (a stricter, more useful measure) **142 (19.7%) are cases where SCRIP's own actual output disagreed with the real oracle at absorption time** — these landed `xfail=1` (auto-computed by verdict, not guessed) so they read as a documented, honest red rather than inflating any FAIL count. Zero of the 720 new entries produced a raw FAIL, then or now.
+
+⭐ **Numbers below are re-measured against SCRIP `5cae0264e` / corpus `809219f32` (`make` incremental, RT_OPT=-O0), not the tree this row absorbed against** — the absorption itself ran on a binary from before this session's own `git pull --rebase`, which had already landed `src/parsers/raku/raku.y` / `src/lower/lower_prolog.c` / `src/emitter/emit.cpp` changes; rebuilding and re-grading rather than trusting the stale binary is what caught this. The rebuild happened to **fix things**, concurrently, elsewhere in the fleet: run-graded population (762 of 859; 97 are pre-existing `ast`-mode parser entries, untouched) is now **m3 620 pass / 0 fail / 119 xfail / 23 xpass; m4 620 pass / 0 fail / 121 xfail / 21 xpass** — FAIL=0 across ast and run populations both. The `xfail=1` flag itself (142 entries, set once at absorption time) is unchanged; 23 (m3) / 21 (m4) of those 142 now grade XPASS instead of XFAIL, i.e. already cured by concurrent work elsewhere in the tree between this row's absorption and this re-verification. (An earlier draft of this FINDING, graded on the stale pre-rebuild binary, also named 24 pre-existing `ast` FAILs and 1 pre-existing `m3` FAIL as unrelated-but-present; both are gone under the rebuild and the claim is withdrawn rather than left stale.)
+
+## Classes of SCRIP-vs-real-Raku divergence (examples, not exhaustive — see `smoke` family in ALL.csv/ALL.raku for the full set)
+
+- **`map`/`grep` without a comma before the list.** `for map { $_ * 2 } 1..3 -> $v` and the `grep` twin compile under SCRIP; real Rakudo refuses (`Missing comma after block argument to map`). 4 probes (`map_range`, `grep_range`, `map_over_gather`, `grep_over_gather`).
+- **Invented procedural builtins that are not Raku.** `elems(@a)`, `arr_get(@a, i)`, `hash_set($h, k, v)`, `hash_get($h, k)`, `hash_exists($h, k)` — real Raku has no such free functions; the equivalents are methods (`@a.elems`, `@a[i]`, `%h{k} = v`, `%h{k}`, `%h{k}:exists`). Whoever wrote these probes invented a procedural API real Raku never had (`array_push_pop`, `hash_set_get`, and siblings).
+- **`Bool` stringifies as `0`/`1` under SCRIP, `False`/`True` under real Raku** (`bool_int_t`, `bool_int_f`, `str_contains_t/f`, `bool_compare_store`, …).
+- **List/Match stringification.** `.split`/`.words` print bare-joined under SCRIP, real Raku wraps in parens (`(a b c)`); a `Match` object prints plain text under SCRIP, real Raku wraps in corner brackets (`｢hello｣`) and shows named-capture structure.
+- **Bare block with no semicolon before the next statement** (`{ say(1); } say(2);`) compiles under SCRIP, real Rakudo refuses ("Strange text after block — missing semicolon or comma?"). Several `block_nosemi_*`/`bare_block_*` probes exercise exactly this leniency.
+- **Private-attribute (`$!x`) access/inheritance leniency**: SCRIP permits some external/cross-class `$!` reads real Raku's privacy model forbids (`field_write_ro_dies`* class, `priv_attr_*` class, `attr_required_*` class) — mostly overlapping with the 17 `raku_dies` probes, see below.
+
+None of these are fixed by this row — they are HQ_T's/hq's cure-class material now that they are censused and named individually (every one has a durable `origin` in ALL.csv to find it by).
+
+## The 17 `raku_dies` entries: XPASS, not a clean PASS, and that is correct
+
+All 17 legitimately exit rc=1 under **both** the real oracle and SCRIP with matching stdout (verified individually). `corpus_suite_harness.py` defaults every entry to `want_rc=0`; a program correctly exiting nonzero needs it **declared**, never inferred (`classify()`'s own rule, RULES.md FACT RULE). Declared in the new `corpus/tests/raku/ALL.wantrc` (`name<TAB>rc`, keyed by the entries' final auto-assigned names, e.g. `say_die_1`, `sub_say_6`). Because `want_rc=0` was the default **at absorption time** (before this sidecar existed), the auto-XFAIL check (see below) marked all 17 `xfail=1`; with the sidecar now in place they grade **XPASS** — correct, harmless (never counts as FAIL), and left as-is rather than hand-flipping their banners, since XPASS is this codebase's own designed signal for "marked expected-red, no longer is" and a future `--resort`/`--reindex` is the supported way to fold it cleanly.
+
+## Infra fix landed alongside (SCRIP, not corpus)
+
+`scripts/util_build_master_suite.py`'s non-SNOBOL4 "bannerless plain" absorption path (hit by every single-program loose file in a non-SNOBOL4 language) had **no auto-XFAIL-by-verdict at all** — the code's own comment flagged this explicitly: *"auto-XFAIL-by-source-verdict is NOT applied on this path yet... a named follow-up rather than a silent difference."* First absorption attempt landed all 720 at `xfail=0` regardless of actual SCRIP-vs-oracle agreement, which would have put ~130-190 raw FAILs on the shared Raku board — discovered before push by grading the freshly-written master, not by trusting the absorption tool's own "VERIFIED" printout (which only re-verifies text round-trip, not scrip behavior, for an already-present origin). Reverted, fixed (mirrors the existing SNOBOL4 "plain" path's `run_all_modes`/`_green`/`xfail=not _green` treatment, gated on the family's MODES.tsv declaration so it never guesses `ast` vs `m3,m4`), redone. This closes the gap for **every** non-SNOBOL4 language's future bannerless single-file absorptions (icon, prolog, pascal, snocone, rebus), not just raku.
+
+## Boards / receipts
+
+- `corpus/tests/raku`: 139 → 859 entries (720 gained, 0 lost, 0 differing — verified via `util_master_content_diff.py` against pre-row HEAD).
+- `corpus/tests/raku/config/MODES.tsv`: `+smoke\tm3,m4`.
+- `corpus/tests/raku/ALL.wantrc`: new, 17 lines.
+- `SCRIP/scripts/test_smoke_raku.sh`: 4008 → 189 lines, 720 → 10 probes, 10/10 PASS both modes.
+- `SCRIP/scripts/util_build_master_suite.py`: auto-XFAIL gap closed for the non-SNOBOL4 bannerless-plain path.
+- Full-suite re-grade on SCRIP `5cae0264e` / corpus `809219f32`: `SUITE_BOARD_AST family=ALL total=97 ast_pass=83 ast_fail=0 ... ast_xfail=14 ast_xpass=0` · `SUITE_BOARD family=ALL total=762 m3_pass=620 m3_fail=0 ... m3_xfail=119 m3_xpass=23 m4_pass=620 m4_fail=0 ... m4_xfail=121 m4_xpass=21` (`corpus_suite_harness.py run ALL.raku ALL.ref --modes m3,m4 --by-modes-column --lang raku`).
