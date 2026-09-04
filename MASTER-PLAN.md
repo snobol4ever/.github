@@ -283,6 +283,7 @@ Seven isolation walkers (01 04 07 09 10 12 14) · five suite seats (02 03 05 06 
 | ⭐I30 | ladder-forms-column-and-forms-check-every-declared-form-and-pair-has-a-witness | hq_T (rank 0, CEO-209) | one census schema for seven `LADDER.tsv` (FORMS, PAIRS columns) + `util_ladder_forms_check.py` with `--selftest`; every isolation/combination DONE-WHEN refuses rc=2 until it lands |
 | ⭐I31 | feature-coverage-census-hundreds-per-feature-and-combinations-all-seven | hq_T (rank 0, CEO-208) | entries per feature and per feature pair over the feature columns all seven masters carry, per-language floors, a leaderboard cell |
 | I32 | zero-byte-refuse-witnesses-cannot-be-ladder-graded-because-write-block-suite-appends-a-newline | hq_T (rank 1) | placed on the ladder by the ceo walk 2026-09-04: an instrument row, graded on its own witness |
+| ⭐I33 | exhaustive-program-enumerator-to-length-n-with-oracle-divergences-as-witnesses | hq_T (rank 0, CEO-210; seat16 under FLEET-16) | `util_program_enumerator.py --selftest` green and `--lang snobol4 --to-length 6 --report` measured (rc 0 or 1, divergences NAMED as master witnesses); counts at N=1..10 in tokens and characters on the baton ledger (GEN_DEPTH) | 
 
 
 ### LADDER SNO — SNOBOL4 to 100% (owner hq_P · GATE: the `SCORE.md` snobol4 row reads M FAIL=0 both modes with every xfail reasoned, L `--to <top>` green, V csnobol4_suite / gimpel / snoflake / aisnobol / dotnet each 100% over printed denominators by their own oracle)
