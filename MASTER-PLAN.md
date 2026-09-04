@@ -219,6 +219,7 @@ Seven walkers (01 05 08 10 12 14 16) · eight suite census-and-witness seats (02
 | C68 | prolog-existence-error-ball-arity-raw-int-not-descr-crashes-catch-unify | hq_C | **RUNG 9 — DONE 2026-09-03 (hq_C)**: cured from the other end by seat05's rung-10b abolish witness. Not the arity field: an INTERNED atom (`DT_A`) in the engine-built ball meeting a STRING atom (`DT_S`) in the program-written catcher fell past every arm of `plw_unify_cells` into `rt_descr_equal` → `VARVAL_fn`, which reads the payload as an array. seat06's backtrace was exact and its inference was wrong |
 | C69 | prolog-number-atom-2-ref-tests-nonexistent-predicate-should-be-atom-number-2 | seat | **FIXTURE, rung 6** — the `.ref` tests a predicate that does not exist in any Prolog; a corpus defect, curable by the seat that finds it (LADDER RECIPE: fixture-level cures stay with the walker) |
 | C70 | prolog-swi-class-ref-coverage-9-of-249-swi-tests-files | seat | **C28's child, off-ladder by construction** (it is about the SUITE's own coverage, not a construct): 9 of 249 vendored SWI files carry a `.ref`, so the suite grades 114 and the rest are unmeasured. V6 orphan placed here by hq_C 2026-09-03 rather than retired — the denominator question is real and belongs to seat07 |
+| ⭐C72 | prolog-iso-conformance-inria-suite-vendored-and-graded | hq_T vendors + writes the runner (rank 0, minted ceo CEO-187 on Lon 21:05); reds → seat07 class rows for hq_C | `INRIA_SUITE_BOARD total= m3_pass= m3_fail= m4_pass= m4_fail=` printed both modes, SCORE Prolog V cell via `util_score_row.py write --suite INRIA` — THE ISO 13211-1 denominator |
 
 ### LADDER P — Prolog performance (owner hq_P · GATE: all 22 van Roy kernels output-exact and published on the two-number basis, three angles, vs swipl and gprolog (`bench_prolog_vanroy.sh` + `bench_triangulate_prolog.sh`); then the per-kernel multiples climb with the runtime services rewired — the T ladder's cell services are the substrate)
 
@@ -288,6 +289,7 @@ Seven walkers (01 05 08 10 12 14 16) · eight suite census-and-witness seats (02
 | ⭐SC1 | snocone-master-remeasured-on-origin-and-reds-classified | TO-MINT:hq_P | the 08-29 175/273 is STALE: re-run on origin, tree-labelled, reds by class (child rows), SCORE.md rewritten |
 | ⭐SC2 | snocone-construct-ladder-and-parser-fixtures | seat12 → hq_T (re-ranked 1 → 0 CEO-174) | rungs 0–≥5 by D1 (the Snocone paper's census to top by D2); red rungs to hq_P |
 | SC3 | snocone-crosscheck-remaining-parse-and-wrongoutput-gaps | seat12 → hq_T (rank 2) | folds into SC1's classes |
+| ⭐SC4 | snocone-ladder-top-rung-census-from-the-snocone-manual-is-the-score | hq_P, seat12 walks (rank 0, minted ceo CEO-187) | `corpus/tests/snocone/config/LADDER.tsv` from the manual + the self-hosting `snocone.sc`, `--to <top>` green both modes — for Snocone the census IS the score (Lon 20:45) |
 
 ### LADDER ICN — Icon to 100% (owner hq_B · GATE: M 381/381 run-graded + 153/153 ast both modes and the STRICT rung suite FAIL=0 BADEXIT=0 with its 26 xfails reasoned, L `--to <top>` green, V arizona 89/89 · jcon_tests 81/81 · ipl graded with a number · jcon demo 4/4 byte-identical)
 
@@ -301,6 +303,7 @@ Seven walkers (01 05 08 10 12 14 16) · eight suite census-and-witness seats (02
 | ⭐ICN7 | icon-construct-ladder-from-rung-0 | hq_T (minted, FREE rank 0) | CHEAPER than assumed (hq_T): `test_icon_ladder.sh` already exists on the shared `lib_ladder.sh` body and refuses rc=2 correctly — the work is cutting witnesses and absorbing them into the master, not building a runner (the same for snocone and rebus); rungs 0–≥5 by H+2 from the Icon book's chapter census; red rungs to hq_B |
 | ICN8 | icon-strict-rung-suite-reds-and-xfails-reasoned | TO-MINT:hq_B | 4 FAIL + 1 BADEXIT cured, 26 XFAIL each with a reason, 1 XPASS promoted |
 | ICN9 | icon-bench-correct-suspend-residue | hq_P (FREE, rank 0) | the perf arm; stays with hq_P |
+| ⭐ICN10 | icon-ladder-top-rung-census-from-the-icon-book | hq_B, seat01 walks (rank 1, minted ceo CEO-187) | `corpus/tests/icon/config/LADDER.tsv` ≥ 10 rungs censused from the Icon book, `test_icon_ladder.sh --to <top>` green both modes, every rung with a refusing case |
 
 ### LADDER PAS — Pascal to 100% (owner hq_P · GATE: M 149/149 both modes, V fpc_tests 181/181 vs `fpc -Miso` and the ISO 7185 PAT suite vendored and graded, L `--to <top>` green including rung09)
 
@@ -312,6 +315,7 @@ Seven walkers (01 05 08 10 12 14 16) · eight suite census-and-witness seats (02
 | PAS4 | pascal-parser-fixtures-and-the-iso-7185-pat-suite | FREE → hq_T (vendor + gate) · hq_P (cure) | the public suite ANNOUNCEMENT.md names: vendored under `packages/pascal/`, graded vs fpc, SCORE.md row |
 | PAS5 | pascal-m4-site1-forloop-backedge-64byte-excess | hq_P | frame/perf row (its two siblings `pascal-fbench-nested-function-self-assign-null-name` and `pascal-quick-m3-recursive-reps-cliff-13` stay BLOCKED-ON `pascal-m4-for-spine-leak-64b-per-iter`); behind PAS1–3 in rank |
 | PAS6 | pascal-ladder-top-rung-census-and-rungs-10-to-top | TO-MINT:hq_T | ISO 7185 §6 census → `config/LADDER.tsv`; `--to <top>` green |
+| ⭐PAS7 | pascal-iso-7185-validation-suite-pat-vendored-and-graded | hq_T vendors + writes the runner (rank 0, minted ceo CEO-187); reds → seat11 class rows for hq_P | `PAT_SUITE_BOARD` printed both modes vs `fpc -Miso`, SCORE Pascal V cell via `--suite PAT` — THE ISO 7185 denominator beside fpc_tests |
 
 ### LADDER RAKU — Raku to 100% (owner hq_T · GATE: M ast_fail=0 over the printed total, smoke FAIL=0 REFUSED=0 both modes, V roast graded with a number and a hash, L `--to <top>` green)
 
@@ -327,6 +331,7 @@ Seven walkers (01 05 08 10 12 14 16) · eight suite census-and-witness seats (02
 | RAKU7b | test-raku-ir-full-suite-skips-rc-0-when-its-population-directory-is-absent | seat07 → hq_T (rank 2) | the runner REFUSES rc=2 on an absent population (cured per SCORE.md; close) |
 | RAKU8 | raku-frontend-real-world-syntax-gaps | hq_P (BLOCKED-ON RAKU2) | the perf arm opens when roast is graded |
 | RAKU8b | bench-rivals-raku-pascal | hq_P (BLOCKED-ON RAKU8) | the README rivals grid, D6 |
+| ⭐RAKU9 | raku-roast-run-graded-runner-and-score-cell | hq_T owns the instrument, seat14 runs it (rank 0, minted ceo CEO-187) | every roast `.t` RUN through scrip both modes and graded on TAP; `ROAST_BOARD total= m3_run_pass= … compile_only=` with the roast commit; SCORE Raku V cell — compile-only is not a score |
 
 ### LADDER REB — Rebus to 100% (owner hq_T · GATE: M FAIL=0 both modes over the printed denominator (48 today), smoke 4/4, L `--to <top>` green)
 
@@ -334,6 +339,8 @@ Seven walkers (01 05 08 10 12 14 16) · eight suite census-and-witness seats (02
 |---|---|---|---|
 | ⭐REB1 | rebus-master-remeasured-on-origin-and-reds-classified | hq_T (minted, FREE rank 0) | RE-MEASURED by hq_T at the mint (SCRIP `ac4e0bf4f` corpus `91a05530`, .github `309566d5`): the 0/48 is REAL — m3 0/48 with 45 FAIL + 3 HANG, m4 0/48 with 43 FAIL + crashes; the three hangs had been hidden for five days behind a bare 0/48. Reds by class, hangs first (a hang and a wrong answer are different defects); the least likely of the seven to reach a bare 100% in 37.5 hours — the plan says so here, not at H+30 |
 | ⭐REB2 | rebus-construct-ladder-parser-fixtures-and-a-real-master | seat12 → hq_T (re-ranked 1 → 0 CEO-174) | rungs 0–≥5 by D1; the manual's census to top |
+| ⭐REB3 | rebus-ladder-top-rung-census-from-the-rebus-report-is-the-score | hq_T, seat16 walks (rank 0, minted ceo CEO-187) | `corpus/tests/rebus/config/LADDER.tsv` from the Rebus report + reference preprocessor, `--to <top>` green both modes — for Rebus the census IS the score (Lon 20:45) |
+| REB4 | rebus-benchmark-set-before-its-grid | hq_T writes, seat13 measures (rank 2, off-ladder, minted ceo CEO-187) | ≥ 3 Rebus benchmark programs with WORK/OVERHEAD stamps + `bench_triangulate_rebus.sh`; the B cell grid follows |
 
 ## WHEN THE PLAN CHANGES
 
