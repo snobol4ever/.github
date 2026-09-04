@@ -46,13 +46,28 @@
 
 ## THE INVENTORY (measured 2026-09-03 16:20 box clock, SCRIP `d24e99d8`; rewrite a cell when you close its gap)
 
+⭐ **TRACE COLUMN RE-MEASURED 2026-09-04 by hq_T (SCRIP `2793c4170`, corpus `668e2daf`).** Standard point 6 is
+**instantiation work now, not build work**: `lib_port_trace.sh` carries the body once and a language gate is a
+four-token stanza (`PORTTRACE_LANG` / `_SUITE` / `_EXT` / `_FAMILIES`). Three of seven are built.
+
+⛔⛔ **POINT 6 HAS TWO SHAPES AND THE INVENTORY MUST NOT CONFLATE THEM** — this is the correction that came out
+of building it, and it contradicts what this file said an hour earlier:
+- **SELF-PIN** (`lib_port_trace.sh`): refs cut from SCRIP's own traces. Proves the port sequence has not MOVED,
+  never that it is RIGHT. **Reachable for all seven today**, because `x86_port_hook` is language-blind.
+- **ORACLE DIFF**: the oracle's own trace normalised onto the four Byrd ports. **Icon has one and it is BUILT**
+  (`test_gate_icn_port_trace.sh`, off `&trace := -1`). Strictly stronger, and deliberately not on the shared body.
+⛔ Do **not** write "no oracle diff exists" for Prolog or SNOBOL4. `trace/0` and `&TRACE` both emit goal/statement
+events that nobody has normalised onto the four ports yet — the Icon gate is the standing proof it CAN be done,
+so the honest cell is **NOT BUILT YET**. § 6's original wording ("where the oracle can trace") was read twice as a
+claim about which languages are *capable*; it is a claim about which normalisations someone has *written*.
+
 | language | master (entries · xfail · families) | ladder / rungs | smoke | parser fixtures | vendor suites | trace gate | leaderboard row |
 |---|---|---|---|---|---|---|---|
-| SNOBOL4 | 1736 · 80 · 389 (THE model) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_snobol4_ladder.sh`, hq_T 2026-09-03), refs oracle-cut from `sbl -bf` | 4-program smoke | ⛔ none | aisnobol, csnobol4_suite, dotnet, gimpel, snoflake (5) | emitter READY (8 port lines today); gate not instantiated | yes |
-| Icon | 534 · 1 · 308 (259 rung-tagged) | 41 IR rung scripts + STRICT suite 298 | 14/14 | yes (153 ast) | arizona, ipl, jcon-compiler, jcon-ref, jcon_tests (5) | emitter READY (18 port lines today); gate not instantiated | yes |
-| Prolog | 404 · 10 · 114 | construct ladder 33 witnesses (rungs 0–8 + 30 legacy rung scripts) | 5-program smoke | yes | gnu_prolog, swi_tests (2) | YES (`test_gate_pl_port_trace.sh`, 66 blocks) — but a SELF-CUT regression pin, not an oracle diff | yes |
-| Snocone | 273 · 24 · 43 (STALE 08-29) | ⛔ none | 5-program smoke + 10 parser smokes | ⛔ none | none (the library ports) | emitter READY (10 port lines today); gate not instantiated | yes |
-| Rebus | 48 · 0 · 34 (STALE 08-29) | ⛔ none | 4-program smoke | ⛔ none | none | emitter READY (58 port lines today); gate not instantiated | yes |
+| SNOBOL4 | 1736 · 80 · 389 (THE model) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_snobol4_ladder.sh`, hq_T 2026-09-03), refs oracle-cut from `sbl -bf` | 4-program smoke | ⛔ none | aisnobol, csnobol4_suite, dotnet, gimpel, snoflake (5) | ✅ **BUILT, PINNED** — `test_gate_sno_port_trace.sh` on the shared body, 20 blocks over rungs 0-9, PASS 20/20 both modes, fail-once proven (hq_T 2026-09-04). Self-consistency pin; an oracle diff off `&TRACE` is NOT BUILT YET, not impossible | yes |
+| Icon | 534 · 1 · 308 (259 rung-tagged) | ✅ 188 `ladder__rung*` origins across 35 rungs, census in `corpus/tests/icon/config/LADDER.tsv` (seat01 2026-09-03); rung19 BUILT-but-RED, listed honestly | 14/14 | yes (153 ast) | arizona, ipl, jcon-compiler, jcon-ref, jcon_tests (5) | ✅✅ **BUILT, ORACLE DIFF — the strongest of the seven.** `test_gate_icn_port_trace.sh` normalises iconx's `&trace := -1` onto the four Byrd ports. ⛔ Deliberately NOT on `lib_port_trace.sh`: its ref is one oracle-anchored block, not a per-mode pair, and its grain is procedure-level — folding it in would demote it to the weakest common shape | yes |
+| Prolog | 404 · 10 · 114 | construct ladder 33 witnesses (rungs 0–8 + 30 legacy rung scripts) | 5-program smoke | yes | gnu_prolog, swi_tests (2) | ✅ **BUILT, PINNED** — `test_gate_pl_port_trace.sh`, 66 blocks; **body extracted to `lib_port_trace.sh` 2026-09-04 (hq_T), output byte-identical across the extraction**. A SELF-CUT regression pin, not an oracle diff | yes |
+| Snocone | 273 · 24 · 43 (STALE 08-29) | ✅ 10 rungs 0-9 in `ALL.csv` ⚠️ origins DOUBLED (`ladder__rung00_hello__ladder__rung00_hello`) — see FINDING-2026-09-04-hq_T-snocone-and-rebus-ladder-origins-are-doubled…; grading unaffected | 5-program smoke + 10 parser smokes | ⛔ none | none (the library ports) | ⬜ one 4-token stanza over `lib_port_trace.sh` away (emitter READY, 10 port lines) | yes |
+| Rebus | 48 · 0 · 34 (STALE 08-29) | ✅ census `config/LADDER.tsv` declares 12 rungs from TR 84-9 (top=rung11); rungs 0-5 BUILT 22/22, 6-11 OWED (seat08). ⚠️ origins DOUBLED, same FINDING as Snocone | 4-program smoke | ⛔ none | none | ⬜ one 4-token stanza over `lib_port_trace.sh` away (emitter READY, 58 port lines) | yes |
 | Raku | 139 · 14 · 57 — ✅ **RE-MEASURED 2026-09-03 17:56 hq_T, no longer STALE:** ast 97 entries 83 pass FAIL=0 14 xfail · run 42 entries m3 41/42 · m4 41/42 (one red both modes, `method_sub_for_replace_1`) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_raku_ladder.sh`, seat11 2026-09-03), refs cut from real Rakudo | 724-probe script (a rung suite in disguise) | yes | roast (in `refs/`, scoreboard script) | emitter READY (4 port lines today); gate not instantiated | yes |
 | Pascal | 159 · 0 · 71 (fresh 2026-09-03, seat10) | ✅ construct ladder rungs 0-9, 10 witnesses (`test_pascal_ladder.sh`, seat10 2026-09-03), refs cut from real `fpc -Miso`; rung 9 honestly RED | ✅ 9/9 both modes (`test_smoke_pascal.sh`, seat10 2026-09-03) | ⛔ none | fpc_tests, p5, ISO 7185 PAT (row) | emitter READY (36 port lines today); gate not instantiated | yes |
 
