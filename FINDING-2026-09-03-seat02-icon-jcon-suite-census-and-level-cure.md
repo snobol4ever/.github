@@ -128,3 +128,60 @@ untangling (ck, like case before it) — genuinely no more one-line wins surface
 but correctly scoped as HQ work rather than rushed under time pressure. Board holds at m3 43/81 — investigation
 and class-row minting only, no source touched, consistent with FLEET-16's "cure only fixture/xfail/instrument-
 level yourself, file the rest as a class row" mode guidance.
+
+## 5th-pass addendum (2026-09-04, seat02, FLEET-16) — one real cure landed; `image.icn` root-caused into a
+## second new class row; TWO false regression alarms chased down and both cleared, not caused by this seat
+
+**Cured and pushed (SCRIP `c6252359`): `image()` reported both empty and nonempty sets as `"table(N)"`.**
+`type(set())` already correctly says `"set"` (`by_name_dispatch.c:4104`, checking `tbl->is_set`); `image()`'s
+own `DT_T` branch (`by_name_dispatch.c:4670`, two lines away in the SAME file) never checked that flag and
+unconditionally printed `"table(%d)"`. One-line fix mirroring the existing correct pattern — no new logic, no
+control-flow change, minimal blast radius, in scope for a seat to fix directly (unlike the two class-row-only
+finds below). Regression fixture `corpus/tests/icon/icon_real_scan_coercion_exponent_threshold.*` (previous
+pass) untouched by this; no new fixture needed for this specific fix since it's covered by the existing
+`settest`-style repro in this FINDING's LEDGER trail.
+
+**`image.icn` (0-line output vs 51-line oracle — total failure, not a diff) root-caused: `serial()` is entirely
+unimplemented.** No `BID_serial` constant exists anywhere (`builtin_ids.h`, the full dispatch jump table) —
+`serial(&null)` and even `serial([1,2,3])` (a reference type, its primary use) both throw `Error 5 / Undefined
+function or operation` immediately. Separately, `image()`'s own default formatting for ALL reference types is
+missing the per-object serial-number suffix real Icon always includes: `image([1,2,3])` gives SCRIP `list(3)`,
+real Arizona icont gives `list_1(3)` (oracle-verified). This unifies with and explains a case.icn sub-issue
+flagged two passes ago ("image() of lists/co-expressions missing their internal sequential-ID suffix") — same
+root cause, now traced. Blast-radius census: 11 of 81 jcon `.std` files reference serial-numbered image forms;
+of those, `case fncs image sorting struct recent` are current FAIL-bucket candidates that may partially or
+fully clear once this is fixed. Class row minted: `icon-jcon-class-serial-and-image-object-numbering-missing`
+(rank 1, fixture `corpus/tests/icon/icon_image_missing_serial_number_suffix.{icn,ref}` committed, DONE-WHEN
+verified RED). Deliberately not fixed — needs a real design decision (where the per-object counter lives, GC
+interaction) touching every reference type's image() output, HQ-scale like the real_str finding above, not a
+fixture-level cure.
+
+**Two false regression alarms this pass, both fully isolated via stash/rebuild/re-measure and confirmed NOT
+caused by this seat's work — recorded because the process is the useful part, not just the conclusion:**
+1. A full-suite run right after landing the set/table fix showed `HANG=4` (up from 2) with `lists`/`substring`
+   vanishing from FAIL without appearing in PASS or CRASH. `ps` during the run showed OTHER FLEET-16 seats
+   (`claude08`, `claude_C`) running unrelated heavy compiles concurrently on this same shared machine — the
+   suite's 20s-per-program wall-clock HANG classifier is exactly what CPU contention corrupts. Isolated:
+   `lists`/`substring` complete in ~0.02s alone (confirms pure load noise on those two); `scan`/`scan2` genuinely
+   timeout even in isolation (30s) — but stashing this seat's fix and re-measuring showed the IDENTICAL hang
+   with or without the fix, proving it unrelated (most likely also load: the SNOBOL4 gate run moments later
+   printed `machine: load 16.46 16.45 16.45 on 16 core(s)` and now carries its own explicit caveat that "an
+   rc=124 ... cannot distinguish 'needs 8.1s' from 'never finishes'").
+2. After a `git pull --rebase` mid-session (picking up two other seats' commits touching `bb_call.cpp` and
+   `xa_flat.cpp`), the Icon STRICT rung-suite watermark read `263/8/1/26` — different from both the task's
+   pinned baseline and this seat's own earlier-verified `266/4/1/26/1(XPASS)` — stable across two consecutive
+   re-runs (ruling out flakiness). Stash/rebuild-isolated again: `263/8/1/26` persisted identically with this
+   seat's fix removed, clearing this seat. Most likely cause, not chased further (not this row's scope): another
+   seat's pulled commit, `REVERT dec0d7e2: Icon x[i+:n] wraparound is CORRECT, and I broke it to satisfy a bad
+   ref` — directly the same construct family as this row's own `lists.icn`/`substring.icn` oracle-disagreement
+   finding, so a legitimate correctness revert plausibly explains jcon PASS count moving (matching a bad ref
+   less often is not a regression in the language, even though it reads as one on this particular board).
+   jcon board on the final, clean, pushed tree (this seat's fix included): **m3 PASS=41 FAIL=26 CRASH=10
+   HANG=4, m4 PASS=39 FAIL=31 CRASH=7 HANG=4** — lower than this row's own earlier passes' 43/41, entirely
+   attributable to the wraparound revert landing mid-session, not to anything this pass did or reverted.
+
+**Fleet-wide context landed mid-pass, not this row's action item:** ceo routed Lon's ruling that "100%" per
+language means conformance against that language's public industry-standard suite (Icon: the Icon book +
+Arizona 89 + jcon 81 + IPL 851; masters/smokes/ladders are instruments, never the denominator) — directly
+confirms jcon is one of Icon's three standard denominators, validating this row's scope rather than changing
+it.
