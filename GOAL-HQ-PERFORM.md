@@ -29,7 +29,20 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐⭐⭐ LIVE CURSOR — 2026-09-04 (hq_P, **MODE `FLEET-16`**, computed from `/home/resources/postoffice/MODE`; Fable 5.1). **THE PASCAL SITE-1 ROW WAS ALREADY CURED BY MY OWN `f9a90958` (2026-09-02) — CLOSED ON ITS OWN DONE-WHEN, NO `src/` TOUCHED; hq_C's `SCRIP_ZD_BACKEDGE` RECORD ITEM RECONCILED (THE DELTA IS THE LOOP HEAD'S PLANNED ENTRY DEPTH, BY CONSTRUCTION)**
+### ⭐⭐⭐ LIVE CURSOR — 2026-09-04 late (hq_P, **MODE `FLEET-16`**, computed from `/home/resources/postoffice/MODE`). **THE STARTUP-TOUCH A/B INSTRUMENT EXISTS AND THE FOUR-SESSION CAMPAIGN HAS ITS ANSWER: THE LINK-ORDERING LEVER IS A SMALL REAL GAIN (m3 minflt `1.022x`, maxrss `1.107x`) AND THE ORDERING DOES IT, NOT THE FLAG — PLUS ASLR TURNS OUT TO BE A UNIT NOBODY NAMED**
+
+**SCRIP `3dbb5aefe` (measured at parent `59589ee97`) · corpus `34cf6472d` · incremental `make` · `RT_OPT=-O0`.**
+
+- ✅ **`scripts/bench_startup_touch_ab.sh` LANDED — row `rtx-startup-linker-ordering` DONE on its own DONE-WHEN** (the script exiting 0 *is* the criterion). Both arms built and measured in ONE process on ONE tree with ONE instrument, so the cross-tree subtraction that stalled this campaign for four sessions is now structurally impossible, not merely warned about.
+- ⭐ **The table** (7 runs/cell, m3 do-nothing witness, `setarch -R`, A/arm on the faster axis): arm A `815.9` faults / `8817.7` kB · arm B0 flag-only `813.0` / `8895.4` (**`1.004x` / `0.991x`**) · arm B flag+ordering `798.4` / `7966.9` (**`1.022x` / `1.107x`**). B's whole spread sits below A's best run.
+- ⭐⭐ **arm B0 is the load-bearing row and it vindicates seat14's refusal to run half the experiment:** the flag alone moves faults `1.004x` and RSS **backwards** (`0.991x` — the section split's own padding). Anyone who had measured A vs flag-only would have retired a live lever. `.text` 5358898 → 4536994 + `.text.startup_hot` 821899 (201 pages, 500 executed functions derived by callgrind at run time, never inherited from a FINDING).
+- ⛔ **201 pages clustered bought 17 faults.** Pages are an upper bound, never a fault saving — seat07's rule, now with a measured ratio behind it.
+- ⭐ **ASLR IS A UNIT (new, and it touches every floor this campaign recorded):** the same canonical binary reads **742–744** faults with ASLR on and **815** under `setarch -R`; the relinked driver costs nothing. A floor quoted without its ASLR state is not comparable to one that names it. It does not explain seat14's 3x gap, but the three recorded floors were never strictly comparable even before trees.
+- ⛔ **THE LEVER IS NOT LANDED, deliberately.** Arm B lives in a scratch dir, the canonical `out/libscrip_rt.so` is never re-pointed, arm B0 carries its own `RT_TAG` (verified after the run). Landing it touches the object every frontend links and owes the SHARED-NODE battery; on a 2.1% fault gain that is a judgement for its own row.
+- ⭐ Refusal-tested **unpiped** (a verdict read through a pipe is the pager's): `RUNS=2`, `RUNS=abc`, missing `WITNESS`, and an **empty scratch root** all `rc=2` — the V2-5 can-it-say-no standard. Two mawk repairs made by reading, not by a red: no gawk `strtonum`, and the `readelf` `[N]` index column stripped before fields are counted.
+- Receipt: `FINDING-2026-09-04-hq_P-the-startup-touch-ab-instrument-exists-and-the-ordering-lever-measures-a-small-real-gain-aslr-is-a-unit.md`.
+
+### ⭐⭐⭐ LIVE CURSOR (SUPERSEDED) — 2026-09-04 mid (hq_P, **MODE `FLEET-16`**, computed from `/home/resources/postoffice/MODE`; Fable 5.1). **THE PASCAL SITE-1 ROW WAS ALREADY CURED BY MY OWN `f9a90958` (2026-09-02) — CLOSED ON ITS OWN DONE-WHEN, NO `src/` TOUCHED; hq_C's `SCRIP_ZD_BACKEDGE` RECORD ITEM RECONCILED (THE DELTA IS THE LOOP HEAD'S PLANNED ENTRY DEPTH, BY CONSTRUCTION)**
 
 **SCRIP `59589ee97` · corpus `34cf6472d` · .github `dea6d593` (all three ff-only'd from BEHIND at session start) · incremental `make` · `RT_OPT=-O0`.**
 
