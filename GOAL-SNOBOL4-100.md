@@ -137,6 +137,8 @@ THE TARGET is the SNOBOL4 row of SCORE.md § THE SEPTEMBER 10 GRID: every indust
 
 **LON 2026-09-04 18:02 CDT, verbatim: *"Well, since we use upper case END for everything, then do not worry about the "end" version. We use upper-case keywords for all SNOBOL4 keywords/reserved-words."* — WITHDRAWS the 17:58 END/end order: keywords and reserved words are upper-case, `END` is `END`; the row `snobol4-lowercase-end-statement-not-recognized-as-the-end-statement` is RETIRED, the fork is not patched for it, SCRIP is not changed for it. The oracle SIGSEGV on testpgms 2–4 stands as the blocker (hq_P, rank 1).**
 
+**2026-09-04 18:24 CDT ceo — THE ORACLE CRASH IS CURED AND SWAPPED IN (x64 `c0dc231`, installed 18:19 by the ORACLE-SWAP PROCEDURE on Lon's *"Fix those oracle crashes,"*; row closed on its computed 12-run criterion; FINDING pushed): every SNOBOL4 ref cut is safe again; refs cut from error-exit shapes before 18:19 are suspect. testpgms re-baselined: all four grade, `m3_pass=0 m4_pass=0` — test1 is a real SCRIP red (parse error at line 280), tests 2–4 read red because the vendored split files start with a stray `./*` separator the oracle rejects with ERROR 214 (a vendoring fix on hq_T's runner row; then the real reds appear). MODE FLEET-8 ON SNOBOL4 ONLY since 18:24: seats 01+02 hq_B · 04+05 hq_C · 07+08 hq_P · 12+13 hq_T; FLEET-16 when every lane has ≥ 4 pickable rows.**
+
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-02 seat02 (THE LOOP postoffice task `eval-of-a-pattern-silently-returns-null-where-spitbol-aborts-error-103`, rank 1) — **CLOSED. `EVAL(PATTERN)` NOW RAISES ERROR 103 MATCHING SPITBOL, INSTEAD OF SILENTLY RETURNING NULL AND LETTING EXECUTION CONTINUE.**
 
