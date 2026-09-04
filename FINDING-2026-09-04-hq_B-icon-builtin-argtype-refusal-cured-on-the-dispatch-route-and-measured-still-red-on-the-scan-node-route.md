@@ -1,3 +1,9 @@
+> ⭐ **SUPERSEDED IN PART, 2026-09-04 (same day, same seat):** the scan-node half this file names as STILL RED is
+> now **CURED** — see `FINDING-2026-09-04-hq_B-icon-scan-node-builtins-now-refuse-wrong-argument-types-and-the-class-is-closed-on-both-routes.md`.
+> Every measurement below still stands as measured; only this file's FILENAME claim went stale, which is exactly the
+> decay a filename-is-the-claim convention trades for greppability. Read this one for the dispatch route and how the
+> class was sized, the other for the scan route.
+
 # FINDING — CURED (dispatch route) + CLASS MEASURED (scan-node route): SCRIP's Icon builtins accepted
 # argument types their own oracle rejects, silently continuing where icont/iconx raises and aborts. The
 # two filed witnesses (`insert()`, `bal()`) were the visible tip of a 22-wide class over TWO INDEPENDENT
