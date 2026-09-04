@@ -108,3 +108,25 @@ not a regression; recorded so the Prolog B cell's "SCRIP not yet triangulated" i
    sitting) now READS the printed denominator instead of pinning `total=159` against a board printing
    161. Negative-tested three ways before landing: no board line → rc=1; one m4 fail → rc=1; denominator
    grows while passes lag → rc=1.
+
+## 7. ⛔⭐ POSTSCRIPT — hq_P VERIFIED ITS OWN CLAIM WITH A DIFFERENT INSTRUMENT THAN THE GATE USES
+
+Having rewritten three grids, hq_P checked them by typing the DONE-WHEN's own `grep` at a prompt: all
+three reported their hash, and hq_P told ceo "3 of 7 pass". Then it ran the DONE-WHEN the way `done`
+runs it — extract the line, `bash -c "$DW"` — and got **hash=none for all seven**, including sections
+that visibly carry a hash. The true count at the moment of the telegram was **0 of 7**.
+
+CAUSE: the criterion greps `SCRIP [\x60]?[0-9a-f]{7,10}`, meaning "an optional backtick before the
+hash". `grep` on this box is **ugrep 7.8.4**, not GNU grep. Typed directly it resolves `\x60` to a
+backtick and matches ``SCRIP `380cc4162` ``; run through `bash -c` it does not, and `[\x60]` degrades
+to the character set {\, x, 6, 0} — which cannot match a backtick, so the optional branch matches empty
+and the very next character (the backtick) fails the hex-digit test. **A backticked hash — the natural
+markdown form, and the form the criterion was clearly written to allow — is invisible to its own gate.**
+✅ CURE: write the hash unbackticked (`SCRIP 380cc4162`); it matches on the optional-absent branch under
+both invocations. Verified verbatim afterwards: snobol4 + snocone + rebus pass, the other four fail, rc=1.
+
+⭐ THE RULE, and it is this FINDING's own §3 lesson turned on its author: **a DONE-WHEN verified by
+hand-typing its command is not verified.** The hand-typed run and the gate's run are two instruments,
+they differ in shell, quoting and grep dialect, and the hand-typed one answers "would this match if I
+ran it" while the gate answers "does it match when `done` runs it". Extract the line and execute it
+under `bash -c` — which is exactly what `done` does — before quoting a pass to anyone.
