@@ -140,3 +140,18 @@ torn.
 ✅ Use `grep -a` on `ALL.ref`, or read it in Python. Both promotions are proven in-commit: `read_suite` rc=0 /
 1736 entries, and `util_census_optimizer_bypass --only` clean on all three arms (default · `SCRIP_OPT` ·
 `SCRIP_ZD`) for both entries.
+
+## 7. LAW CANDIDATES (ceo ruling, FLEET-16 2026-09-04 — to be landed next sitting)
+
+Stated here in liftable form; this session's one change was OUR FILES ARE LF, so these queue behind it.
+
+1. **A pair is MINIMAL only when a 2×2 proves each difference inert or live.** A witness pair that differs in
+   two places is not a minimal pair, it is a coincidence with a story attached, and the story will name whichever
+   difference the reader noticed first. Four compiles settle it. Cost when skipped, measured here: one correctly
+   root-caused class was left open for a session behind an inert suspect, while the live one — a single keyword —
+   sat unnamed in the same file.
+2. **`grep` on a file carrying a NUL byte prints NOTHING — use `grep -a`.** More generally: *an empty grep over a
+   file you have not proven is text is not a census.* This is the `command -v` class in a third instrument (after
+   the oracle PATH probe and the `ls` over a subdirectoried corpus): an instrument that silently answers a
+   narrower question than the one you meant, and returns a well-formed empty answer that is indistinguishable
+   from a real negative. `corpus/tests/snobol4/ALL.ref` is a live instance today.
