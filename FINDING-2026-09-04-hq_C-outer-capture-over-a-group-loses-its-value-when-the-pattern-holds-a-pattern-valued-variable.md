@@ -51,6 +51,37 @@ ORX_5	OR_EXTRACT  =  P  COMMON  OR(SUBLIST)		:(RETURN)
 
 ⭐ **The stack overflow is the symptom of a wrong answer, not a depth problem.** Anyone who reads `ERROR 246` and starts sizing stacks is chasing the wrong thing — this is a matcher defect that happens to end in recursion.
 
+## ⭐⭐ MECHANISM MEASURED — AND IT REFUTED THE THEORY I WAS ABOUT TO WRITE DOWN AS FACT
+
+The refusal prints two enormous numbers, and reading them was worth more than guessing at them. `len=1314904096`, `saved_delta=2980063202`. Taken as **signed**, `saved_delta = -1314904094`, and
+
+```
+signed_delta + len  ==  2  ==  the subject length, exactly
+```
+
+So the entry's **END offset is CORRECT** and its **START is garbage by exactly `len`**. The span arithmetic is internally consistent; only the origin is wrong. That immediately suggests the deferred re-entry is resolving offsets against a different subject base — and **that theory is wrong.** A one-line diagnostic settled it:
+
+```
+[DCAP-DIAG] c->subj=0x1718f490 Sigma=0x1718f490 Sigmalen=2
+            delta_as_signed=-1314904094 len=1314904096 signed_delta_plus_len=2 subj_minus_Sigma=0
+```
+
+**`c->subj == Σ`. The bases AGREE.** It is not a base mismatch. Since the end offset is right and start = end − len, both bad numbers derive from **one** bad input: the capture's **banked START cursor**. The runtime's own message says which event does it — *"Deferred re-entry invalidated the outer frame"*.
+
+⭐ **THE CORRECTED CLAIM: a deferred re-entry clobbers the OUTER capture's saved start cursor.** The end is taken live at commit and stays correct, so the corruption is invisible in any test whose capture ends where it begins, and the inner capture is unaffected because it banks and commits without a re-entry in between.
+
+**NEXT ACTOR, exact site.** `src/templates/bb/bb_match_capture.cpp` banks the start cursor in phase 0 and reads it back at commit:
+
+```
+16  #define havehome()  (_.op_zres || _.op_cap_anchor || _.op_off >= 0)
+30  #define writehome() (_.op_zres ? ZRESD(0)   : FR(_.op_off))
+31  #define readhome()  (_.op_zres ? ZOPD(1, 0) : FR(_.op_off))
+```
+
+⚠ The frame-relative arm writes and reads the **same** expression, `FR(_.op_off)`. The ζ arm does **not**: it writes `ZRESD(0)` and reads `ZOPD(1, 0)`. Whether those two name the same cell across a deferred re-entry is the first thing to measure — not to assume, because I have now been wrong once on this defect by reasoning one step past the evidence.
+
+⛔ **AND THAT IS THE REUSABLE PART OF THIS SECTION.** The base-mismatch story explained every number I had, was mechanically plausible, and would have sent the next actor into the subject-rebinding code for nothing. What killed it was a single `fprintf` of the two pointers I was *assuming* differed. **When a theory explains the evidence, the cheap next move is not to write it up — it is to print the one value the theory says must differ.**
+
 ## HOW IT WAS NARROWED, AND THE ONE THING THAT MADE IT CHEAP
 
 Nine ablations, each one killing a hypothesis rather than confirming the headline: recursive pattern via deferred self-reference (works), capture into the subject variable itself (works), the `ORX_0` recursion-breaker (agrees), the match-and-replace that shrinks the global (agrees), a callee writing a caller's local by assignment (agrees), the same by pattern replacement (agrees), capture into a declared local (works), capture into a global (works), nested capture with inline patterns (works).
@@ -59,4 +90,4 @@ Nine ablations, each one killing a hypothesis rather than confirming the headlin
 
 ## STATUS
 
-Not cured. Row minted with the DONE-WHEN above, **proven RED as written in the baton** (extracted from the file and run, rc=1). The criterion refuses rc=2 if the oracle itself drifts off `COMMON=[a]`, so a later green means the compiler moved and not the oracle. SHARED-NODE: the pattern engine is reached by SNOBOL4 and Snocone, so a cure grades both plus the SNOBOL4 master over its printed denominator.
+Not cured; mechanism narrowed to the banked start cursor (see above). Row minted with the DONE-WHEN above, **proven RED as written in the baton** (extracted from the file and run, rc=1). The criterion refuses rc=2 if the oracle itself drifts off `COMMON=[a]`, so a later green means the compiler moved and not the oracle. SHARED-NODE: the pattern engine is reached by SNOBOL4 and Snocone, so a cure grades both plus the SNOBOL4 master over its printed denominator.
