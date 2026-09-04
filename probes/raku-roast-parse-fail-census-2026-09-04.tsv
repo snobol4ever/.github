@@ -1,0 +1,925 @@
+# PARSE_CENSUS in_tier=945 parse_fail=924 parse_ok=21 missing=41 tree=SCRIP 59589ee97 (parse-only: --dump-ast on each manifest in-tier file staged as .raku; scoreboard exclusions S01 S15 S17 S22 S24 S26) measured 2026-09-04 16:49 CDT by ceo, scratch parse_census.sh; columns: roast-file failing-line message source-line
+S02-lexical-conventions/comments.t	12	raku parse error line 12: syntax error	comments
+S02-lexical-conventions/minimal-whitespace.t	8	raku parse error line 8: syntax error	throws-like { EVAL '@arr [0]' },
+S02-lexical-conventions/one-pass-parsing.t	7	raku parse error line 7: syntax error	lives-ok { EVAL 'regex { <[ } > ]> }; 1' },
+S02-lexical-conventions/pod-in-multi-line-exprs.t	25	raku parse error line 25: syntax error	'baz' => 3,
+S02-lexical-conventions/sub-block-parsing.t	15	raku parse error line 15: syntax error	ok(sub { 42 }(), 'sub {...}() works'); # TODO: clarify
+S02-lexical-conventions/unicode.t	9	raku parse error line 9: syntax error	lives-ok {my $foo; sub foo {}; 1}, "ascii declaration"; #OK not used
+S02-lexical-conventions/unicode-whitespace.t	5	raku parse error line 5: syntax error	sub try_eval($str) { try EVAL $str }
+S02-lexical-conventions/unspace.t	11	raku parse error line 11: syntax error	is("x"\     .chars, 1, 'unspace with strings');
+S02-lists/indexing.t	8	raku parse error line 8: syntax error	is (42)[*/2], 42, 'Indexing half way into one element list';
+S02-lists/tree.t	6	raku parse error line 6: syntax error	ok List.tree === List, '.tree on a type object';
+S02-literals/adverbs.t	8	raku parse error line 8: syntax error	is-deeply (:a), (a => True), "Basic boolean adverb works";
+S02-literals/allomorphic.t	14	raku parse error line 14: syntax error	lives-ok {val("foo")}, "val() exists";
+S02-literals/array-interpolation.t	15	raku parse error line 15: syntax error	is ~@array, "a b c d",
+S02-literals/autoref.t	25	raku parse error line 25: syntax error	is ~$ref, "a b c", '$arrayitem = @array works (1)';
+S02-literals/char-by-name.t	28	raku parse error line 28: syntax error	is "\c[woman gesturing OK]".ords, (0x1F646, 0x200D, 0x2640, 0xFE0F), "\\c[woman gesturing OK] works.
+S02-literals/char-by-number.t	11	raku parse error line 11: syntax error	is("\x[a0]", chr(0xa0), '\x[a0] non-breaking space');
+S02-literals/fmt-interpolation.t	48	raku parse error line 48: syntax error	q[
+S02-literals/hash-interpolation.t	18	raku parse error line 18: syntax error	my $hash = { a => 1, b => 2 };
+S02-literals/heredocs.t	10	raku parse error line 10: syntax error	sub no-r(Str $in) { $in.subst("\r\n", "\n", :g) }
+S02-literals/hex_chars.t	14	raku parse error line 14: syntax error	for @unicode -> $literal, $codepoint {
+S02-literals/listquote.t	13	raku parse error line 13: syntax error	my $s = join |<< <a x y z>;
+S02-literals/listquote-whitespace.t	43	raku parse error line 43: syntax error	my @res = EVAL $str;
+S02-literals/misc-interpolation.t	47	raku parse error line 47: syntax error	is("&func_w_args("foo","bar"))", '[foo][bar])', '"&func_w_args(...)" should interpolate');
+S02-literals/numeric.t	5	raku parse error line 5: syntax error	isa-ok 1, Int, '1 produces a Int';
+S02-literals/pair-boolean.t	23	raku parse error line 23: syntax error	lives-ok { ?$true_pair  }, 'Taking the boolean of a true pair should live';
+S02-literals/pairs.t	28	raku parse error line 28: syntax error	sub f1n (:$a) { $a.WHAT.gist }
+S02-literals/pod.t	11	raku parse error line 11: syntax error	ok $=pod{'DATA'}, '=begin DATA works and $=pod<DATA> defined';
+S02-literals/quoting.t	27	raku parse error line 27: syntax error	my $s = q{ foo bar };
+S02-literals/quoting-unicode.t	13	raku parse error line 13: syntax error	my $s = ｢this is a string\n｣;
+S02-literals/radix.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-literals/string-interpolation.t	27	raku parse error line 27: syntax error	ok "$a" ~~ Str, '"$a" results in a Str';
+S02-literals/sub-calls.t	14	raku parse error line 14: syntax error	ok EVAL(q/foo;      /), 'call with no args, no parens';
+S02-literals/subscript.t	12	raku parse error line 12: syntax error	throws-like { EVAL '%hash <foo>; 1'},
+S02-literals/types.t	7	raku parse error line 7: syntax error	throws-like { EVAL 'class A { }; class A { }' },
+S02-literals/underscores.t	16	raku parse error line 16: syntax error	is 1_0, 10, "Single embedded underscore works";
+S02-literals/version.t	4	raku parse error line 4: syntax error	is v1.2.3, '1.2.3', 'version literal stringification';
+S02-magicals/args.t	7	raku parse error line 7: syntax error	isa-ok @*ARGS, Array, '@*ARGS is an Array';
+S02-magicals/block.t	16	raku parse error line 16: syntax error	my $anonfactorial = -> Int $n { $n < 2 ?? 1 !! $n * &?BLOCK($n-1) };
+S02-magicals/DISTRO.t	27	raku parse error line 27: syntax error	ok $?DISTRO.raku ~~ m/\w/, 'We can do a $?DISTRO.raku';
+S02-magicals/dollar_bang.t	24	raku parse error line 24: syntax error	try { EVAL 'foo(@a,@a)' };
+S02-magicals/dollar-underscore.t	9	raku parse error line 9: syntax error	{ $_ := 43 };
+S02-magicals/env.t	52	raku parse error line 52: syntax error	%*ENV<PUGS_ROCKS>:delete;
+S02-magicals/file_line.t	11	raku parse error line 11: syntax error	ok($?FILE ~~ rx/'S02-magicals'<[\/\\]>'file_line.t'/, '$?FILE works');
+S02-magicals/KERNEL.t	21	raku parse error line 21: syntax error	ok $?KERNEL.raku ~~ m/\w/, 'We can do a $?KERNEL.raku';
+S02-magicals/PERL.t	16	raku parse error line 16: syntax error	ok $?PERL.raku ~~ m/\w/, 'We can do a $?PERL.raku';
+S02-magicals/pid.t	15	raku parse error line 15: syntax error	is_run 'say $*PID',
+S02-magicals/progname.t	7	raku parse error line 7: syntax error	ok($*PROGRAM ~~ /S02'-'magicals['/'|'\\']progname'.'\w+$/, "progname var matches test file path");
+S02-magicals/sub.t	13	raku parse error line 13: syntax error	sub factorial { @_[0] < 2 ?? 1 !! @_[0] * &?ROUTINE(@_[0] - 1) }
+S02-magicals/subname.t	8	raku parse error line 8: syntax error	sub foo { return &?ROUTINE.package.^name ~ '::' ~ &?ROUTINE.name }
+S02-magicals/VM.t	30	raku parse error line 30: syntax error	ok $?VM.raku ~~ m/\w/, 'We can do a $?VM.raku';
+S02-names/bare-sigil.t	7	raku parse error line 7: syntax error	lives-ok { my $ }, 'basic bare sigil $';
+S02-names/caller.t	6	raku parse error line 6: syntax error	my $a is dynamic = 9;
+S02-names/identifier.t	10	raku parse error line 10: syntax error	ok don't(0),    "don't() is a valid sub name (1)";
+S02-names/indirect.t	7	raku parse error line 7: syntax error	class ::(name) {
+S02-names/is_default.t	8	raku parse error line 8: syntax error	subset IntOrNil of Any where Int | Nil;
+S02-names/is_dynamic.t	7	raku parse error line 7: syntax error	my $a is dynamic;
+S02-names/name.t	41	raku parse error line 41: syntax error	%a<o>++;
+S02-names/our.t	8	raku parse error line 8: syntax error	lives-ok { EVAL 'our sub eval_born { 5 }'},
+S02-names/strict.t	1	raku parse error line 1: syntax error	no strict;
+S02-names/symbolic-deref.t	14	raku parse error line 14: syntax error	is $::($b_var), 42, 'basic symbolic scalar dereferentiation works';
+S02-names-vars/contextual.t	11	raku parse error line 11: syntax error	method foo_priv { self!priv }
+S02-names-vars/fmt.t	32	raku parse error line 32: syntax error	a => 1.3,
+S02-names-vars/list_array_perl.t	27	raku parse error line 27: syntax error	my $s = (~$obj).subst(/\n/, '␤');
+S02-names-vars/names.t	12	raku parse error line 12: syntax error	$Terrain::mountain  = 108;
+S02-names-vars/perl.t	23	raku parse error line 23: syntax error	/foo/, /^.*$/,
+S02-names-vars/signature.t	11	raku parse error line 11: syntax error	isa-ok :($a), Signature, ':($a) create a Signature object';
+S02-names-vars/variables-and-packages.t	7	raku parse error line 7: syntax error	throws-like { EVAL 'unit module MY;' },
+S02-names-vars/varnames.t	7	raku parse error line 7: syntax error	lives-ok { EVAL 'my $!' },
+S02-packages/package-lookup.t	8	raku parse error line 8: syntax error	my $x = 10;
+S02-types/anon_block.t	21	raku parse error line 21: syntax error	my $anon_sub_w_arg = sub ($arg) { 1 + $arg };
+S02-types/array_extending.t	33	raku parse error line 33: syntax error	ok @array[20]:exists,
+S02-types/array_ref.t	11	raku parse error line 11: syntax error	is($array_ref1[0], 'foo', 'got the right value at array_ref1 index 0');
+S02-types/array-shapes.t	7	raku parse error line 7: syntax error	my @arr[*];
+S02-types/array.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/assigning-refs.t	33	raku parse error line 33: syntax error	my $hashitem = {:a(1), :b(2), :c(3)};
+S02-types/autovivification.t	8	raku parse error line 8: syntax error	my $b = %h<a><b>;
+S02-types/bag.t	6	raku parse error line 6: syntax error	$x.keys.sort.map({ $^k ~ ':' ~ $x{$k} }).join(' ')
+S02-types/baghash.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/bool.t	7	raku parse error line 7: syntax error	isa-ok(Bool::True, Bool);
+S02-types/built-in.t	11	raku parse error line 11: syntax error	throws-like {
+S02-types/capture.t	12	raku parse error line 12: syntax error	is foo1(|$capture), "1!2!3",
+S02-types/catch_type_cast_mismatch.t	15	raku parse error line 15: syntax error	nok $ref ~~ Positional, "It's not a positional";
+S02-types/compact.t	9	raku parse error line 9: syntax error	my uint8 @buffer = ('A' .. 'Z').map({ .ord }).list;
+S02-types/declare.t	23	raku parse error line 23: syntax error	my Complex $namcu = 1.3 + 0i;
+S02-types/fatrat.t	7	raku parse error line 7: syntax error	my $fatty := FatRat.new(9,10);
+S02-types/flattening.t	18	raku parse error line 18: syntax error	is(@array[0][0],    11, 'first element in first arrayitem is 11');
+S02-types/hash_ref.t	8	raku parse error line 8: syntax error	isa-ok $hash, Any;
+S02-types/hash.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/infinity.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/instants-and-durations.t	9	raku parse error line 9: syntax error	isa-ok $i, Instant, 'now returns an Instant';
+S02-types/int-uint.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/is-type.t	6	raku parse error line 6: syntax error	my @a is Buf;
+S02-types/isDEPRECATED.t	1	raku parse error line 1: syntax error	BEGIN %*ENV<RAKUDO_DEPRECATIONS_FATAL>:delete; # disable fatal setting for tests
+S02-types/lazy-lists.t	27	raku parse error line 27: syntax error	isa-ok( (1...Inf).elems,
+S02-types/lists.t	15	raku parse error line 15: syntax error	try { ($foo, "does_not_matter")[0] = 23 };
+S02-types/mix.t	8	raku parse error line 8: syntax error	$x.keys.sort.map({ $^k ~ ':' ~ $x{$k} }).join(' ')
+S02-types/mixhash.t	12	raku parse error line 12: syntax error	$x.keys.sort.map({"$_:{$x{$_}}"}).join(' ')
+S02-types/mixed_multi_dimensional.t	33	raku parse error line 33: syntax error	is(@array[0]<key>, 'value', 'got the right pair value');
+S02-types/multi_dimensional_array.t	16	raku parse error line 16: syntax error	my @md[2;2];
+S02-types/nan.t	18	raku parse error line 18: syntax error	ok NaN ~~ NaN, 'NaN is a NaN';
+S02-types/native.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/nested_arrays.t	37	raku parse error line 37: syntax error	my @b = map { @a[1 - $_][0] }, 0 .. 3;
+S02-types/nested_pairs.t	13	raku parse error line 13: syntax error	my $list := (1 => (2 => (3 => 4)));
+S02-types/nil.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/num.t	36	raku parse error line 36: syntax error	is(~$a, "1", '1/1 stringification works');
+S02-types/pair.t	10	raku parse error line 10: syntax error	Pair.new(:key<foo>, :value<bar>), 'Pair.new(:key,:value)',
+S02-types/list.t	7	raku parse error line 7: syntax error	isa-ok (5, 7, 8), List, '(5, 7, 8) is List';
+S02-types/parsing-bool.t	8	raku parse error line 8: syntax error	is (try { 42 or Bool::False }), 42, "Bool::False as RHS";
+S02-types/range.t	9	raku parse error line 9: syntax error	isa-ok $r, Range, 'Type';
+S02-types/resolved-in-setting.t	10	raku parse error line 10: syntax error	my class Parameter { }
+S02-types/set.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/sethash.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S02-types/sigils-and-types.t	6	raku parse error line 6: syntax error	ok $scalar.WHAT === Any, 'unitialized $var does Mu';
+S02-types/stash.t	9	raku parse error line 9: syntax error	sub S (Stash $s) { $s.WHAT.raku };
+S02-types/subscripts_and_context.t	16	raku parse error line 16: syntax error	is ~@sliced, "a b", "context inside of array subscripts for slices";
+S02-types/type.t	14	raku parse error line 14: syntax error	ok(try {my Int $foo; 1}, 'compile my Int $foo');
+S02-types/undefined-types.t	13	raku parse error line 13: syntax error	ok (@a.push: Empty) =:= @a, "Pushing Empty returns same array";
+S02-types/version.t	8	raku parse error line 8: syntax error	my $x = shift @v;
+S02-types/whatever.t	11	raku parse error line 11: syntax error	my $x = *;
+S02-types/WHICH.t	3	raku parse error line 3: syntax error	my @normal = <
+S03-binding/arrays.t	15	raku parse error line 15: syntax error	try { @array[1] := $var };
+S03-binding/attributes.t	13	raku parse error line 13: syntax error	my class Klass1 { has $.x; method bind { $!x := $var } }
+S03-binding/closure.t	5	raku parse error line 5: syntax error	is EVAL(q[
+S03-binding/hashes.t	11	raku parse error line 11: syntax error	my %hash  = (:a<x>, :b<y>, :c<z>);
+S03-binding/nested.t	15	raku parse error line 15: syntax error	ignored => 23,
+S03-binding/ro.t	11	raku parse error line 11: syntax error	$x ::= $y;
+S03-binding/scalars.t	19	raku parse error line 19: syntax error	my $y := $x;
+S03-feeds/basic.t	18	raku parse error line 18: syntax error	my (@b, @c);
+S03-junctions/associative.t	10	raku parse error line 10: syntax error	(-> Any $x { @e.push: $x }).($j);
+S03-junctions/autothreading.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S03-junctions/boolean-context.t	12	raku parse error line 12: syntax error	ok !(1^2), '1^2 in boolean context';
+S03-junctions/misc.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S03-metaops/cross.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S03-metaops/eager-hyper.t	10	raku parse error line 10: syntax error	my $test := gather { for 1 .. 5 { $counter++; take $_ } };
+S03-metaops/hyper.t	18	raku parse error line 18: syntax error	my $a      := (1,2,3);
+S03-metaops/not.t	13	raku parse error line 13: syntax error	is 4 !< 5, !(4 < 5), "4 !< 5";
+S03-metaops/reduce.t	25	raku parse error line 25: syntax error	is(([/]  12,4,3),  (12/4/3), "[/] works");
+S03-metaops/reverse.t	17	raku parse error line 17: syntax error	is 4 Rcmp 5, 5 cmp 4, "4 Rcmp 5";
+S03-metaops/zip.t	6	raku parse error line 6: syntax error	is (<a b> Z <1 2>), <a 1 b 2>, 'non-meta zip produces expected result';
+S03-operators/adverbial-modifiers.t	6	raku parse error line 6: syntax error	sub prefix:<blub> (Str $foo, Int :$times = 1) {
+S03-operators/also.t	6	raku parse error line 6: syntax error	ok ?(1 S& 2),         "basic infix:<S&>";
+S03-operators/andthen.t	4	raku parse error line 4: syntax error	is (1 andthen 2), 2, 'andthen basics';
+S03-operators/orelse.t	5	raku parse error line 5: syntax error	is (1 orelse 2), 1, 'orelse basics';
+S03-operators/arith.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S03-operators/assign-is-not-binding.t	34	raku parse error line 34: syntax error	}
+S03-operators/assign.t	20	raku parse error line 20: syntax error	&infix:<=>.($x, 0);
+S03-operators/autoincrement-range.t	15	raku parse error line 15: syntax error	ok( --$x ~~ Failure, "'AAA'-- fails" );
+S03-operators/autoincrement.t	26	raku parse error line 26: syntax error	is(0 + ++@x[0] - 1, $base, '0 + ++@x[0] - 1');
+S03-operators/autovivification.t	10	raku parse error line 10: syntax error	}
+S03-operators/basic-types.t	11	raku parse error line 11: syntax error	ok(@a ~~ Array, 'it is an Array type');
+S03-operators/bit.t	15	raku parse error line 15: syntax error	is( 0xdead +& 0xbeef,   0x9ead,    'numeric bitwise +& of hexadecimal' );
+S03-operators/boolean-bitwise.t	23	raku parse error line 23: syntax error	ok( ?(infix:<?|>(True) == True), '?| works with one argument');
+S03-operators/brainos.t	16	raku parse error line 16: syntax error	try { EVAL '$str =~ m/bar/;' };
+S03-operators/composition.t	8	raku parse error line 8: syntax error	is (&invert o &double)(0.25), 2, 'Basic function composition (1)';
+S03-operators/custom.t	8	raku parse error line 8: syntax error	multi infix:<< - >>(e1, e2) { return "AWW" };
+S03-operators/buf.t	5	raku parse error line 5: syntax error	ok (~^"foo".encode eqv utf8.new(0x99, 0x90, 0x90)), 'prefix:<~^>';
+S03-operators/chained-declarators.t	14	raku parse error line 14: syntax error	is((try {  my $a1 = my    $b1 = 42; $b1++; "$a1, $b1" }), '42, 43', "chained my");
+S03-operators/cmp.t	7	raku parse error line 7: syntax error	is 5 cmp 6, Order::Less, "cmp on int (1)";
+S03-operators/comparison-simple.t	10	raku parse error line 10: syntax error	is(1 <=> 1, Order::Same, '1 <=> 1 is same');
+S03-operators/comparison.t	8	raku parse error line 8: syntax error	is-deeply(+Order::Less, -1, 'Order::Less numifies to -1');
+S03-operators/context-forcers.t	8	raku parse error line 8: syntax error	sub iis(Mu $a, Mu $b, $descr) is test-assertion {
+S03-operators/context.t	16	raku parse error line 16: syntax error	isa-ok((list $a).WHAT, List, '(list values) returns nothing more than a List');
+S03-operators/equality.t	42	raku parse error line 42: syntax error	ok &infix:<==>(False), "&infix:<==> with one argument is correct";
+S03-operators/eqv.t	10	raku parse error line 10: syntax error	ok  (1 eqv 1), "eqv on values (1)";
+S03-operators/flip-flop.t	11	raku parse error line 11: syntax error	ok (1 ff 1), 'flip-flop operator implemented';
+S03-operators/gcd.t	12	raku parse error line 12: syntax error	is-deeply 10 gcd 5, 5, "The gcd of 10 and 5 is 5";
+S03-operators/div.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S03-operators/identity.t	12	raku parse error line 12: syntax error	ok  ($foo =:= $foo), '$foo =:= $foo is true';
+S03-operators/increment.t	28	raku parse error line 28: syntax error	%a{"a"}++;
+S03-operators/infixed-function.t	5	raku parse error line 5: syntax error	is 3 [&atan2] 4, atan2(3, 4), "3 [&atan2] 4 == atan2(3, 4)";
+S03-operators/inplace.t	9	raku parse error line 9: syntax error	lives-ok({@a .= map: { $_ + 1 }}, '.= runs with block');
+S03-operators/is-divisible-by.t	8	raku parse error line 8: syntax error	isa-ok 6 %% 3, Bool, '6 %% 3 isa Bool';
+S03-operators/lcm.t	12	raku parse error line 12: syntax error	is 10 lcm 5, 10, "The lcm of 10 and 5 is 10";
+S03-operators/list-quote-junction.t	43	raku parse error line 43: syntax error	ok( $str ~~ (any <foo bar baz>), "'$str' matches any <foo bar baz>" );
+S03-operators/minmax.t	20	raku parse error line 20: syntax error	is 1 min 2, 1, 'can ye handle that?';
+S03-operators/misc.t	57	raku parse error line 57: syntax error	(my @s)[0] //= 5;
+S03-operators/names.t	4	raku parse error line 4: syntax error	is &infix:<+>(3, 8), 11, 'Can refer to &infix:<+>';
+S03-operators/nesting.t	7	raku parse error line 7: syntax error	ok &infix:<+>  === &[+],  'long and short form are the same (+)';
+S03-operators/not.t	6	raku parse error line 6: syntax error	nok(not 1,     "not 1 is false");
+S03-operators/numeric-shift.t	5	raku parse error line 5: syntax error	sub check ($a, $b, $ls, $rs) is test-assertion {
+S03-operators/overflow.t	79	raku parse error line 79: syntax error	is(0x80000000 div 1, 0x80000000, "0x80000000 div 1 == 0x80000000");
+S03-operators/precedence.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S03-operators/range-basic.t	5	raku parse error line 5: syntax error	sub test($range,$min,$max,$exmin,$exmax,$inf,$elems,$perl) is test-assertion {
+S03-operators/range-int.t	4	raku parse error line 4: syntax error	is ~(-17..-19), '', '-17..-19';
+S03-operators/range.t	10	raku parse error line 10: syntax error	is ~(3..6), "3 4 5 6", "(..) works on numbers (1)";
+S03-operators/reduce-le1arg.t	8	raku parse error line 8: syntax error	is ([**] ()), 1, "[**] () eq 1 (arguably nonsensical)";
+S03-operators/relational.t	51	raku parse error line 51: syntax error	is(1 < 2,  Bool::True,  '< true');
+S03-operators/repeat.t	26	raku parse error line 26: syntax error	throws-like ｢'a' x -NaN｣, X::Numeric::CannotConvert,
+S03-operators/scalar-assign.t	11	raku parse error line 11: syntax error	($x = $y) = 5;
+S03-operators/short-circuit.t	23	raku parse error line 23: syntax error	sub accumtest($expect, $op) is test-assertion {
+S03-operators/so.t	6	raku parse error line 6: syntax error	ok(so 1,     "so 1 is true");
+S03-operators/spaceship-and-containers.t	9	raku parse error line 9: syntax error	is(%h{"a"} <=> %h{"b"}, Order::Less, 'comparing hash values');
+S03-operators/spaceship.t	7	raku parse error line 7: syntax error	my %ball = map {; $_ => 1 }, 1..12;
+S03-operators/subscript-adverbs.t	12	raku parse error line 12: syntax error	isa-ok @array[0]:p, Pair,
+S03-operators/subscript-vs-lt.t	15	raku parse error line 15: syntax error	eval-lives-ok "1 <2", "infix less-than (<) requires whitespace before.";
+S03-operators/ternary.t	35	raku parse error line 35: syntax error	is((0 and 1 ?? 2 !! 3), 0, "operator priority");
+S03-operators/value_equivalence.t	19	raku parse error line 19: syntax error	ok  (1 === 1), "=== on values (1)";
+S03-sequence/arity0.t	9	raku parse error line 9: syntax error	my @rolls = ({ (1..6).pick } ... *).[^20];
+S03-sequence/arity-2-or-more.t	9	raku parse error line 9: syntax error	is (1, 1, { $^a + $^b } ... *).[^6].join(', '), '1, 1, 2, 3, 5, 8', 'arity-2 Fibonacci';
+S03-sequence/basic.t	9	raku parse error line 9: syntax error	is ~( 1  ...  1 ), '1', '1 ... 1';
+S03-sequence/limit-arity-2-or-more.t	9	raku parse error line 9: syntax error	is (8,*/2 ... (*-*).abs < 2).join(', '), '8, 4, 2, 1', 'arity-2 convergence limit';
+S03-sequence/misc.t	4	raku parse error line 4: syntax error	is ("fom" ... /foo/), "fom fon foo", "can use regex for endpoint without it being confused for closu
+S03-sequence/nonnumeric.t	15	raku parse error line 15: syntax error	multi infix:<cmp> (Alternating $x, Alternating $y) { abs($x.val) cmp abs($y.val) }
+S03-smartmatch/any-any.t	7	raku parse error line 7: syntax error	my $a = Smartmatch::ObjTest.new;
+S03-smartmatch/any-bool.t	9	raku parse error line 9: syntax error	is-deeply   0  ~~ is-true(), True,      '~~ non-syntactic True';
+S03-smartmatch/any-callable.t	8	raku parse error line 8: syntax error	ok 4 ~~ &is_even,    'scalar sub truth (unary)';
+S03-smartmatch/any-complex.t	5	raku parse error line 5: syntax error	ok (1 + 2i)    ~~ (1 + 2i),  'Complex  ~~ Complex (+)';
+S03-smartmatch/any-hash-pair.t	7	raku parse error line 7: syntax error	ok  (%a ~~ b => 'foo'),         '%hash ~~ Pair (Str, +)';
+S03-smartmatch/any-method.t	5	raku parse error line 5: syntax error	nok 'ab' ~~ .uc, 'smart-match happens after method calls on $_ 1';
+S03-smartmatch/any-num.t	6	raku parse error line 6: syntax error	ok   (5 ~~ 5),               'Int ~~ Int works';
+S03-smartmatch/any-pair.t	16	raku parse error line 16: syntax error	my $o = SmartmatchTest::AttrPair.new();
+S03-smartmatch/any-str.t	6	raku parse error line 6: syntax error	ok(!("foo" !~~ "foo"),  "!(foo ne foo)");
+S03-smartmatch/any-sub.t	6	raku parse error line 6: syntax error	my $t = sub { Bool::True };
+S03-smartmatch/any-type.t	5	raku parse error line 5: syntax error	subtest "Basics" => {
+S03-smartmatch/array-array.t	6	raku parse error line 6: syntax error	ok((("blah", "blah") ~~ ("blah", "blah")), "qw/blah blah/ .eq");
+S03-smartmatch/array-hash.t	9	raku parse error line 9: syntax error	ok  (['a']      ~~ %h), 'Array ~~ Hash (exists and True)';
+S03-smartmatch/capture-signature.t	5	raku parse error line 5: syntax error	sub t1(%h) {
+S03-smartmatch/disorganized.t	14	raku parse error line 14: syntax error	is-deeply("foo" ~~ .defined, True, "foo is ~~ .defined");
+S03-smartmatch/hash-hash.t	14	raku parse error line 14: syntax error	ok  (%hash1 ~~ %hash1),  'Hash ~~ Hash ($_ eqv X) 1';
+S03-smartmatch/range-range.t	12	raku parse error line 12: syntax error	is-deeply 2..3 ~~ 1..4,     True,  'proper inclusion +';
+S03-smartmatch/regex-hash.t	7	raku parse error line 7: syntax error	ok  (/oep/ ~~ %h),      'Regex ~~ Hash (+,1)';
+S03-smartmatch/scalar-hash.t	7	raku parse error line 7: syntax error	ok  ('moep' ~~ %h),     'Cool ~~ Hash (+, True)';
+S03-smartmatch/signature-signature.t	7	raku parse error line 7: syntax error	(:(Int),                                    :(Int),                     True,
+S04-blocks-and-statements/let.t	12	raku parse error line 12: syntax error	is($(let $a = 23; $a), 23, "let() changed the variable (1)");
+S04-blocks-and-statements/pointy-rw.t	15	raku parse error line 15: syntax error	lives-ok {
+S04-blocks-and-statements/pointy.t	22	raku parse error line 22: syntax error	subtest 'if this test fails, check the block in test file was not moved' => {
+S04-blocks-and-statements/temp.t	11	raku parse error line 11: syntax error	is($(temp $a = 23; $a), 23, "temp() changed the variable (1)");
+S04-declarations/constant.t	14	raku parse error line 14: syntax error	dies-ok { foo = 3 }, "can't reassign to a sigil-less constant";
+S04-declarations/implicit-parameter.t	15	raku parse error line 15: syntax error	my $f2 = { .sqrt };
+S04-declarations/multiple.t	8	raku parse error line 8: syntax error	eval-lives-ok 'my $x; my $x',
+S04-declarations/our.t	6	raku parse error line 6: syntax error	our $a = 1;
+S04-declarations/smiley.t	5	raku parse error line 5: syntax error	my Int:D $j = 256;
+S04-declarations/state.t	11	raku parse error line 11: syntax error	state $x //= 17;
+S04-declarations/will.t	3	raku parse error line 3: syntax error	BEGIN plan 19;
+S04-exception-handlers/catch.t	15	raku parse error line 15: syntax error	dies-ok { die 'blah'; CATCH {} }, 'Empty CATCH rethrows exception';
+S04-exception-handlers/control.t	15	raku parse error line 15: syntax error	{ status => sub { 0 != $^a },
+S04-exception-handlers/top-level.t	5	raku parse error line 5: syntax error	sub foo { die };
+S04-exceptions/control_across_runloop.t	10	raku parse error line 10: syntax error	sub foo($x = last) { $x }
+S04-exceptions/fail.t	10	raku parse error line 10: syntax error	.defined;
+S04-exceptions/pending.t	5	raku parse error line 5: syntax error	sub undefine(\a) { a = Nil }
+S04-phasers/ascending-order.t	12	raku parse error line 12: syntax error	my ($var_at_begin, $var_at_check, $var_at_init, $var_at_enter, $var_at_leave);
+S04-phasers/begin.t	11	raku parse error line 11: syntax error	is (BEGIN { "foo" }), "foo", 'Can use BEGIN <block> as an expression';
+S04-phasers/check.t	9	raku parse error line 9: syntax error	BEGIN { $str ~= "begin1 "; }
+S04-phasers/descending-order.t	12	raku parse error line 12: syntax error	my ($var_at_enter, $var_at_init, $var_at_check, $var_at_begin);
+S04-phasers/end.t	11	raku parse error line 11: syntax error	status => 5,
+S04-phasers/enter-leave.t	13	raku parse error line 13: syntax error	ENTER { $str ~= "(" }
+S04-phasers/first.t	9	raku parse error line 9: syntax error	FIRST { $str ~= $_ }
+S04-phasers/init.t	11	raku parse error line 11: syntax error	BEGIN { $str ~= "begin1 "; }
+S04-phasers/in-eval.t	13	raku parse error line 13: syntax error	EVAL '$handle = { $h ~= "1"; once { $h ~= "F" }; $h ~= "2" }';
+S04-phasers/in-loop.t	31	raku parse error line 31: syntax error	LAST  { $str ~= "($i Lst)" }
+S04-phasers/keep-undo.t	14	raku parse error line 14: syntax error	KEEP { $str ~= "$n > 0 " }
+S04-phasers/multiple.t	19	raku parse error line 19: syntax error	END { is $hist, 'B b c C I i end End ', 'running order of multiple phasers' }
+S04-phasers/next.t	10	raku parse error line 10: syntax error	NEXT { $str ~= ':' }
+S04-phasers/pre-post.t	10	raku parse error line 10: syntax error	PRE {
+S04-phasers/rvalue.t	11	raku parse error line 11: syntax error	my $x = BEGIN { 8 };
+S04-statement-modifiers/for.t	17	raku parse error line 17: syntax error	$a ~= $_ for 'a', 'b', 'a', 'b', 'a';
+S04-statement-modifiers/given.t	30	raku parse error line 30: syntax error	for ^2 { my $b = $_ given 'a'; $a ~= $b; }
+S04-statement-modifiers/if.t	22	raku parse error line 22: syntax error	my @x = 41, (42 if $answer), 43;
+S04-statement-modifiers/unless.t	22	raku parse error line 22: syntax error	my @x = 41, (42 unless $answer), 43;
+S04-statement-modifiers/until.t	16	raku parse error line 16: syntax error	my ($a, $b);
+S04-statement-modifiers/values_in_bool_context.t	12	raku parse error line 12: syntax error	my ($a, $b, $c, $d, $e, $f, $g, $h);
+S04-statement-modifiers/while.t	32	raku parse error line 32: syntax error	$a ~= ', ' ~ shift @a while @a;
+S04-statement-modifiers/with.t	30	raku parse error line 30: syntax error	for ^2 { my $b = $_ with 'a'; $a ~= $b; }
+S04-statement-modifiers/without.t	27	raku parse error line 27: syntax error	my @x = 41, (42 without $answer), 43;
+S04-statement-parsing/hash.t	7	raku parse error line 7: syntax error	isa-ok hash('a', 1), Hash, 'hash() returns a Hash';
+S04-statements/do.t	7	raku parse error line 7: syntax error	throws-like 'my $i = 1; do { $i++ } while $i < 5;', X::Obsolete,
+S04-statements/for-scope.t	16	raku parse error line 16: syntax error	for 1 .. 3 { push @inside, $_; }
+S04-statements/for.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S04-statements/for_with_only_one_item.t	80	raku parse error line 80: syntax error	for ($a,) -> $v is rw { $v++ }
+S04-statements/gather.t	11	raku parse error line 11: syntax error	my @a := gather {
+S04-statements/given.t	13	raku parse error line 13: syntax error	my ($t, $f);
+S04-statements/if.t	97	raku parse error line 97: syntax error	if func 1, 2, 3 { $var = 4 } else { $var = 5 };
+S04-statements/label.t	9	raku parse error line 9: syntax error	A: while $x++ < 2 {
+S04-statements/last.t	53	raku parse error line 53: syntax error	$_ == 3 && last;
+S04-statements/loop.t	42	raku parse error line 42: syntax error	loop (;;) { $i++; last; }
+S04-statements/next.t	38	raku parse error line 38: syntax error	my $tracker = 0; for 1..5 { $_ > 3 && next; $tracker = $_;}
+S04-statements/no-implicit-block.t	9	raku parse error line 9: syntax error	if (my $x = 2) == 2 {
+S04-statements/once.t	7	raku parse error line 7: syntax error	is(EVAL(q{{
+S04-statements/quietly.t	7	raku parse error line 7: syntax error	dies-ok { quietly { die 'not quiet enough' } }, '"die" in "quietly" dies';
+S04-statements/redo.t	15	raku parse error line 15: syntax error	push @log, "before";
+S04-statements/repeat.t	65	raku parse error line 65: syntax error	my $x = 0; repeat while $x < 10 { $x++ }
+S04-statements/return.t	26	raku parse error line 26: syntax error	sub foobar { return if 1; };
+S04-statements/sink.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S04-statements/terminator.t	19	raku parse error line 19: syntax error	throws-like '{my $x = 2;', X::Syntax::Missing, 'open closure';
+S04-statements/try.t	16	raku parse error line 16: syntax error	ok (try { die 'foo' }) === Nil, 'try returns Nil when exception was caught';
+S04-statements/unless.t	66	raku parse error line 66: syntax error	subtest '`else` and kin with `unless` errors out' => {
+S04-statements/when.t	5	raku parse error line 5: syntax error	my $c = { when 1 { 'one' }; when 2 { 'two!' }; default { 'many' } };
+S04-statements/while.t	51	raku parse error line 51: syntax error	while @array.pop -> $x {
+S04-statements/with.t	5	raku parse error line 5: syntax error	sub oops { fail "oops" }
+S05-capture/alias.t	17	raku parse error line 17: syntax error	ok("abcd" ~~ m/a  $<foo>=(..)  d/, 'Hypothetical variable capture');
+S05-capture/array-alias.t	17	raku parse error line 17: syntax error	ok("  a b\tc" ~~ m/@<chars>=( \s+ \S+ )+/, 'Named simple array capture');
+S05-capture/caps.t	15	raku parse error line 15: syntax error	ok $/.caps ~~ Iterable, '$/.caps returns something Iterable';
+S05-capture/dot.t	19	raku parse error line 19: syntax error	my regex dotdot { (.)(.) };
+S05-capture/match-object.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S05-capture/named.t	17	raku parse error line 17: syntax error	my regex fishy { (.*)shark };
+S05-capture/subrule.t	17	raku parse error line 17: syntax error	my regex abc {abc}
+S05-grammar/action-stubs.t	14	raku parse error line 14: syntax error	has $.in-a = 0;
+S05-grammar/example.t	47	raku parse error line 47: syntax error	is(~($content ~~ m/<speaker>/), 'tr', 'read token from grammar namespace');
+S05-grammar/inheritance.t	10	raku parse error line 10: syntax error	token TOP { <foo> };
+S05-grammar/namespace.t	26	raku parse error line 26: syntax error	rule TOP {\d+};
+S05-grammar/polymorphism.t	25	raku parse error line 25: syntax error	grammar Another is Other { };
+S05-grammar/protoregex.t	5	raku parse error line 5: syntax error	token TOP { ^ <alt> $ };
+S05-grammar/protos.t	12	raku parse error line 12: syntax error	proto token fred { <...> }
+S05-grammar/signatures.t	13	raku parse error line 13: syntax error	token fred($arg, $bar?) {    #OK not used
+S05-grammar/ws.t	9	raku parse error line 9: syntax error	token   ws { 'x' };
+S05-interpolation/lexicals.t	4	raku parse error line 4: syntax error	my regex abc { abc }
+S05-interpolation/regex-in-variable.t	17	raku parse error line 17: syntax error	my $var = rx/a+b/;
+S05-mass/charsets.t	8	raku parse error line 8: syntax error	my $latin-chars = [~] chr(0)..chr(0xFF);
+S05-mass/named-chars.t	16	raku parse error line 16: syntax error	ok("abc\x[a]def" ~~ m/\c[LINE FEED]/, 'Unanchored named LINE FEED');
+S05-mass/properties-block.t	17	raku parse error line 17: syntax error	ok(!( "\x[531A]"  ~~ m/^<:InAlphabeticPresentationForms>$/ ), q{Don't match unrelated <InAlphabeticP
+S05-mass/properties-derived.t	22	raku parse error line 22: syntax error	ok("\c[DIGIT ZERO]" ~~ m/^<:ASCIIHexDigit>$/, q{Match <:ASCIIHexDigit>} );
+S05-mass/properties-general.t	24	raku parse error line 24: syntax error	ok("\x[846D]" ~~ m/^<:L>$/, q{Match <:L> (Letter)} );
+S05-mass/properties-script.t	18	raku parse error line 18: syntax error	ok("\c[YI SYLLABLE IT]" ~~ m/^<:bc<L>>$/, q{Match (Left-to-Right)} );
+S05-mass/recursive.t	15	raku parse error line 15: syntax error	my regex r { <?> || x <&r> }
+S05-mass/rx.t	6	raku parse error line 6: syntax error	sub matchcheck(*@) { 1 }
+S05-mass/stdrules.t	18	raku parse error line 18: syntax error	ok("abc1_2" ~~ m/^ <ident> $/, '<ident>');
+S05-match/arrayhash.t	13	raku parse error line 13: syntax error	ok(@a ~~ / 'b' /, q|@a ~~ / 'b' /|);
+S05-match/blocks.t	18	raku parse error line 18: syntax error	is ~$/, 'a', '... and can use the match var';
+S05-match/capturing-contexts.t	11	raku parse error line 11: syntax error	my $match = 'abd' ~~ m/ (a) (b) c || (\w) b d /;
+S05-match/make.t	14	raku parse error line 14: syntax error	ok($/, 'matched');
+S05-match/non-capturing.t	17	raku parse error line 17: syntax error	ok($str ~~ m{a(b+)c}, 'Matched 1');
+S05-match/positions.t	14	raku parse error line 14: syntax error	ok($str ~~ m/ a .+ A /, 'Match from start');
+S05-metachars/closure.t	27	raku parse error line 27: syntax error	ok("abc" ~~ m/a(bc){$<caught> = $0}/, 'Inner match');
+S05-metachars/line-anchors.t	17	raku parse error line 17: syntax error	my $str = q{abc
+S05-metachars/newline.t	14	raku parse error line 14: syntax error	ok("\n" ~~ m/\n/, '\n');
+S05-metachars/tilde.t	8	raku parse error line 8: syntax error	my regex t1 {
+S05-metasyntax/angle-brackets.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S05-metasyntax/assertions.t	17	raku parse error line 17: syntax error	ok("1"       ~~ m/ (\d) <?{$0 < 5}> /,           '1 < 5');
+S05-metasyntax/changed.t	20	raku parse error line 20: syntax error	throws-like '$str ~~ m/bc$/m', X::Obsolete, '/m modifier is gone';
+S05-metasyntax/charset.t	18	raku parse error line 18: syntax error	ok("zyxaxyz" ~~ m/(<[aeiou]>)/, 'Simple set');
+S05-metasyntax/delimiters.t	7	raku parse error line 7: syntax error	my @delims = < ^ ° ! " § $ % @ € & / = ? ` * + ~ ; , . | >;
+S05-metasyntax/interpolating-closure.t	17	raku parse error line 17: syntax error	my regex abc { a b c }
+S05-metasyntax/litvar.t	25	raku parse error line 25: syntax error	ok($var ~~ m/$var/, 'Simple scalar interpolation');
+S05-metasyntax/longest-alternative.t	10	raku parse error line 10: syntax error	ok $str ~~ m:c(0)/a|aa|aaaa/, 'basic sanity with |';
+S05-metasyntax/lookaround.t	14	raku parse error line 14: syntax error	ok("a cdef" ~~ m/<after a <.ws> c> def/, 'Lookbehind');
+S05-metasyntax/null.t	17	raku parse error line 17: syntax error	ok("" ~~ m/<?>/, 'Simple null as <?>');
+S05-metasyntax/proto-token-ltm.t	6	raku parse error line 6: syntax error	proto token TOP {*}
+S05-metasyntax/regex.t	7	raku parse error line 7: syntax error	throws-like 'qr/foo/', X::Obsolete, 'qr// is gone';
+S05-metasyntax/repeat.t	20	raku parse error line 20: syntax error	ok("abcabcabcabcd" ~~ m/'abc'**4/, 'Fixed exact repetition');
+S05-metasyntax/sequential-alternation.t	9	raku parse error line 9: syntax error	ok $str ~~ m/x||xx||xxxx/;
+S05-metasyntax/single-quotes.t	18	raku parse error line 18: syntax error	ok("ab cd" ~~ m/a 'b c' d/, 'ab cd 1');
+S05-metasyntax/unknown.t	9	raku parse error line 9: syntax error	throws-like '"aa!" ~~ /!/', X::Syntax::Regex::UnrecognizedMetachar,
+S05-metasyntax/unicode-property-pair.t	17	raku parse error line 17: syntax error	is 'FooBar' ~~ /<:name(/:s LATIN SMALL LETTER/)>+/,   'oo', 'match character names';
+S05-modifier/continue.t	7	raku parse error line 7: syntax error	my regex simple { . a };
+S05-modifier/counted-match.t	20	raku parse error line 20: syntax error	throws-like '$data.match(/fo+/, :nth(0))', Exception, message => rx/nth/;
+S05-modifier/counted.t	25	raku parse error line 25: syntax error	throws-like '$data ~~ m:nth(0)/fo+/', Exception, message => rx/nth/;
+S05-modifier/global.t	12	raku parse error line 12: syntax error	my @matches = "hello world".match(/.o/, :g).list;
+S05-modifier/ignorecase.t	19	raku parse error line 19: syntax error	ok("abcDEFghi" ~~ m/abc (:i def) ghi/, 'Match');
+S05-modifier/ignorecase-and-ignoremark.t	16	raku parse error line 16: syntax error	ok(!'ä' ~~ m/a/,  'No :ignoremark: a doesnt match ä');
+S05-modifier/ignoremark.t	26	raku parse error line 26: syntax error	“so('$Haystack' ~~ /:m $needle /), $expected — Ignoremark: $Haystack { $expected ?? ‘matches�
+S05-modifier/ii.t	23	raku parse error line 23: syntax error	my $test_str = $t[0];
+S05-modifier/my.t	7	raku parse error line 7: syntax error	my token hasconstant {
+S05-modifier/overlapping.t	28	raku parse error line 28: syntax error	ok($str ~~ m:i:overlap/ a (.+) a /, "Repeatable overlapping match ($rep)" );
+S05-modifier/pos.t	15	raku parse error line 15: syntax error	ok(m:pos/abc/, "Matched 1: '$/'" );
+S05-modifier/repetition-exhaustive.t	19	raku parse error line 19: syntax error	my regex rx { a b+ };
+S05-modifier/repetition.t	7	raku parse error line 7: syntax error	ok('abab' ~~ m:2x/ab/,  ':2x (repetition) modifier (+)');
+S05-modifier/sigspace.t	12	raku parse error line 12: syntax error	ok(!( "abc  def" ~~ m/abc  def/ ), 'Literal space nonmatch' );
+S05-substitution/67222.t	5	raku parse error line 5: syntax error	$_.=subst( /<-[(),]>+/, { "'$/'" }, :g );
+S05-substitution/match.t	9	raku parse error line 9: syntax error	ok $str.match(/h/),         'We can use match';
+S05-substitution/subst.t	11	raku parse error line 11: syntax error	is $str.subst(/h/,'f'),       'fello', 'We can use subst';
+S05-transliteration/79778.t	5	raku parse error line 5: syntax error	is "this sentence no verb".trans( / \s+ / => " " ), 'this sentence no verb',"got expected string"  ;
+S05-transliteration/trans.t	118	raku parse error line 118: syntax error	is('bookkeeper'.trans(:s, 'a..z' => 'a..z'), 'bokeper',
+S05-transliteration/with-closure.t	12	raku parse error line 12: syntax error	is 'aXbXcX'.trans(:c, 'X' => { ++$x }), '1X2X3X', 'Can use a closure on the RHS with :c';
+S06-advanced/callframe.t	10	raku parse error line 10: syntax error	isa-ok callframe(), CallFrame, 'callframe() returns a CallFrame';
+S06-advanced/callsame.t	8	raku parse error line 8: syntax error	push @called, 'Numeric';
+S06-advanced/lexical-subs.t	10	raku parse error line 10: syntax error	throws-like 'g', X::Undeclared::Symbols,
+S06-advanced/recurse.t	18	raku parse error line 18: syntax error	@_[0] < 2 ?? 1 !! &?ROUTINE(@_[0] - 2) + &?ROUTINE(@_[0] - 1);
+S06-advanced/return.t	50	raku parse error line 50: syntax error	ok(bare_return() =:= Nil, "A bare return is Nil");
+S06-advanced/stub.t	3	raku parse error line 3: syntax error	BEGIN plan 13;
+S06-advanced/wrap.t	18	raku parse error line 18: syntax error	push @log, "foo";
+S06-currying/assuming-and-mmd.t	13	raku parse error line 13: syntax error	is( try { { $^a }.assuming(123)() }, 123, 'Assumptive Blocks' );
+S06-currying/misc.t	11	raku parse error line 11: syntax error	is-primed-sig(sub (::T $a, $b, :$c) { }, :($b, :$c), 1);
+S06-currying/named.t	14	raku parse error line 14: syntax error	my $w = &tester.assuming(b => 'x');
+S06-currying/positional.t	7	raku parse error line 7: syntax error	is-primed-sig(sub () { }, :(), );
+S06-currying/slurpy.t	8	raku parse error line 8: syntax error	sub capcap (|c ($a, $b?), |d ($c, $d?)) { "a$a b$b c$c d$d" };
+S06-multi/by-trait.t	11	raku parse error line 11: syntax error	multi sub uno_mas( int $rw is rw ) { $primrw_call++; return $rw * 2 }
+S06-multi/lexical-multis.t	8	raku parse error line 8: syntax error	my multi foo() { 42 }
+S06-multi/positional-vs-named.t	12	raku parse error line 12: syntax error	multi earth (:$me!)                 {"me $me"};
+S06-multi/proto.t	7	raku parse error line 7: syntax error	proto foo($x) { * }    #OK not used
+S06-multi/redispatch.t	12	raku parse error line 12: syntax error	multi a(Int $) { $tracker ~= 'Int'; nextsame; $tracker ~= 'Int' };
+S06-multi/subsignature.t	13	raku parse error line 13: syntax error	multi sub uno_mas(|c( Int $ro       )) { $ro_call++; return 1 + $ro }
+S06-multi/syntax.t	15	raku parse error line 15: syntax error	multi sub bar { "empty" }
+S06-multi/type-based.t	9	raku parse error line 9: syntax error	multi foo (5)          { "Constant"  }
+S06-multi/unpackability.t	7	raku parse error line 7: syntax error	multi sub foo ([$a])            { return "one" }   #OK not used
+S06-multi/value-based.t	10	raku parse error line 10: syntax error	multi m1("foo") { 1 }
+S06-operator-overloading/imported-subs.t	30	raku parse error line 30: syntax error	dies-ok { EVAL('3 notthere 4') }, 'not-exported operator was not imported';
+S06-operator-overloading/methods.t	11	raku parse error line 11: syntax error	method postcircumfix:<{ }>($key) { %!attrs{$key} }
+S06-operator-overloading/semicolon.t	9	raku parse error line 9: syntax error	sub infix:<;>($a, $b) {
+S06-operator-overloading/sub.t	18	raku parse error line 18: syntax error	sub postfix:<W> ($wobble) { return "ANDANDAND$wobble"; };
+S06-operator-overloading/term.t	5	raku parse error line 5: syntax error	package Foo {
+S06-operator-overloading/workout.t	13	raku parse error line 13: syntax error	multi method new (*@x where { @x.elems == 3 }) { self.bless(coords => @x); }
+S06-other/anon-hashes-vs-blocks.t	8	raku parse error line 8: syntax error	'1' => { '2' => 3, '4' => 5 },
+S06-other/introspection.t	8	raku parse error line 8: syntax error	only sub only-sub($a, $b) { "only" };   #OK not used
+S06-other/main-eval.t	12	raku parse error line 12: syntax error	EVAL q[
+S06-other/main.t	12	raku parse error line 12: syntax error	sub exit { }
+S06-other/main-usage.t	10	raku parse error line 10: syntax error	is_run 'sub MAIN($x) { }; sub GENERATE-USAGE(|) { "GENERATE-USAGE() called" }',
+S06-other/main-semicolon.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S06-other/misc.t	9	raku parse error line 9: syntax error	throws-like 'e("wtz")', X::Undeclared,
+S06-other/pairs-as-lvalues.t	7	raku parse error line 7: syntax error	throws-like 'my $var; (key => $var) = "value"', X::Assignment::RO;
+S06-parameters/smiley.t	5	raku parse error line 5: syntax error	is { sub a(Int $a)   { $a }; a Int }(), Int, 'can Int   take an Int:U';
+S06-routine-modifiers/lvalue-subroutines.t	18	raku parse error line 18: syntax error	my $lastvar = sub () is rw { $var2      };
+S06-routine-modifiers/native-lvalue-subroutines.t	12	raku parse error line 12: syntax error	sub returns-native-int-rw-untyped() is rw { $i }
+S06-routine-modifiers/proxy.t	22	raku parse error line 22: syntax error	sub lvalue_test1() is rw {
+S06-routine-modifiers/scoped-named-subs.t	8	raku parse error line 8: syntax error	my Str sub myNamedStr() { return 'string' };
+S06-signature/arity.t	10	raku parse error line 10: syntax error	sub a_four  ($a, $b, @c, %d) { };   #OK not used
+S06-signature/closure-parameters.t	8	raku parse error line 8: syntax error	my sub testit (&testcode) {testcode()}
+S06-signature/code.t	8	raku parse error line 8: syntax error	our $collector = 2;
+S06-signature/defaults.t	15	raku parse error line 15: syntax error	sub value_v(Code $func = &doubler) {
+S06-signature/definite-return.t	11	raku parse error line 11: syntax error	my sub return-nil(--> Nil) {
+S06-signature/errors.t	12	raku parse error line 12: syntax error	lives-ok { bar(reverse(1,2)) }, 'slurpy args are not bounded (2)';
+S06-signature/introspection.t	16	raku parse error line 16: syntax error	ok &a.signature.params ~~ Positional, '.params does Positional';
+S06-signature/mixed-placeholders.t	9	raku parse error line 9: syntax error	is $:DietCoke, 6, "Placeholder vars work";
+S06-signature/multidimensional.t	13	raku parse error line 13: syntax error	my @AoA = get_multidim_arglist(@array1; @array2);
+S06-signature/multi-invocant.t	7	raku parse error line 7: syntax error	my @params = &simple.signature.params;
+S06-signature/named-parameters.t	13	raku parse error line 13: syntax error	dies-ok { EVAL('a(g=>7)') }, 'Dies on passing superfluous arguments';
+S06-signature/named-placeholders.t	7	raku parse error line 7: syntax error	sub one_placeholder is test-assertion {
+S06-signature/named-renaming.t	6	raku parse error line 6: syntax error	sub f(:a(:$b)) { $b }
+S06-signature/optional.t	39	raku parse error line 39: syntax error	throws-like 'sub wrong1 ($a?, $b) {...}', X::Parameter::WrongOrder,
+S06-signature/outside-subroutine.t	6	raku parse error line 6: syntax error	subtest 'signature binding outside of routine calls' => {
+S06-signature/passing-arrays.t	16	raku parse error line 16: syntax error	is count(my @b = 1, 2, 3, 4), 4, 'count(my @b = 1, 2, 3)';
+S06-signature/passing-hashes.t	7	raku parse error line 7: syntax error	sub sanity() is test-assertion {
+S06-signature/positional-placeholders.t	7	raku parse error line 7: syntax error	sub one_placeholder is test-assertion {
+S06-signature/positional.t	4	raku parse error line 4: syntax error	sub my_first  ($x, $,  $ ) { $x };
+S06-signature/scalar-type.t	11	raku parse error line 11: syntax error	sub make_hash() { return {'z'=>'y','x'=>'w'} }
+S06-signature/shape.t	5	raku parse error line 5: syntax error	sub single-dim(@a[3]) { }
+S06-signature/sigilless.t	7	raku parse error line 7: syntax error	sub identity(\x) { x }
+S06-signature/slurpy-and-interpolation.t	10	raku parse error line 10: syntax error	sub invoke (*@args) { baz(|@args) }
+S06-signature/slurpy-params.t	22	raku parse error line 22: syntax error	dies-ok {EVAL(' mixed()')},      'at least one arg required';
+S06-signature/slurpy-placeholders.t	7	raku parse error line 7: syntax error	sub positional_slurpy is test-assertion {
+S06-signature/sub-ref.t	25	raku parse error line 25: syntax error	my $foo = sub () { 42 };
+S06-signature/tree-node-parameters.t	10	raku parse error line 10: syntax error	my sub traverse_hash (%top (:$left, :$right, *%), $desc?) {
+S06-signature/type-capture.t	9	raku parse error line 9: syntax error	sub basic_capture(::T $x) { T }   #OK not used
+S06-signature/types.t	7	raku parse error line 7: syntax error	sub f($x) returns Int { return $x };
+S06-signature/unpack-array.t	6	raku parse error line 6: syntax error	sub foo($x, [$y, *@z]) {
+S06-signature/unpack-object.t	6	raku parse error line 6: syntax error	for a => 1, b => 2 -> Pair $p (:$key, :$value) {
+S06-signature/unspecified.t	11	raku parse error line 11: syntax error	is &simple.signature.raku, ':()', 'signature is :() when none is specified';
+S06-traits/as.t	11	raku parse error line 11: syntax error	sub t1(Int() $x) is test-assertion {
+S06-traits/is-assoc.t	5	raku parse error line 5: syntax error	sub infix:<lea>($a, $b) is assoc<left> {
+S06-traits/is-copy.t	20	raku parse error line 20: syntax error	sub copy_tester ($copy_tester is copy = 5, $bar is copy = 10) {
+S06-traits/is-readonly.t	11	raku parse error line 11: syntax error	ok (try { VAR($a).defined }), ".VAR on a plain normal initialized variable returns true";
+S06-traits/is-rw.t	19	raku parse error line 19: syntax error	dies-ok { EVAL('foo(28)') }, 'is rw requires a variable';
+S06-traits/misc.t	24	raku parse error line 24: syntax error	',
+S06-traits/native-is-copy.t	7	raku parse error line 7: syntax error	sub int-is-copy(int $x is copy) is test-assertion {
+S06-traits/native-is-rw.t	8	raku parse error line 8: syntax error	sub with-rw-int(int $x is rw) {
+S06-traits/precedence.t	13	raku parse error line 13: syntax error	do {
+S07-slip/slip.t	5	raku parse error line 5: syntax error	is (1, |(2,3), 4).gist, '(1 2 3 4)', "simple | middle";
+S06-traits/slurpy-is-rw.t	10	raku parse error line 10: syntax error	lives-ok {
+S09-autovivification/autoincrement.t	15	raku parse error line 15: syntax error	try $foo[0]++;
+S09-autovivification/autovivification.t	10	raku parse error line 10: syntax error	ok %hash<a>:!exists, 'just mentioning a hash value should not autovivify it';
+S09-hashes/objecthash.t	9	raku parse error line 9: syntax error	my %h{Any};
+S09-subscript/slice.t	32	raku parse error line 32: syntax error	is-deeply(@array[0...3], (3,7,9,11),  "finite sequence slice");
+S09-subscript/multidim-assignment.t	6	raku parse error line 6: syntax error	@fifties-novels[2 ; 2,3] = "Charlotte's Web", "The Voyage of the Dawn Treader";
+S09-multidim/XX-POS-on-dimensioned.t	7	raku parse error line 7: syntax error	my @arr := Array.new(:shape(2;2));
+S09-multidim/XX-POS-on-undimensioned.t	14	raku parse error line 14: syntax error	isa-ok @a.AT-POS(-1, 0), Failure;
+S09-multidim/assign.t	5	raku parse error line 5: syntax error	lives-ok { my @a[3] = 1, 2, 3 },
+S09-multidim/decl.t	9	raku parse error line 9: syntax error	is @a.shape, (*,), 'Shape of untyped array is (*,)';
+S09-multidim/indexing.t	5	raku parse error line 5: syntax error	my @arr := Array.new(:shape(2;2));
+S09-multidim/methods.t	7	raku parse error line 7: syntax error	my @arr := Array.new(:shape(2;2));
+S09-multidim/subs.t	7	raku parse error line 7: syntax error	my @arr := Array.new(:shape(2;2));
+S09-typed-arrays/arrays.t	9	raku parse error line 9: syntax error	ok @x.VAR.of === Int, '@x.VAR.of of typed array (my Int @x)';
+S09-typed-arrays/hashes.t	16	raku parse error line 16: syntax error	lives-ok { %h = (a => 3, b => 7) }, 'can assign Ints to an Hash of Int';
+S09-typed-arrays/native.t	7	raku parse error line 7: syntax error	dies-ok { array.new }, 'Must use native array with type parameter (1)';
+S09-typed-arrays/native-decl.t	7	raku parse error line 7: syntax error	ok @is ~~ array[int], 'my int @x gives a native int array';
+S09-typed-arrays/native-int.t	6	raku parse error line 6: syntax error	@int.push:   int64;
+S09-typed-arrays/native-num.t	5	raku parse error line 5: syntax error	@num.push:  num64;
+S10-packages/basic.t	14	raku parse error line 14: syntax error	my regex fairly_conclusive_platform_error {:i ^\N* <<Null?>>}
+S10-packages/joined-namespaces.t	10	raku parse error line 10: syntax error	eval-lives-ok 'my class A::B { ... }; A::B.new(); class A::B { };',
+S10-packages/precompilation.t	11	raku parse error line 11: syntax error	BEGIN my $lib-path = $*PROGRAM.parent(2).IO;
+S10-packages/use-with-class.t	18	raku parse error line 18: syntax error	ok Stupid::Class.new(), 'can instantiate object of "imported" class';
+S11-compunit/compunit-dependencyspecification.t	5	raku parse error line 5: syntax error	dies-ok { CompUnit::DependencySpecification.new };
+S11-compunit/compunit-repository.t	5	raku parse error line 5: syntax error	for <id need loaded>.combinations[0 .. *-2] {
+S11-compunit/rt126904.t	8	raku parse error line 8: syntax error	my $proc = run $*EXECUTABLE, '-I', $lib-path, '-e',
+S11-modules/export.t	12	raku parse error line 12: syntax error	sub exp_no_parens    is export                   { 'r_exp_no_parens' }
+S11-modules/importing.t	13	raku parse error line 13: syntax error	ok( &foo, 'Foo::foo is defined (explicitly :DEFAULT)' );
+S11-modules/import-multi.t	10	raku parse error line 10: syntax error	multi sub Afoo( Int $a ) is export { 'sub A::Afoo Int' };
+S11-modules/import-tag.t	10	raku parse error line 10: syntax error	use Foo :others;
+S11-modules/import.t	10	raku parse error line 10: syntax error	sub Afoo() is export { 'sub A::Afoo' };
+S11-modules/lexical.t	11	raku parse error line 11: syntax error	dies-ok {EVAL('foo()') }, 'sub is only imported into the inner lexical scope';
+S11-modules/need.t	8	raku parse error line 8: syntax error	need Export_PackA;
+S11-modules/nested.t	12	raku parse error line 12: syntax error	eval-lives-ok 'use A::A', 'Can load classes from nested modules';
+S11-modules/require.t	1	raku parse error line 1: syntax error	my $required-Test = (require Test <&plan &is &lives-ok &skip &todo
+S11-repository/curli-install.t	10	raku parse error line 10: syntax error	rm_rf $repo-path.IO if $repo-path.IO.e;
+S11-repository/cur-candidates.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S11-repository/cur-current-distribution.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S12-attributes/class.t	17	raku parse error line 17: syntax error	our $.bar = 23;
+S12-attributes/clone.t	21	raku parse error line 21: syntax error	lives-ok {
+S12-attributes/defaults.t	24	raku parse error line 24: syntax error	my Spaceship $spaceship .= new;
+S12-attributes/delegation.t	14	raku parse error line 14: syntax error	method hi() { 42 };
+S12-attributes/inheritance.t	17	raku parse error line 17: syntax error	lives-ok {$o = B.new(a => 'blubb') }, 'Can initialize inherited attribute';
+S12-attributes/instance.t	11	raku parse error line 11: syntax error	throws-like 'has $.x;', X::Attribute::NoPackage,
+S12-attributes/mutators.t	13	raku parse error line 13: syntax error	our ($count-s, $count-m) = (0, 0);
+S12-attributes/native.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S12-attributes/recursive.t	19	raku parse error line 19: syntax error	lives-ok {
+S12-attributes/smiley.t	5	raku parse error line 5: syntax error	is class { has Int   $.a       }.new.a,   Int, 'can Int   be on its own';
+S12-attributes/undeclared.t	12	raku parse error line 12: syntax error	dies-ok { class A { method set_a { $.a = 1 }}; A.new.set_a; },
+S12-class/anonymous.t	8	raku parse error line 8: syntax error	my $c1 = class { };
+S12-class/attributes.t	9	raku parse error line 9: syntax error	method init { $!x = 41 }
+S12-class/attributes-required.t	9	raku parse error line 9: syntax error	throws-like { fish.new() },
+S12-class/augment-supersede.t	12	raku parse error line 12: syntax error	augment class Foo {
+S12-class/basic.t	18	raku parse error line 18: syntax error	ok($foo ~~ Foo, '... smartmatch our $foo to the Foo class');
+S12-class/declaration-order.t	15	raku parse error line 15: syntax error	eval-lives-ok ' class A {}; class B is A {}; ', "base before derived: lives";
+S12-class/extending-arrays.t	7	raku parse error line 7: syntax error	augment class Array { method test_method  { 1 }; };
+S12-class/inheritance-class-methods.t	7	raku parse error line 7: syntax error	class B is C { method g { self.f } };
+S12-class/inheritance.t	11	raku parse error line 11: syntax error	method getme($self:) returns Foo { return $self }
+S12-class/instantiate.t	24	raku parse error line 24: syntax error	try { EVAL 'NoSuchClass.new()' };
+S12-class/interface-consistency.t	8	raku parse error line 8: syntax error	our &m1 = method m1($a) {   #OK not used
+S12-class/lexical.t	14	raku parse error line 14: syntax error	eval-lives-ok 'my class A {}', 'my class parses OK';
+S12-class/literal.t	3	raku parse error line 3: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/FooBarBaz/lib';
+S12-class/magical-vars.t	12	raku parse error line 12: syntax error	method get_class_pvar()   { ::?CLASS }
+S12-class/namespaced.t	18	raku parse error line 18: syntax error	my $foobar = Foo::Bar.new();
+S12-class/open.t	10	raku parse error line 10: syntax error	method in_Something { 'a' ~ $.attribute };
+S12-class/parent_attributes.t	23	raku parse error line 23: syntax error	method set($v) { $.x = $v }
+S12-class/rw.t	7	raku parse error line 7: syntax error	subtest "Basic sanity" => {
+S12-class/self-inheritance.t	13	raku parse error line 13: syntax error	throws-like 'role RA does RA { }; 1', X::InvalidType, "Testing `role A does A`";
+S12-class/stubs.t	9	raku parse error line 9: syntax error	eval-lives-ok q[ class StubA { ... }; class StubA { method foo { } }; ],
+S12-class/type-object.t	14	raku parse error line 14: syntax error	isa-ok (class A { }).new, A, 'can instantiate return value of class declaration';
+S12-coercion/coercion-types.t	9	raku parse error line 9: syntax error	sub inside(Str(Cool) $x) {
+S12-construction/BUILD.t	72	raku parse error line 72: syntax error	lives-ok { $x = A_GrandChild.new() },
+S12-construction/construction.t	9	raku parse error line 9: syntax error	my $in_own = 0;
+S12-construction/named-params-in-BUILD.t	25	raku parse error line 25: syntax error	subtest 'can bind to native type attributes in build methods' => {
+S12-construction/new.t	14	raku parse error line 14: syntax error	lives-ok { $o =  Child.new(:x(2), :y(3)) },
+S12-enums/anonymous.t	8	raku parse error line 8: syntax error	my $e = enum < ook! ook. ook? >;
+S12-enums/as-role.t	21	raku parse error line 21: syntax error	my $y = Bar.new() does Maybe(Yes);
+S12-enums/basic.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S12-enums/misc.t	6	raku parse error line 6: syntax error	class EnumClass     { enum C <a b c> }
+S12-enums/non-int.t	5	raku parse error line 5: syntax error	my enum A (a => 'foo', b => 'bar');
+S12-enums/pseudo-functional.t	7	raku parse error line 7: syntax error	enum day (:Sun(1), 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat');
+S12-enums/thorough.t	17	raku parse error line 17: syntax error	ok day.WHAT === day,  'enum.WHAT returned a value';
+S12-introspection/attributes.t	21	raku parse error line 21: syntax error	}
+S12-introspection/can.t	13	raku parse error line 13: syntax error	lives-ok { Str.can("split") },   "method can on built-in Str works";
+S12-introspection/definite.t	25	raku parse error line 25: syntax error	is C."DEFINITE"(), True,  "Quoting lets us call the method, however";  #OK Useless
+S12-introspection/meta-class.t	11	raku parse error line 11: syntax error	class Foo:ver<0.0.1>:auth<ority> {
+S12-introspection/methods.t	14	raku parse error line 14: syntax error	method foo($param --> Any) { }   #OK not used
+S12-introspection/parents.t	18	raku parse error line 18: syntax error	@parents = A.^parents(:all);
+S12-introspection/roles.t	14	raku parse error line 14: syntax error	my role R1 { }
+S12-introspection/walk.t	13	raku parse error line 13: syntax error	subtest "Basics" => {
+S12-introspection/WHAT.t	8	raku parse error line 8: syntax error	my class A is Array {};
+S12-meta/exporthow.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S12-meta/grammarhow.t	11	raku parse error line 11: syntax error	method TOP($/) {
+S12-meta/primitives.t	13	raku parse error line 13: syntax error	submethod BUILD(:@!types) { }
+S12-methods/accessors.t	15	raku parse error line 15: syntax error	$x++ for flat 0, $.a;
+S12-methods/attribute-params.t	9	raku parse error line 9: syntax error	method ss($!s) { 3 }
+S12-methods/calling_sets.t	9	raku parse error line 9: syntax error	method foo { $.cnt += 4 }
+S12-methods/calling_syntax.t	33	raku parse error line 33: syntax error	throws-like q{$x.'foo'}, Exception, 'indirect method call using quotes, no parens';
+S12-methods/chaining.t	10	raku parse error line 10: syntax error	method bar ($self: $num) returns Foo {
+S12-methods/class-and-instance.t	6	raku parse error line 6: syntax error	has $.foo-bonus;
+S12-methods/delegation.t	5	raku parse error line 5: syntax error	method Str() handles 'uc' {
+S12-methods/default-trait.t	9	raku parse error line 9: syntax error	multi method doit(Int $x)            { 2 * $x };
+S12-methods/defer-call.t	30	raku parse error line 30: syntax error	multi method doit()  {$.tracker ~= 'foo,'}
+S12-methods/defer-next.t	10	raku parse error line 10: syntax error	(flat self.raku, @A)
+S12-methods/fallback.t	9	raku parse error line 9: syntax error	method FALLBACK($name, |c) { "$name, cannot {c[0]} with {c<meat>}" }
+S12-methods/how.t	5	raku parse error line 5: syntax error	lives-ok { 4.HOW.HOW }, 'Can access meta class of meta class';
+S12-methods/indirect_notation.t	16	raku parse error line 16: syntax error	my T1 $o .= new;
+S12-methods/instance.t	24	raku parse error line 24: syntax error	lives-ok { $val = doit $foo: 1,2,3; }, '... indirect method invocation works';
+S12-methods/lastcall.t	10	raku parse error line 10: syntax error	multi method doit($foo) { $.tracker ~= 'foo,' }   #OK not used
+S12-methods/lvalue.t	10	raku parse error line 10: syntax error	method l1 is rw {
+S12-methods/method-vs-sub.t	7	raku parse error line 7: syntax error	method foo($a:) { 'method' }   #OK not used
+S12-methods/multi.t	39	raku parse error line 39: syntax error	throws-like { $foo.baz() }, X::Multi::NoMatch,
+S12-methods/parallel-dispatch.t	12	raku parse error line 12: syntax error	trusts GLOBAL;
+S12-methods/private.t	8	raku parse error line 8: syntax error	method !private {
+S12-methods/qualified.t	5	raku parse error line 5: syntax error	subtest "simple" => {
+S12-methods/submethods.t	13	raku parse error line 13: syntax error	class Foo        { has $.foo_build; submethod BUILD() { $!foo_build++ } }
+S12-methods/syntax.t	8	raku parse error line 8: syntax error	multi method doit () { 'empty' };
+S12-methods/topic.t	10	raku parse error line 10: syntax error	method no_topic     { .^name }
+S12-methods/trusts.t	5	raku parse error line 5: syntax error	class Trustee { ... }
+S12-methods/typed-attributes.t	6	raku parse error line 6: syntax error	method baz returns Str { 'Baz' }
+S12-methods/what.t	17	raku parse error line 17: syntax error	ok((WHAT $a) === Int, "subroutine form of WHAT");
+S12-subset/multi-dispatch.t	7	raku parse error line 7: syntax error	subset Even of Int where { $_ % 2 == 0 };
+S12-subset/subtypes.t	42	raku parse error line 42: syntax error	multi factorial (Int $x where 0 ) { 1 };   #OK not used
+S13-overloading/metaoperators.t	8	raku parse error line 8: syntax error	sub infix:<wtf>($a, $b) { $a ~ "WTF" ~ $b };
+S13-overloading/operators.t	10	raku parse error line 10: syntax error	sub postfix:<§> ($x) {
+S13-overloading/typecasting-long.t	9	raku parse error line 9: syntax error	my multi testsub ($a,$b) {   #OK not used
+S13-type-casting/methods.t	8	raku parse error line 8: syntax error	method Stringy  { "foo" };
+S14-roles/anonymous.t	7	raku parse error line 7: syntax error	my $a = {:x};
+S14-roles/basic.t	18	raku parse error line 18: syntax error	ok ($bar ~~ Bar),               '... smartmatch our $bar to the Bar class';
+S14-roles/composition.t	50	raku parse error line 50: syntax error	ok C2 ~~ rA, 'class matches first role';
+S14-roles/conflicts.t	22	raku parse error line 22: syntax error	when "sentry" { return self.Sentry::shake() }
+S14-roles/crony.t	17	raku parse error line 17: syntax error	role OuterRole does InnerRole {
+S14-roles/instantiation.t	19	raku parse error line 19: syntax error	ok $obj ~~ SampleRole, "our instantiated role object smartmatches against our role";
+S14-roles/lexical.t	14	raku parse error line 14: syntax error	eval-lives-ok 'my role R1 {}', 'my role parses OK';
+S14-roles/namespaced.t	16	raku parse error line 16: syntax error	is(A::B.WHAT.gist, '(B)', 'A::B.WHAT stringifies to short name B');
+S14-roles/parameterized-basic.t	15	raku parse error line 15: syntax error	method x { 1 }
+S14-roles/parameterized-mixin.t	14	raku parse error line 14: syntax error	role InitialAttribVal[$val] {
+S14-roles/parameterized-type.t	14	raku parse error line 14: syntax error	subtest "Parameterization as constraint" => {
+S14-roles/parameter-subtyping.t	7	raku parse error line 7: syntax error	role R1[::T] { }
+S14-roles/stubs.t	8	raku parse error line 8: syntax error	role WithMultiStub { multi method a(Int) { ... }; };
+S14-traits/attributes.t	8	raku parse error line 8: syntax error	multi trait_mod:<is>(Attribute $a, :$noted!) {
+S14-traits/routines.t	11	raku parse error line 11: syntax error	multi trait_mod:<is>(Routine $code, description,  $arg) {
+S16-filehandles/argfiles.t	9	raku parse error line 9: syntax error	return $filename, open($filename, :w);
+S16-filehandles/chmod.t	38	raku parse error line 38: syntax error	my @result = chmod 0o000, $file;
+S16-filehandles/filestat.t	31	raku parse error line 31: syntax error	sleep 2; # tick for time comparisons
+S16-filehandles/filetest.t	19	raku parse error line 19: syntax error	dies-ok { 't' ~~ :d }, 'file test from before spec revision 27503 is error';
+S16-filehandles/io_in_for_loops.t	12	raku parse error line 12: syntax error	my $fh = open($filename, :w);
+S16-filehandles/io_in_while_loops.t	11	raku parse error line 11: syntax error	my $fh = open($filename, :w);
+S16-filehandles/io.t	23	raku parse error line 23: syntax error	my $out = open($filename, :w);
+S16-filehandles/mkdir_rmdir.t	8	raku parse error line 8: syntax error	nok $root.IO ~~ :e, "$root does not currently exist";
+S16-filehandles/open.t	21	raku parse error line 21: syntax error	open("create_this_file", :w);
+S16-filehandles/unlink.t	13	raku parse error line 13: syntax error	my $fh = open($fn, :w);
+S16-io/bare-say.t	9	raku parse error line 9: syntax error	throws-like 'say', X::Comp::Group, 'bare say is a compiler error';
+S16-io/basic-open.t	7	raku parse error line 7: syntax error	sub test_lines(@lines) is test-assertion {
+S16-io/bom.t	8	raku parse error line 8: syntax error	my $starts_with_bom = Buf.new(0xEF, 0xBB, 0xBF, 0x70, 0x69, 0x76, 0x6F);
+S16-io/comb.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S16-io/cwd.t	8	raku parse error line 8: syntax error	isa-ok $*CWD, IO::Path;
+S16-io/getc.t	10	raku parse error line 10: syntax error	my $fh = open($tmpfile, :w) or die "Couldn't open \"$tmpfile\" for writing: $!\n";
+S16-io/lines.t	18	raku parse error line 18: syntax error	for @endings -> (:key($eol), :value($EOL)) {
+S16-io/newline.t	6	raku parse error line 6: syntax error	use newline :lf;
+S16-io/note.t	9	raku parse error line 9: syntax error	method print(\arg) { $!Str ~= arg };
+S16-io/print.t	9	raku parse error line 9: syntax error	is_run 'print "ok\n"', { out => "ok\n" }, 'basic form of print';
+S16-io/say-and-ref.t	8	raku parse error line 8: syntax error	is_run q{my $a = [1, 2, 3]; say   $a},
+S16-io/say.t	9	raku parse error line 9: syntax error	method print(\arg) { $!Str ~= arg };
+S16-io/split.t	7	raku parse error line 7: syntax error	sub test-split($text,@result,|c) is test-assertion {
+S16-io/supply.t	9	raku parse error line 9: syntax error	dies-ok { IO::Handle.Supply(1000) }, 'can not be called as a class method';
+S16-io/tmpdir.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S16-io/words.t	7	raku parse error line 7: syntax error	my $file = make-temp-file content => qq:to/END/;
+S16-unfiled/rebindstdhandles.t	11	raku parse error line 11: syntax error	my $old_out := $*OUT;
+S19-command-line/arguments.t	15	raku parse error line 15: syntax error	is_run( $x, :args[$file],
+S19-command-line/dash-e.t	9	raku parse error line 9: syntax error	is_run $x,  :args['-e', 'q[Moin].print'],
+S19-command-line/help.t	7	raku parse error line 7: syntax error	is_run Str,  :args['--help'],
+S19-command-line-options/02-dash-n.t	24	raku parse error line 24: syntax error	".subst("\r\n", "\n", :g);
+S19-command-line-options/03-dash-p.t	27	raku parse error line 27: syntax error	out => "foo\n",   # expected
+S28-named-variables/cwd.t	15	raku parse error line 15: syntax error	if "$*CWD/t".IO ~~ :e {
+S29-any/are.t	1	raku parse error line 1: syntax error	use v6.e.PREVIEW;
+S29-any/cmp.t	7	raku parse error line 7: syntax error	is('a' cmp 'a', Order::Same, 'a is equal to a');
+S29-any/isa.t	42	raku parse error line 42: syntax error	throws-like 'isa(@arr, Array)', X::Undeclared::Symbols, 'no sub called isa()';
+S29-context/die.t	15	raku parse error line 15: syntax error	ok( !defined( try { die "foo"; 1; } ), 'die in try cuts off execution');
+S29-context/eval.t	18	raku parse error line 18: syntax error	return sub ($s) {
+S29-context/evalfile.t	14	raku parse error line 14: syntax error	my $fh = open("$tmpfile", :w);
+S29-context/exit.t	9	raku parse error line 9: syntax error	is_run 'say 3; exit; say 5',
+S29-context/sleep.t	10	raku parse error line 10: syntax error	my $nil is default(Nil);
+S29-conversions/hash.t	14	raku parse error line 14: syntax error	ok hash() ~~ Hash, 'hash() makes a hash';
+S29-conversions/ord_and_chr.t	126	raku parse error line 126: syntax error	for @maps -> $char, $code {
+S29-os/system.t	42	raku parse error line 42: syntax error	throws-like { run("program_that_does_not_exist_ignore_errors_please.exe") },
+S32-array/adverbs.t	11	raku parse error line 11: syntax error	sub gen(\a) is test-assertion {
+S32-array/bool.t	11	raku parse error line 11: syntax error	@a.push: 37;
+S32-array/create.t	18	raku parse error line 18: syntax error	ok +Array[Int].new(1, 2, 3, 4), "typed array";
+S32-array/delete.t	14	raku parse error line 14: syntax error	~@a.map({ $_ // "Any()" });
+S32-array/delete-adverb.t	26	raku parse error line 26: syntax error	is @a[3]:delete, $b, "Test for delete single element";
+S32-array/delete-adverb-native.t	28	raku parse error line 28: syntax error	my $b     = @a[my int$=3];
+S32-array/elems.t	42	raku parse error line 42: syntax error	throws-like 'elems(1,2,3,4)', X::TypeCheck::Argument,
+S32-array/end.t	47	raku parse error line 47: syntax error	throws-like 'end(1,2,3,4)', X::TypeCheck::Argument,
+S32-array/exists-adverb.t	10	raku parse error line 10: syntax error	ok @array[0]:exists,    "exists(positive index) on arrays (1)";
+S32-array/keys_values.t	14	raku parse error line 14: syntax error	is(~@array.keys, '0 1 2 3', '@arrays.keys works');
+S32-array/kv.t	16	raku parse error line 16: syntax error	@a = try { (1,).kv };
+S32-array/pairs.t	14	raku parse error line 14: syntax error	my @array = <a>;
+S32-array/perl.t	11	raku parse error line 11: syntax error	is-deeply $ra, @a, 'can we roundtrip simple array';
+S32-array/pop.t	21	raku parse error line 21: syntax error	$a = pop @pop;
+S32-array/push.t	41	raku parse error line 41: syntax error	ok( @p ~~ Array, '@p ~~ Array' );
+S32-array/rotate.t	9	raku parse error line 9: syntax error	is ~@a.rotate, 'b c d e a', 'Array.rotate defaults to +1';
+S32-array/shift.t	22	raku parse error line 22: syntax error	$a = shift @shift;
+S32-array/splice.t	13	raku parse error line 13: syntax error	) is test-assertion {
+S32-array/unshift.t	50	raku parse error line 50: syntax error	unshift @unshift, $val;
+S32-basics/warn.t	12	raku parse error line 12: syntax error	CONTROL {
+S32-basics/xxKEY.t	6	raku parse error line 6: syntax error	my Int %hi       = a => 42, b => 666;
+S32-basics/xxPOS.t	8	raku parse error line 8: syntax error	for $@a, Any, $@ai, Int -> \a, \T {
+S32-basics/xxPOS-native.t	8	raku parse error line 8: syntax error	my @a := array[T].new( 42, 666 );
+S32-container/cat.t	17	raku parse error line 17: syntax error	ok(cat() eqv (), 'cat null identity');
+S32-container/roundrobin.t	32	raku parse error line 32: syntax error	my %h = %(:a);
+S32-container/stringify.t	14	raku parse error line 14: syntax error	is ~Set, "", "~Set is empty string";
+S32-container/zip.t	20	raku parse error line 20: syntax error	is(~zip([@a], [@b]), ~@e, "simple zip");
+S32-exceptions/misc.t	8	raku parse error line 8: syntax error	throws-like 'sub foo(--> NoSuchType) { }; foo', X::Undeclared, what => { m/'Type'/ }, symbol => { m/
+S32-hash/adverbs.t	13	raku parse error line 13: syntax error	h{$_} = ++$i for 'a'..'d';
+S32-hash/antipairs.t	9	raku parse error line 9: syntax error	isa-ok %h.antipairs, Seq, 'Hash.antipairs returns a Seq';
+S32-hash/delete.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S32-hash/delete-adverb.t	32	raku parse error line 32: syntax error	is %h<b>:delete, $b, "Test for delete single key";
+S32-hash/exists.t	15	raku parse error line 15: syntax error	%h = (
+S32-hash/exists-adverb.t	27	raku parse error line 27: syntax error	isa-ok %h<b>:exists, Bool,  "Bool test for exists single key";
+S32-hash/invert.t	9	raku parse error line 9: syntax error	isa-ok %h.invert, Seq, 'Hash.invert returns a Seq';
+S32-hash/keys_values.t	14	raku parse error line 14: syntax error	is(~%hash.keys.sort, "a b c d", '%hash.keys works');
+S32-hash/kv.t	16	raku parse error line 16: syntax error	is(~@kv.sort, "a b c d x xx xxx xxxx",  '%hash.kv has no inner list');
+S32-hash/pairs.t	47	raku parse error line 47: syntax error	my $hash_of_2_pairs = {'a'=>'b','c'=>'d'};
+S32-hash/perl.t	13	raku parse error line 13: syntax error	is-deeply $rh, $%h, 'can we roundtrip simple hash';
+S32-hash/push.t	11	raku parse error line 11: syntax error	my ($r, %x);
+S32-hash/slice.t	16	raku parse error line 16: syntax error	is(@s, %hash{1,3,5},               "basic slice");
+S32-io/IO-Socket-Async.t	12	raku parse error line 12: syntax error	IO::Socket::Async.listen('veryunlikelyhostname.bogus', 5000).tap(quit => {
+S32-io/IO-Socket-Async-UDP.t	10	raku parse error line 10: syntax error	my $sock = IO::Socket::Async.bind-udp($s-address, $port);
+S32-io/chdir.t	9	raku parse error line 9: syntax error	throws-like ' chdir() ', Exception, 'Cannot call chdir without an argument';
+S32-io/copy.t	12	raku parse error line 12: syntax error	my $fh = open($existing-file, :w);
+S32-io/dir.t	14	raku parse error line 14: syntax error	ok @files>>.relative.grep('t/'), 'current directory contains a t/ dir';
+S32-io/io-handle.t	12	raku parse error line 12: syntax error	my $fh = $path.IO.open(:w);
+S32-io/io-spec-unix.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S32-io/io-spec-win.t	5	raku parse error line 5: syntax error	my $win32 = IO::Spec::Win32;
+S32-io/io-spec-cygwin.t	5	raku parse error line 5: syntax error	my $cygwin = IO::Spec::Cygwin;
+S32-io/io-path-unix.t	7	raku parse error line 7: syntax error	my $*SPEC = IO::Spec::Unix;
+S32-io/io-path-win.t	6	raku parse error line 6: syntax error	my $*SPEC = IO::Spec::Win32;  # .IO needs to have IO::Spec::Win32
+S32-io/io-path-cygwin.t	7	raku parse error line 7: syntax error	my $*SPEC = IO::Spec::Cygwin;
+S32-io/io-path.t	9	raku parse error line 9: syntax error	constant @Path-Types
+S32-io/IO-Socket-INET.t	11	raku parse error line 11: syntax error	{
+S32-io/move.t	12	raku parse error line 12: syntax error	my $fh = open($existing-file1, :w);
+S32-io/native-descriptor.t	10	raku parse error line 10: syntax error	given open($path, :w) {
+S32-io/note.t	11	raku parse error line 11: syntax error	status => 0,
+S32-io/open.t	27	raku parse error line 27: syntax error	Pair $ (:key($desc), :value(&tests))
+S32-io/other.t	6	raku parse error line 6: syntax error	is-deeply (quietly IO::Special.Str), '', 'IO::Special:U.Str does not crash';
+S32-io/pipe.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S32-io/rename.t	10	raku parse error line 10: syntax error	my $fh = open($existing-file1, :w);
+S32-io/socket-recv-vs-read.t	13	raku parse error line 13: syntax error	my ($send-rest, $client);
+S32-io/slurp.t	12	raku parse error line 12: syntax error	dies-ok { slurp "does-not-exist" }, "slurp() on non-existent files fails";
+S32-io/spurt.t	15	raku parse error line 15: syntax error	all-basic({ $path.IO });
+S32-list/categorize.t	9	raku parse error line 9: syntax error	my %expected1 := :{
+S32-list/classify.t	9	raku parse error line 9: syntax error	my %classified1 := :{ even => [2,4],     odd => [1,3] }
+S32-list/create.t	25	raku parse error line 25: syntax error	my @list-pos is List = 1, 2, 3;
+S32-list/combinations.t	7	raku parse error line 7: syntax error	is-deeply (1, 2, 3).combinations(1), ((1,), (2,), (3,)),
+S32-list/end.t	18	raku parse error line 18: syntax error	@array = 1...43;
+S32-list/first.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/first-end.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/first-end-k.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/first-end-p.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/first-end-v.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/first-k.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/first-p.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/first-v.t	7	raku parse error line 7: syntax error	my @list = (1 ... 10);
+S32-list/grep.t	16	raku parse error line 16: syntax error	my @result = grep { ($_ % 2) }, @list;
+S32-list/grep-k.t	9	raku parse error line 9: syntax error	is grep( { ($_ % 2) }, @list, :k ).grep(Int), (0,2,4,6,8).list.item, 'do we get Ints';
+S32-list/grep-kv.t	9	raku parse error line 9: syntax error	is grep( { ($_ % 2) }, @list, :kv ).grep(Int), [0,1,2,3,4,5,6,7,8,9],
+S32-list/grep-p.t	9	raku parse error line 9: syntax error	is grep( { ($_ % 2) }, @list, :p ).grep(Pair), [0=>1,2=>3,4=>5,6=>7,8=>9],
+S32-list/grep-v.t	9	raku parse error line 9: syntax error	is grep( { ($_ % 2) }, @list, :v ).grep(Int), [1,3,5,7,9],
+S32-list/head.t	13	raku parse error line 13: syntax error	is-deeply $list.head, "a", 'List.head works';
+S32-list/join.t	17	raku parse error line 17: syntax error	my $joined2 = join("|", @list);
+S32-list/map_function_return_values.t	12	raku parse error line 12: syntax error	%ret = map { $_ => uc $_; }, $text.comb;
+S32-list/map.t	23	raku parse error line 23: syntax error	my @result = @list.map():{ $_ * 2 };
+S32-list/minmax.t	21	raku parse error line 21: syntax error	is (@array.min: { $^a <=> $^b }), -9,
+S32-list/permutations.t	7	raku parse error line 7: syntax error	is-deeply (1, 2, 3).permutations,
+S32-list/pick.t	18	raku parse error line 18: syntax error	ok ?(@array.pick eq any <a b c d>), "pick works on arrays";
+S32-list/produce.t	12	raku parse error line 12: syntax error	is-deeply (produce *+*, 1..10), +«<1 3 6 10 15 21 28 36 45 55>, "produce listop works on a range (+
+S32-list/reduce.t	23	raku parse error line 23: syntax error	is((reduce { $^a + $^b }, 0, |@array), $sum, "basic reduce works (1)");
+S32-list/repeated.t	13	raku parse error line 13: syntax error	is-deeply @array.repeated.List, <b b b e b b b>,
+S32-list/reverse.t	63	raku parse error line 63: syntax error	ok(@a.reverse ~~ Iterable, '.reverse returns an Iterable');
+S32-list/roll.t	17	raku parse error line 17: syntax error	ok ?(@array.roll eq any <a b c d>), "roll works on arrays";
+S32-list/rotor.t	9	raku parse error line 9: syntax error	$descr //= "rotor({pos.join(', ')}{ ', :partial' if %named<partial>}) (range)";
+S32-list/seq.t	9	raku parse error line 9: syntax error	my @a = (1,2,3).map(*.Int);
+S32-list/sort.t	47	raku parse error line 47: syntax error	my @s = sort { $^a <=> $^b }, @a;
+S32-list/tail.t	13	raku parse error line 13: syntax error	is-deeply $list.tail, "b", 'List.tail works';
+S32-list/unique.t	13	raku parse error line 13: syntax error	is-deeply @array.unique.List,  <a b c d e f>,
+S32-list/squish.t	13	raku parse error line 13: syntax error	is-deeply @array.squish,     <a b c d e f a>.Seq, 'method form';
+S32-num/abs.t	22	raku parse error line 22: syntax error	is(.abs, -$_, 'got the right absolute value for $_='~$_);
+S32-num/base.t	20	raku parse error line 20: syntax error	fails-like ｢1.base: 10, -1｣, X::OutOfRange, "X::OutOfRange negative digits arg fails";
+S32-num/complex.t	7	raku parse error line 7: syntax error	is-deeply Complex.new, 0+0i, 'Complex.new() gives 0+0i';
+S32-num/cool-num.t	25	raku parse error line 25: syntax error	is-approx "3".exp, 3.exp, '"3".exp == 3.exp';
+S32-num/exp.t	23	raku parse error line 23: syntax error	is-approx((1i*$pi).exp, -1, '(i pi).exp == -1');
+S32-num/expmod.t	27	raku parse error line 27: syntax error	subtest '.expmod with negative powers does not hang' => {
+S32-num/fatrat.t	16	raku parse error line 16: syntax error	is-approx (EVAL FatRat.new(1, 3).raku), 1/3, 'EVAL FatRat.new(1, 3).raku is 1/3';
+S32-num/int.t	65	raku parse error line 65: syntax error	isa-ok ?0, Bool, "?0 is Bool";
+S32-num/is-prime.t	21	raku parse error line 21: syntax error	subtest 'all primes < 100' => {
+S32-num/log.t	75	raku parse error line 75: syntax error	is-approx(log(-1 + 0i,), 0 + 1i * $pi, "got the log of -1");
+S32-num/narrow.t	6	raku parse error line 6: syntax error	is     (1+2i).narrow,     1+2i, 'narrow on complex with imaginary part != 0';
+S32-num/pi.t	20	raku parse error line 20: syntax error	throws-like "3 + pi()", X::Undeclared, "pi() is not a sub";
+S32-num/polar.t	13	raku parse error line 13: syntax error	sub check_polar($complex, $magnitude_want, $angle_want) is test-assertion {
+S32-num/polymod.t	11	raku parse error line 11: syntax error	is   1234567890.polymod(10 xx *), (0,9,8,7,6,5,4,3,2,1), '  1234567890 10 xx *';
+S32-num/power.t	17	raku parse error line 17: syntax error	is-deeply      0  ** $large-even,   0, "  0 ** $large-even == 0";
+S32-num/rand.t	16	raku parse error line 16: syntax error	sub test_rand_range(Int $num) is test-assertion {
+S32-num/rat.t	18	raku parse error line 18: syntax error	is( (EVAL Rat.new(1, 3).raku), 1/3, 'EVAL Rat.new(1, 3).raku is 1/3' );
+S32-num/real-bridge.t	11	raku parse error line 11: syntax error	has Int $.one-hundredths;
+S32-num/roots.t	8	raku parse error line 8: syntax error	my ($x,$y);
+S32-num/rounders.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S32-num/rshift_pos_amount.t	6	raku parse error line 6: syntax error	my @got = (-300..300) X+> (0..9);
+S32-num/sign.t	51	raku parse error line 51: syntax error	throws-like { sign(Int) }, Exception;
+S32-num/sqrt.t	29	raku parse error line 29: syntax error	is(sqrt(-Inf), 0+Inf\i, 'sqrt(-Inf) is 0+Inf\\i');
+S32-num/stringify.t	7	raku parse error line 7: syntax error	sub Complex_str_test($value, $str_nucleus) is test-assertion {
+S32-num/unpolar.t	9	raku parse error line 9: syntax error	is-approx(cis(0),        1 + 0i,       "cis(0)     == 1");
+S32-scalar/defined.t	96	raku parse error line 96: syntax error	isa-ok defined(Mu), Bool, 'defined(Mu) returns a Bool';
+S32-scalar/perl.t	13	raku parse error line 13: syntax error	is-deeply $ra, $a, 'can we roundtrip simple scalar';
+S32-scalar/undef.t	27	raku parse error line 27: syntax error	our $GLOBAL;
+S32-str/bool.t	5	raku parse error line 5: syntax error	isa-ok ?'', Bool, "?'' is Bool";
+S32-str/capitalize.t	25	raku parse error line 25: syntax error	is .wordcase, "Pugs Is Cool!", 'wordcase() uses \$_ as default';
+S32-str/chop.t	46	raku parse error line 46: syntax error	throws-like 'chop(Str)',    Exception;
+S32-str/comb.t	9	raku parse error line 9: syntax error	is "a".comb, <a>, 'default matcher on single character';
+S32-str/contains.t	5	raku parse error line 5: syntax error	dies-ok { 42.contains: Str },
+S32-str/encode.t	7	raku parse error line 7: syntax error	ok 'ab'.encode('ASCII') ~~ blob8, '$str.encode returns a blob8';
+S32-str/ends-with.t	7	raku parse error line 7: syntax error	dies-ok { 42.ends-with: Str },
+S32-str/flip.t	18	raku parse error line 18: syntax error	is( $a .= flip, '! dlroW olleH', "after a .=flip" );
+S32-str/indent.t	34	raku parse error line 34: syntax error	"Same space - .indent($i) prefix={$prefix.ord.fmt('"\\x[%x]"')}";
+S32-str/index.t	87	raku parse error line 87: syntax error	fails-like { index("xxy", "y", -1) }, X::OutOfRange,
+S32-str/indices.t	8	raku parse error line 8: syntax error	isa-ok 'abc'.indices('b')[0], Int;
+S32-str/lc.t	17	raku parse error line 17: syntax error	my $x = .lc;
+S32-str/length.t	17	raku parse error line 17: syntax error	throws-like({"moose".length}, X::Method::NotFound, 'Str.length properly unimplemented');
+S32-str/lines.t	13	raku parse error line 13: syntax error	is "a\nb\n\nc\n".lines(*).join('|'),
+S32-str/numeric.t	5	raku parse error line 5: syntax error	sub check($str, $expected_type, $expected_number, $desc?) is test-assertion {
+S32-str/ords.t	2	raku parse error line 2: syntax error	use lib $*PROGRAM.parent(2).add: 'packages/Test-Helpers';
+S32-str/pos.t	9	raku parse error line 9: syntax error	throws-like '$str.pos', X::Method::NotFound, 'Str.pos superseeded by $/.to';
+S32-str/rindex.t	80	raku parse error line 80: syntax error	ok rindex("xxyxx", "y", -1) ~~ Failure, 'rindex with negative start position fails (1)';
+S32-str/samecase.t	26	raku parse error line 26: syntax error	is( $a .= samecase('aaaaaaaaaaaaaaaaaaaaaaaa'), 'just another raku hacker', 'after a .= samecase(...
+S32-str/split-simple.t	13	raku parse error line 13: syntax error	sub split_test(@splitted, @expected, Str $desc) is test-assertion {
+S32-str/split.t	20	raku parse error line 20: syntax error	) is test-assertion {
+S32-str/sprintf.t	1	raku parse error line 1: syntax error	use v6.e.PREVIEW;
+S32-str/sprintf-b.t	1	raku parse error line 1: syntax error	use v6.e.PREVIEW;
+S32-str/starts-with.t	7	raku parse error line 7: syntax error	dies-ok { 42.starts-with: Str },
+S32-str/substr.t	15	raku parse error line 15: syntax error	is(substr($str, *-1), "r", "last char");
+S32-str/substr-eq.t	7	raku parse error line 7: syntax error	dies-ok { 42.substr-eq: Str },
+S32-str/substr-rw.t	8	raku parse error line 8: syntax error	substr-rw($str, 0, 5) = "gloop";
+S32-str/trim.t	142	raku parse error line 142: syntax error	is $/.trim, 'ab', 'Match.trim';
+S32-str/uc.t	18	raku parse error line 18: syntax error	my $x = .uc;
+S32-str/utf8-c8.t	13	raku parse error line 13: syntax error	lives-ok { $test-str = Buf.new(ord('A'), 0xFE, ord('Z')).decode('utf8-c8') },
+S32-str/val.t	5	raku parse error line 5: syntax error	my %type2allo{Any} = Int, IntStr, Rat, RatStr, Num, NumStr, Complex, ComplexStr;
+S32-str/words.t	11	raku parse error line 11: syntax error	is "a".words, <a>, 'words on single character';
+S32-temporal/calendar.t	14	raku parse error line 14: syntax error	:hour(17), :minute(33), :second(2.9))
+S32-temporal/Date.t	7	raku parse error line 7: syntax error	is Date.today.clone(:formatter{'test is good'}).Str, 'test is good',
+S32-temporal/DateTime-Instant-Duration.t	20	raku parse error line 20: syntax error	sub dti(*%args) { DateTime.new(|{year => 1984, %args}).Instant }
+S32-temporal/DateTime.t	7	raku parse error line 7: syntax error	sub dt(*%args) { DateTime.new(|{year => 1984, %args}) }
+S32-temporal/local.t	7	raku parse error line 7: syntax error	sub ds(Str $s) { DateTime.new: $s }
+S32-trig/atan2.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/cosech.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/cosec.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/cosh.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/cos.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/cotanh.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/cotan.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/e.t	14	raku parse error line 14: syntax error	throws-like 'e()', X::Undeclared, "e(), dies as a sub";
+S32-trig/sech.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/sec.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/simple.t	5	raku parse error line 5: syntax error	is-approx sin(0), 0, 'sin(0)';
+S32-trig/sinh.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/sin.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/tanh.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+S32-trig/tan.t	30	raku parse error line 30: syntax error	my @cosines = @sines.map({; $_.key - degrees-to-radians(90) => $_.value }); #OK
+integration/99problems-01-to-10.t	11	raku parse error line 11: syntax error	is <a b c d>.[*-1], 'd', 'Find the last box of a list.';
+integration/99problems-11-to-20.t	15	raku parse error line 15: syntax error	sub encode (*@list)returns Array {
+integration/99problems-21-to-30.t	42	raku parse error line 42: syntax error	ok ?(@rand (<=) @letters), '... and they should be in the letters';
+integration/99problems-31-to-40.t	17	raku parse error line 17: syntax error	sub is_prime(Int $num) returns Bool {
+integration/99problems-41-to-50.t	34	raku parse error line 34: syntax error	push @p, $x unless grep { $x % $_ == 0 }, 2..ceiling sqrt $x;
+integration/99problems-51-to-60.t	21	raku parse error line 21: syntax error	sub istree($obj) returns Bool {
+integration/99problems-61-to-70.t	17	raku parse error line 17: syntax error	return 1 if (not defined($tree[1])) and (not defined($tree[2]));
+integration/advent2009-day02.t	9	raku parse error line 9: syntax error	is(:16<1337f00d>.fmt('%X'), '1337F00D');
+integration/advent2009-day03.t	17	raku parse error line 17: syntax error	return qq<"$x" is a string.>;
+integration/advent2009-day04.t	16	raku parse error line 16: syntax error	throws-like { EVAL q[fac('oh noes i am a string')] }, X::TypeCheck::Argument;
+integration/advent2009-day05.t	19	raku parse error line 19: syntax error	ok ([<=] @a), 'All elements of list are numerically sorted';
+integration/advent2009-day06.t	13	raku parse error line 13: syntax error	my @pi-sin = @pi>>.sin;
+integration/advent2009-day07.t	16	raku parse error line 16: syntax error	for 1, 2, 3, 4 -> $i, $j { $a ~= "$j $i " }
+integration/advent2009-day08.t	7	raku parse error line 7: syntax error	multi sub very_odd(Int $odd where {$odd % 2}) { Bool::True }
+integration/advent2009-day09.t	10	raku parse error line 10: syntax error	sub grade_essay(Str $essay, Int $grade where 0..5) { #Type Essay replace w/ Str to avoid extraneous 
+integration/advent2009-day10.t	24	raku parse error line 24: syntax error	ok ($/ = Inventory.parse('1234 3 red This is a description')) , "Standard line parsed ok";
+integration/advent2009-day11.t	28	raku parse error line 28: syntax error	has Dog $.dog handles (dog_name => 'name');
+integration/advent2009-day12.t	9	raku parse error line 9: syntax error	eval-lives-ok 'use Fancy::Utilities', 'Can use Fancy::Utilities';
+integration/advent2009-day13.t	23	raku parse error line 23: syntax error	ok 'testing' ~~ /t/ & /s/ & /g/ , "'testing' ~~ /t/ & /s/ & /g/";
+integration/advent2009-day14.t	7	raku parse error line 7: syntax error	is-deeply (3/7).WHAT, Rat;
+integration/advent2009-day15.t	26	raku parse error line 26: syntax error	for <♥ ♣ ♦ ♠> -> $suit
+integration/advent2009-day16.t	21	raku parse error line 21: syntax error	when * > 0.75 { return 'Quite likely'  }
+integration/advent2009-day17.t	11	raku parse error line 11: syntax error	my $upper-right = -2 + (5/4)i;
+integration/advent2009-day18.t	7	raku parse error line 7: syntax error	has $.battery-type;
+integration/advent2009-day19.t	9	raku parse error line 9: syntax error	is @x.pick(*).elems, @x.elems, 'pick(*)';
+integration/advent2009-day20.t	7	raku parse error line 7: syntax error	sub foo (Int $i, @stuff, $blah = 5) { ... }   #OK not used
+integration/advent2009-day21.t	15	raku parse error line 15: syntax error	has Question::Answer @.answers is rw;
+integration/advent2009-day22.t	11	raku parse error line 11: syntax error	is 3!, 6, 'factorial operator';
+integration/advent2009-day23.t	7	raku parse error line 7: syntax error	my @gather-result = gather { take $_ for 5..7 };
+integration/advent2009-day24.t	16	raku parse error line 16: syntax error	proto token statement { <...> }
+integration/advent2010-day03.t	7	raku parse error line 7: syntax error	sub temp_name(Str $fnbase is copy) {
+integration/advent2010-day04.t	7	raku parse error line 7: syntax error	my @even-numbers  = 0, 2 ... *;    # arithmetic seq
+integration/advent2010-day06.t	6	raku parse error line 6: syntax error	is-deeply [(1, 2) X, (10, 11)], [(1, 10), (1, 11), (2, 10), (2, 11)], 'infix:<X>';
+integration/advent2010-day07.t	7	raku parse error line 7: syntax error	throws-like {EVAL '{ $var = 42 }'}, X::Undeclared;
+integration/advent2010-day08.t	7	raku parse error line 7: syntax error	is do {flip "hello"}, "olleh", 'string reversal';
+integration/advent2010-day10.t	6	raku parse error line 6: syntax error	my @random-nums = (1..100).pick(*);
+integration/advent2010-day11.t	15	raku parse error line 15: syntax error	sub sliding-window(@a, $n) is export {
+integration/advent2010-day12.t	6	raku parse error line 6: syntax error	is-deeply [1, 2, 4 ... 32], [1, 2, 4, 8, 16, 32], 'sequence';
+integration/advent2010-day14.t	28	raku parse error line 28: syntax error	my $*OUT = class {
+integration/advent2010-day16.t	5	raku parse error line 5: syntax error	isa-ok time, Int, 'time';
+integration/advent2010-day19.t	6	raku parse error line 6: syntax error	my $value = 42 but role { method Bool  { False } };
+integration/advent2010-day21.t	6	raku parse error line 6: syntax error	sub rot13($text) { $text.trans( "A..Za..z" => "N..ZA..Mn..za..m" ) }
+integration/advent2010-day22.t	5	raku parse error line 5: syntax error	my $rat-atts = join(', ', Rat.^attributes);
+integration/advent2010-day23.t	8	raku parse error line 8: syntax error	my @sorted = @unsorted.sort: { .lc };
+integration/advent2011-day03.t	6	raku parse error line 6: syntax error	use newline :lf;
+integration/advent2011-day04.t	8	raku parse error line 8: syntax error	our %cache;
+integration/advent2011-day05.t	6	raku parse error line 6: syntax error	is-deeply [gather for 1..20 { .take if $_ == 9  ff  $_ == 13; }], [9, 10, 11, 12, 13];
+integration/advent2011-day07.t	17	raku parse error line 17: syntax error	ok %t<MyGrammar><num><calls>, "num calls recorded";
+integration/advent2011-day10.t	15	raku parse error line 15: syntax error	is $=pod[0].contents[0].contents, 'Some pod content', '$=pod';
+integration/advent2011-day11.t	5	raku parse error line 5: syntax error	class Trusty {...}
+integration/advent2011-day14.t	9	raku parse error line 9: syntax error	lives-ok {EVAL q:to"--END--"}, 'single inheritance (lives)';
+integration/advent2011-day15.t	7	raku parse error line 7: syntax error	$x.sqrt;
+integration/advent2011-day16.t	17	raku parse error line 17: syntax error	is My::Class.new.foo, 5, 'new object';
+integration/advent2011-day20.t	7	raku parse error line 7: syntax error	is-deeply (keys %song), %song.keys, 'Hash .keys';
+integration/advent2011-day22.t	6	raku parse error line 6: syntax error	sub infix:<mean>($a, $b) { ($a + $b) / 2 };
+integration/advent2011-day23.t	10	raku parse error line 10: syntax error	our @array = 10, *+10 ... 250;
+integration/advent2011-day24.t	20	raku parse error line 20: syntax error	my $unambiguous = q:to'--END--';
+integration/advent2012-day02.t	4	raku parse error line 4: syntax error	is sub { "lol, I'm so anonymous!" }(), "lol, I'm so anonymous!", 'anon sub';
+integration/advent2012-day03.t	6	raku parse error line 6: syntax error	subset PosReal of Real where * >= 0;
+integration/advent2012-day04.t	5	raku parse error line 5: syntax error	is do { [+] grep * %% 2, (1, 2, *+* ...^ * > 4_000_000) }, 4613732, 'fibonacci';
+integration/advent2012-day06.t	7	raku parse error line 7: syntax error	my $main = q:to"END-MAIN";
+integration/advent2012-day09.t	5	raku parse error line 5: syntax error	is ~("food and drink" ~~ / foo | food /), 'food', 'ltm';
+integration/advent2012-day10.t	6	raku parse error line 6: syntax error	is 'Everybody loves Magical Trevor', q<Everybody loves Magical Trevor>;
+integration/advent2012-day12.t	8	raku parse error line 8: syntax error	has $.request-method;
+integration/advent2012-day13.t	6	raku parse error line 6: syntax error	our $slurp1 = q<aa bb cc Dd ee ZZ>;
+integration/advent2012-day14.t	6	raku parse error line 6: syntax error	sub is-prime-alpha($n) { $n %% none 2..sqrt $n }
+integration/advent2012-day15.t	4	raku parse error line 4: syntax error	our $in_prompt;
+integration/advent2012-day19.t	9	raku parse error line 9: syntax error	sub postfix:<k> ($a) is tighter(&infix:<*>) { $a * 1000 }
+integration/advent2012-day20.t	12	raku parse error line 12: syntax error	my $width = max map *.elems, @piles;
+integration/advent2012-day21.t	9	raku parse error line 9: syntax error	our $basic = q:to"END";
+integration/advent2012-day22.t	8	raku parse error line 8: syntax error	@g.push(.Str) for m:g/(\d+)/;
+integration/advent2012-day24.t	6	raku parse error line 6: syntax error	constant @months = <January February March April May June July
+integration/advent2013-day02.t	13	raku parse error line 13: syntax error	my Dog $dog .= new(:$name);
+integration/advent2013-day04.t	5	raku parse error line 5: syntax error	is q:to"FIN", "Hello again.\n", 'basic heredoc with :to';
+integration/advent2013-day06.t	22	raku parse error line 22: syntax error	has $.day-of-week;
+integration/advent2013-day07.t	5	raku parse error line 5: syntax error	only sub infix:<<"\x2286">>($a, $b --> Bool) {
+integration/advent2013-day08.t	6	raku parse error line 6: syntax error	method new (*@values is copy, *%named) {
+integration/advent2013-day09.t	6	raku parse error line 6: syntax error	name => 'Fred',
+integration/advent2013-day10.t	4	raku parse error line 4: syntax error	sub is-on(:$adverb) is test-assertion {
+integration/advent2013-day12.t	9	raku parse error line 9: syntax error	is-deeply %h<a>:exists, True, 'exists';
+integration/advent2013-day14.t	7	raku parse error line 7: syntax error	my $p1000 = start {
+integration/advent2013-day15.t	7	raku parse error line 7: syntax error	is-deeply 0b1010, 10, 'binary';
+integration/advent2013-day18.t	4	raku parse error line 4: syntax error	my grammar CardGame {
+integration/advent2013-day19.t	9	raku parse error line 9: syntax error	push %measured{$test}, $value;
+integration/advent2013-day20.t	6	raku parse error line 6: syntax error	is-deeply $a, 42, 'scalar assignment sanity';
+integration/advent2013-day21.t	9	raku parse error line 9: syntax error	throws-like {EVAL 'greet()'}, X::TypeCheck::Argument;
+integration/advent2013-day22.t	4	raku parse error line 4: syntax error	sub postfix:<!>($N) {
+integration/advent2013-day23.t	6	raku parse error line 6: syntax error	my @sorted = sort { $^a <=> $^b }, @values;
+integration/advent2014-day05.t	7	raku parse error line 7: syntax error	sub print($a) { @seen.push: $a };  # assume .act serializes
+integration/advent2014-day13.t	6	raku parse error line 6: syntax error	sub say(*@a) { $said = @a.map(*.gist).join }   # don't care about the new line
+integration/advent2014-day16.t	6	raku parse error line 6: syntax error	sub say(*@a) { $said = @a>>.gist.join }   # don't care about the new line
+integration/code-blocks-as-sub-args.t	13	raku parse error line 13: syntax error	throws-like {foo(-> { die "test" }, "a", "b")},
+integration/error-reporting.t	7	raku parse error line 7: syntax error	is_run "'a' =~ /foo/", {
+integration/lazy-bentley-generator.t	6	raku parse error line 6: syntax error	constant $mod = 1_000_000_000;
+integration/lexical-array-in-inner-block.t	10	raku parse error line 10: syntax error	is($a[0], $n, "Testing for a lexical variable inside a block.")
+integration/lexicals-and-attributes.t	14	raku parse error line 14: syntax error	return self.new(a => self.a, b => $newval);
+integration/man-or-boy.t	19	raku parse error line 19: syntax error	sub A($k is copy, &x1, &x2, &x3, &x4, &x5) {
+integration/method-calls-and-instantiation.t	22	raku parse error line 22: syntax error	my Bar $var .= new;
+integration/no-indirect-new.t	9	raku parse error line 9: syntax error	class A { has $.b }
+integration/packages.t	8	raku parse error line 8: syntax error	BEGIN { plan 3 };
+integration/pair-in-array.t	12	raku parse error line 12: syntax error	sub catWhat (*@a) { [~] map -> $v { WHAT($v).gist }, @a; }
+integration/passing-pair-class-to-sub.t	11	raku parse error line 11: syntax error	my sub foo ($x) { $x.raku }
+integration/precompiled.t	22	raku parse error line 22: syntax error	loads_ok '42', "loads_ok is working";
+integration/real-strings.t	17	raku parse error line 17: syntax error	my $x = 'abc'.split(/b/).[0];
+integration/role-composition-vs-attribute.t	6	raku parse error line 6: syntax error	role B { method x { 3; } }
+integration/rule-in-class-Str.t	15	raku parse error line 15: syntax error	if ("bar" ~~ m/<-[a]>/) {
+integration/say-crash.t	8	raku parse error line 8: syntax error	my $fh = open $filename, :w;
+integration/substr-after-match-in-gather-in-for.t	10	raku parse error line 10: syntax error	$c .= substr($/.from);  # remove everything before the ws
+integration/topic_in_double_loop.t	9	raku parse error line 9: syntax error	ok $_ !%% 2, '$_ has a sensible value here';
+integration/variables-in-do.t	8	raku parse error line 8: syntax error	do for <a b> -> $j {
+integration/weird-errors.t	10	raku parse error line 10: syntax error	{ status => 0, out => -> $o {  $o.chars > 2 }},

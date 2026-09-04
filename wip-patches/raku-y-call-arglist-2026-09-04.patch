@@ -1,0 +1,16 @@
+# Found uncommitted in the ceo tree at 16:25 CDT 2026-09-04 (no ledger line, no witness). NEVER COMPILED: raku.tab.c is a tracked generated file that make compiles as-is (no bison rule), so this edit was never in any binary; the 924/924, smoke 10/10 and ladder numbers beside it describe origin's grammar. Reverted by ceo CEO-232; re-apply with a witness.
+diff --git a/src/parsers/raku/raku.y b/src/parsers/raku/raku.y
+index 87fddb5c8..e67c81377 100644
+--- a/src/parsers/raku/raku.y
++++ b/src/parsers/raku/raku.y
+@@ -602,8 +602,8 @@ stmt
+         { $$=make_call(testop_rt($1)); free($1); }
+     | TESTOP arg_list ';'
+         { tree_t *c=make_call(testop_rt($1)); free($1); ExprList *a=$2; if(a){ for(int i=0;i<a->count;i++) expr_add_child(c,a->items[i]); exprlist_free(a); } $$=c; }
+-    | IDENT VAR_ARRAY ';'
+-        { tree_t *c=make_call($1); free($1); expr_add_child(c,var_node($2)); $$=c; }
++    | IDENT arg_list ';'
++        { tree_t *c=make_call($1); free($1); ExprList *a=$2; if(a){ for(int i=0;i<a->count;i++) expr_add_child(c,a->items[i]); exprlist_free(a); } $$=c; }
+     | KW_SAY expr ';'
+         { tree_t *c=ast_node_new(TT_SAY); expr_add_child(c,$2); $$=c; }
+     | KW_SAY expr ',' arg_list ';'
