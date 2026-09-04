@@ -63,3 +63,68 @@ jcon suite: m3 PASS **42→44** / FAIL 25→23, m4 PASS **40→42** / FAIL 31→
 
 1. Bless `PASS=266 FAIL=4 BADEXIT=1 XFAIL=26 XPASS=1 TOTAL=298` as the current Icon STRICT watermark (supersedes `264/6/1/27`); identify and promote the stale XFAIL marker behind the XPASS.
 2. `icon-jcon-class-coexpr-create-arg-capture` (this FINDING's largest discovery) is design-scale work, same shape as N-2 — worth a dedicated session/rung of its own rather than sitting as a jcon-suite sub-row indefinitely.
+
+## 4th-pass addendum (2026-09-03/04, seat02, FLEET-16) — FAIL-bucket diff-size sweep continued, one new class row minted
+
+Board unchanged this pass (m3 43/81, m4 41/81 — investigation only, correctly so; see below). Continued the 3rd
+pass's diff-size-sorted sweep of the 22 previously-unexamined FAIL programs (`substring` and `traceback` next
+in line after `lists`/`radix`/`arith`/`case`), then went deeper into `ck.icn` since its 52-line diff turned out
+to be a genuine 3-sub-bug cluster, one of which fully root-caused.
+
+**`substring.icn` (28-line diff) — confirmed second witness of the SAME oracle-disagreement class as
+`lists.icn`, not a new bug.** Its entire diff is `s[3+:i]`/`s[3-:i]` positional-slice-with-signed-length on a
+string, out-of-range indices — the exact construct family already flagged for lists (SCRIP computes a value,
+jcon's `.std` expects failure). Not re-litigated against Arizona separately since the lists.icn finding already
+covers strings explicitly ("the identical construct on STRINGS behaves the same way... no bug there either").
+Not opened.
+
+**`traceback.icn` (28-line diff) — confirmed, not new: needs full runtime-error tracebacks (call-stack unwind
+with line numbers on a runtime error), unimplemented.** Matches the 2nd-pass SUPERSEDED-NEXT's own note. Diff
+sample: expects a multi-line `Run-time error 201 / File traceback.icn; Line 11 / division by zero / Traceback:
+/    main() /    foo(5) from line 7 ...`; SCRIP currently emits nothing for this program's error path (`0a1,25`
+— entirely missing, not malformed). Substantial feature gap, not a near-miss. Not opened.
+
+**`ck.icn` (52-line diff) — a 3-sub-bug cluster, one now fully root-caused:**
+
+1. `real("3e500")` should give `none` (overflow → fail) but SCRIP gives `inf`; `real("7r4")`/`real("16rff")`/
+   `real("36rcat")` etc. (radix-prefixed real literals passed as strings to `real()`) should parse successfully
+   (`4.0`, `255.0`, `15941.0`) but SCRIP gives `none` for all of them — `real()`'s string-to-number path doesn't
+   support radix-prefixed numerals at all. Not chased further — separate mechanism from items 2/3 below.
+2. Mixed-type relational comparison (real vs integer, e.g. `1. > -2`) returns the un-coerced integer operand
+   (`-2`) instead of the type-promoted result (`-2.0`) that real Icon returns. Not chased further this pass —
+   flagged for whoever wants a self-contained comparison-operator fix.
+3. **Root-caused: SCRIP has two divergent real-to-string runtime functions.** `real_str()`
+   (`src/runtime/string_ops.c:83-125` — used by scan-coercion (`x ? {...}`), `io_format.c`, `core.c`,
+   `pattern_match.c`, `aggregates.c`) and `icon_real_str()` (`string_ops.c:127-157` — used by `write()`,
+   `image()`, `string()`, most of `by_name_dispatch.c`) produce **different output for the identical double
+   value** depending purely on which code path touches it. Minimal literal-only repro (no `pow()` — see below
+   for why that matters), `y := 101559956668416.0`:
+   ```
+   y ? write(tab(0))   ->  101559956668416.        (real_str: wrong notation entirely)
+   write(y)             ->  1.01559956668416e14     (icon_real_str: right notation, wrong digits/sign)
+   ```
+   **Oracle-verified against real Arizona `icont`/`iconx`** (`/home/resources/icon-master/bin/icont`, not just
+   jcon's `.std`, per this row's own standing rule): real Icon prints `1.015599567e+14` for BOTH call sites —
+   one canonical algorithm, ~10 significant digits (not `real_str`'s 15 or `icon_real_str`'s full-round-trip
+   ~15), exponent ALWAYS signed (`icon_real_str` omits the sign; `real_str` includes it — that part of
+   `real_str` is actually right), and exponential notation IS the correct choice at this magnitude (`real_str`'s
+   `E<=14` fixed-notation threshold is wrong — real Icon has already switched to exponential well before E=14).
+   **Deliberately checked with a literal, not `36.0^9`**: real `icont`'s own `pow()` disagrees with glibc's at
+   the 8th significant digit for this exact value (`1.015599567e+14` vs the mathematically exact
+   `1.01559956668416e14`) — a libm precision difference, not a formatting bug, and it would have contaminated
+   an exact-diff regression fixture built on a computed value. Regression fixture (fails correctly today,
+   `.ref` is the real-icont-verified expected output): `corpus/tests/icon/
+   icon_real_scan_coercion_exponent_threshold.{icn,ref}`. Class row minted:
+   `icon-jcon-class-real-str-icon-real-str-divergence` (rank 1) — **not fixture-level, deliberately not
+   fixed**: the function pair is called from every real-number scan-coercion/write/string()/pattern-match site
+   across at least Icon and Pascal (`pas_real_str` sibling, `by_name_dispatch.c:3758`, unchecked against fpc),
+   so a correct fix needs one canonical oracle-verified algorithm applied uniformly, not a parallel patch to
+   both functions — real HQ-scale work, see the task file's `## NEXT` for the handoff detail.
+
+**Verdict, continuing the 3rd pass's own conclusion:** the FAIL bucket's remaining near-misses keep resolving
+to either already-known classes (substring==lists, traceback==known-gap) or clusters needing their own
+untangling (ck, like case before it) — genuinely no more one-line wins surfaced this pass either. The
+`real_str`/`icon_real_str` divergence is this pass's real find: high-confidence root cause, oracle-verified,
+but correctly scoped as HQ work rather than rushed under time pressure. Board holds at m3 43/81 — investigation
+and class-row minting only, no source touched, consistent with FLEET-16's "cure only fixture/xfail/instrument-
+level yourself, file the rest as a class row" mode guidance.
