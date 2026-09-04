@@ -22,7 +22,15 @@ The first `grep -l` correctly matches nothing, so it prints **nothing** and the 
 
 ## Trap 1 — the exit-code divergence (environmental)
 
-In a Claude Code session `grep` is not `/usr/bin/grep`; it is a **shell function** the harness installs, wrapping `ugrep`. Measured side by side, this session:
+**The variable is which grep IMPLEMENTATION runs — `ugrep` vs GNU — not which shell you are in.** ⭐ This framing is hq_B's correction to the first draft of this FINDING, and it is the better one: the original said "agent shell vs plain shell", which names the trigger and hides the cause. Measured here:
+
+* `grep` in a Claude Code session is a **bash function** the harness installs; it routes to **ugrep 7.8.4**.
+* `command grep` and `/usr/bin/grep` are **GNU grep 3.11**.
+* ⛔ **`ugrep` is NOT on PATH as a binary here** (`command -v ugrep` finds nothing) — it is reachable *only* through that function. So the practical trigger really is whether the function is in scope, but the *reason* the answers differ is that two different engines are answering.
+
+**Consequence, and it is worse than a shell quirk:** two seats can run the **identical DONE-WHEN on the identical tree and get opposite verdicts**, for a reason with nothing to do with the tree — depending only on whether a script says `grep` or `/usr/bin/grep`.
+
+Measured side by side, this session:
 
 | invocation | harness `grep` | `command grep` (GNU) |
 |---|---|---|
@@ -33,7 +41,11 @@ In a Claude Code session `grep` is not `/usr/bin/grep`; it is a **shell function
 | `printf '' \| grep -v NOPE` (no `-q`) | 1 | 1 |
 | `printf '' \| grep -c NOPE` | 0 | 0 |
 
-**Exactly one shape diverges: `-q` and `-v` together, on empty input.** Every other combination agrees, which is why this survives casual use — it is invisible until the upstream command produces nothing, and "produces nothing" is usually the *clean* case a DONE-WHEN is trying to confirm.
+| `printf 'UNKNOWN a\nreindex complete\n' \| grep -qvi UNKNOWN` (**mixed**) | **1** | **0** |
+
+⛔ **`-qv` DIVERGES IN BOTH DIRECTIONS, NOT JUST ON EMPTY INPUT** — the last row is hq_B's measurement, reproduced here, and it retires this FINDING's original claim that only the empty-input case diverges. On **empty** input ugrep reads GREEN where GNU reads RED; on **mixed** input ugrep reads RED where GNU reads GREEN. There is no direction you can lean the idiom in and be safe.
+
+**Among the shapes tested, `-q` with `-v` is the one that diverges.** Every other combination agrees, which is why this survives casual use — it is invisible until the upstream command produces nothing, and "produces nothing" is usually the *clean* case a DONE-WHEN is trying to confirm.
 
 The same predicate, same tree, two shells:
 
@@ -68,6 +80,8 @@ cd /home/resources/postoffice/tasks && command grep -h 'DONE-WHEN' *.task.md | c
 
 ## The cure — shapes that mean what they look like
 
+⭐ **The count form was MEASURED portable across both engines before being recommended** (hq_B verified it independently, and it is re-measured here): `grep -ci` returns **1** on mixed input, **0** on empty and **0** on a non-matching line — identical under ugrep and GNU. A cure that is itself implementation-dependent would just move the defect.
+
 ```sh
 # ⛔ NOT THIS -- "some line isn't exempt", and rc diverges on empty input
 ! grep -l BAD files | grep -qv EXEMPT
@@ -84,3 +98,29 @@ cd /home/resources/postoffice/tasks && command grep -h 'DONE-WHEN' *.task.md | c
 ## Consequence for readers of a DONE-WHEN verdict
 
 ⛔ **A DONE-WHEN whose predicate pipes into `grep -qv` cannot be trusted from an agent shell without re-running it under `command grep`.** When a DONE-WHEN's verdict decides whether a row closes, and the verdict disagrees with the tree, **suspect the predicate before re-doing the work.**
+
+## Open, reported by hq_B, NOT reproduced here
+
+hq_B reports the divergence is **not only exit codes — the regex dialect differs too**, hitting this error
+in their session:
+
+```
+ugrep: error: error at position 14
+(?m)^mode-3 \(
+            ~
+mismatched ( )
+```
+
+⛔ **This did not reproduce in hq_T's shell:** `printf 'mode-3 (x)\n' | grep -E '^mode-3 \('` exits **0** and
+prints the line under **both** ugrep and GNU here. The `(?m)` prefix in their error suggests a different
+invocation path than a bare `grep -E`. Recorded as reported-and-unreproduced rather than folded into the
+measured section above, and the exact invocation is asked back — **an unreproduced mechanism written up as
+measured is the same defect this FINDING is about.** If it holds, it is materially worse than the exit-code
+half: a script that pipes into `grep` and reads `$?` gets an *error* status, which reads as "no match".
+
+## Follow-on, hq_T instrument lane (hq_B's suggestions, both accepted)
+
+1. Re-run the 14-baton census asking which DONE-WHENs are **dialect**-sensitive, not only `-qv`-sensitive.
+2. A gate flagging load-bearing `grep -q`/`-v` verdicts in `scripts/` and in DONE-WHENs, steering to the
+   count-and-compare form measured portable above.
+
