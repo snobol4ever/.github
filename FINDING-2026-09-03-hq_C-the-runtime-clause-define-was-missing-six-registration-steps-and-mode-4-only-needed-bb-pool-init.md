@@ -66,6 +66,21 @@ Whether an address is recycled depends on allocation history, so **anything** th
 
 ⛔ **The trap this sets:** every one of those cures is a plausible fix. Switching on a trace and seeing the right answer invites "the trace is fine, ship it". The discriminator was the **control**: a static clause (`p(1).`) passes the *canonical* unbound variable — a 2-hop chain ending in a zeroed cell — while the failing run passed a **self-reference**. Without that control arm, the self-reference reads as the normal WAM representation of *unbound* and the whole investigation goes the wrong way.
 
+## Control arms — the landing receipt
+
+`zls_forget_graph_nodes()` lives in `src/ir/zeta_storage.c`, which every frontend uses, so SHARED-NODE VERDICT SCOPE binds even though the change is additive.
+
+**CONTROL ARMS, ON A PRISTINE BUILD** (SCRIP `5d3a83030`, corpus `a0fd13004`):
+
+- `make pristine` rc=0, then `make test` **rc=0**.
+- SNOBOL4: **m3 PASS=1692 FAIL=0 · m4 PASS=1692 FAIL=0 SKIP=0 MISSING=0** — FAIL=0 over the printed denominator.
+- `test_prolog_ladder.sh --to 9`: **56/56**.
+- `test_gate_prolog_dynamic_db_both_modes.sh`: green on all four arms.
+
+⛔ **The stale-binary refusal fired on the way here and is worth recording as a procedure, not a nuisance.** After committing, `test_corpus_snobol4` refused **rc=2** — *"binary older than the tree it names"*. An incremental `make` does **not** clear it: no source changed, so nothing relinks and the timestamp stays behind the commit. `make pristine` is the only way through, exactly as CLAUDE.md says. A seat that reads that rc=2 as a flake and re-runs will get it again forever.
+
+⛔ **Still owed by the row this FINDING serves:** `retract/1` and `clause/2` still refuse at compile (`rc=2`), so the compiled-clause rebuild carries assertz/asserta and calling but not retract/clause/abolish. Rung 10b's own DONE-WHEN remains RED for that reason, which is unrelated to everything cured above.
+
 ## Handoff
 
 Rank-0 row `prolog-rung-10b-m3-unbound-arg-self-binds-when-the-clause-is-runtime-compiled` minted and assigned to **seat06**, DONE-WHEN = the gate above, proven RED as written.
