@@ -139,6 +139,8 @@ THE TARGET is the SNOBOL4 row of SCORE.md § THE SEPTEMBER 10 GRID: every indust
 
 **2026-09-04 18:24 CDT ceo — THE ORACLE CRASH IS CURED AND SWAPPED IN (x64 `c0dc231`, installed 18:19 by the ORACLE-SWAP PROCEDURE on Lon's *"Fix those oracle crashes,"*; row closed on its computed 12-run criterion; FINDING pushed): every SNOBOL4 ref cut is safe again; refs cut from error-exit shapes before 18:19 are suspect. testpgms re-baselined: all four grade, `m3_pass=0 m4_pass=0` — test1 is a real SCRIP red (parse error at line 280), tests 2–4 read red because the vendored split files start with a stray `./*` separator the oracle rejects with ERROR 214 (a vendoring fix on hq_T's runner row; then the real reds appear). MODE FLEET-8 ON SNOBOL4 ONLY since 18:24: seats 01+02 hq_B · 04+05 hq_C · 07+08 hq_P · 12+13 hq_T; FLEET-16 when every lane has ≥ 4 pickable rows.**
 
+**LON 2026-09-04 18:37 CDT, verbatim: *"SPITBOL's answer is the ref."* — on `user_function_len_defer_branch_6` (`p = LEN(1) . *(n = n + 1)`): SPITBOL says the match fails (`before / nomatch n=1`); SCRIP since seat08's `04d1b9cd2` says it succeeds; the s264 lambda sugar adds a spelling and does not change what SPITBOL accepts, so this is a DEFECT — hq_B cures it (its clean-worktree bisect), the oracle-cut ref stands, the pin stays reverted. Until the cure lands the m4 arm of `make test` is red on origin for exactly this entry (name it beside every control-arm reading).**
+
 
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-02 seat02 (THE LOOP postoffice task `eval-of-a-pattern-silently-returns-null-where-spitbol-aborts-error-103`, rank 1) — **CLOSED. `EVAL(PATTERN)` NOW RAISES ERROR 103 MATCHING SPITBOL, INSTEAD OF SILENTLY RETURNING NULL AND LETTING EXECUTION CONTINUE.**
 
