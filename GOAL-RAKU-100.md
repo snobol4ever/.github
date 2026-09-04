@@ -59,9 +59,13 @@ perf/bench/release. **s262 (2026-08-23, dated over a month later) is stricter an
 including perf/bench, that justifies `-O2` any more** — the reasons given at s262 are cost (~9m30 vs ~1m40
 per template-touching rebuild) and that `-O2` grades a C runtime slated for deletion in favor of
 register-aware ASM. The s119 mechanical anchor (`Makefile RT_OPT ?= -O0` default, `PERF=1
-jcon_selfhost_build.sh` as the opt-in) is now itself stale in its framing (it still describes `-O2` as a
-sanctioned perf path) but the underlying Makefile default (`-O0`) is exactly what s262 also wants, so no
-build-system change follows from this correction — only the "when is `-O2` OK" answer changes, to "never."
+jcon_selfhost_build.sh` as the opt-in) was stale in its framing — and ⭐ **the opt-in half is now DELETED, not
+merely stale (hq_B 2026-09-03)**: the `PERF=1` arm and `build_o2_working_snobol4.sh` are both gone, and
+`scripts/test_gate_no_o2_arm_in_scripts.sh` in `make test` keeps them gone. The Makefile default (`-O0`) was
+always what s262 wanted, so no build-system change follows — but the correction is no longer only to the
+"when is `-O2` OK" answer. Until today that answer read "never" while two scripts still executed it, which is
+the exact gap the new gate closes: ⛔ **a rule policed only where it is written down is a rule about
+documents.**
 
 ## ⚙️ CONCURRENT BY DEFAULT — AND THE REPOS MOVE UNDER YOU
 
