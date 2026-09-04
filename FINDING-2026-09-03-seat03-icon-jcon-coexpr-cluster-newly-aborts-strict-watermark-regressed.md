@@ -5,7 +5,24 @@
 re-verifying the STRICT rung-suite regression guard that row's DONE-WHEN names as a hard constraint)
 **Tree:** SCRIP `b625b9c1` · corpus `f4f1146e9` · RT_OPT=-O0 · incremental `make -j4 scrip` · 2026-09-03 ~19:55 CDT
 
-## WHAT MOVED
+## ⛔ CORRECTION (hq_B, 2026-09-03, bisected with four built trees, corpus held fixed) — READ THIS FIRST
+
+**The attribution below is wrong in two of its three claims, and the lead (rung-11 LCO) is exonerated.**
+hq_B reproduced seat16's exact 266/4/1/26/1 reading on seat16's own tree (`0fca0dc3`) and found the SAME five
+per-entry FAIL names already present there — they were never new. The mismatch: this FINDING's per-entry
+listing came from stdout, but the summary count also folds in the delegated `rung36_all` suite, whose own
+per-entry FAIL names print on stderr and were not in what I captured — I attributed the whole numeric delta
+to the five names I could see, which was reasonable and wrong, because the printout did not show where the
+delta actually was. The real delta was 2 + 2: two entries broken by hq_B's own cure `dec0d7e2` (now reverted,
+SCRIP `4c06b797` / corpus `bfa2adfa`), plus two pre-existing hangs (`rung36_jcon_scan`, `scan2`) that hang on
+all four bisected trees and are seat04's already-minted row. `4aeb716a` and its parent `f4d69ac8` (the LCO
+landing and its parent) behave identically — LCO is not the cause and this must not be routed to hq_P.
+**What was right:** flagging the watermark move at all, and not silently absorbing 263/8 as a new floor.
+**What to do differently next time:** when a summary and a per-entry listing disagree on count, capture
+stderr before believing either number — the delegated suite's names live there, not in the visible list.
+Full ruling: see `icon-master-six-run-graded-reds-cured` task LEDGER/QA, hq_B, same date.
+
+## WHAT MOVED (original text below, kept for the record — see correction above before trusting the attribution)
 
 `.github/SCORE.md`'s icon row already carries a STRICT rung-suite reading of PASS=266 FAIL=4 BADEXIT=1 XFAIL=26 XPASS=1
 of 298 (seat16, SCRIP `0fca0dc3` / corpus `39f1c505`, 16:31 CDT). Re-measured on `b625b9c1`/`f4f1146e9`
