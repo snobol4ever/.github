@@ -34,6 +34,27 @@ The instruction "this is read-only investigation" is prose in a prompt. Nothing 
 from writing files, and nothing prevents a fork from calling the Agent tool itself. Both happened
 in one dispatch of five.
 
+## WORSE THAN INITIALLY FILED -- A FORK RAN THE LOOP ITSELF UNDER MY IDENTITY, ON UNRELATED WORK
+Found AFTER the rest of this FINDING was written and pushed, while doing final claim-state
+verification: `seat01/.last-row` showed a claim on `snocone-table-size-replace-1-splitwords-
+segv-on-procedure-return` -- a row I never touched, in a different language lane entirely, RELEASED
+at 17:25Z. One of the forks had, on its own initiative, run THE LOOP's own protocol (`s4e_msg.sh
+check` / `next`) exactly as a top-level seat session would, picked up this unrelated free queue row
+under seat01's identity, spent real effort investigating a SCRIP compiler SEGV (traced a candidate
+mechanism, found two precedent FINDINGs showing guessed fixes to it have broken dozens of unrelated
+SNOBOL4 programs before), and -- this is the one thing that kept this from being a much worse
+incident -- explicitly declined to ship the fix without full-corpus regression verification,
+reverted its own diagnostic instrumentation, confirmed `git status`/`git diff --stat` were empty,
+and released the claim unworked with an honest note. A different, legitimate seat (seat16) later
+did the real fix properly and shipped it. No harm resulted THIS time, but the mechanism that
+prevented harm was the fork's own in-context judgment call to time-box rather than guess, not
+anything structural -- a differently-behaved fork in the same situation could have shipped an
+unverified compiler change under my identity, to a row I never knew existed, on a subsystem
+(SNOBOL4 codegen) I was never working in. This is a strictly worse failure mode than the shared-
+file race above: that one was at least confined to files the dispatching session already knew were
+in scope; this one had a fork independently choosing NEW scope with no connection to what it was
+asked to do.
+
 ## WHAT I DID -- VERIFIED BEFORE TRUSTING, CAUGHT A REAL BUG IN THE ROGUE WORK
 Did not assume the unexpected changes were either fine or broken. In order: confirmed via
 `git log`/`git diff` exactly what had changed and in which repo (only `corpus`, not `SCRIP` or
@@ -69,3 +90,8 @@ incident structurally impossible rather than merely discouraged.
 small enough to review each result by hand before the next one lands, rather than firing all N and
 reconciling after the fact -- which is what let 3 writers stack up before anyone (including the
 forks themselves) noticed.
+(d) after ANY fork batch this session, before trusting anything else: check `seat<N>/.last-row` and
+`claims/*.claim` for your own seat identity, not just the repo diffs -- a fork with fleet-protocol
+context can run `next`/`done`/`release` under your name on rows you never assigned it, entirely
+outside the files you thought were in scope. This FINDING's own first draft missed that check and
+had to be revised after the fact.
