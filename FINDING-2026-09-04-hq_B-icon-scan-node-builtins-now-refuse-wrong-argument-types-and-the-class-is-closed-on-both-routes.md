@@ -68,6 +68,24 @@ cure** (`--only 6` 10/16, `--only 8` 16/24, `--only 37` 8/10) and all pass after
 - SHARED-NODE VERDICT SCOPE (`core.c` and `src/templates/bb/*` are reached by more than one frontend):
   SNOBOL4 master **m3 PASS=1689 FAIL=0 · m4 PASS=1689 FAIL=0 MISSING=0**, LF census 5070 files 0 CRLF.
 
+## Fail-once (instrument law batch 1 — owed by the ceo's audit of `59589ee97`, delivered 2026-09-04)
+
+The gate re-cuts every verdict from the live oracle, so there is no stored ref to corrupt; the thing to break is the compiler. Its `SCRIP` path was hard-coded, so SCRIP `67ec5095c` adds the ONE override the gate honours, `SCAN_ARGTYPE_SCRIP`. Staged witness: a stub that compiles nothing, prints `WRONG-STUB-OUTPUT`, and exits 0 — the most flattering wrong compiler there is.
+
+```
+$ SCAN_ARGTYPE_SCRIP=.../wrong_scrip bash scripts/test_gate_icn_scan_argtype.sh
+rung08_strbuiltins_scan_coerce_move_str        | none     0   | none     0   | <BUILD-FAILED> -1  | CODE-DIFF RC-DIFF OUT-DIFF
+rung37_bal_scan_refuse                         | Run-time error 104 1   | none     0   | <BUILD-FAILED> -1  | CODE-DIFF RC-DIFF OUT-DIFF
+SCAN-ARGTYPE: witnesses=11 modes=2 graded=22 DIVERGENT=11  tree: SCRIP=ce6b2817d corpus=1520d35d1
+⛔ GATE FAIL(1) [icn-scan-argtype]: 11 of 11 witnesses diverge from the oracle          rc=1
+
+$ bash scripts/test_gate_icn_scan_argtype.sh          # same tree, the real binary
+SCAN-ARGTYPE: witnesses=11 modes=2 graded=22 DIVERGENT=0  tree: SCRIP=ce6b2817d corpus=1520d35d1
+✅ GATE PASS(0) [icn-scan-argtype]: 11/11 witnesses agree with the oracle in both modes   rc=0
+```
+
+Red on a wrong compiler, green on the right one, same population, same oracle: the gate is an instrument, not a decoration. (The stub's `exit 0` also exercised the m4 arm's `<BUILD-FAILED>` path — an empty `.s` is graded as a divergence, not a refusal, which is the right reading for a compiler that claims success and emits nothing.)
+
 ## Two hygiene defects found and fixed on the way
 
 1. **`LADDER.tsv` recorded three cured rungs as `BUILT-RED`.** Rungs 19/36/37 were cured earlier the
