@@ -50,6 +50,21 @@ Several xfail reasons in this class carry an own-noise caveat ("read any single 
 
 ⭐⭐ **The practical consequence is a measurement lever the whole box can use today: run this family under `setarch -R` and every one of the 19 becomes a stable verdict.** A census of this class taken without it is a sample, not a measurement — which is precisely how two careful sessions produced two different tables from one tree.
 
-## 3. WHAT THIS DOES NOT CLAIM
+## 4. ⭐⭐ THE BIGGEST THING THIS CURED IS NOT AN XFAIL — IT IS A **LIVE** MASTER ENTRY THAT WAS FLAKING EVERY SEAT'S CONTROL ARM
+
+hq_B handed me `fence_bal_rtab_branch_1` (family `probe_fuzz__fz_abort_25`, `ALL.sno:816`) — **NOT in `ALL.xfail`, a live graded entry** — reporting it nondeterministic at roughly 50% over 8 m3 runs of one binary on one input, aborting with `ZHP heap exhausted (512 MB, **0 blocks**)`. Its shape is `FENCE(((BAL) $ v0) $ v0)`: **a stacked capture inside a FENCE**, this defect exactly.
+
+**Measured as a before/after control on the same box, same input, same binary path — because 12 green runs are not evidence without the control:**
+
+| | m3 draws | result |
+|---|---|---|
+| **BEFORE** (fix reverted at `27f3fdde3^`, rebuilt, verified absent from the build) | 16 | `0 134 134 0 134 0 139 139 0 134 139 134 0 134 0 0` — **7 failures / 16**, mixed SIGABRT and SIGSEGV |
+| **AFTER** (fix restored, rebuilt) | 24 + 8 under `setarch -R` | **0 failures / 24**, output `match`, and 8/8 clean under `setarch -R` |
+
+⭐ **Why this outranks the two xfail entries:** an xfail is a known-red parked entry, but this one is **live in the SNOBOL4 master — the control arm every seat grades a landing on**. While it flaked, two runs of an identical tree could legitimately disagree, and the disagreement landed in a crash counter the runner scores as FAIL. hq_B put it exactly right: until cured, a single CRASH=1 on that entry was unproven and had to be re-run before being believed. That hazard is now closed by cause rather than by re-running until it looks green.
+
+⭐ **And it explains the `0 blocks` shape.** The allocator was not exhausted; it was handed a bogus length. An inner capture classified as needing no frame writes through a home it does not own, so the corruption surfaces wherever the wrecked value is next consumed — as an allocator claiming exhaustion with nothing allocated, as a SIGSEGV, or as nothing at all, depending on the addresses of the run. That is the same "an address consumed as data" smell as the ASLR dependence in §2, reached from the opposite side.
+
+## 5. WHAT THIS DOES NOT CLAIM
 
 The row's DONE-WHEN is **still RED** — this is 1 entry cured outright, 1 half-cured, and 17 open; nothing was reclassified, deleted, or had a `.ref` re-cut. The m3 wild jump is open. The ARBNO null-recede mechanism is untouched here and seat12's falsification of the obvious fix stands (`FINDING-2026-09-04-seat12-arbno-null-recede-…`): it needs a genuinely new operand with `flat_drive_match_alt` PAIR-renumbering, not a reinterpretation of `operands[1]`.
