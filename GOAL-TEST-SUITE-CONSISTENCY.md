@@ -49,6 +49,55 @@
 8. **A FEATURE-COVERAGE CENSUS with a floor (Lon 2026-09-04 11:39 CDT: *"100's of test cases exercising each feature and several combination of features"*).** One instrument for all seven, over the feature columns every `ALL.csv` already carries: it prints, per language, entries-per-feature and entries-per-feature-PAIR (two features exercised in one entry), names every feature below the floor and every feature with no pair at all, and rewrites its cell on the leaderboard. The FLOOR is per language and per feature, set from the reference's own list of forms (a construct with three spellings owes at least those three single-feature witnesses; the hundreds come from combinations), with SNOBOL4's master as the model shape; a feature column that is never filled is a refusal (rc=2), not a zero. Absorbed programs count toward coverage only when their feature columns are FILLED by the builder from the source, never hand-typed. This point is hq_T's instrument; the families are each lane's walk.
 9. **GENERATED PROGRAMS — random and exhaustive (Lon 2026-09-04: *"grammar-based random and exhaustive language generators, like expressions.py … every single combination up to those character lengths"*).** Per language, a grammar taken from the ladder census drives (a) an EXHAUSTIVE enumerator of every valid program up to length N, each ending in exactly one measurable OUTPUT, and (b) a seeded RANDOM generator over the same grammar; refs come from the language's oracle through `lib_oracle_flags.sh`, never hand-typed; grading is differential (AGREE/DIFF/FALSE-ACCEPT/CRASH/HANG), deduplicated to one witness per canonical shape. Generated programs are NOT absorbed wholesale — a master is a regression suite — every DIVERGENCE class becomes a master witness (`generated__<lang>_len<N>_<shape>`) and a class row on its rung, as the August pattern fuzzer's 9 classes did. Leaderboard cell: programs per length, AGREE/DIFF, hash. Lineage and spec: `FINDING-2026-09-04-ceo-the-exhaustive-program-enumerator-was-specified-in-march-and-never-built.md`; row `exhaustive-program-enumerator-to-length-n-with-oracle-divergences-as-witnesses` (hq_T).
 
+## HOW A CRITERION LIES — the four measured shapes, and what each costs (ceo-routed, 2026-09-04)
+
+⛔ **A DONE-WHEN is an instrument, and an instrument whose capacity to fail was never measured is not evidence.**
+Every shape below was measured the same day, most of them on the author's own criteria, and each was found by
+RUNNING the thing rather than by reading it. They are listed because the failure looks like a result in all four
+cases — there is no traceback and nothing to investigate.
+
+**1. IT COULD NOT MEASURE ITS SUBJECT.** The predicate exits non-zero (or zero) for a reason unrelated to the
+thing it names. Witnesses: `--lang snobol4` rejected by *argparse*, so argparse's own exit 2 read as the tool
+refusing while the tool was still crashing on the case being probed; a harness flag combination refused **before**
+the binary was consulted; a case-sensitive `grep "PASS="` against a board line that prints `m3_pass=`;
+`git -C ..` pointed at a non-repo sibling root, so the check errored instead of ever testing its diff — note that
+one could only ever be **permissive**, inside a criterion whose whole job was to prove a directory untouched.
+*Cost: a green that certifies a defect, or a red that convicts an innocent component.*
+
+**2. ITS DENOMINATOR WAS NARROWER THAN THE CHANGE'S BLAST RADIUS** (hq_B). The criterion measured exactly what it
+claimed, and the claim was smaller than the edit. Witness: a lowering change to a **shared** capture-target node
+whose DONE-WHEN named only the witnesses the change was written for — green, correct, and blind to the master
+regression it caused. ⭐ *A DONE-WHEN that names only the witnesses a change was written for cannot detect that
+change breaking something else, and that is invisible precisely when the row is done well.* The law that catches
+it is SHARED-NODE VERDICT SCOPE, which was not applied because the change read as sugar.
+
+**3. ITS POPULATION WAS WIDER THAN THE ROW** (hq_T). Witnesses: a class criterion matching `ARBNO|FENCE|deferred`
+counted **41** of 61 xfails for a **5**-entry class, because the other classes describe their own witnesses with
+the same words (twice more the same hour: SETEXIT read 3 for 2, misc read 7 for 4); and a `grep -c "rc=134"`
+counted **7** aborting programs where there were **6**, the seventh match being the runner echoing a SCORE.md
+cell whose prose contains the string. ⭐ **A class is a LIST that a census produced; a keyword is a GUESS at that
+list** — so name the members, and anchor to the shape of the line you mean. *A criterion wider than its row
+demands other rows' work before it can close, and reads red forever for reasons that are not its own.*
+
+**4. ITS PREMISE WAS NEVER MEASURED** (hq_T, and the ceo the same hour). The mechanism was right, the verification
+was thorough, and the *input* was false. Witness: a ref pinned over the oracle's answer on the reported premise
+*"SPITBOL fails this construct too"*, which one command refuted — the oracle runs it cleanly and prints the ref
+that was already there. ⛔ **Verification tests the MECHANISM; the defect was in the PREMISE.** Every check asked
+whether the tool wrote what it was told, none asked whether what it was told was true. *Cost: the most expensive
+of the four, because nothing in the run looks wrong — no red, no refusal, only a green board and a colleague
+thanking you for unblocking them.* **The cure is never "be more careful": make the premise a measurement the tool
+makes.** `pin-ref` now runs the oracle itself and refuses a clean disagreement.
+
+### Two positive rules that fall out of the same evidence
+
+⭐ **WHEN A THEORY EXPLAINS ALL THE EVIDENCE, PRINT THE ONE VALUE IT PREDICTS BEFORE WRITING IT UP** (hq_C).
+A subject-base theory was consistent with every number in hand and one `fprintf` refuted it. Consistency with the
+evidence you already have is the cheapest thing a wrong theory can buy.
+
+⭐ **VARY INGREDIENTS AGAINST EACH OTHER, NOT ONE AT A TIME** (hq_C). An ablation set that never removes the true
+cause will confidently name whatever is left standing: nine one-at-a-time removals produced a **wrong** trigger;
+twelve crossed cells produced the right one and cost less.
+
 ## THE INVENTORY (measured 2026-09-03 16:20 box clock, SCRIP `d24e99d8`; rewrite a cell when you close its gap)
 
 ⭐ **TRACE COLUMN RE-MEASURED 2026-09-04 by hq_T (SCRIP `2793c4170`, corpus `668e2daf`).** Standard point 6 is
