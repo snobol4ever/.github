@@ -1,0 +1,220 @@
+diff --git a/src/driver/scrip.c b/src/driver/scrip.c
+index a1ee82de3..efca811ff 100644
+--- a/src/driver/scrip.c
++++ b/src/driver/scrip.c
+@@ -1394,7 +1394,12 @@ int main(int argc, char **argv)
+                   if (_bd > 0 && bbg->n_dentry == 0) { bbg->dentry_node = (IR_t **)calloc((size_t)_bd, sizeof(IR_t *)); bbg->dentry_entry = (IR_t **)calloc((size_t)_bd, sizeof(IR_t *)); bbg->dentry_name = (const char **)calloc((size_t)_bd, sizeof(char *));
+                       if (bbg->dentry_node && bbg->dentry_entry && bbg->dentry_name) for (int _s = 0; _s < bbg->n; _s++) { IR_t *_c = bbg->all[_s]; if (!_c || _c->op != IR_DEFINE || ir_define_sr_citizen(_c) || _c->n_operands != 0 || !IR_LIT(_c).sval) continue;
+                           if (bbg->n_dentry >= _bd) break;
+-                          for (int _q = 0; _q < s2->proc_count; _q++) { ProcEntry *_pr = &s2->proc_table[_q]; if (!_pr->name || strcmp(_pr->name, IR_LIT(_c).sval)) continue;
++                          int _k = 0; for (int _p2 = 0; _p2 < _s; _p2++) { IR_t *_e2 = bbg->all[_p2]; if (_e2 && _e2->op == IR_DEFINE && !ir_define_sr_citizen(_e2) && _e2->n_operands == 0 && IR_LIT(_e2).sval && !strcmp(IR_LIT(_e2).sval, IR_LIT(_c).sval)) _k++; }
++                          char _wnb[300]; snprintf(_wnb, sizeof _wnb, "%s$%d", IR_LIT(_c).sval, _k);
++                          char _mb0[300]; snprintf(_mb0, sizeof _mb0, "%s$0", IR_LIT(_c).sval);
++                          const char *_want = IR_LIT(_c).sval; (void)_mb0;
++                          for (int _q2 = 0; _q2 < s2->proc_count; _q2++) { const char *_n2 = s2->proc_table[_q2].name; if (!_n2) continue; if (!strcmp(_n2, _wnb)) _want = (const char *)strdup(_wnb); }
++                          for (int _q = 0; _q < s2->proc_count; _q++) { ProcEntry *_pr = &s2->proc_table[_q]; if (!_pr->name || strcmp(_pr->name, _want)) continue;
+                               IR_t *_sn = bb_proc_entry(_pr); if (!_sn) continue; int _sg = 0; while (_sn && (_sn->op == IR_SUCCEED || _sn->op == IR_FAIL || _sn->op == IR_GOTO) && _sn->γ.node && _sg++ < 64) _sn = _sn->γ.node;
+                               IR_t *_gd = (_sn && _sn->op == IR_DEFINE && ir_define_sr_citizen(_sn)) ? _sn->γ.node : _sn; if (!_gd) break;
+                               if (_gd->op == IR_GOTO_DEFERRED) { if (!IR_LIT(_gd).sval) break;
+@@ -1403,7 +1408,7 @@ int main(int argc, char **argv)
+                                       _tn = _lr->proc_entry_node; int _tg = 0; while (_tn && (_tn->op == IR_SUCCEED || _tn->op == IR_FAIL || _tn->op == IR_GOTO) && _tn->γ.node && _tg++ < 65536) _tn = _tn->γ.node; break; }
+                                   if (!_tn) break;
+                                   bbg->dentry_node[bbg->n_dentry] = _c; bbg->dentry_entry[bbg->n_dentry] = _tn; bbg->dentry_name[bbg->n_dentry] = (const char *)0; bbg->n_dentry++; break; }
+-                              { char _anb[300]; snprintf(_anb, sizeof _anb, "%s_\xce\xb1", IR_LIT(_c).sval);
++                              { char _anb[300]; snprintf(_anb, sizeof _anb, "%s_\xce\xb1", _want);
+                                 bbg->dentry_node[bbg->n_dentry] = _c; bbg->dentry_entry[bbg->n_dentry] = (IR_t *)0; bbg->dentry_name[bbg->n_dentry] = strdup(_anb); bbg->n_dentry++; break; } } } } }
+                 { int _na = 0; for (int _q = 0; _q < s2->proc_count; _q++) if (s2->proc_table[_q].name && strncmp(s2->proc_table[_q].name, "LBL__", 5) == 0 && s2->proc_table[_q].proc_entry_node) _na++;
+                   if (_na > 0 && bbg->n_balias == 0) { bbg->balias_node = (IR_t **)calloc((size_t)_na, sizeof(IR_t *)); bbg->balias_name = (const char **)calloc((size_t)_na, sizeof(char *));
+diff --git a/src/emitter/emit.cpp b/src/emitter/emit.cpp
+index 9dc4cacdc..9b7b009e4 100644
+--- a/src/emitter/emit.cpp
++++ b/src/emitter/emit.cpp
+@@ -545,6 +545,7 @@ int g_last_flat_zstatic = 0;
+ int g_last_flat_fp = 0;
+ int g_last_flat_uniform = 0;
+ extern "C" int zls_g_fp_total(IR_graph_t *);
++extern "C" int rt_proc_exists(const char *);
+ extern "C" int zls_node_has_fields(const IR_t *);
+ extern "C" int emit_patzeta_lookup(const char *, int *);
+ extern "C" void zls_fct_finalize(IR_graph_t *, int);
+@@ -1222,7 +1223,15 @@ static int walk_bb_node_inner(IR_t * nd, FILE * out) {
+     case IR_GOTO_DEFERRED:             bb_emit_x86(bb_goto_deferred());       return 0;
+     case IR_DEFINE: {
+         if (ir_define_sr_citizen(nd)) { extern int fc_call_active(const IR_t *); if (g_emit.op_ival == 4 && nd->n_operands >= 2 && nd->operands[0] && nd->operands[1]) { g_emit.op_sval = IR_LIT(nd->operands[0]).sval; g_emit.lbl_t0 = IR_LIT(nd->operands[1]).sval; }    if (g_emit.op_ival == 3 && nd->γ.node && sr3_gamma_label(nd->γ.node)) { const char *_e = sr3_gamma_label(nd->γ.node); g_emit.op_sval = strncmp(_e, "LBL__", 5) ? _e : _e + 5; }    if (g_emit.op_ival == 0 && nd->γ.node && fc_call_active(nd->γ.node) && nd->n_operands == 1 && nd->operands[0]) { extern int zls_off(const IR_t *); int _as = bb_slot_get(nd->operands[0]); if (_as < 0) _as = zls_off(nd->operands[0]); if (_as >= 0) { g_emit.op_fc_wbytes = 16; g_emit.op_fc_base = _as; } } g_emit.op_define_role = (int)g_emit.op_ival; extern std::string bb_define(); bb_emit_x86(bb_define()); return 0; }
+-        if (nd->n_operands == 0) { g_emit.op_sval = IR_LIT(nd).sval;    g_emit.lbl_t0 = (const char *)0; int _realstub = 0; if (g_emit_cfg && g_emit_cfg->n_dentry > 0) for (int _dq = 0; _dq < g_emit_cfg->n_dentry; _dq++) if (g_emit_cfg->dentry_node[_dq] == nd) { g_emit.lbl_t0 = g_emit_cfg->dentry_name[_dq]; _realstub = g_emit_cfg->dentry_entry[_dq] ? 1 : 0; break; }    g_emit.op_define_role = 6; extern std::string bb_define(); bb_emit_x86(bb_define()); int _d1st = 1; if (g_emit_cfg && g_emit.op_sval) for (int _dr = 0; _dr < g_emit_cfg->n_dentry; _dr++) { IR_t *_dp = g_emit_cfg->dentry_node[_dr]; if (_dp == nd) break; if (_dp && _dp->n_operands == 0 && IR_LIT(_dp).sval && !strcmp(IR_LIT(_dp).sval, g_emit.op_sval)) { _d1st = 0; break; } }    if (g_is_text && g_emit.lbl_t0 && _d1st && _realstub) { long _sv5 = g_emit.op_ival; g_emit.op_ival = 5; g_emit.op_define_role = 5; bb_emit_x86(bb_define()); g_emit.op_ival = _sv5; }    return 0; }
++        if (nd->n_operands == 0) { g_emit.op_sval = IR_LIT(nd).sval;    g_emit.lbl_t0 = (const char *)0; int _realstub = 0; const char *_raw = (const char *)0; if (g_emit_cfg && g_emit_cfg->n_dentry > 0) for (int _dq = 0; _dq < g_emit_cfg->n_dentry; _dq++) if (g_emit_cfg->dentry_node[_dq] == nd) { _raw = g_emit_cfg->dentry_name[_dq]; _realstub = g_emit_cfg->dentry_entry[_dq] ? 1 : 0; break; }
++        int _bk = 0; if (g_emit_cfg && g_emit.op_sval) for (int _p5 = 0; _p5 < g_emit_cfg->n; _p5++) { IR_t *_e5 = g_emit_cfg->all[_p5]; if (_e5 == nd) break; if (_e5 && _e5->op == IR_DEFINE && !ir_define_sr_citizen(_e5) && _e5->n_operands == 0 && IR_LIT(_e5).sval && !strcmp(IR_LIT(_e5).sval, g_emit.op_sval)) _bk++; }
++        char _sbuf[300]; const char *_sb = g_emit.op_sval; int _mb = 0;
++        if (g_emit.op_sval) { char _m0[300]; snprintf(_m0, sizeof _m0, "%s$0", g_emit.op_sval); _mb = rt_proc_exists(_m0) ? 1 : 0; snprintf(_sbuf, sizeof _sbuf, "%s$%d", g_emit.op_sval, _bk); if (rt_proc_exists(_sbuf)) _sb = _sbuf; }
++        char _abuf[320]; snprintf(_abuf, sizeof _abuf, "%s_\xce\xb1", _sb ? _sb : "?");
++        g_emit.lbl_t0 = (_mb && _realstub) ? _abuf : _raw;
++        g_emit.op_define_role = 6; extern std::string bb_define(); bb_emit_x86(bb_define());
++        int _d1st = 1; if (g_emit_cfg && g_emit.op_sval) { int _j5 = 0; for (int _p5 = 0; _p5 < g_emit_cfg->n; _p5++) { IR_t *_e5 = g_emit_cfg->all[_p5]; if (_e5 == nd) break; if (!(_e5 && _e5->op == IR_DEFINE && !ir_define_sr_citizen(_e5) && _e5->n_operands == 0 && IR_LIT(_e5).sval && !strcmp(IR_LIT(_e5).sval, g_emit.op_sval))) continue; char _pb[300]; const char *_ps = g_emit.op_sval; snprintf(_pb, sizeof _pb, "%s$%d", g_emit.op_sval, _j5); if (rt_proc_exists(_pb)) _ps = _pb; if (_sb && !strcmp(_ps, _sb)) { _d1st = 0; break; } _j5++; } }
++        if (g_is_text && _raw && _d1st && _realstub) { long _sv5 = g_emit.op_ival; const char *_svn = g_emit.op_sval; g_emit.op_sval = _sb; g_emit.lbl_t0 = _raw; g_emit.op_ival = 5; g_emit.op_define_role = 5; bb_emit_x86(bb_define()); g_emit.op_ival = _sv5; g_emit.op_sval = _svn; }    return 0; }
+         g_emit.op_sval = IR_LIT(nd).sval;
+         g_emit.op_ival = (long)nd->n_operands;
+         g_emit.op_ab_nformals = nd->seal;
+diff --git a/src/lower/lower_snobol4.c b/src/lower/lower_snobol4.c
+index 5047b6710..c82d9ecb8 100644
+--- a/src/lower/lower_snobol4.c
++++ b/src/lower/lower_snobol4.c
+@@ -2448,7 +2448,7 @@ static void sno_prescan_expr(const tree_t * t, sno_def_t * defs, int * ndefs, co
+             if (t != g_sno_prescan_top) { g_sno_expr_define_seen = 1; sno_exprdef_note(exprdef_names, n_exprdef, d.fname); }
+             sno_predef_note(d.fname);
+             int fo = -1;
+-            for (int k = 0; k < *ndefs; k++) if (!strcmp(defs[k].fname, d.fname)) { fo = k; break; }
++            for (int k = 0; k < *ndefs; k++) if (!strcmp(defs[k].fname, d.fname) && !strcmp(defs[k].entry, d.entry)) { fo = k; break; }
+             if (fo >= 0) defs[fo] = d;
+             else if (*ndefs < SNO_DEF_MAX) defs[(*ndefs)++] = d;
+             else sno_fatal("too many DEFINEs in one program", d.fname);
+@@ -2604,7 +2604,7 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+             if (sn4_is_system_fn(d.fname)) continue;
+             const tree_t * body = (dfn->n > 2) ? dfn->c[2] : NULL;
+             int found = -1;
+-            for (int k = 0; k < ndefs; k++) if (!strcmp(defs[k].fname, d.fname)) { found = k; break; }
++            for (int k = 0; k < ndefs; k++) if (!strcmp(defs[k].fname, d.fname) && !strcmp(defs[k].entry, d.entry)) { found = k; break; }
+             if (found >= 0) { defs[found] = d; def_body[found] = body; }
+             else if (ndefs < SNO_DEF_MAX) { def_body[ndefs] = body; defs[ndefs++] = d; }
+             else sno_fatal("too many DEFINEs in one program", d.fname);
+@@ -2624,7 +2624,7 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+         sno_def_t d; sno_parse_define(sno_qlit_fold(dsub->c[argbase]), entry_opt, &d);
+         if (sn4_is_system_fn(d.fname)) continue;
+         int found = -1;
+-        for (int k = 0; k < ndefs; k++) if (!strcmp(defs[k].fname, d.fname)) { found = k; break; }
++        for (int k = 0; k < ndefs; k++) if (!strcmp(defs[k].fname, d.fname) && !strcmp(defs[k].entry, d.entry)) { found = k; break; }
+         if (found >= 0) defs[found] = d;
+         else if (ndefs < SNO_DEF_MAX) defs[ndefs++] = d;
+         else sno_fatal("too many DEFINEs in one program", d.fname);
+@@ -2645,6 +2645,7 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+             int covered = 0;
+             for (int k = 0; k < n_stmt_bind; k++) if (!strcmp(stmt_bind_fname[k], defs[di].fname)) { covered = 1; break; }
+             if (covered || !sno_exprdef_seen(exprdef_names, n_exprdef, defs[di].fname)) continue;
++            { int later = 0; for (int k = di + 1; k < ndefs; k++) if (!strcmp(defs[k].fname, defs[di].fname)) { later = 1; break; } if (later) continue; }
+             IR_t * pfail = lc_build(g, IR_FAIL, NULL, NULL);
+             IR_t * pbind = lc_build(g, IR_DEFINE, NULL, pfail);
+             IR_LIT(pbind).sval = lp_strdup(defs[di].fname);
+@@ -2713,6 +2714,11 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+     for (int di = 0; di < ndefs; di++) {
+         IR_graph_t * gf;
+         const char * rn = defs[di].result_name ? defs[di].result_name : defs[di].fname;
++        const char * pnm = defs[di].fname;
++        { int ord = 0, later = 0;
++          for (int k = 0; k < di; k++) if (!strcmp(defs[k].fname, defs[di].fname)) ord++;
++          for (int k = di + 1; k < ndefs; k++) if (!strcmp(defs[k].fname, defs[di].fname)) { later = 1; break; }
++          if (later) { char nb[300]; snprintf(nb, sizeof nb, "%s$%d", defs[di].fname, ord); pnm = lp_strdup(nb); } }
+         if (def_body[di]) {
+             const tree_t * bp = def_body[di];
+             int bn = 0;
+@@ -2730,7 +2736,7 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+             gf = sno_build_call_stub(defs[di].entry, defs[di].fname);
+         }
+         int fpi = stage2_proc_grow(&g_stage2);
+-        g_stage2.proc_table[fpi].name = defs[di].fname;
++        g_stage2.proc_table[fpi].name = pnm;
+         g_stage2.proc_table[fpi].proc = NULL;
+         g_stage2.proc_table[fpi].entry_pc = -1;
+         g_stage2.proc_table[fpi].nparams = defs[di].nnames;
+diff --git a/src/runtime/rt/rt.c b/src/runtime/rt/rt.c
+index 4bd07d683..23ee0f25a 100644
+--- a/src/runtime/rt/rt.c
++++ b/src/runtime/rt/rt.c
+@@ -1769,6 +1769,8 @@ void rt_proc_set_frame(const char *name, int nslots, int decl_level)
+     if (p) { p->frame_nslots = nslots; p->decl_level = decl_level; }
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++int rt_proc_exists(const char *name) { return (name && rt_proc_find(name)) ? 1 : 0; }
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ void rt_proc_set_gen_region_ft(const char *name, int ft) { rt_proc_t *p = rt_proc_find(name); if (p) p->gen_region_ft = ft; }
+ int rt_proc_gen_region_ft(const char *name) { rt_proc_t *p = rt_proc_find(name); return p ? p->gen_region_ft : 0; }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+diff --git a/src/runtime/rt/rt.h b/src/runtime/rt/rt.h
+index f90a6010a..ad00565b2 100644
+--- a/src/runtime/rt/rt.h
++++ b/src/runtime/rt/rt.h
+@@ -75,6 +75,7 @@ long rt_arith(int lk, long li, const char *ls,
+ void rt_init_arbno(void **slot_ptr, void *child_fn);
+ #include "bb_box.h"
+ void rt_proc_register(const char *name, const char **pnames, int nparams);
++int rt_proc_exists(const char *name);
+ void rt_proc_set_fn(const char *name, bb_box_fn fn);
+ typedef struct rt_proc_reg_rec { const char *name; void *fn; void *dcfn; const char *result_name; const char *const *pnames; int32_t nparams; int32_t nformals; int32_t frame_bytes; int32_t flags; int32_t rest_kind; int32_t named_rest; } rt_proc_reg_rec_t;
+ void rt_proc_register_rec(const rt_proc_reg_rec_t *r);
+diff --git a/src/templates/bb/bb_call_proc_staged.cpp b/src/templates/bb/bb_call_proc_staged.cpp
+index a1c5ce28b..076ad6e31 100644
+--- a/src/templates/bb/bb_call_proc_staged.cpp
++++ b/src/templates/bb/bb_call_proc_staged.cpp
+@@ -32,6 +32,7 @@ void rt_gen_spine_resume_enter(void);
+ int     zls_g_resume_by_name(const char *name);
+ int  rt_proc_is_generator(const char *name);
+ int rt_define_tiny_ok(const char *, int);
++int rt_proc_exists(const char *);
+ int rt_define_returns_by_frame(const char *);
+ int rt_pl_tail_args_safe(int nargs, void *frame_lo, void *frame_hi);
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+@@ -202,6 +203,7 @@ extern "C" int bb_scc_probe(const char *fname, int nargs, int *np_out, int *nsav
+     if (np_out) *np_out = np; if (nsave_out) *nsave_out = nsave; if (res_gk_out) *res_gk_out = res_gk; return scc;
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++extern "C" int bb_fn_multibound(const char *fname) { if (!fname) return 0; char b[300]; snprintf(b, sizeof b, "%s$0", fname); return rt_proc_exists(b) ? 1 : 0; }
+ extern "C" int bb_tiny_shim_ok(const char *fname, int nargs) {
+     static int _nt = -1; if (_nt < 0) { const char *e = getenv("SCRIP_NO_TINY"); _nt = (e && *e == '1') ? 1 : 0; }
+     if (_nt || !fname) return 0;
+@@ -279,11 +281,11 @@ static std::string bcps_det_arm() {
+         return x86_alpha()
+              + x86_scan_sync_out()
+              + x86_anchor_enter()
+-             + ((scc_z || (_.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival)))
++             + ((scc_z || (_.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival) && !bb_fn_multibound(_.op_sval)))
+                 ? [&]() -> std::string {
+                     static int _ntz = -1; if (_ntz < 0) { const char * _e = getenv("SCRIP_NO_TINY"); _ntz = (_e && *_e == '1') ? 1 : 0; }
+                     static int _b1cz = -1; if (_b1cz < 0) { const char * _e = getenv("SCRIP_B1C_PARITY"); _b1cz = (_e && *_e == '0') ? 0 : 1; }
+-                    if (!_ntz && ({ extern int g_rt_fragment_emit; !g_rt_fragment_emit || _b1cz; }) && _.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival)) {
++                    if (!_ntz && ({ extern int g_rt_fragment_emit; !g_rt_fragment_emit || _b1cz; }) && _.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival) && !bb_fn_multibound(_.op_sval)) {
+                         std::string laz = std::string(_.op_sval) + "_\xce\xb1";
+                         if (bcps_fnsig()) {
+                             long soffz[29]; int sigokz = ((long)_.op_ival <= 29);
+@@ -500,12 +502,12 @@ static std::string bcps_det_arm() {
+             + x86("def", L(5))
+             + IF(c2farm(), x86("call", "rt_c2b_arm_trap", trap_fp))
+             : std::string(""))
+-         + ((scc || (_.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival))) && !c2
++         + ((scc || (_.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival) && !bb_fn_multibound(_.op_sval))) && !c2
+             ? [&]() -> std::string {
+                 static int _ntiny = -1; if (_ntiny < 0) { const char * _e = getenv("SCRIP_NO_TINY"); _ntiny = (_e && *_e == '1') ? 1 : 0; }
+                 { static int _td=-1; if(_td<0)_td=getenv("SCRIP_TINY_DIAG")?1:0; if(_td) fprintf(stderr,"[TINY] fn=%s nargs=%ld ok=%d scc=%d c2=%d\n", _.op_sval?_.op_sval:"?",(long)_.op_ival,_.op_sval?rt_define_tiny_ok(_.op_sval,(int)_.op_ival):-1,scc,c2); }
+                 static int _b1ct = -1; if (_b1ct < 0) { const char * _e = getenv("SCRIP_B1C_PARITY"); _b1ct = (_e && *_e == '0') ? 0 : 1; }
+-                if (!_ntiny && ({ extern int g_rt_fragment_emit; !g_rt_fragment_emit || _b1ct; }) && _.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival)) {
++                if (!_ntiny && ({ extern int g_rt_fragment_emit; !g_rt_fragment_emit || _b1ct; }) && _.op_sval && bb_tiny_shim_ok(_.op_sval, (int)_.op_ival) && !bb_fn_multibound(_.op_sval)) {
+                     std::string la = std::string(_.op_sval) + "_\xce\xb1";
+                     if (bcps_fnsig()) {
+                         long soff[29]; int sigok = ((long)_.op_ival <= 29);
+diff --git a/src/templates/bb/bb_define.cpp b/src/templates/bb/bb_define.cpp
+index 25f00255d..4282c23c4 100644
+--- a/src/templates/bb/bb_define.cpp
++++ b/src/templates/bb/bb_define.cpp
+@@ -23,6 +23,7 @@ extern long g_trace;
+ const char *rt_define_query(const char *, int *, int *, int *, void **);
+ void rt_define_site(const char *, const char *, int, int, int, void *);
+ int bb_tiny_shim_ok(const char *, int);
++int bb_fn_multibound(const char *);
+ }
+ extern "C" { extern int g_rt_fragment_emit; int xa_flat_class_c_pred(void); }
+ #include "x86_asm.h"
+@@ -297,7 +298,7 @@ static std::string bb_define_bind() {
+     int _np = 0, _nf = 0, _fb = 0; void * _fn = 0; const char * _csv = rt_define_query(fname, &_np, &_nf, &_fb, &_fn);
+     uint64_t _site_fp; { void (*fp)(const char *, const char *, int, int, int, void *) = rt_define_site; _site_fp = (uint64_t)(uintptr_t)(void *)fp; }
+     static int _direct_alpha = -1; if (_direct_alpha < 0) { const char * _e = getenv("SCRIP_DEFINE_FN_DIRECT_ALPHA"); _direct_alpha = (_e && *_e == '0') ? 0 : 1; }
+-    int _alpha_defined = (!bb_ab_cell_addr(fname) && bb_tiny_shim_ok(fname, 0));
++    int _alpha_defined = (!bb_ab_cell_addr(fname) && bb_tiny_shim_ok(fname, 0) && !bb_fn_multibound(fname));
+     std::string blbl = _.lbl_t0 ? ((_direct_alpha && _alpha_defined) ? (std::string(fname) + "_\xce\xb1") : std::string(_.lbl_t0)) : std::string("rt_ab_undef_fn_stub");
+     std::string reg = x86("comment", "DEFINE-SITE s57: constant-folded registration AT the statement (shared chain)")
+          + x86_ro_load_q("rdi", 0)
+@@ -314,7 +315,7 @@ static std::string bb_define_bind() {
+         uint64_t _seal_fp; { void (*fp)(const char *, void *) = bb_ab_seal_alpha; _seal_fp = (uint64_t)(uintptr_t)(void *)fp; }
+         reg = reg + x86("comment", "M4-ALPHA-SEAL: alpha$<FN> <- &<FN>_α, the m4 twin of the driver seal")
+             + x86_ro_load_q("rdi", 0)
+-            + x86("lea", "rsi", std::string("[rip + __]"), (uint64_t)0, (std::string(fname) + "_\xce\xb1").c_str())
++            + x86("lea", "rsi", std::string("[rip + __]"), (uint64_t)0, blbl.c_str())
+             + x86_scan_sync_out()
+             + x86("call", "bb_ab_seal_alpha", _seal_fp)
+             + x86_scan_sync_in_rr(); } }
