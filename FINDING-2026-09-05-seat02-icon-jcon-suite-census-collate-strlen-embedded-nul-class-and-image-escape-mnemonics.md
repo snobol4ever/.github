@@ -137,3 +137,62 @@ size list without re-measuring): the current m3 FAIL bucket, smallest-first, no 
 or `lists`(oracle-disagreement, not a bug) — re-run the sweep from the current board before picking the
 next target. `image()`'s CSET-branch escape gap (above) is a small, well-scoped, likely-quick next lead if
 a failing witness for it turns up.
+
+## 9TH PASS ADDENDUM (2026-09-05 seat02, FLEET-16, SCRIP `674319235`)
+
+**Cured and pushed**: a THREE-SITE class defect in how this codebase compares Icon procedure/record-
+constructor VALUES (the `DT_E` descriptor flavor tagged `slen==0xFFFFFFFEu`, minted by `rt_proc_value()`
+in `rtx_icncall.s`). Every bare reference to a global procedure or record-constructor name (`main`, a
+user record like `rec`) bakes its OWN separate `.string` literal in the emitted `.s` — same CONTENT,
+different POINTER per occurrence. Three independent runtime comparisons all compared these values by raw
+pointer/int bits instead of by name, so they never matched even against themselves:
+1. `descr_identical()` (`src/runtime/values.c`) — used by `bb_ident.cpp`/`IR_IDENT` and the by-name
+   `===`/`~===`/`IDENT()` dispatch paths (`by_name_dispatch.c:4019`,`:6105`) — fell through to a raw
+   `memcmp(&a,&b,sizeof(DESCR_t))`, which also compares the per-node `src_node` debug stamp.
+2. `rt_jct_relop_impl()` (`by_name_dispatch.c:3785`) — the actual implementation of Icon's DIRECT `===`/
+   `~===` syntax (lowers to `IR_BINOP_TEST` with `binop=BINOP_EQV`/`NEQV`, NOT through `bb_ident.cpp` —
+   that box is for a different path; confirmed via `--dump-ir`). Compared via `lhs.i==rhs.i` (raw
+   pointer-as-int).
+3. `BID_IDENTICAL` (`by_name_dispatch.c:5773`) — the builtin Icon's `case` statement calls for any
+   arm label that isn't a foldable literal (confirmed via `--dump-ir`: `main:`/`rec:` labels lower to
+   `CALL_BUILTIN [..] "IDENTICAL"`, a THIRD, separate mechanism from both of the above). Compared via
+   `a.ptr==b.ptr`.
+All three now special-case the procval flavor of `DT_E` by comparing `.s` (the name) with `strcmp`. Empirically
+verified with `if main === main then write("EQ") else write("NE")`-style repros before AND after each fix —
+this is a case where reading the box template alone (`bb_ident.cpp`) pointed at the WRONG implementation;
+`--dump-ir` on a minimal repro was needed to find the real one, twice.
+
+**Two adjacent bugs fixed in the same functions, found while isolating the above**:
+- `image()`'s `DT_E` formatter (`by_name_dispatch.c:4744`) reported EVERY procval as `"function NAME"` or
+  `"procedure NAME"`, never `"record constructor NAME"` — real Icon's `image()` distinguishes them (`type()`
+  correctly does not, matching real Icon). Fix reuses the ALREADY-EXISTING `dat_find_type(name)` registry
+  (the same one `record_register()` populates) rather than adding any new tracking — record constructors
+  were never added to `g_stage2.proc_table`, they go through `record_register()`/`dat_register()` instead,
+  a separate mechanism this file already calls elsewhere.
+- `BID_IDENTICAL`'s `DT_S`/`DT_SNUL` branch compared string CONTENT without checking the cset sentinel
+  (`slen==0xFFFFFFFFu`), so a cset and a same-content string (`'1'` vs `"1"`) compared identical — the other
+  two implementations already guarded this (`lcs`/`rcs` in `rt_jct_relop_impl`, `a_cset`/`b_cset` in
+  `descr_identical`); only `BID_IDENTICAL` was missing it.
+
+**Effect on `jcon_tests`**: `case.icn` (3-sub-bug cluster since the 3rd pass) is now down to ONE remaining
+diff line — `image()` of a co-expression (`c : ""` vs `c : co-expression_2(0)`), which is the already-open,
+already-minted `icon-jcon-class-serial-and-image-object-numbering-missing` design-scale gap. Not a full PASS,
+so the jcon board headline is UNCHANGED at m3 43/81 · m4 40/81 (no other FAIL-bucket program happened to use
+a bare-identifier case-arm label or a mismatched cset/string case-arm in a way that flips it, per a fresh grep
+of the corpus for `===`/`~===`/`case` users: `sorting recent gener io` all use `case` and are worth a quick
+re-diff by the next pass, though their diffs were large (122-492 lines) before this fix and are unlikely to
+fully flip). DONE-WHEN still far from met (43 of the >=50 floor).
+
+⛔ **SEPARATE, NOT-FIXED, FLAGGED FINDING — reported to hq_B, not this row's scope**: the SNOBOL4 corpus gate
+(`bash scripts/test_corpus_snobol4.sh`), the fleet's cross-language regression control arm, currently reads
+**mode-3 PASS=1803 FAIL=26, mode-4 PASS=1803 FAIL=21** (plus 4 separately-reported TIMEOUT-KILLED, not counted
+in FAIL) — NOT the `FAIL=0` this file's own CLAUDE.md digest and this row's every prior pass have measured.
+**Isolated via stash/rebuild/re-measure**: ran the FULL gate twice, once with this pass's 3-file identity fix
+applied (SCRIP dirty, load 22.37/16 cores) and once with it `git stash`ed out (clean pre-fix tree, load
+13-17/16 cores) — **both runs read the exact identical FAIL=26/21**, proving this is a pre-existing condition
+on origin/main, not caused or worsened by this pass's fix, and not machine-load jitter (a deterministic
+content-mismatch count, reproduced twice under different load, is not what timeout/hang noise looks like).
+Likely candidate cause (not chased, out of lane): the SNOBOL4 master corpus itself grew substantially between
+this row's earlier passes and now (1801 -> 1859 entries, from an unrelated `corpus` pull absorbing new
+`ALL.sno`/`ALL.ref`/`ALL.csv` content mid-session) — but this is a guess, not verified, and is SNOBOL4-lane
+work, not Icon/jcon work. Reported via `ask` to hq_B (this row's HQ) rather than chased or fixed here.
