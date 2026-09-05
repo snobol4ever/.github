@@ -97,12 +97,47 @@ Four minted witnesses (`w1` dynamic LEN in an ARBNO body · `w2` the three-arm a
 printed so a wrong operand that still succeeds is caught · `w4` body capture, value graded) agree with
 `sbl -bf` in both modes.
 
+## ⛔⭐⭐ THE A/B WITNESS TABLE — AND THE NUMBER THAT RETIRES THE rc PREDICATE FOR THIS CLASS
+Seven witnesses minted, then graded on **clean main `23c6e45d6`** (built, measured, restored) and on the
+branch — same box, one variable. Oracle is `sbl -bf`.
+
+| witness | shape | main m3 | main m4 | branch |
+|---|---|---|---|---|
+| `p1` | dynamic `POS(K)` under an ARBNO reach | rc=0 `miss` | rc=0 `miss` | green |
+| `p2` | dynamic `RPOS(K)`, same reach | **rc=139** | rc=0 `miss` | green |
+| `p3` | dynamic `POS(K)` + `@C`, cursor printed | rc=0 `miss` | rc=0 `miss` | green |
+| `w1` | dynamic `LEN(N)` in an ARBNO body | **rc=139** | rc=0 `miss` | green |
+| `w4` | ARBNO body capture, value graded | rc=0 `miss` | rc=0 `miss` | green |
+| `w2` | three-arm alternation (the nqueens shape) | green | green | green |
+| `w3` | ARBNO + zero-width follower, cursor printed | green | green | green |
+
+⭐ **`w2` and `w3` are GREEN ON MAIN, so they are CONTROL ARMS, not witnesses**, and are not counted as
+closures. Five witnesses bite; recording seven would have read better and meant less.
+
+⛔⭐⭐ **Across the five red witnesses there are ten readings on main, and EIGHT EXIT rc=0 PRINTING `miss`.
+Only two crash.** An rc predicate would have called **eight of ten a PASS**. On this class rc is not a weak
+verdict — it is usually the wrong one, and it fails in the flattering direction. That is the same fact as
+the nqueens wrong-boards above and as hq_U's "pos/rpos are deterministic where LEN is a coin", seen a third
+time: a garbage INDEX faults or not depending on what happens to be mapped, so it looks like a coin; a
+garbage COMPARAND is simply never equal, so it is silent and constant. **The member of a family that is
+easiest to miss is the one that never crashes.**
+
+## THE FAMILY COMPLETION (second commit, graded as its own arm)
+`len`, `pos` and `rpos` were the three primitives still reading a dynamic integer operand at a raw
+`FRQ(op_sa + 8)` while their seven siblings already used `XSAQ`. The LEN cure takes that 7-and-3 to 8-and-2;
+`pos`/`rpos` take it to **10 and 0**, per NO-PER-OP-FILTER-WITHIN-A-BB-FAMILY. ⛔ Two raw reads survive
+outside the family, in `bb_match_begin.cpp` and `bb_match_replace.cpp` — different role, untouched, named
+so the family claim is not misread as a whole-file claim.
+
 ## ⛔ STILL OPEN, NAMED RATHER THAN BURIED
 - **`POS`/`RPOS` share the defective spelling but are zero-width, so they cannot fault — they return a
   WRONG ANSWER silently.** No crash predicate covers them; differential grading against the oracle is owed.
 - **`:F(RETURN)` at level zero** — SCRIP crashes where the oracle raises `ERROR 242 function return from
   level zero`. Found while minimizing (a minimizer constrained only to "still crashes" drifted onto it).
   A separate defect in the hq_S lane, owed as a row.
+- **The board's `master m4 xfail=38 xpass=1`** — an XPASS on the branch, plausibly an xfail entry this cure
+  closed. **UNIDENTIFIED**: the single-mode harness rerun sat 65 minutes with no output on a box at load 21
+  and was killed rather than keep an HQ hand-running a suite. Flagged, not banked.
 - Only the ARBNO body extent is covered. A FENCE body reached the same way is the same shape and is NOT
   cured here; `cap_in_repeat_body` already computes that extent, so the widening is one line — held back
   because nothing measured demands it yet.
