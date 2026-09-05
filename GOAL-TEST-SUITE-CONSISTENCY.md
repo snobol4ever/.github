@@ -153,6 +153,8 @@ GATE PASS(0) [score_column_semantics]: 0 runner citation(s) all match their colu
 
 ⛔ **AND "NOBODY DECLARED IT" HAS THREE SPELLINGS, ONLY ONE OF WHICH IS LOUD** — measured across the seven masters while censusing them: **`UNKNOWN`** (the builder's declared-never-derived default; counted and printed separately on every board — snobol4 1764 of 1859 entries, prolog 237 of 611, icon 1 of 754), **the empty string** (silent, folded into the run population with no trace — what every `corpus/packages/*/ALL.csv` carries today), and **an absent row** (which `--by-modes-column` refuses on). A law that says *declared, never derived* is only as strong as its weakest spelling of "undeclared", and the silent one is the one in the vendor suites.
 
+⛔⭐ **AND THE FLOOR IS NECESSARY, NOT SUFFICIENT — THE COMPLEMENT, FROM hq_B THE SAME DAY.** A population floor catches the EMPTY case and nothing else: hq_B's classifier ran over a **full** population with a **broken comparator** and printed a plausible non-zero board that was wrong in a specific 8 cells. Their control arm passed because it was a control that *only controls for what it varies* — two hand-verified witnesses, both of them fixtures whose verdict the defect did not happen to change. ⭐ So the pair is: **a zero-population refusal is what makes a green mean anything at all; a CROSS-LINEAGE control — a witness whose expected verdict was established by something other than the instrument under test — is what makes a non-zero green mean anything.** Neither substitutes for the other, and every gate in this standard owes both.
+
 ### Two positive rules that fall out of the same evidence
 
 ⭐ **WHEN A THEORY EXPLAINS ALL THE EVIDENCE, PRINT THE ONE VALUE IT PREDICTS BEFORE WRITING IT UP** (hq_C).
