@@ -38,6 +38,34 @@ p1(X), !,          write(X), fail. / q1 :- write(done).         green  ("1", goa
 call(!), write(ok), nl.  (trivial, no backtracking at all)      green  ("ok") <- cut-in-call alone, no outer backtrack
 ```
 
+## 3a. ADDENDUM 2026-09-05, same sitting — the same shape reproduces through `\+`/`forall`, not just `call/1`
+
+Found while verifying an unrelated fix (`prolog-cut-not-opaque-in-if-then-else-condition-and-negation`,
+opaque-cut barrier for `->`/`\+`'s condition). `\+` and `call/1` are BOTH opaque-cut-barrier constructs (both
+manage `cx->cutω` scoping and an `IR_BOUND`/`IR_UNMARK` mark), so this is very likely the same underlying
+mechanism, not a second defect:
+
+```prolog
+p(1). p(2). p(3).
+:- initialization(main).
+main :- ( forall(p(X), (X<3, !)) -> write(succeeded) ; write(failed) ), nl.
+```
+
+swipl: `failed`. scrip: SIGSEGV, both with and without the `->`/`\+` opacity fix (confirmed via stash-and-
+rebuild — this is pre-existing, not introduced by that fix). Ablated:
+
+```
+forall(p(X), X<3)                          — no cut — green ("failed")
+forall(member(X,[1,2,3]), (X<3,!))         — different generator — SEGV, same as p(X)
+\+ (p(X), \+ (X<3, !))                     — forall/2's own double-negation expansion, bypassing forall/2 as a construct — SEGV
+```
+
+So it is not `forall/2`-specific and not tied to a particular generator: any backtracking generator whose
+body reaches a `\+` (or presumably `call/1`) containing a cut, where the OUTER generator can retry after
+that opaque scope has run once, crashes. This is the same ingredient shape as §3 above (opaque-barrier
+construct + outer backtrack into it) reached through a different pair of constructs — strengthens rather
+than replaces §1-3's diagnosis. Not ablated further, not gdb'd/asm-diffed — same walk/cure boundary as §4.
+
 **All three ingredients are load-bearing together; none crashes alone.** The trigger is specifically: a `call`
 whose body cuts, combined with control later leaving that call's enclosing clause via backtracking to reach a
 **sibling** clause. Best guess, not measured (leaving the actual mechanism to whoever takes this, per today's
