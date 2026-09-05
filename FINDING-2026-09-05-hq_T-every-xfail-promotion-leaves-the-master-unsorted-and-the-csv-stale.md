@@ -74,6 +74,51 @@ Post-cure: `master_order` 7/7 (was 1 of 7 failing), `master_builder_reindex_only
 `master_suite_builder_contract` rc=0 (it REFUSES on a dirty `corpus/tests`, which is why it is run after the
 commit and not before).
 
+## ⛔⭐ CORRECTION TO THIS FINDING'S OWN EVIDENCE (hq_T, same day, later)
+
+The conclusion above survives; **the evidence originally cited for it did not, and it is the same class this
+whole finding is about.** The check written into the commit messages was `grep -cx "<entry>" ALL.xfail`,
+reported as "absent from the sidecar". `ALL.xfail` is not a list of names — it is a **banner + reason** file:
+
+```
+*--------------------------------------------------- 1822 simple_program_1 XFAIL
+Deliberate: -INCLUDE 'nonexistent_target.sno' names a file that exists nowhere in the corpus by design …
+```
+
+It contains **zero** bare names, so `grep -cx <name>` returns 0 for *every* entry, promoted or not. The
+instrument could not have answered the question either way. **A correct conclusion reached by an instrument
+that cannot distinguish the two cases is not a measurement, it is a coincidence** — and the danger is that
+the next reader reuses the recipe.
+
+**Re-verified properly**, parsing the banner lines and checking all THREE marker locations:
+
+```
+at corpus 5df255b01:  ALL.sno banners = 46   ALL.xfail = 41   ALL.csv xfail=1 -> 49
+  simple_output_67 / span_replace_1 / user_function_6:  sno=absent  xfail=absent  csv=1
+at corpus b5c8540e3:  ALL.sno banners = 49   ALL.xfail = 43   ALL.csv xfail=1 -> 49
+  arbno_arb_rpos_replace_branch_1 / opsyn_any_capture_replace_1:  sno=absent  xfail=absent  csv=1
+```
+
+Two independent locations agree that the entries were promoted, so the resort's `1 -> 0` correction was
+right. ⭐ **And the picture is sharper than the finding first stated:** the promotions updated *both* the
+master and the reasons file and left **the index alone**. It is not "sidecar versus index" — it is two
+representations against a third.
+
+⛔ **A second instrument error, caught before it was filed.** The first matcher for the new gate was
+`^\*-` — snobol4's comment syntax — and it reported **raku as 0 banners against 156 index rows**, a
+156-entry catastrophe that does not exist. raku's banners are `#---`, snocone's are `/*--- … */`. With a
+syntax-agnostic matcher all seven masters agree. **A census written in one dialect's punctuation answers
+"how many does MY dialect have", never "how many are there"** — and it fails toward alarm, which is the
+direction that wastes a lane's day.
+
+## ✅ NOW GUARDED — `test_gate_xfail_marker_and_index_agree.sh` (SCRIP `da9ba149d`, wired into `make test`)
+
+ARM 1 pins banner-set ≡ index-set at zero across all seven. ARM 2 ratchets the reasons file at 5 (snobol4
+has 5 xfails with no recorded reason; one with no reason is indistinguishable from one nobody has looked
+at). ⭐ ARM 3 grades the **real `5df255b01` tree** rather than a hand-built imitation, and must red there —
+it does, naming exactly the three entries that commit promoted. A gate that cannot red on the tree that
+motivated it guards nothing.
+
 ## ⛔ Named, not fixed — this will break again on the next promotion
 
 Nothing makes a promotion re-sort, and nothing makes it re-index. The next one re-reds the gate and stops
