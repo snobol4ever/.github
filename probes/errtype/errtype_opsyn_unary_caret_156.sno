@@ -1,0 +1,5 @@
+	DEFINE('OPT(P)')                :(OPT_END)
+OPT	OPT = P                          :(RETURN)
+OPT_END
+	OPSYN('^', 'OPT', 1)
+END
