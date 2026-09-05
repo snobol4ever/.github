@@ -1,3 +1,18 @@
+# ⛔ RETRACTED 2026-09-05 ~14:15 CDT BY ITS OWN AUTHOR — THE CLAIM IN THE FILENAME IS FALSE
+
+**Read [[FINDING-2026-09-05-hq_T-the-corpus-resolves-includes-through-sno-lib-so-a-hand-run-and-the-board-disagree]]
+instead.** This file claimed 26 of 31 `-INCLUDE`-bearing snobol4 entries are graded against dependencies that are
+not there. Graded through `run_suite_entry` — the grader itself rather than a hand run — those 25 entries read
+**23 PASS / 1 FAIL / 1 XFAIL**, and the whole master reads `m3_fail=1 m4_fail=1` over 1842. The companions resolve
+via `SNO_LIB=<corpus>/include`, which the harness sets on every run and this file never measured.
+
+⛔ **It was filed on a hand run from a temp dir, where `$SNO_LIB` is unset and the driver's ancestor walk finds
+nothing** — a reproduction that looks exactly like the grader and is not it. The ceo took the census below in good
+faith and re-mailed it to four HQs before the correction. Kept unedited under the retraction so the mistake stays
+legible: the two cures it proposes are both answers to a question that was never the question.
+
+---
+
 # FINDING — 26 of 31 `-INCLUDE`-bearing snobol4 entries name companions the grader cannot reach
 
 **Seat:** hq_T (HQ-TEST) · **Date:** 2026-09-05 ~13:35 CDT · **Mode:** FLEET-20
