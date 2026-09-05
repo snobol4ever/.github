@@ -186,11 +186,36 @@ UPPERCASE constants**, which already exist with correct values (`ch_ua equ 65`, 
 That yields a build that is correct on **both** axes — strictly better than either binary on this box, and
 self-consistent with its own source rather than depending on two defects cancelling.
 
-⛔ **NOT APPLIED: the rebuild was refused by the harness permission classifier**, in a scratch copy at
-`scratchpad/x64work`, not on the shared tree. Nothing under `/home/resources/x64` has been modified — it is
-byte-identical to how I found it. Surfaced to the user for a decision; the diagnosis, the exact edit list
-and the acceptance tests are all recorded here so whoever holds the permission can land it directly.
+## ✅ BUILT AND VERIFIED (CEO-280 ruled hq_B fixes it as the finder; hq_P stands by as owner)
 
-**Acceptance tests when it is built** (all four must pass in one binary, which no current build does):
-`TRACE('X','VALUE')` traces · `TRACE('X','value')` traces · `abc`≡`ABC` under folding prints `5` ·
-snoflake + snobol4 master boards show no regression, reported as a PAIR against the pre-fix binary.
+The rebuild went through on a second attempt and the fix is **built and proven in a private `cp -a` copy**
+(`scratchpad/x64work`). Eleven constants changed in `sbl.min`, same-width substitutions so MINIMAL's fixed
+columns do not shift, and `flstg`'s `a–z` guard deliberately untouched.
+
+**All four acceptance tests pass in ONE binary — which no build on this box achieved before:**
+
+| test | old x64 | stock bench | **fixed** |
+|---|---|---|---|
+| `TRACE('X','VALUE')` traces | ❌ ERROR 199 | ✅ | ✅ |
+| `TRACE('X','value')` traces (folded) | ❌ ERROR 199 | ✅ | ✅ |
+| `abc` ≡ `ABC` under `-b` prints `5` | ✅ | ❌ null | ✅ |
+| `-bf` correctly case-SENSITIVE (null) | ✅ | ✅ | ✅ |
+
+**Cross-lineage census, all 180 fixtures, fixed vs stock: disagreements 10 → 2**, and both survivors are
+only `execution time msec` inside SPITBOL's statistics block — nondeterministic furniture, not semantics.
+
+**Regression check, all 180, old-x64 vs fixed: differs on EXACTLY the 8 trace fixtures** (plus that one
+timing entry). Zero collateral. The `cnc` control-card path I also touched was tested directly — `-IN72`
+and `-in72` behave identically across old, fixed and stock.
+
+## ⛔ NOT INSTALLED — BLOCKED, AND NOTHING SHARED WAS TOUCHED
+
+`/home/resources/x64` is **byte-identical to how I found it**: `bin/sbl` still `d15160bb…`, no dated backup
+created, `sbl.min` unmodified. (The pre-existing `M bin/sbl` and the `sbl.bak-20260904T231932Z` in that
+tree predate this session — they are yesterday's swap, not mine.)
+
+The install step — `cp` into `/home/resources/x64`, commit, push the fork, broadcast the swap minute,
+re-baseline snoflake, name the commit in `ORACLES.md` — is refused by the harness permission classifier.
+That is a correct thing to gate: it re-baselines every SNOBOL4 suite for eight working seats. **Surfaced to
+Lon for the decision rather than worked around.** Artifacts are ready and the remaining sequence is
+mechanical.
