@@ -1,5 +1,7 @@
 # TEMPLATE REVAMP — CONSTRUCTION RULES (binding for every encoder/template edit)
 
+**⭐ WHY THESE RULES (Lon 2026-09-05, in-chat to ceo, verbatim: *"We want all the bb_*.cpp files to follow the struct rules of construction so that all that code can easily be translated manually into Snocone unevaluated expressions."*):** a template body that is one pure `x86(...)` concat with every variance inline (R4–R6, R8) is a Snocone unevaluated expression written in C++ syntax; every rule below exists so that translation is line-for-line. The program is row `bb-fixup-az-cleanup` (hq_U, rank 1 since 2026-09-05), instrument `SCRIP/scripts/audit_bb_fixup_rank.sh`; unused `bb_*.cpp` files are deleted under the same row (Lon, same day: *"ensure old unused bb_*.cpp files are removed so we do not have garbage hanging around."*).
+
 ## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
 
 **██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
