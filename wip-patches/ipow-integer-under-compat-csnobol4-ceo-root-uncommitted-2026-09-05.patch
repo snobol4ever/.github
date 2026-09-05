@@ -1,0 +1,36 @@
+diff --git a/src/driver/scrip.c b/src/driver/scrip.c
+index a1ee82de3..606741e8a 100644
+--- a/src/driver/scrip.c
++++ b/src/driver/scrip.c
+@@ -848,7 +848,7 @@ int main(int argc, char **argv)
+         else if (strncmp(argv[argi], "--compat=", 9)   == 0) {
+             const char *d = argv[argi] + 9;
+             if      (strcmp(d, "spitbol")  == 0) { unsetenv("SCRIP_SETEXIT_END"); unsetenv("SCRIP_IO_ASSOC_LEGACY"); }
+-            else if (strcmp(d, "csnobol4") == 0) { setenv("SCRIP_SETEXIT_END", "1", 1); setenv("SCRIP_IO_ASSOC_LEGACY", "1", 1); }
++            else if (strcmp(d, "csnobol4") == 0) { setenv("SCRIP_SETEXIT_END", "1", 1); setenv("SCRIP_IO_ASSOC_LEGACY", "1", 1); setenv("SCRIP_IPOW_INTEGER", "1", 1); }
+             else { fprintf(stderr, "scrip: --compat=%s is not a known dialect (spitbol, csnobol4)\n", d); return 2; }
+             argi++; }
+         else if (strcmp(argv[argi], "--monitor")       == 0) { extern int g_monitor_bin; g_monitor_bin = 1; argi++; }
+@@ -898,6 +898,7 @@ int main(int argc, char **argv)
+             "Dialect:\n"
+             "  --compat=DIALECT spitbol (default) or csnobol4; the switch ADDS CSNOBOL4-only behaviour, the default never widens\n"
+             "                   csnobol4 today: the SETEXIT trap also fires on normal termination when &ERRLIMIT is non-zero\n"
++            "                   csnobol4: integer ^ negative integer is INTEGER 0 (0 ^ negative raises error 2), where SPITBOL promotes to real\n"
+             "\n"
+             "Memory options (SPITBOL-compatible; value may end in k or m, e.g. -s256m -m8m):\n"
+             "  -sN              max stack space; raises RLIMIT_STACK for deep pattern backtracking (default: OS, 8m)\n"
+diff --git a/src/runtime/arithmetic.c b/src/runtime/arithmetic.c
+index ed296dc5f..fb4a8c270 100644
+--- a/src/runtime/arithmetic.c
++++ b/src/runtime/arithmetic.c
+@@ -200,8 +200,10 @@ static DESCR_t rt_ipow_descr(int64_t li, int64_t ri) {
+     return INTVAL(0);
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static int rt_ipow_integer_dialect(void) { static int v = -1; if (v < 0) { const char *e = getenv("SCRIP_IPOW_INTEGER"); v = (e && e[0] == '1') ? 1 : 0; } return v; }
+ static DESCR_t rt_ipow_promote_descr(int64_t li, int64_t ri) {
+     if (ri >= 0) { int64_t acc = 1; for (int64_t k = 0; k < ri; k++) acc *= li; return INTVAL(acc); }
++    if (rt_ipow_integer_dialect()) { if (li == 0) { core_runtime_error(2, "Error in arithmetic operation"); return FAILDESCR; } return INTVAL(0); }
+     if (li == 0) return REALVAL(0.0);
+     return REALVAL(pow((double)li, (double)ri));
+ }
