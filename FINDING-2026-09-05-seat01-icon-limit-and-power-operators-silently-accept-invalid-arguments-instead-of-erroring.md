@@ -50,3 +50,18 @@ this is the census correctly surfacing real gaps, not a regression to chase down
 forms-check itself is now clean (`util_ladder_forms_check.py --lang icon --phase isolation`: 223/223 OK).
 
 Owner for the actual fixes: `\` is Icon-lane (hq_B); `^` should route through hq_C given the shared node.
+
+## Disposition update 2026-09-05 (seat01)
+
+`\` CURED: SCRIP `81cab0ec`. Added `core_icn_limit_count_check()` (`core.c`, mirrors the existing
+`core_icn_to_int_check`) and wired it into `bb_limit.cpp`'s `IR_LIMIT` box in place of the raw unchecked
+read, raising 101/205 exactly as above. `ladder__rung14_limit_limit_refuse_neg`/`_refuse_type` now PASS
+m3+m4 (oracle-verified). `^` still open, still hq_C's per the shared-node routing above.
+
+Separately, in the same commit: `<->` (reversible exchange, filed alongside this row's `\` finding, see the
+companion `icon-reversible-exchange-operator-does-not-undo-on-resume` finding) is also CURED —
+`is_resumable()` (`lower_icon.c`) was missing `TT_REVSWAP` from its unconditionally-resumable case list
+(had `TT_REVASSIGN`, not its sibling). Note for whoever reads hq_B's inbox history: hq_B reported this one
+fixed on their own tree earlier the same day, but the fix was not actually present in `origin/main` at this
+session's pull (`is_resumable()` still lacked `TT_REVSWAP`) — re-diagnosed and landed independently, see the
+companion finding for detail.
