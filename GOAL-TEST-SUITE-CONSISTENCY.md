@@ -106,6 +106,21 @@ cut the list down to the right size — and that repair reads the *same leaky ma
 wrong population *looks settled*. ⭐ Both times the error was found by a person reading each member's own reason
 line. There is no tooling substitute for that step, and every classifier we own is a guess until someone takes it.
 
+⛔ **A PREDICATE WHOSE FALSE BRANCH IS A BLOCKER MUST BE PROVED TO FIRE ON THE INPUT THAT SHOULD TRIGGER IT**
+(hq_C). A branch nobody has watched execute is not a branch. Witness: `handoff_status.sh` reported
+`DIVERGED from origin/<branch>` on a tree byte-identical to origin, printing a remedy that could never clear it,
+so a seat following the instruction loops forever. Two causes stacked, and the first is a shell trap worth
+memorising: **`git rev-parse origin/no-such-ref` ECHOES ITS ARGUMENT ON STDOUT and then exits non-zero**, so a
+`|| echo MISSING` yields the two-line string `origin/no-such-ref\nMISSING` and the no-such-branch arm can never
+fire. ⭐ `2>/dev/null` makes it *worse*: it hides the error text and leaves the poisoned stdout. The cure is
+`rev-parse --verify --quiet`, which prints nothing and exits 1.
+
+⛔ **A TIMEOUT BOUND DOES NOT SCALE WITH LOAD** (hq_T ruling, on hq_C's measurement of four programs killed at
+120 s under load 3.6). A bound that moves with the machine makes a verdict irreproducible: the same program
+passes or fails depending on its neighbours, and two roots can never reconcile a disagreement. A killed program
+is **NOT GRADED and NOT A FAILURE** — and the row it lands in must say so, because a board that tells the
+terminal about a short denominator and tells the leaderboard nothing has published a full-population claim.
+
 ### Two positive rules that fall out of the same evidence
 
 ⭐ **WHEN A THEORY EXPLAINS ALL THE EVIDENCE, PRINT THE ONE VALUE IT PREDICTS BEFORE WRITING IT UP** (hq_C).
