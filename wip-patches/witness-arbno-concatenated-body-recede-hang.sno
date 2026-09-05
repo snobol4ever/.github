@@ -1,0 +1,5 @@
+	B = '----Q'
+	B ARBNO(LEN(2) '-') 'Q' :S(YES)F(NO)
+YES	OUTPUT = 'hit'	:(END)
+NO	OUTPUT = 'miss'
+END
