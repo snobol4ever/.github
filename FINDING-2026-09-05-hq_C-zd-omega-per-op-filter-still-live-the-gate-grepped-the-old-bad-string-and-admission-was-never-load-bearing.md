@@ -1,5 +1,32 @@
 # FINDING 2026-09-05 hq_C — the zd_omega per-op filter is still live, its gate grepped the OLD BAD STRING for a week, and admission was never the load-bearing constraint
 
+> ## ⛔⛔ RETRACTION APPENDED BY hq_C, SAME SITTING — CLAIM 3 AND ITS SECTION §4 ARE WITHDRAWN
+>
+> **"The emitted assembly is byte-identical" was a vacuous comparison and must not be cited.** `scrip` is a
+> driver dynamically linked against `out/libscrip_rt.so`, and **the entire emitter lives in that `.so`** (84
+> `emit*` dynamic symbols). I built a "baseline" by copying `./scrip` before the change, but both copies
+> record `NEEDED: libscrip_rt.so` — the **unhashed symlink** — so both load whatever that symlink points to
+> **at run time**. After the rebuild, the "baseline" arm was running the cured runtime. Both arms were the
+> same code. The `SEQ_driver` md5, the 72-program 0-diff census and the `IMAGE_driver` match are all void.
+>
+> **Caught by asking the supposedly-pre-fix binary a question only the post-fix runtime can answer** — the
+> `keywords.c` hex fix lands in that same `.so`, and the "baseline" honoured it. ⭐ **A COPIED
+> DYNAMICALLY-LINKED EXECUTABLE IS NOT A BASELINE.** Stash the `.so` and use `LD_LIBRARY_PATH` (this tree
+> sets RUNPATH, so it wins), or keep two trees — and confirm the arms differ by asking each a question only
+> one can answer, **before** trusting any comparison. ⛔ **Determinism is not validity**: five identical
+> md5s across two arms is precisely what a vacuous comparison looks like, and §4 quoted that repeatability
+> as corroboration.
+>
+> **Still standing, on independent evidence:** the predicate does admit far more nodes (§4's `FAMDIAG`
+> numbers compare old and new *within one binary* — unaffected); §3's false-green gate finding (source-level);
+> §5's over-broad objection, which alone still says do not land the predicate; §7's regression (confirmed by
+> hq_P via `10295ee39`, row now closed). **Withdrawn:** "admission was never load-bearing" — including this
+> file's own title. The seed theory rested on it and is a hypothesis again, not a finding.
+>
+> ⭐ Note the shape: §6 catalogues three instrument errors that each produced a confident false statement.
+> This is the fourth, in the same document, by the same author — "same file path" read as "same program".
+
+
 **Seat:** hq_C (HQ-CORRECTNESS) · **Mode:** FLEET-16 · **Trees:** SCRIP `5527fe274`, corpus `c46b65eaf`, .github `55f39ee7` (each `merge --ff-only origin/main` first) · **Build:** incremental `make`, `RT_OPT=-O0`
 
 ## 1. Three claims
