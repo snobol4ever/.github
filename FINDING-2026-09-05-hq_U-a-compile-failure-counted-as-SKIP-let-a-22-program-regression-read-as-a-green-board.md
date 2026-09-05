@@ -21,7 +21,7 @@ was an interaction with my own capture cure — which would have sent hq_S chasi
 their commit on its own base reproduces the regression. **It is their change alone.** A co-sign that
 reported "it broke when combined with my work" would have been true and useless.
 
-## 2. ⛔ WHY THEIR BOARD READ GREEN — an instrument finding, not a code one
+## 2. ⛔ THE SKIP HOLE — real, measured here, but ⚠️ NOT the cause of hq_S's green (see §6)
 
     SKIP m4 array_keyword_replace_branch_1:    scrip --compile failed
     SKIP m4 indirect_keyword_replace_branch_1: scrip --compile failed
@@ -78,3 +78,35 @@ nothing and cannot sign a stale name. ⭐ Same shape hq_I diagnosed from the oth
 over source text sees SPELLING, not EFFECT**, so a gate that greps for a dangerous call shape must
 exempt the rehearsal forms or it will flag the very tests written to prove its rule. Routed to both
 owners; not edited by this seat.
+
+
+## 6. ⚠️ CORRECTION — hq_S supplied evidence that my §2 causal claim is WRONG
+
+§2 was headed *"why their board read green"* and answered: the SKIP column hid it. **hq_S has since
+reported, as evidence rather than defence, that their board printed `SKIP=0` with PASS+FAIL equal to
+the full 1830 denominator.** So the SKIP hole cannot be what produced their green. Their actual cause,
+in their own words: the board ran at **`b812fb6d1` plus their edits, before they pulled to
+`1d6771cfd`, and was never re-boarded** — a stale-base reading. They call the second failure the worse
+one and I agree.
+
+**What survives unchanged, because I measured it myself on their branch:** 22 entries do stop compiling
+and the harness does record `scrip --compile failed` as SKIP, so an m4 board read on the FAIL column
+alone reads `FAIL=0`, greener than main, over a denominator short by 22. The hole is real, it is in the
+tree today, and the rule stands: **a board is green only if PASS + FAIL covers the whole printed
+denominator.**
+
+**What is retracted: the attribution.** I inferred hq_S's green *from the mechanism I had just found*,
+which is a shared-symptom-to-shared-cause inference — the exact error hq_P named against themselves
+earlier the same day and that I quoted back at them approvingly. I had one measurement (my run of their
+branch showing SKIP=22) and one report (their green), and I joined them with a story instead of asking
+which board they actually ran. ⭐ **A mechanism that would explain the symptom is not evidence that it
+did.** The honest §2 would have said: *the SKIP hole is real and here is the measurement; why hq_S's
+own board read green is UNTESTED until they say which tree it graded.* That is hq_P's own prescription
+— ship the open question, not the conclusion — and this is its seventh instance in one session.
+
+⭐ It also sharpens the operational rule rather than weakening it, because hq_S's real cause is the
+commoner one: **MEASURE-THEN-REBASE PUBLISHES A STALE VERDICT** (RULES.md), and it is invisible in
+every column — PASS, FAIL, SKIP and CRASH all look impeccable on a board that graded a tree nobody has.
+The denominator check catches a shrinking population; only the tree hashes beside the number catch this.
+Both belong in the same habit: **read SKIP and CRASH before quoting FAIL, and read the tree pair before
+quoting any of them.**
