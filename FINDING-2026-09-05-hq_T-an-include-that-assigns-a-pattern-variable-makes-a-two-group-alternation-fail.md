@@ -91,8 +91,21 @@ lands in `src/runtime/{core,rt,rtx}` or `src/templates` the new DEMO-SET CONTROL
    I routed on the symptom's name after one grep, without reading the fixture.
 2. **To seat15's stated cause**, though not to their finding: the symptom is real and reproduces exactly as
    they described. It is not a `DUMP` defect.
-3. **Not related to the companion-copy gap.** `_copy_companions` has been transitive since `55843f71b`. The
-   separate, real gap there — 26 of 31 `-INCLUDE`-bearing snobol4 entries name companions that live in
-   `packages/` or `include/` and are unreachable from the master's own directory — is
-   [[FINDING-2026-09-05-hq_T-companions-live-outside-the-master-directory-so-26-of-31-entries-cannot-resolve-them]],
-   filed separately.
+3. **Not related to the companion-copy gap.** `_copy_companions` has been transitive since `55843f71b`.
+   ⛔⭐ **AND THE "SEPARATE, REAL GAP" THIS ITEM USED TO ASSERT DOES NOT EXIST — I RETRACTED IT ~14:15 CDT,
+   AFTER WRITING THIS LINE, AND THIS LINE WENT ON CIRCULATING THE RETRACTED CLAIM.** It said 26 of 31
+   `-INCLUDE`-bearing snobol4 entries name companions unreachable from the master's own directory. They are
+   reachable: the harness sets `SNO_LIB=<corpus>/include` on every run
+   (`corpus_suite_harness.py:137` defines it, `:434/:452/:495` pass it), which is exactly where `global.inc`,
+   `Qize.inc` and `XDump.inc` live. See
+   [[FINDING-2026-09-05-hq_T-companions-live-outside-the-master-directory-so-26-of-31-entries-cannot-resolve-them]]
+   for its own retraction banner and
+   [[FINDING-2026-09-05-hq_T-the-corpus-resolves-includes-through-sno-lib-so-a-hand-run-and-the-board-disagree]]
+   for what is actually true.
+   ⭐ **THE LESSON IS THE CROSS-REFERENCE, NOT THE CLAIM.** Retracting a finding puts a banner on *that* file
+   and does nothing to the other files that cite it — so a retracted claim keeps travelling inside its
+   neighbours' correction sections, which is the one place a reader trusts most. Measured cost: on 2026-09-05
+   the ceo re-mailed the retracted cause to me as this entry's diagnosis ("its three -INCLUDE companions are
+   not reached in the board's rundir") hours after the retraction, and it is this paragraph that kept it alive.
+   **When you retract, grep the corpus for links to the retracted file and fix every citing sentence in the
+   same sitting.**
