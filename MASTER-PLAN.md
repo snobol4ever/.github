@@ -15,6 +15,8 @@
 | **hq_B** (01–03) | snoflake 0/180 (NEVER run-graded) · aisnobol 1/2 · dotnet 5/5 | the three suites run-graded against SPITBOL and at 100% | run-grade snoflake FIRST (`snobol4-snoflake-suite-180-to-100-percent-by-class`, `snoflake-suite-scrip-only-gap`, `snobol4-aisnobol-and-dotnet-suites-to-100-percent`, all re-laned to hq_B 17:4x), then classes |
 | **hq_T** (12–16) | the SNOBOL4 instruments: the 184 xfails (61 `ALL.csv` · 122 `ALL.xfail` · 1 marker), the ladder to the green-book top, every SNOBOL4 runner refusing rc=2 on oracle rc=139, the SCORE rows; **vendor + runner + V cell for SPITBOL's testpgms** (`snobol4-spitbol-testpgms-vendored-as-a-package-suite-with-a-runner-and-a-score-cell`) | zero xfails; the ladder census complete to the top rung; no board can read a truncated ref | `snobol4-ladder-top-rung-census-and-rungs-10-to-top`, `snobol4-ladder-feature-combinations-after-isolation`, `snobol4-parser-fixtures-and-port-trace-gate-…` (re-laned 17:4x); the xfail umbrella is hq_P's to hand over by LANE REVIEW |
 
+**THE ORDER OF ATTACK (2026-09-04 20:51 CDT): GOAL-SNOBOL4-100 § THE ORDER OF ATTACK — wave 1 the shared-engine rows HQ-held (the capture mechanism, the m4-gate regression, RETURN after a code-object transfer, the SETEXIT mechanism), wave 2 the long tail in parallel on seats (csnobol4 classes, snoflake's 26, the xfail classes), wave 3 the mode-4 compile failures, wave 4 error semantics against SPITBOL, wave 5 the ~40 programs that need a ruling (lowercase `end`, oracle-unscorable) named beside the cell.**
+
 
 ## THE GRID IS SCORE.md (one leaderboard; nothing in this file restates a number)
 
