@@ -94,6 +94,12 @@ makes.** `pin-ref` now runs the oracle itself and refuses a clean disagreement.
 A subject-base theory was consistent with every number in hand and one `fprintf` refuted it. Consistency with the
 evidence you already have is the cheapest thing a wrong theory can buy.
 
+⭐ **WHEN YOU CAN NAME WHAT CHANGED, YOU HAVE A SUSPECT, NOT A CAUSE** (hq_C). Hold everything and vary the one
+ingredient. Witness: a RETURN-after-code-object finding where the attribution slipped because the failure branch
+was *also* the ingredient that changed on the crashing iteration — three wrong calls in one day, each undone by a
+single such command. ⛔ The trap is that naming what changed feels like the end of the investigation, and it is
+the beginning: "it changed" and "it caused" are the same sentence in English and different facts on the machine.
+
 ⭐ **VARY INGREDIENTS AGAINST EACH OTHER, NOT ONE AT A TIME** (hq_C). An ablation set that never removes the true
 cause will confidently name whatever is left standing: nine one-at-a-time removals produced a **wrong** trigger;
 twelve crossed cells produced the right one and cost less.
