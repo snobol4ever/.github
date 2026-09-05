@@ -1,0 +1,10 @@
+	&TRACE = 100
+	TRACE('M', 'ACCESS')
+	TRACE('N', 'A')
+	M = 5
+	N = 'x'
+	OUTPUT = M + 1
+	OUTPUT = N N
+	X = M
+	OUTPUT = 'done'
+END

@@ -1,0 +1,19 @@
+	&TRACE = 100
+	DEFINE('H(Z)')	:(START)
+H	H = .M	:(NRETURN)
+START	TRACE('N')
+	TRACE('M')
+	N = 1
+	'ABC' 'B' . N
+	'ABC' 'C' $ N
+	N = 'ABC'
+	N 'B' = 'X'
+	H() = 7
+	N = N 'Q'
+	N = 2 * 3
+	N = 1.5
+	$'N' = 8
+	V = .N
+	$V = 9
+	OUTPUT = 'done ' N ' ' M
+END

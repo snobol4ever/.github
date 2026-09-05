@@ -1,0 +1,12 @@
+	&TRACE = 100
+	TRACE('LBL', 'LABEL')
+	TRACE('LBL2', 'L')
+	K = 0
+	OUTPUT = 'seq'
+LBL	OUTPUT = 'at lbl ' K
+	K = LT(K, 2) K + 1	:S(LBL)
+	:(LBL2)
+LBL2	OUTPUT = 'at lbl2 ' K
+	K = LT(K, 4) K + 1	:S(LBL2)F(DONE)
+DONE	OUTPUT = 'done'
+END

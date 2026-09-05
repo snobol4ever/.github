@@ -1,0 +1,15 @@
+	&TRACE = 100
+	DEFINE('F(X)')
+	DEFINE('G(Y)')	:(START)
+F	F = G(X) + 1	:(RETURN)
+G	G = Y * 2	:(RETURN)
+START	TRACE('FNCLEVEL', 'KEYWORD')
+	N = F(1)
+	TRACE('STCOUNT', 'K')
+	OUTPUT = 'a'
+	OUTPUT = 'b'
+	STOPTR('STCOUNT', 'KEYWORD')
+	STOPTR('FNCLEVEL', 'K')
+	N = F(2)
+	OUTPUT = 'done ' N
+END

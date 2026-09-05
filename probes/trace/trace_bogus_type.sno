@@ -1,0 +1,4 @@
+	&TRACE = 1
+	TRACE('N', 'BOGUS')
+	OUTPUT = 'not reached'
+END

@@ -1,0 +1,11 @@
+	&FTRACE = 100
+	DEFINE('F(X)')
+	DEFINE('G(Y)')
+	DEFINE('W(A,B)')	:(START)
+F	F = G(X) + 1	:(RETURN)
+G	G = Y * 2	:(RETURN)
+W		:(FRETURN)
+START	OUTPUT = F(3)
+	W('s', 1.5)	:F(NEXT)
+NEXT	OUTPUT = 'done ' &FTRACE
+END

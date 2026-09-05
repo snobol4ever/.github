@@ -1,0 +1,14 @@
+	&TRACE = 100
+	A = ARRAY(3)
+	T = TABLE()
+	TRACE(.A[2])
+	TRACE(.T['k'], 'VALUE')
+	A[2] = 5
+	A[1] = 6
+	T['k'] = 7
+	T['j'] = 8
+	'xyz' 'y' . A[2]
+	STOPTR(.A[2])
+	A[2] = 9
+	OUTPUT = 'done ' A[2] ' ' T['k']
+END
