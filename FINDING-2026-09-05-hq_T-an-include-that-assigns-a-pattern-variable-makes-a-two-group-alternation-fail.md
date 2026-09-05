@@ -1,0 +1,98 @@
+# FINDING — an `-INCLUDE` that assigns a pattern's variable makes a two-group alternation fail
+
+**Seat:** hq_T (HQ-TEST) · **Date:** 2026-09-05 ~13:40–14:00 CDT · **Mode:** FLEET-20
+**Tree:** SCRIP `17abda1d8`, corpus `241579669`, incremental `make` · oracle `/home/resources/x64/bin/sbl -bf`
+**Reached from:** seat15's `xdump-array-dump-omits-element-enumeration` FINDING. **Their symptom is real and
+their root cause is not the one below** — see *Corrections* at the end.
+
+## The witness
+
+Two programs with **byte-identical bodies**. The only difference is one `-INCLUDE` line, and the included
+file assigns the *same variable to the same value* the body already assigns.
+
+`g.inc` — one line:
+```
+    digits         =  '0123456789'
+```
+
+The body (identical in both):
+```
+               digits         =    '0123456789'
+               zz             =    '1:1'
+               zz             POS(0) (('+' | '-' | epsilon) SPAN(digits)) . b ':' (('+' | '-' | epsilon) SPAN(digits)) . c RPOS(0)  :S(S2)F(F2)
+S2             OUTPUT         =    'matched b=[' b ']'   :(FIN)
+F2             OUTPUT         =    'FAILED'
+FIN
+END
+```
+
+| | SCRIP | oracle |
+|---|---|---|
+| body alone | `matched b=[1]` | `matched b=[1]` |
+| body with `-INCLUDE 'g.inc'` prepended | ⛔ **`FAILED`** | `matched b=[1]` |
+
+`epsilon` is undefined (the null string) in both runs, by design — it is the suite's idiom for an optional
+sign. `digits` reads back correctly at match time in the failing run: `digits=[0123456789] SIZE=10`.
+
+## What the trigger is, and what it is not
+
+Ablated one axis at a time, with the include present throughout:
+
+- `SPAN(digits) . a` alone against `'123'` — **matches**
+- `(SPAN(digits)) . b` parenthesised — **matches**
+- `(('+' | epsilon) SPAN(digits)) . c` — one alternation group — **matches**
+- **two** such groups separated by a `':'` literal, against `'1:1'` — ⛔ **fails**
+
+And on the include axis, with the two-group form fixed:
+
+- no include — matches
+- include assigning a **different** name (`zzz`) — matches
+- include assigning **`digits`**, the name the pattern uses — ⛔ fails
+
+So it needs **both**: an `-INCLUDE` that assigns the very variable the pattern reads, *and* a two-group
+alternation with a literal separator (which is the first shape here that must backtrack across a
+null-matching alternative). Either alone is green.
+
+⛔ **It is not a `SPAN`/`digits` value problem.** The variable's value is correct and identical in both runs;
+the failing run prints it. Something about the include changes how the pattern is built or wired, not what it
+reads.
+
+## Why it was expensive to see
+
+The whole chain hid behind an instrument. `code_eval_len_table_replace_1` includes `XDump.inc`, which is
+**SNOBOL4 source in the corpus**, not a SCRIP builtin — its ARRAY branch prints the header and then
+enumerates elements only if `POS(0) (…) . iMin ':' (…) . iMax RPOS(0)` binds. That match is this defect. So
+the visible symptom was "SCRIP's array dump omits its elements", three layers above the actual fault, and it
+looked like a runtime-builtin bug.
+
+⭐ Instrumenting the real fixture, rather than reasoning about it, is what broke it open: printing `iMin`/
+`iMax` after the header showed them **empty**, and adding a failure branch showed the match had *failed*
+while the program carried on — the statement has no `:F`, so a failed match is silent and the loop simply
+never runs. **A pattern match with no failure branch cannot tell you it failed; it can only tell you what it
+didn't do.**
+
+⛔ And a methodology note against myself: the first bisect over `global.inc` used a binary search that
+**assumes monotonicity I never checked**, and I had also silently simplified the probe pattern between runs.
+The re-run as a linear scan with the real pattern confirmed line 25 — but the earlier answer was luck, not
+measurement.
+
+## Routing
+
+**hq_U (HQ-UNIFY).** Alternation is a shared Byrd box and `-INCLUDE` is SNOBOL4 frontend, so this straddles
+the shared engine; per the ceo's QUINTET brief a shared-node class is hq_U's. SHARED-NODE VERDICT SCOPE
+binds (SNOBOL4 blocking set FAIL=0 over its printed denominator + the Icon pinned watermark), and if the cure
+lands in `src/runtime/{core,rt,rtx}` or `src/templates` the new DEMO-SET CONTROL ARM law applies
+(`.github 07195ce5`).
+
+## ⛔ Corrections this finding makes
+
+1. **To my own routing, sent ~20 minutes earlier.** I told hq_U this was `_DUMP_` at
+   `src/runtime/core/core.c:1461`. **Wrong** — `_DUMP_` is never reached; `XDump` is corpus SNOBOL4 source.
+   I routed on the symptom's name after one grep, without reading the fixture.
+2. **To seat15's stated cause**, though not to their finding: the symptom is real and reproduces exactly as
+   they described. It is not a `DUMP` defect.
+3. **Not related to the companion-copy gap.** `_copy_companions` has been transitive since `55843f71b`. The
+   separate, real gap there — 26 of 31 `-INCLUDE`-bearing snobol4 entries name companions that live in
+   `packages/` or `include/` and are unreachable from the master's own directory — is
+   [[FINDING-2026-09-05-hq_T-companions-live-outside-the-master-directory-so-26-of-31-entries-cannot-resolve-them]],
+   filed separately.
