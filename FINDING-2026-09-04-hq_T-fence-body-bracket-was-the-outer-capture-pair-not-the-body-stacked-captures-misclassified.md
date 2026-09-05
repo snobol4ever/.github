@@ -1,7 +1,7 @@
 # FINDING — 2026-09-04 (hq_T, QUARTET #5; queue row `snobol4-xfail-class-fuzz-crash-and-hang-corpus-19-entries`)
 # THE FENCE BODY BRACKET WAS NEVER THE BODY — IT WAS THE OUTER CAPTURE PAIR, SO EVERY STACKED CAPTURE INSIDE A FENCE WAS CLASSIFIED AS NEEDING NO FRAME
 
-**Tree at measurement:** SCRIP `7d7ff2dc5` + this change, incremental `make`, `RT_OPT` `-O0` (read from `Makefile:43`, not typed). corpus `fc9c0a4ac`. .github `eae35b7e`. Oracle `/home/resources/x64/bin/sbl -bf` (the 18:19 swap). Box clock 2026-09-04 22:11 CDT. Measurer `hq_T`.
+**Tree at measurement:** SCRIP `27f3fdde3` (this change, pushed), corpus `30ca339da` (pushed), incremental `make`, `RT_OPT` `-O0` (read from `Makefile:43`, not typed). ⛔ The board was RE-PROVED on this merged tree after a rebase: the first reading (m3/m4 1797/1797 FAIL=0) was taken on SCRIP `568500884` corpus `b3f108f12`, and hq_P's SETEXIT commit `1840c6846` then landed underneath on `git pull --rebase`, destroying both hashes. **Re-run on the merged result: m3 1800/1800 FAIL=0 · m4 1800/1800 FAIL=0 SKIP=0 · ast 28/28 · MISSING=0, GATE OK** — same verdict, larger denominator. Oracle `/home/resources/x64/bin/sbl -bf` (the 18:19 swap). Box clock 2026-09-04 22:11 CDT. Measurer `hq_T`.
 
 ## 0. WHAT IS CURED, STATED BEFORE THE STORY
 
