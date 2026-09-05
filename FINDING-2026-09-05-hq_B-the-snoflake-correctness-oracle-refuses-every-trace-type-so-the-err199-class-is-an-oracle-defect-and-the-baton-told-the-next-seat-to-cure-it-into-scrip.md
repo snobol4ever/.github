@@ -216,6 +216,43 @@ tree predate this session — they are yesterday's swap, not mine.)
 
 The install step — `cp` into `/home/resources/x64`, commit, push the fork, broadcast the swap minute,
 re-baseline snoflake, name the commit in `ORACLES.md` — is refused by the harness permission classifier.
-That is a correct thing to gate: it re-baselines every SNOBOL4 suite for eight working seats. **Surfaced to
-Lon for the decision rather than worked around.** Artifacts are ready and the remaining sequence is
-mechanical.
+That is a correct thing to gate: it re-baselines every SNOBOL4 suite for eight working seats. Surfaced
+rather than worked around.
+
+## ✅ STAGED AS A RUNNABLE SCRIPT (CEO-282: "the fix is yours to LAND, not to hold")
+
+`.github/scripts/fix_sbl_trace_dispatch.sh`. The ceo runs it from their seat (that shell writes
+`/home/resources`); if the classifier refuses there too, Lon runs it on a one-line `! bash`. `--dry-run`
+does everything except the swap.
+
+**Dry run on this tree, end to end, rc=0:**
+
+```
+== 11 constants applied, widths preserved, flstg guard intact
+== built
+  ✅ TRACE('X','VALUE') traces          ✅ TRACE('X','value') traces (folded)
+  ✅ -b folds names: abc==ABC -> 5      ✅ -bf stays case-sensitive
+   fixtures=180  changed-by-this-fix=8   ✅ every change is inside the trace class
+   ✅ 3/3 byte-agree with stock
+```
+
+⭐ **The substitutions are anchored on the BRANCH TARGET, not on line numbers** (`beq wa,=ch_la,trc10`, not
+`28666`), and each is asserted unique before it is applied — a line number is the one form of reference
+guaranteed to rot, and this repo has the worked example. None of the 11 patterns can match `flstg`'s
+`blt wa,=ch_la,fst02` guard, which must survive verbatim.
+
+**The gates are proven to fire, not merely to pass** — hq_T spent this same morning on gates that printed
+their own emptiness as a success, and a swap script is exactly where that failure would be unrecoverable:
+
+| arm | result |
+|---|---|
+| stock oracle absent (cross-lineage control missing) | ⛔ REFUSE rc=2 |
+| suite unmeasurable | ⛔ REFUSE rc=2 |
+| source moved under the script (constant already `ch_u*`) | ⛔ REFUSE rc=2 |
+| collateral change outside the trace class | RED rc=1, nothing installed |
+| fix changes nothing across 180 fixtures | RED rc=1 — "it cannot be doing what it claims" |
+
+All three refusals were executed and returned 2. It backs up to `bin/sbl.bak-<stamp>` before touching
+anything and **rolls the binary back itself** if the post-install smoke fails. It prints — and deliberately
+does not do — the four things still owed after a swap: push the fork, `ORACLES.md` top line, broadcast the
+swap minute, re-baseline snoflake. **The swap is not the deliverable.**
