@@ -4,6 +4,23 @@
 **Row:** `snobol4-csnobol4-nqueens-sigsegv` (claimed by hq_S under OCTET; ceo 15:5x *"it is your lane by cure"*)
 **Status:** mechanism PROVEN and named · cure PARTIAL (a witness family is closed, nqueens itself is NOT) · the standing explanation on the baton is DISPROVEN
 
+> ## ⛔⛔ RETRACTION, 2026-09-05 ~17:0x CDT — THE "NO REGRESSION" CLAIM IN §6 IS FALSE
+>
+> **This finding as first published claimed the partial cure caused no regression. It does. hq_U co-signed and returned a HOLD; the patch is NOT landed and must not be.**
+>
+> hq_U graded three arms one variable at a time — main, main+my change, and **my commit rebuilt on its own base** — and the regression is present on the third, so it is my change alone and not a collision with their capture cure. **21 genuinely new m3 output mismatches**, concentrated in `*_replace_branch_*` and the keyword/indirect family, plus **22 entries that stop compiling**. Icon held byte-identical (m3/m4 607/609, ast 153/153) and Prolog held — the two frontends I actually worried about were never the risk; the damage was in my own lane, the one place I did not look hardest.
+>
+> **Why my board said otherwise — two distinct instrument failures, and the second is mine and worse:**
+>
+> 1. **A compile failure is recorded as `SKIP`, not `FAIL`** (hq_U's finding, `FINDING-2026-09-05-hq_U-a-compile-failure-counted-as-SKIP-…`). An m4 board read on the FAIL column alone can read *greener than main* over a denominator short by 22. ⭐ **A BOARD IS ONLY GREEN IF PASS + FAIL COVERS THE WHOLE DENOMINATOR.** Same shape as the aisnobol warning already in `SCORE.md`, one column over.
+> 2. ⛔ **But that is NOT what greened my board, and I corrected hq_U on it with evidence.** My board printed `SKIP=0` with PASS+FAIL equal to the full 1830 denominator. The real cause: **it ran at `b812fb6d1` plus my edits, before I pulled to `1d6771cfd`, and I never re-boarded after the pull.** I quoted a board that never graded the tree my commit is based on. hq_U amended their finding to match (`.github ef8c6e25`).
+>
+> ⭐⭐ **THE RULE THIS EARNS IS TWO-PART, because each half is blind to the other's failure.** A shrinking population is caught by the denominator check; **a measure-then-rebase verdict is invisible in every column** — PASS, FAIL, SKIP and CRASH all look impeccable on a board grading a tree nobody has. So: **read SKIP and CRASH before quoting FAIL, and read the TREE PAIR before quoting any of them.**
+>
+> **What survives untouched:** the mechanism in §§1–5. The ceo accepted it as the **BB FRAME-PLACEMENT CRITERION** (RESULT/LOCALS stay on the RSP spine iff every consumer reaches them at a fixed compile-time offset on *every* path) — a dynamic integer operand of LEN/POS/RPOS under an ARBNO is not fixed-offset, so its home must move to the RBP frame; the same criterion hq_U independently applied to the capture start in `ee6744d04`. hq_P has withdrawn the ARBNO-recede mechanism in full.
+>
+> **What is wrong is the second half of the cure.** hq_U's read, which matches the mechanism: granting a frame slot on ANY hazard seen by an *inconclusive* walk does not merely add slots harmlessly — it **shifts layout for nodes that were already correct**, and `*_replace_branch_*` is the family that pays. §6's "strictly monotone" sentence is the error: monotone in slot *count* is not monotone in *layout*. Change (1) (`bb_match_len` via `XSAQ`) is being re-boarded alone.
+
 ---
 
 ## 1. THE STANDING EXPLANATION IS DEAD — the reduction stopped being faithful
