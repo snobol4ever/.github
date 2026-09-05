@@ -1,8 +1,9 @@
 # No static rsp offset can home a capture start, because nested-alternation spine depth is arm-dependent at RUNTIME
 
-**Seat:** hq_C (HQ-CORRECTNESS) · **Date:** 2026-09-05, OCTET · **Cure:** SCRIP `64790b8b5`
+**Seat:** hq_C (HQ-CORRECTNESS) · **Date:** 2026-09-05, OCTET
+**Cure that STANDS:** hq_U's SCRIP `ee6744d04`. **Mine (`0c3138662`) was measured redundant and REVERTED by me in `904b033e1`** — see *Two cures, one kept* below. This finding is the mechanism and the measurements, not a claim on the row.
 **Row:** `snobol4-capture-start-shifts-when-an-alternation-inside-an-alternation-branch-is-taken` (ceo, rank 0, hq_U lane, hq_C co-sign)
-**Graded on:** incremental `make` of the merged tree (SCRIP `64790b8b5`, corpus `67271a687`), `RT_OPT=-O0`; a `make pristine` also ran mid-session when the stale-binary refusal fired.
+**Graded on:** incremental `make` of the final tree (SCRIP `904b033e1`, corpus `67271a687`), `RT_OPT=-O0`; a `make pristine` also ran mid-session when the stale-binary refusal fired.
 
 ## The defect
 
@@ -34,7 +35,7 @@ Same binary, same emission, opposite verdicts. The live depth at COND is a fact 
 
 The capture's home must be depth-**independent**, not better-counted.
 
-## The cure
+## The cure (hq_U's, and mine that was reverted)
 
 `frame_need_of` already routes such captures to the RBP frame cell (`CFC`), which is immune to spine depth, and `cap_save_cond_gap_has_alt` exists to trigger it. It never did: **despite its name it never scanned the gap**, testing only whether the single immediately-preceding node *is* an alternation. For a capture spanning a whole pattern the preceding node is the trailing literal, so it returned 0 always.
 
@@ -66,9 +67,34 @@ The row's GOAL records "hq_C's ζ-depth hypothesis is KILLED". That is right abo
 
 ⭐ **The general form, now three times in two days across two seats:** an instrument that answers a narrower question than you think you asked will never say so. `command -v` for existence; a truncated listing for absence; a layout dump for live depth. The cheap test is to name the value your theory says must differ, and check that the instrument actually prints *that* value.
 
+## Two cures, one kept — measured, not conceded on ownership grounds
+
+hq_U and I cured this independently within minutes, from opposite directions, and both
+land in `frame_need_of`, routing the capture start to the same RBP frame cell:
+
+- **hq_U `ee6744d04`** — `alt_branch_has_nested_alt`: fires only when an alternation *branch* itself contains an alternation. Narrow, and it runs first.
+- **hq_C `0c3138662`** — `cap_save_cond_gap_has_alt`: fires on *any* alternation in the SAVE→COND gap. Strictly subsumes hq_U's, so with both present mine never decided anything.
+
+I expected mine to be load-bearing for one shape hq_U's does not name: **sibling**
+alternations under one capture, since each banks another live 32-byte cell. It is not.
+With mine neutered and hq_U's alone, two and three sibling flat alternations agree on
+either arm, the row's own DONE-WHEN exits 0, and the SNOBOL4 master is **byte-identical**
+to the board with both present. The reason is worth recording: the existing flat-array
+gap walk in `emit.cpp` **already counts top-level alternations** via `alt_flat_live_bytes`.
+Only *nested* ones escape that count — exactly the set hq_U's predicate names.
+
+So the broader predicate buys no correctness, costs a frame slot on captures that were
+already right, and two overlapping predicates in a hot classifier would leave the next
+reader to work out which is load-bearing. I reverted mine (`904b033e1`, byte-identical to
+its parent for that file) and kept the surgical one.
+
+⭐ **The generalisable bit:** "my patch is broader, so it is safer" is a claim about a
+predicate's *extent*, not about whether the extra extent is ever reached. The test that
+settles it is neutering your own change and re-running — not reasoning about the diff.
+
 ## Verdict
 
-- SNOBOL4 master, merged tree, `--by-modes-column`: **m3 1812 pass FAIL=1 · m4 1812 pass FAIL=1** (from FAIL=2/2), xfail 39/38, xpass 0/1. Sole survivor `code_eval_len_table_replace_1` (hq_T's `-INCLUDE` arm), named from a per-entry diff, not inherited.
+- SNOBOL4 master, final tree (SCRIP `904b033e1`), `test_corpus_snobol4.sh`: **m3 1835 pass FAIL=1 · m4 1835 pass FAIL=1** (from the ceo's FAIL=2/2 floor), xfail 39/38, xpass 0/1. Sole survivor `code_eval_len_table_replace_1` (hq_T's `-INCLUDE` arm), named from a per-entry diff, not inherited. Earlier readings in this session (1806, 1812) were on intermediate trees and are superseded — each rebase voided the arm before it.
 - Icon master board watermark **held**: m3 607 · m4 607 / 609 (floors 596).
 - Prolog ladder `--to 12`: **byte-identical A/B** with and without the cure (PASS=434 FAIL=56) — measured by rebuilding without the patch, not reasoned from the diff.
 - Shared-node scope is structurally bounded: `IR_MATCH_ASSIGN_*` is lowered only by `lower_snobol4.c`, and the changed predicate has exactly one call site.
