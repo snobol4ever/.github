@@ -4,7 +4,7 @@
 # from the ceo and hq_B seats (GOAL-CEO CEO-283, CEO-286). rc 0 = pushed and proven on origin/main · rc 1 = push not proven · rc 2 = refused.
 set -u
 R=/home/resources/x64; O=/home/resources/ORACLES.md; WANT=bc694a0cc699f91d06ff7fde01732000
-st="$(git -C "$R" status --short | grep -v '^??' | sort | tr -s ' ' | tr '\n' '|')"
+st="$(git -C "$R" status --short | grep -v '^??' | sed 's/^ *//' | tr -s ' ' | sort | tr '\n' '|')"
 [ "$st" = "M bin/sbl|M sbl.min|" ] || { echo "REFUSED rc=2: expected exactly 'M bin/sbl' and 'M sbl.min' tracked changes, saw: ${st:-<none>}"; exit 2; }
 have="$(md5sum "$R/bin/sbl" | cut -c1-32)"
 [ "$have" = "$WANT" ] || { echo "REFUSED rc=2: bin/sbl md5 $have is not the installed fix $WANT"; exit 2; }
