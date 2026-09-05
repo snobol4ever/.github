@@ -96,6 +96,40 @@ SNOBOL4 corpus gate (which shares this file) is clean, which is meaningful contr
 other five languages' own suites were not individually re-run — a fresh `make test` before the next
 cross-language landing would close this gap cheaply if anyone needs the assurance sooner than that.
 
+## ADDENDUM, SAME SITTING: a concurrent, UNRELATED commit regressed `coerce` on the very next re-measure
+
+Re-running the JCON board after pushing (to land the SCORE.md update on a clean tree) showed
+**m3 PASS=43 FAIL=27** — `collate` correctly gone, but `coerce` newly appeared in the FAIL bucket,
+netting to the same headline count as before this row's own fix. Confirmed deterministic (3 identical
+runs) and confirmed NOT caused by this row's own change: `git log` between my verified-clean build and
+this one names `6dddcc237` ("Raise SPITBOL error 29 for unregistered unary ! instead of a silent
+fallback"), landed by a different sitting in the same file, ~13 minutes after my own commit.
+
+That commit changed `try_call_builtin_by_name_bl`'s `fn[0]=='!'` arm: previously, calling `!` as a
+BY-NAME-invoked procedure value (`o(i)` where `o` holds the string `"!"`) returned the argument unchanged
+for ints/reals, or its first character for strings; now it raises runtime error 29 ("Undefined operator
+referenced") unless `!` is OPSYN-registered. The commit's own verification checked ONLY Icon's *direct*
+`!x` AST syntax (`bang_invoke.icn`/`bang_binary.icn`, confirmed unaffected) and the SNOBOL4 corpus
+(verified clean) — it did not check Icon's BY-NAME invocation path, which is the SAME shared function.
+`coerce.icn` ("check coercion of operator arguments — uses string invocation of operations") deliberately
+exercises exactly this: `every unop(!"+-*!/\\", i, r, c, s)` generates each operator character including
+`!` itself, then calls `o(i)` etc. **The oracle's own `.std` proves Icon's actual contract**: row `!x`
+reads `1 2 3 9` for i/r/c/s=`1,2,'3',"9"` — i.e. real Icon's by-name `!` returns int/real unchanged and
+a string's first character, EXACTLY the old "silent fallback" behavior 6dddcc237 replaced. SNOBOL4 wants
+error 29 here; Icon wants the old identity/first-char answer; both requirements land on the same
+unconditional code arm with no language discriminant between them.
+
+**Not my bug, not fixed here, not chased further** — this is squarely a SHARED-NODE VERDICT SCOPE
+conflict needing a language-aware dispatch (or a separate Icon-side implementation of this specific
+by-name-call idiom), which is a design decision, not a quick patch. Minted
+`icon-jcon-shared-bang-dispatch-error29-regresses-coerce-by-name-invocation` (owner hq_C, shared-engine
+lane) with the full diagnosis and both oracles' evidence; sent hq_C the handoff and hq_B (this suite's
+own lane) a heads-up that `coerce` is a real, understood, already-routed regression, not a mystery and
+not this row's fault. **This row's own verification stands**: the SNOBOL4 corpus gate I ran to confirm
+my fix (1801/1801 FAIL=0 both modes) was measured BEFORE `6dddcc237` landed, so it does not, and was
+never claimed to, cover that commit's own effect — re-verify SNOBOL4 fresh before citing this addendum's
+board number as a joint verdict on both changes.
+
 ## WHOEVER RESUMES THIS ROW
 
 `collate` is closed. Per this row's own established practice (re-diff fresh, never trust a prior pass's
