@@ -88,6 +88,24 @@ of the four, because nothing in the run looks wrong — no red, no refusal, only
 thanking you for unblocking them.* **The cure is never "be more careful": make the premise a measurement the tool
 makes.** `pin-ref` now runs the oracle itself and refuses a clean disagreement.
 
+### And two more, learned by getting them wrong the same day
+
+⛔ **AN IDENTIFIER THAT IS A POSITION IS NOT AN IDENTIFIER.** Entry numbers in `ALL.xfail` are line addresses: one
+re-verification pass that added and reworded entries above a block pushed every entry below it down by a uniform
+**+8**, so the same five programs are `1741/1743/1750/1751/1752` in a morning clone and `1749/1751/1758/1759/1760`
+on origin that evening. ⭐ The cost was not confusion — it was an **accusation**. A seat reported a census; the
+numbers did not match; I told it that it had censused the wrong set. Its *names* had matched the row's own
+criterion exactly, and its clone was nine commits behind. **The identifier I had added an hour earlier to prevent a
+mismatch is the one that caused it.** Grade on names; treat a number as a convenience that is true for one commit.
+
+⛔ **A TRIM IS NOT A CENSUS.** Having found that a keyword criterion over-counted a class, the obvious repair is to
+cut the list down to the right size — and that repair reads the *same leaky match* one more time. Measured: a
+2-entry class trimmed from 3 was trimmed to the **wrong pair**, and the wrong member shared only the words
+`SETEXIT/&ERRLIMIT` with the class, in a passing clause about credit. Naming the members made the criterion
+**precise without making it correct**, which is worse than leaving it vague, because a precise criterion over a
+wrong population *looks settled*. ⭐ Both times the error was found by a person reading each member's own reason
+line. There is no tooling substitute for that step, and every classifier we own is a guess until someone takes it.
+
 ### Two positive rules that fall out of the same evidence
 
 ⭐ **WHEN A THEORY EXPLAINS ALL THE EVIDENCE, PRINT THE ONE VALUE IT PREDICTS BEFORE WRITING IT UP** (hq_C).
