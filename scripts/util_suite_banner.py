@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
-usage: util_suite_banner.py [--plain] [--md] [--set KEY PASS TOTAL [DATE] [TREE]]
-  (no args)  print the banner: header with the all-suites 100/100 verdict, then one cell per suite: emoji nick pass/total eta
+usage: util_suite_banner.py [--plain] [--line] [--md] [--set KEY PASS TOTAL [DATE] [TREE]]
+  (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the all-suites 100/100 verdict, then 3 columns x 7 rows of cells: nick pass/total left eta emoji
+  --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
   --md       print the markdown table for SCORE.md § THE SUITE TABLE
   --set      rewrite one row's today_* (DATE defaults to the box clock day) and print the banner
@@ -33,16 +34,17 @@ def eta(r,today):
     rate=(tp-fp)/days
     if rate<=0: return 'STUCK',None
     return 'ETA', today+dt.timedelta(days=rem/rate)
-def banner(plain=False):
+def banner(plain=False, grid=True, ncol=3):
     head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0
     for r in rows:
-        k,e=eta(r,today); frac=f"{r['today_pass']}/{r['today_total']}"
-        if k=='DONE': col=G; tail='✅'; done+=1
-        elif k=='STUCK': col=R; tail='⛔'; stuck.append(r['nick'])
-        elif k=='NEW': col=C; tail='🆕'; new.append(r['nick'])
+        k,e=eta(r,today); frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
+        if k=='DONE': col=G; tail='✅ done'; done+=1
+        elif k=='STUCK': col=R; tail='⛔ stuck'; stuck.append(r['nick'])
+        elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
         else:
-            col=Y if e>dt.date(2026,9,10) else G; tail='→'+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
-        cell=f"{r['emoji']}{r['nick']} {frac} {tail}"
+            col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
+        if grid: cell=f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}{left:>4} left  {tail:<8} {r['emoji']}"
+        else: cell=f"{r['emoji']}{r['nick']} {frac} {tail}"
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
     if stuck: verdict=f"ALL {n} SUITES 100/100: NOT ON THE CURVE — {len(stuck)} stuck ({', '.join(stuck)})"; vc=R
@@ -51,7 +53,9 @@ def banner(plain=False):
     else: verdict=f"ALL {n} SUITES 100/100: DONE"; vc=G
     hdr=f"🏁 {today.strftime('%m-%d')} {verdict} · {done}/{n} done"
     print(hdr if plain else f"{B}{vc}{hdr}{Z}")
-    print(' │ '.join(cells))
+    if not grid: print(' │ '.join(cells)); return
+    nrow=-(-len(cells)//ncol)
+    for i in range(nrow): print(' │ '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def md():
     head,rows=load(); today=dt.date.today()
     print('| suite | lang | first graded reading | today | moved | at today\'s rate |'); print('|---|---|---|---|---|---|')
@@ -68,5 +72,5 @@ def main(a):
         if tree: r['tree']=tree
         save(head,rows)
     if '--md' in a: md()
-    else: banner('--plain' in a)
+    else: banner('--plain' in a, grid='--line' not in a)
 main(sys.argv[1:])
