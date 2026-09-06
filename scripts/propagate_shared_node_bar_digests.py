@@ -11,7 +11,7 @@ para=f'''
 
 A shared-node landing's control arm on each OTHER frontend reads NO WORSE THAN A CLEAN TREE WITHOUT THE CHANGE, same corpus, comparison tree NAMED by a clean stamp (MASTER-PLAN rule 5: a -dirty board is cited for its number, never its position); it degrades to FAIL=0 over the printed denominator the moment no standing red exists; every tolerated red is NAMED in the receipt with its row. THE STANDING SNOBOL4 MASTER RED on 2026-09-06 is `user_function_keyword_branch_3` (hq_P's rank-0 row) — NOT `code_eval_len_table_replace_1`, which older digest and MODE prose still names. FLIPS go to `coo/inbox`, ASKS to `ceo/inbox` (GOAL-COO.md).
 '''
-roots=[f'/home/claude_{h}' for h in 'BCPTUSIR']+['/home/claude_cto','/home/claude_coo']
+roots=[f'/home/claude_{h}' for h in 'BCPTUSIR']+['/home/claude_cto','/home/claude_coo','/home/claude_ceo']
 done=[];skipped=[];refused=[]
 for r in roots:
     p=os.path.join(r,'CLAUDE.md')
