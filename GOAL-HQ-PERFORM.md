@@ -29,7 +29,21 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐⭐⭐ LIVE CURSOR — 2026-09-04 evening (hq_P, **MODE `FLEET-16` ON SNOBOL4 ONLY**, computed from `/home/resources/postoffice/MODE`). **TWO CURES LANDED IN THE csnobol4/testpgms LANE, AND BOTH ROWS' LOCATED ROOT CAUSES WERE WRONG IN THE SAME WAY — READ BY EYE, NEVER DISCRIMINATED BY AN EXPERIMENT**
+### ⭐⭐⭐ LIVE CURSOR — 2026-09-06 evening (hq_P, **MODE `OCTET`**, computed from `/home/resources/postoffice/MODE`, never from this file's prose). **THE BUG WAS ONE MISSING `case` LABEL, AND THE BOX IT DISABLED WAS EMITTED, CORRECT, AND UNREACHABLE**
+
+**Row `flip-gimpel-RWORD` — CLOSED** (`s4e_msg.sh done` computed it; the DONE-WHEN was hoisted to column 0, is runnable, and was proven able to FAIL against the known-red sibling `LINEARIZ_driver`). Cure SCRIP `b5313ff2d`, one line at `src/ir/zeta_depth.c:21`.
+
+⭐ **`zdp_seam_tier()` enumerates every pattern box that owns a live β, and `IR_MATCH_BREAKX` was absent** — it fell to `default: return 0`, so `resume_carrier_ok()` (`emit.cpp:2464`) refused it as a resume carrier and the emitted pattern blob wired `PAT$n_β` straight to `PAT$n_ω`. The BREAKX β arm was emitted, correct, and **unreachable**, which is why the symptom read as *"BREAKX does not backtrack"* and why no amount of reading the BREAKX template would have found it. Named by an asm diff **one instruction wide**: with the BREAKX swapped for each other kind, `PAT$0_β` reads `jmp n0_match_arb_β` / `_bal_` / `_arbno_` / `_span_` / `_alternate_` — and for BREAKX alone `jmp PAT$0_ω`.
+
+⭐ **The omission was provably an omission:** the two neighbouring classifiers in the same file already disagree with it — `zdp_scratch_cell()` LISTS `IR_MATCH_BREAKX` beside SPAN/BREAK/ARB/BAL, and `zdp_scan_pure()` EXCLUDES it while listing BREAK and SPAN, i.e. the file already recorded the one fact that matters.
+
+**MEASURED, MERGED TREE** (SCRIP `b5313ff2d`, corpus `999270288`, RT_OPT `-O0`, incremental `make`): gimpel **96/126 → 97/126 both modes**, no program lost · SNOBOL4 master `m3 1857/1858 FAIL=1 · m4 1857/1858 FAIL=1 SKIP=0`, the single FAIL in each mode being the ceo-named standing red `user_function_keyword_branch_3` (CEO-359's CONTROL-ARM BAR, tolerated red named; proven pre-existing by stash+rebuild BEFORE the board ran) · snocone smoke `PASS=5 FAIL=0` · **SPAN stays red at 2 levels in BOTH SCRIP and the oracle**, the control proving the sweep did not simply turn things green.
+
+⛔ **TWO THINGS OWED THAT ARE NOT MINE, ROUTED RATHER THAN SWEPT.** (1) `.github/SCORE.md` on origin **carries committed conflict markers** from `269e5b6e` straddling the snobol4/icon/prolog grid rows; `test_gate_score_tables_agree` REFUSES rc=2 over the whole board, so my measured gimpel cell (97/126, both halves, verified agreeing before the rebase) is written and **unlanded** — asked to ceo (`q-score-md-on-origin-carries-committed-conflict-markers`), not repaired by me because neither side matches their common parent `673012fb` for any of the three rows. (2) The **gimpel runner appends only its PASSES** to the progress database — 194 PASS rows beside a board line saying 29 reds — so a regression there stops being mentioned rather than being recorded (FINDING `71104498`, instrument lane).
+
+**NEXT, PICKED BY THE CEO (ceo-365):** `user_function_keyword_branch_3` — the rung-14 `&FNCLEVEL` red, hq_P's own rank-0 row `conform-fnclevel-not-tracked`. It is the standing SNOBOL4 master red every shared-node landing in the fleet now names as tolerated, so curing it turns the control-arm bar back into FAIL=0 for everyone. ⛔ Flips go to **coo**, asks go to **ceo** (ceo-364).
+
+### ⭐⭐⭐ LIVE CURSOR (SUPERSEDED) — 2026-09-04 evening (hq_P, **MODE `FLEET-16` ON SNOBOL4 ONLY**, computed from `/home/resources/postoffice/MODE`). **TWO CURES LANDED IN THE csnobol4/testpgms LANE, AND BOTH ROWS' LOCATED ROOT CAUSES WERE WRONG IN THE SAME WAY — READ BY EYE, NEVER DISCRIMINATED BY AN EXPERIMENT**
 
 **Lane (ceo, THE SNOBOL4 CUT, Lon 2026-09-04 17:37 "Work on SNOBOL4 only until it works 100%"):** hq_P owns `csnobol4_suite` 52/118 → 100%, the SPITBOL `testpgms` umbrella, and B. Non-SNOBOL4 rows PARKED (`readme-perf-grids-three-angles-all-seven`, ledger line `priority: SNOBOL4 only (Lon 2026-09-04 17:37)`). Seats 07-11 are mine.
 
