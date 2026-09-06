@@ -17,8 +17,13 @@ hq_R's landing consumes **156 through 200** — 45 constants, one per new veneer
 
 ## ⛔ WHY THIS IS AN INSTRUMENT DEFECT AND NOT A COORDINATION MISHAP
 
-**The dangerous outcome is not a merge conflict — it is a clean merge.** Both lanes *append*, so the two hunks land at different offsets and git can auto-merge them with **no conflict at all**, leaving two different `MOD_OP`s both numbered `156`.
+⚠️⛔ **CORRECTION, MEASURED AFTER THIS FILE WAS FIRST WRITTEN — THE FILENAME OVERSTATES THE CASE AND IS LEFT STANDING AS THE RECORD OF THAT.** When the two lanes actually merged (hq_R rebasing onto seat10's landed `79c3738cc`), git **DID** raise a conflict in `descr_tags.inc`, because both hunks began at the same anchor — immediately after `MOD_OP_RT_PL_NB_GETVAL_GUARD 155` — and overlapping hunks always conflict. **So the clean-merge outcome is a HAZARD, not the measurement.** What was measured is: two lanes independently chose the same number, and the file's shape gives no reason for them not to.
 
+The hazard is still real and still ungated, but state it correctly: **git protects you only while both lanes append at the *same* anchor.** Two lanes adding constants in different *sections* of the file, or one inserting into a gap while another appends, produce non-overlapping hunks that auto-merge cleanly and leave two ops sharing a number. Nothing in the file's structure makes the safe case the likely one — it happened to be the case here.
+
+⭐ **The correction is itself the lesson.** The first draft of this FINDING reasoned from the file's shape to a conclusion about git's behaviour and wrote it as measured. The reasoning was sound and the conclusion was wrong for this instance, and it would have been quoted as evidence. **A claim about what a tool WILL do is a prediction until the tool has done it.**
+
+In the clean-merge case:
 - Nothing fails at merge time.
 - The build is green.
 - **Both lanes wrote gates, and neither gate can see it** — a gate grades behaviour reachable from its own witnesses, and the collision corrupts a *dispatch table entry* that the other lane's op travels through.
