@@ -1,0 +1,154 @@
+# ONE NAME PER LINE, STATUS AS A COLUMN ON THAT LINE. Machine-readable twin of
+# REFERENCE-PROLOG-META-CALLABLE-BUILTIN-NAMES-BY-ISO-SECTION.md, cut 2026-09-06 by hq_R on hq_C's ask.
+# WHY IT EXISTS: the prose file puts PRESENT and MISSING names on the SAME line, so a line-oriented
+# grep picked up hq_R's MISSING-marked names as things to wrap (at_end_of_stream/0, stream_property/2).
+# A fact spread across two lines -- or across one line and a mid-line marker -- is structurally invisible
+# to every line-oriented tool, and invisible in the direction that reads as PRESENT. Here the two facts
+# are inseparable: no tool can take a name without also taking its status.
+# STATUS: PRESENT = SCRIP has a proc for it (NOT that the builtin is correct). ABSENT = known missing/red.
+# ⛔ PRESENT never means CORRECT: number_string/2 was PRESENT here while silently succeeding on bad input.
+name	arity	iso_section	status	note
+=	2	8.2	PRESENT	
+\=	2	8.2	PRESENT	
+unify_with_occurs_check	2	8.2	ABSENT	rung1 `occurs_check`, hq_C's, still red
+var	1	8.3	PRESENT	
+nonvar	1	8.3	PRESENT	
+atom	1	8.3	PRESENT	
+number	1	8.3	PRESENT	
+integer	1	8.3	PRESENT	
+float	1	8.3	PRESENT	
+atomic	1	8.3	PRESENT	
+compound	1	8.3	PRESENT	
+callable	1	8.3	PRESENT	
+is_list	1	8.3	PRESENT	
+ground	1	8.3	PRESENT	
+==	2	8.4	PRESENT	
+\==	2	8.4	PRESENT	
+@<	2	8.4	PRESENT	
+@=<	2	8.4	PRESENT	
+@>	2	8.4	PRESENT	
+@>=	2	8.4	PRESENT	
+compare	3	8.4	PRESENT	
+sort	2	8.4	PRESENT	
+msort	2	8.4	PRESENT	
+keysort	2	8.4	PRESENT	
+functor	3	8.5	PRESENT	
+arg	3	8.5	PRESENT	
+=..	2	8.5	PRESENT	
+copy_term	2	8.5	PRESENT	
+term_variables	2	8.5	PRESENT	
+numbervars	1	8.5	PRESENT	
+numbervars	3	8.5	PRESENT	
+is	2	8.6	PRESENT	SCRIP `372043860`
+=:=	2	8.7	PRESENT	
+=\=	2	8.7	PRESENT	
+<	2	8.7	PRESENT	
+=<	2	8.7	PRESENT	
+>	2	8.7	PRESENT	
+>=	2	8.7	PRESENT	
+succ	2	8.7	PRESENT	
+plus	3	8.7	PRESENT	
+clause	2	8.8–8.9	PRESENT	
+current_predicate	1	8.8–8.9	PRESENT	
+asserta	1	8.8–8.9	PRESENT	
+assertz	1	8.8–8.9	PRESENT	
+retract	1	8.8–8.9	PRESENT	
+retractall	1	8.8–8.9	PRESENT	
+abolish	1	8.8–8.9	PRESENT	
+findall	3	8.10	PRESENT	
+findall	4	8.10	PRESENT	
+bagof	3	8.10	ABSENT	free-variable `^` grouping
+setof	3	8.10	ABSENT	free-variable `^` grouping
+open	3	8.11	PRESENT	
+open	4	8.11	PRESENT	
+close	1	8.11	PRESENT	
+close	2	8.11	PRESENT	
+current_input	1	8.11	PRESENT	
+current_output	1	8.11	PRESENT	
+set_input	1	8.11	PRESENT	
+set_output	1	8.11	PRESENT	
+flush_output	0	8.11	PRESENT	
+flush_output	1	8.11	PRESENT	
+stream_property	2	8.11	ABSENT	
+at_end_of_stream	0	8.11	ABSENT	
+at_end_of_stream	1	8.11	ABSENT	
+set_stream_position	2	8.11	PRESENT	
+get_char	1	8.12	PRESENT	
+get_char	2	8.12	PRESENT	
+peek_char	1	8.12	PRESENT	
+peek_char	2	8.12	PRESENT	
+put_char	1	8.12	PRESENT	
+put_char	2	8.12	PRESENT	
+nl	0	8.12	PRESENT	
+nl	1	8.12	PRESENT	
+get_code	1	8.12	ABSENT	
+get_code	2	8.12	ABSENT	
+peek_code	1	8.12	ABSENT	
+peek_code	2	8.12	ABSENT	
+put_code	1	8.12	ABSENT	
+put_code	2	8.12	ABSENT	
+get_byte	1	8.13	ABSENT	hq_R, rung 15
+get_byte	2	8.13	ABSENT	hq_R, rung 15
+peek_byte	1	8.13	ABSENT	hq_R, rung 15
+peek_byte	2	8.13	ABSENT	hq_R, rung 15
+put_byte	1	8.13	ABSENT	hq_R, rung 15
+put_byte	2	8.13	ABSENT	hq_R, rung 15
+read	1	8.14	PRESENT	
+read	2	8.14	PRESENT	
+read_term	2	8.14	PRESENT	
+read_term	3	8.14	PRESENT	
+write	1	8.14	PRESENT	
+write	2	8.14	PRESENT	
+writeq	1	8.14	PRESENT	
+writeq	2	8.14	PRESENT	
+write_canonical	1	8.14	PRESENT	
+write_canonical	2	8.14	PRESENT	
+print	1	8.14	PRESENT	
+print	2	8.14	PRESENT	
+writeln	1	8.14	PRESENT	
+writeln	2	8.14	PRESENT	
+op	3	8.14	PRESENT	
+char_conversion	2	8.14	PRESENT	
+current_char_conversion	2	8.14	PRESENT	
+atom_to_term	3	8.14	PRESENT	
+read_term_from_atom	3	8.14	PRESENT	
+read_term_from_chars	3	8.14	PRESENT	
+read_term_from_codes	3	8.14	PRESENT	
+term_to_atom	2	8.14	PRESENT	
+term_string	2	8.14	PRESENT	
+format	1	8.14	PRESENT	
+format	2	8.14	PRESENT	
+format	3	8.14	PRESENT	
+write_term	2	8.14	ABSENT	
+write_term	3	8.14	ABSENT	
+current_op	3	8.14	ABSENT	
+atom_length	2	8.16	PRESENT	
+atom_concat	3	8.16	PRESENT	
+sub_atom	5	8.16	PRESENT	
+atom_chars	2	8.16	PRESENT	
+atom_codes	2	8.16	PRESENT	
+atom_number	2	8.16	PRESENT	
+char_code	2	8.16	PRESENT	
+number_chars	2	8.16	PRESENT	
+number_codes	2	8.16	PRESENT	
+name	2	8.16	PRESENT	
+upcase_atom	2	8.16	PRESENT	
+downcase_atom	2	8.16	PRESENT	
+atomic_list_concat	2	8.16	PRESENT	
+atomic_list_concat	3	8.16	PRESENT	
+concat_atom	2	8.16	PRESENT	
+concat_atom	3	8.16	PRESENT	
+char_type	2	8.16	PRESENT	
+string_concat	3	8.16	PRESENT	
+string_length	2	8.16	PRESENT	
+string_lower	2	8.16	PRESENT	
+string_upper	2	8.16	PRESENT	
+string_to_atom	2	8.16	PRESENT	
+string_chars	2	8.16	PRESENT	
+string_codes	2	8.16	PRESENT	
+atom_string	2	8.16	PRESENT	
+number_string	2	8.16	PRESENT	validated as of SCRIP `67799b5ab`
+halt	0	8.17	PRESENT	
+halt	1	8.17	PRESENT	
+set_prolog_flag	2	8.17	ABSENT	hq_R rows, swi class
+current_prolog_flag	2	8.17	ABSENT	hq_R rows, swi class

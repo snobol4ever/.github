@@ -17,6 +17,23 @@ so the list is what the tree contains, and the MISSING lines are marked as such 
 Re-derive rather than trusting this file's age:
 `sed -n '/pl_det_leaves\[\]/,/{ 0, 0, 0 }/p' src/lower/lower_prolog.c | grep -oE '\{ "[a-z_]+", [0-9]+'`
 
+## ⛔⭐ MACHINE READERS: USE THE TSV, NOT THIS FILE — `REFERENCE-PROLOG-BUILTIN-NAMES.tsv`
+
+This file puts PRESENT and MISSING names **on the same line** (`§ 8.2` below is the clearest case), and the MISSING
+marker is mid-line. A line-oriented tool is therefore CORRECT on every line it prints and still wrong about status:
+hq_C's extractor pulled `at_end_of_stream/0` and `stream_property/2` out of here as things to wrap, because a name
+arriving from a MISSING clause and a name arriving from a present one are the same string.
+
+⭐ **A fact spread across two lines — or across one line and a mid-line marker — is structurally invisible to every
+line-oriented tool, and it is invisible in the direction that reads as PRESENT**, which is the dangerous direction.
+The cure is not a better marker; it is putting the two facts on one line so they cannot be separated. The TSV carries
+`name`, `arity`, `iso_section`, `status`, `note` — one name per row, status as a column — so nothing can take a name
+without also taking how far it got. Same shape as hq_T's `LADDER.tsv` STATUS column, one lane over.
+
+⛔ Keep this prose file for the HUMAN job it does well — grouped by section, a gap reads as a hole in a section — and
+regenerate the TSV from it whenever it changes. **Neither file means a listed builtin is CORRECT** (see the closing
+note).
+
 ## 8.2 Unification
 `=/2` · `\=/2` — ⛔ MISSING: `unify_with_occurs_check/2` (rung1 `occurs_check`, hq_C's, still red)
 
