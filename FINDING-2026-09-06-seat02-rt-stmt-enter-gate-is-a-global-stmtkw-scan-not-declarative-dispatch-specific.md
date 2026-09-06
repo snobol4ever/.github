@@ -76,6 +76,20 @@ statement-specific, and has zero semantic connection to which builtin raises the
 Neither witness needs the snoflake suite, an INCLUDE file, or DATA — confirmed the INCLUDE angle is a
 red herring by reproducing (a) with no `-INCLUDE` at all.
 
+**Addendum, same sitting — the consumer isn't only `core_runtime_error`.** Continuing the umbrella's own
+full-diff pass over its other FAILs turned up `corpus/packages/snobol4/snoflake_suite/dump-variables.sno`
+as a THIRD, independent witness, this time via the `DUMP(1)` builtin (not an error at all): the fixture
+never references any of the nine gating keywords directly, so `g_sno_uses_stmtkw` is 0, `rt_stmt_enter`
+never fires, and `DUMP(1)`'s own listing of every natural/keyword variable shows `&FILE=''`,
+`&LASTFILE=''`, `&LASTLINE=0`, `&LASTNO=0`, `&LINE=0` — the oracle shows the real values. Same root
+cause, confirmed against a THIRD, unrelated consumer (introspection, not diagnostics), which generalizes
+the finding beyond "error messages are wrong" to "any of these five globals are wrong whenever read by
+anything, anywhere, in a keyword-oblivious program." (Sibling fixture `dump-ordered.sno` looked related —
+it explicitly sets `&DUMP = 1` to trigger SPITBOL's post-mortem dump — but its actual failure is
+different and NOT explained by this finding: SCRIP prints a full post-mortem dump block that the oracle
+does not print at all, i.e. a question about WHETHER the dump fires, not about the values inside it once
+it does. Left open, not chased further this sitting — don't assume it's the same class.)
+
 ## 4. This also explains the OTHER, milder pattern in the same census — not just "(0)"
 
 Three snoflake fixtures (`gimpel-random-poem`, `gimpel-random-story`, `gimpel-pattern-functions`) print a
