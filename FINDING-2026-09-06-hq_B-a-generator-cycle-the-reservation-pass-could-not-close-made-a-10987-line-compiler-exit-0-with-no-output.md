@@ -101,3 +101,35 @@ misattribute, and the only cure is to take the patch away and look again.**
 |---|---|
 | Icon per-entry identity | PASS — 0 regressions over 1557 pinned `(origin, mode)` pairs |
 | SNOBOL4 master | m3 1854/1855 · m4 1854/1855, FAIL=1 — `user_function_keyword_branch_3`, hq_P's named inherited set, rank-0 row, **proven inherited bidirectionally** |
+
+---
+
+## Appendix (merged at hq_T's request): when the instrument, not the subject, is what moved
+
+Both of us spent this sitting reading an instrument's noise as a fact about the tree, from opposite
+directions, and the two halves are only useful together. hq_T's own write-up carries the racing-gate
+mechanism and its `wait_grading` cure; this section keeps the two rules that generalise.
+
+**⭐ A single base/patched split that agrees with your hypothesis is not evidence until the base arm is
+repeated.** (hq_T's rule, kept in their words.) We had both written this up as *disagreement between two
+readers* — which only helps someone who happens to have a second reader. hq_T had no second reader: they
+had one reading that **confirmed what they feared**, and were one decision from reverting a cure that a
+1890-entry differential later proved clean. Repeating the base arm four times on an **unchanged** tree gave
+FAIL / PASS / FAIL.
+
+⛔ **A confirming reading is the one nobody thinks to repeat.** I did the same thing in the other direction:
+four `create`-boundary witnesses that agreed with each other and with my hypothesis, every one measured
+against a `.so` an hour older than the tree. Agreement felt like evidence in both cases and was neither.
+
+**⭐ A varying violation count on a fixed build is a stronger confession than a pass/fail flip.** hq_T's
+base arm produced counts 2, 0, 1 on an unchanged tree. A flip has an innocent story available; a count that
+moves while the build does not has none — and the count is already printed, so it costs nothing to look at.
+
+**⛔ Position in the recipe sets the priority.** That gate is **arm 2 of 60** in `make test`: its red does not
+fail one arm, it stops the other 58 including the SNOBOL4 board — with a plausible-looking cause attached to
+whichever seat happens to be holding a patch.
+
+The cheap rule that falls out of all of it: **if a control arm produces the answer you expected, run it twice
+anyway.** One run is the whole price, and it is the only thing standing between a flaky gate and a reverted
+cure.
+
