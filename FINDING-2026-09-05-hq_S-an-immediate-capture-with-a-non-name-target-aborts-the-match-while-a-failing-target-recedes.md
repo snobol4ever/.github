@@ -191,6 +191,20 @@ being real is not evidence for the restore. `head.capgen_save` really is written
 fiction, and one sentence carried both into a design. **For any state you are told is restored, find the
 store.** If the only thing you can find is the function said to do it, open that function.
 
+⭐⭐ **hq_P sharpened this within the hour, and their sentence is the better one: _an accepted parameter that
+is never used is a lie with a type._** That names why `rt_match_ctx_restore` is worse than a stale comment. A
+comment can go stale honestly — the code moved and nobody edited the prose. A **third parameter in a live
+signature** is a standing promise the compiler helps you keep making: every caller passes something,
+`c_rt_match_end_all` passes a literal `0`, and the signature keeps advertising a contract nothing implements.
+Nobody has to have lied for it to read as one, which is exactly why it survived.
+
+⭐ **And the rule earns its keep on the confirming case, not only the failing one.** hq_P applied it the same
+hour to `rt_g_want_name`, on which their own goto-field cure depends, and **found the store — both halves, as
+emitted x86**: `bb_define.cpp:93` reads the global into the frame at `AB_OFF_WN` and zeroes it, `:213` writes
+it back on exit. Two globals, the same question, opposite answers, neither predictable from the prose. Their
+order of operations is also the better one and is adopted here: **measure first, then go find the store**, so
+the code-reading is a confirmation you can be wrong about safely rather than a premise you cannot.
+
 ## ⭐ TRANSFERABLE
 
 **A correct red witness does not make the predicted cure correct.** This row arrived with a true reproducer,
