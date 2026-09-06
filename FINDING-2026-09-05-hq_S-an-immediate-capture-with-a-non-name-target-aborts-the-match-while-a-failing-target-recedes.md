@@ -62,6 +62,19 @@ number of port transitions **including recedes that restore `rsp` and the `r12` 
 exactly what discards anything pushed into the dcap island. It is per-**match** state with match lifetime.
 Two homes, and the choice is a real one:
 
+✅ **RESOLVED 2026-09-06 — route 1 was GRANTED.** Lon, in-chat to ceo, 08:09 CDT, verbatim: *"Grant the
+global request."* The ceo mints hq_U a follow-up row to repair the head cell's capgen save/restore map and
+**then migrate this state into the head cell, retiring the global** — a word today and a frame cell later, which
+is route 2 arrived at in the right order rather than built on a storage map that is currently wrong.
+
+⛔ **One correction to the grant's own wording, made before it reached a commit or a ledger.** The routing
+message describes the state as saved/restored *"on the same terms as `rt_g_ret_by_name`"*. It is
+**`rt_g_want_name`** — the pair two lines above in `c_rt_cap_open`. `rt_g_ret_by_name` is the *other* global in
+that same function and is **read-and-cleared**, not saved-and-restored. Same file, adjacent lines, opposite
+disciplines — and the distinction is the entire cure: `want_name` is **context that must survive** a nested
+call; `ret_by_name` is a **one-shot answer that must not**. Anyone implementing from the grant text alone would
+pick the wrong one, and it would look right.
+
 1. **One word in the runtime** — `uint32_t g_cap_abort_gen`, stamped with the match's own `g_cap_gen`
    (`rt_cap_match_begin` draws a fresh id per match; the head cell restores the outer id on a nested
    return), so it is self-clearing across matches and LIFO-sound across nesting with **no reset site and no
