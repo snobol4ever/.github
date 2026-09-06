@@ -105,6 +105,43 @@ not edited in place — a closing condition is not the row-holder's to loosen al
   ⛔ **Read its output as "unresolvable by name", NEVER as "unowned"** — that is precisely the
   misreading this FINDING exists to correct, and the header comment now says so.
 
+## ⛔ Found AFTER the gate landed, by the gate's own blind spot: two defects marked XFAIL that their landing commit says were kept RED
+
+corpus `d07298db4` (ladder rung14) added `user_function_keyword_branch_3` and
+`bal_arb_keyword_branch_1`. **Its own commit message says they were *"Kept RED (never xfailed, per THE
+LADDER RECIPE)"*.** The artifact says otherwise: both carry `XFAIL` on their banner in `ALL.sno` **and**
+`xfail=1` in `ALL.csv`, and neither had any entry in `ALL.xfail`. ⛔ **The corpus wins at grading time**,
+so the board excuses two freshly-found real defects and the master reads `FAIL=0` over them.
+
+Both defects were owned the whole time — `snobol4-fnclevel-not-incremented-entering-a-defined-function`
+(hq_P, FREE) and `snobol4-bare-fail-primitive-as-entire-pattern-stack-overflows` (hq_U, FREE). The join
+was simply absent.
+
+✅ Reasons added (corpus `9d155e5b1`), each labelled as written **from the landing commit, not from a
+fresh measurement** — the box was at load 40 and a verdict I could not trust is worse than an honest
+citation. `NO_REASON_AT_ALL` 2→0, `live_row` 6→8, `REASONS_MISSING` 2→0.
+➡ **Taking the markers OFF** — the reading that matches both the author's intent and Lon's THERE IS NO
+XFAIL — moves the master to `FAIL=2`. That is a blocking-set verdict change twelve seats are landing
+against, so it is **routed to ceo**, not decided here.
+
+## ⛔ The gate I landed this sitting could not see them, and the reason generalises
+
+v1 took its population from `ALL.xfail` — **the same file it was grading.** An entry marked xfail with
+no reason is not in that file, so the gate counted a smaller, cleaner census and passed over exactly
+the entries nobody can act on. ⭐ **AN INSTRUMENT THAT TAKES ITS DENOMINATOR FROM THE FILE IT IS GRADING
+CANNOT SEE WHAT IS MISSING FROM THAT FILE.** v2 takes it from `ALL.csv` (SCRIP `385b4f2a9`), now reads
+`population=34 · reasons_on_file=34 · live_row=8 · named_but_never_minted=3 · NO_ROW=23`, and ships with
+`util_xfail_attribution_gate_arms.sh` — six arms re-run on every edit.
+
+⚠ **Its sibling `test_gate_xfail_marker_and_index_agree.sh` printed `REASONS_MISSING=2` and still exited
+0.** Measured and not graded. That combination — a real defect visible in a gate's own output, below its
+PASS verdict — is worth sweeping for across the other gates.
+
+⛔ **And v2's first cut silently broke itself:** the CSV reader was assigned to `rows`, clobbering the
+QUEUE row map, which rebucketed all six live rows as "never minted". **The only tell was `live_row`
+dropping 6→0 between two runs** — the output stayed perfectly well-formed and entirely wrong. An assert
+now refuses if that map is not a populated dict.
+
 ## Instrument traps paid for this sitting
 
 - ⛔ **`^\*-` IS NOT THE SUITE DELIMITER; A NAIVE SPLITTER RETURNS AN EMPTY PROGRAM IN SILENCE.** My
