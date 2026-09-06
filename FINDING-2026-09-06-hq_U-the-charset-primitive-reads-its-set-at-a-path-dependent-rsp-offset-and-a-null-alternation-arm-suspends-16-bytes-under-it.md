@@ -90,6 +90,13 @@ end:
    term changes nothing. `flat_pat` is downstream of it (`emit.cpp:2857` zeroes `flat_pat` when `flat_jmp_entry` is 0),
    so a source reading that stops at the name lands on the symptom.
 
+⛔ **LINE NUMBERS IN THIS FINDING ARE OF-THIS-TREE ONLY; THE SYMBOLS ARE THE CLAIM.** hq_S verified the
+`flat_pat` zeroing on their tree within the hour and read it at **2851** where mine read **2857** — six lines of
+drift, and they nearly filed *that line is a ZD_CENSUS block, your claim does not hold*, which would have been a
+false correction built on a true reading of the wrong line. **A line number is a claim that decays and a symbol
+name is not.** Cite `if (!g_emit.flat_jmp_entry) g_emit.flat_pat = 0;`, `blob_frame_scope`, `xop_frame_member`,
+`capture_frame_slot` and `emit_jmp_entry_for_patproc` by name; grep for them rather than seeking a line.
+
 ⛔ **CORRECTION TO MY OWN PRIOR ROW, and it should be carried into the gate header and the ceo's record:** the
 allocator is not switched off *by name*. It is switched off *by emission path*. `flat_jmp_entry` is set only by
 `emit_jmp_entry_for_patproc` / `emit_jmp_entry_for_proc`, called from the driver for **hoisted pattern and proc
@@ -105,7 +112,7 @@ SNOBOL4 statement that opens a match. That is a design change, not a patch, and 
 the end of a sitting is precisely the shape this project keeps paying for. All experiments were reverted; the tree is
 clean and the witness is still red on it, which is the only honest end state for a finding that does not cure.
 
-⭐ **THERE IS A PRECEDENT WORTH DESIGNING AGAINST, and it is close.** `capture_frame_slot` (`emit.cpp:2513`) already
+⭐ **THERE IS A PRECEDENT WORTH DESIGNING AGAINST, and it is close.** `capture_frame_slot` (`emit.cpp:2513` on this tree; **grep the symbol**) already
 hands out RBP frame slots inside a **match** on `emit_match_rbp()` alone — it does **not** consult
 `blob_frame_scope()`. So a match-scoped RBP slot in a non-`PAT$` graph is not a new concept needing invention; it is
 an existing mechanism with one existing customer. `match_begin` already builds the frame (`push rbp; mov rbp,rsp`;
