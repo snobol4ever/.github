@@ -1,5 +1,34 @@
 # SCORE.md — THE CURRENT SCOREBOARD (all languages, all suites)
 
+## ⭐⭐⭐ THE SUITE TABLE — HOW LON READS THE SCORE (Lon 2026-09-06 10:48 CDT, in-chat to ceo, verbatim: *"That presentation of the state of correctness by test suite is how I want to see the report from now on. Forget this stupid percentages by language."*)
+
+One row per suite — our seven masters and every vendored package suite alike — with the FIRST graded reading (date) and TODAY's reading (from the cell below it, tree-labelled there), and the movement between them. ⛔ **A report to Lon is THIS TABLE, never a per-language percentage or roll-up** (RULES.md § ONE LEADERBOARD, amended 2026-09-06). The per-language grid below stays as the runners' write target and provenance; this table is what is read back. Every runner that rewrites a cell below rewrites its row here in the same landing (hq_T wires it through `util_score_row.py`, row `score-suite-table-row-rewritten-by-the-runner-that-measured-it`); until then the ceo rewrites it at every tick from the cells. Written by ceo CEO-322 from the cells at .github `be52f147` and the first readings in the commit logs; a row whose today-cell below has moved reads STALE here.
+
+| suite | lang | first graded reading | today | moved |
+|---|---|---|---|---|
+| gimpel | snobol4 | 58/126 (09-04) | 94/126 m3 · 94/126 m4 (09-06) | +36 |
+| csnobol4_suite | snobol4 | 55/118 (09-04) | 59/119 worse-of-both (09-05) | +4 |
+| snoflake | snobol4 | 63/180 (08-28) | 129/180 (09-05) | +66 |
+| aisnobol | snobol4 | 0/2 (09-04) | 0/2 (09-05) | 0 |
+| dotnet | snobol4 | 5/5 (09-04) | 5/5 | 0 (complete) |
+| arizona | icon | 39/89 (08-30) | 47/90 both modes (09-06) | +8 |
+| jcon_tests | icon | 34/81 (08-30) | 45/81 m3 · 42/81 m4 (09-05) | +11 |
+| ipl | icon | 34/60 (09-05) | 34/60 (of 851 shipped: 64 graded, 341 ungraded, 446 ungradable) | 0 |
+| INRIA ISO 13211-1 | prolog | 261/445 (09-04) | 343/445 both modes (09-06) | +82 |
+| SWI plunit | prolog | 0 → 92/114 (08-30) | 0/114 since the 09-02 rung-0 cut | −92 |
+| GNU | prolog | 6/62 (09-03) | 6/62 | 0 |
+| fpc_tests | pascal | 119/181 (08-30) | 130/181 m3 · 128/181 m4 (09-04) | +11 |
+| PAT ISO 7185 | pascal | 298/427 m3 · 284/427 m4 (09-04) | same (09-06) | 0 |
+| roast | raku | 4/986 (09-03) | 4/986 | 0 |
+| snobol4 master | snobol4 | owed (replay backfill running) | 1841/1842 both modes (hq_S, 09-06) | — |
+| icon master | icon | owed (replay backfill running) | 642/655 both modes (hq_B, 09-06) | — |
+| prolog master | prolog | owed (replay backfill running) | 324/404 both modes (hq_C, 09-03; REPORTED) | — |
+| pascal master | pascal | owed | 248/251 both modes (09-06) | — |
+| raku master | raku | owed | run 620/762 both modes + ast 83/97 (09-03) | — |
+| snocone master | snocone | owed | run m3 176/206 + ast 67/67 (09-03) | — |
+| rebus master | rebus | owed | ast 15/48 (09-03) | — |
+
+
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
 
 ⛔⭐⭐ **DO NOT REGENERATE THIS GRID TODAY — THE INSTRUCTION BELOW IS CURRENTLY DESTRUCTIVE** (`FINDING-2026-09-03-hq_T-the-sanctioned-regenerate-the-score-grid-instruction-deletes-every-rows-provenance.md`). `util_build_score_md.py` emits a **4-column** grid (a literal at its line 206); this board is **6 columns** — it grew `Vendor / package suites` and `Tree · box clock · by` through the hand edits the paragraph below tells you not to make, and the generator was never taught them. `util_apply_score_grid.py` splices **by position**, so a regeneration deletes those two columns for every row, i.e. all provenance. It now **REFUSES** on a column-count mismatch (hq_T 2026-09-03), so the workflow fails loudly instead of quietly — but it is still not a workflow you can run.
