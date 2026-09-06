@@ -1,0 +1,230 @@
+suite	program	outcomes
+aisnobol	ENDING	m3:CRASH m4:CRASH
+aisnobol	WANG	m3:CRASH m4:CRASH
+csnobol4	8bit2	m3:REJECT
+csnobol4	a	m3:FAIL m4:FAIL
+csnobol4	alis	m3:REJECT
+csnobol4	atn	m3:CRASH m4:CRASH
+csnobol4	base	m3:REJECT
+csnobol4	breakline	m3:REJECT
+csnobol4	case1	m3:FAIL m4:FAIL
+csnobol4	conv2	m3:REJECT
+csnobol4	convert	m3:FAIL m4:FAIL
+csnobol4	crlf	m3:REJECT
+csnobol4	diag1	m3:REJECT
+csnobol4	diag2	m3:REJECT
+csnobol4	dump	m3:FAIL m4:FAIL
+csnobol4	err	m3:FAIL m4:FAIL
+csnobol4	file	m3:REJECT m4:REJECT
+csnobol4	float2	m3:FAIL m4:FAIL
+csnobol4	ftrace	m3:FAIL m4:FAIL
+csnobol4	func2	m3:REJECT
+csnobol4	function	m3:FAIL m4:FAIL
+csnobol4	genc	m3:REJECT m4:REJECT
+csnobol4	hide	m3:REJECT
+csnobol4	include	m3:FAIL m4:FAIL
+csnobol4	include2	m3:REJECT
+csnobol4	include3	m3:REJECT
+csnobol4	include4	m3:REJECT
+csnobol4	json1	m3:REJECT m4:REJECT
+csnobol4	k	m3:REJECT
+csnobol4	keytrace	m3:FAIL m4:FAIL
+csnobol4	label	m3:FAIL m4:FAIL
+csnobol4	line	m3:FAIL m4:FAIL
+csnobol4	module/ndbm	m3:FAIL m4:FAIL
+csnobol4	module/random	m3:REJECT
+csnobol4	module/sleep	m3:REJECT
+csnobol4	module/time	m3:REJECT m4:REJECT
+csnobol4	noexec	m3:REJECT
+csnobol4	pow	m3:FAIL m4:FAIL
+csnobol4	preload1	m3:FAIL m4:FAIL
+csnobol4	preload2	m3:FAIL m4:FAIL
+csnobol4	rewind1	m3:FAIL m4:FAIL
+csnobol4	scanerr	m3:REJECT
+csnobol4	setexit	m3:REJECT
+csnobol4	setexit4	m3:FAIL m4:FAIL
+csnobol4	setexit5	m3:REJECT
+csnobol4	setexit6	m3:REJECT
+csnobol4	setexit7	m3:FAIL m4:FAIL
+csnobol4	space	m3:REJECT
+csnobol4	space2	m3:REJECT
+csnobol4	spit	m3:REJECT
+csnobol4	t	m3:REJECT m4:REJECT
+csnobol4	tab	m3:FAIL m4:FAIL
+csnobol4	trace1	m3:FAIL m4:FAIL
+csnobol4	trfunc	m3:FAIL m4:FAIL
+csnobol4	update	m3:REJECT m4:REJECT
+gimpel	packages/snobol4/gimpel/PERM_driver.sno	m3:HANG
+inria	abolish#0	m3:FAIL m4:FAIL
+inria	abolish#1	m3:FAIL m4:FAIL
+inria	abolish#2	m3:FAIL m4:FAIL
+inria	abolish#3	m3:FAIL m4:FAIL
+inria	abolish#4	m3:FAIL m4:FAIL
+inria	and#7	m3:FAIL m4:FAIL
+inria	asserta#55	m3:FAIL m4:FAIL
+inria	asserta#56	m3:FAIL m4:FAIL
+inria	asserta#57	m3:FAIL m4:FAIL
+inria	asserta#58	m3:FAIL m4:FAIL
+inria	asserta#59	m3:FAIL m4:FAIL
+inria	assertz#60	m3:FAIL m4:FAIL
+inria	assertz#61	m3:FAIL m4:FAIL
+inria	assertz#62	m3:FAIL m4:FAIL
+inria	assertz#63	m3:FAIL m4:FAIL
+inria	assertz#64	m3:FAIL m4:FAIL
+inria	atom_concat#100	m3:FAIL m4:FAIL
+inria	atom_concat#98	m3:FAIL m4:FAIL
+inria	bagof#124	m3:FAIL m4:FAIL
+inria	bagof#125	m3:FAIL m4:FAIL
+inria	bagof#126	m3:FAIL m4:FAIL
+inria	bagof#128	m3:FAIL m4:FAIL
+inria	bagof#129	m3:FAIL m4:FAIL
+inria	bagof#130	m3:FAIL m4:FAIL
+inria	call#134	m3:FAIL m4:FAIL
+inria	call#135	m3:FAIL m4:FAIL
+inria	call#136	m3:FAIL m4:FAIL
+inria	call#137	m3:FAIL m4:FAIL
+inria	call#138	m3:FAIL m4:FAIL
+inria	call#139	m3:FAIL m4:FAIL
+inria	call#140	m3:FAIL m4:FAIL
+inria	call#141	m3:FAIL m4:FAIL
+inria	clause#154	m3:FAIL m4:FAIL
+inria	clause#155	m3:FAIL m4:FAIL
+inria	clause#156	m3:FAIL m4:FAIL
+inria	clause#157	m3:FAIL m4:FAIL
+inria	clause#158	m3:FAIL m4:FAIL
+inria	current_input#176	m3:FAIL m4:FAIL
+inria	current_output#177	m3:FAIL m4:FAIL
+inria	current_predicate#179	m3:FAIL m4:FAIL
+inria	current_predicate#180	m3:FAIL m4:FAIL
+inria	current_predicate#181	m3:FAIL m4:FAIL
+inria	current_predicate#182	m3:FAIL m4:FAIL
+inria	current_prolog_flag#183	m3:FAIL m4:FAIL
+inria	current_prolog_flag#184	m3:FAIL m4:FAIL
+inria	current_prolog_flag#185	m3:FAIL m4:FAIL
+inria	current_prolog_flag#186	m3:FAIL m4:FAIL
+inria	current_prolog_flag#187	m3:FAIL m4:FAIL
+inria	current_prolog_flag#188	m3:FAIL m4:FAIL
+inria	cut#191	m3:FAIL m4:FAIL
+inria	fail#194	m3:FAIL m4:FAIL
+inria	fail#195	m3:FAIL m4:FAIL
+inria	file_manip#196	m3:FAIL m4:FAIL
+inria	file_manip#197	m3:FAIL m4:FAIL
+inria	file_manip#198	m3:FAIL m4:FAIL
+inria	findall#205	m3:FAIL m4:FAIL
+inria	findall#206	m3:FAIL m4:FAIL
+inria	findall#207	m3:FAIL m4:FAIL
+inria	functor#229	m3:FAIL m4:FAIL
+inria	functor-bis#236	m3:FAIL m4:FAIL
+inria	functor-bis#240	m3:FAIL m4:FAIL
+inria	functor-bis#244	m3:FAIL m4:FAIL
+inria	functor-bis#247	m3:FAIL m4:FAIL
+inria	halt#251	m3:FAIL m4:FAIL
+inria	not_provable#288	m3:FAIL m4:FAIL
+inria	not_provable#289	m3:FAIL m4:FAIL
+inria	number_chars#309	m3:FAIL m4:FAIL
+inria	number_chars#314	m3:FAIL m4:FAIL
+inria	number_codes#324	m3:FAIL m4:FAIL
+inria	number_codes#328	m3:FAIL m4:FAIL
+inria	once#337	m3:FAIL m4:FAIL
+inria	once#339	m3:FAIL m4:FAIL
+inria	once#340	m3:FAIL m4:FAIL
+inria	or#343	m3:FAIL m4:FAIL
+inria	repeat#346	m3:FAIL m4:FAIL
+inria	retract#347	m3:FAIL m4:FAIL
+inria	retract#348	m3:FAIL m4:FAIL
+inria	set_prolog_flag#349	m3:FAIL m4:FAIL
+inria	set_prolog_flag#350	m3:FAIL m4:FAIL
+inria	set_prolog_flag#351	m3:FAIL m4:FAIL
+inria	set_prolog_flag#352	m3:FAIL m4:FAIL
+inria	set_prolog_flag#353	m3:FAIL m4:FAIL
+inria	set_prolog_flag#354	m3:FAIL m4:FAIL
+inria	set_prolog_flag#355	m3:FAIL m4:FAIL
+inria	set_prolog_flag#357	m3:FAIL m4:FAIL
+inria	set_prolog_flag#359	m3:FAIL m4:FAIL
+inria	setof#368	m3:FAIL m4:FAIL
+inria	setof#369	m3:FAIL m4:FAIL
+inria	setof#370	m3:FAIL m4:FAIL
+inria	setof#371	m3:FAIL m4:FAIL
+inria	setof#373	m3:FAIL m4:FAIL
+inria	setof#374	m3:FAIL m4:FAIL
+inria	t#388	m3:FAIL m4:FAIL
+inria	term_gt=#412	m3:FAIL m4:FAIL
+inria	term_lt#419	m3:FAIL m4:FAIL
+ipl	banner	m3:FAIL m4:FAIL
+ipl	conman	m3:CRASH m4:FAIL
+ipl	cwd	m3:FAIL m4:FAIL
+ipl	deal	m3:CRASH m4:FAIL
+ipl	declchck	m3:FAIL m4:FAIL
+ipl	diskpack	m3:FAIL m4:FAIL
+ipl	duplfile	m3:FAIL m4:FAIL
+ipl	envelope	m3:FAIL m4:FAIL
+ipl	fileprep	m3:FAIL m4:FAIL
+ipl	gediff	m3:FAIL m4:FAIL
+ipl	genqueen	m3:CRASH m4:CRASH
+ipl	gftrace	m3:FAIL m4:FAIL
+ipl	ibrow	m3:FAIL m4:FAIL
+ipl	icontent	m3:CRASH m4:CRASH
+ipl	ifncsgen	m3:FAIL m4:FAIL
+ipl	igrep	m3:FAIL m4:FAIL
+ipl	iiencode	m3:FAIL m4:FAIL
+ipl	ilnkxref	m3:CRASH m4:FAIL
+ipl	irunerr	m3:FAIL m4:FAIL
+ipl	isrcline	m3:CRASH m4:FAIL
+ipl	itrcsum	m3:CRASH m4:FAIL
+ipl	kwicprep	m3:FAIL m4:FAIL
+ipl	lisp	m3:FAIL m4:FAIL
+ipl	makepuzz	m3:CRASH m4:FAIL
+ipl	miu	m3:HANG m4:HANG
+ipl	oldicon	m3:FAIL m4:FAIL
+ipl	parse	m3:CRASH m4:CRASH
+ipl	procprep	m3:FAIL m4:FAIL
+ipl	roffcmds	m3:FAIL m4:FAIL
+ipl	scramble	m3:CRASH m4:FAIL
+ipl	toktab	m3:FAIL m4:FAIL
+ipl	vnq	m3:HANG m4:HANG
+jcon	arith	m3:FAIL m4:FAIL
+jcon	case	m3:FAIL m4:FAIL
+jcon	checkfpx	m3:FAIL
+jcon	ck	m3:FAIL
+jcon	cxprimes	m3:CRASH
+jcon	cxtrace	m3:FAIL
+jcon	errkwds	m3:FAIL
+jcon	errors	m3:CRASH
+jcon	evalx	m3:CRASH
+jcon	every	m3:CRASH
+jcon	fncs	m3:FAIL
+jcon	geddump	m3:CRASH
+jcon	gener	m3:FAIL
+jcon	genqueen	m3:CRASH
+jcon	image	m3:CRASH
+jcon	io	m3:FAIL
+jcon	iobig	m3:FAIL
+jcon	kwds	m3:FAIL
+jcon	large	m3:FAIL
+jcon	lgint	m3:FAIL
+jcon	lists	m3:FAIL
+jcon	loadfunc	m3:FAIL
+jcon	misc	m3:CRASH
+jcon	nargs	m3:FAIL
+jcon	others	m3:FAIL
+jcon	profsum	m3:FAIL
+jcon	radix	m3:FAIL
+jcon	recent	m3:FAIL
+jcon	recogn	m3:CRASH
+jcon	scan	m3:HANG
+jcon	scan2	m3:HANG
+jcon	sorting	m3:FAIL
+jcon	struct	m3:FAIL
+jcon	substring	m3:FAIL
+jcon	toby	m3:HANG
+jcon	traceback	m3:FAIL
+jcon	tracing	m3:CRASH
+jcon	var	m3:FAIL
+swi	test_arith	m3:FAIL m4:FAIL
+swi	test_bips	m3:FAIL m4:FAIL
+swi	test_call	m3:FAIL m4:FAIL
+swi	test_dcg	m3:FAIL m4:FAIL
+swi	test_exception	m3:FAIL m4:FAIL
+swi	test_misc	m3:FAIL m4:FAIL
+swi	test_string	m3:FAIL m4:FAIL
+swi	test_term	m3:FAIL m4:FAIL
