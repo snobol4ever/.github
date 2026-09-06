@@ -2,7 +2,7 @@
 import sys, csv, argparse, collections, datetime
 ap=argparse.ArgumentParser(); ap.add_argument("--db",default="/home/resources/progress/results.tsv"); ap.add_argument("--since",default="3d"); ap.add_argument("--per",default="hour"); ap.add_argument("--mode",default="m3"); ap.add_argument("--names",action="store_true"); a=ap.parse_args()
 n=int(a.since[:-1]); unit=a.since[-1]; delta=datetime.timedelta(days=n) if unit=="d" else datetime.timedelta(hours=n)
-since=(datetime.datetime.utcnow()-delta).strftime("%Y-%m-%dT%H:%M:%S")
+since=(datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)-delta).strftime("%Y-%m-%dT%H:%M:%S")
 rows=[r for r in csv.DictReader(open(a.db),delimiter="\t") if r["mode"]==a.mode]
 rows.sort(key=lambda r:r["ts_utc"])
 last={}; ups=collections.defaultdict(list); downs=collections.defaultdict(list)
