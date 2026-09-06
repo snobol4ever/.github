@@ -185,3 +185,25 @@ THEY reference one. Did not check whether any corpus program's behavior depends 
 Not minted separately — same class, same owner, same row
 (`snobol4-error-location-is-zero-or-stale-when-source-never-runs-rt-stmt-enter`); repro and this
 addendum's pointer added to that row's own task file.
+
+## Addendum 2026-09-06 seat02 (2nd session, FLEET-12) — `dump-ordered`'s open question resolved: same
+root cause, the ORIGINAL comparison had a methodology error, not a different bug
+
+Section 3's own text left `dump-ordered.sno` open with "its actual failure is different and NOT
+explained by this finding... a question about WHETHER the dump fires, not about the values inside it."
+That framing was itself wrong, found while ablating the parent umbrella row's fresh FAIL-M3 list:
+**`&DUMP = 1`'s automatic post-mortem dump routes to the real oracle's LISTING SINK file
+(`sbl_listing_sink_flag`'s `.lst`), never to stdout** — the original investigation compared SCRIP's
+stdout against the oracle's stdout only, so it looked like SPITBOL printed nothing at all. Re-run
+correctly (oracle's `.lst` file instead of its stdout): SPITBOL's dump DOES fire and DOES contain
+content, and once compared against the right stream, `dump-ordered` shows exactly the **same "stale-by-
+N" shape** section 4 already describes for `gimpel-random-poem`/`gimpel-random-story`/`gimpel-pattern-
+functions` — SCRIP's `&LASTLINE`/`&LINE`/`&STCOUNT`/`&STNO` are each short by exactly 1 relative to the
+oracle's listing, not zeroed like the `(0)` shape. (One more small, separate observation, NOT yet
+explained by this finding: SCRIP's dump also includes an `&MAXINT` line that the oracle's listing never
+prints in its keyword-values section — may be a harmless extra field or may indicate real SPITBOL
+excludes `&MAXINT` from `DUMP`'s keyword enumeration on purpose; not chased further here.)
+
+So: `dump-ordered` IS the same class as `dump-variables` and belongs in this row's blast radius, not a
+separately-diagnosed case — the earlier "left open" note above is superseded by this addendum, not by a
+new investigation. No src/ touched; witness-only, per this row's own scope.
