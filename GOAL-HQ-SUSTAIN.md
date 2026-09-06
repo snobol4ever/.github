@@ -104,7 +104,21 @@ same lowercase-`end` class for the `random` and `time` module tests.
 if string literals count and **4 of 48** if they do not, and neither bound is honest: the operative
 identifier is sometimes inside a string (`LABEL('bar')`, `TRACE('foo')`) and sometimes prose that merely
 looks like one. The only reliable census is the red set against a folding-enabled build, which does not
-exist. **Confirmed floor: 5 programs.**
+exist. **Confirmed floor: 7 programs** — `case1`, `trace1`, `label`, `func2`, half of `setexit7`, **`preload1`,
+`preload2`**.
+⛔⭐ **`preload1`/`preload2` ARE THE ONES THAT WILL COST SOMEBODY A DAY IN THIS LANE, so read this before
+taking them.** Both programs are literally just `END`; their output comes from a preloaded file passed as
+`-Laa/aa.sno` (the runner supplies it, `test_snobol4_csnobol4_suite.sh:174`). Graded the runner's own way
+they emit NOTHING where the ref says `aa` — which reads exactly like a broken `-L` preload path, i.e. file
+association, i.e. **hq_S's own surface**. **IT IS NOT.** `aa/aa.sno` contains lowercase `output = "aa"`, and
+case-sensitive SCRIP treats `output` as an ordinary variable rather than the OUTPUT association, so it
+assigns and prints nothing. **Proved innocent by substitution, not by reading the code:** the same preload
+file with `OUTPUT` uppercased prints `aa` through the identical `-L` path, and reverting that one word
+silences it again. A fixer who took `preload1` as an I/O row would be rewriting healthy code.
+⭐ This is also the class's **FOURTH manifestation site and the one that reaches furthest** — not user
+identifiers, not the `END` keyword, but the **built-in I/O associations themselves** (`output`, and by
+implication `input`, `terminal`, `punch`). Any `SCRIP_FOLD_CSNOBOL4` must fold those too, or `preload1`
+stays red while looking cured.
 **Cure shape, precedented — a fifth compat switch `SCRIP_FOLD_CSNOBOL4`, live only under
 `--compat=csnobol4`**, exactly as `SCRIP_IPOW_CSNOBOL4` and `SCRIP_ERRNUM_CSNOBOL4` already work; the
 default SPITBOL dialect stays case-sensitive by construction, which is the property that makes those
