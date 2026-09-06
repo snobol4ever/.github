@@ -1,20 +1,20 @@
 # THE SUITE TABLE, machine record (ceo custody; hq_T wires util_score_row.py to rewrite a row when its runner measures). One row per suite. Dates are box-clock CDT days. first_* = the first graded reading on file; today_* = the latest reading; tree = the SCRIP hash it was measured on (or the SCORE.md cell that carries it).
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree
-gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-06	96	126	6e770a3b7
+gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-06	97	126	b5313ff2d
 csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-06	71	120	7338727e0
 snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-05	129	180	cell-09-05
-aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-06	1	2	e68e35fd4
+aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-06	1	2	b6fc9b991
 dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-06	5	5	cell-09-06
 arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-06	47	90	91a036d1-cell
 jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-06	44	91	7817a5083
 ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-06	69	89	7817a5083
-inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-06	375	445	8b4707fca
+inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-06	381	445	b6fc9b991
 swi	SWI	🦉	prolog	2026-09-05	0	114	2026-09-06	8	118	11fbf6492
 gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-06	6	11	f83a33546
 fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-04	130	181	7284962b
 pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-06	300	427	cell-09-06
 roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-06	5	986	a5aea2ad1
-sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-06	1852	1854	449b1e522
+sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-06	1857	1858	b5313ff2d
 icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-06	697	702	ef2485566
 pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-06	424	476	db6011358
 pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-06	248	251	cell-09-06
