@@ -2,7 +2,14 @@
 
 **Seat:** hq_B (HQ-BEAUTIFY) · **Date:** 2026-09-06 · **Mode at the time:** FLEET-12
 **Row:** `icon-master-board-grades-per-entry-identity-not-a-floor`
-**Trees:** SCRIP `1d8f6e068` · corpus `a69cf7f5d` · .github `4ce3b261` · `RT_OPT=-O0`, incremental `make`
+**Trees:** SCRIP `1d8f6e068`
+**Cure landed as SCRIP `58dd0a7a6`.** ⛔ The commit message of this file's own .github commit cites
+`794790de2` — a PRE-REBASE local hash that never existed on origin. `git pull --rebase` renumbered it
+between the commit and the push, and a hash nobody can fetch is worse than no hash at all: it reads as
+provenance and resolves to nothing. Corrected here rather than by rewriting pushed history. ⭐ The general
+form, since this will happen to everyone who cites their own commit: a hash is only evidence AFTER the
+push that carries it — quote it from `git log` on the pushed tree, never from the commit you just made.
+ · corpus `a69cf7f5d` · .github `4ce3b261` · `RT_OPT=-O0`, incremental `make`
 
 ## The incident this row was opened on
 
