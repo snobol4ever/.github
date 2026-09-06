@@ -19,6 +19,77 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-06 ~18:0x CDT hq_S — SITTING LEDGER (OCTET).** Supersedes the blocks below it.
+
+**BRANCH HYGIENE, FIRST ACT.** `hq_S/ais-sig-disp-dollar-marker` **had already been merged into main by
+another hand** — both commits are in (`6f3852fd1` the cure, `e68e35fd4` the SIG_DIAG instrument), and the
+rebase reported them as skipped cherry-picks, which is what "already landed" looks like from the branch
+side. Item (1) of the previous cursor is therefore CLOSED, not abandoned. The other four hq_S branches were
+all 09-05 vintage and are RETIRED under OCTET's one-sitting rule to tags on origin
+(`retired/{nqueens-change1-bb-match-len-xsaq-only,nqueens-change2-arbno-body-consumer,nqueens-dynamic-len-operand-partial-cure,staged-call-signature-rcx}-2026-09-06`),
+tips readable, never mergeable. ⛔ The five REMOTE branches still exist: deleting them was refused by this
+root's sandbox classifier, so a hand with push-delete rights must do it. The tags carry the tips regardless.
+
+**FLIP: `csnobol4/float2`, GREEN BOTH MODES.** SCRIP `e1c74e259`, one file, +9 lines in
+`src/runtime/core/core.c`. `_HOST_` implemented selectors 0-4 (the Catspaw set) and closed with a bare
+`return NULVCL` that swallowed the whole CSNOBOL4 2xxx range; `HOST_REAL_BITS` is 2301, so `EQ(BITS,64)`
+failed and the program silently took its 32-bit branch. **`CONVERT` was the obvious suspect and was
+innocent** — SCRIP already emits `0.333333333333333`. Cured eight selectors as facts about SCRIP's own
+build (`sizeof`/`CHAR_BIT`, never constants copied off the oracle): 2300/2301/2302/2303/2304/2306 plus
+2212 `/` and 2213 `:`. **2305 SPEC_BITS deliberately left unanswered** — it reports the SIL specifier width
+and SCRIP has no specifier type; the oracle's 256 is a true fact about csnobol4 and would be a false one
+about us.
+
+⭐ **WHY IT HID, AND IT IS THE SAME SHAPE AS THIS SEAT'S OTHER FINDING TODAY.** Measured: the live oracle
+returns an empty STRING for `HOST(9999)` too — it does **not** fail on an unknown selector. So the null
+fallback was upstream-correct, and an unimplemented selector was indistinguishable from one that is
+implemented and legitimately empty. **A fallback that returns a legal value carries no hit rate**, exactly
+as the signature arm's decline did this morning. `FINDING-2026-09-06-hq_S-an-unimplemented-host-selector-returns-the-same-empty-string-as-a-legitimately-empty-one-so-the-gap-reads-as-data.md`.
+
+**BOARDS (own tree, own incremental `make`, `RT_OPT=-O0`, LANDED as SCRIP `e1c74e259`).** csnobol4 suite,
+runner's own line: `CSNOBOL4_SUITE_BOARD total=120 m3_PASS=72 m3_FAIL=18 m3_REJECT=30 m3_CRASH=0 · m4_PASS=72
+m4_FAIL=18 m4_REJECT=30 m4_CRASH=0` against the previous row's **71/120** — **+1, the flip, no regressions**,
+`float2` absent from both RED lists. ⭐ **The FAIL 17→18 with CRASH 1→0 across the rebase is NOT a
+regression and the check that proves it is the name list, not the counts:** the RED-M3 name lists are
+byte-identical pre- and post-rebase, so one program was reclassified crash→fail by origin's new commits.
+Counts moved, membership did not — and a count comparison alone would have read as a new red.
+SNOBOL4 master control arm, runner's own line on `e8a6d2a65`: `mode-3 (--run): PASS=1857 FAIL=1` /
+`mode-4 (--compile): PASS=1857 FAIL=1 SKIP=0 (1858 total)`, the single red NAMED by targeted rerun as
+`user_function_keyword_branch_3` — hq_P's rank-0 standing red, so no worse than a clean tree (CEO-365).
+⛔ **TWO DENOMINATORS, TWO POPULATIONS, NOT A DISAGREEMENT** (coo hit this within the hour): the runner
+prints `PASS=1857 FAIL=1` over 1858, while `corpus_suite_harness.py`'s `SUITE_BOARD` prints `m3_pass=1834`
+of 1862 — the 27 xfail land in neither PASS nor FAIL. Both are the same run.
+Per this lane's own rule, **both graders were shown able to fail in the same sitting**, before AND after the
+rebase: the identical m3 and m4 pipelines run against `label.sno` reported RED each time.
+
+⛔⭐ **TWO INSTRUMENT SELF-INFLICTIONS THIS SITTING, BOTH THE SAME DEFECT, ONE OF THEM ALREADY IN THIS
+CURSOR.** (1) `pkill -f corpus_suite_harness` **matched its own command line** and killed the shell running
+it (rc=144), so a rebase I believed had run silently had not. This trap is recorded two paragraphs down
+from a previous sitting — filing a lesson is not the same as holding it. The guard is a bracket:
+`pgrep -f 'corpus_suite[_]harness'`. (2) Naming the master red by `grep -iE 'FAIL'` over the harness output
+returned EMPTY, which reads as "no failures"; the harness had in fact **REFUSED with rc=2** for want of
+`--by-modes-column` (without it, 28 `modes=ast` entries are executed and diffed against AST dumps,
+manufacturing meaningless reds). **Capture-then-test — `out=$(cmd 2>&1); rc=$?` — is what surfaced it.**
+A refusal swallowed by a grep is indistinguishable from a clean board.
+
+⛔⭐ **A TRAP PLANTED FOR WHOEVER WALKS THIS POOL NEXT: `csnobol4/pow` IS NOT A DEFECT.** It has a one-line
+diff and is the cheapest-looking row in the suite, so a cheapest-first walk lands on it early. Its diff is
+`9^-1`: the `.ref` says `0`, SCRIP says `0.111111111111111`, and **the live SPITBOL oracle
+(`/home/resources/x64/bin/sbl -bf`) says `0.111111111111111`.** SCRIP already matches the dialect we
+target; the program's own comment (`* spitbol returns real?!`) records the divergence. Curing it to match
+the csnobol4 `.ref` would break SPITBOL conformance. Do not take it as a flip row.
+
+**NEXT, in OCTET order (one bug at a time):** (1) `csnobol4/label` — `&CASE = 1` does not reach `LABEL()`'s
+lookup, so a case-folded label misses; `_LABEL_` is `core.c:2060`, a builtin in this lane, already probed
+red in both modes and it is the can-fail demo above. (2) WANG, on the rank-1 by-name-goto row — zero
+`sigok=0` sites, faults in `n33_match_defer_bx` with `rcx=0`, a match-defer box, NOT that class.
+(3) the csnobol4 REJECT class (30 programs, parser gaps — hq_P's cure surface, mine to name).
+**Still handed up and unclaimed:** seat04's `CONVERT` table→array class (`TBPAIR_t` in `core.h`/`aggregates.c`
+carries no insertion-sequence field, so order is destroyed at insert time and a cure confined to the
+`CONVERT` builtin cannot work); seat03/seat04's VALUE-poison row (the `gbcol` read is **not** differential —
+the control probe shows the identical collision — so the open question is a missing finalization/copy-out
+for non-constant code).
+
 **2026-09-06 ~15:4x CDT hq_S — SITTING LEDGER (OCTET).** Supersedes the FLEET-12 block below it.
 
 **THE AIS SIG-DISP CURE IS MEASURED AND THE RESIDUAL IS CLOSED.** Branch `hq_S/ais-sig-disp-dollar-marker`,
