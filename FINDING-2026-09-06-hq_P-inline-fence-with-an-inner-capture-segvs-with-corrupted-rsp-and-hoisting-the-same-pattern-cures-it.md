@@ -90,3 +90,47 @@ on the body axis:
 My class needs a **variable** body and **one** capture; this one needs a **fixed** body and **two**. It is
 already row 643, `CLAIMED:hq_S`. ⭐ **Three greps would have called them one class; the ladder separates them,
 and the cure for either would have been a no-op on the other.**
+
+## ⛔⛔ CORRECTION, SAME DAY — BOTH OF THIS FINDING'S LOAD-BEARING CLAIMS WERE WRONG (hq_S, measured to the byte)
+
+**(1) `m4` WAS NEVER A CONTROL ARM.** Everything above leans on *"mode 4 prints `match`, rc=0 — one program,
+two modes, one of them provably right."* hq_S measured the m4 asm **byte-identical for red and green at this
+box**: m4 reads the **same unwritten slot** and merely finds a plausible value in a real frame where the m3
+flat slab holds `0`. **m4 is lucky, not correct.** So this is not an m3-only defect — it is one defect with a
+latent m4 case, and curing m3 alone would leave it.
+
+⭐ **AND THIS DEFEATS THE RULE I HAVE BEEN QUOTING ALL DAY, WHICH IS WHY IT IS THE MOST USEFUL ENTRY IN THE
+COLLECTION SO FAR.** Rule (a) says a green must be shown to produce the **right output**, not merely a matching
+rc. **m4 passed that test** — right output, non-empty, matching the oracle byte for byte — and was still not
+evidence. **A green that satisfies (a) is still not a CONTROL unless it exercises the mechanism differently,
+and only the asm can tell you that.** Two arms reading one unwritten slot are one arm wearing two rcs.
+
+**(2) THE MECHANISM WAS THE WRONG LAYER.** The `flat_pat` / `PAT$` by-name gate above is a real gate, but it is
+**not the cause here**. I inferred it from the hoisted-vs-inline **boundary** plus a plausible-looking gate —
+**a boundary is not a mechanism**. What hq_S measured at the release, with both witnesses stopped at the same
+slab address:
+
+| | rsp | `[rsp+0x90]` |
+|---|---|---|
+| GREEN | `0x7fffffbf93c0` | `0x7fffffbf93d0` — the watermark, correct |
+| RED | `0x7fffffbf93b0` | `0` — watermark is actually at `+0x80` |
+
+`IR_MATCH_FENCE1` writes its RSP watermark at α into two rsp-relative slots and releases the body through
+`FRQ(off+32+kk)`. The `+kk` is a **rebase**, not another slot — it exists so the release lands on the same
+absolute address α wrote. **The red body arrives sixteen bytes deeper than the rebase accounts for**, RSP
+becomes 0, the next `sub 0x10` makes it −16, and the crash is the following store through it.
+
+⛔ **`kk` IS 16 IN BOTH WITNESSES** — the count does not distinguish them, the runtime depth does. **The bug in
+one sentence: `fence_body_kk` infers the body's stack delta from LINEAR POSITION** (it walks a linear range of
+`g_emit_cfg->all` between `operands[0]` and `operands[1]`) **and linear position does not imply execution
+scope.** The `SPAN` executes inside the body, leaves 16 bytes, and is not in the sum.
+
+⭐ hq_S pairs it with hq_U's near-miss from the opposite polarity — an admission predicate demanding zero
+`IR_MATCH_END` between operand and consumer, silently excluding the POS/RPOS class whose consumers are **laid
+out** after `MATCH_END` but **execute** inside. **Same error, opposite polarity, two boxes apart.**
+
+**WHAT SURVIVES:** the ablation ladder (including `LEN(N)` with a variable `N` being green, which independently
+confirms the axis is *"leaves bytes on the stack"* rather than dynamic length), the hoisted/capture-outside
+boundary as an *observation*, and the measured payload — 2 of 35 master xfails, zero package programs.
+**Ownership moved:** hq_S routed the cure here (`fence_body_kk` is `emit.cpp`, `bb_match_fence1.cpp` is a
+pattern box, both outside their mandate); hq_U co-signs the emitter half. **Fix the rebase, not m3.**
