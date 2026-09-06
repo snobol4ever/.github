@@ -8,7 +8,32 @@ usage: util_suite_banner.py [--plain] [--line] [--md] [--set KEY PASS TOTAL [DAT
   --set      rewrite one row's today_* (DATE defaults to the box clock day) and print the banner
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
 """
-import sys, os, datetime as dt
+import sys, os, datetime as dt, unicodedata as _ud
+def dw(s):
+    """DISPLAY columns, not len(). The grid misaligned because padding counted CHARACTERS (Lon 2026-09-06:
+    "get the suites banner to line up vertically; most likely your length counts are off due to unicode").
+    Three independent ways len() lies here, all live in this banner:
+      - a WIDE char is 1 char and 2 columns: U+2705 done, U+26D4 stuck, U+1F195 new, and every W emoji;
+      - a VARIATION SELECTOR is 1 char and 0 columns, and it makes its NARROW base render wide: ❄️ and 🏛️
+        are U+2744/U+1F3DB + U+FE0F, len()==2, one 2-column glyph;
+      - a REGIONAL INDICATOR PAIR is 2 chars and one 2-column glyph: 🇫🇷 is U+1F1EB U+1F1F7.
+    U+2192 (the ETA arrow) is east_asian_width 'A' (ambiguous) and renders NARROW, which is why the ETA cells
+    were the ones that lined up and the done/stuck/new cells were not."""
+    w = 0; i = 0; n = len(s)
+    while i < n:
+        ch = s[i]; o = ord(ch)
+        if o in (0xFE0F, 0xFE0E) or _ud.combining(ch): i += 1; continue
+        if 0x1F1E6 <= o <= 0x1F1FF:
+            w += 2; i += 2 if (i + 1 < n and 0x1F1E6 <= ord(s[i + 1]) <= 0x1F1FF) else 1; continue
+        if i + 1 < n and ord(s[i + 1]) == 0xFE0F: w += 2; i += 2; continue
+        if _ud.east_asian_width(ch) in ('W', 'F') or 0x1F300 <= o <= 0x1FAFF: w += 2
+        else: w += 1
+        i += 1
+    return w
+def pad(s, width):
+    """left-justify to WIDTH display columns; never truncates, so a wide cell pushes its row instead of lying."""
+    d = dw(s)
+    return s + ' ' * (width - d) if d < width else s
 HERE=os.path.dirname(os.path.abspath(__file__)); TSV=os.path.join(HERE,'..','SUITES.tsv')
 R='\033[31m'; G='\033[32m'; Y='\033[33m'; C='\033[36m'; B='\033[1m'; Z='\033[0m'
 def load():
@@ -43,7 +68,7 @@ def banner(plain=False, grid=True, ncol=3):
         elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
         else:
             col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
-        if grid: cell=f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} {tail:<8} {r['emoji']}"
+        if grid: cell=pad(f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} " + pad(tail, 9) + f" {r['emoji']}", 36)
         else: cell=f"{r['emoji']}{r['nick']} {frac} {tail}"
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
