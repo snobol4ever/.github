@@ -18,6 +18,52 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 3. Read this file's LIVE CURSOR, then `SCORE.md` § THE SEPTEMBER 10 GRID for your lane's cells, then assign each of your seats its first row (`s4e_msg.sh assign seatNN <topic>`, a runnable DONE-WHEN proven red once).
 
 ## LIVE CURSOR
+
+**2026-09-06 ~14:2x CDT hq_S — SITTING LEDGER (FLEET-12).**
+
+**CURED, ON BRANCH, NOT MERGED:** CEO-334d (the AIS class). Branch `hq_S/ais-sig-disp-dollar-marker`,
+SCRIP `09cd8a3b9`, one file, +2/-14 in `bb_call_proc_staged.cpp`. `bcps_sig_disp` parsed `[rsp#` and is fed
+`FRQB(slot,0)`, which `x86_zop` **always** renders as `[rsp$` — so the signature arm had **never fired once**
+for any argument-bearing call site, and those sites fell through silently to the SCC `open_slim` convention
+while the callee's prologue was the role-4 SIG shim that dereferences `rcx` as a signature block. Cure:
+delete the duplicate parser, teach the survivor `$`, delegate. `FINDING-2026-09-06-hq_S-the-signature-arm-declined-100-percent-of-inputs-because-its-parser-was-fed-a-spelling-it-could-not-read.md`.
+
+**MEASURED (m3 + m4, vs `sbl -bf`, incremental `make`, `RT_OPT=-O0`):** ceo's witness `v21` rc=139 both modes
+→ rc=0 MATCH both modes; `v21b` (twin, no formal) and `v22` (same call at top level) MATCH before and after
+as controls. `v21b` survives only because `nf4=0` means the shim never dereferences the bad `rcx` — **the
+defect was present and invisible there.**
+
+⛔ **THE BRIEF'S TWO NAMED ARMS DO NOT WITNESS THE CLASS, and this is the correction of the sitting.**
+`ENDING` was **already green before the cure** (A/B'd on a rebuilt pre-cure binary, 22 lines MATCH both
+sides). `WANG` is still rc=139, has **zero** declining sites, and faults in `n33_match_defer_bx+36` with
+`rcx=0` — a **match-defer** box, not a call box. Same package, same rc, different class; handed back
+unclaimed. ⭐ Both were one step from entering a receipt as closures off a shared package name and a shared
+rc=139; the pre-cure rebuild was the only arm that stopped it.
+
+⛔ **RESIDUAL, DELIBERATELY NOT CURED:** `sigok` can still be 0 legitimately (`[rbp + N]` operands, `fc_hit`,
+`nargs>29`, `dhi != dlo+8`) and **every one still falls through to `open_slim` against a SIG-shim callee —
+still a wrong program, just rarely.** By this lane's own loud-decline rule that should `x86_bomb`. Not done
+without first counting the live sites that take it. **That is the next row.**
+
+**GATE, DELEGATED (an HQ never runs a board by hand):** seat03 → `board-arm-for-hq_S-ais-sig-disp-branch`,
+a **DELTA** arm — origin/main AND branch, both modes, printed denominators, reporting the NAMED
+set-difference outside CEO-335's inherited `demo_*` set. An absolute FAIL count cannot answer this: the cure
+**enables** a path that never fired, so the blast radius is call sites elsewhere that switch convention.
+
+**CEO-335 taken:** the `user_function_*` inheritance is withdrawn, my branch touches that neighbourhood, and
+the delta arm is what makes a new `user_function_*` red attributable to me by construction rather than by
+argument. Inherited set named verbatim in the seat brief: `demo_json`, `demo_calculator-1`,
+`demo_calculator-2`, `demo_treebank` + `_match` / `_match_fence` variants (hq_R's, `285f8fb12`; nobody
+reverts it).
+
+**ROUTED OUT OF LANE:** seat04's BAL/ARB/REM/FAIL/SUCCEED/ABORT silently-uncallable finding is **hq_P's** —
+the cure is in `snobol4.y` plus three lowering consumers, i.e. the frontend, not the runtime. Concurred on
+the lane, not claimed.
+
+**NEXT SEAT STARTS HERE:** read seat03's delta before merging the branch. If the set-difference is empty
+outside the inherited `demo_*` set, merge and close CEO-334d. Then the loud-decline row above, then WANG as
+a fresh match-defer row (it is NOT part of CEO-334d).
+
 **2026-09-05 15:02 CDT ceo — OPENED, NOT YET RUNNING.** FIRST ROWS: SNOBOL4 ladder rungs 25–27, 29–32 (predicates, string functions, real math, I/O, system, SORT, error handling) once seat09 declares them red; the csnobol4 suite by class; the SPITBOL testpgms. Lon starts the session; the ceo re-lanes the seats at the FLEET-12 flip.
 
 **2026-09-05 15:41 CDT hq_S — LEDGER, CLOSED WITHOUT RUNNING (MODE flipped to CEO at 15:15 before this seat was started).** WHAT LANDED: nothing — hq_S never held a row. WHAT IS LEFT: the entire FIRST ROWS list above, untouched and unassigned; no seat was assigned (`s4e_msg.sh assign` never run), no suite or board was run by this seat, so no SCORE.md row is owed or stale on its account. THE WITNESS (measured, not remembered, at the clock above): zero claims in `/home/resources/postoffice/claims/` name hq_S; `QUEUE.tsv` and `BOARD.md` carry zero hq_S rows; all three repos are clean and level with origin — SCRIP `b812fb6d1`, corpus `8972babeb`, .github `d30d29baa` (`git status --porcelain` empty, `origin/main..HEAD` empty, `merge --ff-only` = Already up to date, in each). Nothing stayed only in this checkout. NEXT SEAT: the cursor block above is unchanged and still correct — start from it, not from this line.
