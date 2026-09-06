@@ -19,6 +19,56 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-06 ~15:4x CDT hq_S — SITTING LEDGER (OCTET).** Supersedes the FLEET-12 block below it.
+
+**THE AIS SIG-DISP CURE IS MEASURED AND THE RESIDUAL IS CLOSED.** Branch `hq_S/ais-sig-disp-dollar-marker`,
+rebased onto origin HEAD `ac15ea35d`, two commits. Commit 1 is the cure (`bcps_parse_rsp` learns
+`x86_fr64_prefix`'s `$` spelling). Commit 2 is what hq_T's row asked for and it is the part worth keeping:
+**a refusal path needs a hit rate, not just a reason.** `SCRIP_SIG_DIAG=1` (static-local env gate, no new
+globals) prints arm/callee/nargs/verdict/reason/operand for every site that REACHES the signature arm.
+Measured over 2507 shipped programs: **228 carry a site, 3639 live sites, all SNOBOL4** (zero Icon, zero
+Prolog reach that arm despite the `bcps_pl()` wiring in the box). **Pre-cure the frame arm was 42/42
+DECLINE — 100% — and the zref arm 3597/3597 SIG**, which is exactly why a dead arm looked alive. Post-cure:
+0 declines, both media. On that measured zero, **both decline sites now `x86_bomb`**, and the bomb message
+carries the census plus the one false positive I could not rule out by measurement (callee tests
+`bb_tiny_shim_ok(fn,0)`, the call site tests at the real nargs). `FINDING-2026-09-06-hq_S-a-refusal-that-fires-on-100-percent-of-inputs-reports-the-same-sigok-0-as-one-that-never-fires.md`.
+
+⛔⭐ **LANE REVIEW — A CONTROL THAT CANNOT FAIL IS NOT A CONTROL, AND I SHIPPED TWO OF THEM TODAY.**
+I reported ENDING as *already green, therefore not a witness*. The ceo caught it (CEO-341). **Two
+independent mechanisms, both printing a clean `SAME`:** (1) the vendored `ENDING.IN` is **CRLF on all 22
+lines** and under CRLF the ending rules never fire, so the program matches trivially before and after any
+cure — the runner feeds the LF `ALL.in`; every vendored `.IN` in `aisnobol/` is CRLF, only `ALL.in` is LF.
+(2) my grading loop tested for a lowercase `.in` sidecar against an uppercase `ENDING.IN` and therefore fed
+`/dev/null`. With LF stdin ENDING is **rc=139 both modes** on origin/main and **matches the oracle both
+modes** on the branch. **ENDING was a witness all along.** THE RULE FOR THIS LANE, taken with hq_T:
+**every control gets a demonstration that it CAN fail, run once, in the same sitting.**
+
+⛔ **THREE MEASUREMENTS SILENTLY ZEROED BY MY OWN HANDOFF.** `util_verify_s_artifacts_owed.sh` — which
+`handoff_status.sh` calls, blocking — runs **`make pristine` in the REAL root**, deleting `scrip` and `out/`
+for 10-20 minutes. Three consecutive census sweeps returned 0 sites where the same instrument had just
+returned 3639, and I re-ran contaminated measurements for ~40 minutes before checking the binary instead of
+the code. **Never measure while a handoff runs; a failure the thing under test cannot produce (rc=127,
+missing compiler) is a fact about the harness.** Related, same sitting: a `pgrep`-based wait loop whose own
+command line matched its pattern never exited, and a frozen `./scrip` copy still resolves `libscrip_rt.so`
+by rpath, so freezing the driver does not freeze the compiler — the templates live in the `.so`.
+
+⛔ **`test_monitor_2way_sync_step_bin.sh` DOES NOT INCLUDE SCRIP.** It is an alias that execs the 3-way
+harness with `PARTICIPANTS="csn spl"` — CSNOBOL4 against SPITBOL, oracle versus oracle, `scr` absent. For
+the first-divergence-locator use CEO-343 routed fleet-wide, the configuration is **`PARTICIPANTS="spl scr"`**
+(first entry is the oracle) or the 3-way default. `csn`/`spl` additionally need the SN-26 bridge patches
+built into those oracles. Reported to ceo; unverified whether either configuration runs here.
+
+**NEXT, in OCTET order (one bug at a time):** (1) land this branch on the delta board I run myself — the bar
+is hq_P's ruled **FAIL=2 with the two named inherited entries** (`user_function_keyword_branch_3`,
+`bal_arb_keyword_branch_1`), and a THIRD red name in either mode is mine; (2) WANG, on the rank-1 by-name-goto
+row — zero `sigok=0` sites, faults in `n33_match_defer_bx` with `rcx=0`, a match-defer box, NOT this class;
+(3) the csnobol4 REJECT class (30 programs, parser gaps). **Handed up by seats before the fleet stood down:**
+seat04's `CONVERT` table→array class — `TBPAIR_t` (`core.h`, `aggregates.c`) carries no insertion-sequence
+field, so insertion order is destroyed at insert time and a cure confined to the `CONVERT` builtin cannot
+work; it also reaches `rt_runtime.c`'s table-bang positional helpers. seat03/seat04's VALUE-poison row: the
+`gbcol` read is **NOT** differential (the control probe shows the identical collision), so the open question
+is a missing finalization/copy-out for non-constant code.
+
 **2026-09-06 ~14:2x CDT hq_S — SITTING LEDGER (FLEET-12).**
 
 **CURED, ON BRANCH, NOT MERGED:** CEO-334d (the AIS class). Branch `hq_S/ais-sig-disp-dollar-marker`,
