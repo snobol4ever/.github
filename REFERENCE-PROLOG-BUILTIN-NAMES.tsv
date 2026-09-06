@@ -5,7 +5,13 @@
 # A fact spread across two lines -- or across one line and a mid-line marker -- is structurally invisible
 # to every line-oriented tool, and invisible in the direction that reads as PRESENT. Here the two facts
 # are inseparable: no tool can take a name without also taking its status.
-# STATUS: PRESENT = SCRIP has a proc for it (NOT that the builtin is correct). ABSENT = known missing/red.
+# STATUS: PRESENT = the name was CURATED as present in the prose twin at cut time, from lower_prolog.c's own
+#   tables (pl_det_leaves, the builtin-name list, the guard table). ABSENT = curated as known missing/red.
+# ⛔ PRESENT IS NOT 'a proc exists for it', AND THAT DEFINITION DIED THE DAY THIS FILE WAS CUT (hq_C, 2026-09-06):
+#   SCRIP a4bbdb554 SYNTHESISES a proc for every pl_det_leaves entry plus five early names, so any census keyed
+#   on proc-existence now answers PRESENT for ~70 names that acquired a proc that afternoon, and answers the
+#   same before and after for one whose leaf already existed. A column can keep every value it had and stop
+#   meaning what its header says -- re-derive from the CURATED prose twin, never from proc-existence.
 # ⛔ PRESENT never means CORRECT: number_string/2 was PRESENT here while silently succeeding on bad input.
 name	arity	iso_section	status	note
 =	2	8.2	PRESENT	
