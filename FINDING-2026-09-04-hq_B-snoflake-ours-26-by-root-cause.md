@@ -80,25 +80,41 @@ call/return never consults `trace_registered()`/fires the print, or it's wired f
 than the ones these 4 fixtures use. Needs a seat or HQ to trace where (if anywhere) `IR`/emitted code for
 a function call site checks trace state, which this pass did not locate.
 
-### CLUSTER B — `&DUMP` termination dump prints to stdout instead of the listing stream (1 primary + 1 secondary)
+### CLUSTER B — `&DUMP` termination dump: TWO overlapping issues, not one (1 primary + 1 secondary)
 `dump-ordered` (primary); `topological-sort` (secondary corroboration via Cluster H).
 
-Verified directly: setting `&DUMP = 1` triggers an auto-dump of every natural variable (alphabetized) at
-program termination. The oracle's dump does **not** go to stdout — it lands entirely in the listing-sink
-file (`sbl_listing_sink_flag`'s `-o=.../spitbol_listing.lst`, confirmed byte-present, 435 bytes, content
-matches SCRIP's stdout dump exactly in both values and alphabetical order). SCRIP computes the right
-dump, it just writes it to the wrong stream. Since grading compares stdout only, matching the oracle here
-means SCRIP's stdout goes EMPTY for this fixture — flagging as a stream-routing/destination question
-(where should SCRIP's diagnostic dump live?) worth a ruling, not just "print less."
+⚠ **Corrected after a precise re-check** (my first pass only eyeballed "oracle stdout is empty, a listing
+file exists with plausible content" and wrongly concluded the DUMP content matched exactly — it does
+not). Setting `&DUMP = 1` triggers an auto-dump of every natural variable + keyword value at program
+termination. Two SEPARATE, real issues, confirmed by diffing SCRIP's stdout against the oracle's actual
+`.lst` listing-file content line-by-line:
+1. **Stream-routing**: the oracle's dump goes to the listing-sink file, never stdout; SCRIP prints to
+   stdout. Since grading compares stdout only, matching the oracle here means SCRIP's stdout goes EMPTY
+   for this fixture — worth a ruling on where SCRIP's diagnostic dump should live, not investigated
+   further here.
+2. **Stale execution-state keywords, exactly the SAME defect as Cluster C below, and ALREADY TRACKED on
+   an existing row**: `&LASTLINE`/`&LASTNO`/`&LINE`/`&STCOUNT`/`&STNO` are each off by exactly 1 (SCRIP
+   17/4/18/5/5 vs oracle 18/5/19/6/6), plus SCRIP's dump includes an `&MAXINT` line the oracle's listing
+   never prints at all. **This is NOT a new/undiagnosed bug** — it's the general `rt_stmt_enter`
+   location-gate defect already fully root-caused on
+   `snobol4-error-location-is-zero-or-stale-when-source-never-runs-rt-stmt-enter` (own FINDING:
+   `FINDING-2026-09-06-seat02-rt-stmt-enter-gate-is-a-global-stmtkw-scan-not-declarative-dispatch-
+   specific.md`, minted by an earlier seat02 session the same day as this one): `core_runtime_error`
+   reads `g_file`/`g_line`/`g_stno` globals that are only updated by `rt_stmt_enter`, itself only called
+   when a whole-program static scan finds one of nine specific keyword names referenced — an
+   off-by-N/statement-boundary artifact of that same gate, not a DUMP-specific bug. **Do not mint a new
+   cure row for the staleness half of Cluster B or C — route both to the existing row above.**
 
-### CLUSTER C — `DUMP()` (explicit call) shows stale execution-state keywords mid-program (1 member)
+### CLUSTER C — `DUMP()` (explicit call): SAME stale-execution-keyword defect as Cluster B (1 member)
 `dump-variables`.
 
 `DUMP(1)` correctly writes to stdout in both engines and most content matches, but `&FILE`/`&LASTFILE`
-read `''` (should be `'f.sno'`) and `&LASTLINE`/`&LASTNO`/`&LINE`/`&STCOUNT`/`&STNO` all read `0` (should
-reflect current line/statement counts) when called MID-program. The SAME keywords are correct via
-Cluster B's termination-dump path. Not traced to a specific function — worth checking whether `DUMP()`'s
-dispatch runs before this statement's own `&LINE`/`&STNO` bookkeeping commits.
+read `''` (should be `'f.sno'`) and `&LASTLINE`/`&LASTNO`/`&LINE`/`&STCOUNT`/`&STNO` all read `0` (vs the
+oracle's real line/statement counts) when called MID-program. **Same root cause as Cluster B's staleness
+half** (the `rt_stmt_enter` gate, already tracked on the existing row named above) — the `(0)`-style
+total-zero shape here vs. Cluster B's off-by-1 shape are this same defect's own two documented shapes
+(a keyword-oblivious context reports `0`/stale-by-N depending on whether `rt_stmt_enter` ever fired at
+all before this point). Do not mint separately.
 
 Bonus: real SPITBOL's dump never lists `&MAXINT` at all — corroborates Cluster E below.
 
@@ -256,8 +272,13 @@ doesn't even match the fixture's own `@expect` of `81,82,83`) — not characteri
 - **Do not mint cure rows for**: Cluster F (csnobol4-extensions, likely correct-as-is), Cluster G
   (lexical-comparison/string-pad, likely cosmetic), Cluster 7 (implementation-and-timing, not a defect),
   Cluster D + the `stack-opsyn`/Part-2-Cluster-3 unbuilt-subset rows (want a design rung, not a patch),
-  and Cluster 5's oracle-side `INPUT()`/`DEXTERN` limitation (nothing to fix in SCRIP) — **without a
-  ruling first**, since three of these would be regressions if "fixed" toward literal oracle-matching.
+  Cluster 5's oracle-side `INPUT()`/`DEXTERN` limitation (nothing to fix in SCRIP), and Clusters B/C's
+  staleness half (route to the EXISTING row
+  `snobol4-error-location-is-zero-or-stale-when-source-never-runs-rt-stmt-enter` instead, which already
+  has a full FINDING and a design-decision-shaped NEXT — **that row's own DONE-WHEN is currently an
+  unwritten mint placeholder and needs a real acceptance test before anyone can close it**, a separate,
+  instrument-level gap worth a seat picking up directly) — **without a ruling first** on the first four,
+  since they'd be regressions if "fixed" toward literal oracle-matching.
 - **Highest-confidence, cite-backed, ready-to-cure**: Cluster 2 (Part 2) — exact fix site named
   (`emit.cpp:1314` needs `IR_FIELD_VAR` to emit a real address/name-producing template distinct from
   `IR_FIELD_GET`); Cluster 3/D's `lower_snobol4.c:1947`/`:2383` guards are a real rung to land (8
@@ -274,8 +295,10 @@ doesn't even match the fixture's own `@expect` of `81,82,83`) — not characteri
 - `character-set-keywords` — Part 1 Cluster E (missing ERROR 251 validation)
 - `collect-and-locals` — Part 1 Cluster I (COLLECT() free-space stubbed)
 - `csnobol4-extensions` — Part 1 Cluster F (dialect judgment call, likely not a bug)
-- `dump-ordered` — Part 1 Cluster B (&DUMP writes to stdout not listing-sink)
-- `dump-variables` — Part 1 Cluster C (DUMP() stale execution-state keywords)
+- `dump-ordered` — Part 1 Cluster B: stream-routing (undiagnosed further) PLUS stale keywords, the
+  latter already tracked on `snobol4-error-location-is-zero-or-stale-when-source-never-runs-rt-stmt-enter`
+- `dump-variables` — Part 1 Cluster C: stale execution-state keywords, already tracked on
+  `snobol4-error-location-is-zero-or-stale-when-source-never-runs-rt-stmt-enter` (do not mint separately)
 - `eliza-duquet-original` — Part 1 Cluster D (GZ#5 unbuilt subset)
 - `eliza-modernized` — Part 1 Cluster D (GZ#5 unbuilt subset)
 - `endfile-rewind-write-read` — Part 1 Cluster H (file-spec validation too lenient)
