@@ -1,6 +1,6 @@
 # RAKU-COVERAGE.md — computed by scripts/raku_roast_scoreboard.sh
 
-**Generated:** 2026-09-04T21:14:48Z · scrip `7284962b5` · roast ``
+**Generated:** 2026-09-06T18:08:59Z · scrip `a5aea2ad1` · roast ``
 
 This table is the ONLY sanctioned source of a Raku coverage claim (RAKU-100 ladder,
 COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
@@ -9,8 +9,8 @@ COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
 
 | Verdict | Files | % of in-tier |
 |---------|-------|--------------|
-| **PASS** | 4 | **0.4%** |
-| FAIL (runs, some `not ok`) | 9 | 0.9% |
+| **PASS** | 5 | **0.5%** |
+| FAIL (runs, some `not ok`) | 8 | 0.8% |
 | PARSE-FAIL | 924 | 93.7% |
 | NO-TAP (ran, emitted no TAP) | 7 | 0.7% |
 | CRASH / TIMEOUT | 1 | 0.1% |
@@ -46,7 +46,7 @@ COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
 | S04-phasers | 0 | 16 | 0.0% |
 | S04-statement-modifiers | 0 | 9 | 0.0% |
 | S04-statement-parsing | 0 | 1 | 0.0% |
-| S04-statements | 0 | 26 | 0.0% |
+| S04-statements | 1 | 26 | 3.8% |
 | S05-capture | 0 | 7 | 0.0% |
 | S05-grammar | 0 | 11 | 0.0% |
 | S05-interpolation | 0 | 2 | 0.0% |
