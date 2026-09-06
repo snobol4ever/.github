@@ -154,6 +154,10 @@ CONTROL PLANE / LAW: THE PACKAGE LOCKDOWN fb4c7dd1; Pascal joins order of work 5
 SCORES: icon M 642/655 db396201, L 532/558 bf3a086f, arizona 47/90 91a036d1; prolog ladder 472->482/568 fe1fd705/cf92103d; pascal PAT 298/427 m3, 284/427 m4 707b8e22; gimpel 94/126 ab707372; INRIA 343/445.
 VERDICT: catchable Prolog arithmetic errors and Icon error semantics moved for users; most of the morning went to the package-inventory instrument, the progress DB, and two retractions.
 
+## ⛔ CORRECTION (2026-09-06 11:08 CDT, Lon in-chat, verbatim in substance: *"The reason for the flip was due to usage credits filling and the need to wind down and wind back up."*)
+
+The ~45 mode changes counted above were the USAGE-CREDIT THROTTLE, not churn: the fleet is wound down when the credits fill and wound back up when they refill (MASTER-PLAN § THE HOURS already ties fleet size to the budget). Lines 4 and 5 below, and the sentence under the skeleton reading the flips against the src/ column, stand as measurements of the COST of a change (every seat re-orients once per change) but are WRONG as a verdict on their cause; the count is not a defect to reduce. What the ceo can reduce is the cost per change, never the count: a seat resumes its own claim on `next`, HQ ranges stay contiguous across cuts, and a wind-down never releases a claim that is mid-row. The "hold the mode" rule the ceo proposed to Lon this sitting is WITHDRAWN in that form; the mode follows the credits.
+
 ## What the eighteen days say, in five lines
 
 1. Product landed on 15 of 18 days (08-25, 08-26, 08-31 idle); 956 src/ commits. SNOBOL4 conformance dominated 08-19..08-24 and 09-04..09-05; Icon's generator machinery 08-29/30; Prolog was torn down 09-02 and rebuilt through rung 11 by 09-04.
