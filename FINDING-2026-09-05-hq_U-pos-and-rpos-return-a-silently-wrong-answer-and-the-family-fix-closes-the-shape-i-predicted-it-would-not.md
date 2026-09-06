@@ -134,3 +134,26 @@ What made the final push legitimate was not a judgement call but a **reach test*
 hq_S's line, and it is the most consequential sentence of the sitting. `test_gate_sno_pos_rpos_dynamic_operand.sh` is committed, correct, and reads `GATE FAIL(1)` on every tree measured today — and **nothing runs it.** It is not in `make test`'s reach. That is strictly worse than never having written it: its existence reads as coverage while exercising nothing — the same false-green family as the `make test` `.PHONY`-with-no-recipe trap, and as this root's own inbox hook resolving a seat with no mailbox and printing the empty case as the healthy one.
 
 The same is true of the two gates minted this sitting for the placeholder rows. Wiring a **new red arm** into the blocking set is a fleet-wide call (hq_T holds `make test` custody), so it is asked, not taken — the recommendation is to wire all three in RED, because house doctrine is that a real defect keeps the set red and THERE IS NO XFAIL.
+
+
+---
+
+## 9. AMENDMENT — the ruling came, the gate is wired, and the wiring caught me
+
+§8 above said the recommendation was **asked, not taken**. That is now stale, and leaving it to stand would be the same defect this finding is about, so: **ruled and done.**
+
+**Ceo ruling 2026-09-05:** wire it as a blocking arm, RED, today; verdict must name the entries it graded; hq_T reviews. Landed SCRIP `7230d2418`.
+
+⭐ **The placement turned out to be the substance.** The ruling said *place it beside the sno gates* — but the sno gates are **split across the red corpus board** (one at line 148, four more at 155–158). `make test` fails on the FIRST red, and the board at 149 is red on the floor entry that is ruled to stay red. **Every arm below 149 never runs.** Wiring it into the lower group would have installed the exact unexercised-coverage defect the ruling exists to cure, *inside the commit ordered to cure it*. It sits immediately above the board.
+
+⛔ **And the blocking set caught the author.** The first `make test` failed at line 131: the two gates landed an hour earlier in `47968068e` executed `./scrip` with **no freshness guard**, so either could have graded a stale binary and stamped a verdict with a hash that was not evidence about it. `test_gate_runners_refuse_on_a_stale_binary.sh` exists for exactly that and fired on the person who had just been told to strengthen the set. Both now carry `gate_require_fresh`; that census reads 34/34.
+
+### ⛔⭐⭐ THE HAZARD IS NOT THE CORPUS BOARD — IT IS FAIL-ON-FIRST-RED ITSELF
+
+The gate is now correctly placed above the board **and still not reached**: `make test` stops earlier, at line 141, `test_gate_master_order_is_the_builders_order` — icon 780 of 808 and prolog 554 of 693 entries out of the builder's order (SNOBOL4 clean; another lane's red).
+
+**In a fail-on-first-red set, every arm is only as exercised as every arm above it is green.** So the set has a long tail of arms that are formally wired and practically dark — and *nothing in any output anyone reads distinguishes wired-and-passing from wired-and-never-reached*. "It's in `make test`" is not evidence that it ran. Raised to hq_T as an instrument row: a census that prints, for a given tree, **which arms the set actually reached**. Today that is 141 lines' worth, not the forty-odd arms a reader would assume.
+
+### The row minted at the right altitude
+
+seat11 asked whether the inline-shape follow-up should reuse this baton or get a narrower row. **Neither.** A row scoped to construction-time POS/RPOS would be scoped to a *symptom*; the cause is `blob_frame_scope` being false for any non-`PAT$` graph, which already has four measured symptoms across two HQs. Minted as `emit-operand-frame-allocator-is-switched-off-by-name-for-any-non-pat-dollar-graph` (rank 1, hq_U). seat11's row **stays open with its gate unmodified** — the cure was partial, and closing a row by narrowing it to fit what got cured is how a partial cure becomes a paper closure.
