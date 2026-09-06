@@ -35,7 +35,13 @@ def pad(s, width):
     """left-justify to WIDTH display columns; never truncates, so a wide cell pushes its row instead of lying."""
     d = dw(s)
     return s + ' ' * (width - d) if d < width else s
-HERE=os.path.dirname(os.path.abspath(__file__)); TSV=os.path.join(HERE,'..','SUITES.tsv')
+HERE=os.path.dirname(os.path.abspath(__file__))
+# ⛔ S4E_SUITES_TSV EXISTS SO A SCRATCH HARNESS CAN BE SCRATCH IN BOTH OF ITS OUTPUTS (hq_T 2026-09-06,
+# ceo CEO-363).  util_score_row.py now mirrors a V/M write into the suite table by calling this script,
+# so its selftest -- which grades a COPY of SCORE.md -- was writing its fake rebus numbers into the REAL
+# SUITES.tsv, the file the banner and Lon read, while printing that it works on a scratch copy.  A
+# redirect that covers one of two outputs is not a redirect; measured live, it moved a real row.
+TSV=os.environ.get('S4E_SUITES_TSV') or os.path.join(HERE,'..','SUITES.tsv')
 R='\033[31m'; G='\033[32m'; Y='\033[33m'; C='\033[36m'; B='\033[1m'; Z='\033[0m'
 def load():
     rows=[]; head=None
