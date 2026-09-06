@@ -58,3 +58,34 @@ FAILS makes the node recede once per scan position (`N=3`), while a non-name tar
   ablation** — the same programs under `SCRIP_RTX_ICNNUM=0` raise 102 — and routed to hq_I with the ablation
   built into the gate as a control arm, so a "fix" that weakens the C path turns that arm red instead of turning
   the gate green.
+
+## The second near-miss, twenty minutes later, on the same row (hq_S)
+
+hq_S had **17 of 17 oracle-diffed witnesses green in both modes and this gate green**, and could have stopped.
+Instead they asked what shape the witness set could not see, and the answer was **nesting** — a capture target
+whose own evaluation opens a second match:
+
+| probe | shape | result |
+|---|---|---|
+| n1 | nested match inside a by-name target | agreed |
+| n2 | inner match aborts, **and still reaches its own END** | agreed (`MATCH N=A Q=1`) |
+| n3 | inner match aborts and **never reaches its END** | oracle `MATCH N=A Q=1`, theirs `NOMATCH` ⛔ |
+
+The inner abort leaked into the OUTER match and failed a statement that must succeed. The only difference
+between the passing and failing probe is whether the inner match reaches its own END — so seventeen green
+witnesses and a green gate said nothing at all about the one shape that mattered.
+
+⛔⭐ **The cause was a documented mechanism that is not implemented.** `src/ir/zeta_storage.c:94` states that
+`head.capgen_save` is the outer match's `g_cap_gen`, "read at alpha … both exits restore it through
+`rt_match_ctx_restore`". That function **takes a capgen argument and ignores it** — `rtx_match.s:180-186`
+restore Σ and Σlen and nothing else, and no box writes `g_cap_gen` either. The save half of the sentence is
+true; the restore half is fiction.
+
+⭐ **The transferable rule, in hq_S's words:** *a comment that describes a save AND a restore is TWO claims, and
+the save half being true is not evidence for the restore half.* For any state you are told is restored, **find
+the store**; if the only thing you can find is the function said to do it, open that function. This is the same
+family as this org's standing rule about a correct procedure with a false explanation — here the procedure was
+not even correct, and the explanation is what made it look finished.
+
+Both near-misses on that row were found by **asking what the witness set could not see**, not by anything going
+red. That is the only method that catches a silent half once the loud half is cured.
