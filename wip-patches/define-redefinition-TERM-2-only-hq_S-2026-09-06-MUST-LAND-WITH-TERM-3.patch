@@ -1,0 +1,14 @@
+--- a/src/driver/scrip.c	2026-09-06 09:44:22.183472293 -0500
++++ b/src/driver/scrip.c	2026-09-06 09:28:59.684487286 -0500
+@@ -1417,6 +1417,11 @@
+                   if (_bd > 0 && bbg->n_dentry == 0) { bbg->dentry_node = (IR_t **)calloc((size_t)_bd, sizeof(IR_t *)); bbg->dentry_entry = (IR_t **)calloc((size_t)_bd, sizeof(IR_t *)); bbg->dentry_name = (const char **)calloc((size_t)_bd, sizeof(char *));
+                       if (bbg->dentry_node && bbg->dentry_entry && bbg->dentry_name) for (int _s = 0; _s < bbg->n; _s++) { IR_t *_c = bbg->all[_s]; if (!ir_define_is_bind(_c) || !IR_LIT(_c).sval) continue;
+                           if (bbg->n_dentry >= _bd) break;
++                          { const char *_be = ir_define_bind_entry(_c);
++                            if (_be) { char _lb[300]; snprintf(_lb, sizeof _lb, "LBL__%s", _be); IR_t *_tn = (IR_t *)0;
++                                for (int _w = 0; _w < s2->proc_count; _w++) { ProcEntry *_lr = &s2->proc_table[_w]; if (!_lr->name || strcmp(_lr->name, _lb) || !_lr->proc_entry_node) continue;
++                                    _tn = _lr->proc_entry_node; int _tg = 0; while (_tn && (_tn->op == IR_SUCCEED || _tn->op == IR_FAIL || _tn->op == IR_GOTO) && _tn->γ.node && _tg++ < 65536) _tn = _tn->γ.node; break; }
++                                if (_tn) { bbg->dentry_node[bbg->n_dentry] = _c; bbg->dentry_entry[bbg->n_dentry] = _tn; bbg->dentry_name[bbg->n_dentry] = (const char *)0; bbg->n_dentry++; continue; } } }
+                           for (int _q = 0; _q < s2->proc_count; _q++) { ProcEntry *_pr = &s2->proc_table[_q]; if (!_pr->name || strcmp(_pr->name, IR_LIT(_c).sval)) continue;
+                               IR_t *_sn = bb_proc_entry(_pr); if (!_sn) continue; int _sg = 0; while (_sn && (_sn->op == IR_SUCCEED || _sn->op == IR_FAIL || _sn->op == IR_GOTO) && _sn->γ.node && _sg++ < 64) _sn = _sn->γ.node;
+                               IR_t *_gd = (_sn && _sn->op == IR_DEFINE && ir_define_sr_citizen(_sn)) ? _sn->γ.node : _sn; if (!_gd) break;
