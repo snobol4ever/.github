@@ -128,6 +128,20 @@ without its source is a much deeper undertaking than this row's scope. Recommend
 row, owned by whoever is best placed to either find/build a from-source SPITBOL to read, or to
 accept it as a documented, permanently-open oracle-fidelity gap.
 
+⭐ **CORRECTION (seat03, 2026-09-06):** the "no SPITBOL source available to verify against" premise
+above is wrong — `/home/resources/spitbol-pristine` is a full, verified upstream Unix SPITBOL /
+Macro SPITBOL source checkout (HEAD `4fe74db` "Version 4.0f", origin github.com/spitbol/spitbol;
+already named in RULES.md:151 for the ORACLE-SWAP procedure, just not checked by this row before).
+This does not change the "deeper undertaking than this row's scope" conclusion, but it does mean
+outcome (a) (confirm-and-fix) is realistically reachable rather than blocked pending a permanent
+oracle-fidelity-gap ruling. A concrete, source-grounded mechanism lead — the compiler's fast-call
+codegen path baking a builtin's function pointer into generated code at compile time, at the moment
+of a name's first-ever `vrblk` creation, `sbl.asm:11158-11212`/`11398-11403`/`14440-14490` — is
+written up in full, with exact file:line citations and the specific open steps left to confirm it,
+in the spun-off row's own baton:
+`snobol4-value-call-poisons-next-lazy-comparator-oracle-quirk.task.md` `## LEDGER` (second seat03
+entry) and `## NEXT`. Continue there, not here.
+
 **Separately and only loosely related:** re-running the `DATA/CLUNK` witness above with `DATA`
 appearing *before* the `VALUE()` call in **source order** but where the file is compiled by SCRIP —
 SCRIP still applies the `CLUNK` field-shadowing to `VALUE('B')` calls that, in the oracle, execute
