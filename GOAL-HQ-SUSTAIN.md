@@ -89,6 +89,36 @@ five-row difference is `convert`, `err`, `float2`, `pow`, `rewind1` — all gree
 hq_P ruling). **Minting flip rows off that snapshot burns time on programs that are already green.** Grade
 the program yourself, under the suite's own flags, before minting the row.
 
+⛔⭐⭐ **NAMED AND SIZED THIS SITTING, ASKED UP TO THE ceo: THE CSNOBOL4 CASE-FOLDING CLASS.** csnobol4
+folds identifiers AND keywords case-insensitively at COMPILE time and is case-insensitive **by default**.
+⭐ **The decisive measurement, because the obvious hypothesis is wrong:** in the oracle, `foo` reads `FOO`'s
+value **before `&CASE = 1` is ever executed**, and still does after `&CASE = 0`. So `&CASE` is NOT the
+switch it appears to be, and a cure aimed at `&CASE` — which is exactly where `label.sno` points you —
+would be aimed at the wrong thing.
+**Confirmed members by reading each diff, not by heuristic:** `case1` (folded variable reads) · `trace1`
+(`TRACE` by string: the oracle folds `foo`/`FOO` into one variable and traces all four assignments, we
+trace two) · `label` (`LABEL('bar')` finds `BAR`) · `func2` (lowercase `end` reads to us as "missing END
+statement", plus a `fOo()` call) · **half of `setexit7`**. The runner header independently documents the
+same lowercase-`end` class for the `random` and `time` module tests.
+⛔ **NO TRUSTWORTHY COUNT EXISTS AND I DID NOT INVENT ONE.** A source heuristic returns **16 of 48** reds
+if string literals count and **4 of 48** if they do not, and neither bound is honest: the operative
+identifier is sometimes inside a string (`LABEL('bar')`, `TRACE('foo')`) and sometimes prose that merely
+looks like one. The only reliable census is the red set against a folding-enabled build, which does not
+exist. **Confirmed floor: 5 programs.**
+**Cure shape, precedented — a fifth compat switch `SCRIP_FOLD_CSNOBOL4`, live only under
+`--compat=csnobol4`**, exactly as `SCRIP_IPOW_CSNOBOL4` and `SCRIP_ERRNUM_CSNOBOL4` already work; the
+default SPITBOL dialect stays case-sensitive by construction, which is the property that makes those
+switches safe. Ownership is asked up because it lands in three places and only the third is mine: keyword
+lexing and identifier resolution are hq_P's frontend, runtime lookup by string is hq_S.
+
+⭐ **`setexit7` IS TWO BUGS WEARING ONE DIFF, and that is why it is not the cheap flip it looks like.**
+Line 1 is the fold class above. Line 2 is mine and local: an undefined goto target raises SCRIP's 38
+("transfer to undefined label: foo") where csnobol4 raises **24 "Undefined or erroneous goto"** — one row
+in `core_err_compat_map` (`core.c`), the table `7338727e0` already built. Curing only line 2 does NOT flip
+the program, so it is not a flip row on its own. Related, measured: even with the DEFINE case-matched by
+hand, a call to a function with no entry label raises SCRIP 286 where csnobol4 FAILS the call and the
+goto-eval failure then reads 19 — a semantic difference, not a remap.
+
 **NEXT, in OCTET order (one bug at a time):** (1) `csnobol4/label` — `&CASE = 1` does not reach `LABEL()`'s
 lookup, so a case-folded label misses; `_LABEL_` is `core.c:2060`, a builtin in this lane, already probed
 red in both modes and it is the can-fail demo above. (2) WANG, on the rank-1 by-name-goto row — zero
