@@ -7,7 +7,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | suite | lang | first graded reading | today | moved | at today's rate |
 |---|---|---|---|---|---|
 | 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 96/126 (09-06, `6e770a3b7`) | +38 | → 2026-09-07 |
-| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 68/120 (09-06, `e7c45454e`) | +13 | → 2026-09-14 |
+| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 71/120 (09-06, `7338727e0`) | +16 | → 2026-09-12 |
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 129/180 (09-05, `cell-09-05`) | +66 | → 2026-09-12 |
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 1/2 (09-06, `e68e35fd4`) | +1 | → 2026-09-08 |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-06, `cell-09-06`) | +0 | ✅ done |

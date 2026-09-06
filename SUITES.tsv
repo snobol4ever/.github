@@ -1,7 +1,7 @@
 # THE SUITE TABLE, machine record (ceo custody; hq_T wires util_score_row.py to rewrite a row when its runner measures). One row per suite. Dates are box-clock CDT days. first_* = the first graded reading on file; today_* = the latest reading; tree = the SCRIP hash it was measured on (or the SCORE.md cell that carries it).
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree
 gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-06	96	126	6e770a3b7
-csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-06	68	120	e7c45454e
+csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-06	71	120	7338727e0
 snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-05	129	180	cell-09-05
 aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-06	1	2	e68e35fd4
 dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-06	5	5	cell-09-06
