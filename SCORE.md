@@ -2,31 +2,31 @@
 
 ## ⭐⭐⭐ THE SUITE TABLE — HOW LON READS THE SCORE (Lon 2026-09-06 10:48 CDT, in-chat to ceo, verbatim: *"That presentation of the state of correctness by test suite is how I want to see the report from now on. Forget this stupid percentages by language."*)
 
-One row per suite — our seven masters and every vendored package suite alike — with the FIRST graded reading (date) and TODAY's reading (from the cell below it, tree-labelled there), and the movement between them. ⛔ **A report to Lon is THIS TABLE, never a per-language percentage or roll-up** (RULES.md § ONE LEADERBOARD, amended 2026-09-06). The per-language grid below stays as the runners' write target and provenance; this table is what is read back. Every runner that rewrites a cell below rewrites its row here in the same landing (hq_T wires it through `util_score_row.py`, row `score-suite-table-row-rewritten-by-the-runner-that-measured-it`); until then the ceo rewrites it at every tick from the cells. Written by ceo CEO-322 from the cells at .github `be52f147` and the first readings in the commit logs; a row whose today-cell below has moved reads STALE here.
+One row per suite — our seven masters and every vendored package suite alike — with the FIRST graded reading (date) and TODAY's reading (from the cell below it, tree-labelled there), and the movement between them. ⛔ **A report to Lon is THIS TABLE, never a per-language percentage or roll-up** (RULES.md § ONE LEADERBOARD, amended 2026-09-06). The per-language grid below stays as the runners' write target and provenance; this table is what is read back. Every runner that rewrites a cell below rewrites its row here in the same landing (hq_T wires it through `util_score_row.py`, row `score-suite-table-row-rewritten-by-the-runner-that-measured-it`); until then the ceo rewrites it at every tick from the cells. ⭐ MACHINE RECORD: `SUITES.tsv` (this table is `python3 scripts/util_suite_banner.py --md`, regenerated at every ceo tick; the banner every seat and the ceo print every turn is the same script with no flag — Lon 2026-09-06 11:19: *"Make it driven by the leaderboard and always show the current status every turn. A compressed string giving counts for each suite."*). A runner that measures a suite rewrites its row with `util_suite_banner.py --set <key> <pass> <total> [date] [tree]` in the same landing as its cell (hq_T wires this into `util_score_row.py`, row `suite-table-row-rewritten-by-the-runner-through-util-suite-banner-set`). ETA column = remaining / (movement per day since the first reading); ⛔ STUCK = no movement since the first reading; 🆕 = one reading only.
 
-| suite | lang | first graded reading | today | moved |
-|---|---|---|---|---|
-| gimpel | snobol4 | 58/126 (09-04) | 94/126 m3 · 94/126 m4 (09-06) | +36 |
-| csnobol4_suite | snobol4 | 55/118 (09-04) | 59/119 worse-of-both (09-05) | +4 |
-| snoflake | snobol4 | 63/180 (08-28) | 129/180 (09-05) | +66 |
-| aisnobol | snobol4 | 0/2 (09-04) | 0/2 (09-05) | 0 |
-| dotnet | snobol4 | 5/5 (09-04) | 5/5 | 0 (complete) |
-| arizona | icon | 39/89 (08-30) | 47/90 both modes (09-06) | +8 |
-| jcon_tests | icon | 34/81 (08-30) | 45/81 m3 · 42/81 m4 (09-05) | +11 |
-| ipl | icon | 34/60 (09-05) | 34/60 (of 851 shipped: 64 graded, 341 ungraded, 446 ungradable) | 0 |
-| INRIA ISO 13211-1 | prolog | 261/445 (09-04) | 343/445 both modes (09-06) | +82 |
-| SWI plunit | prolog | 0 → 92/114 (08-30) | 0/114 since the 09-02 rung-0 cut | −92 |
-| GNU | prolog | 6/62 (09-03) | 6/62 | 0 |
-| fpc_tests | pascal | 119/181 (08-30) | 130/181 m3 · 128/181 m4 (09-04) | +11 |
-| PAT ISO 7185 | pascal | 298/427 m3 · 284/427 m4 (09-04) | same (09-06) | 0 |
-| roast | raku | 4/986 (09-03) | 4/986 | 0 |
-| snobol4 master | snobol4 | owed (replay backfill running) | 1841/1842 both modes (hq_S, 09-06) | — |
-| icon master | icon | owed (replay backfill running) | 642/655 both modes (hq_B, 09-06) | — |
-| prolog master | prolog | owed (replay backfill running) | 324/404 both modes (hq_C, 09-03; REPORTED) | — |
-| pascal master | pascal | owed | 248/251 both modes (09-06) | — |
-| raku master | raku | owed | run 620/762 both modes + ast 83/97 (09-03) | — |
-| snocone master | snocone | owed | run m3 176/206 + ast 67/67 (09-03) | — |
-| rebus master | rebus | owed | ast 15/48 (09-03) | — |
+| suite | lang | first graded reading | today | moved | at today's rate |
+|---|---|---|---|---|---|
+| 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 94/126 (09-06, `ab707372-cell`) | +36 | → 2026-09-07 |
+| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 59/119 (09-05, `94f894b80`) | +4 | → 2026-09-21 |
+| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 129/180 (09-05, `cell-09-05`) | +66 | → 2026-09-12 |
+| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 0/2 (09-05, `cell-09-05`) | +0 | ⛔ stuck |
+| 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-06, `cell-09-06`) | +0 | ✅ done |
+| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 47/90 (09-06, `91a036d1-cell`) | +8 | → 2026-10-13 |
+| ☕ Jcon (jcon) | icon | 34/81 (08-30) | 45/81 (09-05, `bfb7133c-cell`) | +11 | → 2026-09-25 |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 34/60 (09-06, `cell-09-06`) | +0 | ⛔ stuck |
+| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 343/445 (09-06, `727718351`) | +82 | → 2026-09-08 |
+| 🦉 SWI (swi) | prolog | 92/114 (08-30) | 0/114 (09-05, `cell-09-05`) | -92 | ⛔ stuck |
+| 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 6/62 (09-06, `cell-09-06`) | +0 | ⛔ stuck |
+| 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 130/181 (09-04, `7284962b`) | +11 | → 2026-09-29 |
+| 📜 PAT (pat) | pascal | 298/427 (09-04) | 298/427 (09-06, `cell-09-06`) | +0 | ⛔ stuck |
+| 🦋 Roast (roast) | raku | 4/986 (09-03) | 4/986 (09-06, `158e85779`) | +0 | ⛔ stuck |
+| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1841/1842 (09-06, `hq_S-09-06`) | +0 | 🆕 one reading |
+| 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 642/655 (09-06, `0719bd9bd`) | +0 | 🆕 one reading |
+| 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 324/404 (09-03, `508c1182a`) | +0 | 🆕 one reading |
+| 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
+| 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 620/762 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
+| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 176/206 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
+| 🧩 RebM (reb-master) | rebus | 15/48 (09-03) | 15/48 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
