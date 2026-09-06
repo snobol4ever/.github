@@ -6,6 +6,7 @@ usage: util_suite_banner.py [--plain] [--line] [--md] [--set KEY PASS TOTAL [DAT
   --plain    no ANSI colour
   --md       print the markdown table for SCORE.md § THE SUITE TABLE
   --set      rewrite one row's today_* (DATE defaults to the box clock day) and print the banner
+STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 10): a row whose today_date is older than the box-clock day reads U+23F3 in place of its emoji and is counted on the first line; a STALE row is a rank-0 measure pick in its lane.
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
 """
 import sys, os, datetime as dt, unicodedata as _ud
@@ -60,23 +61,25 @@ def eta(r,today):
     if rate<=0: return 'STUCK',None
     return 'ETA', today+dt.timedelta(days=rem/rate)
 def banner(plain=False, grid=True, ncol=3):
-    head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0
+    head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]
     for r in rows:
         k,e=eta(r,today); frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
+        if (today-d(r['today_date'])).days>=1: stale.append(r['nick'])
         if k=='DONE': col=G; tail='✅ done'; done+=1
         elif k=='STUCK': col=R; tail='⛔ stuck'; stuck.append(r['nick'])
         elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
         else:
             col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
-        if grid: cell=pad(f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} " + pad(tail, 9) + f" {r['emoji']}", 36)
-        else: cell=f"{r['emoji']}{r['nick']} {frac} {tail}"
+        mark='⏳' if r['nick'] in stale else r['emoji']
+        if grid: cell=pad(f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} " + pad(tail, 9) + f" {mark}", 36)
+        else: cell=f"{mark}{r['nick']} {frac} {tail}"
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
     if stuck: verdict=f"ALL {n} SUITES 100/100: NOT ON THE CURVE — {len(stuck)} stuck ({', '.join(stuck)})"; vc=R
     elif new: verdict=f"ALL {n} SUITES 100/100: unknown — {len(new)} suites have one reading"; vc=C
     elif worst: verdict=f"ALL {n} SUITES 100/100 → {worst.strftime('%Y-%m-%d')} at today's rates"; vc=G
     else: verdict=f"ALL {n} SUITES 100/100: DONE"; vc=G
-    hdr=f"🏁 {today.strftime('%m-%d')} {verdict} · {done}/{n} done"
+    hdr=f"🏁 {today.strftime('%m-%d')} {verdict} · {done}/{n} done" + (f" · ⏳ {len(stale)} STALE >24h ({', '.join(stale)})" if stale else '')
     print(hdr if plain else f"{B}{vc}{hdr}{Z}")
     if not grid: print(' │ '.join(cells)); return
     nrow=-(-len(cells)//ncol)
