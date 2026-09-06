@@ -43,7 +43,7 @@ def banner(plain=False, grid=True, ncol=3):
         elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
         else:
             col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
-        if grid: cell=f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}{left:>4} left  {tail:<8} {r['emoji']}"
+        if grid: cell=f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} {tail:<8} {r['emoji']}"
         else: cell=f"{r['emoji']}{r['nick']} {frac} {tail}"
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
