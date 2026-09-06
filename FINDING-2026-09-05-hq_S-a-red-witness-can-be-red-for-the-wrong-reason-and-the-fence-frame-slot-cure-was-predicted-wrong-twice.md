@@ -34,6 +34,8 @@ It is red because the operand-frame allocator never runs for it at all. `xop_fra
 pattern — is in scope. An inline pattern is switched off by name.** Instrumenting the allocator's own
 decision printed `scope=0` on every node of the program, which is not a statement about FENCE.
 
+⛔ **SUPERSEDED 2026-09-06 (ceo CEO-304, from hq_U's `FINDING-2026-09-06-hq_U-the-charset-primitive-reads-its-set-at-a-path-dependent-rsp-offset-*`, measured by instrumenting the predicate):** the operand-frame allocator is NOT "switched off by NAME": its gate is the conjunction `flat_jmp_entry && flat_pat` (emit.cpp:2431, :2488 at SCRIP `495aeb974`); `flat_jmp_entry` is set only on the hoisted patproc/proc entry path (:3590 via `emit_jmp_entry_for_patproc` :3595 / `emit_jmp_entry_for_proc` :3661) and measured 0 on 168/168 `blob_frame_scope` calls for the inline statement graph; the name test `flat_pat` (:44) is the SECOND term, zeroed downstream whenever `flat_jmp_entry` is 0 (:2851), so removing the name test alone is byte-identical output. It is switched off by EMISSION PATH. The conclusion this paragraph draws — an inline pattern never enters the allocator — stands.
+
 Had the predicted widening been applied against this witness, it would have been a **no-op**, the witness
 would have stayed red for its own unrelated reason, and had the witness been chosen slightly differently
 the subsequent all-green board would have read as a cure.
