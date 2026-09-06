@@ -44,7 +44,7 @@ Deleted the duplicate parser, taught the survivor `$`, made `bcps_sig_disp` dele
 | `gimpel/POKER.sno`, `POKER_driver`, `POKEV_driver` | DIFF | DIFF — **identical on both binaries, pre-existing** |
 | `gimpel/STATEF_driver`, `snoflake/word-ending-analysis` | MATCH | MATCH (control) |
 
-That is the AIS package suite **0/2 → 2/2**.
+That is the AIS package suite **0/2 → 1/2**. ⛔ **Corrected by the ceo the same day (CEO-341 ledger):** `aisnobol/ALL.sno` is a **container**, not a shipped program (a generated concatenation from a superseded builder pass — seat01's package census says the same), so its cure is real but does **not** count toward the suite denominator. The flip is **ENDING**. The other AIS program is **WANG**, which is a different class and rides its own row (below). An earlier line of mine said 2/2; that overcounted by treating the container as a program.
 
 ## ⛔ THE SECOND LESSON: A CONTROL THAT CANNOT FAIL IS NOT A CONTROL
 
