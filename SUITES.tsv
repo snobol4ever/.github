@@ -1,0 +1,23 @@
+# THE SUITE TABLE, machine record (ceo custody; hq_T wires util_score_row.py to rewrite a row when its runner measures). One row per suite. Dates are box-clock CDT days. first_* = the first graded reading on file; today_* = the latest reading; tree = the SCRIP hash it was measured on (or the SCORE.md cell that carries it).
+key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree
+gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-06	94	126	ab707372-cell
+csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-05	59	119	94f894b80
+snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-05	129	180	cell-09-05
+aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-05	0	2	cell-09-05
+dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-06	5	5	cell-09-06
+arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-06	47	90	91a036d1-cell
+jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-05	45	81	bfb7133c-cell
+ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-06	34	60	cell-09-06
+inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-06	343	445	727718351
+swi	SWI	🦉	prolog	2026-08-30	92	114	2026-09-05	0	114	cell-09-05
+gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-06	6	62	cell-09-06
+fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-04	130	181	7284962b
+pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-06	298	427	cell-09-06
+roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-06	4	986	158e85779
+sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-06	1841	1842	hq_S-09-06
+icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-06	642	655	0719bd9bd
+pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-03	324	404	508c1182a
+pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-06	248	251	cell-09-06
+raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-03	620	762	cell-09-03
+snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-03	176	206	cell-09-03
+reb-master	RebM	🧩	rebus	2026-09-03	15	48	2026-09-03	15	48	cell-09-03
