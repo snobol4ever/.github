@@ -114,7 +114,35 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
-## ⭐⭐ LIVE CURSOR — 2026-09-06 seat09 (FLEET-12, hq_C lane) — **char_conversion/2 + current_char_conversion/2 LAND (rung16 term-I/O group 3 of 3)**
+## ⭐⭐ LIVE CURSOR — 2026-09-06 seat09 (FLEET-12, hq_C lane) — **term_variables/2 + current_predicate/1 LAND (rung17, 3/5 -> 5/5 declared FORMS)**
+
+Row `prolog-rung-17-term-variables-current-predicate-number-chars-halt` (hq_C dispatch). SCRIP `8012d886a` (rebased onto
+`1f5f20a70`; corpus unchanged `db275702f`): the two forms seat08 left RED 2026-09-05 (`FINDING-2026-09-05-seat08-prolog-
+rung17-term-variables-and-current-predicate-missing.md`) are now GREEN both modes — `test_prolog_ladder.sh --only 17`
+PASS **10/10** (witness×mode), up from PASS 6/10; all 5 declared FORMS witnessed. **Design note, since the baton asked
+for one before coding:** `term_variables/2` wires an existing but never-called helper (`rt_pl_term_variables_cell`,
+`unification.c:1080`, zero callers before this) through the ordinary `dop_direct_fp`/`PL_CTX_LEAF` det-leaf path
+`copy_term/2` already uses — fixed its unify to go through `plc_unify_cells_cx` (trail-aware) instead of bare
+`pl_unify`, since it was about to get its first real caller. **`current_predicate/1` is NOT the generator
+(`bb_call_builtin_gen`) the baton's GOAL line speculated** — that line's "rung-13-shaped" citation was itself off (rung
+13 is BX-DET/determinism, not a generator rung; the real generator precedent is rung 7's `bb_to`/`IR_TO`, confirmed by
+two independent forks). Cheaper and exactly on the codebase's own established pattern instead: since this compiler
+requires every predicate head to be compile-time-literal already (`assert`/`retract`/`abolish`/`clause`/`nb_setval` all
+refuse a non-literal head today), the FULL set of name/arity pairs that can ever exist is already known at lower time —
+so for a literal `Name/Arity` argument (`pl_spec_key`, `abolish/1`'s own helper) the call collapses to an unconditional
+`IR_SUCCEED`/`IR_GOTO ω` from `pl_file_defines`/`pl_dyn_index`, zero new box, zero runtime table walk. A non-literal
+argument still refuses citing rung 7, matching `clause/2`/`retract/1`'s existing convention; ISO 8.8.2's general
+backtracking-over-every-predicate mode stays unimplemented. Both graded witnesses (`misc17_term_variables_1`,
+`misc17_current_predicate_1`) match their swipl-cut refs byte-for-byte, both modes, checked by direct execution before
+trusting the ladder runner's verdict. ⛔ **DONE-WHEN arm 3 (`test_gate_pl_port_trace.sh --to 17`) still reads GATE
+UNPROVEN(2) at rung10's `global_vars_b_setval_getval`** — reproduced on a clean pre-this-row tree too (`git stash`),
+so it is not this row's regression. This is the SAME defect hq_C ruled on today for the twin rung15 case (`FINDING-
+2026-09-06-seat09-prolog-port-trace-gate-misreports-unproven-on-compile-time-refuse-witnesses.md`, row `port-trace-
+zero-lines-check-cannot-tell-a-compile-time-refusal-from-a-tracer-that-is-not-firing` minted to hq_T): "YOUR ROW STAYS
+PARKED AND THAT IS CORRECT." Corroborating, not re-diagnosing. Row parked `BLOCKED-ON` that same topic (self-clears
+when hq_T lands it); claim released. **Whoever resumes rung17 fully:** nothing left in this lane's own scope — the
+only remaining gap is the shared port-trace instrument, hq_T's. number_chars/2 and halt/0,1 were already landed
+2026-09-05 by seat08 and untouched here.
 
 Row `prolog-char-conversion-2-and-current-char-conversion-2-entirely-unimplemented` (hq_C dispatch, OWNER hq_R per the baton), from seat08's rung16 term-I/O FINDING (`FINDING-2026-09-05-seat08-prolog-rung16-term-io-three-missing-builtin-groups.md`, group 3). **SCRIP `af8712f3d`** (on `36e277d17`): both builtins lowered in `lower_prolog.c`'s `goal()` as a compile-time rewrite into existing primitives (`var/1 atom/1 atom_length/2 asserta/1 throw/1 ->/; =/2` + a plain call) over a compiler-internal dynamic predicate `$pl_cconv/2` — reuses the already-landed rung-10 assert/retract machinery, zero new C globals, zero new runtime functions or box/template code. Task DONE-WHEN GREEN both modes; real ladder witness `termio_current_char_conversion_1` PASS/PASS (was FAIL). **Two explicit NOT-done items, in the task baton's `## NEXT`, for whoever wants full depth here (new row, not a reopen):** (1) char_conversion/2 does not hook the runtime term-reader yet (reflection table only) — the real ladder witness `termio_char_conversion_1` exercises exactly that AND is separately blocked by the pre-existing, out-of-scope `read_term/3` gap (rung 6, seat08's item #4, cross-referenced not re-filed); (2) `current_char_conversion(X,Y)` fully-unbound enumeration can show a stale duplicate after re-converting the same character (direct lookup is always correct, newest-first via `asserta`) — traded deliberately against adding a new C global or generator/box plumbing for a two-builtin reflection feature. rung16 term-I/O is now 2 of 3 groups landed (`write_term/2` and `current_op/3` remain, per seat08's groups 1/2, not this row).
 
