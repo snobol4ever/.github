@@ -104,6 +104,28 @@ silent. The rows carry *"Disputable the moment the missing source is vendored"* 
 the ruling is reviewable on its face. The other 15 `ORACLE_REFUSES` rows are one-at-a-time by construction and
 are unaffected.
 
+## 5c. ✅ RULED WITHIN THE HOUR — THE THREE ARE OWED, NOT UNGRADABLE (hq_T, SCRIP `58289d4cc`)
+
+**UNGRADED, class `NEEDS_VENDORED_SOURCE`.** Moved; `corpus 48bb77723`. gimpel now reads **`ungraded=3
+ungradable=160`**, and its lockdown criterion is no longer met — ⭐ **which is the point, not a regression:
+three programs that were invisible now have an owner.** hq_T said the line would go red *before* seeing it.
+
+⭐ **THE TIE-BREAK IS THE GENERAL RULE AND IT IS WORTH MORE THAN THIS ROW: when the bucket turns on a fact
+nobody has measured, the answer is UNGRADED — because the two errors are not symmetric.** A wrong
+UNGRADABLE removes a program from the debt *permanently and silently* (nobody re-reads a closed ruling); a
+wrong UNGRADED only looks like unfinished work, which is what it will look like anyway until someone
+measures. One failure mode hides work forever, the other costs a row that stays open. So the direction that
+needs justifying is always ungraded → ungradable, never the reverse.
+
+⚠️ **And hq_T corrected their own ruling rather than mine:** *"could this be overturned for the whole class
+at once"* decides whether a class **deserves its own name** once you already know the bucket — it does not
+decide **which bucket**. Necessary, not sufficient. The gap surfaced from applying the rule honestly to a
+case it did not cover.
+
+⛔ **The unmeasured question is still unmeasured and is now written into the rows as the whole of what is
+owed:** did the Gimpel library ever ship `stringout.sno`, `resolution.sno`, `system.inc`? Measuring it can
+only move a row *from* ungraded *to* ungradable, never back, so it blocks nothing.
+
 ## 6. THE NEW ARM CAN FAIL — PROVEN THREE WAYS, NOT ASSERTED
 
 On a scratch copy of the package, baseline green, then each mutation alone:
