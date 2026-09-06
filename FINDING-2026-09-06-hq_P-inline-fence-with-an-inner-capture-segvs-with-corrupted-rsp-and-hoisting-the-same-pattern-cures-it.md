@@ -134,3 +134,57 @@ confirms the axis is *"leaves bytes on the stack"* rather than dynamic length), 
 boundary as an *observation*, and the measured payload — 2 of 35 master xfails, zero package programs.
 **Ownership moved:** hq_S routed the cure here (`fence_body_kk` is `emit.cpp`, `bb_match_fence1.cpp` is a
 pattern box, both outside their mandate); hq_U co-signs the emitter half. **Fix the rebase, not m3.**
+
+## THE CURE — CHASE THE γ CHAIN, FALL BACK TO LINEAR WHEN IT CANNOT CLOSE
+
+Confirmed hq_S's `+16` with a temporary diagnostic printing **both walks for the same fence**:
+
+| witness | linear range `[lo,hi]` | γ walk (execution order) |
+|---|---|---|
+| RED `FENCE((SPAN('abc')) . v0)` | ASSIGN_COND 0 + ASSIGN_SAVE 16 = **16** | ASSIGN_SAVE 16 + **MATCH_SPAN 16** + ASSIGN_COND 0 = **32** |
+| GREEN `FENCE(('a') . v0)` | **16** | ASSIGN_SAVE 16 + MATCH_LIT 0 + ASSIGN_COND 0 = **16** |
+
+The γ walk recovers **exactly** the missing sixteen on the red and is a **no-op on the green**. `fence_body_kk`
+now chases γ from `operands[0]` to `operands[1]` and **falls back to the linear walk when it cannot close**.
+Killswitch `SCRIP_FENCE_BODY_KK_GAMMA=0`. ⭐ The correct traversal idiom was already in the same file two
+functions below — `fence0_dyn_floor` chases γ to `IR_MATCH_END` — so this is the emitter agreeing with itself.
+
+## ⛔ MY FIRST ATTEMPT REGRESSED A GREEN, AND THE LADDER IS THE ONLY REASON I KNOW
+
+I first treated a complex op on the γ path as an **authoritative `kk=0`**. That broke `FENCE((NULL) . v0)`,
+green before: its γ path runs ASSIGN_SAVE → **IR_MATCH_DEFER** → ASSIGN_COND, so it hit DEFER and returned 0
+where the linear walk correctly returned 16.
+
+⭐ **THE ORIGINAL `return 0` MEANT "I CANNOT COMPUTE THIS" AND I READ IT AS "THE ANSWER IS ZERO" — a sentinel
+and a value sharing one spelling.** The fix is to fall back rather than assert. ⛔ **The ladder caught it in one
+run only because I had kept the GREEN shapes in it.** A ladder of only the crashing shapes would have shipped a
+cure that traded one crash for another with **every arm I owned reading green.**
+
+## RESULT — BOTH ARMS OFF ONE BUILD, 23 SHAPES, ORACLE-GRADED
+
+**9 CURED** (SPAN, BREAK, BREAKX, ARB, REM, TAB(1), RTAB(0), `LEN(1) SPAN`, `SPAN LEN(0)`) · **0 REGRESSED** ·
+11 unchanged-green · ⛔ **3 STILL RED, left visibly red**: `FENCE(LEN(1))`, `ARBNO(SPAN)`, `ARBNO(ARB)` —
+nested FENCE/ARBNO bodies, where the γ walk meets a complex op, declines, and the linear fallback is still
+wrong. **The delta is not static there. That is a second problem behind this one and it is not claimed.**
+
+**SNOBOL4 master with the cure:** `total=1854 · m3 xfail=32 xpass=3 · m4 xfail=32 xpass=3 · m3 PASS=1842 FAIL=0
+· m4 PASS=1842 FAIL=0 SKIP=0 · ast 28/28 · MISSING=0`, GATE OK. Baseline was `m3 35/0`, `m4 34/1`.
+
+## ⛔ MY PAYLOAD PREDICTION WAS WRONG IN COUNT *AND* MEMBERSHIP
+
+I predicted **2**, naming `fence_span_rpos_replace_branch_1` + `fence_arb_span_replace_branch_1`. Measured, and
+cross-checked two independent ways (the board's `xpass=3` and a per-entry sweep against each `.ref`), it is
+**3**:
+
+- `fence_span_rpos_replace_branch_1` ✓ (predicted)
+- `fence_capture_imm_capture_replace_branch_1` ✓ — **hq_S's sibling, which I had argued was a DIFFERENT
+  defect.** It bombed at *emit* (`IR_MATCH_CAPTURE_SAVE: no home`) rather than crashing, and I used that
+  difference as evidence of a separate mechanism. hq_S's "one class, two symptoms" was right and my
+  neighbour-separation was wrong on this one.
+- `fence_rpos_rem_replace_branch_1` ✓ — **not predicted at all.**
+- `fence_arb_span_replace_branch_1` ✗ — **predicted and NOT cured** (an alternation in its body puts it in the
+  declining set).
+
+⭐ **Three of my four named entries were wrong in one direction or the other, and the count was low.** The
+lesson is narrow and worth keeping: a class boundary established by *ablation on synthetic shapes* predicts
+which **shapes** are cured, not which **corpus entries** are — real entries carry more than one shape each.
