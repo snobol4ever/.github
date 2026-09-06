@@ -130,3 +130,58 @@ is a fixture or instrument fix. Routed to hq_P (row minted below) as a class, no
 Minted `snobol4-error-location-is-zero-or-stale-when-source-never-runs-rt-stmt-enter` (rank 1, owner
 hq_P, this umbrella's child) with this FINDING and seat04's original as LINKS. Not curing directly per
 the seat/HQ boundary (a codegen-policy change to a shared gate, not a fixture-level fix).
+
+## Addendum 2026-09-06 seat01 — a THIRD shape: a CODE()-embedded keyword that IS self-instrumenting,
+but from the wrong baseline (tree SCRIP `5e2ace6f`, corpus `0cf2bd5d7`)
+
+Fourth witness, same umbrella row, this time NOT a `(0)`/stale-by-N shape: `corpus/packages/snobol4/
+snoflake_suite/gimpel-implementation-and-timing.sno`, via `-INCLUDE`d `LPROG.INC`:
+```
+LPROG	                                :<CODE(' LPROG = &STNO :(RETURN)')>
+```
+`LPROG()` is called 3 times (`LPROG_A/B/C`). Live oracle (`sbl -bf`, staged correctly — no `@input`
+trap here, but it DOES need `SNO_LIB` for the `-INCLUDE`s): `LPROG_A=81 LPROG_B=83 LPROG_C=85`. SCRIP:
+`LPROG_A=1 LPROG_B=2 LPROG_C=3` — wrong values, not a missing-location shape.
+
+Static reading says the whole program's `g_sno_uses_stmtkw` must be 0: grepped all 5 statically
+`-INCLUDE`d files (`LPROG.INC RESOLUTI.INC SYSTEM.INC TIMER.INC TIMEGC.INC`) plus the main .sno for the
+nine gated keyword names as real text — zero hits. LPROG.INC's only `&STNO` is inside the quoted-string
+ARGUMENT to `CODE()`, parsed as `TT_QLIT`, invisible to `sno_scan_stmtkw`'s `TT_KEYWORD`-only walk —
+same blindness as this FINDING's main thesis.
+
+But `rt_stmt_enter` DOES fire for this fixture — confirmed live, not inferred: `gdb -batch -ex 'set
+breakpoint pending on' -ex 'break rt_stmt_enter' -ex 'run --run f.sno' -ex continue...` (SNO_LIB set,
+no source rebuilt, no env var, ptrace only) hits it exactly 3 times, `stno=1`/`2`/`3`, one per
+`LPROG()` call, matching `lower_snobol4.c:2402`'s `(i+1)+stno_base` exactly. Reason: `sno_scan_stmtkw`
+has a SECOND call site this FINDING's §2 did not name, `lower_snobol4.c:2103`, inside `sno_build_graph`
+itself — shared by the top-level compile AND every `code()`-driven runtime fragment via
+`sno_lower_fragment_at` — which re-scans whatever statement list it is handed, with NO reset first
+(only `lower_sno_stage2`'s entry, line 2642, resets the flag to 0; 2103 only ever sets 0→1, never back
+down). When `code()` parses `' LPROG = &STNO :(RETURN)'` at runtime, `&STNO` is this time a REAL
+`TT_KEYWORD` node in the fragment's own fresh AST — 2103's scan sees it, flips the flag, and the SAME
+`sno_build_graph` call emits the fragment's own `SNO$STMT` hook. **The fragment IS instrumented** —
+unlike every other witness in this FINDING, this is not a missing-hook case.
+
+The bug is upstream of the hook: `code()` (`runtime_eval.c:427`) seeds the fragment's numbering from
+`stno_base = g_stno` — the same global `core_runtime_error` reads. Every ORDINARY statement in this
+program (SYSTEM(), RESOLUTION(), the ~78 real statements that run before the first `LPROG()` call) was
+compiled under the WHOLE-PROGRAM scan's verdict (false, decided once, upfront, long before any runtime
+`CODE()` call exists to flip anything), so none of them ever call `rt_stmt_enter` and `g_stno` never
+reflects them. `stno_base` is therefore always "how many CODE()-fragment hooks have fired so far" (0,
+then 1, then 2) instead of "how many statements have really executed" (~80, ~82, ~84) — hence `1,2,3`
+instead of `81,83,85`. **Same root class as the rest of this FINDING** (ordinary statements never
+instrumented when the whole-program scan says false), manifesting as a wrong-but-plausible monotonic
+integer instead of `(0)` or a stale one — a third shape (`(0)` / stale-by-N / wrong-baseline-monotonic)
+worth sizing into whichever design option is picked: option (1) (unconditional `rt_stmt_enter`) fixes
+this shape too, since ordinary statements would then advance `g_stno` correctly before `code()` ever
+snapshots it; option (3) (give DEFINE/OPSYN/DATA their own call) does NOT, since it never touches
+ordinary-statement instrumentation — a concrete tie-breaker for whoever makes that call.
+
+Side observation, not chased further: because 2103 only ever sets the flag 0→1 and nothing ever resets
+it mid-run, the FIRST runtime `CODE()`/`EVAL` fragment anywhere in a process that happens to reference a
+gated keyword permanently flips instrumentation on for every fragment compiled after it, whether or not
+THEY reference one. Did not check whether any corpus program's behavior depends on this.
+
+Not minted separately — same class, same owner, same row
+(`snobol4-error-location-is-zero-or-stale-when-source-never-runs-rt-stmt-enter`); repro and this
+addendum's pointer added to that row's own task file.
