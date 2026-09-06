@@ -114,6 +114,61 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⭐⭐ LIVE CURSOR — 2026-09-06 seat10 (FLEET-12, hq_R lane) — **$ax_eguard: arithmetic-evaluation exceptions (is/2 + all six comparisons) are now catchable by catch/3**
+
+Row `prolog-inria-arithmetic-errors-escape-catch3` (hq_R dispatch, minted by seat05 2026-09-04, re-laned
+hq_C→hq_R 2026-09-05). SCRIP `79c3738cc`, corpus `ef068af9f`. ROOT CAUSE: `pl_iso_evaluable()` /
+`rt_pl_iso_throw_*()` (`by_name_dispatch.c`) raised `type_error(evaluable,...)` and `instantiation_error` via
+`pl_iso_uncaught()`, which does `fprintf`+`exit(1)` directly — a completely separate mechanism from the real
+Byrd-box ball/catch machinery (`rt_pl_throw_raise`/`rt_pl_exist_raise` in `rtx_plunify.s`: build a ball, stash
+it in r15, return a MOD_OP-tagged `DT_FAIL` for `rt_pl_catch_handle` to intercept — confirmed via gdb that
+`undef_pred`'s `existence_error` genuinely takes that path, never `pl_iso_uncaught`, which is why the task's
+own contrast witness always passed while the arithmetic one never did). The six comparison operators
+(`>,>=,<,=<,=:=,=\=`) with a non-numeric operand raised **no error at all** — a distinct, ISO-incorrect
+silent-fail bug, not merely uncatchable.
+
+FIX: new guard box `$ax_eguard` (`rt_pl_dop_ax_eguard`/`_c`, `MOD_OP_RT_PL_AX_EGUARD=156` in
+`descr_tags.inc`, registered 1-arity in `bb_call.cpp`) follows the EXISTING `$ax_zguard`/`$pl_anum_guard5`
+idiom byte-for-byte (already used ~9 times in this file) rather than inventing new machinery: a `void*`
+C guard returns a ball or NULL, the asm wrapper sets r15 and returns a tagged FAIL on non-null. Balls built
+via a new `rt_pl_ball_evaluable()` (mirrors `rt_pl_ball_existence`'s PI-building) and the **already-existing
+but previously dead** `rt_pl_ball_instantiation()` — nothing called it before this row. Spliced as a pure
+control-flow gate (operand lists untouched, exactly how `$ax_zguard` never disturbs its enclosing op's
+operand list) into `is/2` and all six `$cmp_*` lowerings in `lower_prolog.c`, guarding each operator's
+fully-reduced top-level value before the real op runs. Zero new globals, zero AST/SM walking.
+
+VERIFIED: task DONE-WHEN (as minted) passes; INRIA suite (`test_prolog_inria_suite.sh`) m3/m4 outcome-class
+332→342, bindings 326→336 (**+10/+10, both modes**, measured via `git stash` before/after on one tree, zero
+regressions either direction); 13-witness manual battery (contrast existence_error, zero_divisor, normal
+arithmetic/comparisons, compound-term type_error) all matched expectations; `nm -D` clean of
+`g_pl_*`/`g_plw_*`/`g_resolve_*`/`g_rt_pl_*`/`pl_wot_*`; `strip_comments.py --check` rc=0; owed `.s` artifacts
+regenerated (`bb_call.cpp` is codegen) — `benchmarks/prolog/bench/*.s` (20 changed) +
+`demos/prolog/{family_prolog,family_net/family_prolog,prolog_recognizer}.s` — with SNOBOL4/Icon demo `.s`
+independently reporting "same" for every entry (zero cross-language blast radius, confirmed twice: by file
+scope and by the regen diff itself).
+
+⛔ **NOT CLOSED — nested arithmetic operands still bypass catch/3** (`X is Y+1` with `Y` unbound, `X is
+1+foo`): `dop_ax`'s internal per-operand checks (`by_name_dispatch.c:1252,1274,1279`) still call
+`pl_iso_evaluable()`→`exit(1)` directly, and those `rt_pl_dop_ax_*` leaves (add/sub/mul/…/bnot) are called
+DIRECTLY from generated code with no asm wrapper (unlike `$is_v`/`$cmp_*`) — safely setting r15 from inside
+them needs either new asm wrappers for all ~30 `$ax_*` leaves, or a per-child `$ax_eguard` splice inside
+`lower_arith_val`'s FNC-branch loop (same proven technique, not attempted this row to keep the diff reviewable
+rather than guessing at r15 safety inside arbitrary `-O0` C). **This exact case is ladder rung18's own
+`erriso_instantiation_error_1` witness** (`corpus/tests/prolog/ALL.pl` #368) — still RED, rung18 unchanged at
+PASS=6 FAIL=8 (matches seat08's pre-this-row measurement in `LADDER.tsv` row 69) — independently documented in
+`FINDING-2026-09-05-seat08-prolog-rung18-three-iso-error-compliance-gaps.md` (routed to hq_R). That finding's
+other two causes (domain_error via `open/3` silently failing; `syntax_error_on_read` via `read/2` silently
+returning a wrong term) are separate root causes, not arithmetic-shaped, untouched by this row. Task file's
+own `## NEXT` carries the full handoff; its `DONE-WHEN` was raised to the nested-operand witness so the row
+cannot auto-close via ALREADY-SATISFIED-AT-DISPATCH before the broader GOAL is met.
+
+⚠ **Unrelated, pre-existing, out-of-lane reds noticed while gating** (not fixed here, not this session's
+regression — confirmed by file-scope: this diff touches zero SNOBOL4/Icon files): `make test` currently reds
+on `test_gate_sno_pos_rpos_dynamic_operand` (`pos_dyn_inline`, wired red-not-cured 2026-09-05 per that gate's
+own header) before reaching any Prolog-relevant arm in the sequence; `test_corpus_snobol4.sh` shows m3/m4
+FAIL=1, matching the ceo-documented `code_eval_len_table_replace_1` XDump/`-INCLUDE` defect named in that same
+gate's header. Flagged for hq_S/hq_P/hq_T's lane.
+
 ## ⭐⭐ LIVE CURSOR — 2026-09-06 seat09 (FLEET-12, hq_C lane) — **term_variables/2 + current_predicate/1 LAND (rung17, 3/5 -> 5/5 declared FORMS)**
 
 Row `prolog-rung-17-term-variables-current-predicate-number-chars-halt` (hq_C dispatch). SCRIP `8012d886a` (rebased onto
