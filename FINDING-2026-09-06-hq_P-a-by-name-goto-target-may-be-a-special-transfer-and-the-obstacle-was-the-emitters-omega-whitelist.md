@@ -115,3 +115,20 @@ defect wearing opposite signs.**
 | head -4` reported `rc=0` for a run that had in fact segfaulted, which briefly made a pre-existing SEGV look
 like a regression I had introduced. `RULES.md` already says to read the verdict line, not `$?` through a pager.
 It is worth restating because the wrong reading was *plausible* and pointed at my own change.
+
+## HANDOFF DEBT CLEARED, AND IT WAS NOT MINE
+
+`handoff_status.sh` reported **WAITING — .s artifacts OWED**, 38 items: prolog demos 3, prolog bench 20, icon
+bench 15. ⛔ **All Prolog and Icon — languages this cure cannot reach**, since `IR_GOTO_DEFERRED` is constructed
+only in `lower_snobol4.c`.
+
+**Measured rather than assumed, because "it can't be mine" is exactly the reasoning that should not be trusted:**
+the diff on `benchmarks/prolog/bench/fib.s` is activation-frame growth (`sub rsp,1648` → `1888`) and mentions
+`eguard` **five times** and this session's goto-deferred work **zero times**. The debt belongs to `79c3738cc`
+*"prolog: make arithmetic-evaluation exceptions catchable (new `$ax_eguard` box)"*, already on main and picked up
+in this session's rebase.
+
+Regenerated with the sanctioned scripts; `util_verify_s_artifacts_owed.sh` now reads **CLEAN** across all four
+checks. ⭐ Note for anyone reading the corpus history: those scripts **make their own commits**
+(`prolog bench x86 .s artifacts: prolog-bench-regen`, and the icon equivalent), so a hand-written commit on top
+is dropped as a duplicate — which is what happened here and is correct, not a lost landing.
