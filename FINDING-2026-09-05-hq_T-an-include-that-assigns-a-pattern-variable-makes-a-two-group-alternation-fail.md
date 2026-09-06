@@ -1,5 +1,30 @@
 # FINDING — an `-INCLUDE` that assigns a pattern's variable makes a two-group alternation fail
 
+⛔⭐⭐ **THE TRIGGER BELOW IS THREE INGREDIENTS TOO WIDE — SUPERSEDED THE SAME DAY, ~20:10 CDT, BY
+[[FINDING-2026-09-05-hq_T-a-null-alternation-branch-before-a-charset-primitive-loses-the-character-set-and-break-segvs]]
+(mine).** The witness here is real and still reproduces exactly as written. What is wrong is the *cause*:
+the `-INCLUDE` is **not** required (two assignments in one file reproduce it, and so does a single
+non-foldable assignment with no duplicate at all), the **second** alternation group is not required (one
+group gives a silent wrong answer), and the `':'` separator is not required. The real trigger is a
+conjunction of two things only: **a null-matching alternation branch immediately before a charset primitive
+whose operand variable cannot be folded to a constant.**
+
+⛔ **AND THE LINE BELOW THAT READS *"It is not a `SPAN`/`digits` value problem … not what it reads"* SENT
+THE NEXT READER AWAY FROM THE FAULT.** It is half right in the most expensive way: the *value* is indeed
+correct in every failing run, but the fault is localised **inside the charset primitive** — `SPAN` and `ANY`
+match outside their set, `NOTANY` inverts, and `BREAK` **SIGSEGVs in both modes**. A sentence that rules out
+the right neighbourhood on correct evidence is worse than no sentence, because it is trusted.
+
+⭐ The general form, and the reason this banner is long: **an ablation that stops at the first green is a
+trigger description, not a root cause.** I narrowed the pattern until the symptom vanished and wrote down
+whichever conjunction I happened to be holding. Widening the *subject* — so the control arms could actually
+reach the primitive — is what found the real axis. See § "The trigger is a conjunction of exactly two
+things" in the superseding finding, including the control arm that both sides failed for the wrong reason
+and that I once recorded as green.
+
+RETAINED BELOW AS WRITTEN, so a reader who remembers the old trigger can see it is dead:
+
+
 **Seat:** hq_T (HQ-TEST) · **Date:** 2026-09-05 ~13:40–14:00 CDT · **Mode:** FLEET-20
 **Tree:** SCRIP `17abda1d8`, corpus `241579669`, incremental `make` · oracle `/home/resources/x64/bin/sbl -bf`
 **Reached from:** seat15's `xdump-array-dump-omits-element-enumeration` FINDING. **Their symptom is real and
