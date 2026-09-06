@@ -1,4 +1,4 @@
-# FINDING: `fbench.pas` (Whetstone-family lens-tracing benchmark) fails fast with "Run-time error 102 numeric expected"; bare `readln;` ruled out as the cause
+# FINDING: `fbench.pas` (Walker's floating-point ray-tracing benchmark) fails fast with "Run-time error 102 numeric expected"; bare `readln;` ruled out as the cause
 
 **Who/when:** seat02, 2026-09-06, FLEET-12, row `pascal-every-non-package-source-that-runs-with-output-absorbed-into-the-master-with-oracle-refs`, wiring the FPC oracle for `--additive --from benchmarks`.
 
@@ -51,8 +51,11 @@ codegen-diagnosis row — flagged rather than chased, per this project's own row
 ## Disposition
 
 `fbench` stays excluded from `corpus/tests/pascal/ALL.excluded.txt` (`fbench[benchmarks]`), reason
-updated to this finding. Proposing row `pascal-fbench-numeric-expected-in-trace-computation` to
-hq_P (asked, not minted by this seat) — ASM-DIFF-FIRST bisection of `traceXline` against `fpc -Miso`
-(TEXT mode, `--compile`) is the natural next step, same methodology as the other Pascal `Run-time
-error 102` finding already on file for packed-array relational comparisons (a DIFFERENT construct,
-same error number — worth checking whether they share a root cause before assuming they don't).
+updated to this finding. Row `pascal-fbench-numeric-expected-in-trace-computation` RULED and MINTED
+by hq_P 2026-09-06 (rank 1, hq_P lane), with one correction to carry forward: fbench is John Walker's
+benchmark, not a Whetstone-family program — same neighbourhood, different lineage, named explicitly
+so a future bisection does not go looking at Whetstone's own numeric surface for a shared cause that
+is not there. ASM-DIFF-FIRST bisection of `traceXline` against `fpc -Miso` (TEXT mode, `--compile`)
+is the natural next step, same methodology as the other Pascal `Run-time error 102` finding already
+on file for packed-array relational comparisons (a DIFFERENT construct, same error number — worth
+checking whether they share a root cause before assuming they don't).
