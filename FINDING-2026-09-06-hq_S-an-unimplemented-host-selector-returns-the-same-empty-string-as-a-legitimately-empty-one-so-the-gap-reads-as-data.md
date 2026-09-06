@@ -72,12 +72,38 @@ Both graders were shown to be capable of failing in the same sitting, per this l
 control that cannot fail is not a control): the identical m3 and m4 pipelines were run against `label.sno`,
 still red for an unrelated `&CASE`/`LABEL()` folding gap, and both reported RED.
 
-## A DIALECT DIVERGENCE FOUND ALONGSIDE, AND NOT "CURED"
+## ⛔ A RETRACTION, IN THE SAME DOCUMENT AS THE CLAIM
 
-`csnobol4 pow m3:FAIL m4:FAIL` in the same pool is **not a SCRIP defect and must not be taken as a flip
-row.** Its single diff line is `9^-1`: the `.ref` says `0`, SCRIP says `0.111111111111111`. The live SPITBOL
-oracle (`/home/resources/x64/bin/sbl -bf`) returns `0.111111111111111` — SCRIP already matches SPITBOL, and
-the program's own comment (`* spitbol returns real?!`) records the divergence. SCRIP follows SPITBOL for
-SNOBOL4; "fixing" `pow` to match the csnobol4 `.ref` would break conformance to the dialect we actually
-target. Whoever next walks this pool cheapest-first will land on `pow` early — it has a one-line diff and
-looks like the cheapest row in the suite. It is a trap, and this paragraph is here to spend it.
+**An earlier revision of this FINDING asserted that `csnobol4/pow` is a dialect divergence and not a
+defect, and warned the next walker away from it. That was wrong, and the reasoning was wrong in a way
+worth keeping.**
+
+The claim rested on two true readings: SCRIP prints `9^-1 = 0.111111111111111`, and so does the live
+SPITBOL oracle. What made the conclusion false is that I ran `pow` **without `--compat=csnobol4`**, which
+is the flag this suite actually grades under (`test_snobol4_csnobol4_suite.sh:142` sets `COMPAT`). Under
+that flag SCRIP prints `9^-1 = 0` and `pow` **passes both modes**, diff clean. It appears in neither
+`RED-M3` nor `RED-M4` on a board measured today.
+
+`pow` **was** a genuine defect and **was already cured** before I looked at it — SCRIP `e7c45454e`, which
+added the fourth compat switch `SCRIP_IPOW_CSNOBOL4` and kept SPITBOL's real for the default dialect. The
+pool row `csnobol4 pow m3:FAIL m4:FAIL` is simply stale.
+
+⭐ **THE SHAPE OF THE ERROR, WHICH IS THE SAME ONE THIS DOCUMENT IS ABOUT.** I graded with an instrument
+configured to answer a narrower question than the suite asks, then reached for a **second** instrument —
+the SPITBOL oracle — that shares the same blind spot, and read its agreement as confirmation. It agreed
+*because* I had disabled the mode under test. A corroborating instrument only corroborates if its failure
+mode is independent; two tools that are blind in the same direction agree most strongly exactly where they
+are both wrong. This is the identical defect named in "WHY IT SURVIVED" above, committed by the person
+writing it up, in the same sitting, about the same suite.
+
+## WHAT IS ACTUALLY TRUE, AND IS THE USEFUL WARNING
+
+`.github/probes/package-red-pools-2026-09-06.tsv` carries **five csnobol4 rows that are green** on a board
+measured today: `convert`, `err`, `float2`, `pow`, `rewind1`. Four are stale-but-legitimate — `err` and
+`convert` cured by hq_S at `7338727e0` and `00b62a274`, `pow` at `e7c45454e`, `float2` by this landing —
+and `rewind1` is `PARKED_NO_REGEN` by hq_P ruling, so it is not a gradable row at all. The pool says 53 red
+for csnobol4; the board says 48; the difference is exactly those five.
+
+**A fixer minting flip rows off that snapshot will burn time on programs that are already green.** That is
+the real hazard here, and it is worth more than the false one this document originally carried. Grade the
+program yourself, under the suite's own flags, before minting the row.

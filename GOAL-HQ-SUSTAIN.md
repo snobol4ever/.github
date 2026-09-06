@@ -72,12 +72,22 @@ returned EMPTY, which reads as "no failures"; the harness had in fact **REFUSED 
 manufacturing meaningless reds). **Capture-then-test — `out=$(cmd 2>&1); rc=$?` — is what surfaced it.**
 A refusal swallowed by a grep is indistinguishable from a clean board.
 
-⛔⭐ **A TRAP PLANTED FOR WHOEVER WALKS THIS POOL NEXT: `csnobol4/pow` IS NOT A DEFECT.** It has a one-line
-diff and is the cheapest-looking row in the suite, so a cheapest-first walk lands on it early. Its diff is
-`9^-1`: the `.ref` says `0`, SCRIP says `0.111111111111111`, and **the live SPITBOL oracle
-(`/home/resources/x64/bin/sbl -bf`) says `0.111111111111111`.** SCRIP already matches the dialect we
-target; the program's own comment (`* spitbol returns real?!`) records the divergence. Curing it to match
-the csnobol4 `.ref` would break SPITBOL conformance. Do not take it as a flip row.
+⛔⭐ **RETRACTED, SAME SITTING: I SAID `csnobol4/pow` WAS A TRAP AND NOT A DEFECT. IT WAS NEITHER.** I
+graded it **without `--compat=csnobol4`**, the flag this suite actually runs under
+(`test_snobol4_csnobol4_suite.sh:142`). Under the flag SCRIP prints `9^-1 = 0` and `pow` PASSES both modes;
+it is in neither RED list today. It **was** a real defect and **was already cured** at SCRIP `e7c45454e`
+(the fourth compat switch, `SCRIP_IPOW_CSNOBOL4`). ⭐ **How I got there is the lesson: I ran a
+narrower-configured instrument, then reached for a SECOND instrument — the SPITBOL oracle — that shares the
+same blind spot, and read its agreement as confirmation. It agreed BECAUSE I had disabled the mode under
+test.** Corroboration only corroborates when the failure modes are independent. This is the identical defect
+I spent the sitting documenting in other people's code.
+
+⛔ **THE REAL HAZARD, MEASURED: THE POOL SNAPSHOT CARRIES PHANTOM REDS.**
+`.github/probes/package-red-pools-2026-09-06.tsv` lists **53** csnobol4 reds; today's board says **48**. The
+five-row difference is `convert`, `err`, `float2`, `pow`, `rewind1` — all green or ungradable now (`err`
+`7338727e0`, `convert` `00b62a274`, `pow` `e7c45454e`, `float2` this landing, `rewind1` PARKED_NO_REGEN by
+hq_P ruling). **Minting flip rows off that snapshot burns time on programs that are already green.** Grade
+the program yourself, under the suite's own flags, before minting the row.
 
 **NEXT, in OCTET order (one bug at a time):** (1) `csnobol4/label` — `&CASE = 1` does not reach `LABEL()`'s
 lookup, so a case-folded label misses; `_LABEL_` is `core.c:2060`, a builtin in this lane, already probed
