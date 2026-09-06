@@ -29,8 +29,8 @@ Four ladders (T Term→DESCR · C correctness/tests · P performance · I instru
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
-1. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude/.github` (public; `git push` needs a credential)
-1b. ⛔ **CLONE THE ORACLE TOO — `git clone https://github.com/snobol4ever/x64 /home/claude/x64`.** Not optional and not only for "oracle profiles": **every SNOBOL4/Snocone board script diffs against `x64/bin/sbl`, and with it absent they print a full, plausible, entirely FALSE all-FAIL table** (the s33 "non-empty is not alive" false-signal class). Predicted s40, measured s43, hit again s44 — three sessions. A seat told "clone .github, corpus and SCRIP" gets no oracle unless this step is followed.
+1. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude_ceo/.github` (public; `git push` needs a credential)
+1b. ⛔ **CLONE THE ORACLE TOO — `git clone https://github.com/snobol4ever/x64 /home/claude_ceo/x64`** (⛔ SUPERSEDED s261: the oracle is the SHARED install `/home/resources/x64/bin/sbl`; no root clones x64 — RULES.md § Oracles).** Not optional and not only for "oracle profiles": **every SNOBOL4/Snocone board script diffs against `x64/bin/sbl`, and with it absent they print a full, plausible, entirely FALSE all-FAIL table** (the s33 "non-empty is not alive" false-signal class). Predicted s40, measured s43, hit again s44 — three sessions. A seat told "clone .github, corpus and SCRIP" gets no oracle unless this step is followed.
 2. Read `PLAN.md`; find the goal in the table.
 3. Read `RULES.md` in full.
 4. PARSER-* or Snocone → read `SNOBOL4-SNOCONE-PRIMER.md` first.
@@ -45,8 +45,8 @@ Lon names a goal. You:
 
 ### Clone SPITBOL oracle
 ```bash
-git clone https://github.com/snobol4ever/x64 /home/claude/x64
-/home/claude/x64/bin/sbl -b file.sno   # ⛔ beauty.sno needs -bf; plain -b SIGSEGVs rc=139 (s122)
+git clone https://github.com/snobol4ever/x64 /home/claude_ceo/x64   # SUPERSEDED s261: use /home/resources/x64/bin/sbl, never a per-root clone
+/home/resources/x64/bin/sbl -bf file.sno   # ⛔ beauty.sno needs -bf; plain -b SIGSEGVs rc=139 (s122)
 ```
 
 ---

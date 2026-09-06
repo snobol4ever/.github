@@ -14,6 +14,7 @@
 1. **WORK THE SUITES, NOT THE LANGUAGES.** The unit of progress is a program flipping on a suite row of THE SUITE TABLE; the order of work inside a lane is the suite with the most programs left that is still moving; every stuck suite has exactly one owner and one diagnosis row this week: SWI → hq_R (what the rung-0 cut lost: flags, directives, the 92 that passed on 08-30) · Roast → hq_T (924 parse failures bucketed by first error) · GNU → hq_R (the grading row) · PAT → hq_P (unmoved since 09-04 with 21 class rows FREE) · IPL → hq_I (341 ungraded need fixtures before any program can flip) · AIS → hq_B (two crashes).
 2. **GRADE EVERYTHING FIRST.** An ungraded program cannot flip. The lockdown rows stay rank 0 in every lane until the runner's inventory line reads `ungraded=0`; cures run beside them, never ahead of them.
 3. **THE LAW FREEZE.** No new instrument-law or conduct batch lands before 2026-09-10. Proposals go to `ceo/inbox` as FINDINGs and wait. Corrections of a false sentence on file are not law and are not frozen.
+4. **A FLEET-WIDE BLOCKER HAS ONE OWNER (ceo 2026-09-06 11:5x, from hq_T's routing conflict on `test_gate_master_order_is_the_builders_order`: hq_U routed it to hq_T by custody, CEO-326 to hq_B/hq_P by lane, and a duplicate resort was avoided by a warning telegram).** A red arm of `make test` that blocks every seat is owned by the lane whose landing broke it (the appender resorts; LANE-BY-CURE), with the custodian of the data (hq_T for the seven masters) as co-signer; when the breaker is unknown the custodian owns it. The ceo names that one owner in its reply within the tick; a second HQ that reaches the red first TELLS the owner, it never runs the cure. Icon's resort was hq_B's and hq_B landed it (824 entries, 544 moved, 660/671 both modes before and after — the control that distinguishes a reorder from a rewrite).
 
 **THE BANNER, EVERY TURN.** `python3 .github/scripts/util_suite_banner.py` prints two lines: the all-suites 100/100 verdict (a date at today's rates, or NOT ON THE CURVE with the stuck suites named) and one cell per suite — emoji, nickname, pass/total, ETA or ⛔/✅/🆕 — coloured green (on or ahead of 09-10), yellow (moving, later than 09-10), red (stuck). The ceo prints it first in every turn; every seat and HQ prints it through `s4e_msg.sh banner` once hq_T wires it (row `banner-leads-with-the-suite-banner-line-from-util-suite-banner`, rank 0). Nicknames: 🎩 Gimpel · 🐍 Budne (csnobol4) · ❄️ Flake (snoflake) · 🤖 AIS · 🟦 Dotnet · 🌵 Zona (arizona) · ☕ Jcon · 📚 IPL · 🇫🇷 INRIA · 🦉 SWI · 🐂 GNU · 🐬 FPC · 📜 PAT · 🦋 Roast · 🧵 SnoM · 🪄 IcnM · 🔮 ProM · 🏛️ PasM · 🐪 RakM · 🧊 SncM · 🧩 RebM.
 
@@ -154,7 +155,7 @@ Honesty line, written before the walk starts: in 37.5 hours Prolog's master (271
 | **seat11** | CROSS-LANGUAGE — the base-vs-patched differential over the three open masters, the fuzz class, the port traces | hq_U |
 | **seat12** | INSTRUMENTS — the closure census, the oracle-vs-ladder census, the SCORE reconciliations, the generators | hq_T |
 
-Twelve Sonnet seats walk, census and witness; eight Opus HQs cure — each on ONE surface. The go line: `GO_QUOTE="<Lon's words>" bash /home/claude/.scratch/fleet12_go.sh` (re-lanes seat HQ files 01–12, MODE → FLEET-12, 12 role telegrams, 8 HQ telegrams, 8 stand-down telegrams to seats 13–20).
+Twelve Sonnet seats walk, census and witness; eight Opus HQs cure — each on ONE surface. The go line: `GO_QUOTE="<Lon's words>" bash /home/claude_ceo/.scratch/fleet12_go.sh` (re-lanes seat HQ files 01–12, MODE → FLEET-12, 12 role telegrams, 8 HQ telegrams, 8 stand-down telegrams to seats 13–20).
 
 ### THE 20-SEAT CUT (GOVERNING until the FLEET-12 flip)
 
@@ -185,7 +186,7 @@ Twelve Sonnet seats walk, census and witness; eight Opus HQs cure — each on ON
 | **seat19** | RUNTIME + DRIVER WITNESS WALKER — `runtime/{core,rt,rtx}` and `driver/`: every path that cannot express failure (the `rt_goto_transfer` family, SETEXIT/ERRLIMIT compositions, the m4 registration path), each a minimal m3+m4 witness against the oracle | hq_U |
 | **seat20** | FUZZ + PORT TRACES — the fuzz crash class over all three open languages and the `ALL.trace` port-trace refs (`test_gate_{sno,icn,pl}_port_trace.sh`); cross-language by construction; witnesses only, never compiler fixes | hq_U |
 
-Twenty Sonnet seats walk, census and witness; the five Opus HQs cure — hq_U every shared-node class, hq_C Prolog whole, hq_B Icon whole, hq_P SNOBOL4 whole, hq_T the instruments. The go line: `GO_QUOTE="<Lon's words>" bash /home/claude/.scratch/fleet20_go.sh` (MODE → FLEET-20, 20 seat telegrams, 5 HQ telegrams).
+Twenty Sonnet seats walk, census and witness; the five Opus HQs cure — hq_U every shared-node class, hq_C Prolog whole, hq_B Icon whole, hq_P SNOBOL4 whole, hq_T the instruments. The go line: `GO_QUOTE="<Lon's words>" bash /home/claude_ceo/.scratch/fleet20_go.sh` (MODE → FLEET-20, 20 seat telegrams, 5 HQ telegrams).
 
 ### The 16-seat RE-CUT of 2026-09-04 (SUPERSEDED 2026-09-05 by the 20-seat cut above; kept for the provenance of the collision rules)
 
