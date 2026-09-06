@@ -1,0 +1,207 @@
+diff --git a/src/driver/scrip.c b/src/driver/scrip.c
+index 605d1909c..7e55afd76 100644
+--- a/src/driver/scrip.c
++++ b/src/driver/scrip.c
+@@ -1413,10 +1413,15 @@ int main(int argc, char **argv)
+             int rc;
+             {
+                 { extern IR_graph_t *g_emit_cfg; g_emit_cfg = bbg; }
+-                { int _bd = 0; for (int _s = 0; _s < bbg->n; _s++) { IR_t *_c = bbg->all[_s]; if (_c && _c->op == IR_DEFINE && !ir_define_sr_citizen(_c) && _c->n_operands == 0) _bd++; }
++                { int _bd = 0; for (int _s = 0; _s < bbg->n; _s++) { IR_t *_c = bbg->all[_s]; if (ir_define_is_bind(_c)) _bd++; }
+                   if (_bd > 0 && bbg->n_dentry == 0) { bbg->dentry_node = (IR_t **)calloc((size_t)_bd, sizeof(IR_t *)); bbg->dentry_entry = (IR_t **)calloc((size_t)_bd, sizeof(IR_t *)); bbg->dentry_name = (const char **)calloc((size_t)_bd, sizeof(char *));
+-                      if (bbg->dentry_node && bbg->dentry_entry && bbg->dentry_name) for (int _s = 0; _s < bbg->n; _s++) { IR_t *_c = bbg->all[_s]; if (!_c || _c->op != IR_DEFINE || ir_define_sr_citizen(_c) || _c->n_operands != 0 || !IR_LIT(_c).sval) continue;
++                      if (bbg->dentry_node && bbg->dentry_entry && bbg->dentry_name) for (int _s = 0; _s < bbg->n; _s++) { IR_t *_c = bbg->all[_s]; if (!ir_define_is_bind(_c) || !IR_LIT(_c).sval) continue;
+                           if (bbg->n_dentry >= _bd) break;
++                          { const char *_be = ir_define_bind_entry(_c);
++                            if (_be) { char _lb[300]; snprintf(_lb, sizeof _lb, "LBL__%s", _be); IR_t *_tn = (IR_t *)0;
++                                for (int _w = 0; _w < s2->proc_count; _w++) { ProcEntry *_lr = &s2->proc_table[_w]; if (!_lr->name || strcmp(_lr->name, _lb) || !_lr->proc_entry_node) continue;
++                                    _tn = _lr->proc_entry_node; int _tg = 0; while (_tn && (_tn->op == IR_SUCCEED || _tn->op == IR_FAIL || _tn->op == IR_GOTO) && _tn->γ.node && _tg++ < 65536) _tn = _tn->γ.node; break; }
++                                if (_tn) { bbg->dentry_node[bbg->n_dentry] = _c; bbg->dentry_entry[bbg->n_dentry] = _tn; bbg->dentry_name[bbg->n_dentry] = (const char *)0; bbg->n_dentry++; continue; } } }
+                           for (int _q = 0; _q < s2->proc_count; _q++) { ProcEntry *_pr = &s2->proc_table[_q]; if (!_pr->name || strcmp(_pr->name, IR_LIT(_c).sval)) continue;
+                               IR_t *_sn = bb_proc_entry(_pr); if (!_sn) continue; int _sg = 0; while (_sn && (_sn->op == IR_SUCCEED || _sn->op == IR_FAIL || _sn->op == IR_GOTO) && _sn->γ.node && _sg++ < 64) _sn = _sn->γ.node;
+                               IR_t *_gd = (_sn && _sn->op == IR_DEFINE && ir_define_sr_citizen(_sn)) ? _sn->γ.node : _sn; if (!_gd) break;
+diff --git a/src/emitter/emit.cpp b/src/emitter/emit.cpp
+index 55a91e320..3f28d85ec 100644
+--- a/src/emitter/emit.cpp
++++ b/src/emitter/emit.cpp
+@@ -1234,7 +1234,7 @@ static int walk_bb_node_inner(IR_t * nd, FILE * out) {
+     case IR_GOTO_DEFERRED:             bb_emit_x86(bb_goto_deferred());       return 0;
+     case IR_DEFINE: {
+         if (ir_define_sr_citizen(nd)) { extern int fc_call_active(const IR_t *); if (g_emit.op_ival == 4 && nd->n_operands >= 2 && nd->operands[0] && nd->operands[1]) { g_emit.op_sval = IR_LIT(nd->operands[0]).sval; g_emit.lbl_t0 = IR_LIT(nd->operands[1]).sval; }    if (g_emit.op_ival == 3 && nd->γ.node && sr3_gamma_label(nd->γ.node)) { const char *_e = sr3_gamma_label(nd->γ.node); g_emit.op_sval = strncmp(_e, "LBL__", 5) ? _e : _e + 5; }    if (g_emit.op_ival == 0 && nd->γ.node && fc_call_active(nd->γ.node) && nd->n_operands == 1 && nd->operands[0]) { extern int zls_off(const IR_t *); int _as = bb_slot_get(nd->operands[0]); if (_as < 0) _as = zls_off(nd->operands[0]); if (_as >= 0) { g_emit.op_fc_wbytes = 16; g_emit.op_fc_base = _as; } } g_emit.op_define_role = (int)g_emit.op_ival; extern std::string bb_define(); bb_emit_x86(bb_define()); return 0; }
+-        if (nd->n_operands == 0) { g_emit.op_sval = IR_LIT(nd).sval;    g_emit.lbl_t0 = (const char *)0; int _realstub = 0; if (g_emit_cfg && g_emit_cfg->n_dentry > 0) for (int _dq = 0; _dq < g_emit_cfg->n_dentry; _dq++) if (g_emit_cfg->dentry_node[_dq] == nd) { g_emit.lbl_t0 = g_emit_cfg->dentry_name[_dq]; _realstub = g_emit_cfg->dentry_entry[_dq] ? 1 : 0; break; }    g_emit.op_define_role = 6; extern std::string bb_define(); bb_emit_x86(bb_define()); int _d1st = 1; if (g_emit_cfg && g_emit.op_sval) for (int _dr = 0; _dr < g_emit_cfg->n_dentry; _dr++) { IR_t *_dp = g_emit_cfg->dentry_node[_dr]; if (_dp == nd) break; if (_dp && _dp->n_operands == 0 && IR_LIT(_dp).sval && !strcmp(IR_LIT(_dp).sval, g_emit.op_sval)) { _d1st = 0; break; } }    if (g_is_text && g_emit.lbl_t0 && _d1st && _realstub) { long _sv5 = g_emit.op_ival; g_emit.op_ival = 5; g_emit.op_define_role = 5; bb_emit_x86(bb_define()); g_emit.op_ival = _sv5; }    return 0; }
++        if (ir_define_is_bind(nd)) { g_emit.op_sval = IR_LIT(nd).sval;    g_emit.lbl_t0 = (const char *)0; int _realstub = 0; if (g_emit_cfg && g_emit_cfg->n_dentry > 0) for (int _dq = 0; _dq < g_emit_cfg->n_dentry; _dq++) if (g_emit_cfg->dentry_node[_dq] == nd) { g_emit.lbl_t0 = g_emit_cfg->dentry_name[_dq]; _realstub = g_emit_cfg->dentry_entry[_dq] ? 1 : 0; break; }    g_emit.op_define_role = 6; extern std::string bb_define(); bb_emit_x86(bb_define()); int _d1st = 1; if (g_emit_cfg && g_emit.op_sval) for (int _dr = 0; _dr < g_emit_cfg->n_dentry; _dr++) { IR_t *_dp = g_emit_cfg->dentry_node[_dr]; if (_dp == nd) break; if (_dp && ir_define_is_bind(_dp) && IR_LIT(_dp).sval && !strcmp(IR_LIT(_dp).sval, g_emit.op_sval)) { _d1st = 0; break; } }    if (g_is_text && g_emit.lbl_t0 && _d1st && _realstub) { long _sv5 = g_emit.op_ival; g_emit.op_ival = 5; g_emit.op_define_role = 5; bb_emit_x86(bb_define()); g_emit.op_ival = _sv5; }    return 0; }
+         g_emit.op_sval = IR_LIT(nd).sval;
+         g_emit.op_ival = (long)nd->n_operands;
+         g_emit.op_ab_nformals = nd->seal;
+@@ -1828,7 +1828,7 @@ void emit_drive(IR_t *nd, bb_label_t *lbl_α, bb_label_t *lbl_γ, bb_label_t *lb
+         g_emit.op_arg_slot_n = na;
+         DRIVE_FILL(nd, lbl_α, lbl_γ, lbl_ω, lbl_β); break;
+     }
+-        if (nd->n_operands != 0) { drive_unowned(nd); break; }
++        if (!ir_define_is_bind(nd)) { drive_unowned(nd); break; }
+         DRIVE_PAIR_RESET(); DRIVE_PAIR_JMP(lbl_γ); DRIVE_PAIR_DEF_JMP(lbl_β, lbl_ω); DRIVE_FILL(nd, lbl_α, lbl_γ, lbl_ω, lbl_β); break;
+     case IR_STATEMENT_BEGIN:
+     case IR_STATEMENT_END:
+diff --git a/src/ir/IR.h b/src/ir/IR.h
+index 644be868b..88db47252 100644
+--- a/src/ir/IR.h
++++ b/src/ir/IR.h
+@@ -193,6 +193,9 @@ struct IR_t {
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static inline int ir_define_ch8_role(const IR_t * nd) { long long v = (long long)IR_LIT(nd).ival; return (v >= 1 && v <= 4) ? (int)v : 0; }
+ static inline int ir_define_sr_citizen(const IR_t * nd) { return ir_define_ch8_role(nd) ? 1 : ((nd->γ.node && ir_norm_call_kind(nd->γ.node->op) == IR_CALL) ? 1 : 0); }
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static inline const char * ir_define_bind_entry(const IR_t * nd) { return (nd && nd->op == IR_DEFINE && nd->pat_static == 1 && nd->n_operands == 1 && nd->operands[0] && nd->operands[0]->op == IR_LIT_NAME) ? IR_LIT(nd->operands[0]).sval : (const char *)0; }
++static inline int ir_define_is_bind(const IR_t * nd) { return (nd && nd->op == IR_DEFINE && !ir_define_sr_citizen(nd) && (nd->n_operands == 0 || ir_define_bind_entry(nd))) ? 1 : 0; }
+ typedef struct {
+     const char * sval;
+     int64_t      ival;
+diff --git a/src/lower/lower_snobol4.c b/src/lower/lower_snobol4.c
+index 7c5e1f129..fd8da0d28 100644
+--- a/src/lower/lower_snobol4.c
++++ b/src/lower/lower_snobol4.c
+@@ -925,6 +925,22 @@ static const tree_t * sno_stmt_define(const tree_t * s, int * out_argbase) {
+     return subj;
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static const char * sno_define_entry_opt(const tree_t * dsub, int argbase) {
++    if (!dsub || dsub->n <= argbase + 1 || !dsub->c[argbase + 1]) return NULL;
++    const tree_t * ea = dsub->c[argbase + 1];
++    if (ea->t == TT_QLIT && ea->v.sval) return ea->v.sval;
++    if (ea->t == TT_NAME && ea->n > 0 && ea->c[0] && ea->c[0]->t == TT_VAR && ea->c[0]->v.sval) return ea->c[0]->v.sval;
++    return NULL;
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static void sno_bind_attach_entry(IR_graph_t * g, IR_t * bind, const char * entry, IR_t * fail) {
++    if (!g || !bind || !entry || !entry[0]) return;
++    IR_t * en = lc_build(g, IR_LIT_NAME, bind, fail);
++    IR_LIT(en).sval = lp_strdup(entry);
++    ir_operand_push(bind, en);
++    bind->pat_static = 1;
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static void sno_parse_define(const char * spec, const char * entry_opt, sno_def_t * d) {
+     char buf[512]; int bn = 0;
+     for (const char * p = spec; *p && bn < (int) sizeof buf - 1; p++) if (*p != ' ' && *p != '\t') buf[bn++] = *p;
+@@ -2124,7 +2140,7 @@ static IR_graph_t * sno_build_graph(const tree_t ** st, int nst, int entry_idx,
+                 int _argbase = 0; const tree_t * dsub = sno_stmt_define(s, &_argbase);
+                 const tree_t * pnode = (dsub && dsub->n > _argbase) ? dsub->c[_argbase] : NULL;
+                 if (pnode && sno_qlit_fold(pnode)) {
+-                    sno_def_t d; sno_parse_define(sno_qlit_fold(pnode), NULL, &d);
++                    sno_def_t d; sno_parse_define(sno_qlit_fold(pnode), sno_define_entry_opt(dsub, _argbase), &d);
+                     int nsave = 1 + d.nnames;
+                     IR_t * ab = lc_build(g, IR_DEFINE, exitnd, failnd);
+                     IR_LIT(ab).sval = lp_strdup(d.fname);
+@@ -2133,7 +2149,7 @@ static IR_graph_t * sno_build_graph(const tree_t ** st, int nst, int entry_idx,
+                     for (int _k = 0; _k < d.nnames; _k++) { IR_t * nm = lc_build(g, IR_LIT_STRING, ab, failnd); IR_LIT(nm).sval = lp_strdup(d.names[_k]); ir_operand_push(ab, nm); }
+                     if (g->ab_n < (int)(sizeof g->ab_nodes / sizeof *g->ab_nodes)) g->ab_nodes[g->ab_n++] = ab;
+                     else fprintf(stderr, "WARN AB-1: ab_nodes[] full (>32 DEFINEs in one graph); activation block for '%s' will be missing from .s\n", d.fname);
+-                    { IR_t * bind = lc_build(g, IR_DEFINE, sJ, fA); IR_LIT(bind).sval = lp_strdup(d.fname);  lc_γ_to(anchor[i], bind); continue; }
++                    { IR_t * bind = lc_build(g, IR_DEFINE, sJ, fA); IR_LIT(bind).sval = lp_strdup(d.fname); sno_bind_attach_entry(g, bind, d.entry, fA); lc_γ_to(anchor[i], bind); continue; }
+                 }
+             }
+             { int _argbase = 0; const tree_t * dsub = sno_stmt_define(s, &_argbase);
+@@ -2141,13 +2157,12 @@ static IR_graph_t * sno_build_graph(const tree_t ** st, int nst, int entry_idx,
+                   IR_t * sp = lc_build(g, IR_LIT_STRING, NULL, fA); IR_LIT(sp).sval = lp_strdup(sno_qlit_fold(dsub->c[_argbase]));
+                   IR_t * call = lc_build(g, IR_CALL, sJ, fA); IR_LIT(call).sval = (char *) "DEFINE"; ir_operand_push(call, sp);
+                   IR_t * last = sp;
+-                  if (dsub->n > _argbase + 1 && dsub->c[_argbase + 1]) { const tree_t * ea = dsub->c[_argbase + 1]; const char * es = NULL;
+-                      if (ea->t == TT_QLIT && ea->v.sval) es = ea->v.sval; else if (ea->t == TT_NAME && ea->n > 0 && ea->c[0] && ea->c[0]->t == TT_VAR) es = ea->c[0]->v.sval;
++                  { const char * es = sno_define_entry_opt(dsub, _argbase);
+                       if (es) { IR_t * ep = lc_build(g, IR_LIT_STRING, NULL, fA); IR_LIT(ep).sval = lp_strdup(es); ir_operand_push(call, ep); lc_γ_to(last, ep); last = ep; } }
+                   lc_γ_to(last, call); lc_γ_to(anchor[i], sp); continue; }
+               const tree_t * pnode = (dsub && dsub->n > _argbase) ? dsub->c[_argbase] : NULL;
+-              if (pnode && sno_qlit_fold(pnode)) { sno_def_t d; sno_parse_define(sno_qlit_fold(pnode), NULL, &d);
+-                IR_t * bind = lc_build(g, IR_DEFINE, sJ, fA); IR_LIT(bind).sval = lp_strdup(d.fname); lc_γ_to(anchor[i], bind); continue; } }
++              if (pnode && sno_qlit_fold(pnode)) { sno_def_t d; sno_parse_define(sno_qlit_fold(pnode), sno_define_entry_opt(dsub, _argbase), &d);
++                IR_t * bind = lc_build(g, IR_DEFINE, sJ, fA); IR_LIT(bind).sval = lp_strdup(d.fname); sno_bind_attach_entry(g, bind, d.entry, fA); lc_γ_to(anchor[i], bind); continue; } }
+             lc_γ_to(anchor[i], sJ); continue;
+         }
+         if (_pro_open && (goU || goS || goF || exU || exS || exF)) _pro_close = 1;
+@@ -2580,6 +2595,31 @@ void sno_pat_thunks_build(int p0) {
+     g_sno_in_patproc = sv;
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static void sno_register_entry_label(const char * el, int main_bb_idx) {
++    if (!el || !el[0]) return;
++    IR_t * anchor = bb_label_landing(el);
++    if (!anchor) return;
++    char lname[256]; snprintf(lname, sizeof lname, "LBL__%s", el);
++    for (int q = 0; q < g_stage2.proc_count; q++) if (g_stage2.proc_table[q].name && !strcmp(g_stage2.proc_table[q].name, lname)) return;
++    int lpi = stage2_proc_grow(&g_stage2);
++    g_stage2.proc_table[lpi].name = lp_strdup(lname);
++    g_stage2.proc_table[lpi].proc = NULL;
++    g_stage2.proc_table[lpi].entry_pc = -1;
++    g_stage2.proc_table[lpi].nparams = 0;
++    g_stage2.proc_table[lpi].lower_sc.n = 0;
++    g_stage2.proc_table[lpi].is_generator = 0;
++    g_stage2.proc_table[lpi].dyn_scope = 0;
++    g_stage2.proc_table[lpi].result_name = NULL;
++    g_stage2.proc_table[lpi].proc_entry_node = anchor;
++    g_stage2.proc_table[lpi].bb_idx = main_bb_idx;
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static void sno_entry_seen_push(const char ** seen, int * nseen, const char * el) {
++    if (!el || !el[0] || *nseen >= SNO_DEF_MAX * 2) return;
++    for (int k = 0; k < *nseen; k++) if (!strcmp(seen[k], el)) return;
++    seen[(*nseen)++] = el;
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ stage2_t * lower_sno_stage2(const tree_t * prog) {
+     g_sno_expr_define_seen = 0; g_sno_prescan_top = NULL;
+     g_sno_seal_enabled = 1;
+@@ -2596,6 +2636,7 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+     { int k = 0; for (int i = 0; i < prog->n; i++) if (prog->c[i] && prog->c[i]->t == TT_STMT) st[k++] = prog->c[i]; }
+     sno_fz_build_table(st, nst);
+     sno_def_t defs[SNO_DEF_MAX]; int ndefs = 0; g_sno_npredef = 0;
++    const char * def_entry_all[SNO_DEF_MAX * 2]; int n_def_entry_all = 0;
+     const tree_t * def_body[SNO_DEF_MAX]; for (int _k = 0; _k < SNO_DEF_MAX; _k++) def_body[_k] = NULL;
+     int * is_def = (int *) calloc((size_t) nst, sizeof(int));
+     const char * stmt_bind_fname[SNO_DEF_MAX]; int n_stmt_bind = 0;
+@@ -2613,6 +2654,7 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+             const tree_t * body = (dfn->n > 2) ? dfn->c[2] : NULL;
+             int found = -1;
+             for (int k = 0; k < ndefs; k++) if (!strcmp(defs[k].fname, d.fname)) { found = k; break; }
++            if (!body) sno_entry_seen_push(def_entry_all, &n_def_entry_all, d.entry);
+             if (found >= 0) { defs[found] = d; def_body[found] = body; }
+             else if (ndefs < SNO_DEF_MAX) { def_body[ndefs] = body; defs[ndefs++] = d; }
+             else sno_fatal("too many DEFINEs in one program", d.fname);
+@@ -2633,6 +2675,7 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+         if (sn4_is_system_fn(d.fname)) continue;
+         int found = -1;
+         for (int k = 0; k < ndefs; k++) if (!strcmp(defs[k].fname, d.fname)) { found = k; break; }
++        sno_entry_seen_push(def_entry_all, &n_def_entry_all, d.entry);
+         if (found >= 0) defs[found] = d;
+         else if (ndefs < SNO_DEF_MAX) defs[ndefs++] = d;
+         else sno_fatal("too many DEFINEs in one program", d.fname);
+@@ -2695,28 +2738,8 @@ stage2_t * lower_sno_stage2(const tree_t * prog) {
+     }
+     if (!g_sno_uses_code) {
+         int main_bb_idx2 = g_stage2.proc_table[pi].bb_idx;
+-        for (int di = 0; di < ndefs; di++) {
+-            if (def_body[di]) continue;
+-            const char * el = defs[di].entry;
+-            if (!el || !el[0]) continue;
+-            IR_t * anchor = bb_label_landing(el);
+-            if (!anchor) continue;
+-            char lname[256]; snprintf(lname, sizeof lname, "LBL__%s", el);
+-            int dup = 0;
+-            for (int q = 0; q < g_stage2.proc_count; q++) if (g_stage2.proc_table[q].name && !strcmp(g_stage2.proc_table[q].name, lname)) { dup = 1; break; }
+-            if (dup) continue;
+-            int lpi = stage2_proc_grow(&g_stage2);
+-            g_stage2.proc_table[lpi].name = lp_strdup(lname);
+-            g_stage2.proc_table[lpi].proc = NULL;
+-            g_stage2.proc_table[lpi].entry_pc = -1;
+-            g_stage2.proc_table[lpi].nparams = 0;
+-            g_stage2.proc_table[lpi].lower_sc.n = 0;
+-            g_stage2.proc_table[lpi].is_generator = 0;
+-            g_stage2.proc_table[lpi].dyn_scope = 0;
+-            g_stage2.proc_table[lpi].result_name = NULL;
+-            g_stage2.proc_table[lpi].proc_entry_node = anchor;
+-            g_stage2.proc_table[lpi].bb_idx = main_bb_idx2;
+-        }
++        for (int di = 0; di < ndefs; di++) if (!def_body[di]) sno_register_entry_label(defs[di].entry, main_bb_idx2);
++        for (int ei = 0; ei < n_def_entry_all; ei++) sno_register_entry_label(def_entry_all[ei], main_bb_idx2);
+     }
+     for (int di = 0; di < ndefs; di++) {
+         IR_graph_t * gf;
