@@ -141,3 +141,60 @@ the program's contract with its environment, not about a clock.
 ⚠️ The correction does **not** weaken the finding's main claim: `filexref`, `qt` and `shar` are confirmed
 minute-granularity clock reads under the fixed comparison, and 3 of 4 is still a defect the sub-second arm
 could not see. It weakens only the count, and the count was never the point.
+
+## ⛔⛔⛔ SECOND POSTSCRIPT — I APPLIED THIS FINDING'S OWN RULE TO ITS OWN CURE AND STILL GOT IT WRONG
+
+Within an hour of writing the rule above — *validating a REJECTING check against known-bad input is HALF a
+test; prove in the same breath that it ACCEPTS a known-good* — I broke it, on this very instrument, and
+pushed 27 fabricated reference outputs to the corpus. seat07 caught it. They are reverted
+(corpus `0cb558343` → `403865d2e`, re-filed `45e3fc05c`).
+
+**What I minted.** 26 of 27 `.std` files contained **nothing but icont link-time diagnostics**:
+
+```
+blp2grid.icn: "WriteImage": undeclared identifier, procedure main
+cells.icn: "WAttrib": undeclared identifier, procedure clearpanel
+```
+
+This Icon build has **no graphics facility**. The one-step `icon` driver is a symlink to `icont`, so for
+these programs it emitted warnings, exited 0, and **executed nothing**. The 27th, `rows2blp.std`, is **0
+bytes** — the EMPTY class exists precisely to refuse that, but my mint path *created* the condition after
+the guard had already run: the program printed one newline, `by1 -eq 0` passed on 1 byte, and the mint's
+command substitution stripped it to nothing.
+
+**Every gate passed.** rc=0 ✓ non-empty ✓ four-run determinism ✓ **the new minute-boundary arm** ✓
+usage-banner shape ✓ `can't open display` scan ✓. The diagnostic text is perfectly reproducible — across
+runs and across minutes. ⭐ **Stability is not correctness. These refs were maximally stable and entirely
+wrong**, which is the same sentence as hq_T's *"stability alone is satisfiable by being consistently
+wrong"* — reported to me, by them, in the same sitting, and acknowledged by me in writing before I did it.
+
+**How the rule failed to fire.** The minute-boundary arm went from rejecting **27 of 27** to accepting
+**27 of 27**. I had demanded a positive control; I read *that recovery* as one. It was not.
+
+> A positive control must assert that the accepted output is **RIGHT**.
+> Observing that acceptance *occurred* is not a positive control — it is the same
+> single-direction test with the sign flipped.
+
+I never opened a single accepted `.std`. One `cat` of one file would have ended it in five seconds, and
+the whole population was one directory away the entire time.
+
+⛔ **And the missing gate is not the root cause. I had already seen this exact output and named it
+benign.** Hours earlier I wrote — into two commit messages — that icont emits *"benign link-time
+`undeclared identifier` warnings for the graphics procs"*, on the reasoning that they precede the real
+refusal. That is true for the 25 `NEEDS_DISPLAY` programs, which go on to fail at *run* time with
+`can't open display`. For these 27 **there is no later refusal**: the warnings are not noise before the
+signal, **they are the entire result**, and they mean the program cannot run. I attached a dismissive
+explanation to a signal I had looked at directly, then drew a class boundary on top of the dismissal —
+while, in the same sitting, curing three separate instances of *a correct observation with a false
+explanation*.
+
+**The lesson that outranks everything else in this file:**
+
+> **Knowing a rule is not applying it.** Every rule in this finding was written down, in this file, by me,
+> before I violated it. A rule only takes effect when it is a **step somebody performs** — open the
+> artifact, read what is in it — not a sentence somebody agrees with. The gate that would have caught this
+> is not a cleverer determinism check; it is *look at one of the outputs you are about to ship.*
+
+**What caught it was a person re-running my instrument against my own claim** instead of accepting the
+number. That is the only reason 27 lies are not in the corpus tonight, and it is an argument for the
+review path, not for a better predicate.

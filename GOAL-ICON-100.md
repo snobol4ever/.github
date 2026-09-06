@@ -109,15 +109,28 @@ bash scripts/test_icon_all_rungs.sh 2>/dev/null | tail -1   # fresh watermark FI
 
 ---
 
-## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-06 ~10:15 CDT, hq_I (FLEET-12) — **CEO-316/318 COVERAGE STEP: THE 186 ipl MAINS OUTSIDE `progs/` ARE ACCOUNTED, 27 NEW REFS CUT, AND ARIZONA OWES ZERO REFS — NOT 35.**
+## ⛔⛔⭐ LIVE CURSOR — 2026-09-06 ~10:45 CDT, hq_I (FLEET-12) — **RETRACTION FIRST: THE 27 gprogs REFS I CUT WERE ALL WRONG AND ARE REVERTED. THE CENSUS STANDS; THE COVERAGE GAIN DOES NOT.**
+
+⛔⛔ **`ipl graded` IS 64, NOT 91.** I cut 27 `gprogs/` refs (corpus `0cb558343`), pushed them, and **every one pinned a lie**. seat07 caught it by re-running my own census against my own claim. Reverted by deletion, `403865d2e`; the 27 are filed `ORACLE_REFUSES` in `45e3fc05c` so they stay in the denominator rather than vanishing.
+- 26 of 27 contain **nothing but icont link-time diagnostics** (`"WriteImage": undeclared identifier, procedure main` …). This oracle build has **no graphics facility**; the one-step `icon` driver is a symlink to `icont`, so it warned, exited 0, and **executed nothing**. Zero bytes of program behavior.
+- The 27th, `rows2blp.std`, is **0 bytes** — the exact thing the EMPTY class exists to refuse. My own mint path made it: the program printed a single newline, the `by1 -eq 0` guard passed on 1 byte, and the command substitution in the mint stripped it to nothing. **The guard ran before the transformation that created the condition it guards against.**
+- The text is byte-stable across runs *and* across a minute, so it cleared **every** gate: rc=0, non-empty, four-run determinism, the new minute-boundary arm, the usage-banner shape, the `can't open display` scan. ⭐ **Stability is not correctness — these refs were perfectly reproducible and entirely wrong.**
+
+⛔ **THE PART THAT IS MINE IS NOT THE MISSING GATE — I SAW THIS OUTPUT AND CALLED IT BENIGN.** I wrote "benign link-time `undeclared identifier` warnings" into two commit messages, reasoning they precede the real refusal. True for the 25 `NEEDS_DISPLAY` programs, which go on to fail at *run* time. For these 27 **there is no later refusal**: the warnings are not noise before the signal, they *are* the result, and they mean the program cannot run. A correct observation with a false explanation, built into a class boundary — while curing three other instances of that same family in the same sitting.
+
+⛔⭐ **AND I BROKE THE RULE I HAD JUST WRITTEN DOWN, ONE HOUR EARLIER, IN THIS FILE.** My own finding says: *validating a REJECTING check against known-bad input is HALF a test — prove in the same breath that it ACCEPTS a known-good.* When the minute-boundary arm went from rejecting 27/27 to accepting 27/27, I read that recovery **as** the positive control I had just demanded. It was not one. **I never opened a single accepted ref.** A positive control must assert the accepted output is *right*, not that acceptance occurred — which is precisely hq_T's "stability alone is satisfiable by being consistently wrong", acknowledged by me in writing before I made it. Knowing the rule is not applying it; the application has to be a step somebody performs, not a sentence somebody agrees with.
+
+**WHAT SURVIVES, because it was measured independently of the refs:** the census itself, the `--dir`/`--mains-only` instrument, the arizona findings, and the population accounting.
+
+## ⛔⭐⭐⭐ SUPERSEDED CURSOR — 2026-09-06 ~10:15 CDT, hq_I — **the coverage claim below is RETRACTED above; the census numbers stand.**
 
 ⛔ **TWO NUMBERS IN THE ORDER ABOVE ARE STALE, corrected here from measurement rather than worked around.**
 
 1. **ARIZONA OWES ZERO REFS.** `124 shipped = 90 refs cut + 34 ruled UNGRADABLE`, and `UNGRADED.tsv` has **zero** non-comment rows. The "35 never graded" in CEO-314, CEO-316 and the SCORE.md V cell was cut on SCRIP `c2850782c` (09-05) and is one ref behind; today the board reads `shipped=124 graded=90 gap=34 m3_pass=47 m4_pass=47`. There is no arizona ref-cutting left to do.
 2. **THE ipl HOLE WAS NOT "388 REFS OWED" IN ONE BUCKET.** `util_cut_icon_ipl_refs.sh` was hardcoded to `progs/`, so the **186 mains in `gprogs/` (177) and `procs/` (9) had never been reachable by any census** — the delta seat07 named and hq_T's inventory independently reconciled to the unit. Parameterised (`--dir`, `--mains-only`, SCRIP `a83669b0d`) and censused.
 
-**THE POPULATION NOW CLOSES TO THE UNIT:** `851 shipped = 390 CONTAINER_OR_LIBRARY + 341 UNGRADED + 29 UNGRADABLE(new) + 91 graded` (64 `progs/` + **27 newly cut `gprogs/`**, corpus `9af49bf7a`).
-UNGRADED 341: `ORACLE_FAIL 212 · NEEDS_STDIN_FIXTURE 113 · TIMEOUT 10 · NONDETERMINISTIC 5 · SUSPECT_USAGE 1`. UNGRADABLE class column: `CONTAINER_OR_LIBRARY 390 · NEEDS_DISPLAY 25 · NONDETERMINISTIC 4`. All rows path-qualified, 3 columns, hq_T's ruled vocabulary.
+**THE POPULATION NOW CLOSES TO THE UNIT:** ⛔ **RETRACTED — see the cursor above.** Corrected: `851 = 390 CONTAINER_OR_LIBRARY + 341 UNGRADED + 446 UNGRADABLE-total + 64 graded`. `PACKAGE_INVENTORY package=ipl shipped=851 graded=64 ungraded=341 ungradable=446` (rc=0, sums).
+UNGRADED 341: `ORACLE_FAIL 212 · NEEDS_STDIN_FIXTURE 113 · TIMEOUT 10 · NONDETERMINISTIC 5 · SUSPECT_USAGE 1`. UNGRADABLE class column: `CONTAINER_OR_LIBRARY 390 · ORACLE_REFUSES 27 · NEEDS_DISPLAY 25 · NONDETERMINISTIC 4`. All rows path-qualified, 3 columns, hq_T's ruled vocabulary.
 
 ⭐ **`gprogs/` IS NOT 130 PROGRAMS OF X11, WHICH IS THE USEFUL CORRECTION:** only **25** of 177 reach a display refusal. The rest fail EARLIER — a missing input file or argv — and never get as far as `WOpen`. "Calls `WOpen`/`WAttrib`" predicts the ceiling, not the count: a census can only record the oracle's FIRST refusal, and for ~118 of them that refusal is not about graphics. They stay in the gradable set as owed work, not written off. The 25 are `NEEDS_DISPLAY` (hq_T ruled the class in, SCRIP `46c86b274`) — **a ruling, never owed work**: filed as `ORACLE_FAIL` they would have been 25 rows no lane could ever close.
 
