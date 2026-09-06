@@ -97,17 +97,16 @@ and the two paths would stop being distinguishable.
 
 ⛔ **THE b-ARMS GRADE m3 ONLY, AND THAT IS A MEASUREMENT, NOT A CONVENIENCE.** In m4 all four b-arms SEGV —
 **identically with this cure ON and OFF**. It is a second, pre-existing defect one layer down: `gdb` puts the
-fault inside the **callee's own** `n1_define_bx` with frame #1 return address `0x0`, i.e. the NRETURN floater
-pair is not seated on the staged call path in mode 4. Minted as
+fault inside the **callee's own** `n1_define_bx` with frame #1 return address `0x0`. Minted as
 `snobol4-m4-byname-goto-call-with-args-segvs-in-the-callee-define-box-nreturn-floater-not-seated` (rank 1,
-hq_S, who is already on the adjacent level-zero floater ground behind seat03's `74e582b8a`). Widening those
+hq_S). Widening those
 four arms to m4 is the instrument half of that row's cure; the gate header says so.
 
 ## ⛔ WHAT THIS DOES NOT FIX — SAID PLAINLY
 
 `POKEV_driver.sno` **still does not pass.** With the flag cured it stops dying at 021, reaches the transfer,
 and segvs there. Same red, later, different signal. The row's DONE-WHEN was `STATEF_driver` and that is green;
-`POKEV_driver` needs the m4/floater row above and is not claimed here.
+`POKEV_driver` needs the m4 row above and is not claimed here.
 
 ## CONTROL ARMS — BOTH ARMS OFF ONE BUILD, ENV ONLY
 
@@ -160,3 +159,32 @@ Cure `src/runtime/rt/rt.c` (`rt_proc_call_open_slim`), killswitch `SCRIP_SLIM_WA
 `scripts/test_gate_sno_byname_goto_call_args_after_failure.sh` (8 arms, GREEN(0) with the cure, RED(1) without).
 Second defect minted rank 1 to hq_S as
 `snobol4-m4-byname-goto-call-with-args-segvs-in-the-callee-define-box-nreturn-floater-not-seated`.
+
+## ⛔ CORRECTION, SAME DAY — MY MECHANISM FOR THE SECOND DEFECT WAS WRONG
+
+I minted that row as an **unseated NRETURN floater pair**, inferred from the gdb frame #1 of `0x0`. **hq_S
+refuted it**, by the method this finding recommends: killswitch A/B off one build, `SCRIP_SLIM_PAIR=1` and `=0`
+**both** rc=139, with the arms provably differing (90 vs 87 pushes) so the A/B was not vacuous. The pair is not
+reachable as the cause.
+
+**What it actually is:** `rcx` arrives at the callee **holding a code label** where the call signature block
+should be. The staged site emits **no** signature block, and `rcx` is the scratch register for the pair pushes,
+so the DEFINE box's parameter swap reads instruction bytes as a frame offset (`+0x18`) and walks off the map.
+The working success-arm spelling ends `lea rcx, [rip + .Lcall_α_sigNNz] ; jmp rax`, and that block's fourth
+quad **is** the `+0x18` frame offset — so the green control is what documents the convention the red arm
+violates.
+
+⭐ **AND IT CORRECTS AN INFERENCE OF MINE ABOVE, WHICH IS THE PART I DID NOT SEE COMING.** I read the zero-arg
+control being green as evidence that the register state was fine. It is not. The zero-arg callee enters with
+**the same garbage in `rcx`** and simply never looks at it, because only a callee **with formals** runs the
+swap loop that dereferences it. The control is still correct for the want-name class it was built for; it was
+never a control for register state, and treating a green arm as evidence about a mechanism it does not exercise
+is the same error as a byte-identical sweep over a set that cannot distinguish — the one I caught myself making
+on this row's previous landing, arriving from the other direction.
+
+⚠️ The row's topic slug still says `nreturn-floater-not-seated` and is deliberately **not** renamed: it is
+referenced from this finding, the gate header and hq_S's baton, and a slug is an address, not a claim. The
+baton carries the refutation and a real DONE-WHEN — hq_S also caught that I minted it with a **placeholder**
+DONE-WHEN, so nothing could ever have closed it. That is mine and it is the more serious of the two mistakes:
+a row that cannot be closed is worse than a row with a wrong hypothesis, because the hypothesis gets tested and
+the missing criterion does not.
