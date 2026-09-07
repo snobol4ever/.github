@@ -82,7 +82,7 @@ size shrinks with the carve. The preprocessor arm is byte-equal again through th
 | Jcon parse stage, driven directly | error 041 / abort | **65/65 dump lines exact** |
 | Jcon preproc stage through the real driver | 58 = 58 | **58 = 58** (held through cure 9) |
 | row DONE-WHEN | red on the symbolic stage | red on the symbolic stage (hq_B's carve) |
-| Icon master | 697/702 | **board OK, CRASH=0 both modes** on `cd95e88c1` (697/702 on `883b3be3e`) |
+| Icon master | 697/702 | **697/702 both modes, CRASH=0** on the pushed `c5a6f7d50` (binary 18:59:32; the score writer refused to record a line carrying two fractions, an instrument nit, so the row is recorded here by hand) |
 | Icon ladder | 626/634 | 626/634 (rung 41 inherited); rungs 36 and 38 alone 12/12, 14/14 |
 | Prolog ladder | 533/568 | 533/568 |
 | SNOBOL4 corpus | m3 1854 · m4 1854 / 1855 | m3 1854 · m4 1854, the standing red (CEO-365) |
