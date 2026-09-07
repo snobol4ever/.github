@@ -235,3 +235,209 @@ aisnobol	HSORT	m3:UNGRADED m4:UNGRADED -- ORACLE-DIED; no row yet, mint on drive
 aisnobol	KALAH	m3:UNGRADED m4:UNGRADED -- ORACLE-DIED, no m4 reading by construction; no row yet, mint on driver; umbrella aisnobol-all-eight-... (hq_S rank 0)
 aisnobol	SIR	m3:UNGRADED m4:UNGRADED -- UNGRADED missing SNOCORE.sno; row code-and-eval-...-ais-sir-and-test (hq_P); umbrella aisnobol-all-eight-... (hq_S rank 0)
 aisnobol	TEST	m3:UNGRADED m4:UNGRADED -- UNGRADED missing SNOCORE.sno; row code-and-eval-...-ais-sir-and-test (hq_P); umbrella aisnobol-all-eight-... (hq_S rank 0)
+pat	iso7185prt0024	m3:accepted m4:accepted
+pat	iso7185prt0031	m3:accepted m4:accepted
+pat	iso7185prt0040	m3:accepted m4:accepted
+pat	iso7185prt0054	m3:accepted m4:accepted
+pat	iso7185prt0055	m3:accepted m4:accepted
+pat	iso7185prt0138	m3:accepted m4:accepted
+pat	iso7185prt1300	m3:accepted m4:accepted
+pat	iso7185prt1508	m3:accepted m4:accepted
+pat	iso7185prt1701	m3:rejected-silently-no-diagnostic m4:accepted
+pat	iso7185prt1702A	m3:accepted m4:accepted
+pat	iso7185prt1702b	m3:accepted m4:accepted
+pat	iso7185prt1702c	m3:accepted m4:accepted
+pat	iso7185prt1702d	m3:accepted m4:accepted
+pat	iso7185prt1703	m3:accepted m4:accepted
+pat	iso7185prt1704	m3:accepted m4:accepted
+pat	iso7185prt1705	m3:crash(rc=134) m4:accepted
+pat	iso7185prt1706b	m4:accepted
+pat	iso7185prt1707a	m3:accepted m4:accepted
+pat	iso7185prt1707b	m3:accepted m4:accepted
+pat	iso7185prt1708	m3:accepted m4:accepted
+pat	iso7185prt1719	m3:accepted m4:accepted
+pat	iso7185prt1720	m3:accepted m4:accepted
+pat	iso7185prt1721	m3:accepted m4:accepted
+pat	iso7185prt1722	m3:accepted m4:accepted
+pat	iso7185prt1723	m3:accepted m4:accepted
+pat	iso7185prt1724	m3:accepted m4:accepted
+pat	iso7185prt1726	m4:accepted
+pat	iso7185prt1727	m4:accepted
+pat	iso7185prt1728	m4:accepted
+pat	iso7185prt1729	m4:accepted
+pat	iso7185prt1730	m4:accepted
+pat	iso7185prt1731	m4:accepted
+pat	iso7185prt1732	m3:accepted m4:accepted
+pat	iso7185prt1733	m3:accepted m4:accepted
+pat	iso7185prt1734	m3:accepted m4:accepted
+pat	iso7185prt1735	m3:accepted m4:accepted
+pat	iso7185prt1736	m3:accepted m4:accepted
+pat	iso7185prt1737	m3:accepted m4:accepted
+pat	iso7185prt1738	m3:accepted m4:accepted
+pat	iso7185prt1739	m3:accepted m4:accepted
+pat	iso7185prt1741	m3:accepted m4:accepted
+pat	iso7185prt1743	m3:accepted m4:accepted
+pat	iso7185prt1744	m3:rejected-silently-no-diagnostic m4:accepted
+pat	iso7185prt1745	m4:accepted
+pat	iso7185prt1746A	m4:accepted
+pat	iso7185prt1746b	m3:accepted m4:accepted
+pat	iso7185prt1748	m3:accepted m4:accepted
+pat	iso7185prt1749	m3:accepted m4:accepted
+pat	iso7185prt1750	m3:accepted m4:accepted
+pat	iso7185prt1751	m3:accepted m4:accepted
+pat	iso7185prt1752	m3:accepted m4:accepted
+pat	iso7185prt1753	m3:accepted m4:accepted
+pat	iso7185prt1754	m3:accepted m4:accepted
+pat	iso7185prt1755	m3:accepted m4:accepted
+pat	iso7185prt1756	m3:accepted m4:accepted
+pat	iso7185prt1758a	m3:accepted m4:accepted
+pat	iso7185prt1758b	m3:accepted m4:accepted
+pat	iso7185prt1759	m3:accepted m4:accepted
+pat	iso7185prt1761	m3:accepted m4:accepted
+pat	iso7185prt1762	m3:accepted m4:accepted
+pat	iso7185prt1763	m3:accepted m4:accepted
+pat	iso7185prt1764	m3:accepted m4:accepted
+pat	iso7185prt1765	m3:accepted m4:accepted
+pat	iso7185prt1767	m3:accepted m4:accepted
+pat	iso7185prt1800	m3:accepted m4:accepted
+pat	iso7185prt1801	m3:accepted m4:accepted
+pat	iso7185prt1802	m3:accepted m4:accepted
+pat	iso7185prt1804	m3:accepted m4:accepted
+pat	iso7185prt1805	m3:accepted m4:accepted
+pat	iso7185prt1806	m3:accepted m4:accepted
+pat	iso7185prt1808	m3:accepted m4:accepted
+pat	iso7185prt1809	m3:accepted m4:accepted
+pat	iso7185prt1811	m3:accepted m4:accepted
+pat	iso7185prt1820	m3:accepted m4:accepted
+pat	iso7185prt1821	m3:accepted m4:accepted
+pat	iso7185prt1822	m3:accepted m4:accepted
+pat	iso7185prt1823	m3:accepted m4:accepted
+pat	iso7185prt1824	m3:accepted m4:accepted
+pat	iso7185prt1825	m3:accepted m4:accepted
+pat	iso7185prt1828	m3:rejected-silently-no-diagnostic m4:accepted
+pat	iso7185prt1829	m3:accepted m4:accepted
+pat	iso7185prt1830	m3:accepted m4:accepted
+pat	iso7185prt1831	m3:accepted m4:accepted
+pat	iso7185prt1832	m3:accepted m4:accepted
+pat	iso7185prt1833	m3:accepted m4:accepted
+pat	iso7185prt1834	m3:accepted m4:accepted
+pat	iso7185prt1835	m3:accepted m4:accepted
+pat	iso7185prt1836	m3:accepted m4:accepted
+pat	iso7185prt1837	m3:accepted m4:accepted
+pat	iso7185prt1838	m3:accepted m4:accepted
+pat	iso7185prt1839	m3:accepted m4:accepted
+pat	iso7185prt1840	m3:accepted m4:accepted
+pat	iso7185prt1841	m3:accepted m4:accepted
+pat	iso7185prt1843	m3:accepted m4:accepted
+pat	iso7185prt1844	m3:accepted m4:accepted
+pat	iso7185prt1845	m3:accepted m4:accepted
+pat	iso7185prt1846	m3:accepted m4:accepted
+pat	iso7185prt1847	m3:accepted m4:accepted
+pat	iso7185prt1848	m3:accepted m4:accepted
+pat	iso7185prt1849	m3:crash(rc=134) m4:accepted
+pat	iso7185prt1850	m3:accepted m4:accepted
+pat	iso7185prt1851	m3:accepted m4:accepted
+pat	iso7185prt1852	m3:accepted m4:accepted
+pat	iso7185prt1853	m3:accepted m4:accepted
+pat	iso7185prt1854	m3:accepted m4:accepted
+pat	iso7185prt1855	m3:accepted m4:accepted
+pat	iso7185prt1856	m3:accepted m4:accepted
+pat	iso7185prt1857	m3:accepted m4:accepted
+pat	iso7185prt1858	m3:accepted m4:accepted
+pat	iso7185prt1859	m3:accepted m4:accepted
+pat	iso7185prt1860	m4:accepted
+pat	iso7185prt1861	m3:accepted m4:accepted
+pat	iso7185prt1864	m3:accepted m4:accepted
+pat	iso7185prt1865	m3:accepted m4:accepted
+pat	iso7185prt1866	m3:accepted m4:accepted
+pat	iso7185prt1867	m4:accepted
+pat	iso7185prt1868	m4:accepted
+pat	iso7185prt1869	m4:accepted
+pat	iso7185prt1870	m4:accepted
+pat	iso7185prt1871	m3:accepted m4:accepted
+pat	iso7185prt1872	m3:accepted m4:accepted
+pat	iso7185prt1873	m3:accepted m4:accepted
+pat	iso7185prt1874	m3:accepted m4:accepted
+pat	iso7185prt1881	m3:accepted m4:accepted
+pat	iso7185prt1882	m3:accepted m4:accepted
+pat	iso7185prt1901	m3:accepted m4:accepted
+pat	iso7185prt1902	m3:accepted m4:accepted
+pat	iso7185prt1903	m3:accepted m4:accepted
+pat	iso7185prt1904	m3:accepted m4:accepted
+pat	iso7185prt1905	m3:accepted m4:accepted
+pat	iso7185prt1906	m3:accepted m4:accepted
+pat	iso7185prt1907a	m3:accepted m4:accepted
+pat	iso7185prt1907b	m3:accepted m4:accepted
+pat	iso7185prt1908	m3:accepted m4:accepted
+pat	iso7185prt1909	m3:accepted m4:accepted
+pat	iso7185prt1911	m3:accepted m4:accepted
+pat	iso7185prt1913	m3:accepted m4:accepted
+pat	iso7185prt1915	m3:accepted m4:accepted
+pat	iso7185prt1916	m3:accepted m4:accepted
+pat	iso7185prt1917	m3:accepted m4:accepted
+pat	iso7185prt1918	m3:accepted m4:accepted
+fpc	tbs_tb0012	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	tbs_tb0134	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	tbs_tb0207	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	tbs_tb0596	m4:build-or-link-failed
+fpc	tbs_tb0598	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	tbs_tb0619	m4:build-or-link-failed
+fpc	tbs_tb0625	m4:build-or-link-failed
+fpc	tbs_tb0676	m4:build-or-link-failed
+fpc	test_cg_taddr3	m4:build-or-link-failed
+fpc	test_cg_tcnvint1	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_opt_treg3	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tcpstr10	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tendian2	m4:build-or-link-failed
+fpc	test_tismngd2	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tisobuf1	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tisobuf2	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tisobuf3	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tisoread	m3:output-differs-from-ref m4:build-or-link-failed
+fpc	test_tmaclocalprocparam1	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tmaclocalprocparam3	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tmaclocalprocparam3b	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tmacnonlocalexit1	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tmacnonlocalgoto	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tparray10	m3:output-differs-from-ref m4:build-or-link-failed
+fpc	test_tprec11	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tprec12	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tpushpop1	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tpushpop2	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_tpushpop3	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	test_units_system_trandom	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw12233	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw14941a	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw15015	m3:output-differs-from-ref m4:build-or-link-failed
+fpc	webtbs_tw15061	m3:output-differs-from-ref m4:build-or-link-failed
+fpc	webtbs_tw15061a	m3:output-differs-from-ref m4:build-or-link-failed
+fpc	webtbs_tw15203	m3:output-differs-from-ref m4:build-or-link-failed
+fpc	webtbs_tw15750	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw1681	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw17646	m4:build-or-link-failed
+fpc	webtbs_tw22669	m4:build-or-link-failed
+fpc	webtbs_tw22936	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw23436	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw24318	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw2780	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw29930	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw30889	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw3174	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw3324	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw33635	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw35136	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw3572	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw3683	m4:build-or-link-failed
+fpc	webtbs_tw3694	m4:build-or-link-failed
+fpc	webtbs_tw37301	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw37393	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw37427	m4:build-or-link-failed
+fpc	webtbs_tw37823	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw38353	m4:build-or-link-failed
+fpc	webtbs_tw38717	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw39464	m4:build-or-link-failed
+fpc	webtbs_tw40108	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw4763	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw4898	m3:output-differs-from-ref m4:output-differs-from-ref
+fpc	webtbs_tw7372	m4:build-or-link-failed
+fpc	webtbs_tw8191	m3:output-differs-from-ref m4:build-or-link-failed
