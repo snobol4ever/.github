@@ -8,19 +8,19 @@ One row per suite — our seven masters and every vendored package suite alike �
 |---|---|---|---|---|---|
 | 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 103/126 (09-07, `ecbeabbca`) | +45 | → 2026-09-08 |
 | 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 72/120 (09-06, `e1c74e259`) | +17 | → 2026-09-12 |
-| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 134/180 (09-07, `ef4801066`) | +71 | → 2026-09-13 |
+| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 98/180 (09-07, `ef4801066`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 2/2 (09-07, `021113a24`) | +2 | ✅ done |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-06, `cell-09-06`) | +0 | ✅ done |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 47/90 (09-06, `91a036d1-cell`) | +8 | → 2026-10-14 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 44/91 (09-06, `7817a5083`) | +10 | → 2026-10-09 |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 63/89 (09-07, `ef4801066`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `ac9fe5e9f-dirty`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 388/445 (09-06, `cd4613256`) | +127 | → 2026-09-07 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-20 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-06, `2a1e4cdfa`) | +5 | ✅ done |
 | 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 116/181 (09-06, `6ba558ce7`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
 | 📜 PAT (pat) | pascal | 298/427 (09-04) | 292/427 (09-06, `6ba558ce7`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
 | 🦋 Roast (roast) | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) | +1 | → 2034-09-28 |
-| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1858/1858 (09-07, `ef4801066`) | n/c | ✅ done |
+| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1858/1858 (09-07, `ac9fe5e9f`) | n/c | ✅ done |
 | 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 697/702 (09-07, `ac9fe5e9f`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
 | 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 518/559 (09-06, `d6f4ead3e`) | +194 | → 2026-09-07 |
 | 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
