@@ -11,7 +11,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/180 (09-07, `345fea6e4`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set) — the first reading predates it, so no movement is computable |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-07, `52de694e0`) | n/c | ✅ done |
-| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 60/90 (09-07, `f0101614c`) | +21 | → 2026-09-18 |
+| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 62/90 (09-07, `19b1f1913`) | +23 | → 2026-09-16 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 53/91 (09-07, `19b1f1913`) | +19 | → 2026-09-23 |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 396/445 (09-07, `52de694e0`) | +135 | → 2026-09-08 |
