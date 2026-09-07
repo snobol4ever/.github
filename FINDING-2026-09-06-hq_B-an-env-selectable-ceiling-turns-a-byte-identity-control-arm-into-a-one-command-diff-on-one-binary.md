@@ -3,6 +3,34 @@
 **hq_B · 2026-09-06 · OCTET · row `icon-generator-host-carve-sums-the-whole-component-and-reserves-66mb-on-jtran-main` (CEO-368, re-ruled CEO-370)**
 **Tree measured: SCRIP `d4eefd1ac`-DIRTY · corpus `1340f33ea` · .github `82c283c1`. Build: incremental `make` (`RT_OPT=-O0`).**
 
+## ⛔⭐ CORRECTION, SAME DAY — LON REFUSED THE CURE THIS DOCUMENT WAS WRITTEN BESIDE
+
+**Lon, 2026-09-06 20:18 CDT, in-chat to the ceo, verbatim: *"No activations on the heap."*** The frame law
+stands unamended (`RULES.md` § BB FRAME-PLACEMENT CRITERION, Lon 2026-08-27): activation frames live on the
+machine stack, no frame store may replace the deleted island, only genuine escapers go to the heap.
+**`carve-small-allocate-big` is REFUSED as a landing** — the block is activation storage and does not go on
+the heap *whatever frees it*, so neither the cto's explicit release nor hq_B's shadow stack rescues it.
+CEO-370 and CEO-371 authorising it are **RETRACTED**; hq_U's objection was correct and stands as the
+co-sign refusal it was. **Everything below describing that cure as landing or authorised is superseded by
+this banner.** The cure is now, on the stack: per-**activation**, per-**path** carving of what a host
+actually enters (never the worst-case transitive sum charged per call site), on the RSP spine or in the RBP
+activation frame per the criterion; the sanctioned loud rc-refusal cap as the floor for anything still over
+a ceiling after that; co-expression stacks sized to the snapshot.
+
+⭐ **WHAT SURVIVES UNCHANGED, and it is why this document is corrected rather than deleted** — Lon's ruling
+keeps all of it as the control arm: the **bimodal census**, the **43-of-46 byte-identity** arm, the
+**env-selectable-ceiling technique** that made it a one-command diff, and the DONE-WHEN (jtran rc=0 with
+`icon_parser` and `icon_recognizer` still matching `icont`). None of those depended on where the block
+lived. ⛔ And one thing that is NOT contradicted: the measurement that killed the size-keyed compile-time
+refusal was taken against the **old inflated per-call-site sums**. Once per-path sizing lands, the
+over-ceiling population is a different set — so the cap returning as the floor is not a reversal of that
+finding, it is the same finding applied after the sizing is fixed. Do not cite it either way without
+re-censusing the distribution.
+
+⛔ The **GC hazard** below is now moot for the landed shape (stack storage is scanned by the `cons_stack`
+arm, which is the whole point of the law) — it is kept as the measured reason the heap shape was expensive,
+not as a live instruction.
+
 ## The claim
 
 When a cure is gated on a **threshold**, make the threshold **env-selectable**, and the "you changed
@@ -94,18 +122,22 @@ for a bump arena; the cto's landed shape uses `calloc` + `rt_gc_root_range_add`/
 
 ## Provenance
 
-Design and DONE-WHEN: hq_B. ⚠️ **The cure is BEING landed by the cto** (CEO-370) and, as of this
-document, is **NOT yet on `origin/main`** — checked, tip `581bc501a`; do not read this FINDING as a
-landing receipt, and take the cto's own receipt for that. Their shape releases the block on every exit
-path — the letter of condition (b) — and additionally cures the co-expression birth face (a fresh block
-per birth, the create snapshot otherwise sharing one slice). hq_B's own build met (b) only in spirit, via
-a lazy shadow stack, and was **not** landed for that reason; it is preserved as a patch, not pushed, so
-two shapes of one cure never race on the same files. The env var name is shared verbatim across both
-shapes, so this document's procedure applies to whichever lands.
+Design and DONE-WHEN: hq_B. ⛔ **NEITHER SHAPE LANDED.** The cto's explicit-release shape and hq_B's
+lazy-shadow-stack shape were both heap blocks, and Lon refused the class outright (see the banner). Neither
+was ever pushed to `origin/main`; the cto's branch is kept for its **measurements** and its **co-expression
+face** (fresh block per birth — the create snapshot otherwise shares one slice), and the block itself is
+deleted from it before anything lands. hq_B's build is preserved as a patch only.
 
-⛔ **Two clauses of CEO-370 are owed by the landing, not by this document:** (b) is met by the cto's
-explicit release, with one **named** gap — a host nested inside a co-expression destroyed via
-`9cfdc2b8a`'s longjmp exit skips the release; and (c) **hq_U has not co-signed** the frame-model change.
+⭐ **The one piece of hq_B's refused shape the ceo adopted before Lon's ruling, recorded because the reason
+outlives it:** the reclaim-on-push sweep keyed on owner rsp, as a **backstop** under explicit release, for
+the case an explicit release provably cannot cover — a host nested inside a co-expression destroyed via
+`9cfdc2b8a`'s longjmp exit, which bypasses every epilogue. Any stack shape has the same hole and needs the
+same answer; unwinding is what fills it on the stack.
+
+⛔ **hq_U never co-signed**, and that is the load-bearing fact of this row, not a procedural footnote. The
+co-sign requirement (CEO-359 / SHARED-NODE VERDICT SCOPE) is what caught this: two seats and the ceo had
+converged on a cure that a third seat recognised as a frame-law violation on sight. A design reviewed only
+by the people building it passes.
 
 ⭐ **The next defect is already located and is NOT this one** (cto, measured under gdb): with the carve
 bounded, the 17-module `jtran` symbolic stage still dies *inside* the block — the 63-slot cycle cut sizes
