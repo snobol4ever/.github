@@ -24,7 +24,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 697/702 (09-06, `e6da551b9`) | +55 | 🆕 one reading |
 | 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 518/559 (09-06, `d6f4ead3e`) | +194 | → 2026-09-06 |
 | 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
-| 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 620/762 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
+| 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 656/820 (09-06, `6433a618d`) | +36 | → 2026-09-19 |
 | 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 176/206 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
 | 🧩 RebM (reb-master) | rebus | 15/48 (09-03) | 15/48 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
 
