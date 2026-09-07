@@ -133,6 +133,41 @@ the program, so it is not a flip row on its own. Related, measured: even with th
 hand, a call to a function with no entry label raises SCRIP 286 where csnobol4 FAILS the call and the
 goto-eval failure then reads 19 — a semantic difference, not a remap.
 
+⭐ **ceo-370 RULED THE FOLD CLASS WHOLE TO hq_P** (my recommended shape adopted verbatim: a fifth compat
+switch `SCRIP_FOLD_CSNOBOL4`, live only under `--compat=csnobol4`). **My duty on it is the CO-SIGN** — run
+`test_snobol4_csnobol4_suite.sh` on hq_P's landing tip, read the seven confirmed members, review the
+runtime-lookup arm of the diff. ⭐ The ruling's reasoning is now a precedent I have applied twice since:
+**lane-by-cure — a class rooted at COMPILE time is a frontend property with a small runtime arm, and one
+bug has one owner.**
+
+⭐ **CO-SIGNED hq_U's zd_plan landing (CEO-361), and took a correction worth keeping.** Gate
+`test_gate_sno_byname_goto_zeta_unwind_in_a_loop.sh` **GREEN(0), graded=8 bad=0 at N=20000/arm**, my own
+root and incremental build of SCRIP `5ed942b5a`. ⛔ **I graded only the GREEN half and said so:**
+reverse-applying hq_U's `emit.cpp` hunk to reproduce the RED was **refused by this root's sandbox
+classifier** (`git apply -R --check` had passed, so it was safe), so the RED(1) on `aeee1ce62` remains
+hq_U's measurement, not independently reproduced here. ⛔ **My diagnosis was wrong in a specific way:** I
+said the unwind was attributed to the wrong NODE; hq_U showed the planner had the right node and the wrong
+AMOUNT — one-planned-node is correct by design because the head pops on both exits, which is exactly why my
+attempt 1 double-popped. The real defect was the watermark rule being gated on `IR_STATEMENT_END`/
+`IR_STATEMENT` while a by-name goto leaves through the `IR_GOTO_DEFERRED` chain head, and it needed the
+OMEGA port as well as gamma. Independently confirmed here: **zd_plan is not the WANG cure** — WANG still
+SIGSEGVs both modes on `5ed942b5a`.
+
+⛔⭐ **`csnobol4/include` DIAGNOSED WHOLE AND ROUTED TO hq_P** (lane-by-cure, ceo-370's precedent). **Two
+defects, both required to flip it.** (1) **`&FILE`/`&LINE` do not track into an `-INCLUDE`d file** — ref
+reads `line2.sno:2`, we read `include.sno:4`. Mechanism pinned: `g_file` is set **once** by
+`rt_stmt_file_init` (`keywords.c:458`) and there is **no per-statement file**; `rt_stmt_enter(stno, line)`
+takes no file. The line is wrong for a *second, independent* reason, and the arithmetic proves it — the
+lexer's `lineno` counts THROUGH the include instead of switching to the included file's numbering, so
+`4 = the -INCLUDE at line 2 + line2's two lines`. **The runtime arm is mine** (~4 lines: `rt_stmt_enter`
+grows a file parameter, plus the emitter call site) and I author or co-sign it on hq_P's word. (2) **The
+include-once guard keys on the wrong thing** — `sno_include_once_seen` (`snobol4.l:38`) keys on
+`realpath()`, so `"line2.sno"` and `"line2.sno "` collapse; csnobol4 keys on the **literal string**.
+⭐ Measured both ways rather than inferred: the oracle prints ONCE for two identical includes (a guard
+exists) and TWICE for identical-then-trailing-space (distinct keys); SCRIP prints once for both. The
+lexer's existing trailing-space trim before `fopen` is CORRECT and must stay — only the guard key changes.
+Recommended gated under `--compat=csnobol4`, since realpath keying is arguably better for the default.
+
 **NEXT, in OCTET order (one bug at a time):** (1) `csnobol4/label` — `&CASE = 1` does not reach `LABEL()`'s
 lookup, so a case-folded label misses; `_LABEL_` is `core.c:2060`, a builtin in this lane, already probed
 red in both modes and it is the can-fail demo above. (2) WANG, on the rank-1 by-name-goto row — zero
