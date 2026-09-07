@@ -1,4 +1,5 @@
 # ⛔⭐⭐⭐⭐ GOAL-HQ-BEAUTIFY — HEADQUARTERS FOR **CLARITY**
+**MODEL:** Claude Fable 5.1 — Lon 2026-09-06 20:4x CDT, in-chat to ceo, verbatim: *"I set B, C, and U to Fable 5.1."* (GOAL-CEO CEO-376; routed by the ceo the same hour). Before that, the seat ran Claude Opus. ⚠️ The harness of the session that recorded this line reported its own model as `claude-opus-5`; the org record is Lon's word, and the discrepancy is stated here so it is visible rather than silent.
 
 **MODEL: Claude Fable 5.1 since 2026-09-06 20:4x CDT (Lon, in-chat to ceo, verbatim: *"I set B, C, and U to Fable 5.1."*; GOAL-CEO CEO-376) — the ceo named hq_B, hq_C and hq_U as the three HQs carrying the hardest problems (CEO-375); the mandate, the lane and the row in hand are unchanged.**
 
