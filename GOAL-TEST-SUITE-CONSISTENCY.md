@@ -64,11 +64,16 @@ sensitive`), and a row wired to a number that moves without the code moving manu
 table Lon reads. ⛔ The ceo answered that rather than overruling it: **"a mode whose count varies run to run is a
 DEFECT ROW in that lane — a nondeterministic compile is the xfail shape with a runner's excuse in front of it —
 never a reason to publish the steadier mode."** The wobble now lands on the row that owns it instead of being
-routed around by the choice of arm. ⚠️⛔ **AND THAT ROW IS FILED DONE WHILE THE DEFECT IS LIVE — measured, not
-assumed:** `pascal-m4-intermittent-segv-layout-sensitive` sits in `QUEUE.done.tsv` at rank 1, unassigned, `FREE`,
-and is **absent from `QUEUE.tsv` entirely**, while its defect is in tonight's board (fpc m3 130 vs m4 116). So the
-ruling routes the wobble to a row nothing is holding. Asked to the ceo (reopen it, or name the row the two Pascal
-runners should cite) and told to hq_V, whose lane it is; recorded in both runner comments beside the citation.
+routed around by the choice of arm. ✅ **AND THAT ROW IS LIVE AGAIN — reopened by the ceo at 21:05
+(CEO-379, .github `3879c3d3`): rank 0, assignee hq_V, `FREE`.** It had been filed in `QUEUE.done.tsv`, unassigned
+and absent from `QUEUE.tsv`, while its defect was in that night's board (fpc m3 130 vs m4 116) — measured, not
+assumed, and asked up rather than reopened from this lane. ⭐⭐ **THE ceo's REASON IS THE PART WORTH KEEPING, and it
+is a NEW WAY FOR A CRITERION TO LIE — from the CLOSING side.** The row's DONE-WHEN graded the *gate's* population
+and was honestly met there, while the *class* it names lives on the fpc suite's population: **one member cured, the
+class red, the row closed.** That is shape 2 (a denominator narrower than the blast radius) turned around — there it
+lets a change through, here it lets a *row* out — and it is invisible for the same reason: the criterion did exactly
+what it said. ⛔ **So a DONE-WHEN met on a narrower population than the class its topic names has not closed that
+class**, and hq_V now re-scopes it (five suite runs on one clean tree must read ONE m4 count) and proves it red once.
 ⭐ **The reason this was checked at all is shape 5's own discipline one level up: a comment that cites a row as
 live is a PREMISE, and this file's shape 4 says the mechanism can be perfect while the input is false.** ⭐ Note the shape of the near-miss: two seats rewiring one line in opposite
 directions within an hour, each with a correct local reason, is what a **missing ruling** looks like from the
