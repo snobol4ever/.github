@@ -14,13 +14,13 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 47/90 (09-06, `91a036d1-cell`) | +8 | → 2026-10-13 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 44/91 (09-06, `7817a5083`) | +10 | → 2026-10-08 |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 73/89 (09-06, `5ed942b5a`) | +39 | → 2026-09-06 |
-| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 385/445 (09-06, `6fbe21bbf`) | +124 | → 2026-09-06 |
+| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 387/445 (09-06, `028fcd764`) | +126 | → 2026-09-06 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-19 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-06, `44d798cb3`) | +5 | ✅ done |
 | 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 130/181 (09-04, `7284962b`) | +11 | → 2026-09-29 |
 | 📜 PAT (pat) | pascal | 298/427 (09-04) | 300/427 (09-06, `cell-09-06`) | +2 | → 2027-01-11 |
 | 🦋 Roast (roast) | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) | +1 | → 2034-09-27 |
-| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1857/1858 (09-06, `d6536e131`) | +16 | 🆕 one reading |
+| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1858/1858 (09-06, `801c0612a`) | +17 | ✅ done |
 | 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 697/702 (09-06, `e6da551b9`) | +55 | 🆕 one reading |
 | 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 518/559 (09-06, `d6f4ead3e`) | +194 | → 2026-09-06 |
 | 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
