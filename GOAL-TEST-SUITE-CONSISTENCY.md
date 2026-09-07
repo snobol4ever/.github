@@ -36,6 +36,42 @@
 
 **2026-09-05 (hq_T, QUARTET — the census hq_B asked for, and hq_B's rule into the standard):** ⭐ **TWO GUARDS WERE BLIND, IN TOOLS THAT SHARE NO CODE, FOR THE SAME REASON: THEIR EVIDENCE WAS OUT OF REACH.** (1) `find_grid` never got the missing `else` its twin `find_table` was given on 2026-09-04, so a malformed `SCORE.md` grid row vanished silently and `test_gate_score_tables_agree.sh` went **RED → `GATE PASS(0)`** on hq_B's edit — reproduced here, cured, and floored: both score gates now REFUSE rc=2 on a zero population, and three arms in `test_gate_score_row_rewrites_in_place.sh` keep it (18 arms, blocking). (2) The harness's ast-graded-by-execution guard read a **sibling `ALL.csv`**, so it was blind on every runner that grades an **extracted family in a tempdir** — measured both ways on pascal's 5 `modes=ast` entries: in place `rc=2 REFUSING`, extracted `rc=1 total=5 m3_fail=5 m4_fail=5`, **and all five PASS when graded by the instrument they declare**. `extract-family` now carries a `.modes` sidecar as it already carries `.in`/`.xfail`; `test_gate_modes_declaration_travels.sh` (15 arms, all 7 languages, ~8s) is **wired into `make test` blocking**, fail-once proven 8 → 0. Call-site census: **63 grading call sites, 6 pass `--by-modes-column`, 8 grade an extraction and none of the 8 passed it.** Full evidence: `FINDING-2026-09-05-hq_T-a-check-that-cannot-see-its-subject-says-nothing-and-nothing-reads-as-a-pass.md`.
 
+**2026-09-06 ~21:0x-22:0x (hq_T, OCTET — `ceo-372` landed, point 7):** ⛔⭐⭐ **A SUITE ROW STATES THE AND PER
+PROGRAM — the programs green in EVERY graded mode.** Lon's ceo ruled it on hq_T's ask: *"a program red in m3 and
+another red in m4 both count against the row; never m3 alone, never m4 alone, never the min of two counts (which
+hides a program red in each)."* All four declaring runners are rewired (SCRIP `c18cb9811`): `test_corpus_snobol4.sh`
+(was `PASS3`, m3) · `board_icon_master.sh` (was `m4p`) · `test_pascal_fpc_suite.sh` (**130/181 → 116/181**) ·
+`test_pascal_pat_suite.sh` (**300/427 → 286/427**). ⛔ **THOSE DROPS ARE A CRITERION CHANGE, NOT A REGRESSION** —
+nothing got worse between the run before and the run after; the rows began counting what a suite row has always
+claimed to count. The cell keeps the per-mode counts beside the number, and the terminal summaries print it too.
+
+⭐ **THE AND CANNOT BE RECOVERED FROM A BOARD LINE, AND THAT IS WHY THE ROWS PUBLISHED ONE ARM FOR MONTHS.** It is
+a fact about each PROGRAM, and per-mode counts are what is left after the programs are gone: `min(m3_pass, m4_pass)`
+is not a count of any set of programs at all — two entries, one red only in m3 and one red only in m4, give
+`min() = N-1` where the AND is `N-2`. So it is accumulated where both verdicts are in hand: a per-program flag in
+the three shell runners, and a new `all_pass=`/`all_n=` pair on `corpus_suite_harness.py`'s `SUITE_BOARD` for the
+two boards that read their numbers from it. Fields are appended, so every consumer's `key=[0-9]+` parse is
+untouched and `--combine` sums them like any other field. ⛔ **Both board runners REFUSE rc=2 when `all_pass=` is
+absent** rather than folding an empty string as zero — a stale harness or a pre-existing shard checkpoint would
+otherwise publish a short number that reads as a catastrophic regression that never happened.
+
+⚠️ **THE m4-vs-m3 ARGUMENT THIS SETTLES IS WORTH KEEPING, because both sides were right about the other.** The
+Pascal rows were wired to m4 (SUITES.tsv carried m4), then to m3 by hq_V at 20:5x when the coo hand-set the
+published row to the m3 numbers — each rewiring correctly avoiding the phantom regression the *other* would have
+published, and each landing in the hour the other was measured. hq_V's standing reason was real: fpc's m4 is
+run-to-run non-deterministic (five runs, one tree, five pass counts, row `pascal-m4-intermittent-segv-layout-
+sensitive`), and a row wired to a number that moves without the code moving manufactures phantom movement in the
+table Lon reads. ⛔ The ceo answered that rather than overruling it: **"a mode whose count varies run to run is a
+DEFECT ROW in that lane — a nondeterministic compile is the xfail shape with a runner's excuse in front of it —
+never a reason to publish the steadier mode."** The wobble now lands on the row that owns it instead of being
+routed around by the choice of arm. ⭐ Note the shape of the near-miss: two seats rewiring one line in opposite
+directions within an hour, each with a correct local reason, is what a **missing ruling** looks like from the
+inside — neither was wrong, and the row was going to keep flipping until the criterion was named.
+
+**Also this sitting:** shape **5** added to HOW A CRITERION LIES — *the tree stamp is not a binary* — the
+standard the ceo ruled hq_T's to write here. Its discriminator is one line: run the cure's own witness through
+the binary that is about to grade, and show the cured answer.
+
 ## THE STANDARD — what every language has when this is done (the best of each today, made the rule for all)
 
 ⭐⭐⭐ **LON 2026-09-04 11:39 CDT, in-chat to ceo, verbatim (THE TARGET OF THIS PROGRAM, routed the same sitting):** *"When we are done will we have a complete test suite with the ladder of features starting from simple to complex? For instance does Rebus have such a rung ladder? Will all languages get a full test suite with 100's of test cases exercising each feature and several combination of features? That is what we need."* — **RULING (ceo, same sitting):** the standard below is amended so that it DELIVERS that sentence, not a thinner thing: point 1 makes a rung a FAMILY (every form of the construct, then its combinations with the rungs below), and point 8 makes per-feature and per-pair coverage a MEASURED instrument with a floor, because a target nobody prints is a wish. **MEASURED AT THE RULING (corpus `169a93209`):** every master already carries feature columns in `ALL.csv` (snobol4 39 · icon 61 · prolog 39 · raku 39 · pascal 50 · snocone 39 · rebus 39 features), so the census is a script over data that exists, not a new corpus format. SNOBOL4 is the only lane already in Lon's shape: 1736 entries, 18 of 39 features with ≥100 entries, 2 below 10 (`APPLY` 8, `ABORT` 7), 1258 entries exercising two or more features. The gap, master entries and built ladder rungs: icon 731 (rungs 0–35 built, 197 rung witnesses) · raku 859 (rungs 0–9, 720 of the entries are absorbed one-line smoke probes, no `LADDER.tsv` census) · prolog 408 (§ E rungs 0–13, 37 witnesses, no `LADDER.tsv` file — the § E table is the census) · snocone 283 (census 51 construct rows, 10 rung witnesses) · pascal 166 (rungs 0–11 built) · rebus 77 (rungs 0–11 built to the TR 84-9 top, 29 witnesses). Rebus HAS its ladder; what no lane but SNOBOL4 has is the volume per feature and the combinations.
@@ -89,6 +125,40 @@ whether the tool wrote what it was told, none asked whether what it was told was
 of the four, because nothing in the run looks wrong — no red, no refusal, only a green board and a colleague
 thanking you for unblocking them.* **The cure is never "be more careful": make the premise a measurement the tool
 makes.** `pin-ref` now runs the oracle itself and refuses a clean disagreement.
+
+**5. IT NAMED THE TREE AND GRADED A BINARY** (hq_T 2026-09-06, `ceo-372` — the ceo ruled this standard mine to
+write here, as *"the right discriminator"*). ⛔ **A TREE STAMP IS NOT A BINARY.** Every `SCORE.md` row, every
+`gate_stamp`, every receipt names two repo hashes — and a repo hash is a fact about a **checkout**, never about
+the executable that produced the number beside it. The two are joined by an assumption nobody measures: *that
+`make` was run, that it finished, and that it rebuilt the thing the cure is in.* When that assumption is false the
+row is not wrong in any detectable way — it carries a current tree, a plausible board, an honest measurer, and a
+number produced by code that predates the cure.
+
+⛔ **AND THE GUARD WE HAVE IS A CLOCK, NOT A CONTENT PROOF.** `gate_require_fresh` (`lib_gate.sh`) compares
+**mtimes**: the binary must not be older than the newest tracked source. That catches the common case and it is
+worth keeping, but its subject is *when a file was written*, and mtime and content are different facts.
+`git checkout` of a branch whose file content is identical, a `make` that failed after relinking, a cure that
+landed in `libscrip_rt.so` while the graded arm ran `./scrip`, a stale object in a shared objdir — each leaves a
+binary that is *newer than every source* and still does not contain the cure. Shape 1 exactly: the check exits
+zero for a reason unrelated to the thing it names.
+
+⭐ **THE DISCRIMINATOR IS ONE LINE, AND IT IS POSITIVE: RUN THE CURE'S OWN WITNESS THROUGH THE BINARY THAT IS
+ABOUT TO GRADE, AND SHOW THE CURED ANSWER.** Not a hash, not a timestamp, not "I ran make" — a command and its
+output, in the receipt, beside the board:
+
+```
+$ ./scrip --run <the witness the row was opened on>     # the binary that produced the board below
+<the output only the cured binary can print>
+```
+
+⛔ **A RECEIPT THAT NAMES A TREE AND NOT A WITNESS HAS NOT PROVEN THE BINARY CONTAINS THE CURE**, and neither has
+a green board: the board is what is in question. This is the cheapest of all five checks — one program, already
+minted, already the row's DONE-WHEN — and it is the only one whose failure mode is *loud*, because a witness that
+still prints the old answer says so in the one place you are looking.
+
+⭐ The general form, and why it generalises past builds: **provenance answers "what was I standing in", a witness
+answers "what did I actually run"** — and every criterion in this file that lied did so by substituting the first
+question for the second.
 
 ### And more, learned by getting them wrong the same day
 
