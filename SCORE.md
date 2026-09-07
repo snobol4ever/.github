@@ -13,7 +13,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 2/5 (09-07, `345fea6e4`) | n/c | 🔀 criterion changed (ceo-372-and-per-program-hang-is-not-pass) — the first reading predates it, so no movement is computable |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 47/90 (09-06, `91a036d1-cell`) | +8 | → 2026-10-14 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 49/91 (09-07, `1e8b5e951`) | +15 | → 2026-09-29 |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `1e8b5e951`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `525a20323`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 388/445 (09-06, `cd4613256`) | +127 | → 2026-09-07 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-20 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-06, `2a1e4cdfa`) | +5 | ✅ done |
