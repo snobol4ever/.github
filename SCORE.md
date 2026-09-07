@@ -6,7 +6,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 
 | suite | lang | first graded reading | today | moved | at today's rate |
 |---|---|---|---|---|---|
-| 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 104/127 (09-07, `2a01165f6`) | +46 | → 2026-09-08 |
+| 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 104/127 (09-07, `3c61eaae8`) | +46 | → 2026-09-08 |
 | 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 72/120 (09-06, `e1c74e259`) | +17 | → 2026-09-12 |
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/180 (09-07, `345fea6e4`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set) — the first reading predates it, so no movement is computable |
