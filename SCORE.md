@@ -9,9 +9,9 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 104/127 (09-07, `2a01165f6`) | +46 | → 2026-09-08 |
 | 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 72/120 (09-06, `e1c74e259`) | +17 | → 2026-09-12 |
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/180 (09-07, `345fea6e4`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
-| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 2/2 (09-07, `021113a24`) | +2 | ✅ done |
+| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `90902d16e`) | n/c | 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set) — the first reading predates it, so no movement is computable |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 2/5 (09-07, `345fea6e4`) | n/c | 🔀 criterion changed (ceo-372-and-per-program-hang-is-not-pass) — the first reading predates it, so no movement is computable |
-| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 52/90 (09-07, `2a01165f6`) | +13 | → 2026-09-30 |
+| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 54/90 (09-07, `90e0d5732`) | +15 | → 2026-09-26 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 49/91 (09-07, `1e8b5e951`) | +15 | → 2026-09-29 |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `525a20323`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 388/445 (09-06, `cd4613256`) | +127 | → 2026-09-07 |
