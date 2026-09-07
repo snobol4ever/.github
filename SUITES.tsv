@@ -2,9 +2,9 @@
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree	criterion_changed
 gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-07	104	126	628d333ba	
 csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-06	72	120	e1c74e259	
-snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-07	98	180	ef4801066	2026-09-07:ceo-383-stream-equal-and-per-program
+snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-07	99	180	345fea6e4	2026-09-07:ceo-383-stream-equal-and-per-program
 aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-07	2	2	021113a24	
-dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-06	5	5	cell-09-06	
+dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-07	2	5	345fea6e4	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
 arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-06	47	90	91a036d1-cell	
 jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-06	44	91	7817a5083	
 ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-07	75	89	ac9fe5e9f-dirty	2026-09-07:ceo-372-and-per-program
