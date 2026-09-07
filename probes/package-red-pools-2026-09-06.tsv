@@ -228,3 +228,10 @@ swi	test_exception	m3:FAIL m4:FAIL
 swi	test_misc	m3:FAIL m4:FAIL
 swi	test_string	m3:FAIL m4:FAIL
 swi	test_term	m3:FAIL m4:FAIL
+gnu	Pl2Wam/compat.pl	m3:REJECT(hang after parse error) m4:REJECT -- hq_C row 621; the last GNU red at 6433a618d
+aisnobol	ATN	m3:UNGRADED m4:UNGRADED -- ORACLE-DIED graceful fatal; row stlimit-...-ais-atn (hq_S); umbrella aisnobol-all-eight-... (hq_S rank 0)
+aisnobol	BUILDLIB	m3:UNGRADED m4:UNGRADED -- ORACLE-DIED; row set-and-tell-...-ais-buildlib (hq_S); umbrella aisnobol-all-eight-... (hq_S rank 0)
+aisnobol	HSORT	m3:UNGRADED m4:UNGRADED -- ORACLE-DIED; no row yet, mint on driver; umbrella aisnobol-all-eight-... (hq_S rank 0)
+aisnobol	KALAH	m3:UNGRADED m4:UNGRADED -- ORACLE-DIED, no m4 reading by construction; no row yet, mint on driver; umbrella aisnobol-all-eight-... (hq_S rank 0)
+aisnobol	SIR	m3:UNGRADED m4:UNGRADED -- UNGRADED missing SNOCORE.sno; row code-and-eval-...-ais-sir-and-test (hq_P); umbrella aisnobol-all-eight-... (hq_S rank 0)
+aisnobol	TEST	m3:UNGRADED m4:UNGRADED -- UNGRADED missing SNOCORE.sno; row code-and-eval-...-ais-sir-and-test (hq_P); umbrella aisnobol-all-eight-... (hq_S rank 0)
