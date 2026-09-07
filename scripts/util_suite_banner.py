@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
-usage: util_suite_banner.py [--plain] [--line] [--md] [--set KEY PASS TOTAL [DATE] [TREE]]
+usage: util_suite_banner.py [--plain] [--line] [--md] [--render] [--set KEY PASS TOTAL [DATE] [TREE]]
   (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the all-suites 100/100 verdict, then 3 columns x 7 rows of cells: nick pass/total left eta emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
   --md       print the markdown table for SCORE.md § THE SUITE TABLE
   --set      rewrite one row's today_* (DATE defaults to the box clock day) and print the banner
+             -- and RE-RENDER SCORE.md § THE SUITE TABLE from the TSV in the same call (coo 2026-09-06, on hq_R's
+             finding that the markdown table was a third home for the number nothing rendered)
+  --render   re-render SCORE.md § THE SUITE TABLE rows from SUITES.tsv, in place; print what changed
 STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 10): a row whose today_date is older than the box-clock day reads U+23F3 in place of its emoji and is counted on the first line; a STALE row is a rank-0 measure pick in its lane.
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
 """
@@ -97,6 +100,28 @@ def md():
         k,e=eta(r,today); mv=int(r['today_pass'])-int(r['first_pass'])
         tail={'DONE':'✅ done','STUCK':'⛔ stuck','NEW':'🆕 one reading'}.get(k, '→ '+e.strftime('%Y-%m-%d') if e else '')
         print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {mv:+d} | {tail} |")
+SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
+def md_lines():
+    import io, contextlib
+    buf=io.StringIO()
+    with contextlib.redirect_stdout(buf): md()
+    return buf.getvalue().rstrip('\n').split('\n')
+def render_table():
+    """Re-render SCORE.md § THE SUITE TABLE (the rows under the '| suite | lang |' header) from SUITES.tsv, in place.
+    Returns a one-line note; never silent, never a guess: a table it cannot find is said NOT rendered."""
+    if not os.path.exists(SCORE):
+        return f"⚠ suite table NOT rendered: {SCORE} missing beside the TSV (SUITES.tsv is set; the markdown table reads STALE until a renderer runs)"
+    L=open(SCORE,encoding='utf-8').read().split('\n')
+    hdr=[i for i,l in enumerate(L) if l.startswith('| suite | lang |')]
+    if len(hdr)!=1:
+        return f"⚠ suite table NOT rendered: {len(hdr)} '| suite | lang |' header(s) in {SCORE}, expected exactly one"
+    st=hdr[0]; en=st
+    while en<len(L) and L[en].startswith('|'): en+=1
+    new=md_lines(); old=L[st:en]
+    changed=sum(1 for a,b in zip(old,new) if a!=b)+abs(len(old)-len(new))
+    if changed==0: return "suite table: SCORE.md § THE SUITE TABLE already matches SUITES.tsv (0 rows changed)"
+    L[st:en]=new; open(SCORE,'w',encoding='utf-8').write('\n'.join(L))
+    return f"suite table: SCORE.md § THE SUITE TABLE re-rendered from SUITES.tsv in the same call ({changed} row(s) changed)"
 def main(a):
     if '--set' in a:
         i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else dt.date.today().isoformat(); tree=a[i+5] if len(a)>i+5 else None
@@ -105,6 +130,8 @@ def main(a):
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
         if tree: r['tree']=tree
         save(head,rows)
+        print(render_table())
+    if '--render' in a: print(render_table()); return
     if '--md' in a: md()
     else: banner('--plain' in a, grid='--line' not in a)
 main(sys.argv[1:])
