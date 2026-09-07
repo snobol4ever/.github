@@ -11,6 +11,7 @@ usage: util_suite_banner.py [--plain] [--line] [--md] [--render] [--set KEY PASS
   --render   re-render SCORE.md § THE SUITE TABLE rows from SUITES.tsv, in place; print what changed
 STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 10): a row whose today_date is older than the box-clock day reads U+23F3 in place of its emoji and is counted on the first line; a STALE row is a rank-0 measure pick in its lane.
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
+CRITERION rule (hq_T 2026-09-06, on hq_V's report, after ceo-372): a row may carry criterion_changed = <YYYY-MM-DD>:<slug>. When its first_date PREDATES that day the two readings were taken under different criteria, so their difference is not a movement: `moved` reads n/c, the row reads RECRIT rather than STUCK, and it is excluded from the stuck verdict. Self-clearing -- it stops firing once a first reading under the current criterion exists. ⛔ Never re-baseline first_* to silence it: a first reading re-measured under a new criterion would have to be invented, since the trees it was taken on are gone.
 """
 import sys, os, datetime as dt, unicodedata as _ud
 def dw(s):
@@ -60,23 +61,54 @@ def save(head,rows):
     for r in rows: lines.append('\t'.join(r[h] for h in head)+'\n')
     open(TSV,'w',encoding='utf-8').write(''.join(lines))
 def d(s): return dt.date.fromisoformat(s)
+def recriterioned(r):
+    """The row's first reading was taken under a DIFFERENT criterion than today's, so today_pass
+    and first_pass are not two readings of one thing and their difference is not a movement.
+
+    ⛔⭐ WHY A MARKER AND NOT A RE-BASELINE (hq_T 2026-09-06, on hq_V's report; ceo-372 is the first
+    criterion change to hit this table). When ceo-372 moved four suite rows from a single mode to the
+    AND per program, this column began subtracting a PRE-CRITERION number from a POST-CRITERION one:
+    PAT rendered -6 in a sitting it moved FORWARD six programs, and FPC -3, and because eta() reads
+    rate<=0 as STUCK both rows put a false stuck marker into the headline verdict Lon reads.
+    ⭐ hq_V found it and deliberately did NOT re-baseline the two rows they own, on the grounds that a
+    seat quietly re-cutting the baseline of its own rows to make its own lane look better is the exact
+    shape nobody could audit later. That judgement is why this is a marker: the honest alternative --
+    a first reading re-measured under the new criterion -- would mean re-running trees that no longer
+    exist, so it could only ever be invented. ⛔ A COMPARISON ACROSS TWO CRITERIA IS NOT A MEASUREMENT,
+    and the cure for a number that cannot be computed is to say so, never to print a plausible one.
+    The marker is SELF-CLEARING: it stops firing the day a first reading under the current criterion
+    is recorded, so nothing has to remember to remove it."""
+    mark=(r.get('criterion_changed') or '').strip()
+    if not mark: return ''
+    when=mark.split(':',1)[0]
+    # ⛔ STRICTLY AFTER, because dates here are DAYS and a criterion can change mid-day: a first reading
+    # stamped the SAME day as the change cannot be placed on either side of it. Treating it as pre-criterion
+    # is the conservative arm -- it prints "not computable" for a reading that might have been comparable,
+    # rather than printing a movement for one that certainly is not. Self-clearing the next day either way.
+    try:
+        if d(r['first_date']) > d(when): return ''
+    except ValueError:
+        return ''
+    return mark
 def eta(r,today):
     fp,ft,tp,tt=int(r['first_pass']),int(r['first_total']),int(r['today_pass']),int(r['today_total'])
     rem=tt-tp
     if rem<=0: return 'DONE',None
+    if recriterioned(r): return 'RECRIT',None
     days=(d(r['today_date'])-d(r['first_date'])).days
     if days<=0: return 'NEW',None
     rate=(tp-fp)/days
     if rate<=0: return 'STUCK',None
     return 'ETA', today+dt.timedelta(days=rem/rate)
 def banner(plain=False, grid=True, ncol=3):
-    head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]
+    head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]; recrit=[]
     for r in rows:
         k,e=eta(r,today); frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
         if (today-d(r['today_date'])).days>=1: stale.append(r['nick'])
         if k=='DONE': col=G; tail='✅ done'; done+=1
         elif k=='STUCK': col=R; tail='⛔ stuck'; stuck.append(r['nick'])
         elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
+        elif k=='RECRIT': col=C; tail='🔀 n/c'; recrit.append(r['nick'])
         else:
             col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
         mark='⏳' if r['nick'] in stale else r['emoji']
@@ -85,6 +117,7 @@ def banner(plain=False, grid=True, ncol=3):
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
     if stuck: verdict=f"ALL {n} SUITES 100/100: NOT ON THE CURVE — {len(stuck)} stuck ({', '.join(stuck)})"; vc=R
+    elif recrit: verdict=f"ALL {n} SUITES 100/100: {len(recrit)} row(s) re-criterioned, no comparable baseline ({', '.join(recrit)})"; vc=C
     elif new: verdict=f"ALL {n} SUITES 100/100: unknown — {len(new)} suites have one reading"; vc=C
     elif worst: verdict=f"ALL {n} SUITES 100/100 → {worst.strftime('%Y-%m-%d')} at today's rates"; vc=G
     else: verdict=f"ALL {n} SUITES 100/100: DONE"; vc=G
@@ -97,9 +130,13 @@ def md():
     head,rows=load(); today=dt.date.today()
     print('| suite | lang | first graded reading | today | moved | at today\'s rate |'); print('|---|---|---|---|---|---|')
     for r in rows:
-        k,e=eta(r,today); mv=int(r['today_pass'])-int(r['first_pass'])
-        tail={'DONE':'✅ done','STUCK':'⛔ stuck','NEW':'🆕 one reading'}.get(k, '→ '+e.strftime('%Y-%m-%d') if e else '')
-        print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {mv:+d} | {tail} |")
+        k,e=eta(r,today)
+        rc=recriterioned(r)
+        mv=('n/c' if rc else f"{int(r['today_pass'])-int(r['first_pass']):+d}")
+        tail={'DONE':'✅ done','STUCK':'⛔ stuck','NEW':'🆕 one reading',
+              'RECRIT':'🔀 criterion changed ('+rc.split(':',1)[-1]+') — the first reading predates it, so no movement is computable'}.get(
+              k, '→ '+e.strftime('%Y-%m-%d') if e else '')
+        print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {mv} | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
     import io, contextlib
