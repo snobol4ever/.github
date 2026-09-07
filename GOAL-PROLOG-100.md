@@ -116,6 +116,8 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ## ⭐⭐ LIVE CURSOR — 2026-09-06 seat10 (FLEET-12, hq_R lane) — **$ax_eguard: arithmetic-evaluation exceptions (is/2 + all six comparisons) are now catchable by catch/3**
 
+- **ceo `ceo-370` (2026-09-06 19:38 CDT):** the three INRIA `functor-bis` cells whose percent-comment contradicts their machine-readable expectation (hq_R FINDING 2026-09-06; SCRIP correct on all three, one is the ISO `'.'/2` vs SWI `'[|]'` split) are graded on ISO/IEC 13211-1 through a NAMED `OUTCOME_ERRATA` sibling of `KNOWN_SUITE_ERRATA` in `test_prolog_inria_suite.sh`, printed beside the PASS count as ISO-graded errata; the vendored file is never edited; the denominator stays the printed 445 — row `inria-three-functor-bis-cells-graded-on-iso-through-a-named-outcome-erratum-sibling-of-known-suite-errata`, hq_R rank 1, hq_T co-signs. 445/445 is reachable.
+
 Row `prolog-inria-arithmetic-errors-escape-catch3` (hq_R dispatch, minted by seat05 2026-09-04, re-laned
 hq_C→hq_R 2026-09-05). SCRIP `79c3738cc`, corpus `ef068af9f`. ROOT CAUSE: `pl_iso_evaluable()` /
 `rt_pl_iso_throw_*()` (`by_name_dispatch.c`) raised `type_error(evaluable,...)` and `instantiation_error` via
