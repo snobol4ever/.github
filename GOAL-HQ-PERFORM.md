@@ -29,7 +29,23 @@ Verbatim in substance: *"You are the only one working. There is no FLEET."* and,
 the word as if it were an action. **A delegate-only rule presumes a fleet to delegate to; there isn't one. HQ does the
 work itself now.**
 
-### ⭐⭐⭐ LIVE CURSOR — 2026-09-06 evening (hq_P, **MODE `OCTET`**, computed from `/home/resources/postoffice/MODE`, never from this file's prose). **THE BUG WAS ONE MISSING `case` LABEL, AND THE BOX IT DISABLED WAS EMITTED, CORRECT, AND UNREACHABLE**
+### ⭐⭐⭐ LIVE CURSOR — 2026-09-06 late evening (hq_P, **MODE `OCTET`**, computed from `/home/resources/postoffice/MODE`). **THE SNOBOL4 MASTER IS FAIL=0 IN BOTH MODES — THE LAST RED WAS A KEYWORD WITH NO WRITE SITE AT ALL**
+
+**Row `conform-fnclevel-not-tracked` — CLOSED** (`done` computed it; DONE-WHEN repaired from a dead path, runnable, proven green + refusing + red). Cure SCRIP `801c0612a`.
+
+⭐⭐ **`m3 1858/1858 FAIL=0 · m4 1858/1858 FAIL=0 SKIP=0`.** `user_function_keyword_branch_3` was the single FAIL the master carried all day and the standing red every shared-node landing in the fleet was declaring as tolerated under CEO-359 — so **the control-arm bar for every lane degrades back to plain FAIL=0**. SNOBOL4 ladder 188/188 (was 186/188; both reds were this one witness, one per mode). ⛔ Read the denominator with the numerator: 1842 → 1858 on upstream growth while FAIL went 1 → 0.
+
+⭐ **`&FNCLEVEL` had NO WRITE SITE EMITTED AT ALL** — not a bypassed one. The baton's located cause (tiny-shim bypass) was for the wrong mechanism and `SCRIP_NO_TINY=1` refuted it in one command; the gdb evidence behind it was true and stayed true, but a watchpoint that never fires cannot tell *"the writer exists and this path bypasses it"* from *"no writer is emitted"*. An asm grep decided it: six `kw_fnclevel` occurrences in a five-DEFINE witness, **all six reads**, `rt_k_level_p` zero times. Cured by wiring the enter/leave pair into the **role-4 SIG shim** at three sites including **omega** — the TRACE row's tap is gamma-only by choice, and for a depth counter an unbalanced exit is a permanent leak.
+
+⛔ **THE COST IS MINE TO STATE AND I DID NOT HIDE IT: +20.9 Ir per program-defined call** — `0.9917x` pure calls, `0.9851x` func_call, `0.9910x` arith_loop, **`0.9615x` fib_recur**, plus a one-time ~214k Ir per `DEFINE` of compile-time emitter work at `-O0`. Two terms, reconciled across all four benchmarks rather than fitted to one. **The zero-cost gate needs a NEW FILE-SCOPE GLOBAL, so it is Lon's grant, not mine to take** — asked (`q-fnclevel-zero-cost-gate-needs-a-new-global-and-two-instrument-notes`). I landed correct-but-taxed rather than ship a silent regression or a forbidden global.
+
+**ALSO CLOSED THIS SITTING — row `flip-gimpel-RWORD`** (SCRIP `b5313ff2d`): `IR_MATCH_BREAKX` was the only pattern box missing from `zdp_seam_tier()`, so its blob's β port jumped to ω and the box's own β arm sat in the blob as dead code. Gimpel **96/126 → 97/126** both modes. FINDING `.github ebeae400`.
+
+⚠️ **NAMED, NOT FIXED, NOT MINE:** the gimpel runner appends only its PASSES to the progress database (FINDING `71104498`) · the snobol4 SCORE provenance carries nine duplicated keys, of which `merge_prov` can only ever rewrite the first · SCRIP does not raise `ERROR 243` for a non-name `NRETURN` result where SPITBOL does and halts.
+
+**NEXT IN THIS LANE, as the ceo ranked it:** the **csnobol4 case-folding class** (ceo-370, rank 1, seven-member floor, a fifth `--compat=csnobol4` switch) · `snobol4-code-and-eval-outside-the-lowering-subset-blocks-ais-sir-and-test` (ceo-370, CODE/EVAL is compiler-side) · the csnobol4 `-INCLUDE` `&FILE`/`&LINE` class routed by hq_S fully diagnosed, whose guard-key question I answer by measuring `sbl -bf` rather than by taste · **Pascal is reopened** (Lon 19:5x) and my 44 FREE Pascal rows rank below the SNOBOL4 bugs. ⛔ Flips to **coo**, asks to **ceo**.
+
+### ⭐⭐⭐ LIVE CURSOR (SUPERSEDED) — 2026-09-06 evening (hq_P, **MODE `OCTET`**, computed from `/home/resources/postoffice/MODE`, never from this file's prose). **THE BUG WAS ONE MISSING `case` LABEL, AND THE BOX IT DISABLED WAS EMITTED, CORRECT, AND UNREACHABLE**
 
 **Row `flip-gimpel-RWORD` — CLOSED** (`s4e_msg.sh done` computed it; the DONE-WHEN was hoisted to column 0, is runnable, and was proven able to FAIL against the known-red sibling `LINEARIZ_driver`). Cure SCRIP `b5313ff2d`, one line at `src/ir/zeta_depth.c:21`.
 
