@@ -10,7 +10,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 72/120 (09-06, `e1c74e259`) | +17 | → 2026-09-12 |
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/180 (09-07, `345fea6e4`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `90902d16e`) | n/c | 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set) — the first reading predates it, so no movement is computable |
-| 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 2/5 (09-07, `345fea6e4`) | n/c | 🔀 criterion changed (ceo-372-and-per-program-hang-is-not-pass) — the first reading predates it, so no movement is computable |
+| 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-07, `52de694e0`) | n/c | ✅ done |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 54/90 (09-07, `90e0d5732`) | +15 | → 2026-09-26 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 49/91 (09-07, `1e8b5e951`) | +15 | → 2026-09-29 |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `525a20323`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
