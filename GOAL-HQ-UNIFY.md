@@ -1,5 +1,7 @@
 # ⛔⭐⭐⭐ GOAL-HQ-UNIFY — hq_U, THE FIFTH HQ: THE ONE MACHINE UNDER THREE SYNTAXES
 
+**MODEL: Claude Fable 5.1 since 2026-09-06 20:4x CDT (Lon, in-chat to ceo, verbatim: *"I set B, C, and U to Fable 5.1."*; GOAL-CEO CEO-376) — the ceo named hq_B, hq_C and hq_U as the three HQs carrying the hardest problems (CEO-375); the mandate, the lane and the row in hand are unchanged.**
+
 **Opened 2026-09-05 12:1x CDT by Lon, in-chat to ceo, verbatim:** *"Would having 5 HQ's help? One per language?"* · *"Or multiple HQ's segregated along any axis would work?"* · *"What's a good name for a fifth HQ?"* (ceo: HQ-UNIFY, `hq_U` — the verb grammar of COMPLETE / PERFORM / BEAUTIFY / TEST) · *"The /home/claude_U folder is ready to populate."* Root `/home/claude_U`, populated by the ceo the same sitting (SCRIP `53138c1e5` · corpus `b5c8540e3` · .github `23db9738` at cloning; hooks installed; identity LCherryholmes in all three; digest copied from hq_T's with its own identity block; postoffice `hq_U/` with `HQ` = `ceo`). Record: GOAL-CEO CEO-291.
 
 ## THE MANDATE

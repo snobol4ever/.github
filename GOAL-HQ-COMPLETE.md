@@ -1,5 +1,7 @@
 # ⛔⭐⭐⭐⭐ GOAL-HQ-COMPLETE — HEADQUARTERS FOR **CORRECTNESS**
 
+**MODEL: Claude Fable 5.1 since 2026-09-06 20:4x CDT (Lon, in-chat to ceo, verbatim: *"I set B, C, and U to Fable 5.1."*; GOAL-CEO CEO-376) — the ceo named hq_B, hq_C and hq_U as the three HQs carrying the hardest problems (CEO-375); the mandate, the lane and the row in hand are unchanged.**
+
 **Opened 2026-08-22 s256 by Lon, in-chat, verbatim in substance:** *"we will need to split HQ into TWO parts. One responsible for CORRECTNESS of (SNOBOL4, Icon, and Prolog) with SNOBOL4 being #1, Icon #2, and Prolog #3."*
 
 **Seat root:** `/home/claude_C` · **postoffice identity:** `hq_C` · **twin:** `GOAL-HQ-PERFORM.md` (`/home/claude_P`, `hq_P`)

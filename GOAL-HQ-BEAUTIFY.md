@@ -1,5 +1,7 @@
 # ⛔⭐⭐⭐⭐ GOAL-HQ-BEAUTIFY — HEADQUARTERS FOR **CLARITY**
 
+**MODEL: Claude Fable 5.1 since 2026-09-06 20:4x CDT (Lon, in-chat to ceo, verbatim: *"I set B, C, and U to Fable 5.1."*; GOAL-CEO CEO-376) — the ceo named hq_B, hq_C and hq_U as the three HQs carrying the hardest problems (CEO-375); the mandate, the lane and the row in hand are unchanged.**
+
 **Opened 2026-08-28 by Lon, in-chat to CEO, verbatim in substance:** *"Could we use one more HQ, maybe complete, perform, and beautify?"* → *"Let's try it."* → *"There is a new /home/claude_B ready for you to populate."* Stood up by ceo the same session under the announcement scope (Lon's own case for the lane: *"the beauty related tasks are all part of the announcement — the src re-org, the template a-z revamp, the consolidation work with one-liners and multi-liners are all beauty oriented"*). Org as of opening: CEO + THREE HQs (`hq_C` correctness · `hq_P` speed · `hq_B` clarity) + FLEET-8.
 
 **Seat root:** `/home/claude_B` · **postoffice identity:** `hq_B` · **twins:** `GOAL-HQ-COMPLETE.md` (`/home/claude_C`, `hq_C`), `GOAL-HQ-PERFORM.md` (`/home/claude_P`, `hq_P`)
