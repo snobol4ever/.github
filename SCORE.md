@@ -7,22 +7,22 @@ One row per suite — our seven masters and every vendored package suite alike �
 | suite | lang | first graded reading | today | moved | at today's rate |
 |---|---|---|---|---|---|
 | 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 97/126 (09-06, `b5313ff2d`) | +39 | → 2026-09-07 |
-| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 72/120 (09-06, `e1c74e259`) | +17 | → 2026-09-12 |
+| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 72/120 (09-06, `e1c74e259`) | +17 | → 2026-09-11 |
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 129/180 (09-05, `cell-09-05`) | +66 | → 2026-09-12 |
-| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 1/2 (09-06, `e68e35fd4`) | +1 | → 2026-09-08 |
+| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 1/2 (09-06, `5ed942b5a`) | +1 | → 2026-09-08 |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-06, `cell-09-06`) | +0 | ✅ done |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 47/90 (09-06, `91a036d1-cell`) | +8 | → 2026-10-13 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 44/91 (09-06, `7817a5083`) | +10 | → 2026-10-08 |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 69/89 (09-06, `7817a5083`) | +35 | → 2026-09-06 |
-| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 375/445 (09-06, `8b4707fca`) | +114 | → 2026-09-07 |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 73/89 (09-06, `5ed942b5a`) | +39 | → 2026-09-06 |
+| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 385/445 (09-06, `6fbe21bbf`) | +124 | → 2026-09-06 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-19 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 6/11 (09-06, `f83a33546`) | +0 | ⛔ stuck |
 | 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 130/181 (09-04, `7284962b`) | +11 | → 2026-09-29 |
 | 📜 PAT (pat) | pascal | 298/427 (09-04) | 300/427 (09-06, `cell-09-06`) | +2 | → 2027-01-11 |
 | 🦋 Roast (roast) | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) | +1 | → 2034-09-27 |
-| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1852/1854 (09-06, `449b1e522`) | +11 | 🆕 one reading |
-| 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 697/702 (09-06, `ef2485566`) | +55 | 🆕 one reading |
-| 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 424/476 (09-06, `db6011358`) | +100 | → 2026-09-07 |
+| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1857/1858 (09-06, `d6536e131`) | +16 | 🆕 one reading |
+| 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 697/702 (09-06, `e6da551b9`) | +55 | 🆕 one reading |
+| 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 518/559 (09-06, `d6f4ead3e`) | +194 | → 2026-09-06 |
 | 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
 | 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 620/762 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
 | 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 176/206 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
