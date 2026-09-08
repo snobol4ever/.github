@@ -8,7 +8,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 |---|---|---|---|---|---|
 | 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 100/127 (09-08, `19162985f`) | n/c | 🔀 criterion changed (spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07) — the first reading predates it, so no movement is computable |
 | 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 62/97 (09-08, `19162985f`) | n/c | 🔀 criterion changed (spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline) — the first reading predates it, so no movement is computable |
-| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/180 (09-08, `19162985f`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
+| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/180 (09-08, `b2660262e`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set) — the first reading predates it, so no movement is computable |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-07, `52de694e0`) | n/c | ✅ done |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 62/90 (09-07, `b7f48462a`) | +23 | → 2026-09-17 |
