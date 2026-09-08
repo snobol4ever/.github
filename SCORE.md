@@ -25,7 +25,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 518/559 (09-06, `d6f4ead3e`) | +194 | → 2026-09-08 |
 | 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
 | 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 656/820 (09-06, `6433a618d`) | +36 | → 2026-09-21 |
-| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 262/302 (09-08, `b7f48462a`) | n/c | 🔀 criterion changed (coo-first-per-program-board-302-entries-not-206-prior-cell-had-no-tree) — the first reading predates it, so no movement is computable |
+| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 263/302 (09-08, `b2660262e`) | n/c | 🔀 criterion changed (coo-first-per-program-board-302-entries-not-206-prior-cell-had-no-tree) — the first reading predates it, so no movement is computable |
 | 🧩 RebM (reb-master) | rebus | 15/48 (09-03) | 15/48 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
 
 
