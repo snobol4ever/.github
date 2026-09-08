@@ -21,13 +21,13 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 116/181 (09-07, `52de694e0`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
 | 📜 PAT (pat) | pascal | 298/427 (09-04) | 292/427 (09-07, `52de694e0`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
 | 🦋 Roast (roast) | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) | +1 | → 2034-09-29 |
-| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1858/1858 (09-08, `0bd961e07`) | n/c | ✅ done |
+| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1858/1858 (09-08, `0bd961e07`) | +6 <sup>[1821→1827 of 1854 since 09-03]</sup> | ✅ done |
 | 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 705/705 (09-08, `348eed586`) | +50 <sup>[614→664 of 664 since 09-03]</sup> | ✅ done |
 | 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 518/559 (09-06, `d6f4ead3e`) | +194 | → 2026-09-08 |
-| 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
+| 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 243/246 (09-08, `de403d5a1`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
 | 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 656/820 (09-06, `6433a618d`) | +36 | → 2026-09-21 |
-| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 263/302 (09-08, `b2660262e`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
-| 🧩 RebM (reb-master) | rebus | 15/48 (09-03) | 15/48 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
+| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 196/235 (09-08, `de403d5a1`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
+| 🧩 RebM (reb-master) | rebus | 15/48 (09-03) | 38/43 (09-08, `de403d5a1`) | +0 <sup>[42→42 of 43 since 09-06]</sup> | ⛔ stuck · 🔀 criterion changed (coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
