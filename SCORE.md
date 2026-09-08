@@ -6,27 +6,27 @@ One row per suite — our seven masters and every vendored package suite alike �
 
 | suite | lang | first graded reading | today | moved | at today's rate |
 |---|---|---|---|---|---|
-| 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 100/127 (09-08, `19162985f`) | n/c | 🔀 criterion changed (spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07) — the first reading predates it, so no movement is computable |
-| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 62/93 (09-08, `b3aa6a7fd`) | n/c | 🔀 criterion changed (spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline) — the first reading predates it, so no movement is computable |
-| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/126 (09-08, `d406c4ab2`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
-| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set) — the first reading predates it, so no movement is computable |
-| 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-07, `52de694e0`) | n/c | ✅ done |
-| 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-08, `2d5d33099`) | n/c | 🔀 criterion changed (first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade) — the first reading predates it, so no movement is computable |
+| 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 100/127 (09-08, `19162985f`) | +48 <sup>[51→99 of 99 since 09-03]</sup> | → 2026-09-10 · 🔀 criterion changed (spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 62/93 (09-08, `b3aa6a7fd`) | +14 <sup>[48→62 of 95 since 09-03]</sup> | → 2026-09-19 · 🔀 criterion changed (spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/126 (09-08, `d406c4ab2`) | +0 <sup>[99→99 of 180 since 09-07]</sup> | ⛔ stuck · 🔀 criterion changed (ceo-383-stream-equal-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `52de694e0`) | +1 <sup>[1→2 of 2 since 09-06]</sup> | → 2026-09-11 · 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-07, `52de694e0`) | — | ✅ done |
+| 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-08, `2d5d33099`) | — | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 69/90 (09-08, `cc77c463a`) | +30 | → 2026-09-14 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 53/91 (09-07, `19b1f1913`) | +19 | → 2026-09-24 |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `52de694e0`) | +52 <sup>[5→57 of 63 since 09-03]</sup> | → 2026-09-09 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 396/445 (09-07, `52de694e0`) | +135 | → 2026-09-09 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-21 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-07, `52de694e0`) | +5 | ✅ done |
-| 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 116/181 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
-| 📜 PAT (pat) | pascal | 298/427 (09-04) | 292/427 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
+| 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 116/181 (09-07, `52de694e0`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
+| 📜 PAT (pat) | pascal | 298/427 (09-04) | 292/427 (09-07, `52de694e0`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
 | 🦋 Roast (roast) | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) | +1 | → 2034-09-29 |
-| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1858/1858 (09-08, `19162985f`) | n/c | ✅ done |
-| 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 705/705 (09-08, `348eed586`) | n/c | ✅ done |
+| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1858/1858 (09-08, `19162985f`) | +6 <sup>[1821→1827 of 1854 since 09-03]</sup> | ✅ done |
+| 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 705/705 (09-08, `348eed586`) | +50 <sup>[614→664 of 664 since 09-03]</sup> | ✅ done |
 | 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 518/559 (09-06, `d6f4ead3e`) | +194 | → 2026-09-08 |
 | 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 248/251 (09-06, `cell-09-06`) | +0 | 🆕 one reading |
 | 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 656/820 (09-06, `6433a618d`) | +36 | → 2026-09-21 |
-| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 263/302 (09-08, `b2660262e`) | n/c | 🔀 criterion changed (coo-first-per-program-board-302-entries-not-206-prior-cell-had-no-tree) — the first reading predates it, so no movement is computable |
+| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 263/302 (09-08, `b2660262e`) | — | ◻ every recorded row is from one day — a second day of readings makes this comparable |
 | 🧩 RebM (reb-master) | rebus | 15/48 (09-03) | 15/48 (09-03, `cell-09-03`) | +0 | 🆕 one reading |
 
 

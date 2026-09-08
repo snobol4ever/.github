@@ -11,7 +11,7 @@ usage: util_suite_banner.py [--plain] [--line] [--md] [--render] [--set KEY PASS
   --render   re-render SCORE.md § THE SUITE TABLE rows from SUITES.tsv, in place; print what changed
 STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 10): a row whose today_date is older than the box-clock day reads U+23F3 in place of its emoji and is counted on the first line; a STALE row is a rank-0 measure pick in its lane.
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
-CRITERION rule (hq_T 2026-09-06, on hq_V's report, after ceo-372): a row may carry criterion_changed = <YYYY-MM-DD>:<slug>. When its first_date PREDATES that day the two readings were taken under different criteria, so their difference is not a movement: `moved` reads n/c, the row reads RECRIT rather than STUCK, and it is excluded from the stuck verdict. Self-clearing -- it stops firing once a first reading under the current criterion exists. ⛔ Never re-baseline first_* to silence it: a first reading re-measured under a new criterion would have to be invented, since the trees it was taken on are gone.
+CRITERION rule (hq_T 2026-09-06, after ceo-372; AMENDED coo 2026-09-08 on Lon's word "Fix it so you CAN do a comparison"). A row may carry criterion_changed = <YYYY-MM-DD>:<slug>. When its first_date PREDATES that day, first_* and today_* answer two different questions and their difference is not a movement -- that much stands, and first_* is still never re-baselined. ⛔ WHAT NO LONGER STANDS is printing n/c and stopping: that is true about those two numbers and useless as an answer to "are we getting better?". Instead likeforlike() holds the POPULATION fixed -- today's graded set -- and asks the progress table what those same programs did then and do now. Same programs, same modes, two dates, so a changed denominator cannot distort it, and nothing is invented: it re-reads per-program evidence already on file. The row then gets a real rate and a real ETA like any other. Programs with no reading at the earlier date are excluded from BOTH sides rather than counted as failures-then-passes-now, which would manufacture progress out of missing data. Only two states remain uncomparable and they are told apart: `no rows` (the table has never seen the suite) and `1 day` (rows exist but all from one day, so there is no earlier reading yet) -- both facts about our instrumentation, never verdicts about the suite.
 """
 import sys, os, datetime as dt, unicodedata as _ud
 def dw(s):
@@ -90,11 +90,111 @@ def recriterioned(r):
     except ValueError:
         return ''
     return mark
+PROGRESS=os.environ.get('S4E_PROGRESS') or '/home/resources/progress/results.tsv'
+# SUITES.tsv key -> the name the progress table records this suite under.
+DBNAME={'sno-master':'snobol4-master','icn-master':'icon-master','pl-master':'prolog-master',
+        'pas-master':'pascal-master','raku-master':'raku-master','snc-master':'snocone-master',
+        'reb-master':'rebus-master','testpgms':'spitbol_testpgms'}
+_LFL_CACHE=None
+def _progress_by_suite():
+    """One lean pass over the progress table -> {suite: [(ts, program, mode, outcome)]}.
+
+    ⛔ THE PROGRAM KEY IS NORMALISED TO ITS BARE NAME, and that is not cosmetic. The recorded convention
+    CHANGED mid-history: gimpel rows read 'snobol4/gimpel/AGT_driver.sno' through 2026-09-05 and
+    'packages/snobol4/gimpel/AGT_driver.sno' from 2026-09-06. A join on raw names across that boundary
+    finds NOTHING in common and reports a suite as having no comparable history while +45 sits in the
+    table -- measured coo 2026-09-08, which is how this was found.
+    ⛔ DIRTY TREES ARE DROPPED: a -dirty stamp is cited for its number, never for its position in a series."""
+    global _LFL_CACHE
+    if _LFL_CACHE is not None: return _LFL_CACHE
+    out={}
+    try: fh=open(PROGRESS,encoding='utf-8',errors='replace')
+    except OSError:
+        _LFL_CACHE={}; return _LFL_CACHE
+    with fh:
+        head=fh.readline().rstrip('\n').split('\t')
+        try: i_ts,i_scrip,i_suite,i_prog,i_mode,i_out=(head.index(c) for c in
+            ('ts_utc','scrip','suite','program','mode','outcome'))
+        except ValueError:
+            _LFL_CACHE={}; return _LFL_CACHE
+        for l in fh:
+            f=l.split('\t')
+            if len(f)<=i_out: continue
+            if f[i_mode] not in ('m3','m4'): continue
+            if '-dirty' in f[i_scrip]: continue
+            prog=f[i_prog].rsplit('/',1)[-1]
+            if '.' in prog: prog=prog.rsplit('.',1)[0]
+            out.setdefault(f[i_suite],[]).append((f[i_ts],prog,f[i_mode],f[i_out]))
+    _LFL_CACHE=out
+    return out
+def _state_at(recs,cutoff,only=None):
+    """AND-per-program greenness as of cutoff, from each program's latest reading at or before it."""
+    latest={}
+    for ts,prog,mode,outc in recs:
+        if ts<=cutoff and (only is None or prog in only):
+            k=(prog,mode)
+            if k not in latest or ts>latest[k][0]: latest[k]=(ts,outc)
+    per={}
+    for (prog,mode),(_ts,outc) in latest.items(): per.setdefault(prog,{})[mode]=outc
+    return {p:all(v=='PASS' for v in m.values()) for p,m in per.items()}
+def likeforlike(r):
+    """THE COMPARISON A CHANGED CRITERION CANNOT BREAK (Lon 2026-09-08: "Fix it so you CAN do a comparison").
+
+    A criterion change makes first_pass/first_total and today_pass/today_total answers to two different
+    questions, so their difference is not a movement -- that much the CRITERION rule had right. Its mistake
+    was to stop there and print n/c, which is true about those two numbers and useless as an answer to
+    "are we getting better?".
+
+    ⭐ SO HOLD THE POPULATION FIXED INSTEAD OF THE DENOMINATOR. The progress table records every program
+    individually with a timestamp, so today's graded set can be asked what IT did then and what it does now.
+    Same programs, same modes, two dates: a movement, and a changed denominator cannot distort it.
+    ⛔ THIS INVENTS NOTHING, which is what the old rule was right to refuse. It re-reads evidence already on
+    file; it never re-baselines first_*, and those columns keep saying exactly what they always said.
+    ⛔ PROGRAMS WITH NO READING AT THE EARLIER DATE ARE EXCLUDED FROM BOTH SIDES, never counted as failures
+    then and passes now -- that would manufacture progress out of missing data, which is the failure this
+    project keeps naming. They are returned as `unseen` so the gap is visible rather than absorbed.
+
+    Returns None when the table holds nothing for the suite, else a dict; `basis` is the earliest day the
+    comparison could actually start from, which may be later than first_date -- the window is stated, never
+    implied."""
+    recs=_progress_by_suite().get(DBNAME.get(r['key'],r['key']))
+    if not recs: return None
+    newest=max(t for t,_,_,_ in recs); latest_day=newest[:10]
+    pop={p for ts,p,_,_ in recs if ts[:10]==latest_day}
+    if not pop: return None
+    earlier=[ts for ts,p,_,_ in recs if ts[:10]<latest_day and p in pop]
+    if not earlier: return None
+    basis=min(earlier)[:10]
+    then=_state_at(recs,basis+'T23:59:59',pop)
+    now=_state_at(recs,newest,pop)
+    seen=[p for p in pop if p in then and p in now]
+    if not seen: return None
+    return {'then':sum(1 for p in seen if then[p]),'now':sum(1 for p in seen if now[p]),
+            'pop':len(seen),'unseen':len(pop)-len(seen),'basis':basis}
+def lfl_why(r):
+    """Why likeforlike() could not compare -- 'norows' (the table has never seen this suite) or 'oneday'
+    (it has rows, but all from a single day, so there is no earlier reading to compare today against).
+    ⛔ THESE ARE DIFFERENT FACTS AND THE BANNER MUST NOT PRINT ONE FOR THE OTHER: 'no rows' on a suite with
+    537 recorded rows sends a reader to instrument the runner when the only thing missing is a second day."""
+    recs=_progress_by_suite().get(DBNAME.get(r['key'],r['key']))
+    if not recs: return 'norows'
+    return 'oneday'
 def eta(r,today):
     fp,ft,tp,tt=int(r['first_pass']),int(r['first_total']),int(r['today_pass']),int(r['today_total'])
     rem=tt-tp
     if rem<=0: return 'DONE',None
-    if recriterioned(r): return 'RECRIT',None
+    # ⭐ A RE-CRITERIONED ROW IS COMPARED, NOT EXCUSED (Lon 2026-09-08). Its first_*/today_* pair cannot be
+    # subtracted, but likeforlike() computes a real movement from the progress table on a fixed population,
+    # so the row gets a real rate and a real ETA like every other row. Only a suite the table cannot see at
+    # all falls through to NOCMP, and that says "no rows", which is a fact about our instrumentation rather
+    # than a verdict about the suite.
+    if recriterioned(r):
+        L=likeforlike(r)
+        if not L: return ('NOROWS' if lfl_why(r)=='norows' else 'ONEDAY'),None
+        days=(d(r['today_date'])-d(L['basis'])).days
+        rate=(L['now']-L['then'])/days if days>0 else 0
+        if rate<=0: return 'STUCK',None
+        return 'ETA', today+dt.timedelta(days=rem/rate)
     days=(d(r['today_date'])-d(r['first_date'])).days
     if days<=0: return 'NEW',None
     rate=(tp-fp)/days
@@ -108,7 +208,8 @@ def banner(plain=False, grid=True, ncol=3):
         if k=='DONE': col=G; tail='✅ done'; done+=1
         elif k=='STUCK': col=R; tail='⛔ stuck'; stuck.append(r['nick'])
         elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
-        elif k=='RECRIT': col=C; tail='🔀 n/c'; recrit.append(r['nick'])
+        elif k=='NOROWS': col=C; tail='◻ no rows'; recrit.append(r['nick'])
+        elif k=='ONEDAY': col=C; tail='◻ 1 day'; recrit.append(r['nick'])
         else:
             col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
         mark='⏳' if r['nick'] in stale else r['emoji']
@@ -117,7 +218,7 @@ def banner(plain=False, grid=True, ncol=3):
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
     if stuck: verdict=f"ALL {n} SUITES 100/100: NOT ON THE CURVE — {len(stuck)} stuck ({', '.join(stuck)})"; vc=R
-    elif recrit: verdict=f"ALL {n} SUITES 100/100: {len(recrit)} row(s) re-criterioned, no comparable baseline ({', '.join(recrit)})"; vc=C
+    elif recrit: verdict=f"ALL {n} SUITES 100/100: {len(recrit)} suite(s) the progress table cannot see yet ({', '.join(recrit)})"; vc=C
     elif new: verdict=f"ALL {n} SUITES 100/100: unknown — {len(new)} suites have one reading"; vc=C
     elif worst: verdict=f"ALL {n} SUITES 100/100 → {worst.strftime('%Y-%m-%d')} at today's rates"; vc=G
     else: verdict=f"ALL {n} SUITES 100/100: DONE"; vc=G
@@ -132,10 +233,22 @@ def md():
     for r in rows:
         k,e=eta(r,today)
         rc=recriterioned(r)
-        mv=('n/c' if rc else f"{int(r['today_pass'])-int(r['first_pass']):+d}")
+        if rc:
+            L=likeforlike(r)
+            if L:
+                mv=(f"{L['now']-L['then']:+d}"
+                    f" <sup>[{L['then']}→{L['now']} of {L['pop']} since {L['basis'][5:]}]</sup>")
+            else:
+                mv='—'
+        else:
+            mv=f"{int(r['today_pass'])-int(r['first_pass']):+d}"
         tail={'DONE':'✅ done','STUCK':'⛔ stuck','NEW':'🆕 one reading',
-              'RECRIT':'🔀 criterion changed ('+rc.split(':',1)[-1]+') — the first reading predates it, so no movement is computable'}.get(
+              'NOROWS':'◻ the progress table holds no rows for this suite yet, so nothing can be compared',
+              'ONEDAY':'◻ every recorded row is from one day — a second day of readings makes this comparable'}.get(
               k, '→ '+e.strftime('%Y-%m-%d') if e else '')
+        if rc and k not in ('DONE','NOROWS','ONEDAY'):
+            tail += (f" · 🔀 criterion changed ({rc.split(':',1)[-1]}), so `moved` is the same programs"
+                     f" re-read: today's graded set compared against its own earliest reading")
         print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {mv} | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
