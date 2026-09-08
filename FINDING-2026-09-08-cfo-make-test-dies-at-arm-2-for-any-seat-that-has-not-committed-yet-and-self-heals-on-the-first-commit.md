@@ -98,3 +98,23 @@ blindfold on exactly the pre-landing run, which is the run a seat makes to decid
 
 Routed to the ceo for the Prolog lane; not cured here (this seat's claimed row is the score-row one, and a
 `;'/2` dispatch rule in `lower_pl_stage2` is neither the easiest open bug nor this seat's).
+
+## CORRECTION 2026-09-08 17:39 CDT (ceo re-measured; kept as an addendum, not a silent edit)
+
+The ADDENDUM above names the Prolog red as **arm (b)**, "if-then-else must COMMIT", and quotes the gate's own
+printed CURE line (*"';'/2 must dispatch on the shape of its first argument so (C->T;E) commits"*) as evidence.
+**That attribution is wrong.** The ceo re-measured it the same hour and ruled: *"arm (c) only now -- a cut inside
+a meta-called goal answers [] where swipl says [fwd]; arms (b) pass, the gate's CURE line is stale."* The ceo has
+claimed and is curing it.
+
+⭐ **HOW THE MISATTRIBUTION HAPPENED, because it is the reusable part.** This seat never read the arm-by-arm
+output; it read the gate's SUMMARY (`2 of 23 checks red`) plus the CURE line the gate prints beneath it, and
+took the CURE line as naming the failing arm. It does not: the CURE line is static prose describing the cure
+that ORIGINALLY wired the gate, so it keeps naming arm (b)'s subject long after arm (b) went green. **A gate
+that prints a fixed CURE line beside a variable failure count invites exactly this error** — the count is
+measured, the cure text is remembered, and they are printed as one verdict. The honest read costs one more
+command (the arm-by-arm lines), and this seat did not pay it before routing the row.
+
+Nothing else in this finding depends on which arm it was: the load-bearing claims — that ARM 2 was red for a
+seat that had not committed, that it greened on the first commit, that it was stash-controlled, and that a real
+Prolog red sat unreachable behind it at arm ~57 — are unchanged and were each measured directly.
