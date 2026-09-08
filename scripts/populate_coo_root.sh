@@ -65,7 +65,15 @@ cat > "$COO/.claude/settings.json" <<'JSON'
 JSON
 fi
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$COO/.claude/settings.json" && echo "settings.json: valid JSON, hooks for d=$COO"
-[ -f "$COO/CLAUDE.md" ] || cp "$COO/.github/COO-CLAUDE.md" "$COO/CLAUDE.md"
+if ! cmp -s "$COO/.github/COO-CLAUDE.md" "$COO/CLAUDE.md"; then
+  if [ -f "$COO/CLAUDE.md" ]; then
+    b="$COO/CLAUDE.md.bak-$(date -u +%Y%m%dT%H%M%SZ)"; cp "$COO/CLAUDE.md" "$b"
+    echo "digest: root copy DIFFERED from the tracked source -- backed up to $b, then refreshed"
+    echo "digest: if that backup held a real amendment, it belongs in .github/COO-CLAUDE.md, not only here"
+  fi
+  cp "$COO/.github/COO-CLAUDE.md" "$COO/CLAUDE.md"
+fi
+echo "digest: $COO/CLAUDE.md == .github/COO-CLAUDE.md ($(wc -l < "$COO/CLAUDE.md") lines, tracked)"
 head -1 "$COO/CLAUDE.md"
 for d in inbox archive; do mkdir -p "/home/resources/postoffice/coo/$d"; done
 [ -s /home/resources/postoffice/coo/HQ ] || echo ceo > /home/resources/postoffice/coo/HQ
