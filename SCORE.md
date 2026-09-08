@@ -9,9 +9,9 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 100/127 (09-08, `19162985f`) | n/c | 🔀 criterion changed (spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07) — the first reading predates it, so no movement is computable |
 | 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 62/93 (09-08, `b3aa6a7fd`) | n/c | 🔀 criterion changed (spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline) — the first reading predates it, so no movement is computable |
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 99/126 (09-08, `d406c4ab2`) | n/c | 🔀 criterion changed (ceo-383-stream-equal-and-per-program) — the first reading predates it, so no movement is computable |
-
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set) — the first reading predates it, so no movement is computable |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-07, `52de694e0`) | n/c | ✅ done |
+| 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-08, `d406c4ab2`) | n/c | 🔀 criterion changed (first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade) — the first reading predates it, so no movement is computable |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 69/90 (09-08, `cc77c463a`) | +30 | → 2026-09-14 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 53/91 (09-07, `19b1f1913`) | +19 | → 2026-09-24 |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `52de694e0`) | n/c | 🔀 criterion changed (ceo-372-and-per-program) — the first reading predates it, so no movement is computable |
