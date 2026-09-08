@@ -1,0 +1,27 @@
+# FINDING 2026-09-08 (cto, MODE EXECUTIVE) — function tracing prints SPITBOL's ladder: the taps never opened on `&FTRACE`, the failing exit had no tap, the banner carried statement 0, and the printer knew one shape
+
+Rows: `snobol4-trace-function-entry-and-exit-call-return-function-and-ftrace-with-depth-marks` (hq_P's, rank 1, the trunk's first branch) and `snobol4-csnobol4-class-trace-facility-trace-ftrace-keytrace-trfunc-trace1` (assigned by the ceo 18:0x with the same diagnosis in its NEXT). The ceo's correction 18:09: the class is IN the SPITBOL baseline — Budne's ftrace and trfunc, Snoflake's trace-* — not a CSNOBOL4 feature.
+
+## What the witnesses said before (both modes identical)
+
+`trace_function.sno` printed `****0******* i F = ''` where SPITBOL prints `****15******  F(3)`: the CALL tap fired (the trunk's registry matched the `CALL` tag) but the banner printer had one shape, `NAME = value`; the statement number was 0; the depth column showed the callee's level. `trace_ftrace.sno` printed nothing and ended `done 100`: with `&FTRACE` set and `&TRACE` zero, no tap ever ran. `FRETURN W` never printed in either witness.
+
+## The four causes, by measurement (ASM-DIFF-FIRST on the emitted `.s`)
+
+1. **Statement numbers.** `g_stno` is stamped per statement only when `sno_scan_stmtkw` finds a statement keyword in the program (`&STNO`, `&STCOUNT`, `&LASTNO`, ...). A program that only says `&TRACE = 100` and `TRACE('F','CALL')` was never stamped, so every banner read 0. Cure: `&TRACE`, `&FTRACE` and a `TRACE(` call turn stamping on (`lower_snobol4.c`).
+2. **The taps' gate.** `bb_define.cpp` guards each of its four taps with `g_trace` alone (`cmp rax,0 ; jle/je skip`). `&FTRACE` lives in `kw_ftrace`; the runtime's `rt_trace_event_args` already handled it, but the compiled code never called in. Cure: each gate reads `g_trace`, then `kw_ftrace`, and enters the tap if either says on (new local labels `L(11)`/`L(12)` in the activation-block variant, internal ids 246/247 in the flat variant; ids run to 250).
+3. **The failing exit.** The activation-block variant joins RETURN and FRETURN before its return tap, so it already reported the fail as a RETURN event. The flat variant (`inl5`, the one the witnesses compile through — zero `rt_ab_leave_env` calls in their `.s`) exits on `lbl_o` with no tap at all. Cure: a tap at `lbl_o` after `FRESTORE(150)` and before the stno and `&FNCLEVEL` restores, calling `rt_trace_fail_hook`, reusing the name string the return tap sealed in slot 237 (the label resolves in both media). **The first cut pushed seven registers and dumped core in `fprintf`: `x86_align_enter()` is an empty string, so stack parity is the push count, and the two existing taps push eight.** Eight it is.
+4. **The printer.** `trace_print_banner` printed `NAME = value` for every kind. Now `trace_print_banner_args`: CALL → `NAME(a1,a2)` with SPITBOL's value spelling (`''`, `'s'`, `1.5`, `.M`); RETURN → `RETURN NAME = v`, `NRETURN NAME = .M` when the value is a name, `FRETURN NAME` when it is the failure; depth = `&FNCLEVEL - 1` for CALL and RETURN because the taps fire inside the callee's level and SPITBOL prints the caller's. The CALL arguments: the static call path never fills `g_call_args` (only the by-name staged path does), so the hook reads the bound parameter variables by name (`rt_proc_pname` + `NV_GET_fn`) after the prologue has bound them.
+
+## Measured on the tree (RT_OPT -O0, incremental make)
+
+- `util_sno_trace_witness.sh`: `trace_function.sno` PASS m3, PASS m4; `trace_ftrace.sno` PASS m3, PASS m4 — against `/home/resources/x64/bin/sbl -bf`.
+- Budne through `test_snobol4_csnobol4_suite.sh`: 62 → 64/93 both modes (`ftrace`, `trfunc` flip; `trace1` holds; refs 93/93 fresh). No new red.
+- Snoflake through `test_snoflake_suite.sh`: both-modes stream 99 → 101. `trace-all-functions` and `trace-function-calls` now equal SPITBOL's stream byte for byte; their embedded `@expect` is CSNOBOL4's `LEVEL 0 RETURN OF DBL = 42`, so they sit in FAIL-SBL and DIALECT by the runner's own rule. `trace-keyword-fnclevel` and `trace-label-flow` stay red: KEYWORD and LABEL types, the class's next two bugs.
+- Gimpel through `test_snobol4_gimpel_suite.sh`: 100/127 unchanged. `FTRACE_driver` is UNSCORED (SPITBOL answers with a fatal report). `FPROFILE_driver` (`TRACE(.STCOUNT,'KEYWORD',,'FPROFILE')`) prints `total statements counted = 0`: the KEYWORD trace, row `snobol4-trace-keyword-fnclevel-stcount-errtype-on-every-system-write`.
+- `strip_comments.py --check`: 0. Artifacts regenerated (templates touched): benchmark, demo, prolog-bench `.s` committed to corpus.
+- `make test` on the first run stopped at `test_gate_progress_append_writes_a_row` while three boards of mine were writing the live progress table concurrently; the gate reads PASS(0) standalone. The lone re-run and the master numbers are in the Landed section below.
+
+## What Lon said this sitting, routed
+
+*"Also fix SPITBOL when it obviously fails to implement its documented features. CHeck the SPITBOL manual for the definitive answer to many questions."* — routed to the ceo for RULES.md § Oracles. The first instance is this very class: the x64 fork answers every TRACE type with ERROR 199 (CEO-280/282) while `spitbol-manual-v3.7.pdf` documents them, which is why the trace witnesses grade against the stock `spitbol-bench-oracle` binary. The fork fix is the cto's next after the KEYWORD and LABEL types unless the ceo routes it elsewhere.
