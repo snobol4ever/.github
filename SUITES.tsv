@@ -2,7 +2,7 @@
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree	criterion_changed
 gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-09	108	116	403a7cc0e	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
 csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-09	68	74	37a3fc8d9	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
-snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-09	113	124	01eb996ca	2026-09-07:ceo-383-stream-equal-and-per-program
+snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-09	117	124	c1f91bfc1	2026-09-07:ceo-383-stream-equal-and-per-program
 aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-08	4	7	0df5098d8	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
 dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-08	5	5	de403d5a1	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
 testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-08	1	2	cce2efcb4	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
@@ -16,7 +16,7 @@ fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-08	116	181	60d58c05b	2026-09-06:c
 pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-08	292	427	60d58c05b	2026-09-06:ceo-372-and-per-program
 roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-06	5	986	a5aea2ad1	
 sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-09	1870	1894	2d4abc25f	2026-09-06:ceo-372-and-per-program
-icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-09	707	707	1b9ef783c	2026-09-06:ceo-372-and-per-program
+icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-09	708	721	c1f91bfc1	2026-09-06:ceo-372-and-per-program
 pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-06	518	559	d6f4ead3e	
 pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-08	243	246	de403d5a1	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
 raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-08	656	820	d4799c97a	
