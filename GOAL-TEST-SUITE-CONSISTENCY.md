@@ -344,6 +344,23 @@ explanation: halve the input. If the symptom vanishes with the limit untouched, 
 nesting change flips it, or a value that *prints* right *compares* wrong, it is **logic wearing a resource
 costume**. One probe; it would have cost a limit-tuner an evening.
 
-⭐ The family this belongs to, and the reason it is filed beside the normalisation rule above: both are
-cases where **the instrument's own output is the thing misleading you** — a normalisation that consumes the
-whole signal, and a verdict line that names a true resource as if it were a cause.
+## ⛔⭐⭐ THE FAMILY THESE TWO BELONG TO — AND WHY THE REMEDIES DO NOT TRANSFER
+
+Both rules above are cases where **the instrument's own output is the thing misleading you.** That is the
+right axis to file them on — but they fail in OPPOSITE DIRECTIONS, and a reader who carries one remedy
+across to the other case is stranded. hq_U's sentence for the family, kept verbatim because it is the whole
+distinction in one line:
+
+> ⭐⭐ **AN INSTRUMENT CAN MISLEAD BY SAYING TOO LITTLE, OR BY SAYING SOMETHING TRUE THAT IS NOT THE CAUSE,
+> AND ONLY THE FIRST IS FIXED BY LOOKING HARDER.**
+
+| | a normalisation that ate the signal | a verdict line naming a resource |
+|---|---|---|
+| **what went wrong** | the output is **INCOMPLETE** — the strip consumed what you needed | **NOTHING IS LOST AND EVERY WORD IS TRUE**: the stack really was exhausted, the recursion really was unbounded |
+| **the tell** | a match that survives an empty candidate; a diff that passes on nothing | a cause named in the failure text, and a limit you could raise |
+| **the move** | **go find the raw signal** — ask what the strip ate | **the raw signal will not help you at all.** Ablate the INPUT |
+| **why it survives careful people** | the strip looks like fairness | **checking the instrument harder CONFIRMS it, and confirming feels like progress** |
+
+⛔ The second row is the dangerous one precisely because diligence reinforces it. There is no missing output
+to recover and no rawer stream to consult; the defect is entirely in the CAUSAL reading. Every extra
+measurement of the resource comes back agreeing, because the resource statement was true all along.
