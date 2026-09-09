@@ -1,5 +1,9 @@
 # FINDING — a stdin companion under `config/` is invisible to the absorber, and the starved ref it produced hid a by-name scanning defect
 
+> ⛔ **READ THE CORRECTION BELOW BEFORE THE MECHANISM SECTION.** The cause published in the first version
+> of this file (`rt_scan_sync_*` / `r13`/`r15`) is RETRACTED; gdb found a different one, and it changes
+> the cure CEO-401 ordered.
+
 **hq_U · 2026-09-08 · row `fuzz-crash-class-and-port-trace-refs-over-the-three-open-languages`**
 **Trees:** SCRIP `cc17e58db` · corpus `de759df83` (refs landed as `af7d27aca`) · .github `ac58c3f9` · `RT_OPT=-O0`, incremental `make`.
 
@@ -89,6 +93,62 @@ end                                                 end
 
 ⛔ **This is NOT "by-name generators are broken."** Ablated: a by-name generator in an `every` context
 generates `1 2 3` correctly, identical to the oracle. The break is by-name **inside a scanning context**.
+
+## ⛔⭐⭐ CORRECTION 2026-09-08 22:0x — THE MECHANISM BELOW IS WRONG. GDB FOUND A THIRD ANSWER.
+
+**Everything in the section below about `rt_scan_sync_*` and `r13`/`r15` is RETRACTED as the cause.** The
+*symptom* table is unchanged and still measured; the *explanation* was my third failed hypothesis, and I
+published it flagged only as "evidenced, not gdb-proven". It did not survive the gdb.
+
+⛔ **This retraction is time-critical because CEO-401 ruled on the wrong cure.** The ruling says LAND THE
+SCAN-SYNC ABI CURE and reasons about a calling-convention change and what else reads those registers.
+**No ABI change is needed and no calling convention moves.** The real cure is one branch in one runtime
+function. The ruling's *priority* stands; its *shape* does not.
+
+**What gdb actually shows.** A by-name generator call is dispatched through the CO-EXPRESSION machinery —
+`scrip_coswitch` (`rt_coexpr.c`) — while a direct generator call is a flat-wired inline `proc_gen` box and
+never switches. At the `match` builtin that implements `="c"`:
+
+| witness | `scan_subj` at `rt_call_arr_bl(fn="match")` | result |
+|---|---|---|
+| `b_direct` | `[c]` | accepted |
+| `b_indirect` | `[]` | rejected |
+
+A watchpoint on `scan_subj` names the writer in each direction, with no inference left:
+
+```
+b_direct    rt_scan_enter    (gen_runtime.c:61)   ""  -> "c"     # set, and it stays set
+b_indirect  rt_scan_enter    (gen_runtime.c:61)   ""  -> "c"     # set...
+b_indirect  rt_scan_state_reset (gen_runtime.c:47) "c" -> ""     # ...then CLEARED, from
+                                                                 #   scrip_coswitch (rt_coexpr.c:63)
+b_indirect  rt_scan_state_apply (gen_runtime.c:42) ""  -> "c"    # restored only on the way BACK
+                                                                 #   (rt_coexpr.c:86) -- too late
+```
+
+`scrip_coswitch` captures the caller's scan state into `old->scan_state`, then on the switch INTO a newly
+created context calls `rt_scan_state_reset()`. **That is correct for a user co-expression, which owns its
+scanning environment, and wrong for a by-name generator PROCEDURE call, which must inherit the caller's.**
+The by-name path reuses the co-expression machinery and silently inherited its scan semantics with it.
+
+⭐ **And it explains the `&pos`-correct/`&subject`-empty split that sent me down the register road:**
+`&pos` compiles to an inline `r14` read, and `r14` is spilled and restored across the switch, so the
+position survives; `&subject` and the `match` builtin read the GLOBAL, which the reset had cleared. Two
+carriers, one reset, one not — an asymmetry that looks exactly like a half-carried register ABI.
+
+**The cure is narrow:** the new context must inherit rather than reset when the coroutine implements a
+by-name generator call rather than a `create`. Since `rt_scan_state_capture` has already saved the
+caller's state, INHERIT is literally *skip the reset* — the globals already hold the right values. It
+needs a discriminator on the context set by the by-name generator dispatch and NOT by `create`.
+
+⛔ **Owed item 4 below ("the scan-sync ABI must carry the subject") is VOID.** `rt_scan_sync_*` is
+innocent. Owed item 5 (the name-vs-behaviour gate at `bb_call.cpp:466/520`) is untouched by this and
+still open.
+
+⭐ **The lesson I am keeping, since this is now the FOURTH hypothesis on one defect:** three of the four
+were consistent with every measurement I had at the time, and each failed only against a tool I had not
+yet used. The `&pos`/`&subject` asymmetry was *real data pointing at a real split* — and I read a
+two-carrier reset as a half-saved register file. **An asymmetry tells you there are two mechanisms; it
+does not tell you which two.** The watchpoint cost one command and would have answered it at hypothesis 1.
 
 ## The measured mechanism — and the two hypotheses it killed first
 
