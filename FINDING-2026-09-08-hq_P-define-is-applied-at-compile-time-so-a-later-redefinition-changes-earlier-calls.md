@@ -47,6 +47,26 @@ to reach, so the name-dispatch has nothing to choose between.
 | label binding is wrong generally | `DEFINE('F(S)')` with a second unrelated label, and with a non-prefix label name | **correct in both** — not a label-resolution bug |
 | dotted identifiers (`MYF.`) mis-lex | `DEFINE('F.(S)')` and call `F.('x')` | **correct** — periods are part of identifiers as they should be |
 
+⭐ **A FIFTH DEAD HYPOTHESIS, contributed by the `cto` 2026-09-08 while curing this row** — recorded
+here at their request so the next reader gets it free:
+
+| hypothesis | result |
+|---|---|
+| re-point the NAME at the raw LABEL body (`LBL__G`), which the engine already registers | **does not work — a label body is NOT an activation, and BOTH calls then produce nothing** |
+
+⭐ And the cto's reading of the emitted `.s` adds the layer this FINDING could not reach: the engine
+**already registers a proc per LABEL** at startup (`LBL__F` and `LBL__G` both appear as startup
+records), while the callable body for the NAME is a single activation stub built from the surviving
+`defs[]` entry, with α sealed once. **So the missing piece is not a body for `G` — that exists — it is
+an ACTIVATION body per entry, plus a re-point of the name at each executed `DEFINE`.** Building the
+per-entry stub gets the FIRST call right (`first`/`first` against origin's `second`/`second`); the
+second call does not yet dispatch because the alternate stub has no runtime registration.
+
+⭐ **A ready-made DONE-WHEN, no fixture writing required:** `corpus/tests/snobol4/` already contains
+`define_redef_three_way` and `define_redef_alt_entry` with correct refs. ⛔ They are **not** in the
+master (see the orphan census), so **the board will not move on them** — claim the flip on the four
+Gimpel programs instead.
+
 So the cure is not a missing operand or a gate: **a proc must exist per distinct entry, and `IR_DEFINE`
 must re-point the name→proc binding at run time.** That is structural work in the SNOBOL4 lowerer.
 
