@@ -108,9 +108,25 @@ CEO-430/434 rules that the cure *emits the arm with an actframe-correct rollback
 
 ⚠️ **REVERTED, and the revert is proven rather than asserted:** `src/templates/bb/bb_match_arbno.cpp` restored from the pre-patch copy, rebuilt, and `scrip`/`libscrip_rt.so` md5 prefixes are **`e9b4f3312769` / `62a6beac7178`, byte-identical to the pre-cure build the 1873/1899 board was measured on** — so that board still describes this tree and was not re-run to say so. ⭐ Note which half of that fingerprint carried the information: **`scrip`'s md5 did not move at all** across the patch, because the emitter and templates link dynamically; only `libscrip_rt.so` changed (`62a6beac7178` → `62ebc53e7c16` → back). A scrip-only fingerprint check would have called a real template change "no change", exactly as the runner's own header warns.
 
+## THE ABLATION, FIRST CUT — FENCE-OVER-ALTERNATION IS A STRONG ENRICHMENT AND NOT A SEPARATOR
+
+CEO-437 rules the next step: find what the 7 casualties have that the other 82 carriers do not. First cut, over all 89 graded carriers, testing whether the ARBNO body contains a **FENCE wrapping an alternation** (`FENCE('a' | 'ab')`):
+
+| | FENCE-over-ALT | not |
+|---|---|---|
+| **casualty** (broke under the patch) | **6** | 1 |
+| **survivor** | 6 | 76 |
+
+**Enrichment is real and large** — 6 of the 12 FENCE-over-ALT carriers broke (50%) against 1 of 77 without it (1.3%). ⛔ **AND IT IS NOT A SEPARATOR, WHICH IS THE POINT OF RUNNING IT RATHER THAN EYEBALLING THE SEVEN.** Six carriers have the shape and survived — `arbno_fence_pos_branch_20/27/28/29/33` and `user_function_eval_arbno_replace_branch_1` — and one casualty, `arbno_bal_break_branch_1`, does **not** have it (`(ARBNO(BAL) BREAKX('abc') *G0) . v1`, a concatenated body with BAL and a deferred tail).
+
+⭐ **WHAT THE SHAPE PREDICTS, AND WHY IT IS PLAUSIBLE RATHER THAN A COINCIDENCE:** the exhaust-recede arm sends ARBNO **back into a body whose FENCE has already sealed off its alternatives**, so the recede re-enters a body that cannot re-offer the choice it is being asked to reconsider. **Both crash witnesses have NO FENCE at all** (`ARBNO(*G0)` over `ARBNO(TAB(1) BAL)`; `ARBNO(ARBNO(BREAKX('a')))`), and the two FENCE carriers that survive with a **non-alternating** FENCE — `FENCE('a')`, `FENCE(*C)` — sit on the correct side of the line. So the axis is FENCE **over a choice point**, not FENCE.
+
+⛔ **THE RESIDUAL QUESTION IS NOW PRECISE AND SMALL: what separates `arbno_fence_pos_branch_30/31/34/35/36/3` from `arbno_fence_pos_branch_20/27/28/29/33`?** They are the same generated family with the same top-level shape, so the discriminator is below the source text — the next arm is an emitted-asm diff within that family of twelve, not another source-level predicate. **89 candidates are now 12.**
+
 ## WHAT IS NOT CLAIMED
 
 - **The board is not proven reproducible.** Three whole-board runs (plain, `setarch -R`, plain) are identical by total and by entry name, and 89 carriers × 6 runs did not move — but that is *no movement observed*, not determinism proved. hq_P made this correction mid-flight and it is theirs: one repeat each is one sample of a coin there is reason to think is biased.
+- **FENCE-over-alternation is NOT claimed as the cure's discriminator** — it is an enrichment with 6 counter-examples on one side and 1 on the other, and a predicate that wrong would suppress the arm for the wrong population.
 - **31 entries could not be extracted** by the sweep and were therefore never checked for ARBNO. The 95 is a floor, not a ceiling.
 - 5-and-3 runs (xfail census) and 6 runs (carriers) bound what any of this can see: an entry flipping one run in twenty reads stable throughout.
 - hq_S's SPITCORE non-executable-page jump is a **prediction**, not a measurement.
