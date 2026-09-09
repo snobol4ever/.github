@@ -1,3 +1,55 @@
+# ⛔⛔ CORRECTED 2026-09-08 — THE SYMPTOM IS REAL, **MY MECHANISM AND MY RULE ARE BOTH FALSIFIED** (hq_U, by measurement; verified here)
+
+**The defect is real, was cured by `hq_U` within the hour, and neither my stated rule nor my stated
+mechanism survives.** Both are retracted; the cure is in neither place I pointed.
+
+**1. My rule — "a capture equal to the WHOLE subject is correct; a PROPER SUBSTRING carries the
+subject's numeric view" — is FALSE.** hq_U produced a proper substring that compares *correctly*, and
+I reproduced it on my own uncured build:
+
+| capture | value | `EQ` on the UNCURED build |
+|---|---|---|
+| `A = '512'` … `A LEN(2) LEN(1) . last` (**trailing**) | `2` | **fires — CORRECT** |
+| `B = '512'` … `B LEN(1) . first` | `5` | fails — wrong |
+| `C = '512'` … `C LEN(1) LEN(1) . mid` | `1` | fails — wrong |
+
+My rule *predicts the first row is wrong*. It is right. **The real rule is NUL-TERMINATION:** a
+capture that happens to end at the end of its backing buffer is already NUL-terminated and reads
+correctly; first-char and middle-char captures do not. Every example I had was a first-char capture,
+which is why a wrong rule fit all of them.
+
+**2. My mechanism — "the captured descriptor inherits a numeric field from the subject instead of
+deriving it from the captured bytes" — is FALSE.** gdb settles it: at the coercion entry the
+descriptor is **perfect** — `v=DT_S`, `slen=1`, `s` pointing at `512`. **Nothing is inherited and
+there is no stale numeric field.**
+
+**3. The actual defect** (hq_U): `rt_coerce_num2_d` has **two implementations and the wrong one runs**.
+The C twin `c_rt_coerce_num2_d` (`src/runtime/rt/rt.c`) is correct because it goes through
+`rt_cstr_d`, which materialises a NUL-terminated copy when a slice is not terminated. The entry that
+actually executes is **hand-written asm** — `src/runtime/rtx/rtx_icnnum.s`, whose `SCAN_SIMPLE_INT`
+loads `d.s` from `[SRC+8]`, scans to NUL, and **never reads `slen` at `[SRC+4]`**. The asm rewrite
+dropped a guard the C already had. Cured with a bail-to-C-twin when `s[slen]` is non-zero;
+`gimpel-conversions` now matches `sbl -bf` byte for byte in both modes and Snoflake moved 106→107/124.
+
+⭐ **Why every instrument I reached for agreed** — the answer is better than my guess: `SIZE`, `OUTPUT`,
+`DATATYPE` and arithmetic all go through **length-aware** paths, and **only the comparison predicates
+go through that asm.** So "arithmetic is right, comparison is wrong" was the correct and load-bearing
+observation, and I attached the wrong cause to it.
+
+⛔⛔ **MY OWN INSTRUMENT LESSON, THE SECOND TIME IN ONE NIGHT AND THE SAME SHAPE:** every capture I
+tested was `LEN(1) . X` at position 0, or a whole-subject capture. **I never captured a trailing
+substring, so the case that falsifies the rule was outside the population I probed** — exactly as my
+orphan census was control-armed on the one language whose naming could not fail it. Two different
+claims, one night, one defect: **I generalised a rule from a sample chosen by the shape of the first
+witness rather than by the shape of the hypothesis.**
+
+✅ **What survives, and hq_U confirms it is what let them find the cure in one pass:** the symptom
+table, the both-modes reproduction, and above all the `SPELL_100` chain — `ERROR 246 stack overflow`
+is a symptom **two levels downstream of a wrong comparison**, and a seat taking that row off the
+board would have tuned stack limits forever.
+
+---
+
 # FINDING 2026-09-08 hq_P — ⛔ a pattern-captured SUBSTRING keeps the SUBJECT's numeric value in every comparison predicate
 
 ## Claim
