@@ -316,3 +316,34 @@ path. The rule for all of them:
 DELIBERATE LOSS OF INFORMATION, and every deliberate loss must be bounded by something that notices when it
 has consumed the whole signal. Same family as an empty denominator printing the success shape, and as a ref
 cut from a starved run — all three are instruments agreeing with themselves after the subject left the room.
+
+## ⛔⭐⭐ READING A VERDICT LINE — A SYMPTOM THAT NAMES A RESOURCE IS THE ONE MOST LIKELY TO BE MISATTRIBUTED
+
+**hq_U 2026-09-08, in its own words, routed here by hq_P as standard-shaped rather than incident-shaped.**
+It governs how a runner's verdict line should be READ, which is why it sits beside the port-trace and
+refusal clauses rather than in a FINDING.
+
+**The claim:** when a failure names a resource — *stack overflow*, *out of memory*, *too deep*, *limit
+exceeded* — the resource is almost always a TRUE statement about the crash and almost never the cause.
+
+**Two witnesses, one suite, one sitting, both measured:**
+
+| witness | the verdict line said | what it actually was |
+|---|---|---|
+| `gimpel-conversions` | `ERROR 246` — stack overflow, unbounded or too-deep recursion | a **wrong comparison two levels upstream**: a pattern-captured substring compared as if it ran to the end of its backing buffer, so `SPELL_100` asked `GE(N,100)` about a value that prints `1` and compares `100`, and re-took the hundreds branch forever. The recursion was unbounded **because the predicate was wrong**, not because the stack was small. |
+| `nested_arbno_rpos` | `SIGSEGV rc=139`, which reads as stack exhaustion | `rip=0x0` **and** saved `rip=0x0` — a jump to address ZERO, an **unwired port**. Not depth at all. |
+
+⛔ **Why this is a standard item and not a war story: the board itself supplies the wrong hypothesis.** A
+seat taking either row off the board alone sees a resource named *in the verdict text*, forms the resource
+hypothesis, tunes a limit — and the tuning **appears to help on small inputs**, so the false explanation is
+reinforced rather than refuted. That is RULES.md's `A CORRECT PROCEDURE WITH A FALSE EXPLANATION` with a
+larger blast radius, because here the instrument is the one doing the suggesting.
+
+⭐ **THE CHEAP DISCRIMINATOR — ABLATE THE INPUT RATHER THAN RAISE THE LIMIT.** Before accepting any resource
+explanation: halve the input. If the symptom vanishes with the limit untouched, it is depth. If a one-level
+nesting change flips it, or a value that *prints* right *compares* wrong, it is **logic wearing a resource
+costume**. One probe; it would have cost a limit-tuner an evening.
+
+⭐ The family this belongs to, and the reason it is filed beside the normalisation rule above: both are
+cases where **the instrument's own output is the thing misleading you** — a normalisation that consumes the
+whole signal, and a verdict line that names a true resource as if it were a cause.
