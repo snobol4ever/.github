@@ -179,10 +179,62 @@ def lfl_why(r):
     recs=_progress_by_suite().get(DBNAME.get(r['key'],r['key']))
     if not recs: return 'norows'
     return 'oneday'
+# ⛔⭐ AN XFAIL COUNTS AS A FAIL, SO A SUITE CARRYING ONE IS NOT DONE (ceo CEO-416, 2026-09-08,
+# on Lon's own FACT RULE of 2026-09-03: "there is no such thing now as XFAIL. We are shooting for 100%").
+# THE DEFECT THIS CLOSES, and the coo walked into it before the ruling: the SNOBOL4 master row read
+# 1894/1894 FAIL=0 and this banner printed it "done", while 27 known-red entries sat OUTSIDE BOTH SIDES
+# of that fraction. Dropping a red from the numerator AND the denominator renders it as if it did not
+# exist -- wrong in the flattering direction, on the row Lon's 100% question gets answered from.
+#
+# ⛔ THE COUNT IS A UNION OF THREE SPELLINGS, NEVER A SUM. An xfail is spelled three ways -- ALL.csv's
+# `xfail` column, banner lines in ALL.xfail, and per-entry *.xfail marker files -- and adding them
+# double-counts: snobol4's ALL.xfail holds 54 LINES for 27 ENTRIES (a banner line plus a prose line
+# each), naming the same 27 the CSV column names. MEASURED by the coo across all seven masters
+# 2026-09-08: snobol4 csv 27 and ALL.xfail 27 overlapping 27 of 27; icon 20 markers only; raku 156,
+# snocone 16, rebus 4, all csv-only; prolog and pascal 0. Six of the seven use a SINGLE spelling, so
+# no overlap is possible there -- which is why the union is safe to take and the sum is not.
+# ⛔ AN UNREADABLE CORPUS RETURNS None AND IS SAID ALOUD, NEVER 0: a census that cannot see its
+# population must never print the success shape. That is the whole instrument law in one return value.
+_XF_CACHE = {}
+def xfail_by_lang(lang):
+    """Distinct xfail ENTRIES for a master language: union of the three spellings, or None if unreadable."""
+    if lang in _XF_CACHE: return _XF_CACHE[lang]
+    import csv as _csv, glob as _glob
+    d = os.path.join(os.path.dirname(os.path.abspath(TSV)), '..', 'corpus', 'tests', lang)
+    d = os.path.normpath(d)
+    if not os.path.isdir(d):
+        _XF_CACHE[lang] = None; return None
+    names = set()
+    try:
+        c = os.path.join(d, 'ALL.csv')
+        if os.path.exists(c):
+            with open(c, newline='', encoding='utf-8', errors='replace') as f:
+                r = _csv.reader(f); hdr = next(r)
+                if 'xfail' in hdr:
+                    i = hdr.index('xfail')
+                    for row in r:
+                        if len(row) > i and row[i].strip() == '1': names.add(row[1])
+        x = os.path.join(d, 'ALL.xfail')
+        if os.path.exists(x):
+            for l in open(x, encoding='utf-8', errors='replace'):
+                m = re.match(r'^\*-+\s+\d+\s+(\S+)\s+XFAIL\s*$', l.rstrip('\n'))
+                if m: names.add(m.group(1))
+        for f in _glob.glob(os.path.join(d, '*.xfail')):
+            if not f.endswith('ALL.xfail'): names.add(os.path.basename(f)[:-6])
+    except Exception:
+        _XF_CACHE[lang] = None; return None
+    _XF_CACHE[lang] = len(names)
+    return len(names)
 def eta(r,today):
     fp,ft,tp,tt=int(r['first_pass']),int(r['first_total']),int(r['today_pass']),int(r['today_total'])
     rem=tt-tp
-    if rem<=0: return 'DONE',None
+    if rem<=0:
+        # CEO-416: a master carrying xfails is NOT done however the fraction reads (see xfail_by_lang).
+        if 'master' in r['key']:
+            xf = xfail_by_lang(r['lang'])
+            if xf is None: return 'XFUNKNOWN', None
+            if xf > 0:     return 'XFAIL', xf
+        return 'DONE',None
     # ⭐ A RE-CRITERIONED ROW IS COMPARED, NOT EXCUSED (Lon 2026-09-08). Its first_*/today_* pair cannot be
     # subtracted, but likeforlike() computes a real movement from the progress table on a fixed population,
     # so the row gets a real rate and a real ETA like every other row. Only a suite the table cannot see at
@@ -206,6 +258,8 @@ def banner(plain=False, grid=True, ncol=3):
         k,e=eta(r,today); frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
         if (today-d(r['today_date'])).days>=1: stale.append(r['nick'])
         if k=='DONE': col=G; tail='✅ done'; done+=1
+        elif k=='XFAIL': col=R; tail=f'⛔ {e} xfail=fail'
+        elif k=='XFUNKNOWN': col=Y; tail='⚠ xfail unreadable'
         elif k=='STUCK': col=R; tail='⛔ stuck'; stuck.append(r['nick'])
         elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
         elif k=='NOROWS': col=C; tail='◻ no rows'; recrit.append(r['nick'])
@@ -242,11 +296,11 @@ def md():
                 mv='—'
         else:
             mv=f"{int(r['today_pass'])-int(r['first_pass']):+d}"
-        tail={'DONE':'✅ done','STUCK':'⛔ stuck','NEW':'🆕 one reading',
+        tail={'DONE':'✅ done','XFAIL':f'⛔ {v} xfail=fail','XFUNKNOWN':'⚠ xfail unreadable','STUCK':'⛔ stuck','NEW':'🆕 one reading',
               'NOROWS':'◻ the progress table holds no rows for this suite yet, so nothing can be compared',
               'ONEDAY':'◻ every recorded row is from one day — a second day of readings makes this comparable'}.get(
               k, '→ '+e.strftime('%Y-%m-%d') if e else '')
-        if rc and k not in ('DONE','NOROWS','ONEDAY'):
+        if rc and k not in ('DONE','XFAIL','XFUNKNOWN','NOROWS','ONEDAY'):
             tail += (f" · 🔀 criterion changed ({rc.split(':',1)[-1]}), so `moved` is the same programs"
                      f" re-read: today's graded set compared against its own earliest reading")
         print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {mv} | {tail} |")
