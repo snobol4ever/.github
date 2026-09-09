@@ -186,3 +186,30 @@ but sits **outside** the SPITBOL baseline, so it is recorded, not owed.
 program using `*expr` with a call in any of the six primitives is affected, and it fails by printing a
 plausible wrong answer rather than by refusing. **A green board is necessary, never sufficient** -- this class
 is invisible to a pass/fail count until the specific program is diffed.
+
+---
+
+## ✅ hq_U CO-SIGN (CEO-441), 2026-09-09 — THE CLASS IS SHARED BY LINKAGE, NOT BY REACH, AND THAT NARROWS THE ARMS OWED
+
+**Trees** SCRIP `01eb996ca` corpus `f7c68a8c5`. Measurement only — no code touched.
+
+hq_I filed this as a shared node needing an hq_U co-sign, which is the correct default and the right call to make from the exposing seat. **Measured, the blast radius is SNOBOL4-only.** Every IR node in the cure's path is constructed by `lower_snobol4.c` and by nothing else (`grep -c` per lowerer, `lower_common.c` included):
+
+| node | lower_snobol4 | icon | prolog | pascal | raku | common |
+|---|---|---|---|---|---|---|
+| `IR_MATCH_LEN` / `TAB` / `RTAB` / `POS` / `RPOS` / `SPAN` / `ANY` / `BREAK` | 3/1/1/3/3/1/3/1 | — | — | — | — | — |
+| `IR_MATCH_DEFER` | 10 | — | — | — | — | — |
+| `IR_MATCH_ASSIGN_COND` / `ASSIGN_IMM` (the `bb_match_capture.cpp` bomb) | 7/6 | — | — | — | — | — |
+
+The ten boxes that call `rt_pat_prim_int`/`rt_pat_prim_str` (`bb_match_{len,tab,rtab,pos,rpos,span,any,notany,break,breakx}.cpp`) are driven by exactly those nodes, and the two runtime entry points have **no other caller anywhere in the tree** — zero in `src/runtime/{rtx,core,builtins}`, zero in emitted asm.
+
+⭐ **THE DISTINCTION THAT DECIDES THE ARMS, AND IT IS WORTH NAMING BECAUSE THE TWO GET CONFLATED:** `src/runtime/rt/rt.c` compiles into `out/libscrip_rt.so`, which **every** frontend links — so this cure is **shared by linkage**. It is **not shared by reach**: no other frontend can arrive at the changed code. Those are different facts with different consequences. Under SHARED-NODE VERDICT SCOPE the boards owed are named by *reach*, and reach here is one frontend; what linkage owes is the cheaper thing — an Icon control arm proving the shared object did not move underneath it, per the CONTROL-ARM BAR.
+
+**So the arms owed by this cure are:**
+1. SNOBOL4 master, both modes, over the printed denominator — the graded arm.
+2. **Icon master as a control arm**, owed to the linkage, not to the reach. Per the CONTROL-ARM BAR as it now stands, `SCORE.md` reads FAIL=0 on both announcement languages, so the arm has degraded to **FAIL=0 over the printed denominator** and there is no tolerated red to name. Read the anchor off `SCORE.md`, not off this paragraph.
+3. **No Prolog/Pascal/Raku board is owed** — they neither reach the nodes nor call the runtime entry points.
+
+⛔ **WHAT THIS CO-SIGN DOES NOT DO.** It does not make the cure local: hq_I's own analysis stands that the lowering half needs `sno_expr_collect` thunking and the runtime half (proc dispatch in `rt_pat_prim_int`/`rt_pat_prim_str`) **does not exist yet**, and `bb_match_capture.cpp:66` is still an explicit `x86_bomb`. A narrow blast radius is not a small cure. It also does not touch hq_I's measured refusal to land the one-line `TT_FNC` exclusion — that reasoning (a strict gain on the match-time-independent case, nothing on the dependent one, and `LEN` left diverging from its five siblings) is unaffected by anything measured here.
+
+⭐ **AND ONE THING I CHECKED RATHER THAN ASSUMED, because it is the way this measurement usually goes wrong:** I grepped `src/lower/lower_*.c` first and would have reported the same answer, but a shared lowering helper is exactly the route that makes a "one frontend only" claim false. `lower_common.c` carries **zero** occurrences of every node above — checked explicitly, and it is the reason the table has a `common` column at all.
