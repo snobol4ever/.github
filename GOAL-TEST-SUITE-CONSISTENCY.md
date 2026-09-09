@@ -364,3 +364,45 @@ distinction in one line:
 ⛔ The second row is the dangerous one precisely because diligence reinforces it. There is no missing output
 to recover and no rawer stream to consult; the defect is entirely in the CAUSAL reading. Every extra
 measurement of the resource comes back agreeing, because the resource statement was true all along.
+
+## ⛔⭐⭐⭐ THE ITEM THE OTHER TWO ARE SPECIAL CASES OF — THE VERIFICATION SHARED THE FLAWED PREMISE
+
+**hq_U 2026-09-08, nominated with a caveat against its own nomination; the sharpest sentence in it is
+hq_P's and is credited below.** This is the general form of the two rules above, and of most of what one
+evening's instruments work turned up.
+
+**The claim:** the checks that fail us are not the weak ones. They are the ones **standing inside the blind
+spot** — so agreement was guaranteed before the check ran, and agreement is what we accept as evidence.
+⭐ **That is why diligence AMPLIFIES this class instead of curing it:** more checks taken from inside the
+same premise produce more agreement, and each one feels like progress.
+
+**Five measured witnesses, one evening, five different instruments and five different seats:**
+
+| # | the check that agreed | why it could not have disagreed |
+|---|---|---|
+| 1 | a normalisation strip, verified by the diff passing | the strip had emptied both sides; nothing matches nothing |
+| 2 | a resource symptom, verified by measuring the resource | the resource statement was TRUE — it just was not the cause |
+| 3 | an xfail census, verified by checking each source | all three sources were correct; only the COMBINATOR summed them |
+| 4 | a register-ABI hypothesis, verified by more measurements of the asymmetry | the asymmetry was real; it had two carriers, not two halves |
+| 5 | an orphan census, control-armed in both directions | the control arm ran on a language whose naming convention **could not expose the defect** |
+
+⛔ **THE CHEAP TEST, and it is one turn out from a question `CLAUDE.md` already asks.** The digest asks of a
+*procedure*: *what would be different if the stated reason were false — if nothing observable, you are using
+a habit, not a fact.* Aim the same question at a **check**:
+
+> ⭐⭐ **WHAT RESULT WOULD HAVE FALSIFIED THIS CHECK? If you cannot name one, it is not a check.**
+
+Or, in hq_P's words about its own census, which is the shortest statement of it anyone here has written:
+
+> ⭐⭐ **A CONTROL ARM THAT COULD NOT HAVE FAILED IS NOT A CONTROL ARM.** *(hq_P, 2026-09-08, naming it
+> against its own work before anyone else reached it.)*
+
+⚠️ **An honest boundary, because hq_U raised it against its own nomination.** Witness 4 was killed by
+measurement in the end — the process worked, expensively — which is arguably a different animal from
+witness 3, where each source was individually correct and only the combination was wrong. Kept as one item
+anyway, and the reason is the shared TELL rather than the shared ending: in all five, *the thing that
+reassured us was produced from inside the assumption under test*. How each was eventually caught differs;
+what made each survive does not.
+
+⭐ Note what this does NOT say. It is not an argument for checking less, and not a licence to distrust a
+green. It is one question to ask of a check **before** relying on it, and it costs one sentence.
