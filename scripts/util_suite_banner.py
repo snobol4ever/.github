@@ -13,7 +13,7 @@ STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 1
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
 CRITERION rule (hq_T 2026-09-06, after ceo-372; AMENDED coo 2026-09-08 on Lon's word "Fix it so you CAN do a comparison"). A row may carry criterion_changed = <YYYY-MM-DD>:<slug>. When its first_date PREDATES that day, first_* and today_* answer two different questions and their difference is not a movement -- that much stands, and first_* is still never re-baselined. ⛔ WHAT NO LONGER STANDS is printing n/c and stopping: that is true about those two numbers and useless as an answer to "are we getting better?". Instead likeforlike() holds the POPULATION fixed -- today's graded set -- and asks the progress table what those same programs did then and do now. Same programs, same modes, two dates, so a changed denominator cannot distort it, and nothing is invented: it re-reads per-program evidence already on file. The row then gets a real rate and a real ETA like any other. Programs with no reading at the earlier date are excluded from BOTH sides rather than counted as failures-then-passes-now, which would manufacture progress out of missing data. Only two states remain uncomparable and they are told apart: `no rows` (the table has never seen the suite) and `1 day` (rows exist but all from one day, so there is no earlier reading yet) -- both facts about our instrumentation, never verdicts about the suite.
 """
-import sys, os, datetime as dt, unicodedata as _ud
+import sys, os, re, datetime as dt, unicodedata as _ud
 def dw(s):
     """DISPLAY columns, not len(). The grid misaligned because padding counted CHARACTERS (Lon 2026-09-06:
     "get the suites banner to line up vertically; most likely your length counts are off due to unicode").
@@ -256,9 +256,29 @@ def md_lines():
     buf=io.StringIO()
     with contextlib.redirect_stdout(buf): md()
     return buf.getvalue().rstrip('\n').split('\n')
-def render_table():
+def _row_key(line):
+    """The suite key a rendered markdown row belongs to, e.g. `| \u2744\ufe0f Flake (snoflake) | snobol4 | ...` -> snoflake.
+    None for the header and separator rows, which therefore always pass through untouched."""
+    m = re.match(r'^\|[^|(]*\(([^)]+)\)\s*\|', line)
+    return m.group(1) if m else None
+def render_table(only_key=None):
     """Re-render SCORE.md § THE SUITE TABLE (the rows under the '| suite | lang |' header) from SUITES.tsv, in place.
-    Returns a one-line note; never silent, never a guess: a table it cannot find is said NOT rendered."""
+    Returns a one-line note; never silent, never a guess: a table it cannot find is said NOT rendered.
+
+    ⛔⭐ only_key SCOPES THE WRITE TO THE ONE ROW THE CALLER ACTUALLY MEASURED, and `--set` always passes it
+    (coo 2026-09-08, on hq_P's measured report; the unscoped re-render below was the coo's own 2026-09-06
+    change and this is its correction). THE DEFECT: this function rebuilt EVERY row from the LOCAL
+    SUITES.tsv, so a seat measuring one suite rewrote the display cells of suites its run never touched --
+    with whatever its local TSV happened to hold. When that TSV was behind origin, the write was a SILENT
+    REVERT of another seat's newer number, landing inside a commit whose message truthfully described
+    something else entirely. hq_P measured it happening twice in one evening: their tree held
+    `Budne 64/93 (0bd961e07)` while origin already held `Budne 66/93 (251693227)`, and only a rebase
+    conflict caught it -- `git add -A` after a board would have pushed the revert silently.
+    ⛔ The blast radius was the WHOLE TABLE and the trigger was ordinary: run any board, commit normally.
+    A row nobody measured this session is left BYTE-IDENTICAL now, which is also what makes a genuine
+    disagreement surface as a conflict instead of resolving itself in the wrong direction.
+    `--render` keeps the unscoped whole-table behaviour, because asking for it explicitly is a different
+    act from a board run doing it as a side effect nobody typed."""
     if not os.path.exists(SCORE):
         return f"⚠ suite table NOT rendered: {SCORE} missing beside the TSV (SUITES.tsv is set; the markdown table reads STALE until a renderer runs)"
     L=open(SCORE,encoding='utf-8').read().split('\n')
@@ -268,10 +288,19 @@ def render_table():
     st=hdr[0]; en=st
     while en<len(L) and L[en].startswith('|'): en+=1
     new=md_lines(); old=L[st:en]
+    scope=""
+    if only_key is not None:
+        fresh={_row_key(l):l for l in new if _row_key(l)}
+        if only_key not in fresh:
+            return f"⚠ suite table NOT rendered: no rendered row for suite key {only_key!r} (SUITES.tsv is set; the markdown row reads STALE)"
+        merged=[fresh[only_key] if _row_key(l)==only_key else l for l in old]
+        if only_key not in {_row_key(l) for l in old}: merged.append(fresh[only_key])
+        new=merged
+        scope=f" (scoped to {only_key}; rows for suites this run did not measure left byte-identical)"
     changed=sum(1 for a,b in zip(old,new) if a!=b)+abs(len(old)-len(new))
-    if changed==0: return "suite table: SCORE.md § THE SUITE TABLE already matches SUITES.tsv (0 rows changed)"
+    if changed==0: return "suite table: SCORE.md § THE SUITE TABLE already matches SUITES.tsv (0 rows changed)%s" % scope
     L[st:en]=new; open(SCORE,'w',encoding='utf-8').write('\n'.join(L))
-    return f"suite table: SCORE.md § THE SUITE TABLE re-rendered from SUITES.tsv in the same call ({changed} row(s) changed)"
+    return f"suite table: SCORE.md § THE SUITE TABLE re-rendered from SUITES.tsv in the same call ({changed} row(s) changed){scope}"
 def main(a):
     if '--set' in a:
         i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else dt.date.today().isoformat(); tree=a[i+5] if len(a)>i+5 else None
@@ -280,7 +309,7 @@ def main(a):
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
         if tree: r['tree']=tree
         save(head,rows)
-        print(render_table())
+        print(render_table(only_key=key))
     if '--render' in a: print(render_table()); return
     if '--md' in a: md()
     else: banner('--plain' in a, grid='--line' not in a)
