@@ -59,5 +59,46 @@ for r in ROOTS:
     print('ok  hq_%-3s line %d rewritten  1 1  (backup %s.bak-mode-nonet-%s)' % (r, i + 1, path, STAMP))
     print('       was: ' + old[:150])
 
+
+# ---------------------------------------------------------------------------------------------------
+# SECOND PASS (ceo CEO-405, folded in before Lon ran the first): RULES.md SHARED-NODE VERDICT SCOPE was
+# corrected tonight and three root digests quote its instrument. The census over IR node references in
+# the lowerers names the FLOOR of the owed set, never its ceiling -- hq_U's witness is a change touching
+# the scanning STATE whose node grep answers ICON ONLY while the SNOBOL4 match templates ride the same
+# registers and scan globals. A digest that carries the old sentence hands a seat a verdict that is
+# wrong by being too narrow, which is the worst shape: it passes.
+CENSUS_NOTE = (" ⛔⭐ CORRECTED 2026-09-08 (CEO-405): THIS CENSUS NAMES THE **FLOOR** OF THE OWED SET, NEVER "
+               "ITS CEILING. It answers \"which lowerers mention this node\", which is right only when the "
+               "frontends share the node and nothing else. Before quoting it, ask what STATE the change "
+               "touches and grep for that state's carriers -- globals, dedicated registers, runtime entry "
+               "points -- across the templates and runtime too; when the two answers disagree, THE WIDER "
+               "ONE IS OWED.")
+
+print()
+for r in ROOTS:
+    path = '/home/claude_%s/CLAUDE.md' % r
+    try:
+        text = open(path, encoding='utf-8').read()
+    except OSError:
+        continue
+    if 'grep -c IR_' not in text:
+        print('ok  hq_%-3s census sentence not carried; nothing to correct' % r)
+        continue
+    if 'FLOOR** OF THE OWED SET' in text or 'FLOOR* OF THE OWED SET' in text or 'NAMES THE **FLOOR**' in text:
+        print('ok  hq_%-3s census already corrected' % r)
+        continue
+    lines = text.split('\n')
+    hits = [i for i, l in enumerate(lines) if 'grep -c IR_' in l]
+    if len(hits) != 1:
+        print('⛔ REFUSED hq_%s: %d lines quote the census -- anchor not unique, fix by hand' % (r, len(hits)))
+        rc = 2
+        continue
+    i = hits[0]
+    lines[i] = lines[i] + CENSUS_NOTE
+    if not any(x.startswith(path + '.bak-mode-nonet-') for x in []):
+        shutil.copy2(path, path + '.bak-census-' + STAMP)
+    open(path, 'w', encoding='utf-8').write('\n'.join(lines))
+    print('ok  hq_%-3s census sentence corrected on line %d  1 1' % (r, i + 1))
+
 print('\nRun the digest gate next: bash scripts/test_gate_digest_matches_rules.sh')
 sys.exit(rc)
