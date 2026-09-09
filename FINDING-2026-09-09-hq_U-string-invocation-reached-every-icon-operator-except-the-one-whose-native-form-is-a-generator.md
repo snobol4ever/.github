@@ -61,3 +61,33 @@ SCRIP coerces `"a"` to 0 and generates six values where Icon refuses. That is a 
 - `"..."(1,5)` still answers 022 where the oracle answers 106. Both refuse; only the code differs.
 - The non-numeric coercion red above is **filed, not cured**.
 - I did not re-run the SNOBOL4 master: SNOBOL4 is parked under Lon's Icon-only order, and it has no reach to `IR_CALL_VALUE` — linkage only.
+
+---
+
+## ✅ ADDENDUM 2026-09-09 — A SECOND MISSING ARM, `"[:]"`, FOUND BY hq_V'S RUNG AND NOT BY MY PROBE SET
+
+SCRIP `583af75c5`. hq_V minted `ladder__rung29_type_string_invocation_of_operator_names` (corpus `cf265e9f1`) as an oracle-cut master witness for this class **before** my cure, per CEO-445. It exercises six forms — `"..."`, `"[:]"`, `"[]"`, `"image"`, `"+"` and `proc("^",2)` — and after the `"..."` cure it **still failed**, at ERROR 022 on `"[:]"`, the ternary **section** operator.
+
+⭐ **MY OWN PROBE SET MISSED IT AND hq_V'S DID NOT, WHICH IS THE ARGUMENT FOR AN INDEPENDENTLY MINTED WITNESS.** I probed eleven forms and concluded the class was one arm wide. It was **two**. My eleven were the operators I thought of; hq_V cut theirs from the constructs Arizona `misc`/`traps`/`evalx` actually die on. Isolating each of rung29's six forms: `"[]"`, `"image"`, `"+"` and `proc("^",2)` were already green, so `"[:]"` was the one remaining arm — but *"I probed the class and it is one arm wide"* was a claim my probe set could not support, and only someone else's witness falsified it.
+
+**The cure, and the trap in it.** `rt_section_var` (`pattern_match.c:1489`) requires `IS_VARREF_fn(base)` — a section is **assignable** (`s[3:5] := "x"`), so it builds a NAMETRAP over a variable. String invocation passes a **value**, so the first attempt returned `FAILDESCR` and the program printed *nothing* rather than erroring — a silent failure that looked like a wrong cure site. The fix stages the value into an arena cell and wraps it with `rt_var_ref_cell`, so `rt_section_var`'s index arithmetic — negative indices, out-of-range refusal, the `i > j` swap — has **one copy** serving both callers rather than a duplicate in the by-name path.
+
+### ⛔ ONE ENTRY CHANGED KIND, AND IT IS NOT A REGRESSION — MEASURED, NOT ARGUED
+
+A name-level A/B against a build with **only** this arm reverted, same corpus, m3:
+
+- `procedure_write_255` (hq_V's rung29): **FAIL → PASS.** The flip.
+- `procedure_record_every_replace_13`: **FAIL → HANG.** Red on both arms, different kind.
+
+⭐ The second looks like a regression and is the opposite. On the control build that program dies at **34 lines**, at its own `"[:]"` line inside `p3`. On the cured build it reaches **241 lines** — roughly 200 lines further, all correct — and hangs in `p12`. **The cure did not break it; it unblocked it into a pre-existing defect two hundred lines downstream.** Reduced to a three-line witness:
+
+```icon
+procedure main();
+    write(image(while break) | "none");
+    write("after");
+end
+```
+
+`iconx` prints `&null` then `after`. SCRIP hangs, rc=124. **`while break` — `break` as a `while` CONDITION — is an Icon control-flow defect with nothing to do with string invocation**, and it is filed here rather than cured because it is not in this lane. ⚠️ It costs every Icon board run a 12-second timeout, so it is worth someone's rank-0; naming it is the point of this paragraph.
+
+**Arms.** Gate extended to **24 gradings** (`section`, `sectvar`, `subscript` added, all three expectations cut from `iconx` and verified against it rather than assumed); control build with only `by_name_dispatch.c` reverted reads **RED 4/24**, the four being exactly the two section witnesses × two modes, so the arm is isolated. Icon master **712/726 both modes**. Prolog ladder **533/568 FAIL=35**, identical again.
