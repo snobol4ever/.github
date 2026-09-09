@@ -67,3 +67,53 @@ So merely clearing the flag for the body breaks the by-name return it exists to 
 That makes the landing a **shared-node change in `src/runtime/rt/`**: it needs hq_U's co-sign and THE CONTROL-ARM BAR (ceo-359) on every other frontend, because `rt_g_want_name`, `rt_nret_fix` and the staged-call epilogue are reached by more than SNOBOL4. It is not the "one package program, cure it, flip it" shape OCTET/NONET is run on, and it should not be attempted as one.
 
 **Row PARKED, not done, with this recorded.** `gimpel-l-one-compiler` stays red and stays counted. hq_B was told the fixture is claimed here so its Gimpel class does not double-count it, and told the cause, because any driver built on the by-name-returning includes (`PUSH.INC` and anything ending `:(NRETURN)`) will show the same wrong-or-empty **operand** shape the moment it is driven through a deferred star-expression.
+
+---
+
+# ADDENDUM (hq_V, 2026-09-08 22:4x CDT, tree SCRIP `f09612633`) — A SECOND WITNESS, SIMPLER THAN THE FIRST, AND THE SAME ROOT CAUSE
+
+The deferred star-expression above is **not** required to provoke this. A second graded red, **`gimpel-stack-field-functions`**, reaches the same defect through **nested `.`-over-call** with no pattern matching anywhere. This repro is nine lines and is the one a cure should be developed against:
+
+```
+        DEFINE('FLD(ST,I)')             :(FLD_END)
+FLD     FLD = .APPLY(FIELD(DATATYPE(ST), I), ST)
++                                       :S(NRETURN)F(FRETURN)
+FLD_END
+        DATA('PAIR(LEFT,RIGHT)')
+        P = PAIR('left','right')
+        OUTPUT = DATATYPE(.FLD(P,2))
+END
+```
+
+`sbl -bf` prints **`NAME`**. SCRIP prints **`STRING`**, both modes.
+
+## Why, measured at the seam
+
+`SNO$WANTNM` fires **twice** in this one expression, and there is only one global to hold both requests:
+
+```
+[WN] SNO$WANTNM fired -> glob=1      <- the OUTER `.FLD(P,2)` asks for a name
+[WN] SNO$WANTNM fired -> glob=1      <- the INNER `.APPLY(...)`, inside FLD's own body, asks again
+[WN] nret_fix wn=0 ret_by_name=1 rv=40   <- FLD returns: ret_by_name=1, rv=40 is DT_N, but wn=0 so it is DEREFERENCED
+```
+
+The inner `.APPLY(FIELD(...), ST)` is consumed by the field-var fast path in `by_name_dispatch.c` (~6663), which **clears `rt_g_want_name` when it consumes it**. That clear destroys the *outer* request, which was still pending. `FLD` then returns its correct `DT_N` into `rt_nret_fix(r, wn)` with `wn == 0`, and the name is dereferenced to a string.
+
+**The control is in the same run:** the bare `DATATYPE(FLD(Q,2))` — no outer dot — correctly prints `STRING` in both oracle and SCRIP, and its trace shows `SNO$WANTNM` firing exactly **once** (the inner `.APPLY` only). One pending request works; two nested requests do not.
+
+## ⛔ This sharpens the diagnosis and the required cure
+
+The earlier statement — "the flag is left live across the callee body" — is true but is **not the whole mechanism**. The sharper statement is: **`rt_g_want_name` is a single global with no nesting, so it cannot represent an outer pending "I want a name" and an inner one at the same time; whichever consumer clears it first destroys the other's request.** A per-activation slot fixes both symptoms at once; adding a save/restore stack would fix it too but is a new global and needs Lon's grant.
+
+## Class size in hq_V's lane, stated honestly
+
+Of the **nine** graded snoflake reds, **four** reach a by-name return:
+
+| fixture | reaches by-name via | status |
+|---|---|---|
+| `gimpel-l-one-compiler` | `PUSH.INC` (`:(NRETURN)`) | ⭐ **CONFIRMED** this cause |
+| `gimpel-stack-field-functions` | `PUSH.INC` + `FLD.INC` | ⭐ **CONFIRMED** this cause (the repro above) |
+| `kalah-opening-search` | builds `:(NRETURN)` functions with `CODE()` | **CANDIDATE, NOT CONFIRMED** — dies at `ERROR 239 -- indirection operand is not name`, the right family, but it is reached through `CODE()` and I have not proved it is this defect rather than a `CODE` subset gap |
+| `gimpel-linked-list-functions` | `LAST.INC` | **attributed elsewhere** — HQV-7 diagnosed it as the twice-`DEFINE`d-name defect (CEO-429), not this one, though it also uses a by-name include |
+
+So the shared-node row is worth **two** graded reds outright and possibly a third. That is the argument for its rank, and it is stated without rounding the candidate up into the confirmed column.
