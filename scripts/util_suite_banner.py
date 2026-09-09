@@ -296,10 +296,10 @@ def md():
                 mv='—'
         else:
             mv=f"{int(r['today_pass'])-int(r['first_pass']):+d}"
-        tail={'DONE':'✅ done','XFAIL':f'⛔ {v} xfail=fail','XFUNKNOWN':'⚠ xfail unreadable','STUCK':'⛔ stuck','NEW':'🆕 one reading',
-              'NOROWS':'◻ the progress table holds no rows for this suite yet, so nothing can be compared',
-              'ONEDAY':'◻ every recorded row is from one day — a second day of readings makes this comparable'}.get(
-              k, '→ '+e.strftime('%Y-%m-%d') if e else '')
+        named={'DONE':'✅ done','XFAIL':f'⛔ {e} xfail=fail','XFUNKNOWN':'⚠ xfail unreadable','STUCK':'⛔ stuck','NEW':'🆕 one reading',
+               'NOROWS':'◻ the progress table holds no rows for this suite yet, so nothing can be compared',
+               'ONEDAY':'◻ every recorded row is from one day — a second day of readings makes this comparable'}
+        tail=named[k] if k in named else ('→ '+e.strftime('%Y-%m-%d') if e else '')
         if rc and k not in ('DONE','XFAIL','XFUNKNOWN','NOROWS','ONEDAY'):
             tail += (f" · 🔀 criterion changed ({rc.split(':',1)[-1]}), so `moved` is the same programs"
                      f" re-read: today's graded set compared against its own earliest reading")
