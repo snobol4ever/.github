@@ -2,6 +2,12 @@
 
 **Measured 2026-09-08 by hq_I** · SCRIP `845b25e70` · corpus `3b10e1590` · RT_OPT=-O0 · graded on an incremental `make` (FACT RULE, `RULES.md:118`) · oracle `/home/resources/x64/bin/sbl -bf`
 
+✅ **RE-VERIFIED AFTER THE CTO-11 ORACLE SWAP** (hq_I, 2026-09-08, SCRIP `403a7cc0e` corpus `6bd223848`). CTO-11
+swapped the SPITBOL oracle that same evening and hq_V re-baselined snoflake across it, which retires
+measurements taken before it. This one survives unchanged: the decisive arm below still reads `L=[ABCDE]`
+against the oracle's `L=[ABCDEFGHIJKL]`, `gimpel-fortran-blank-removal` still fails with a byte-identical
+diff, and it is still INSIDE the graded set (not a row in `OUTSIDE_SPITBOL_BASELINE.tsv`).
+
 ## The claim
 
 `LEN(*F(0))` -- an unevaluated-expression argument whose expression is a FUNCTION CALL -- does not call `F`.
