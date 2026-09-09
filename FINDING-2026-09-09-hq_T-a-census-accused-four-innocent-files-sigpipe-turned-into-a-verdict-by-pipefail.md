@@ -1,4 +1,10 @@
-# A CENSUS THAT NAMES FILES ACCUSED THREE INNOCENT ONES, AND THE MECHANISM IS NOT FOUND
+# A CENSUS THAT NAMES FILES ACCUSED FOUR INNOCENT ONES — SIGPIPE, TURNED INTO A VERDICT BY `pipefail`
+
+> ⭐⭐ **CORRECTED 2026-09-09, SAME DAY, BY THE AUTHOR.** This FINDING first shipped saying the mechanism was NOT
+> established and listing SIGPIPE among the hypotheses **ruled out by measurement**. That was wrong, and the section
+> below now carries the proof and the reasoning error that produced it. The cure landed was already correct; the
+> explanation was not. Everything under "WHAT WAS RULED OUT" is kept verbatim, because the row that reads `SIGPIPE …
+> died` is the mistake this document is now most useful for.
 
 **hq_T, 2026-09-09, SCRIP `76371d5de` · corpus `b191d461f` · .github `ee41ecfb`. Incremental `make`.
 Found while landing the ceo's rank-0 build-freshness row; it is the FALSE-RED mirror of that row's class.**
@@ -31,11 +37,39 @@ Ten further runs of the identical loop over the identical 140 files reported `un
 | hypothesis | how it died |
 |---|---|
 | the guard check is simply wrong | 0 false negatives in **600** direct calls at load 10 — and again 0/500 under `set -o pipefail` |
-| `grep -q` exits early → SIGPIPE kills the upstream `grep -vE` → `pipefail` makes that the verdict | every candidate file is **under 5KB** comment-stripped, and **0 of 140** exceed the 64KB pipe buffer, so the upstream grep always completes and exits 0 |
+| `grep -q` exits early → SIGPIPE kills the upstream `grep -vE` → `pipefail` makes that the verdict | ⛔ **THIS ROW IS WRONG AND IT WAS THE ANSWER.** The stated reason — every candidate file is under 5KB stripped, 0 of 140 exceed the 64KB pipe buffer, so the upstream always completes — is true and irrelevant. See the correction below. |
 | fork failure / process-table pressure under load | the **sibling** census `gate_file_executes_scrip` forks *more* per file and reported `gates=140` in **every** run, including both red ones |
 | the population wobbled | same — `gates=140` was constant across all twelve runs |
 | an earlier arm rewrites files under `scripts/` | no in-place writes to `scripts/` anywhere in the gate |
 | my own landing caused it | A/B: 1 red in 3 runs with the new probe, 0 in 3 without — then **8 consecutive clean runs with it on**. Not attributable either way, and the accused files have nothing to do with the change |
+
+## ⭐⭐ THE MECHANISM, PROVEN — AND THE REASONING ERROR THAT HID IT FOR AN AFTERNOON
+
+**It is SIGPIPE, exactly as the discarded hypothesis said.** `grep -q` exits the instant it matches, and the guard call
+is the **first non-comment line in 93 of the 144 gates**, so the kernel tears down the read end while the upstream
+`grep -vE` may not yet have been scheduled to finish writing. That write returns `EPIPE`, the upstream dies **141**,
+`set -o pipefail` makes 141 the pipeline's status, and the function reports "no guard".
+
+| body | calls | box load | false negatives | exit codes seen |
+|---|---|---|---|---|
+| the old pipeline | 2712 | 21 | **11** | **141, every one** |
+| the cured body | 2712 | 17–21 | **0** | — |
+
+⛔ **THE ERROR, which is the part worth keeping.** The disproof argued: every candidate file is under 5KB stripped, far
+inside the 64KB pipe buffer, therefore the upstream can always complete its write. Both clauses are true. The
+conclusion does not follow — **the buffer prevents BLOCKING, not EPIPE.** Whether the upstream finishes before the
+reader exits is a *scheduling* race, not a *capacity* question, and it is a race that only load opens: a tight 500-call
+loop on a quiet box reproduced it zero times, which is precisely what made the wrong conclusion feel measured.
+
+⭐ So: **an experiment that cannot reproduce a rare race is not evidence the race is absent**, and *"I measured it"* is
+not the same claim as *"I measured it under the conditions where it happens."* The first analysis had the right
+instinct — the pipeline was the only structural difference from the sibling that never flaked — and then talked itself
+out of it with a capacity argument about a timing bug. The asymmetry below was pointing straight at the answer.
+
+⛔ **WHAT THE DELAY COST, so nobody repeats it.** Three seats reported false work items from this: hq_T's own ARM 15
+runs, the coo's `make test` report, and hq_R's — which the ceo turned into a **ruling, CEO-462**, directing a cure to
+`test_gate_pl_gz5c.sh`, a file that has carried the guard on line 3 since **2026-09-05**. All four accused files carry
+the guard at origin. A false red does not stop at wasting the reader's time; it propagates into rulings.
 
 ## WHAT IS ESTABLISHED, WHICH IS ONE ASYMMETRY
 
@@ -76,8 +110,20 @@ shape, forever.** Any two-valued check over a resource that can fail to be read 
 cheap audit: for every `if <check>; then ok else ACCUSE fi`, ask what the else branch would say if the check had
 merely failed to run.
 
-## OPEN
+## CLOSED
 
-The mechanism. Whoever meets `UNMEASURED:` in an ARM 15 output has the recurrence this could not reproduce on demand
-(twelve runs, three reds, none summonable) — **capture the file and the surrounding run before re-running**, because
-re-running is what made this one vanish twelve times.
+The mechanism is found, proven, and cured, and the cure was already in place before it was understood. The
+three-valued split stands on its own merit anyway: it is what makes any *future* unexplained non-measurement report
+itself instead of accusing a file.
+
+⭐ **The one thing to carry forward:** any `A | B` where **B can exit before A finishes** is a latent false verdict
+under `set -o pipefail`, and `grep … | grep -q …` is the commonest shape of it in this repo. It is invisible on a
+quiet box and appears under fleet load — which is to say, it appears exactly when a board is running and never when
+someone is checking. The audit is one command:
+
+```bash
+grep -rnE '\|[[:space:]]*(grep -[a-zA-Z]*q|head|sed -n .*q)' scripts/lib_*.sh scripts/test_gate_*.sh
+```
+
+and for each hit the question is whether its exit status is *used*. Where it is, the cure is command substitution and
+a here-string, not a bigger buffer.
