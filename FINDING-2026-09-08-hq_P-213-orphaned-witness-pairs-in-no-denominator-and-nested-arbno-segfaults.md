@@ -78,15 +78,29 @@ recursion theory sends you to the runtime and to `&STLIMIT`; the real defect is 
 stack-guard faults as ERROR 246 and this produces a bare signal 139, which is correct (it is not a
 stack fault) and is worth knowing: a raw 139 from a pattern is a wiring bug, an ERROR 246 is depth.
 
-## `nested_alt_span_breakx_rpos` — a silent wrong answer
+## `nested_alt_span_breakx_rpos` — a HANG (⛔ CORRECTED — I first reported this as silent-wrong)
 
 ```
           'a+a+a' (SPAN('ab') | (BREAKX('ab') | '')) RPOS(0)     :S(OK)F(NO)
 ```
 
-Oracle prints `match`. SCRIP prints **nothing** — neither `match` nor `nomatch`, so both the S and F
-branches were skipped. ⛔ A statement whose success and failure gotos are *both* unreached is the
-same wiring smell as the segfault above and the two should be looked at together.
+Oracle prints `match` in well under a second. SCRIP produces **no output** — and the reason is that
+it **HANGS**, not that it takes a branch silently. Re-run under a 300s bound it is **still running
+past 120 s**; `hq_U` reproduced it independently as `rc=124` and caught the mis-description.
+
+⛔ **My original entry here said "prints nothing … both the S and F branches were unreached … the
+same wiring smell as the segfault above, and the two should be looked at together." That inference
+was WRONG and is retracted.** Empty output under a 20 s bound is equally consistent with a hang, and
+I had the return code in hand and read stdout instead.
+
+⭐ **Why the correction matters more than the wording:** silent-wrong and hang want **different first
+moves**. Silent-wrong is a semantics bug and sends you to port wiring; a hang in nested pattern
+alternation is an **engine liveness** bug. Grouping it with the segfault would have sent the engine
+lane at the wrong question. It is a **separate defect from the nested-ARBNO segfault**, not a
+sibling.
+
+⚠️ And per this project's own timeout law, `rc=124` cannot distinguish "needed 8.1 s" from "never
+finishes" — which is why the figure quoted above is a measured floor (>120 s) rather than the signal.
 
 ## Why this class is worse than xfail, and why it is a new shape
 
