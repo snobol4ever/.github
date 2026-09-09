@@ -77,3 +77,34 @@ cut and would collide with it. Routed to the ceo instead; it wants re-measuring 
 `bb_create.cpp` saves `contract_regs[5] = icn_host_pinned() ? "rbp" : "rsp"`, and in this build it saved
 **rsp** while the emitted body addresses off **rbp**. If those two bases are not the same value, the anchor is
 wrong independently of the sign of the offsets.
+
+## R1 ATTEMPTED AND WITHDRAWN — IT IS GATED ON R2, AND HERE IS THE MEASUREMENT THAT SAYS SO
+
+hq_S, 2026-09-09, against CEO-456 (R1: "copy `[base - below, base + above)` and anchor the body at `cp + below`,
+where below covers `(nparams+nlocals)*16` plus whatever the layout puts under the base"; R2 rides the cto's cut).
+
+I built R1 exactly as specified -- `scrip_coexpr_create` took a fourth `below_bytes`, copied
+`[regs[5]-below, regs[5]+frame_bytes)`, anchored `pkg->csav5` at `cp+below`, carried `frame_copy_below` on the
+context so `scrip_coexpr_refresh` reproduces it, and `bb_create` passed the extent in `ecx`. **It changed
+nothing, and the reason is worth more than the patch was.** Two measurements, both from the emitted `.s`:
+
+1. **`below` computed as 0 at every create site** (`mov ecx, 0`, four sites in w5.icn). The enclosing locals are
+   NOT in `g->vslots` with negative offsets, so a low-water mark taken from the varslot table -- the obvious
+   exact source, and better than the `(nparams+nlocals)*16` estimate, which is 48 bytes for a witness whose body
+   reads `rbp-576` -- finds nothing to copy. Neither quantity is the right one.
+
+2. **The frame base is a region base PLUS A CONSTANT, and the contract saves a DIFFERENT REGISTER.** The host
+   prologue emits `lea rbp, [rax + 560]` (592 / 624 / 704 at the other three sites): locals live BELOW `rbp`,
+   down toward that region base, so the constant in that `lea` IS the `below` R1 wants. Meanwhile `bb_create`
+   saves `contract_regs[5] = icn_host_pinned() ? "rbp" : "rsp"` and in this build saved **rsp**, while every
+   body addresses off **rbp**. So R1 would copy the right-sized window around the WRONG ANCHOR.
+
+⛔ That second point is R2 verbatim -- "the saved base register is the frame base the derivation chose for the
+host graph" -- so R1 is not independent of it after all: the extent and the anchor come from the same `lea`.
+I withdrew the plumbing rather than land an unused ABI parameter that computes 0 and that the cut would have to
+unpick. ⭐ For whoever lands this on the cto's tree: **the number you want is the constant in the host's
+`lea rbp, [<region>, + N]`, and the base you want is rbp, not the contract's saved rsp** -- take both from the
+one selector the derivation chose, which is precisely what R2 makes readable.
+
+R3 IS CLOSED, NO CODE CHANGE: the ceo's own probe `x := 1; c := create x; x := 2; write(@c)` prints **1** under
+iconx and **1** under SCRIP. `create` already captures by value. Verified, not assumed.
