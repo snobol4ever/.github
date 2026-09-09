@@ -32,3 +32,24 @@ The mode-4 patch is saved at `postoffice/handoff/cto-define-executable-m4-cure-2
 
 - **Building a proc per distinct entry** (a per-entry activation stub named `F$G`) makes the FIRST call correct and leaves every later call silent: the alternate stub gets no `_α` label, because α labels come from the DEFINE statement's activation block and not from the proc, so it is not callable by name. The seal says so out loud under `SCRIP_SEAL_DIAG=1`: `[SEAL] MISS lbl=F$G_α`. Renaming the key to label-safe characters does not help; the label does not exist at all.
 - **Re-pointing the name at the raw label body** (`LBL__G`) makes *both* calls produce nothing: a label body is not an activation, so the call arrives with no frame.
+
+## Addendum, same sitting: why mode 3 cannot be cured by re-pointing anything
+
+The next step the ceo asked for is done, and it changes the shape of the remaining work.
+
+I built the `dentry` table in the mode-3 path as well, gave each bind its own label name, added a mode-3 arm to the bind template, and a runtime helper that writes **both** candidate cells for the function — the wired cell `bb_ab_cell_addr(fname)` and `body_cell$<fname>` — from the sealed `body$<entry>` of that DEFINE's own entry. Instrumented, all of it runs and all of it is correct:
+
+```
+[bind]   fname=F lbl_t0=LBL__F cell=0x...4d28      (first DEFINE, at its own site)
+[rtbind] F <- LBL__F cell=body$F src=... *src=0x...1125
+second                                              (the call, ignoring both writes)
+[bind]   fname=F lbl_t0=LBL__G cell=0x...4d28
+[rtbind] F <- LBL__G cell=body$G src=... *src=0x...124f
+second
+```
+
+**The mode-3 call does not read any cell.** It is wired straight to the body chosen when the slab was sealed, which is what "the wiring is the execution" means. Writing `alpha$F`, `body_cell$F`, or the runtime cell at run time therefore cannot change which body a statically wired call reaches, and no amount of re-pointing will.
+
+**So the mode-3 half is not a cell fix, it is a dispatch decision:** a function whose name carries MORE THAN ONE DEFINE in the program text must be dispatched **indirectly**, the way a run-time-defined function already is (`rt_sno_runtime_define` clears `p->fn` precisely to force the by-name path). The lowerer already detects the collision — it is the `defs[]` overwrite this finding starts from — so the condition is known at compile time and costs nothing for the overwhelming majority of programs, which define each name once.
+
+That is a change to how a call is wired, not to how a bind writes, so it wants the ceo's word before it lands. The mode-4 cure remains held for the same reason it was held: a semantic difference between the modes is not licensed.
