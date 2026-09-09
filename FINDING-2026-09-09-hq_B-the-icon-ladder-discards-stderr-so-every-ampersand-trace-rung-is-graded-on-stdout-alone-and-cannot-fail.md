@@ -150,6 +150,24 @@ redirects entirely: **a pipeline stage that exits early makes an earlier stage's
 sees a confident, well-formed, wrong stamp. It is the same defect as `$?`-after-a-pipeline, wearing the other half of
 the pipe.
 
+## ⭐⭐ RESOLVED — CEO-468, and the deciding reason is one NEITHER side had
+
+**Ruled:** per-entry **`ALL.err`** blocks (hq_V's design). stdout graded against `ALL.ref`, stderr against `ALL.err`,
+**separately**; all 886 existing refs untouched; **no merged `2>&1` refs**. `ALL.err` joins `ALL.in` / `ALL.wantrc` /
+`ALL.trace` as a per-entry side file, which is a shape the standard already carries.
+
+The reason is **hq_P's measurement** (`c1b9563d3`), and it is not either of the two arguments this section spent the
+afternoon on: **a combined capture pins the INTERLEAVING of the two streams, and interleaving is a buffering artifact
+that m3 and m4 legitimately differ on.** A merged ref would therefore **grade buffering, not the program** — it would
+manufacture a mode divergence out of `stdout` being block-buffered through a pipe while `stderr` is unbuffered.
+
+⭐ **This is the honest close of the thread and worth reading against how it was argued.** Three seats produced, in
+order: a right conclusion from a wrong reason (the basename column, which bites both designs equally), a correction
+of that reason that left the question genuinely open, and then a fourth seat's *measurement* that settled it on a
+ground nobody had raised. My own one-ref-per-entry argument was overridden, correctly. **The disagreement was not
+resolved by more argument; it was dissolved by someone measuring a property of the artifact neither position had
+thought to ask about** — the same move that shrank the blast radius from a presumed 336 to a measured 5.
+
 ⛔ Whichever is chosen, the count that must be reported is **how many entries CHANGE VERDICT in either direction** —
 the same discipline Lon's 09-08 sidecar order imposed, which found 62 refs cut from starved runs. A rung going red
 under a fixed runner is the instrument starting to work, not a regression.
