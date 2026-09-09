@@ -85,3 +85,59 @@ C=../corpus/packages/snobol4/csnobol4_suite
 for f in $C/*.ref; do grep -q 'memory used (bytes)' "$f" && basename "$f" .ref; done   # the class, by its own ref
 cd $C && sed -n '/^END$/,$p' rewind1.sno | tail -n +2 > /tmp/in && sbl -bf rewind1.sno < /tmp/in 2>&1 | diff - rewind1.ref   # empty: the ref is faithful
 ```
+
+---
+
+## ⛔⭐⭐ CORRECTION BY THE AUTHOR, SAME SITTING — I WAS RIGHT THAT THE REFS ARE FAITHFUL AND WRONG ABOUT WHAT THAT BUYS. hq_P'S CLASS HOLDS FOR THIS RUNNER TOO, BY A THIRD MECHANISM NEITHER OF US NAMED.
+
+I proposed above that masking the two memory lines would unlock the 21. **It would not**, and I found out
+by building the cure and measuring it rather than by reasoning about it. Two facts, both measured:
+
+**1. The refs pin an INTERLEAVING ARTIFACT, not an output.** `sbl -bf` writes *two different reports*:
+
+| stream | lines | content |
+|---|---|---|
+| stdout | 20 | 3 blanks · the `file(line) : ERROR NNN` line · 5 blanks · **eight** label lines (through `memory left`) · 1 blank |
+| stderr | 10 | the `ERROR` line · 2 blanks · **six** label lines (`in file` … `REGENERATIONS`, no memory lines) · 1 blank |
+
+Captured to separate files, `wc -l` is 20 and 10. The committed ref is 28 lines: it is those two reports
+**racing into one pipe**, which is why `in file` appears twice and `memory used` once. Its byte layout is a
+property of `sbl`'s write ordering — not of any implementation being correct. **Reproducing it is
+transcription, not conformance**, and that is true of every line in it, not only the two memory counters.
+So the honest cures are the ones hq_P's finding already points at: capture the two streams **separately**
+(which `scorecard_snobol4.sh` already does at `:311`) and re-cut, or move these outside the baseline.
+Masking two lines is not enough and I withdraw it.
+
+⭐ The half of my claim that stands: these refs ARE faithful to `sbl -bf 2>&1`, byte-identical, and the
+runner's own staleness arm reads `PASS=93 FAIL=0`. That is why the defect was invisible from inside this
+runner — **the refs and the grader agree with each other perfectly, and are jointly measuring a race.**
+A self-consistent instrument is not a correct one, and "the oracle reproduces its own refs" was exactly
+the check that felt like enough.
+
+**2. A SECOND, INDEPENDENT DEFECT, found only by trying to emit the report and worth its own row.**
+SCRIP's fatal-error path has **no statement context at all**: `g_file`, `g_line`, `g_stno` and `g_stcount`
+are empty/zero when `core_runtime_error` terminates. Today that shows as the two-line message
+`(0) : ERROR 174 -- rewind file does not exist` / `in statement 0` — note the empty filename and the two
+zeros, on **every** fatal error in the language, not just this one. Witness, nothing to do with REWIND:
+
+```
+$ printf '\tOUTPUT = 1\n\tX = 1 / 0\nEND\n' > st.sno && scrip --run st.sno
+(0) : ERROR 002 -- division caused integer overflow
+in statement 0                       # sbl says: st.sno(3) : ERROR 014 ... at statement 3
+```
+
+⛔ I BUILT THE FULL SPITBOL-SHAPED REPORT EMITTER AND THEN REVERTED IT UNLANDED, which is the point of
+this paragraph. Everything it needed already existed (`g_stcount`, `_g_start_ns`, `rt_gc_runs_count()` —
+whose own telemetry already calls a collection a "regeneration" — plus one new accessor, no new globals).
+It emitted a perfectly-shaped eight-line report **reading zero in five of its eight fields**, because the
+counters feeding it are never populated. A report that looks right and reads zero is worse than the blunt
+two-line message it replaced: the old message is obviously incomplete, the new one is confidently wrong.
+**Fix the statement context first; the report is downstream of it.** That is a real, curable, in-lane
+defect and it is not contingent on any grading ruling.
+
+## What is still true, and what changed
+
+Unchanged: 21 of 27 reds are one class; the dispatch premise "every one a program SPITBOL runs clean" is
+inverted for them; the REWIND cure (SCRIP `3195f6435`) is right on its own merits and moved no board.
+Changed: the recommended cure is **separate-stream capture and a re-cut**, not masking — and there is a
+second row underneath it, the missing statement context, which any future report work is blocked on.
