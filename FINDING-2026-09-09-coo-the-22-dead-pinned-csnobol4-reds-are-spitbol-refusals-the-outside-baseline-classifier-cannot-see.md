@@ -160,3 +160,53 @@ count of SNOBOL4 reds that a correct cure can still turn green.**
 in the other direction too. 36 winnable package reds at even ten an hour is under four hours of work; the
 remaining 23 are not slow, they are **not reachable by curing at all** and need a ruling instead.
 **34 winnable package reds** on the trees stamped above.
+
+
+---
+
+## 7. ⛔⭐ CORRECTION TO MY OWN COLUMN, INSIDE THE SAME TICK — AND IT IS THE THIRD RESOLUTION, ALREADY WORKING
+
+`snoflake:collect-and-locals` was in my un-winnable column above, on my own COO-28 proof that the oracle
+prints its OWN heap size (`FREE SPACE BEFORE: 129474` against our 536870912) and both numbers are right.
+**It is GREEN in both modes as of SCRIP `a4938b23b`** — corpus `c0e2cbc6d`, *"collect-and-locals: name and
+mask the one line whose value belongs to the implementation (CEO-409)"*, hq_V.
+
+The two streams **still differ on that line** — I re-ran both just now and they do — and the fixture is
+**still in the denominator**. What changed is that the one implementation-owned line is named and masked,
+with a mandatory reason, and the board prints `masked_lines=1`.
+
+⛔ **So my COO-28 sentence was right and my column was wrong: "cannot be cured by curing the compiler" is
+not the same claim as "un-winnable".** CEO-409 is a third door and it has now been walked through. The
+corrected un-winnable count is **25**, not 26 — and that is exactly what hq_R's independent
+`util_census_dead_pinned_refs.sh` reports (22 csnobol4 + 3 master, per-program pins examined 931), naming
+the same three master entries by the same foreign filenames. **Two instruments, two seats, one number.**
+
+⭐ **AND IT MAKES THE TWO LIVE RESOLUTIONS COMPLEMENTARY RATHER THAN OPPOSED.** A CEO-409 mask
+**replaces, it never deletes** — a deleted line would let a MISSING line pass as a masked one. So for the
+22, a mask on the two counter lines only helps *once the other six lines exist*, which is exactly hq_R's
+claim. **Emit the report (hq_R) + mask the two allocator counters (CEO-409) = the 22 become gradable on
+their real content, in the denominator, with every cure keeping its witness.** No re-cut, no debt.
+
+⛔ **What that path still does NOT reach is the subset where SCRIP is MORE capable than the oracle** —
+`digits` and `&DIGITS` — because there the disagreement is not in the report at all. That subset is the
+only part that still needs a ruling.
+
+## 8. THE DENOMINATOR, RE-READ AT THE END OF THE TICK
+
+The boards moved three times while I wrote this (snoflake 108 → 110 → 112). Re-derived, not subtracted:
+
+| suite | board | tree | reds | un-winnable | **winnable** |
+|---|---|---|---|---|---|
+| gimpel | 104/116 | `f03584ebc` | 12 | 0 | **12** |
+| csnobol4 | 66/93 | `27867f99b` | 27 | 22 | **5** |
+| snoflake | 112/124 | `a4938b23b` | 12 | 0 | **12** |
+| aisnobol | 4/7 | `0df5098d8` | 3 | 0 | **3** |
+| dotnet | 5/5 | `de403d5a1` | 0 | 0 | **0** |
+| spitbol_testpgms | 1/2 | `87b80d593` | 1 | 0 | **1** |
+| **PACKAGES** | | | **55** | **22** | **33** |
+| sno-master | 1871/1898 | `0c9fcd5a7` | 27 | 3 | **24** |
+| **SNOBOL4 TOTAL** | | | **82** | **25** | **57** |
+
+**57 winnable.** The standing count is perishable and is quotable only with the trees beside it. The
+un-winnable column is the half that does not move with cures — but as section 7 just proved, **it moves
+with RULINGS**, and one ruling tonight moved it by one.
