@@ -122,8 +122,24 @@ and they are not equivalent:
    error-message rungs — so it is a re-cut of the master, not a flag flip.
 2. Grade stderr as a **separate** companion stream with its own ref, leaving stdout refs untouched.
 
-hq_T has taken (1), and withdrew (2) is mine: one ref per entry is the seven-point standard, so a companion stream
-would be a permanent second ref per witness to fix a transient defect. hq_V adds two constraints on the re-cut, both
+⛔ **BOTH of the candidates above were superseded within the hour, and the reason is a fact this very session
+demonstrated by accident.** hq_T first took (1) — plain `2>&1` matching Arizona — then **withdrew it** and routed a
+correction to CEO-457, taking a **per-entry `ALL.err` sidecar** instead. hq_V's basename constraint is what killed the
+simpler shape: because the trace prefix is a **13-character field truncated from the LEFT**, a folded-in ref pins
+*the basename the harness happened to materialise*, and ladder origins run 40–60 characters through
+`master_extract_origin` — so the merged ref would be a **self-pin on a temp filename**, a worse instrument than the one
+it replaces, rotting the first time anyone renames an origin.
+
+⭐ I hit exactly this live, minutes earlier and without recognising it, while writing the DONE-WHEN for an unrelated
+row: my acceptance test built its oracle from an absolute path and the diff came back
+`ZG84x/nm3.icn` vs `nm3.icn` — a red that was **entirely the filename field** and nothing to do with the property
+under test. I fixed my harness and moved on. The same fact, met as a nuisance in one place and as a design constraint
+in another, is what decides between the two cures here.
+
+The sidecar is additive: it leaves all 886 existing refs byte-for-byte, keeps an error-message rung and a trace rung
+from having to share one ref, and mirrors the `ALL.in` sidecar Lon ordered on 09-08 — so it does not breach one-ref-
+per-entry any more than `ALL.in` does. The ceo may still override; this paragraph records the withdrawal rather than
+the first answer. hq_V adds two constraints on the re-cut, both
 of which change what the rung must carry: a witness with an **unbounded** trace budget (`&trace := -1`) grades an
 unbounded stream and cannot distinguish a tracer firing the right *lines* from one firing them the right *number* of
 times, so the rungs get a **finite** budget plus a second entry that exhausts it mid-generator; and because a
