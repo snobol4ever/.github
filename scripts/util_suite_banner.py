@@ -252,6 +252,16 @@ def eta(r,today):
     rate=(tp-fp)/days
     if rate<=0: return 'STUCK',None
     return 'ETA', today+dt.timedelta(days=rem/rate)
+def xfail_annotation(r, k):
+    """The one sentence a master row carrying xfails must show when eta() is NOT already saying it.
+    Returns '' for a non-master, an unreadable census, a zero count, or k=='XFAIL' (which says it itself)."""
+    if k in ('XFAIL', 'XFUNKNOWN') or 'master' not in r['key']: return ''
+    xf = xfail_by_lang(r['lang'])
+    if not xf: return ''
+    gap = int(r['today_total']) - int(r['today_pass'])
+    same = ' — the whole gap' if gap == xf else f' of a {gap}-wide gap'
+    return (f"⛔ {xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
+            f"numerator, so this row can only close by CURING them, never by re-captioning")
 def banner(plain=False, grid=True, ncol=3):
     head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]; recrit=[]
     for r in rows:
@@ -266,8 +276,11 @@ def banner(plain=False, grid=True, ncol=3):
         elif k=='ONEDAY': col=C; tail='◻ 1 day'; recrit.append(r['nick'])
         else:
             col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
+        # a master still carrying xfails is RED and says so beside its ETA, however the fraction reads
+        if xfail_annotation(r, k):
+            col=R; tail=f'⛔{xfail_by_lang(r["lang"])}x ' + tail
         mark='⏳' if r['nick'] in stale else r['emoji']
-        if grid: cell=pad(f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} " + pad(tail, 9) + f" {mark}", 36)
+        if grid: cell=pad(f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} " + pad(tail, 12) + f" {mark}", 39)
         else: cell=f"{mark}{r['nick']} {frac} {tail}"
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
@@ -300,6 +313,14 @@ def md():
                'NOROWS':'◻ the progress table holds no rows for this suite yet, so nothing can be compared',
                'ONEDAY':'◻ every recorded row is from one day — a second day of readings makes this comparable'}
         tail=named[k] if k in named else ('→ '+e.strftime('%Y-%m-%d') if e else '')
+        # ⭐ AND THE CONVENTION IS STATED WHEREVER THE ROW IS READ, not only when the fraction closes.
+        # eta() can only return 'XFAIL' when pass==total, so the moment a master row is corrected to the
+        # honest 1871/1898 the xfail count VANISHES from the cell -- the reader then sees a 27-wide gap with
+        # no way to know it IS the known-red set rather than 27 unmeasured entries. Four masters were in
+        # exactly that state and said nothing (SnoM 27, RakM 156, SncM 16, RebM 4).
+        # (ceo ruling to the coo, 2026-09-08: "Set it, state the convention in the cell.")
+        xa = xfail_annotation(r, k)
+        if xa: tail = (tail + ' · ' if tail else '') + xa
         if rc and k not in ('DONE','XFAIL','XFUNKNOWN','NOROWS','ONEDAY'):
             tail += (f" · 🔀 criterion changed ({rc.split(':',1)[-1]}), so `moved` is the same programs"
                      f" re-read: today's graded set compared against its own earliest reading")
@@ -362,8 +383,16 @@ def main(a):
         if r is None: sys.exit(f"REFUSE: no suite key {key}")
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
         if tree: r['tree']=tree
+        before=open(TSV,encoding='utf-8').read()
         save(head,rows)
-        print(render_table(only_key=key))
+        try:
+            note=render_table(only_key=key)
+        except Exception as ex:
+            open(TSV,'w',encoding='utf-8').write(before)      # ⛔ the two sites move together or not at all
+            sys.exit(f"REFUSE(rc=2): the row was NOT set. Rendering SCORE.md raised {type(ex).__name__}: {ex}. "
+                     f"SUITES.tsv has been RESTORED to what it held before this call, because a written TSV "
+                     f"beside an unwritten SCORE.md is the split state every board reader then has to guess at.")
+        print(note)
     if '--render' in a: print(render_table()); return
     if '--md' in a: md()
     else: banner('--plain' in a, grid='--line' not in a)
