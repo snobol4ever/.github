@@ -1,0 +1,10 @@
+****7******* i &FNCLEVEL = 1
+****4******* ii &FNCLEVEL = 2
+****5******* i &FNCLEVEL = 1
+****4*******  &FNCLEVEL = 0
+****9*******  &STCOUNT = 9
+a
+****10******  &STCOUNT = 10
+b
+****11******  &STCOUNT = 11
+done 5
