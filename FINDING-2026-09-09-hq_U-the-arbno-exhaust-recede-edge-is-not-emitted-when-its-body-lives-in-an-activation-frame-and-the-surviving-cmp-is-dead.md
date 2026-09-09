@@ -82,6 +82,32 @@ Swept the whole SNOBOL4 master through the sanctioned enumeration (`corpus_suite
 
 ⭐ **THE SIGNATURE IS NECESSARY, NOT SUFFICIENT, AND CONFLATING THOSE WOULD TURN THIS INTO A FALSE ALARM ABOUT 89 GREEN ENTRIES.** The suppressed arm only matters to a program that actually drives an ARBNO to exhaustion and then needs to recede out of it. The 89 pass because their inputs never reach that edge — **not because the edge is there.** That is a latent exposure and a real one to state plainly: those greens are conditional on the input, and a corpus addition that drives the recede would convert one of them into exactly the ceo's witness.
 
+## ⛔⭐ THE CURE THE RULING NAMES WAS BUILT, MEASURED AND REVERTED — THE SUPPRESSION IS LOAD-BEARING FOR 7 GRADED ENTRIES
+
+CEO-430/434 rules that the cure *emits the arm with an actframe-correct rollback*. **I built exactly that and it is a net regression.** Recording it because the ruling's premise — that the arm is simply missing a rollback — is now measured false, and the next seat would otherwise build the same thing.
+
+**The patch:** emit the arm unconditionally (drop the `IF`), and add the pend-cursor rollback β already does and this arm never did — `mov r12, AFCQ(8)` beside the existing `mov AFC(4), eax`. The reasoning was that the arm re-enters the body through **the same door β uses** (`bodybeta`), so it owes the same two rollbacks and carried only one; an abandoned instance's deferred-capture entries otherwise survive into the retry, which is the double-fire the PEND-MARK comments were written against.
+
+**It half-worked, and that is the trap:**
+
+| witness | before | after the patch | oracle |
+|---|---|---|---|
+| the ceo's `arbno_bal_tab_replace_branch_1` | SEGV / `nomatch` | **`match` 6/6, promoted to XPASS on the board** | `match` |
+| hq_P's `nested_arbno_rpos` | SEGV | HANG (rc=124) | `match` |
+
+**And the board:**
+
+| | graded | m3 | m4 |
+|---|---|---|---|
+| before (`60d58c05b`) | 1873/1899 | FAIL=0 crash=0 hang=0 | FAIL=0 crash=0 hang=0 |
+| **with the patch** | **1865/1899** | **FAIL=1 crash=4 hang=3** | **FAIL=1 crash=4 hang=3** |
+
+⛔ **EIGHT PREVIOUSLY-GREEN ENTRIES BROKE, AND SEVEN OF THE EIGHT ARE SIGNATURE CARRIERS** — `arbno_fence_pos_branch_30/31/34/35` (SIGSEGV), `arbno_fence_pos_branch_3`, `arbno_bal_break_branch_1`, `simple_output_67` (hang), `arbno_fence_pos_branch_36` (wrong answer). That the broken set is drawn almost exactly from the 89 carriers is the confirmation that **re-enabling the arm is what broke them**, not some unrelated fallout.
+
+⭐ **SO THE PREDICATE IS NOT SIMPLY WRONG — IT IS PROTECTING A REAL POPULATION, AND ONLY THE WITNESSES ARE ON THE OTHER SIDE OF IT.** `sn4_defer_resume() && _.op_arbno_body_actframe` suppresses an arm that **7 graded programs cannot survive** and that **2 xfail witnesses need**. Deleting the condition trades two xfail entries for eight graded ones. **A correct cure has to separate those two shapes, and this FINDING does not know what separates them.** The next step is an ablation across the 89 carriers to find what the 7 casualties have that the other 82 do not — not another guess at the rollback set.
+
+⚠️ **REVERTED, and the revert is proven rather than asserted:** `src/templates/bb/bb_match_arbno.cpp` restored from the pre-patch copy, rebuilt, and `scrip`/`libscrip_rt.so` md5 prefixes are **`e9b4f3312769` / `62a6beac7178`, byte-identical to the pre-cure build the 1873/1899 board was measured on** — so that board still describes this tree and was not re-run to say so. ⭐ Note which half of that fingerprint carried the information: **`scrip`'s md5 did not move at all** across the patch, because the emitter and templates link dynamically; only `libscrip_rt.so` changed (`62a6beac7178` → `62ebc53e7c16` → back). A scrip-only fingerprint check would have called a real template change "no change", exactly as the runner's own header warns.
+
 ## WHAT IS NOT CLAIMED
 
 - **The board is not proven reproducible.** Three whole-board runs (plain, `setarch -R`, plain) are identical by total and by entry name, and 89 carriers × 6 runs did not move — but that is *no movement observed*, not determinism proved. hq_P made this correction mid-flight and it is theirs: one repeat each is one sample of a coin there is reason to think is biased.
