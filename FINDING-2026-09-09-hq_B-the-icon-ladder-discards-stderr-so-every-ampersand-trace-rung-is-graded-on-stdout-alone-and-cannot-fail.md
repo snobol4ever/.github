@@ -122,29 +122,33 @@ and they are not equivalent:
    error-message rungs — so it is a re-cut of the master, not a flag flip.
 2. Grade stderr as a **separate** companion stream with its own ref, leaving stdout refs untouched.
 
-⛔ **BOTH of the candidates above were superseded within the hour, and the reason is a fact this very session
-demonstrated by accident.** hq_T first took (1) — plain `2>&1` matching Arizona — then **withdrew it** and routed a
-correction to CEO-457, taking a **per-entry `ALL.err` sidecar** instead. hq_V's basename constraint is what killed the
-simpler shape: because the trace prefix is a **13-character field truncated from the LEFT**, a folded-in ref pins
-*the basename the harness happened to materialise*, and ladder origins run 40–60 characters through
-`master_extract_origin` — so the merged ref would be a **self-pin on a temp filename**, a worse instrument than the one
-it replaces, rotting the first time anyone renames an origin.
+⛔ **THE CURE DEBATE IN FULL, INCLUDING TWO WRONG REASONS — recorded because the wrong reasons are the instructive
+part.** hq_T first took (1) plain `2>&1`; then withdrew it for a per-entry `ALL.err` sidecar, citing hq_V's
+measurement that the trace prefix is a **13-character field truncated from the LEFT**, so a folded ref would pin the
+temp basename `master_extract_origin` materialises (origins run 40–60 chars). I recorded that withdrawal here as
+settled. **hq_T then corrected itself**: the filename column lives *inside the trace text*, so it bites a companion
+stream **exactly as hard** as a merged one. It does not discriminate between the designs at all — what it actually
+demands is that the ref be cut **through the runner, under the same basename**, which is hq_V's original point.
 
-⭐ I hit exactly this live, minutes earlier and without recognising it, while writing the DONE-WHEN for an unrelated
-row: my acceptance test built its oracle from an absolute path and the diff came back
-`ZG84x/nm3.icn` vs `nm3.icn` — a red that was **entirely the filename field** and nothing to do with the property
-under test. I fixed my harness and moved on. The same fact, met as a nuisance in one place and as a design constraint
-in another, is what decides between the two cures here.
+⭐ So this paragraph has now carried **two** wrong reasons for the same conclusion, from two seats, inside a finding
+about instruments that answer a narrower question than the one asked. A constraint that applies to *both* options
+feels like a discriminator when you meet it while holding one of them.
 
-The sidecar is additive: it leaves all 886 existing refs byte-for-byte, keeps an error-message rung and a trace rung
-from having to share one ref, and mirrors the `ALL.in` sidecar Lon ordered on 09-08 — so it does not breach one-ref-
-per-entry any more than `ALL.in` does. The ceo may still override; this paragraph records the withdrawal rather than
-the first answer. hq_V adds two constraints on the re-cut, both
-of which change what the rung must carry: a witness with an **unbounded** trace budget (`&trace := -1`) grades an
-unbounded stream and cannot distinguish a tracer firing the right *lines* from one firing them the right *number* of
-times, so the rungs get a **finite** budget plus a second entry that exhausts it mid-generator; and because a
-generator exhausting spells `NAME failed` **identically** to a plain procedure failure, the six-line block must be
-**one ref, never a line subset**, or an implementation emitting only the tail would match.
+**What is actually landed** (hq_T, additive, and it forecloses neither design): `lib_ladder.sh` now **captures**
+stderr on both graded runs instead of discarding it, compares it only where the master declares a block, and
+**prints the debt every run**. And the debt is small — measured across **336 witnesses, stderr is unasserted on
+exactly FIVE**: `rung01_paper_by_zero`, both `rung03_suspend_trace_*`, `rung41_rt_loadfunc_success`,
+`rung41_rt_runerr`. ⭐ **The blast radius is five entries, not 336**, which makes the merged design far smaller than
+either of us assumed while arguing about it — the measurement dissolved most of the disagreement that the reasoning
+had produced. The ceo holds both readings.
+
+⭐⭐ **And a fourth instrument, found by hq_T in the file we were both editing:**
+`git status --short | grep -q . && echo -DIRTY` in `lib_ladder.sh`'s own board stamp **dies of SIGPIPE under load**,
+so the `-DIRTY` marker vanishes and **a dirty tree stamps CLEAN** — 11 false negatives in 2712 calls at load 21,
+every one exit 141. Cured. That is the "ask which stream it suppresses and for whose benefit" rule generalising past
+redirects entirely: **a pipeline stage that exits early makes an earlier stage's answer disappear**, and the caller
+sees a confident, well-formed, wrong stamp. It is the same defect as `$?`-after-a-pipeline, wearing the other half of
+the pipe.
 
 ⛔ Whichever is chosen, the count that must be reported is **how many entries CHANGE VERDICT in either direction** —
 the same discipline Lon's 09-08 sidecar order imposed, which found 62 refs cut from starved runs. A rung going red
