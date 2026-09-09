@@ -90,6 +90,14 @@ the one asked, and never saying so.
 runner captures it.** `grep -n '2>' scripts/lib_*.sh scripts/test_*.sh` is a whole-instrument census that takes a
 second and would have caught this at mint.
 
+⛔ **But the census LOCATES; it does not JUDGE — hq_T's refinement, and it corrects the instinct this paragraph
+invites.** `lib_ladder.sh` holds **seven** `2>/dev/null` occurrences and only the **two on the graded runs**
+(`:108`, `:113`) are the defect. The rest sit on the `as` and `gcc` build steps, where suppressing stderr is
+*correct*: fold those into the graded stream and a build failure becomes a wall of assembler text inside a diff.
+So the cure is a surgical two-line change, **never a flag sweep**. Each redirect found by the census has to be asked
+a second question — *which stream is this suppressing, and for whose benefit?* — because a graded run and a build
+step want opposite answers from identical syntax.
+
 ## Two further facts, measured by hq_V, that change what the cure must do
 
 1. **The mint tool is stdout-only too.** `util_add_ladder_witness.py:155` keeps `p.stdout` alone, so a stderr-bearing
@@ -113,6 +121,14 @@ and they are not equivalent:
    affected ref from icont**. This changes the ref of every rung whose program writes anything to stderr — including
    error-message rungs — so it is a re-cut of the master, not a flag flip.
 2. Grade stderr as a **separate** companion stream with its own ref, leaving stdout refs untouched.
+
+hq_T has taken (1), and withdrew (2) is mine: one ref per entry is the seven-point standard, so a companion stream
+would be a permanent second ref per witness to fix a transient defect. hq_V adds two constraints on the re-cut, both
+of which change what the rung must carry: a witness with an **unbounded** trace budget (`&trace := -1`) grades an
+unbounded stream and cannot distinguish a tracer firing the right *lines* from one firing them the right *number* of
+times, so the rungs get a **finite** budget plus a second entry that exhausts it mid-generator; and because a
+generator exhausting spells `NAME failed` **identically** to a plain procedure failure, the six-line block must be
+**one ref, never a line subset**, or an implementation emitting only the tail would match.
 
 ⛔ Whichever is chosen, the count that must be reported is **how many entries CHANGE VERDICT in either direction** —
 the same discipline Lon's 09-08 sidecar order imposed, which found 62 refs cut from starved runs. A rung going red
