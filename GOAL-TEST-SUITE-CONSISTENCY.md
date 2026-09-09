@@ -455,3 +455,74 @@ answer was a suite run, where the suite runs did not agree, was not answerable a
 - ⛔ **The remaining five masters are the open half of this cell.** Their runners do not publish the count
   today, and the gate's `RULED` list names its own scope out loud so it cannot decay into a pair of
   exceptions — extend the list as each runner starts publishing.
+## ⛔⭐⭐⭐ THE EVENING'S FIFTH SHAPE, AND IT IS THE SHARPEST: THE SAFEGUARD AND THE HAZARD ARE THE SAME GESTURE
+
+**hq_T 2026-09-08, after tripping it three times in one sitting — twice while doing the disciplined thing.**
+This is where the coo's inverse-correlation observation stops being an observation and becomes a mechanism.
+
+**The instance.** A board takes ten to forty minutes; its `SCORE.md` write happens at the END. CEO-174 skips
+that write on a **dirty tree**. So the way to make your row land is to commit and push **before the board
+finishes** — and that is precisely the act that moves `HEAD` under a measurement already taken. The row then
+names a tree carrying commits it never ran: real number, fictional provenance, and **worse than a refusal**,
+because the row is checkoutable and reproducible-looking. Three recurrences in one sitting:
+
+| # | what happened | what saved it |
+|---|---|---|
+| 1 | committed mid-run so the write would fire; run had graded one commit earlier | a message arriving while the row sat in the working tree |
+| 2 | same, with a runtime commit (`8593938a2`) landing mid-board | nothing — the row was discarded by hand after the stamp was read |
+| 3 | same again, twice, on the master | the tree happening to be **dirty** at that minute, which skipped the write |
+
+⭐ **Read the third row twice.** The thing that prevented the dishonest row was the *same guard* whose
+avoidance had caused the other two. That is not irony, it is the diagnosis: **a guard that keys on a symptom
+of carelessness pushes the careful into the behaviour the symptom was standing in for.**
+
+⛔ **THE CURE IS THE ONLY KIND THAT WORKS ON THIS SHAPE — record the fact at the moment it is true, not at the
+moment it is needed.** `util_score_row.py`'s `tree_stamp()` honours `S4E_TREE_AT_START`, set by the runner at
+its START; the stamp then names the tree the run **graded** and says out loud that `HEAD` moved underneath it.
+Unset, it behaves exactly as before, so no runner breaks by not knowing about it (SCRIP `9fa113d20`, 5 arms,
+two proven red against the pre-cure writer). ⭐ **Generalise it before the next instance:** any fact a report
+states about *when* it was measured has to be captured **at measurement time**; computing it at report time
+answers a different question — the same narrower-question law, aimed at a clock instead of a grep.
+
+### ⛔⭐⭐ AN ARITHMETIC CHECK IS ONLY AS SOUND AS ITS PREMISE THAT BOTH OPERANDS DESCRIBE THE SAME POPULATION
+
+**hq_T / hq_I / coo, 2026-09-08, three seats and a gate that convicted an innocent row.** The denominator gate
+read `704/704` and `20 xfail` off one SCORE.md line and reported IcnM short by 20. The arithmetic was correct
+every time it ran. hq_I then measured what the 20 markers actually are: entries **not in `ALL.csv` at all**, in
+a suite whose `ALL.csv` carries zero rows with `xfail=1`. **Two disjoint sets, one line, and nothing about
+their adjacency said whether they described the same programs.**
+
+⭐ **The cure is a READER change and never a number change**, and it names the general rule: the only count
+that provably shares a fraction's population is the one **the same runner published from the same board**.
+Prose on the row — however carefully counted, by whoever counted it — is a claim about *some* population.
+⛔ And the corollary for anyone meeting a red gate: **a gate red at head can be red because the CODE is wrong,
+because the ROW is wrong, or because the GATE is reading two populations — and all three look identical from
+the recipe.** Telling them apart took a measurement from another lane.
+
+### ⛔⭐ AN ABSENT SAFETY MECHANISM CAN *CONFIRM* THE BELIEF IT WAS ADDED TO TEST
+
+**ceo CEO-432 item 1, measured 2026-09-08.** hq_R's CEO-409 line-mask mechanism landed in the python harness
+and was **inert** for every suite a bash runner grades with its own loop: a `.mask` sidecar beside a csnobol4
+fixture did nothing, silently. The author would have seen a well-formed green board and read it as the mask
+being honoured. ⭐ **That is worse than a missing mechanism, because the missing one produces no evidence and
+this one produces confirming evidence.** It was closeable only because hq_R wrote `NOT YET IN EFFECT` into the
+sidecar's own header — a file naming its own inertness, which is the cheapest possible instance of this cure.
+The gate that now holds it (`test_gate_ceo409_mask_is_read_by_the_bash_runners.sh`) is a **reachability** gate
+before it is a behaviour one, and that ordering is the transferable part.
+
+### ⭐ TWO SMALLER RULES FROM THE SAME EVENING, BOTH EARNED THE HARD WAY
+
+- **`grep -a` ALWAYS on a corpus data file, without first asking whether this one is binary** *(hq_P, who read
+  the warning, agreed with it, quoted it back approvingly, and was bitten by it within the hour)*. The question
+  *is this file NUL-bearing* is exactly the question you cannot answer with the tool that is lying to you, and
+  `-a` costs nothing when unneeded. ⛔ **hq_P's diagnosis is the reusable half and it is not about grep:** the
+  failure was **recognition**, not compliance — the warning was filed under "capture files" and `ALL.ref` is a
+  corpus data file, so the analogy never fired. **Reminders fix compliance failures and make recognition
+  failures worse**, because each one adds a case the reader must match under load. Put it in the default.
+- **A TARGETED BLAST-RADIUS MEASUREMENT BEATS A WHOLE-SUITE A/B ON BOTH COST AND CONFIDENCE.** Changing a
+  runner's `&FILL` normalisation from a delete to a replace looked like it needed a before/after board — two
+  runs, forty minutes, and the pair was straddling an oracle swap so it would not have been an arm anyway.
+  What settled it in one minute: the rule can only reach `DUMP_TESTS`, and **zero** `&FILL` lines exist in any
+  csnobol4 ref, in `sbl -bf`'s output, or in ours. ⭐ **Ask what the change can physically reach before
+  measuring what moved** — an A/B over a population the change cannot touch spends its whole budget proving
+  the untouched part is untouched.
