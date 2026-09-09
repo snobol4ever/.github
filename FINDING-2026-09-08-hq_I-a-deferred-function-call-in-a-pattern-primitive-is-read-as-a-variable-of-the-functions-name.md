@@ -58,6 +58,45 @@ Subject `'ABCDEFGHIJ'`.
 ⭐ `BREAK` is the trap in this table: it agrees, and it is just as broken. A one-program probe would have
 exonerated it. The class is in the lowering, not in any one primitive's behaviour.
 
+## ⭐ WIDER THAN THE TITLE, AND IT CRASHES -- measured after the first cut
+
+Two more arms, both post-oracle-swap. They move this from "one fixture answers wrong" to "two graded
+fixtures, one of them by SIGSEGV", and they change what the cure has to cover.
+
+**(a) It is not only a bare call. An expression CONTAINING a call is just as dead.** `X = 'AB'` set
+*before* the match, subject `'ZZZZ'`:
+
+```snobol4
+          P1 = TAB(*(SIZE(X) - 1)) . A          ->  sbl: A=[Z]      SCRIP: A=[]
+```
+
+`SIZE(X) - 1` is 1, so `TAB(1)` takes one character. SCRIP takes none -- the deferred expression
+evaluated to 0. Note the contrast with pure arithmetic over a plain variable, `LEN(*(N + 0))`, which is
+**correct**. So the discriminator is the CALL inside the expression, not the expression's shape, and the
+`TT_FNC` guard named above is one route into this and not the whole of it: here the deferred node is
+`TT_SUB`, carries no `v.sval`, misses that guard entirely, and still yields zero.
+
+**(b) The combination SIGSEGVs.** Five lines, `&ANCHOR = 1`, subject `'A+B'`:
+
+```snobol4
+          P = (ARBNO(LEN(1)) $ X FAIL | *DIFFER(X) TAB(*(SIZE(X) - 1))) . X LEN(1) . OP REM . Y
+```
+
+`sbl -bf` answers `X=[A+] OP=[B] Y=[]`. SCRIP **rc=139**. This is `infix-to-polish` reduced -- a SECOND
+graded red in the snoflake 124 belonging to this class, and it fails by crashing rather than by printing.
+
+**(c) The cure already exists ten lines away, and works.** `*DIFFER(X)` used as a whole PATTERN --
+`P2 = ARBNO(LEN(1)) $ X FAIL | *DIFFER(X)` -- is **correct in both** (`X=[A+B]`). That is the general
+`TT_DEFER` pattern case at `lower_snobol4.c` ~1638, which collects the expression into an `EXPR$n` thunk
+via `sno_expr_collect` and emits `IR_MATCH_DEFER`. So the thunk machinery is not hypothetical and is not
+broken -- it is simply **not reached from the primitives**, which take the by-name shortcut instead. The
+recommended cure is therefore not new machinery but routing the primitives' deferred argument through the
+path their pattern-valued sibling already uses, plus the one missing runtime piece (proc dispatch in
+`rt_pat_prim_int` / `rt_pat_prim_str`) so a thunk can be evaluated for an integer or a character set.
+
+⛔ Revised board cost: **two** graded snoflake fixtures (`gimpel-fortran-blank-removal`,
+`infix-to-polish`), plus `stack-opsyn` outside the baseline. Still a floor, not a total.
+
 ## Where it is
 
 `src/lower/lower_snobol4.c`, `case TT_LEN:` (line ~1715) and the five sibling primitive cases
