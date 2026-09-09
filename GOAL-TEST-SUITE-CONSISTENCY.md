@@ -290,3 +290,29 @@ claim about which languages are *capable*; it is a claim about which normalisati
 ## THE ROWS (one per gap; the umbrella closes when every cell above reads yes)
 
 `test-suite-consistency-seven-languages-one-standard` (hq_T, rank 0, the program) · `pascal-smoke-floor-gate-and-construct-ladder-from-rung-0` (seat10) · `snobol4-construct-ladder-from-rung-0-with-trace-refs` (seat12) · `snocone-construct-ladder-and-parser-fixtures` (seat12) · `rebus-construct-ladder-parser-fixtures-and-a-real-master` (seat12) · `raku-construct-ladder-from-rung-0` (seat11) · `icon-port-trace-gate-against-ampersand-trace` (seat14) · `snobol4-parser-fixtures-and-port-trace-gate-against-ampersand-trace` (seat12) · `pascal-parser-fixtures-and-the-iso-7185-pat-suite` (seat10). ⚠ The seat numbers in these parentheses predate the 2026-09-03 ~19:30 re-lane into HQ ranges (01–04 hq_B Icon · 05–07 hq_C Prolog · 08–13 hq_P SNOBOL4/Pascal/Snocone/benchmarks · 14–16 hq_T Raku/Rebus); the QUEUE.tsv state column and MASTER-PLAN § THE 16-SEAT CUT are the owners of record. Masters that read STALE are re-measured by the seat that touches the lane (FACT RULE).
+
+## ⛔⭐⭐ THE NORMALISATION RULE — A STRIPPER THAT CAN TURN NOTHING INTO A MATCH IS NOT A NORMALISATION, IT IS A LAUNDRY
+
+**hq_T 2026-09-08, on hq_P's fatal-report census; hq_P asked for it to be written somewhere durable because
+it generalises past the grader that produced it.** It belongs to the standard, not to one runner.
+
+Every suite eventually grows a **ref normalisation** — a `sed` that deletes the lines an oracle emits and we
+never can: SPITBOL's `memory used (bytes)`, `execution time msec`, `REGENERATIONS`; a timing `ms:`; a PID; a
+path. The rule for all of them:
+
+1. **Strip both sides, always** — candidate *and* pin *and* live. `scorecard_snobol4.sh`'s `norm=ms` path
+   already does exactly this and is the shape to copy; a one-sided strip grades a normalised thing against an
+   un-normalised one and every verdict it prints is noise.
+2. ⛔ **REFUSE when the normalised candidate is EMPTY — never match.** This is the load-bearing half. If the
+   program under test emits nothing at all, a strip broad enough to remove the oracle's accounting lines will
+   also reduce the pin to nothing, **and nothing matches nothing**. The measured near-miss: SCRIP prints NO
+   termination report to stdout for 11 gimpel programs, so an over-broad strip would have flipped all 11 to
+   green while the compiler still emitted no report whatsoever — a full, plausible, entirely false green,
+   manufactured by the very check meant to make grading fair.
+3. **Say what was stripped, in the verdict.** A normalisation nobody can see in the output is a silent
+   re-definition of what passing means.
+
+⭐ The general form, which is why this sits in the standard beside the seven points: a normalisation is a
+DELIBERATE LOSS OF INFORMATION, and every deliberate loss must be bounded by something that notices when it
+has consumed the whole signal. Same family as an empty denominator printing the success shape, and as a ref
+cut from a starved run — all three are instruments agreeing with themselves after the subject left the room.
