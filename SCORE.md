@@ -12,7 +12,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-08, `0df5098d8`) | +1 <sup>[1→2 of 2 since 09-06]</sup> | → 2026-09-14 · 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-08, `de403d5a1`) | +0 <sup>[5→5 of 14 since 09-07]</sup> | ✅ done |
 | 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-08, `cce2efcb4`) | — | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
-| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 76/90 (09-09, `21fdd28f7`) | +37 | → 2026-09-12 |
+| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 76/90 (09-09, `38118d03f`) | +37 | → 2026-09-12 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 64/91 (09-09, `b2ca7ecbf`) | +30 | → 2026-09-18 |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 78/89 (09-09, `563090039`) | +53 <sup>[5→58 of 63 since 09-03]</sup> | → 2026-09-10 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 400/445 (09-08, `90bcd9cf8`) | +139 | → 2026-09-09 |
