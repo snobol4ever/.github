@@ -52,8 +52,16 @@ Three `&trace` rungs exist in the Icon master (`grep -o 'ladder__rung[0-9]*_[a-z
 | rung | can it fail for its own reason? |
 |---|---|
 | `ladder__rung03_suspend_trace_reports_suspended_resumed_and_failed` | **NO** — green today, pins nothing |
-| `ladder__rung42_kw_trace_level` | **NO** — same shape, green today |
+| `ladder__rung42_kw_trace_level` | **YES** — see the correction below; its name misleads, its body does not |
 | `ladder__rung03_suspend_trace_of_a_generator_call_with_an_argument` | only by accident: it SIGSEGVs, and rc=139 is compared |
+
+⛔ **CORRECTION, measured by hq_V on SCRIP `f48a3f0c7` + corpus `23638085f`, and it narrows this finding:** the first
+version of this table listed `ladder__rung42_kw_trace_level` as the same shape as rung03. **It is not.** Its witness
+writes `&level` — the call depth — to **stdout**, and its ref is `1`/`2`/`3`: a real assertion, really graded. Its
+NAME contains "trace"; its BODY tests a different keyword. ⭐ I reached it by grepping rung names for `trace` and read
+a name as a body — the same narrow-instrument move this finding is about, committed inside the finding itself. The
+defensible claim is the corpus-wide one: `ALL.ref` contains **zero** trace-shaped lines, so **no** rung asserts on
+trace output — which is a statement about the refs, arrived at by measuring refs, not by reading names.
 
 The third one is the tell. It is red **not because its trace text is wrong** but because it crashes; cure the crash
 while leaving the trace text wrong and **it goes green too**.
@@ -81,6 +89,20 @@ the one asked, and never saying so.
 ⭐ The cheap general test, and it is one line per runner: **for each stream a witness can write to, ask whether the
 runner captures it.** `grep -n '2>' scripts/lib_*.sh scripts/test_*.sh` is a whole-instrument census that takes a
 second and would have caught this at mint.
+
+## Two further facts, measured by hq_V, that change what the cure must do
+
+1. **The mint tool is stdout-only too.** `util_add_ladder_witness.py:155` keeps `p.stdout` alone, so a stderr-bearing
+   witness **cannot be minted today even if the runner grew eyes**. The runner and the mint tool are therefore ONE
+   landing, not two — fixing `lib_ladder.sh` alone would leave the corpus unable to express the rung.
+2. **The witness cannot be re-cut around the instrument.** The obvious escape — have the program itself put the
+   assertion on stdout — does not exist: the oracle refuses assignment to `&errout` with *Run-time error 111,
+   variable expected*.
+3. **A constraint on any re-cut ref.** The trace prefix is the source file name in a fixed 13-character field
+   truncated **from the left**, so the same program reads `t264.icn     :    8  |` under one basename and
+   `nd_failed.icn:    8  |` under the origin-length name the ladder extracts to. **A ref cut under any basename but
+   the exact one the runner materialises can never match** — which makes this a re-cut that has to be done through
+   the runner, not beside it.
 
 ## Owed
 
