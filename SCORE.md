@@ -15,7 +15,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 73/90 (09-08, `90bcd9cf8`) | +34 | → 2026-09-12 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 53/91 (09-07, `19b1f1913`) | +19 | → 2026-09-24 |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `52de694e0`) | +52 <sup>[5→57 of 63 since 09-03]</sup> | → 2026-09-09 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 396/445 (09-07, `52de694e0`) | +135 | → 2026-09-09 |
+| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 400/445 (09-08, `90bcd9cf8`) | +139 | → 2026-09-09 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-21 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-07, `52de694e0`) | +5 | ✅ done |
 | 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 116/181 (09-07, `52de694e0`) | +0 <sup>[116→116 of 181 since 09-07]</sup> | ⛔ stuck · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
