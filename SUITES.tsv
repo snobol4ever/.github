@@ -1,6 +1,6 @@
 # THE SUITE TABLE, machine record (ceo custody; hq_T wires util_score_row.py to rewrite a row when its runner measures). One row per suite. Dates are box-clock CDT days. first_* = the first graded reading on file; today_* = the latest reading; tree = the SCRIP hash it was measured on (or the SCORE.md cell that carries it).
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree	criterion_changed
-gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-08	105	116	1c5917d9e	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
+gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-08	107	116	afa9ba4e4	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
 csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-08	66	93	27867f99b	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
 snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-08	112	124	a4938b23b	2026-09-07:ceo-383-stream-equal-and-per-program
 aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-08	4	7	0df5098d8	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
