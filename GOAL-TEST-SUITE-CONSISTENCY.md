@@ -406,3 +406,52 @@ what made each survive does not.
 
 ⭐ Note what this does NOT say. It is not an argument for checking less, and not a licence to distrust a
 green. It is one question to ask of a check **before** relying on it, and it costs one sentence.
+## ⛔⭐⭐ TWO MORE SHAPES OF THE SAME ITEM, BOTH ARRIVING WITHIN THE HOUR OF IT BEING WRITTEN — AND THE STANDARD CHANGE THEY FORCE
+
+The item above is one evening old and already has a sixth and seventh witness, both offered by the seat
+that had just been bitten. That rate is itself the finding: **the class is not rare, it is unmarked**, and
+the reason it looked rare is that every instance is individually plausible.
+
+**(6) AN XFAIL MARKER IS A CHECK THAT CANNOT FAIL** *(hq_U, 2026-09-08, from the ceo's nondeterministic
+crash in `arbno_bal_tab_replace_branch_1`)*. Ask the item's own question of a marker rather than of a check:
+*what result would have falsified this?* For an xfail entry the answer is **none except an outright pass**.
+A SIGSEGV reads xfail. A hang reads xfail. A silently wrong answer reads xfail. Three different defects —
+one of them nondeterministic and weeks old — absorbed by one marker, and **no board could ever have moved**.
+On the SNOBOL4 master that is 25 entries exempt from falsification by construction.
+
+**(7) A CENSUS THAT REPORTED A ZERO IS THE ONE TO RE-RUN** *(hq_P, 2026-09-08, correcting itself twice in
+one sitting on the same row)*. Two instruments, both correct, both answering a question narrower than the
+one being asked, both producing a well-formed and plausible table:
+- a classifier keyed on **one error number** printed `ok` for seven names that were failing *loudly* with a
+  **different** error number;
+- a per-entry check captured **stdout only** and reported `0 of 24 changing`, while the change it was
+  looking for was a hard `ERROR 251` **on stderr**.
+
+⭐ **The operational form, worded for the reader who has just gotten a satisfying answer rather than the one
+who is already suspicious** — which is the whole difficulty, since suspicion is not what is in short supply
+at the moment a clean number arrives:
+
+> ⭐⭐ **A FLAT ZERO IS A READING ABOUT YOUR INSTRUMENT UNTIL PROVEN OTHERWISE. Re-run it, and re-read every
+> "no error" as "no error OF THE ONE SHAPE I ASKED ABOUT".**
+
+### ⛔ WHAT THIS CHANGES IN THE STANDARD — point (7), the leaderboard row
+
+**A master row publishes its xpass count beside its fraction.** Not a note, not a terminal line: the cell.
+The reasoning is (6) run one level up — a headline that holds N constant while xfail and xpass TRADE
+underneath it is **blind to movement inside its own known-red set**, so a cured bug and a stale marker move
+the published number identically, which is to say not at all. Publishing the count converts "are these
+xfails still red?" from a **run** into a **read**, and a nonzero xpass **is** the stale-marker case, printed.
+
+⭐ It also removes an ambiguity that was previously costing a board to settle, and which two boards taken an
+hour apart *disagreed about*: SNOBOL4 read `xfail 26 xpass 1`, then `xfail 25 xpass 2`. A question whose only
+answer was a suite run, where the suite runs did not agree, was not answerable at all.
+
+- Landed for **snobol4** and **icon** (`test_corpus_snobol4.sh`, `board_icon_master.sh`, SCRIP `845b25e70`),
+  both REFUSING rc=2 rather than publishing an empty `xpass=` — a field never read wearing the shape of one
+  that was is exactly the shape (7) is about.
+- Gated by `test_gate_master_boards_publish_xpass.sh`, which asserts the **property** and never the numbers:
+  any count greens it, **zero included**, because a measured zero is precisely the reading the row could not
+  previously carry. Wired REPORTED only while IcnM is red at head; promote by deleting the `-`.
+- ⛔ **The remaining five masters are the open half of this cell.** Their runners do not publish the count
+  today, and the gate's `RULED` list names its own scope out loud so it cannot decay into a pair of
+  exceptions — extend the list as each runner starts publishing.
