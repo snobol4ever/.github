@@ -1,4 +1,24 @@
-# FINDING — one NUL byte hid three dead-pinned entries in the SNOBOL4 master
+# FINDING — three dead-pinned entries in the SNOBOL4 master, and the NUL byte was NOT why
+
+⛔⭐ **CORRECTED 2026-09-08 ~21:5x CDT by hq_B, on hq_T's measurement, and the correction is half of this
+file's value.** The filename and title used to read *"one NUL byte hid three dead-pinned entries"*. **The
+three dead-pinned entries are real and the count of 25 stands** — re-measured on corpus `HEAD` after this
+correction, still 3 in the master and 25 corpus-wide over 932 pins. ⛔ **But the stated CAUSE was wrong,
+and with it the DIVERGENCE NOTICE this finding put into the census — that notice has been re-pointed.**
+`grep` on this box is a **ugrep shell FUNCTION** interactively; it is **not exported** (no `BASH_FUNC_grep`),
+so it never reaches a script. Inside a script — the only place `sbl_died` ever runs — grep is
+`/usr/bin/grep` GNU 3.11, whose binary detection suppresses **output** but never **exit status**, and `-q`
+prints nothing regardless. Re-measured by hq_B in a script on the real master: **no `-a` => DEAD, with `-a`
+=> DEAD**. So `sbl_died` has always answered DEAD everywhere it actually runs, **nothing was concealed, and
+no board number was ever hidden** — all three entries already carry `xfail=1`, and `sbl_died` is never
+handed `ALL.ref` anyway (its only call sites are per-program captures, `scorecard_snobol4.sh:296,:593`).
+hq_T landed `-a` on the authority (SCRIP `60d58c05b`) as **insurance, not a repair**.
+
+⭐ **THE KEEPER, and it is a better lesson than the one this finding was filed for: a predicate must be
+measured with the INTERPRETER THAT WILL RUN IT.** `command -v grep` printed a bare `grep` and could not say
+so; **`type -t` is the instrument that answers *which* grep**. hq_P hit the identical trap the same night.
+⛔ Read every "Why grep said zero" claim below as SUPERSEDED narrative, kept for the record — the
+measurement table and the three entry names are what survive.
 
 **Seat:** hq_B · **When:** 2026-09-09 ~02:2xZ (2026-09-08 21:2x CDT) · **Mode:** NONET
 **Trees:** SCRIP (incremental `make`, RT_OPT=-O0) · corpus `66ea99dd2`
@@ -11,9 +31,10 @@ before-and-after."* This is the BEFORE.
 
 The dead-pin class is **not confined to `csnobol4_suite`**. The **SNOBOL4 master**
 (`corpus/tests/snobol4/ALL.ref`) carries **three** entries pinned to SPITBOL's fatal termination report,
-allocator counters included — and **every plain `grep` over that file reports nothing**, because the file
-holds a single NUL byte in 330 570 and `grep` silently degrades to binary mode. The corpus-wide BEFORE
-number is **25**, not 22.
+allocator counters included, all three behind the `xfail` column. The corpus-wide BEFORE number is **25**,
+not 22. ⛔ **The original second half of this line — that a single NUL byte made them invisible to `grep` —
+is RETRACTED; see the correction at the top.** They went unseen because nobody had applied `sbl_died` to
+the PIN rather than to the run, which is what this instrument does.
 
 ## The measurement
 
@@ -44,7 +65,7 @@ XFAIL is a faulty test then let's fix all those tests"* — an xfail is a faulty
 resting place. These are the first kind: **a pin no correct implementation can match** is a faulty test,
 and the xfail is what has kept that invisible.
 
-## Why `grep` said zero — and why that is the whole finding
+## ⛔ SUPERSEDED — "why `grep` said zero", retracted (kept for the record)
 
 `corpus/tests/snobol4/ALL.ref` is 330 570 bytes of which **one** is NUL. `file` calls it `data`; GNU grep
 therefore treats it as binary and prints nothing while **exiting 0**. Measured, on the real file, with the
@@ -63,16 +84,20 @@ csnobol4 runners — is spelled without `-a`:
 sbl_died() { grep -qE ' : ERROR [0-9][0-9][0-9] -- ' "$1" && grep -qE '^in statement +[0-9]+$' "$1"; }
 ```
 
-**Not patched from here.** It belongs to hq_T's minted row (*a pin whose own content trips `sbl_died` must
-count as NO pin in `run_one`, plus a refusal at mint time*) — one word, `-a`, in the same edit. Until then
-the new census READS the authority's line and prints a **divergence notice** naming the difference, so the
-two spellings cannot drift apart silently.
+⛔ **RETRACTED: the authority lacking `-a` was never a defect that hid a number** — it answers DEAD either
+way in a script (see the correction at the top). hq_T landed `-a` anyway as insurance. What follows was the
+original reasoning. **Not patched from here.** It belongs to hq_T's minted row (*a pin whose own content trips `sbl_died` must
+count as NO pin in `run_one`, plus a refusal at mint time*) — one word, `-a`, in the same edit. The census's **divergence notice has been re-pointed to say what is
+true**: it is a spelling-DRIFT guard only, and explicitly disclaims the "a number is being hidden" reading
+that the original wording would have handed every reader.
 
 ⭐ **The reusable form, which is the third instance of one law in one night.** `command -v` answers *is it
 on PATH*, not *does it exist*. `find corpus/crosscheck` prints nothing and exits 0 for a tree that is
-**gone**. `grep` prints nothing and exits 0 for a file it has decided is **binary**. All three are
-instruments answering a narrower question than the one asked, **and none of them says so**. The cost here
-was not academic: it hid a whole class from the announcement board for as long as the class has existed.
+**gone**. ⛔ The third example as originally written — `grep` on a binary file —
+**was itself an instance of the law it was illustrating, and I was the one it caught**: `command -v grep`
+answered *is there a grep* when the question was *which grep runs inside a script*. The law holds; my third
+example was wrong, and the real third example is `command -v` vs `type -t`. The cost was not a hidden board
+number (there was none) — it was a divergence notice that would have told every reader one was being hidden.
 
 ## What it does NOT mean
 
