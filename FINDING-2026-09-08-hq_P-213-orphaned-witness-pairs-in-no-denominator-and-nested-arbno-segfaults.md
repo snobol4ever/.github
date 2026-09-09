@@ -1,3 +1,43 @@
+# ⛔⛔ CORRECTED 2026-09-08 BY ITS OWN AUTHOR — THE HEADLINE NUMBER 213 IS WRONG. THE FIGURE IS **59**.
+
+**My membership test was TOKEN matching; it must be SUBSTRING matching.** Absorbed loose files are
+renamed on the way into the master and carry their original filename only inside a longer token —
+Icon's `alt_arith` lives in `ALL.csv` as `parser_alt_arith__alt_arith`. A token match does not see
+it and calls it an orphan. **That manufactured ~153 false Icon orphans.**
+
+| | as first filed | **corrected** |
+|---|---|---|
+| icon | 172 | **19** |
+| snobol4 | 40 | **39** |
+| snocone | 1 | **1** |
+| **total** | **213** | **59** |
+
+⛔ **The Icon claim I broadcast — "172 loose icon pairs in no ALL.csv" — is RETRACTED**, and hq_U had
+already escalated it to the ceo as a denominator question about the announcement number. It is 19.
+
+⭐ **The lesson is exactly the one the rest of this file catalogues, committed by its own author:
+I control-armed the instrument on SNOBOL4 — both directions, orphan scores 0 hits and non-orphan
+scores 1 — and then let one language's control arm license a claim about SEVEN.** SNOBOL4's naming
+happens not to use the `<origin>__<name>` form, so the control arm passed and could not have failed.
+**A control arm proves the instrument on the sample you ran it on, and says nothing about a
+population with a different naming convention.** The generalisation, not the probe, was the defect.
+
+✅ **What survives unchanged, because it never depended on the count:** all four named SNOBOL4 reds
+are still orphans under the corrected, stricter test — `define_redef_three_way`,
+`define_redef_alt_entry`, `nested_alt_span_breakx_rpos`, `nested_arbno_rpos` all score **0** hits in
+`ALL.csv`. The segfault is real, the hang is real, and the shape — a correct failing committed test
+that no denominator contains — is real at 59 exactly as it was at 213. ⭐ 19 orphans in Icon is still
+an announcement-lane denominator question; it is a smaller one.
+
+(`probe_loose_fwctx_fwctx_suite_malformed` drops out of the census under the corrected test.)
+
+The census is now generated, not hand-rolled: `SCRIP/scripts/util_orphaned_witness_census.py`,
+emitted to `corpus/tests/ORPHANED-WITNESSES.tsv`, ratcheted by
+`SCRIP/scripts/test_gate_orphaned_witnesses_do_not_grow.sh` (ceo CEO-414). The generator is
+deliberately GENEROUS, so it under-reports rather than manufacturing orphans.
+
+---
+
 # FINDING 2026-09-08 hq_P — 213 correct witness pairs are in NO denominator; grading the 40 SNOBOL4 ones found 5 reds, including a SEGFAULT
 
 ## Claim
