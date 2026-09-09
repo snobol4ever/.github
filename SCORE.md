@@ -7,14 +7,14 @@ One row per suite — our seven masters and every vendored package suite alike �
 | suite | lang | first graded reading | today | moved | at today's rate |
 |---|---|---|---|---|---|
 | 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 108/116 (09-09, `403a7cc0e`) | +56 <sup>[51→107 of 126 since 09-03]</sup> | → 2026-09-09 · 🔀 criterion changed (spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 67/74 (09-09, `403a7cc0e`) | +17 <sup>[48→65 of 91 since 09-03]</sup> | → 2026-09-11 · 🔀 criterion changed (spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 68/74 (09-09, `37a3fc8d9`) | +18 <sup>[48→66 of 91 since 09-03]</sup> | → 2026-09-11 · 🔀 criterion changed (spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 113/124 (09-09, `01eb996ca`) | +14 <sup>[99→113 of 180 since 09-07]</sup> | → 2026-09-10 · 🔀 criterion changed (ceo-383-stream-equal-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-08, `0df5098d8`) | +1 <sup>[1→2 of 2 since 09-06]</sup> | → 2026-09-14 · 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-08, `de403d5a1`) | +0 <sup>[5→5 of 14 since 09-07]</sup> | ✅ done |
 | 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-08, `cce2efcb4`) | — | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
-| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 73/90 (09-09, `01eb996ca`) | +34 | → 2026-09-14 |
+| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 73/90 (09-09, `37a3fc8d9`) | +34 | → 2026-09-14 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 63/91 (09-09, `01eb996ca`) | +29 | → 2026-09-18 |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-07, `52de694e0`) | +52 <sup>[5→57 of 63 since 09-03]</sup> | → 2026-09-09 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 75/89 (09-09, `37a3fc8d9`) | +52 <sup>[5→57 of 63 since 09-03]</sup> | → 2026-09-10 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 400/445 (09-08, `90bcd9cf8`) | +139 | → 2026-09-09 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-21 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-07, `52de694e0`) | +5 | ✅ done |
