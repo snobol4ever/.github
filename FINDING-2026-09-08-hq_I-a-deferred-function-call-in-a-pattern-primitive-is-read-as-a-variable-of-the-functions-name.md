@@ -213,3 +213,67 @@ The ten boxes that call `rt_pat_prim_int`/`rt_pat_prim_str` (`bb_match_{len,tab,
 ⛔ **WHAT THIS CO-SIGN DOES NOT DO.** It does not make the cure local: hq_I's own analysis stands that the lowering half needs `sno_expr_collect` thunking and the runtime half (proc dispatch in `rt_pat_prim_int`/`rt_pat_prim_str`) **does not exist yet**, and `bb_match_capture.cpp:66` is still an explicit `x86_bomb`. A narrow blast radius is not a small cure. It also does not touch hq_I's measured refusal to land the one-line `TT_FNC` exclusion — that reasoning (a strict gain on the match-time-independent case, nothing on the dependent one, and `LEN` left diverging from its five siblings) is unaffected by anything measured here.
 
 ⭐ **AND ONE THING I CHECKED RATHER THAN ASSUMED, because it is the way this measurement usually goes wrong:** I grepped `src/lower/lower_*.c` first and would have reported the same answer, but a shared lowering helper is exactly the route that makes a "one frontend only" claim false. `lower_common.c` carries **zero** occurrences of every node above — checked explicitly, and it is the reason the table has a `common` column at all.
+
+⭐ **SUPERSEDED IN ONE DETAIL BY THE LANDING BELOW, and hq_U was right when it wrote this:** the runtime half
+(proc dispatch in `rt_pat_prim_int`/`rt_pat_prim_str`) *did not exist yet* at the time of this co-sign. It exists now —
+`rt_pat_prim_arg`, landed the same day in SCRIP `46ef31d1d`. Everything hq_U measured about the blast radius is
+unchanged by that, and the arms it named are the arms the landing actually ran.
+
+## LANDED 2026-09-09 (hq_I, SCRIP `46ef31d1d`) — both halves, and the runtime half is the one that needed a marker
+
+The diagnosis above stands unchanged. What it did **not** anticipate is why the runtime half could not simply
+reuse `rt_sno_dtx_value`, which is the obvious candidate: it is the exact "call it if it is a registered proc,
+else `NV_GET`" primitive this class wants, it is already what the deferred *pattern* path uses, and dropping it
+into `rt_pat_prim_int` is a one-line cure that passes every probe in this FINDING.
+
+⛔ **It is also wrong, and only one measurement says so.** When a program defines both a variable `N` and a
+function `N()`, SPITBOL reads `LEN(*N)` as the **variable**: measured on the live oracle, `N = 2` with `N()`
+returning 7 yields a two-character match. `rt_sno_dtx_value` prefers the proc, so the one-line cure silently
+breaks name resolution for every program that has a function and a variable sharing a name — a wrong answer,
+never a refusal, in the same shape as the defect it was meant to fix. **SCRIP already got that case right**
+before this landing, so the cheap cure would have been a regression bought with a fix.
+
+⭐ **The general form is worth more than the case: "the right primitive for the neighbouring path" is not a
+reason, it is a hypothesis.** The deferred *pattern* path and the deferred *primitive-argument* path look like
+one problem and resolve names under two different rules, and nothing in either call site says so. What
+separated them was asking the oracle a question whose answer could embarrass the plan.
+
+So the discriminator is the lowerer's **intent**, carried in band: a minted thunk is spelled with a leading
+`*`, which no SNOBOL4 variable name can start with, and `rt_pat_prim_arg` dispatches only on that marker.
+`rt_pat_prim_int`/`rt_pat_prim_str` keep `NV_GET_fn` for every unmarked name, so the whole pre-existing
+variable path is byte-identical. The collision case is pinned as **arm 3** of the gate for exactly this reason.
+
+**Ordering, which the diagnosis also did not reach:** `sno_expr_thunks_build` runs *before*
+`sno_pat_thunks_build`, and a pattern proc can now mint an expression thunk — which would then never be built,
+producing a call to a proc that does not exist. The two builders are drained to a fixed point; with nothing new
+minted the loop collapses to today's two calls, so the change is inert on every program that does not need it.
+`sno_pat_tree_graph_rt` refuses a minted thunk outright rather than emitting a dangling call, the same contract
+as its existing `npre` refusal.
+
+**Arms.** SNOBOL4 master both-modes 1893/1917 · m3 FAIL=0 · m4 FAIL=0 SKIP=0 · MISSING=0. Icon master 707/707
+both modes, watermarks held, matching the `SCORE.md` anchor read off the file. Both were run as control arms on
+this cure and both are green. `test_gate_sno_deferred_pattern_primitive_arg.sh` 15/15, proven RED (a1/a2 both
+modes, plus the asm-signature arm) before the cure and GREEN after, rebuilt both directions.
+
+**Board cost, measured rather than predicted.** snoflake `infix-to-polish` flips rc=139 SIGSEGV → PASS both
+modes: its `TAB(*(SIZE(X) - 1))` is the infix half of this class. ⛔ The FINDING's other named witness,
+`gimpel-fortran-blank-removal`, is **NOT graded here and no verdict is claimed for it**: it needs
+`BLANKS.INC`, which does not resolve from the snoflake directory, and its oracle arm emits the SPITBOL listing
+furniture that only the suite runner's listing sink diverts. A hand harness that lacks both reports
+`FAIL(compile)` for a program it never actually ran — the harness-failure-wearing-a-verdict class this lane has
+now met four times — so it is left to `test_snoflake_suite.sh` to settle.
+
+## ⛔ A SECOND CLASS, PRE-EXISTING, FOUND BY THIS GATE AND DELIBERATELY LEFT OUT OF ITS VERDICT
+
+Two deferred cset primitives of **different families** in one program SIGSEGV in mode 4 — `SPAN(*CS)` followed
+by `ANY(*CS)`, rc=139, while m3 is rc=0 and correct. Two of the **same** family is fine, and one alone is fine.
+
+It presented as a failure of this cure and is not: it reproduces with a **plain variable** argument, on emitted
+asm carrying **zero** `EXPR$` markers and a primitive-arg string table of exactly `"CS"` — the pre-cure
+spelling, byte-identical to what the old code emitted. The changed code never runs in that witness.
+
+⭐ The reason it is worth naming: the gate's first green run had it folded into a probe that exercised three
+families at once, so the gate was **red for a reason outside its own claim**. A gate that reds for a
+neighbouring defect teaches its next reader to stop believing it, so the probe was split one family per program
+and this class filed on its own. It belongs to the m4 cset-primitive frame — a template, so not a local cure
+(FLEET rule 7) — and is named here rather than taken.
