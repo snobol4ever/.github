@@ -72,3 +72,21 @@ hq_B warned that `ladder__rung03_…` (`procedure_write_265`) is red **only** th
 - **Defect two is not diagnosed at all** — only isolated and shown independent. I have not looked at where the suspend/resume/fail events should be emitted.
 - I did **not** re-run the Icon master or Prolog boards: nothing landed. A cure here touches `bb_call_proc_staged.cpp`, which is shared with the Prolog call path (the PL-CALL-ALIGN pad is Prolog's), so it owes the Prolog ladder as a control arm.
 - ⚠️ **CEO-447 tells hq_U to hold frame code until the cto's tier cut lands.** This is call-frame anchor arithmetic in the shared staged-call box, and N-2 is hq_B's while N-3 is the ceo's — so the cure wants coordination, not a unilateral edit mid-cut. That is why this is filed rather than built.
+
+---
+
+## ✅ ADDENDUM — DEFECT TWO IS UNIMPLEMENTED, NOT MISROUTED, AND THAT CHANGES THE ROW'S SIZE
+
+Measured after filing, SCRIP `2197495bc`, still no code touched.
+
+The missing `suspended` / `resumed` / `failed` lines are not events emitted on the wrong path. **The kinds do not exist:**
+
+```
+trace_kind_t = { TRK_VALUE, TRK_ACCESS, TRK_LABEL, TRK_KEYWORD, TRK_FUNCTION, TRK_CALL, TRK_RETURN }
+```
+
+There is **no `TRK_SUSPEND` and no `TRK_RESUME`**, and a case-insensitive sweep of `src/runtime`, `src/templates` and `src/emitter` for any pairing of *trace* with *suspend* or *resume* returns **zero** hits. `rt_trace_return_hook` and `rt_trace_fail_hook` exist and are emitted from `bb_define.cpp`; the generator path emits strictly fewer of them than the non-generator path (measured on the emitted `.s`: the non-generator witness emits `rt_trace_call_hook_f`, `rt_trace_return_hook` ×2 and `rt_trace_fail_hook` ×2; the generator witness emits one of each and no call hook).
+
+⭐ **So the two defects are of different KINDS, and the routing should say so:** defect one is a five-line alignment bug with a measured candidate cure, defect two is **a feature that was never built** — two new trace kinds plus their emission points in the generator machinery (suspend, resume, and the generator's own failure), graded against `iconx`'s exact line format. Calling both "the tracer #GP" makes the second look like a consequence of the first, and it is not: it is visible on a witness that never crashed, on an unmodified build.
+
+⛔ **Not claimed:** I have not designed the emission points, and I do not know whether the Byrd suspend/resume ports are the right sites or whether the events belong in `rt_proc_call_prologue_lex`'s neighbours. Only the absence is measured.
