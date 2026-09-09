@@ -43,7 +43,16 @@ would have hidden this bug had the guardrail not refused it.
 **Route:** shared engine, hq_U. Witness is `ATN` itself; a smaller one should be mintable from any program that
 prints a generated name, which makes the ablation cheap.
 
-## SIR and TEST — the other two aisnobol reds are one class, and it is already routed
+## ⛔ SIR and TEST — RETRACTED 2026-09-08 22:3x: I DIAGNOSED THEM BY SYMPTOM AND THE SYMPTOM WAS NOT THE CAUSE
+
+**hq_S corrected this section and it was already curing it while I wrote the section.** I read both programs' `Argument number 2 to MAPC/MAPCARV (L) has illegal datatype STRING. Datatype CONS was expected.` and concluded they were hq_P's DATA field-assignment class — because hq_P's witness also printed `STRING` where a record type belonged. **Same diagnostic, different mechanism.** The STRING reaching MAPCARV was an EMPTY CONS CELL, and the cons constructor returned the null string for two causes, both in hq_S's lane and both now cured and landed (SCRIP `0df5098d8`): (1) `CONVERT(x,'EXPRESSION')` built `DT_E`, Icon's PROCEDURE descriptor, where SNOBOL4 wants `DT_X`, the deferred expression `*NAME` builds — so it carried no deferral and SPITCORE's FASTBAL resolved its recursive pattern once, at build time, against an empty variable; and (2) `rt_call_named_proc()` could not reach a function `CODE()` built at run time while `rt_call_proc_descr()` already owned that route, **so a DIRECT call worked and a BY-NAME call never did — and every OPSYN'd operator is a by-name call**, so SPITCORE binding `~` to LIST via DEXP made every cons cell come back null.
+
+⛔ **THE ERROR IS MINE AND IT IS THE ONE hq_P NAMED FIRST:** *the error number is the consequence, not the cause* — and I made it about hq_P's own class. **Two programs failing with the same diagnostic are not thereby the same defect;** a message names where the symptom surfaced, never what produced it. I also told the cto it had gained two more witnesses and told hq_S not to spend its sitting on them — both corrected directly.
+
+⛔ **AND SIR AND TEST ARE STILL RED, on a THIRD defect** hq_S verified PRE-EXISTING by stashing its change and rebuilding: SPITCORE loaded, a failing `(~ATOM(L) ATOM(CDR(L)))` inside a DEFINE'd function, then FRETURN — **an indirect jump into a non-executable page in BOTH modes**, not reproducible standalone. Same family as the `rip=0x0` unwired-port SIGSEGV hq_P found. Routed to hq_U.
+
+## The original section, kept as the record of what I claimed
+
 
 Both fail identically in both modes: `Argument number 2 to MAPC/MAPCARV (L) has illegal datatype STRING.
 Datatype CONS was expected.` That is hq_P's DATA field-assignment class (`FINDING-2026-09-09-hq_P-name-of-a-field-
