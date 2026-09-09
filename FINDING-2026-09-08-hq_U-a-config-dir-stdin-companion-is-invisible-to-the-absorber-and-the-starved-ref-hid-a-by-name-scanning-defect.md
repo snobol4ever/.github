@@ -209,3 +209,100 @@ scan is the one confirmation not yet run.
 5. **`bb_call.cpp:466/520`** — replace the name test with the behavioural `g_scan_regs_live` test, and
    give the generator box the sync IN it lacks. Separate row; refuted as *this* witness's cause, not as a
    defect.
+
+## ✅ CURED 2026-09-09 — ONE BRANCH IN `scrip_coswitch`, AND THE DISCRIMINATOR IS LANGUAGE-BLIND
+
+**Cure.** `scrip_coctx_t` gains `inherit_scan`. `scrip_coswitch` skips **both** `rt_scan_state_reset()`
+on the way in and `rt_scan_state_apply()` on the way back when the context it is switching into carries
+it. `rt_proc_call_gen_h` sets it; `scrip_coexpr_create` and `scrip_co_ctx_init` clear it explicitly
+(`scrip_coexpr_create` mallocs without zeroing, so both initialisers set it rather than default it).
+
+⛔ **BOTH ENDS OF THE SWITCH, OR THE CURE IS HALF A CURE.** With only the reset skipped,
+`text ? (goal() & pos(0))` matched correctly and then had `&pos` **rewound under it** on the return
+path, so `pos(0)` tested the wrong position and the expression still failed. The reset and the restore
+are the same question and had to be answered by the same variable — they cannot be allowed to drift.
+
+⭐ **THE DISCRIMINATOR IS NOT "ICON", AND THAT IS WHAT MAKES IT LEGAL.** Measured: `rt_proc_call_gen_h`
+is reached from `rt_call_value_gen_h` (Icon by-name) **and** `rt_pl_goal_gen_h_c` (Prolog goal call).
+So the flag does not mean *this is Icon*; it means **this coroutine implements a CALL, and only a user
+`create` gets a fresh scanning environment**. That is a behavioural description, which is what
+`test_gate_emit_no_lang.sh`'s doctrine requires — a `LANG_*` test here would have been the easy version
+and the wrong one.
+
+⛔ **NO ENV KILLSWITCH SHIPPED.** The working version carried
+`SCRIP_ICN_BYNAME_SCAN_INHERIT`; it was deleted before landing. A killswitch on a semantic correctness
+cure is a selector for a wrong answer, and ζ's retired env twins are the precedent.
+
+### The DONE-WHEN, proven RED first
+
+Control = this same tree with only these three files reverted, rebuilt (`RT_OPT=-O0`, incremental):
+
+| witness | oracle (`iconx`) | control m3/m4 | cured m3/m4 |
+|---|---|---|---|
+| `b_direct` (direct call) | accepted | accepted / accepted | accepted / accepted |
+| `b_indirect` (by-name, scanning) | accepted | **rejected / rejected** | accepted / accepted |
+| `b_advance` (`tab(4)` in the callee) | `abc\|4` + `x` | **`x` only, first line lost** | `abc\|4` + `x` |
+| `b_create` (real co-expression) | `hello\|1` ×2 | `hello\|1` ×2 | `hello\|1` ×2 |
+
+`b_create` is the **control arm of the cure itself**: a user `create` must still own its scanning
+environment, and it is byte-identical across the A/B — the cure did not broaden into co-expressions.
+
+**The row's own program, fed its real input, now matches the oracle exactly in BOTH modes** — 8 of 8
+lines identical to `rung36_jcon_recogn.expected` (which is cut from `iconx`, not from SCRIP). Before the
+cure it printed `rejected` eight times.
+
+### Gate
+
+`test_gate_icn_byname_generator_call_inherits_the_scanning_environment.sh` — 4 witnesses × 2 modes,
+PASS(0) 8/8 on the cured tree, FAIL on the control, refuses rc=2 if it grades zero.
+
+## ⛔ THE FALSE GREEN IS STILL IN THE ICON MASTER — THE CURE DOES NOT REMOVE IT, AND I AM NOT REMOVING IT
+
+Measured on the landed tree: the master entry (now named `procedure_suspend_scan_replace_1`, origin
+`rung36_jcon_recogn__rung36_jcon_recogn`) still extracts with a **1-line ref and no stdin companion**.
+`loose_stdin_companion()` finding `config/` (SCRIP `bc9812abe`) fixed the **finder**; it does not
+re-mint an entry already absorbed. So the entry still passes **for the old wrong reason** — starved, at
+EOF, printing one blank line.
+
+⛔ **IcnM's denominator therefore still contains one manufactured green, and my cure did not and could
+not change that.** The re-cut is hq_T's (CEO-401 (1): a cure and its oracle from the same hand is how a
+false green is born the second time). What this cure changes is the **outcome** of that re-cut: fed, the
+entry now agrees with `iconx` in both modes, so hq_T's re-mint should turn a false green into a **true**
+one rather than into the named red it would have been yesterday.
+
+## ⭐ THE LESSON THE ceo TOOK INTO THE LAW (CEO-405), RESTATED FROM THE CURE SIDE
+
+The owed-board census — `grep -c IR_<NODE> src/lower/lower_*.c` — answers **ICON ONLY** for this change,
+and the SNOBOL4 `bb_match_*` templates ride the same `r13`/`r15` and the same scan globals. **The census
+names the FLOOR of the owed set, never its ceiling.** It is the right instrument only when the frontends
+share the node *and nothing else*; the moment the shared state is carried in globals or registers rather
+than in the node, it understates. Ask what STATE the change touches, grep for the carriers of that
+state, and when the two answers disagree the wider one is owed.
+
+## ⚠️ OPEN AND NOT FOLDED IN — `suspend goal()` BY NAME PRODUCES NOTHING
+
+Found while minting the witnesses; **pre-existing, identical on the control build, so it is not a
+regression from this cure** and I am not claiming it as one.
+
+```icon
+procedure main()
+   local x;
+   every x := drive(gen) do write(x);      # oracle: 1 2 3 ;  SCRIP m3 and m4: NOTHING
+end
+procedure drive(goal)
+   suspend goal();                          # by-name generator in SUSPEND position
+end
+procedure gen()
+   suspend 1 | 2 | 3;
+end
+```
+
+A by-name generator in a **call** position generates correctly (ablated: `every x := p()` is green, and
+is a wired gate). In a **suspend** position it yields nothing, in both modes, with rc=0 — a silent empty
+result, not a crash. Owed as its own row; it is not a scanning defect and does not share this cure.
+
+## ⛔ OWED ITEM 4 IS VOID, ITEM 5 IS STILL OPEN
+
+Item 4 (*the scan-sync ABI must carry the subject*) is **VOID** — `rt_scan_sync_*` is innocent and no
+calling convention moved. Item 5 (`bb_call.cpp:466/520`, the name test standing in for a behavioural
+one, and the generator box's missing sync IN) is untouched by this cure and still open as its own row.
