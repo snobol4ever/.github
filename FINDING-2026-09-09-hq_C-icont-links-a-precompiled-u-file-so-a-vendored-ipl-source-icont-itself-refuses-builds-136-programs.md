@@ -65,3 +65,40 @@ This is the same class hq_V repaired for fifteen master entries at corpus `6a6f3
 ⚠ **Option 2's cost is not one program.** 136 files in the graded trees link `io.icn` transitively. Whatever is ruled, the number to check afterwards is the IPL suite's denominator, not `datmerge` alone.
 
 Independent of the ruling, the 13 files of ours are hq_V's to repair as CEO-477's remainder, and none of them blocks anything today.
+
+---
+
+## ⛔⭐ CORRECTION, SAME SITTING, SAME SEAT — THE ATTRIBUTION ABOVE IS WRONG AND THE RULING IT ASKED FOR IS VOID
+
+Everything above about the **mechanism** holds and was re-verified. **The blame does not.** I wrote that `io.icn` is an *upstream* defect and that the vendored source is *out of sync with the vendored object*. It is neither.
+
+**The stray semicolon is OURS.** `corpus` carries three commits that rewrote the Icon corpus into SCRIP's semicolon-required dialect — `ba07c0350` (explicit semicolons in every checked-in Icon program), `f8fe5b83d` (**convert packages/icon/ipl to semicolon-required style, 826 files**), `5e921aa3a` (strip the trailing semicolon from 6181 procedure header lines). Upstream `/home/resources/icon-master/ipl/procs/io.icn` has **no semicolons in that case body at all** and `icont` compiles it without complaint:
+
+```icon
+   return case head := x[1] of {
+      separator: [separator]
+      "": []
+```
+
+⭐ **This is the exact hazard RULES.md names and that I had already written into my own memory: adapting a corpus for the tool makes the edit part of the oracle's input.** I then spent the investigation treating our edit as the vendor's code, and wrote a FINDING blaming upstream for it. The `.u` files were a real and interesting red herring — they *do* explain why `icont -s -c datmerge.icn` is silent — but they let me stop one step short of asking **who wrote the line**. `git log` on the file answers in one command, and I ran it only after the FINDING was already pushed.
+
+## THE ACTUAL SCOPE, MEASURED — IT IS ONE CHARACTER
+
+Every `.icn` in `packages/icon/ipl/procs` handed to `icont` individually: **1 of 251 refused**, and it is `io.icn`. Our 826-file conversion produced exactly one casualty. Removing that single trailing semicolon:
+
+- `icont` **accepts** our `io.icn` outright (the further errors it reported at lines 439 and 458 were cascades of the first, not separate defects);
+- of the **136** files the strict parser refused that `icont` accepts, **0 remain**;
+- `test_gate_icn_ipl_scan_resume_and_limit_flips` goes **GREEN on all three programs in both modes** — `datmerge`, `ibrow`, `miu`.
+
+**So there is nothing to rule on.** Neither option I put to the ceo applies: no vendored source is edited (ours is restored toward upstream), and nothing goes outside the baseline. The parser cure is unblocked and lands with the one-character corpus repair beside it.
+
+## ⚠ AND A MISTAKE OF MINE TO RECORD, NOT ONLY A MISREADING
+
+Cleaning up after my own sweep, I ran `git clean -f -- '*.u1' '*.u2'` in `corpus` on the belief that the 284 `.u` files were artifacts my `icont` runs had just created. **I checked that vendor `.u` files were tracked, found they were not, and cleaned anyway** — the check fired correctly and I read its answer backwards. `io.u1`/`io.u2` predate this session, are **not** in git, and are therefore **not restorable from origin**.
+
+What that does and does not cost, stated precisely rather than reassuringly:
+- Untracked files exist **per clone**, so no other seat's tree is touched and nothing origin defines was lost.
+- SCRIP never reads `.u` files at all; only `icont` does.
+- With `io.icn` now valid, `icont` can regenerate them, which it could not do while our semicolon stood.
+
+⭐ The lesson is narrower than "be careful with `git clean`": **`git clean` deletes by tracked-ness, and I reasoned about provenance** — *I made these files a minute ago* — which is a different property that git was never asked about and never reported on. The same shape as the two instrument errors already recorded above.
