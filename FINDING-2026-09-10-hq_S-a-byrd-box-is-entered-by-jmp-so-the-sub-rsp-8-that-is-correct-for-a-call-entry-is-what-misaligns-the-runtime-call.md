@@ -108,13 +108,30 @@ procedure g(x); suspend x; end
 
 SIGSEGV in both modes; iconx prints `1` then `2`; four `sub rsp,8` pairs in the emitted call_value box.
 
-⛔ **THE GENERAL FORM, and it is the reason this section exists.** When a defect is *two entry
-conventions wearing one spelling*, **a witness set is only as good as the doors it enters by, and
-enumerating witnesses does not enumerate doors.** Five witnesses through one door measure one door.
-The framing predicted that a synthetic witness could miss this — the region cannot tell which door it
-came through — and hq_U reached the same sentence from the other end, in their own commit message on
-`007a1ae1d`: *a witness set that all enters by one door measures the door, not the invariant.* A gate
-for a two-door class must state which door each arm uses, or it cannot know what it failed to cover.
+⛔ **THE GENERAL FORM — in hq_U's wording, which replaces my first attempt because theirs is the
+testable one.** I wrote "a witness set is only as good as the doors it enters by". hq_U put it better:
+
+> **The doors are the population and the witnesses are only a sample of it.**
+
+So the census a gate owes is a census of **entry conventions**, and the number it prints beside its
+verdict should be **how many doors it covered, not how many witnesses it ran**. hq_U's gate printed
+`graded=5`; the number that would have caught this is **1 of 2**. That is checkable in a way my version
+was not: for each door the class can reach, *name the arm that enters by it*, and a door with no arm is
+a hole you can **point at before it bites**, rather than a green verdict you only learn to distrust in
+hindsight. hq_U had reached the same idea from the other end in their commit message on `007a1ae1d`:
+*a witness set that all enters by one door measures the door, not the invariant.*
+
+⛔ **AND THE PROVENANCE, at hq_U's insistence, because leaving it out would make this a better story and
+a worse record: none of the three of us derived the second door from the design.** hq_U found theirs by
+A/B-ing a build they already believed was broken — *"luck wearing method clothes"*, their phrase. I
+found mine from a crash. So did hq_R. **A framing that arrives only after three crashes has not yet been
+shown to work forward**, and it should be read as a hypothesis about how to build the next gate, not as
+a method that has already proved itself.
+
+⭐ **This is one law with the method warning above, not two.** There, an instrument answered about a
+narrower **frame** than I asked about (gdb's outer-frame `$rsp`); here, an instrument answered about a
+narrower **door set** than its author asked about. Both are instruments answering a narrower question
+than the person reading them believes they asked — and **neither says so**.
 
 **Non-residue, held separate deliberately:** after the cut, geddump's one-line witness raises
 `Run-time error 103` at line 229 (*string expected, offending value &null*) — and **iconx raises the
