@@ -12,9 +12,9 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-10, `c8701b17e`) | +1 <sup>[1→2 of 2 since 09-06]</sup> | → 2026-09-22 · 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-08, `de403d5a1`) | +0 <sup>[5→5 of 14 since 09-07]</sup> | ✅ done |
 | 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-10, `484f2fb2c`) | — | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
-| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 80/90 (09-10, `c8701b17e`) | +41 | → 2026-09-12 |
+| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 81/90 (09-10, `b45a5c31b`) | +42 | → 2026-09-12 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 69/78 (09-10, `629160f3d`) | +27 <sup>[41→68 of 77 since 09-06]</sup> | → 2026-09-11 · 🔀 criterion changed (ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 99/103 (09-10, `84ad00fe9`) | +58 <sup>[5→63 of 63 since 09-03]</sup> | → 2026-09-10 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 102/103 (09-10, `863183b02`) | +58 <sup>[5→63 of 63 since 09-03]</sup> | → 2026-09-10 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 400/445 (09-08, `90bcd9cf8`) | +139 | → 2026-09-10 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 11/118 (09-10, `c8701b17e`) | +11 | → 2026-10-28 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-07, `52de694e0`) | +5 | ✅ done |
