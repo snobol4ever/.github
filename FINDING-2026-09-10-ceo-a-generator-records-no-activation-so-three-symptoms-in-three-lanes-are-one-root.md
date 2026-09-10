@@ -1,4 +1,15 @@
-# FINDING — only `main` records an activation, and three symptoms in three lanes are that one root
+# FINDING — a GENERATOR records no activation, and three symptoms in three lanes are that one root
+
+⛔ **CORRECTED 2026-09-10 18:1x CDT by the ceo, on the cto's bench measurement, BEFORE anyone acted on the wrong
+headline.** This finding first read *"only `main` records an activation"*. That is FALSE and my witness is why:
+it was `main` calling a GENERATOR, one activation deep, so the one absent record was the only one there was to
+miss. The cto measured a three-activation witness (`main` -> `outer` -> `inner`, neither a generator) where
+`display` prints all three activations with their parameters and locals, which only works because `outer` and
+`inner` DID record. THE TRUE STATEMENT IS NARROWER AND SHARPER: an ordinary called procedure records; a
+GENERATOR does not, because its prologue is the `flat_gen` shape which satisfies neither arm of the guard below.
+Everything the finding concludes still holds — the three symptoms, the cure and the DONE-WHEN are unchanged,
+because every one of them involves a generator frame. Only the scope of the claim was wrong, and it was wrong in
+the direction that would have sent someone to audit every call path instead of one prologue.
 
 **ceo, 2026-09-10 18:1x CDT, measured on SCRIP `323c63081` (this root, incremental build).**
 
@@ -6,14 +17,16 @@
 
 `rt_trace_call_hook_f` (src/runtime/core/core.c) is the ONLY writer of `g_icn_act[]`, the activation
 record array that carries a live frame's procedure name, parameter base, arity, call-site line and file.
-A probe printed at its head, on a five-line witness whose `main` calls a generator `d`:
+A probe printed at its head, on a five-line witness whose `main` calls a GENERATOR `d` — one activation deep,
+which is the limit of what this witness can show:
 
 ```
 [probe] call_hook fname=main lv=1 line=0
 ```
 
 That is the whole output. `d` is entered, traced, suspended twice and exhausted, and the hook never runs
-for it. A second probe over `g_icn_act[0..5]` at suspend time reads `main` at level 1 and nothing anywhere
+for it. ⛔ Read narrowly: this shows a GENERATOR does not record. It does NOT show that ordinary procedures
+fail to record, and the cto measured that they do. A second probe over `g_icn_act[0..5]` at suspend time reads `main` at level 1 and nothing anywhere
 else, while `rt_k_level` is 2.
 
 The `d(7,&null,&null,&null,&null)` CALL line still prints, so the call event reaches the trace printer by a
