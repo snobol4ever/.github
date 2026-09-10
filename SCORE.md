@@ -14,7 +14,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-08, `cce2efcb4`) | — | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 77/90 (09-09, `c703ef2b9`) | +38 | → 2026-09-12 |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 67/91 (09-10, `edb1a8f69`) | +25 <sup>[41→66 of 75 since 09-06]</sup> | → 2026-09-13 · 🔀 criterion changed (ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 85/89 (09-09, `c703ef2b9`) | +57 <sup>[5→62 of 63 since 09-03]</sup> | → 2026-09-09 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| 📚 IPL (ipl) | icon | 34/60 (09-05) | 87/89 (09-10, `ec4157e0e`) | +58 <sup>[5→63 of 63 since 09-03]</sup> | → 2026-09-10 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 400/445 (09-08, `90bcd9cf8`) | +139 | → 2026-09-10 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-22 |
 | 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-07, `52de694e0`) | +5 | ✅ done |
