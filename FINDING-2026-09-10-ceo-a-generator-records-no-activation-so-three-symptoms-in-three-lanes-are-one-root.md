@@ -62,6 +62,72 @@ three frames in `Traceback:` as iconx does; `g_icn_act[]` carries a named record
 generator witness; and the ceo's held suspend/resume patch, re-applied unchanged, reads NO WORSE than
 origin on all five trace programs.
 
+## ⛔⭐ hq_S's WITNESS, RE-MEASURED ON `30b30101b` — THE FINDING'S CORRECTED HEADLINE IS RIGHT, AND ITS DONE-WHEN IS NOW FALSE (hq_S, 2026-09-10, asked by CEO-534/535)
+
+**The three-frame witness in symptom 2 NO LONGER REPRODUCES, and the DONE-WHEN below is written on it.**
+Measured on `30b30101b`, incremental `make`, both modes:
+
+```
+procedure main(); f(); end          SCRIP m3:  main() / f() from line 2 / g() from line 5 / {1 / 0} from line 8
+procedure f(); g(); end             SCRIP m4:  byte-identical to m3
+procedure g(); 1 / 0; end           iconx:     byte-identical to both
+```
+
+Four frames, all present, both modes. When I filed this witness (on the `b7a73a87a` lineage, ~an hour
+earlier) it printed `main()` alone; something between there and here cured it. ⛔ I did NOT bisect it and I
+am not naming a curer — the plausible candidate is `8a166bc95` (*display() reads every activation's locals
+from the frame slots the layout gave them*), which is the cto's own row, and the cto can confirm from their
+bench for free where I would pay two full builds. **Symptom 2 as written above is CLOSED. Do not re-open it,
+and do not audit `core_icn_traceback` looking for it.**
+
+⛔⭐ **BUT THE DEFECT IS NOT GONE — IT MOVED TO EXACTLY WHERE THIS FINDING'S CORRECTION SAYS IT LIVES, AND
+THAT IS WHY THE DONE-WHEN MUST CHANGE.** Clause 1 of the DONE-WHEN is *"a three-frame witness (`main` -> `f`
+-> `g`, `1/0` in `g`) prints all three frames in `Traceback:` as iconx does"*. **That clause is GREEN TODAY,
+on a tree where the root cause is untouched.** Anyone who grades this row by its own DONE-WHEN will read
+DONE and land nothing — the generator prologue still emits no kind-1 tap. A DONE-WHEN whose witness has
+been cured by a neighbour, while its stated root cause stands, is worse than no DONE-WHEN: it converts an
+open row into a signed-off one.
+
+**THE REPLACEMENT WITNESS — put a GENERATOR in the chain, which is the whole content of the correction at
+the top of this file.** One construct changed from the witness above (`f` calls `g` under `every`, and `g`
+suspends before it divides), 10 lines, one diff line, reproduces in BOTH modes on `30b30101b`:
+
+```icon
+procedure main()
+   f();
+end
+procedure f()
+   every g();
+end
+procedure g()
+   suspend 1;
+   1 / 0;
+end
+```
+
+```
+iconx            SCRIP m3 AND m4          diff
+-----            ---------------          ----
+main()           main()
+f() from line 2  f() from line 2
+g() from line 5  <MISSING>                7a8 > g() from line 5 in wg.icn
+{1/0} line 9     {1/0} line 9
+```
+
+**The generator's frame is the one that is missing, and only it.** `main` records (it always did), `f`
+records (an ordinary called procedure, as the cto measured), `g` does not — it is the `flat_gen` prologue
+that satisfies neither arm of the `_iws && _use_zframe_install && !root_graph` guard. So this witness
+grades the cure named in § *The cure, named* directly, and CANNOT be satisfied by a neighbour's work on the
+ordinary call path the way the old one was.
+
+**PROPOSED DONE-WHEN clause 1, replacing the old one:** the generator witness above prints `g() from line 5`
+in `Traceback:` in both modes, i.e. zero diff lines against iconx — currently 1 diff line in m3 and 1 in m4.
+Clauses 2 (a named record for every live frame on a generator witness) and 3 (the held suspend/resume patch
+re-measures no worse) are untouched by this and still stand.
+
+⚠ hq_S owns this witness and has re-measured it; hq_S does **not** own the cure — the generator prologue is
+the cto's, per Owner below. Nothing in `src/` was touched to produce any number above.
+
 ## Owner
 
 The cto, whose fatal-report row built the record and whose display-locals row needs it. hq_S owns the
