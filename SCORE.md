@@ -13,7 +13,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-08, `de403d5a1`) | +0 <sup>[5→5 of 14 since 09-07]</sup> | ✅ done |
 | 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-08, `cce2efcb4`) | — | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
 | 🌵 Zona (arizona) | icon | 39/89 (08-30) | 76/90 (09-09, `a76ab4b70`) | +37 | → 2026-09-12 |
-| ☕ Jcon (jcon) | icon | 34/81 (08-30) | 64/91 (09-09, `a76ab4b70`) | +23 <sup>[42→65 of 81 since 09-06]</sup> | → 2026-09-12 · 🔀 criterion changed (ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
+| ☕ Jcon (jcon) | icon | 34/81 (08-30) | 64/91 (09-09, `9eef4067e`) | +22 <sup>[41→63 of 75 since 09-06]</sup> | → 2026-09-12 · 🔀 criterion changed (ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 83/89 (09-09, `df41c4250`) | +55 <sup>[5→60 of 63 since 09-03]</sup> | → 2026-09-09 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 400/445 (09-08, `90bcd9cf8`) | +139 | → 2026-09-09 |
 | 🦉 SWI (swi) | prolog | 0/114 (09-05) | 8/118 (09-06, `11fbf6492`) | +8 | → 2026-09-21 |
