@@ -117,3 +117,17 @@ subject matter. The new gate is wired into `make test` (~1s, 9 shapes x 2 modes,
 ⛔ **On the merged tree the jcon census reads 4 of 76, not 5** (lines 90 130 132 180): line 82 was cured by
 work that arrived from origin during this sitting, not by this change. The 6 -> 5 pair is this cure's honest
 attribution and both its arms were measured on `f4e7deb00`.
+
+## ⛔ ERRATUM ON THIS FILE'S OWN COMMIT MESSAGE — A PRE-REBASE SHA IS NOT A CITATION
+
+The commit that landed this FINDING names the two SCRIP commits as `8ae27e356 + 66bf45a54`. **`66bf45a54`
+resolves in no clone.** It was the sha `git commit` printed for the gate-promotion commit *before*
+`git pull --rebase` rewrote it; the commit that reached origin is **`237c67ea1`**, and its content is
+identical. Both real commits are contained in `origin/main`.
+
+⭐ **The lesson, and it is the same shape as everything else in this file:** a hash read out of your own
+`git commit` output is a claim about a tree that does not exist yet. Read the sha back **after** the rebase and
+the push, from `origin/main`, and check containment with `git merge-base --is-ancestor <sha> origin/main` —
+never by comparing your `HEAD` to `origin/main`, because other seats push constantly, so "diverged" is the
+normal state and proves nothing in either direction. A commit message cannot be corrected in place, which is
+exactly why the check belongs *before* the message is written.
