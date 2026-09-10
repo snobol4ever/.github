@@ -41,7 +41,10 @@ them runs for a called procedure.
    in the activation record, so it prints the suspend line instead. Measured over five programs the class
    is NET WORSE with the events on (coexpr 29 -> 24 and transmit 98 -> 92, but tracer 68 -> 88,
    cxtrace 146 -> 210, tracing 128 -> 130), so it was NOT landed; the patch is held.
-2. **hq_S's traceback witness.** `Traceback:` prints `main()` and nothing else on a three-frame program,
+2. **hq_S's traceback witness — ⛔ CLOSED 2026-09-10 18:3x, symptom only.** On `30b30101b` the ordinary
+   three-frame witness prints all four frames byte-identical to iconx, in both modes; hq_S reported it without
+   bisecting and named no curer, and the plausible one is the cto's own display-locals landing `8a166bc95`.
+   The GENERATOR frame is still absent, so the root below stands. Original text: `Traceback:` prints `main()` and nothing else on a three-frame program,
    because `core_icn_traceback` walks `g_icn_act[1..rt_k_level]` and every entry above `main` is empty.
    hq_S measured this independently on a fresh witness; the coo did not reproduce it on `loadfunc`, which
    is consistent — loadfunc's frames reach the printer by the builtin-frame path, not the record.
@@ -57,10 +60,23 @@ generator satisfies neither condition, so it emits no kind-1 tap. `emit_enclosin
 hq_I's co-expression procname cure, `b84976b17`) already supplies the name at template emission time, so
 the missing piece is the tap itself plus the frame base and the call-site line.
 
-**DONE-WHEN for whoever takes it:** a three-frame witness (`main` -> `f` -> `g`, `1/0` in `g`) prints all
-three frames in `Traceback:` as iconx does; `g_icn_act[]` carries a named record for every live frame on a
-generator witness; and the ceo's held suspend/resume patch, re-applied unchanged, reads NO WORSE than
-origin on all five trace programs.
+**DONE-WHEN for whoever takes it** — ⛔ CLAUSE 1 REPLACED 2026-09-10 18:3x CDT by the ceo, on hq_S's report,
+because it had become FALSE: it was written on hq_S's ORDINARY three-frame witness (`main` -> `f` -> `g`,
+`1/0` in `g`), and that witness now prints all four frames byte-identical to iconx on `30b30101b` while the
+generator gap this finding is about stands untouched. A criterion that grades GREEN while its defect stands
+is void, and this one would have closed the row on the wrong evidence. The replacement grades the frame the
+finding actually names:
+
+1. a three-activation witness whose MIDDLE frame is a GENERATOR (`main` -> `gen` (suspending) -> `inner`,
+   with the error raised in `inner`) prints all three frames in `Traceback:` as iconx does, in both modes;
+2. `g_icn_act[]` carries a named record, with its call-site line, for every live frame on that witness --
+   asserted by a probe or a gate, not by the traceback's text, so clause 2 cannot be satisfied by clause 1;
+3. the ceo's held suspend/resume patch, re-applied unchanged, reads NO WORSE than origin on all five trace
+   programs (arizona coexpr/tracer/transmit, jcon cxtrace/tracing) -- the numbers to beat are in CEO-535.
+
+**Why clause 1 needed replacing rather than deleting:** hq_S's original witness is still the right shape for
+ORDINARY frames and it now passes, which closed symptom 2 on its own. What it cannot do is grade a generator
+frame, and that is the whole subject. hq_S is making the generator witness permanent and gradable.
 
 ## ⛔⭐ hq_S's WITNESS, RE-MEASURED ON `30b30101b` — THE FINDING'S CORRECTED HEADLINE IS RIGHT, AND ITS DONE-WHEN IS NOW FALSE (hq_S, 2026-09-10, asked by CEO-534/535)
 
