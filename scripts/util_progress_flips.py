@@ -114,6 +114,40 @@ def cmd_flips(a, rows):
                 for x in downs[k]:
                     print("    -", x)
     print(f"TOTAL newly-passing in window: master {tm}, package {tp}, benchmark {tb}  (rows in window: {in_window})")
+    # THE NET MEASURE (coo, COO-50, MASTER-PLAN rule 5): distinct programs green at the LAST clean reading that were
+    # not green at the window base -- the base is the last clean reading before the window, else the first clean
+    # reading inside it. A -dirty tree stamp is cited for its number, never its position in a series, so a dirty
+    # row is not a position here (--include-dirty restores the raw series). Both modes must agree for "any".
+    base, latest, dirty_skipped = {}, {}, 0
+    for r in sel:
+        if r["outcome"] in NOT_A_READING:
+            continue
+        if not a.include_dirty and (r["scrip"].endswith("-dirty") or r["corpus"].endswith("-dirty")):
+            dirty_skipped += 1
+            continue
+        k = (r["suite"], r["program"], r["mode"])
+        if r["ts_utc"] < since or k not in base:
+            base[k] = r["outcome"]
+        latest[k] = r["outcome"]
+    cls_of = {}
+    for r in sel:
+        cls_of.setdefault(r["suite"], r["class"])
+    net = collections.defaultdict(set)
+    lost = collections.defaultdict(set)
+    for k in latest:
+        suite, prog, mode = k
+        cls = cls_of.get(suite, "?")
+        if base.get(k) != "PASS" and latest.get(k) == "PASS":
+            net[cls].add((suite, prog))
+        if base.get(k) == "PASS" and latest.get(k) != "PASS":
+            lost[cls].add((suite, prog))
+    print(f"NET distinct programs green now, not green at the window base (dirty rows skipped: {dirty_skipped}): "
+          f"master {len(net['master'])}, package {len(net['package'])}, benchmark {len(net['benchmark'])}; "
+          f"lost since the base: master {len(lost['master'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}")
+    if a.names:
+        for cls in ("master", "package", "benchmark"):
+            for suite, prog in sorted(lost[cls]):
+                print(f"    LOST {suite}:{prog}")
     return 0
 
 
@@ -265,6 +299,7 @@ def main():
     ap.add_argument("--class", dest="klass", default="all")
     ap.add_argument("--suite", default="")
     ap.add_argument("--live-only", action="store_true")
+    ap.add_argument("--include-dirty", action="store_true", help="count -dirty tree rows as positions in the NET series (default: skipped, MASTER-PLAN rule 5)")
     ap.add_argument("--names", action="store_true")
     ap.add_argument("--coverage", action="store_true")
     ap.add_argument("--register", action="store_true")
