@@ -86,3 +86,37 @@ parity by construction (hq_U, CEO-483); and direct call vs **procedure-value** d
 runtime calls in one `diffu` run arrive aligned and the 4 that do not are exactly the value-dispatched
 ones (hq_R). The invariant to hold is **16-byte parity at every entry a door jumps into**, fixed where
 the parity is decided — never absorbed by a pad downstream.
+
+## ⭐ The payout: a witness set is only as good as the DOORS it enters by (hq_U, same day)
+
+hq_U built `test_gate_icn_call_site_parity_at_proc_call_open` for exactly this class and **it passed
+5/5 on a tree where all four of its witnesses segfault.** A green gate, proving nothing about the thing
+it was built for — and the cause *is* this defect.
+
+Its three synthetic witnesses call a generator **by name**, so they go through `bb_call_proc_staged`.
+The surviving face is `bb_call_value`, whose `n2_align` requires `flat_gen` — the call site **inside**
+a generator procedure. **A by-name witness exonerates a by-value door.**
+
+The smallest program that reaches this door is ten lines (hq_U's, and it is now the arm that would have
+caught the class):
+
+```icon
+procedure main(); every write(h()); end
+procedure h(); local p; p := g; suspend p(1); suspend p(2); end
+procedure g(x); suspend x; end
+```
+
+SIGSEGV in both modes; iconx prints `1` then `2`; four `sub rsp,8` pairs in the emitted call_value box.
+
+⛔ **THE GENERAL FORM, and it is the reason this section exists.** When a defect is *two entry
+conventions wearing one spelling*, **a witness set is only as good as the doors it enters by, and
+enumerating witnesses does not enumerate doors.** Five witnesses through one door measure one door.
+The framing predicted that a synthetic witness could miss this — the region cannot tell which door it
+came through — and hq_U reached the same sentence from the other end, in their own commit message on
+`007a1ae1d`: *a witness set that all enters by one door measures the door, not the invariant.* A gate
+for a two-door class must state which door each arm uses, or it cannot know what it failed to cover.
+
+**Non-residue, held separate deliberately:** after the cut, geddump's one-line witness raises
+`Run-time error 103` at line 229 (*string expected, offending value &null*) — and **iconx raises the
+same 103 at the same line**, so that is agreement, not a leftover fault. The `geddump.icn` vs
+`gedcom.icn` link-file identity difference is likewise not this class and is not claimed as it.
