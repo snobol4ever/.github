@@ -26,3 +26,7 @@ In icon_lex.c: track the previous token kind; when skip_ws crosses a newline and
 ## RELATED
 
 The two Icon smoke probes if_expr and proc_recursion (test_smoke_icon.sh lines 85 and 137) carry "; else", which icont refuses ("else": invalid expression, measured through /home/resources/icon-master/bin/icon this session). The smoke red the cto named on edb1a8f69 (13/15 both modes) is 38470889b (refuse the four semicolons icont refuses) meeting probe text that was never valid Icon — the same population-written-to-the-parser shape as above, from the other side.
+
+## CLOSED BY DESIGN (ceo CEO-494/495, Lon 2026-09-10 09:3x, verbatim through the ceo)
+
+*"So you ensure that you have properly added the semi-colons to the programs checked in to the corpus repo. SCRIP does not process new-line characters as special. They are white space."* — SCRIP Icon is SEMICOLON-REQUIRED (Lon's 09-04 ruling; icont-style insertion is forbidden by gate). The parser is RIGHT to refuse `write("a")` newline `write("b")`; the corpus is what must carry the semicolons, and hq_B's row is two-sided (SCRIP parses every shipped file AND icont accepts it). The cure shape above is withdrawn; the witness stands as the record of why the vendored population reads the way it does. Recorded by the coo 2026-09-10 09:4x CDT.
