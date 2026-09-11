@@ -29,14 +29,21 @@ is easier: rewrite to IR_GOTO with γ := old ω (fail path never reads the slot)
   LIT_STRING; IR_COERCE_INTEGER over LIT_INTEGER honoring the packed negative-errcode guard (`ival>>16`).
   Conforming forwarders neutered to IR_SUCCEED — statically proven unable to fault. Op-filter is one line to
   extend when new identity-forwarder kinds appear.
-- **OPT-PF pat_fold** — SPITBOL-grade adjacent-literal merge, done at the TRUE architecture level: MATCH_LITs
-  are never γ-chained; `IR_MATCH_SEQUENCE` is a driver box over interleaved `(entry_i, resume_i)` operand
-  pairs, elements' γ/ω pointing back at the sequence. Merge conditions: paired convention holds, element is
-  fully sequence-internal, in-count==2 (blocks captures), `ival*2==n_operands` invariant (skips ARBNO
-  geometry). HARD-WON: `bb_match_sequence` derives dispatch glue from cached `op_ival`, not `n_operands` —
-  desync aborts emit with unresolved `xchain*_n*_a[sf]` labels. `IR_LIT(seq).ival` is decremented per merge.
-- **Driver** — ≤8-round fixpoint cf→cp→pf→dp with `bc_run` every round (bc floor preserved);
-  `SCRIP_OPT_STATS` prints `fold= copy= pat= dead= branch_chain=`.
+- ⛔ **OPT-PF pat_fold — RETIRED 2026-09-11 (hq_P, row `pat-fold-dead-pass`); DELETED FROM THE TREE, NOT
+  LANDED.** It landed here and was killed by SEQ-ERAD: `b88b6e2e0` ("IR_MATCH_SEQUENCE deleted from
+  enum+dispatch") removed the ONLY node kind `pf_run` folded over and emptied the body to
+  `int pf_run(IR_graph_t * g) { (void)g; return 0; }` in the SAME commit, leaving four static helpers dead.
+  ⛔ **Re-implementation was not available**: `IR_MATCH_SEQUENCE` has ZERO occurrences tree-wide, so there is
+  nothing to fold — the pass had no subject, not a missing body. Measured before deleting: `SCRIP_OPT_STATS`
+  printed `pat=0` on every graph of every witness (pattern_test, beauty included), and the emitted `.s` is
+  BYTE-IDENTICAL across four pattern-heavy witnesses with the pass and its call site removed.
+  ⭐ **The adjacent-literal-merge OPPORTUNITY is real and survives its implementation** — if it is ever wanted
+  again it must be re-cut against whatever represents pattern sequences today, as a NEW rung with its own
+  measurement, never by restoring this file.
+- **Driver** — ≤8-round fixpoint cf→cp→dp with `bc_run` every round (bc floor preserved);
+  `SCRIP_OPT_STATS` prints `fold= copy= dead= branch_chain= dead_goto=`. ⛔ The `pf` stage and the `pat=`
+  field were removed with OPT-PF on 2026-09-11; nothing parsed `pat=` (one occurrence tree-wide, its own
+  `fprintf`), so no instrument was keyed on it.
 - **arith_fold.c stays parked out of the build** — references GZ#5-amputated opcodes (IR_ARITH/IR_ATOM/
   IR_LOGICVAR); its const-eval library becomes relevant only if those shapes are ever re-seated.
 
@@ -50,8 +57,11 @@ measured net −6% wall on 50k-EVAL variant) · icon 4/0 HARD · prolog 150/0/13
   requires proving format identity against the runtime's actual conversion sink first.
 - OPT-CSET: fold CUNION/CDIFF/CINTER of literals by calling `cset_canonical(cset_union(...))` at compile time
   into IR_LIT_CHARSET; then admit IR_LIT_CHARSET to dead_pure once its emit is proven registration-free.
-- OPT-SEQ1: collapse sequence-of-one (post-merge N==1) to the bare element — rewire HEAD entry and element
-  γ/ω past the driver box; measure before landing, the N=1 driver overhead may not pay.
+- ⛔ OPT-SEQ1 — **MOOTED BY THE SAME ERADICATION, flagged 2026-09-11 by hq_P; not cured, just named.** It
+  reads "collapse sequence-of-one (post-merge N==1) to the bare element … past the driver box", and both the
+  driver box (`IR_MATCH_SEQUENCE`) and the "post-merge" state it consumes (OPT-PF) are gone. A seat taking
+  this rung as written would go looking for a node that does not exist. It stays on the ladder only as a
+  RESTATEMENT TASK: re-express it against today's sequence representation, or retire it.
 - OPT-FZ-RESEAT: FZ-3/FZ-4/FZ-5a invariant-subpattern freezing (IR_REF_INVARIANT sealed blobs) lives only in
   `lower_snobol4.gz5-parked-41b53078.c`; template `bb_ref_invariant.cpp` still exists. Re-seat into live
   lower per the GOAL-IR-IMMUTABLE-EMIT SN4-PAT ladder — the single biggest pattern-fold prize.
