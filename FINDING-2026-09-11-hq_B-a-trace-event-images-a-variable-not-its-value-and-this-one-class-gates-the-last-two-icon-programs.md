@@ -223,3 +223,126 @@ end
 
 **Related** — CEO-563 (this row), `1493214e4` (the γ-port return cure that shrank 68 → 20 and exposed this),
 the cto's `var` cure (both `var` files green, so the class is genuinely confined to the two programs above).
+
+## ✅ CURED — and the shape that finally worked is the one the negative result pointed at
+
+**hq_B, 2026-09-11, SCRIP `70a0bc6c0` + this landing. Both programs are 0 diff lines in BOTH modes:**
+`arizona_tests/general/tracer` (was 20) and `jcon_tests/tracing` (was 24, the cfo's and hq_S's half).
+Measured by hand, per program, against each `.std` — no board was run and none is claimed (ONE RUNNER).
+
+⭐ **The correction that unlocked it: "a compile-time answer cannot work" was true of the wrong thing.** What
+cannot work is a static *variable-form attribute on the suspend node*, because which of 15 alternatives yields
+is a run-time fact. What works perfectly is deciding **per ALTERNATIVE** — each arm of the alternation is
+lowered by itself, so `&subject` can take the variable route while `a` takes the value route, and the run-time
+choice of arm then selects between two already-correct pieces of code. **The failed experiment did not
+disprove the compile-time route; it disproved routing the WHOLE operand through a lowering that returns NULL
+for the arms it cannot take** — `lower_lvalue_var` had no keyword arm, so four of ten red lines had nothing to
+route through and the alternation collapsed 15 → 3. Per-arm choice with a **fallback to the value route** is
+what makes it safe: an arm the lvalue path cannot take is exactly as it was before the change.
+
+### The five pieces
+
+1. **`icn_trace_var_form`** (`lower_icon.c`) — the measured rule, per alternative: a **local or parameter is
+   dereferenced**; a **global, static, keyword, subscript or section of a nameable base is not**. `suspend`
+   routes its operand through `lower_trace_operand`, which is `lower_alt_impl(..., lval=2)` — the per-arm mode.
+2. **`IR_KW_ICON` grew a VARIABLE form** (`pat_static == 1`, **not** `IR_LIT.ival` — `sval`/`ival`/`dval` are
+   one **union** and the keyword's name lives in `sval`; writing `ival` set `op_activate_proc` to `0x1` and
+   SIGSEGV'd the compiler inside `strdup`). The box calls **`rt_keyword_var(name)`**, minting a `VCELL_t` with
+   `cellp == 0 && tbl == 0 && key != 0 && pos == -1` — a keyword has **no addressable cell** (`&subject` and
+   `&pos` live in scan registers, `&trace` behind `kw_read`), so its deref re-reads the keyword.
+3. **`bb_suspend` dereferences AFTER the tap** (`rt_trace_deref_slot`), so the variable is visible to the trace
+   image and to nothing else. The whole `DT_N` exposure is the span between the operand and the tap.
+4. **`trace_image_icon` grew the three renderings** — named (`&trace = -47`), anonymous (`(variable = 3)`),
+   and the table element `table_1(1)["k"]`, plus section normalisation and the composed-section collapse.
+5. **`rt_list_bang_var_at` / `"lvv"`** — see the next section; `!` is the operand the rule cannot classify.
+
+### ⭐ The cfo's measurement was the one that paid, and a probe against iconx made it sharper still
+
+The cfo (`icon-jcon-tracing-events-are-byte-exact-against-the-jcon-std`) measured that `!` over a **string** and
+a string **subscript** print the plain value, `!` over a **table** prints `table_1(1)` with the key, and only
+the **list** element prints `variable = value` — so **the rendering cannot be decided syntactically at the
+suspend site.** Probing that against iconx 9.5.25a (`ex2.icn`/`ex4.icn`, byte-identical both sides now) gave
+the rule underneath it:
+
+| `!x` where x is | iconx images | why |
+|---|---|---|
+| a **list** (local, parameter or global) | `(variable = 1)` | an element is a **cell**, nameable regardless of what holds the list |
+| a **global** string, or a section of one | `"ab"[1] = "a"` | a string element is a **substring of its base**, and the base is nameable |
+| a **local or parameter** string | `"a"` | same substring, base **not** nameable |
+| a **table** | `table_1(1)["k"]` | third rendering — table image, key, **and no value at all** |
+
+⭐ **So `!` needs a third selector, not a second.** `"lv"` (every element a variable) is right for a nameable
+base; `"lvv"` — aggregate elements stay variables, **string** elements become characters — is right for a
+local or parameter base. The base's nameability **is** a compile-time fact even though the element's kind is
+not, which is why the split lands in the lowerer and the type test stays in the runtime.
+
+⛔ **Two defects this probe caught that the two suite programs never would have**, both introduced by the first
+cut and both invisible to `tracer` and `tracing`:
+- `suspend !G[1:3]` **generated nothing at all** (`u failed` where iconx yields two values). `rt_list_bang_var_at`
+  returned `FAILDESCR` for a string base that was not a varref, and lowering a section base as a *value* made
+  every `!<section>` hit that arm. A generator that silently yields zero values is the worst possible failure
+  mode for a trace change, because the trace lines it should have printed simply are not there to be diffed.
+- a **record field** element trap carries `pos = -(field+1)` and an `sv`, so read as "has an sv, so it is a
+  substring" it would image field 1 of a record as a string section. The keyword trap and the substring trap are
+  now told apart by `cellp == 0` **and** the sign of `pos`, not by presence of a field.
+
+⭐ **The general form, which is the half worth keeping:** the two suite programs are a *sample*, not a
+*specification* — they exercise `!` over exactly one kind of base. **A cure graded only on the programs that
+made it red will hide every case those programs do not contain**, and here two such cases were one probe away.
+The `.std` files were the DONE-WHEN; the oracle was the control arm.
+
+### What is still open
+
+⛔ **hq_S's assign-through witness is NOT closed by this** and I am not claiming it: `every vproc(b) := 0` over
+`procedure vproc(x); suspend !x; end` still raises **Run-time error 111** where iconx prints `0 0 0`. This cure
+dereferences *after* the tap precisely so the variable does not flow onward; making it flow onward is the
+assign-through cure and it is a different, larger change. `tracer` and `tracing` are green with 111 standing —
+exactly as this FINDING warned they would be — so **the CLASS done-when still needs hq_S's arm**, and the ask
+to the ceo stands.
+
+`return` is untouched: hq_S's rule covers `return` as well as `suspend`, but neither program exercises a
+returned variable, so nothing here is graded on it and nothing here changes it.
+
+### ⛔⭐ A THIRD DEFECT THE GATES CAUGHT AND THE PROBES DID NOT — `!&digits` RAN FOREVER
+
+`test_gate_icn_var.sh` went red on one bucket entry, `rung36_jcon_iobig`, FAIL in **every** mode. `iobig`
+contains `suspend !&digits` and `suspend !&cset`, and the first cut sent them down the variable route, where:
+
+⛔ **A CSET IS SPELLED `DT_S` WITH `slen == 0xFFFFFFFFu`** (`IS_CSET_fn`, `core.h`). So `obj.v == DT_S` is
+**true of a cset**, and the idiom `obj.slen ? (long)obj.slen : (long)strlen(sp)` — which is correct for every
+real string and appears verbatim in several runtime arms — reads the sentinel as a length of **4 294 967 295**.
+`!&digits` yielded its ten digits and then emitted `"\x00"` without end. ⭐ **The tag byte answered "is it a
+string" and the question actually being asked was "does it have a length"**, which is the same
+narrow-instrument shape as the `DT_VAR` enum search that opens this FINDING — committed twice in one row, in
+two different vocabularies. `!` over a cset generates its **members** and belongs to the value generator.
+
+⭐ **The cure that makes the class impossible rather than fixing this instance: the variable form of `!` now
+DELEGATES to the value generator (`rt_list_bang_at`) for every base it does not specially name** — cset, file,
+anything later — instead of returning `FAILDESCR`. A variable-producing generator must be a **superset** of the
+value-producing one; when it is a subset, the difference is not a wrong value, it is **no values at all**, and a
+generator that silently yields nothing leaves no line in the diff to notice.
+
+⛔ **And one behaviour I changed and then put back on purpose.** Routing keyword and section bases through the
+lvalue path let `&subject[2:4] := "PQ"` reach `rt_assign_var` as a proper trapped variable — where it found no
+cell to write and **silently failed**, printing `123456`. Before the change it **aborted** with the `[IDX] BOMB`
+diagnostic. Neither is iconx's `1PQ456`, but *an abort is a better wrong answer than a silent one*, so the
+keyword trap now refuses loudly with an accurate message: writing `&subject` also resets `&pos` and the scanning
+registers, so there is no honest C-level cell store. **Assignment to a keyword section is unimplemented, it was
+unimplemented before, and it is now unimplemented out loud** — row `icon-a-section-of-a-keyword-is-not-assignable`.
+
+### Arms (ONE RUNNER: no board was run and none is claimed)
+
+| arm | result |
+|---|---|
+| row DONE-WHEN (`tracer`, m3 **and** m4) | **PASS** — 0 diff lines both modes |
+| `jcon_tests/tracing`, m3 and m4 | **0 diff lines** both modes (was 24) |
+| `jcon_tests/iobig`, m3 and m4 | 0 diff lines both modes (the regression above, cured) |
+| iconx probes `ex2`/`ex4` (`!` over list / string / table / section, local and global bases) | byte-identical |
+| 74 Icon gates (`test_gate_icn_*`, `test_gate_icon_*`, `test_smoke_icon`) | 4 red + 1 ONE-RUNNER refusal |
+| **control arm**: those same 4, clean tree, change stashed, rebuilt | **identical** — `list_element_alternation_position`(2) `port_trace`(1) `rbp_census_ratchet`(1) `suspend_record_stack_alignment`(2) |
+| 37 SNOBOL4/Snocone gates (the other frontend reaching `DT_N` and `rt_deref`) | 6 red |
+| **control arm**: those same 6, clean tree, change stashed, rebuilt | **identical** — `define_redefinition_per_binding_dispatch`(1) `port_trace`(1) `setexit_resume_matches_oracle`(2) `system_fn_protection_matches_spitbol`(1) `snobol4_master_named_set_equality`(1) `snocone_returns_codegen`(1) |
+| `make` preflight | rc=0 |
+
+Every red above is a **standing** red, named with the measurement that put it there, and reads **no worse than
+a clean tree without the change** (RULES.md § SHARED-NODE VERDICT SCOPE, the control-arm bar, CEO-359).
