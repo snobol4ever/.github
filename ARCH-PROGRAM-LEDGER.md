@@ -51,6 +51,25 @@ A file absorbed into a master keeps BOTH rows while the file survives on disk, a
 
 **AXIS 3 — SPEED.** Only the `benchmarks/` trees are measured at all. The Prolog cell is the worked example of the failure mode: its triangulation went **22 kernels / 12 AGREE / 8 DISAGREE (09-02) → 8 kernels / 32 UNPROVEN (09-04, twice)**, the surviving 8 being alphabetically the first 8 of 21 — a TRUNCATED run, not a chosen subset — and it destroyed 12 agreements and 8 real divergences on the way. Nothing detected it, because no gate reads a triangulation TSV back.
 
+## ⛔⭐⭐⭐ THE KERNEL CONVENTION — PRISTINE SOURCE, GENERATED WRAPPING, A REF FOR EVERY PROGRAM
+
+**Lon 2026-09-11 16:3x CDT, in-chat to ceo, two statements, verbatim (CEO-567):** *"The test kernel convention we want is a source program that is the meat of the test. And all wrapping and messaging happens after that source is written prestine. The program will have a REF file."* and *"All tests will be self timing and self iteration counting using the 3-angle approach where the tests are run with a process wrapper which measures perf process data in addition to the self measured iters and time."*
+
+**THE SHAPE — one program, one pristine source, everything else generated around it:**
+
+1. **THE KERNEL IS THE MEAT AND NOTHING ELSE.** The source file holds the computation under test. It carries no timing calls, no iteration driver, no result-printing bolted on for a harness's benefit, and no per-engine accommodation. It is written pristine and it stays pristine.
+2. **WRAPPING AND MESSAGING ARE APPLIED AFTER, BY THE HARNESS, AROUND THAT SOURCE** — the iteration driver, the self-timing hooks, the result emission. They are generated, never hand-edited into the kernel, so the kernel compared across engines is byte-identical by construction rather than by discipline.
+3. **EVERY PROGRAM HAS A `.ref`.** The kernel is graded for CORRECTNESS by ref diff like every other corpus program. ⛔ A benchmark is not exempt from being right: a fast wrong answer is a defect, and a speed number taken from a program nobody diffed is a number about an unknown computation.
+4. **THE WRAPPED FORM IS SELF-TIMING AND SELF-ITERATION-COUNTING.** The program reports its own iteration count and its own WORK time — the two-number basis's WORK half — from inside.
+5. **IT RUNS UNDER A PROCESS WRAPPER THAT MEASURES PERF PROCESS DATA** (`tools/bench_rusage`), *in addition to* the self-measured iters and time. The wrapper's numbers and the program's own numbers are independent measurements of the same run, and disagreement between them is a finding, not a rounding question.
+6. **THREE ANGLES, UNCHANGED:** fixed time, fixed iterations, process wrapper. A single-angle number is a scouting datum, never a grid.
+
+⛔⭐ **WHY THE BAKED-IN WRAPPER IS THE DEFECT, MEASURED THIS SITTING (ceo, corpus `e662a8b56`):** `benchmarks/prolog/bench/` ships **two incompatible conventions in one directory** — 13 kernels emit a deterministic result signature and 10 call `wall_us/1` to time themselves — so a sweep of that one tree grades 13 programs and raises `existence_error(procedure, wall_us/1)` on the other 10. `benchmarks/prolog/vanroy/` bakes a frozen `main :- l__(N).` iteration count into each source, making N historical data inside the artifact being measured. Both are the same mistake: **wrapping that lives in the kernel becomes part of what you are comparing**, and it drifts per file, per engine and per calibration run until the population is no longer one population.
+
+⛔ **REF COVERAGE AT THE RULING (ceo, `find`, 2026-09-11 16:3x CDT):** `benchmarks/prolog` **0 refs over 141 programs** (bench 23, vanroy 21, src/gnu-examplespl 22, src/swi-bench 35, src/swi-vanroy 37, root 3) · `benchmarks/icon` **0 refs over 23** · `benchmarks/snobol4` **18 refs over 23**. Only the SNOBOL4 tree has any correctness axis at all, and none of the three is complete. Every one of those programs is, today, a speed number about a computation no instrument has checked.
+
+⭐ **THE CONVENTION UNIFIES THE THREE AXES.** The same pristine kernel carries a feature vector (COMPLETENESS), a `.ref` (CORRECTNESS) and a wrapped three-angle measurement (SPEED). That is the whole point: one program, one identity, three axes, and no axis inferred from another.
+
 ## WHAT MAY NOT BE SAID
 
 - ⛔ A suite may not print a pass count whose denominator excludes programs it ships without naming them in the same breath.
