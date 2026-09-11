@@ -61,3 +61,52 @@ It is NOT the cure that landed at `51add4eec` (a right-sealed DEFER's β tearing
 ## STILL RED AT THIS WRITING (of the 12 programs behind the 24 cells)
 
 SEGV: `arbno_span_tab_replace_branch_1`, `fence_arb_span_replace_branch_1` · HANG: `arbno_fence_tab_replace_branch_1`, `arbno_fence_span_replace_branch_2`, `arbno_pos_rpos_branch_81`, `arbno_span_break_replace_branch_1` · UNMEASURED: `array_replace_branch_2` (the one `-INCLUDE` program). `fence_arb_span_replace_branch_1` is still rc=139 and is ruled out of BOTH mechanisms, so there is a third.
+
+## ADDENDUM (cto, 2026-09-11, later the same day) — THE MARK CELL IS NOT THE BLOCKER, AND THE RULING I ASKED FOR IS THE WRONG QUESTION
+
+The body of this finding, and the baton distilled from it, said the cure was *"making the `AFC(4)` mark
+belong to the instance being graded ACROSS a recede"* — a per-instance mark stack, i.e. a frame-geometry
+change on a shared node, which is what I routed to the ceo for a ruling. **Two measurements taken since
+kill that premise.** Both were taken on a clean `main`, `-O0`, graded on OUTPUT against spitbol, and the
+template was reverted after each; nothing landed.
+
+**FACT 1 — at the ω arrival the "rollback" writes a value that is already there.** `AFC(4)` holds the end
+cursor of the last COMMITTED instance. When the BODY concedes, ω *restores* the cursor, so `r14` on arrival
+at `PAIR(5)` is that instance's own α — the end of the instance below — which is the same value. A rollback
+`mov AFC(4), r14d` at that arrival is a **no-op**. Measured: emitting it changes neither witness. So variant
+B of the table above ("rollback always") was measuring nothing at the ω arrival; the only arrival where A
+and B can differ at all is `PAIR(3)`.
+
+**FACT 2 — restoring the recede on the ω arrival ALONE still hangs `c_nodefer`.** `PAIR(3)` and `PAIR(5)`
+are `def`'d at ONE address in every arbno arm, so the table above could not tell the two events apart. I
+split them and emitted the recede on `PAIR(5)` only (body conceded — the arrival where, by FACT 1, no
+rollback is owed and the mark is provably correct), leaving `PAIR(3)` to concede as today. `c_nodefer`
+HANGS anyway. **The regression is not the mark, and it is not the continuation arrival either. It is the
+recede itself.**
+
+### WHAT THE ASM SAYS THE RECEDE ACTUALLY LANDS ON
+
+`PAIR(1)`/`PAIR(4)` is the BODY's β, and for the two shapes that reach this arm a β is not a "shorter match"
+port at all:
+
+- `c_nodefer`, body `*G0` — `bb_match_defer`'s β ends in `x86_jmp_mem("rsp", 0)`: the β target lives in an
+  **rsp-relative cell pushed by its own α** (`push` γ-cont, `push` ω-cont, `jmp rax`). Once the deferred
+  sub-pattern has conceded, rsp is above those cells and `jmp [rsp]` reads whatever is there. The
+  `SCRIP_DEFER_BETA_GUARD` zero-check catches only a zeroed cell, not a stale non-zero one. This is the
+  same shape as the rc=139 members of the class.
+- the minimal witness, body `ARBNO(TAB(1))` — the inner arbno's β is `mov r12, AFCQ(8); jmp PAIR(0)`, which
+  re-enters its body **fresh at the current cursor for one MORE instance**. Receding into it therefore asks
+  for a longer match, not a shorter one, and the cursor never moves back: outer ω → inner β → inner body α
+  → inner null-guard → inner body β → … The outer's `AFC(4)` is irrelevant to that loop.
+
+### THE QUESTION THAT ACTUALLY NEEDS RULING
+
+Not "how does the ARBNO-FRAME arm store a per-instance mark". It is: **what does an ARBNO box's ω-recede
+mean, and which port carries it?** A box that has conceded has, by the four-port contract, already restored;
+"drop the last instance and re-ask it" is not β on any body this arm accepts. Either the arm may not recede
+into a body whose β is rsp-anchored or instance-advancing (making the present `concede` correct and the
+24-cell class a different bug entirely), or ARBNO needs a port the body does not today provide.
+
+⛔ The three candidates named in the baton — widen the frame slot, chain marks through ζ-STANDING, publish
+the start cursor from the body's activation frame — **all solve FACT 1, which is not the problem.** None of
+them would have flipped either witness. Withdrawing the geometry ask.
