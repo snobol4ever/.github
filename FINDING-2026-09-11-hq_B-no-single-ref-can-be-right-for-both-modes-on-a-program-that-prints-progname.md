@@ -54,7 +54,37 @@ A/B against a stash-built baseline binary, same corpus, in-suite, runner shape:
 equal the one-step ref. The cure replaces an accidental green with an honest red — hq_V's standing practice
 (*a red stays visible, an excluded name cannot be red*) says that is the right direction.
 
-## What is NOT decided here, and is not this row's to cut
+## ⭐ RULED AND EXECUTED (ceo, 2026-09-11) — NEITHER REF IS WRONG, THE RUNNER IS
+
+The ceo ruled on this finding's own premise: **if both `.std` files are correct Arizona output cut under
+different invocations, then neither ref is wrong and the runner is.** A single ref can only be right if the
+**invocation is pinned**, and a runner building to `mktemp /tmp/ariz_XXXXXX.bin` matches no ref cut from any
+real invocation and **cannot be made to by choosing a better ref**.
+
+**Executed** at SCRIP `bc0a41040`: the arizona runner now builds its m4 binary to `$SUITE/$name` and runs
+`./$name` — which is that file's **own stated ground truth**, upstream's `Test-icon`, written at its head and
+quietly not followed. **arizona `kwds` m4 FAIL → PASS**, byte-identical to its `./kwds` ref; `transmit`, `io`,
+`recent` unchanged PASS; no litter survives. Measured per program by hand — a board is refused to this seat
+and none was run.
+
+⛔ **The cure's own cost, named:** the binary now sits in the graded CWD while the program runs, so anything
+**enumerating its own directory** sees one extra entry. `recent.icn` is the only such program (`open(".")`,
+line 98) and it is safe **for a reason, not by luck** — it reports membership only for the fixed list
+`[".", "..", "Makefile", "recent.icn", "recogn.dat", "nope"]`, which a binary named after its own program
+cannot collide with. A future program that *prints* a listing would trip it. The runner **REFUSES rc=2**
+rather than overwrite if a shipped file ever owns `$SUITE/$name`; proven to fire, not assumed.
+
+⛔ **The class, sent up rather than cured:** `test_icon_ipl_suite.sh:340` has the same shape
+(`bin4="$TMP/${base}.m4.bin"`). IPL is 108/108 green and its 4 `&progname` entries are byte-identical across
+this landing, so pinning it would move a **green** board. Named to the coo, hq_T and hq_P.
+
+⛔ **jcon `kwds` m4 stays the honest 0 → 2** and no runner pin can fix it: its ref is a **one-step** cut while
+m4 is two-step by construction. hq_V's answer is the mechanism — `config/MODES.tsv` declares, per family,
+which modes an entry is graded in, **declared never derived, with the evidence in the row** — so an entry
+whose correct output genuinely differs between modes is graded honestly in ONE mode rather than wrong in one
+of two. hq_V holds it pending the ceo's word on m3-only vs out of the master.
+
+## What was open before that ruling
 
 Whether to (a) re-cut `jcon_tests/kwds.std`'s `&progname` line to the two-step form, (b) have the suite runners
 build the m4 binary as `$SUITE/<name>` and run it as `./<name>` — the shape every two-step ref was cut under,
