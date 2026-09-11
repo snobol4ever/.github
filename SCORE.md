@@ -12,7 +12,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-10, `c8701b17e`) | +1 <sup>[1→2 of 2 since 09-06]</sup> | → 2026-09-22 · 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-08, `de403d5a1`) | +0 <sup>[5→5 of 14 since 09-07]</sup> | ✅ done |
 | 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-10, `484f2fb2c`) | — | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
-| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 86/90 (09-11, `adf22fe62`) | +47 | → 2026-09-12 |
+| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 86/90 (09-11, `adf22fe62`) | +50 <sup>[36→86 of 90 since 09-03]</sup> | → 2026-09-11 · 🔀 criterion changed (ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | ☕ Jcon (jcon) | icon | 34/81 (08-30) | 80/82 (09-11, `adf22fe62`) | +37 <sup>[42→79 of 81 since 09-06]</sup> | → 2026-09-11 · 🔀 criterion changed (ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
 | 📚 IPL (ipl) | icon | 34/60 (09-05) | 109/109 (09-11, `4f47a9494`) | +58 <sup>[5→63 of 63 since 09-03]</sup> | ✅ done |
 | 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 400/445 (09-08, `90bcd9cf8`) | +139 | → 2026-09-10 |
