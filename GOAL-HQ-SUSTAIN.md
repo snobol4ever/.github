@@ -19,6 +19,56 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-11 ~18:2x CDT hq_S — SITTING LEDGER (NONET, ICON).** Supersedes the blocks below it.
+
+**TWO ICON ROWS CLOSED, BOTH COMPUTED, AND THE FIRST ONE CLOSED WITHOUT ME.** CEO-577 put jcon `tracing`
+back on this seat. Verified on hq_B's `f19f5679b`, line for line against `tracing.std` and never by rc:
+**0 diff lines in BOTH modes**, so `icon-jcon-tracing-events-are-byte-exact-against-the-jcon-std` is DONE.
+⛔⭐ **I HAD BUILT THE SAME CURE LOCALLY AND THREW IT AWAY RATHER THAN MERGE IT.** hq_B landed minutes before
+the ceo's order reached my inbox; my tree already carried the ITERATE lvalue route, a post-tap dereference and
+a three-rendering arm. Two convergent halves is the failure CEO-577 exists to prevent, and the cure for it is
+to DISCARD, not to reconcile — a merged pair of independently-derived models is a model neither author can
+reason about. Cost of the duplication: one sitting. Cost of merging it: every sitting after.
+
+**FLIP: `icon-a-variable-does-not-survive-a-procedure-suspend-so-assign-through-raises-111`, `12971dfc9`.**
+`every vproc(b) := 0` over `procedure vproc(x); suspend !x; end` now assigns THROUGH the suspended list element
+and prints iconx's own `0 0 0` in both modes, where we raised Run-time error 111. ⭐ **The reasoning is the
+part worth carrying, not the diff:** a yielded variable has TWO consumers with opposite wants — the trace tap
+wants the variable, the invoking expression usually wants the value — and **which one is asking is a fact about
+the CALL SITE, not about the suspend**, so the callee cannot answer it and no arrangement inside `bb_suspend`
+is right. The dereference moved to the caller (`IR_DEREF` over a user-procedure call in rvalue position, none
+in lvalue position, plus the `TT_FNC` arm `lower_lvalue_var` never had — which is the whole reason the witness
+read 111: the assign path fell through to a compile-time `runerr(111, lhs)`). Three hunks, 13 added lines, one
+deleted dereference. `.github/FINDING-2026-09-11-hq_S-the-dereference-of-a-suspended-value-belongs-to-the-caller.md`.
+
+⭐⭐ **THE SHAPE TO RECOGNISE ON SIGHT, measured here and cheap to mistake for anything else:** a variable
+descriptor that reaches a value consumer **does not fault — it renders as `"1\x00"`**, a two-byte string,
+because `NAMETRAP` spells its tag in the same `slen` field a string spells its length in. Any consumer calling
+`VARVAL_fn`/`descr_slen` without asking `IS_VARREF_fn` first produces it.
+
+**TWO GATES LANDED, EACH WRITTEN AGAINST ITS OWN CLASS'S CHEAP FAKE** (`516b30d9a`, `12971dfc9`), both wired
+into `make test`. ⭐ **A class with two opposite failure modes needs an arm on each side of it:**
+`..._images_as_a_variable_not_its_value` grades FOUR renderings the oracle itself distinguishes in one run
+(list element, table element, string element, local), so an unconditional `(variable = V)` reds three of four;
+`..._survives_the_procedure_boundary` pairs the assign-through arm with FOUR rvalue arms on the SAME call, so a
+cure that merely deletes a dereference reds four while turning one green. One arm alone is passed by
+over-correcting, and over-correcting is what the first naive route to this class actually did (tracer 20 → 30).
+
+**ARMS, and both columns were measured on this box this sitting rather than recalled.** ⛔ No board (ONE
+RUNNER, CEO-523). 77 `icn`/`icon` gates **72 PASS / 5 RED**; 69 `sno`/`sn4`/`snobol4`/`pl` gates
+**53 PASS / 16 RED** — both red sets **byte-identical in name** to a clean tree rebuilt with the change
+`git stash`ed. arizona `tracer` 0, jcon `tracing` 0, jcon `iobig` 0. Smokes icon 15/15, prolog 5/5, snocone
+5/5, snobol4 rc=0. `strip_comments --check` clean, incremental `make` rc=0.
+
+**NOT CLOSED, NAMED SO IT IS NOT MISTAKEN FOR DONE.** A co-expression activation is **not a call node**, so
+`@C` over a procedure that suspends a variable does not pass through the new `IR_DEREF`. No fleet program
+exercises it and the row was not widened on my own word — but that is where this class surfaces next, and it
+will surface as the `"1\x00"` shape above.
+
+**NEXT FOR THIS SEAT.** Icon is clear from here; jcon's remaining red is `kwds` (hq_V's). Per CEO-546 the six
+unrunnable SNOBOL4 DONE-WHENs are payable now. Told the ceo I am free and taking them unless redirected.
+
+
 **2026-09-06 ~18:0x CDT hq_S — SITTING LEDGER (OCTET).** Supersedes the blocks below it.
 
 **BRANCH HYGIENE, FIRST ACT.** `hq_S/ais-sig-disp-dollar-marker` **had already been merged into main by
