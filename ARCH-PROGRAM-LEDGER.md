@@ -11,12 +11,24 @@
 | axis | question it answers | allowed values |
 |---|---|---|
 | **COMPLETENESS** | which language features does this program exercise? | a feature vector over the language's declared feature set · `NONE` (measured, exercises no declared feature) · `UNKNOWN` (never derived) |
-| **CORRECTNESS** | does it produce the oracle's output? | `PASS` · `FAIL` · `OUTSIDE-BASELINE` (the one oracle refuses it — with the measurement that put it there) · `UNGRADABLE` (no oracle output obtainable — with the reason) · `UNGRADED` (gradable, nobody graded it) |
+| **CORRECTNESS** | does it produce the oracle's output? | `PASS` · `FAIL` · `OUTSIDE-BASELINE` (the one oracle refuses it — with the measurement that put it there) · `UNGRADABLE` (no oracle output obtainable — with the reason) · `UNGRADED` (gradable, nobody graded it) · `DEFERRED` (in our language by ruling, not yet implemented, deliberately not counted as a failure — with the ruling that put it there) |
 | **SPEED** | how fast is it against the rival engines? | a multiple on the faster axis per rival (`2.00x`) · `UNPROVEN` (an angle could not measure it) · `NOT-A-BENCHMARK` (declared: deterministic sub-second fixture) · `UNKNOWN` |
 
 ⛔⭐ **`UNKNOWN` IS NOT `ZERO` AND IS NOT `NONE`.** The defect this page exists to cure is the third kind of silence: gimpel printed `109/116` while 28 programs sat in neither the numerator nor its own TSV, `swi_tests` ships 251 programs against a board that reads `11/118`, and the Prolog benchmark TSV fell from 22 kernels to 8 without one instrument noticing. In each case a real population was invisible because nothing required it to be named. **A count is honest only when PASS + FAIL + OUTSIDE + UNGRADABLE + UNGRADED equals the population the tree actually ships** (the sixteenth instrument law, applied to programs instead of checks).
 
 ⭐ **A WRONG EXCLUSION COSTS MORE THAN A WRONG CURE**, because a red stays visible and an excluded name cannot be red (hq_V, standing practice since 2026-09-10). Any name entering `OUTSIDE-BASELINE` or `UNGRADABLE` carries the measurement that put it there, never just the name.
+
+### ⛔⭐ `DEFERRED` — IN SCOPE, NOT BUILT, NOT A FAILURE (Lon 2026-09-11, in-chat to ceo, verbatim: *"Do not count the FD as failures for us."*; CEO-579)
+
+**`DEFERRED` IS NOT `OUTSIDE-BASELINE` AND THE DIFFERENCE IS THE WHOLE POINT.** `OUTSIDE-BASELINE` says *the oracle refuses this; it is not our language*. `DEFERRED` says *this IS our language, we intend to implement it, we have not, and we have decided it will not depress the score while it waits*. One is a fact about the oracle; the other is a scheduling decision by Lon. They must never be collapsed, because an `OUTSIDE` name is closed forever and a `DEFERRED` name is owed.
+
+**CONDITIONS, all three mandatory — a `DEFERRED` row that fails any of them is a `FAIL`:**
+
+1. **A RULING NAMES IT.** The ledger row carries the in-chat ruling verbatim, dated, with its CEO number. No seat may defer anything on its own judgement, ever.
+2. **IT IS PRINTED, NEVER SUBTRACTED IN SILENCE.** A board showing `DEFERRED` prints the count and the names beside its pass line. ⛔ The denominator identity still holds: **PASS + FAIL + OUTSIDE-BASELINE + UNGRADABLE + UNGRADED + DEFERRED == the population the tree ships.** A suite that drops deferred programs out of its population entirely is lying by a different arithmetic than the one this page was written to stop.
+3. **IT CARRIES THE WORK IT IS WAITING ON.** The row names the subsystem, the prerequisite, and the measured size, so a deferral can never quietly become an abandonment. ⭐ **A DEFERRED NAME IS A DEBT ON THE BOARD, NOT AN ABSENCE FROM IT.**
+
+**THE FIRST AND ONLY `DEFERRED` POPULATION TODAY: the 30 GNU Prolog finite-domain programs** in `packages/prolog/gnu_fd`. Ruled INTO the superset by Lon (CEO-572, *"I say the FD is superset"*) and ruled NOT-A-FAILURE the same sitting (CEO-579). What they wait on, measured: GNU's own FD is `EngineFD` 4,932 + `BipsFD` 8,636 = **13,568 lines, about a quarter of their entire Prolog system**; the 30 programs need 11 constraint operators (`#<=>` alone 96 times — reification, a second layer rather than more propagators) and 14 `fd_*` builtins; and **we hold no attributed-variable/suspension substrate at all** (zero hits in `src/` for `attr_var`, `put_attr`, `when/2`, coroutining, wake), which is the prerequisite nothing else can start before.
 
 ## THE IDENTITY — what a row is about
 
