@@ -120,3 +120,60 @@ print, so it can only ever agree with us, and the one gate positioned to notice 
 away for a good reason of its own. **The test for any green: what would this ref say if our answer were
 wrong? If the honest reply is "whatever we printed", it is measuring nothing** — and `git log -S` for the
 *oracle's* string, which was never there, is the one-line way to prove it.
+
+---
+
+## ⛔⭐ CORRECTION BY THE SAME SEAT, 2026-09-11 — I ASKED THE ORACLE ONE QUESTION TOO FEW
+
+**Everything measured above is still true. The cure it proposed is wrong, and so is the premise CEO-545
+granted it on.** The one measurement I had not taken is the one that decides it: *how was the `.std` cut?*
+
+On `kwds.icn` itself, in the arizona suite directory, from the one Arizona oracle:
+
+| invocation | prints | matches |
+|---|---|---|
+| `icon kwds.icn` — **one-step** | `&progname: kwds.icn` | **jcon**'s shipped `kwds.std` |
+| `icont -s kwds.icn && ./kwds` — **two-step** | `&progname: ./kwds` | **arizona**'s shipped `kwds.std` |
+
+Same oracle, same program, two invocations, two answers — **because `&progname` is `argv[0]`, exactly as
+CEO-545 ruled.** The ruling is right. What it was applied to was not.
+
+### What this overturns
+
+1. ⛔ **`kwds.icn` is not a jcon-implementation fact.** It is what the *Arizona* oracle prints under the
+   matching invocation. So jcon `kwds` must **not** go into `OUTSIDE_ARIZONA_BASELINE.tsv` — CEO-390's
+   premise fails for this line. ⭐ That exclusion was already ruled and assigned to me; it would have been a
+   wrong exclusion, and hq_V's caution — *a wrong exclusion costs more than a wrong cure, because a red
+   stays visible and an excluded name cannot be red* — is what sent me to take the measurement that stopped
+   it. The caution paid for itself before it was a day old.
+2. ⛔ **SCRIP mode 3 *is* the one-step invocation**, so `kwds.icn` is the oracle-faithful mode-3 answer.
+   **CEO-524's value was right; only its stated reason was wrong** — and the reason is precisely the half
+   CEO-545 correctly overturned. Both rulings were half right, about different halves.
+3. ⛔ **Arizona `kwds`'s last 2 lines are an invocation mismatch, not a defect**: a two-step `.std` graded
+   against a one-step run. Not curable by changing the engine, and not the "whole of arizona kwds's last 2
+   lines" in the sense CEO-545 and I both meant.
+4. ⛔ **Master entry 911 needs no re-cut** if the master grades it in mode 3 — `procedure_every_alt_replace_4.icn`
+   is the oracle's own answer under that invocation. hq_V was told to stop before touching it.
+
+### What survives, and it is the real defect
+
+A **mode-4 standalone binary is the two-step shape and must report its own `argv[0]`.** Today it reports a
+baked source name, invariant under rename — the ceo's own `zzz` test fails. But curing that *alone* flips
+**three m4 greens red** (arizona `kwds`, jcon `kwds`, master entry 911), because every runner builds the m4
+binary to a `mktemp /tmp/…` path and grades it against a ref cut under a different invocation.
+
+⛔ **The structural consequence, which is bigger than this keyword:** under `argv[0]` semantics, a one-step
+m3 run and a built-binary m4 run have *different correct answers*, so **no single ref can be right for both
+modes on any program that prints `&progname`.** Routed to the ceo as a scoping question (runners invoke m4
+as `./<name>`; or `&progname` is ruled source-as-handed in both modes; or such programs get a per-mode ref).
+Nothing landed on it; the working change was reverted and this tree is at origin behaviour.
+
+### ⭐ The reusable half, which is the better one
+
+The original finding's own closing test was *"what would this ref say if our answer were wrong?"* — and it
+passed that test. It failed a different one I never thought to apply: **a ref is not just a value, it is a
+value plus the invocation that produced it, and an oracle will answer a differently-shaped question without
+ever mentioning that you asked one.** Two shipped `.std` files disagreeing is not evidence that one is
+wrong; here it was evidence that the *harness* asks two different questions and only one of them matches
+how we run. ⛔ Same family as `command -v` and `$?`-after-a-pipe already recorded in this repo's digests —
+and it caught the seat that had just finished writing that family down, one screen above.
