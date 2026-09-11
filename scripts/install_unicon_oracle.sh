@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# ⛔⛔⛔ WITHDRAWN 2026-09-11 BY LON, CEO-570 -- verbatim: "Do not use Unicon for anything. We do not
+# want you getting confused and using it to add semi-colons on the fly versus adding the files to the
+# corpus repo." DO NOT RUN THIS. The build it produced (/home/resources/unicon/) is reference material
+# only: not an oracle, not a cross-check, not a rival, not a preprocessor. See /home/resources/ORACLES.md
+# (the UNICON IS NOT AN ORACLE section) for the two measured reasons -- it DELEGATES to icont, and the
+# semicolon-normalizer use Lon forbade would make the graded artifact differ from the committed one.
+# Kept on disk as the receipt for what was built and why it was withdrawn, never as a live instrument.
+exit 2
 # install_unicon_oracle.sh -- build Unicon as the THIRD Icon oracle, beside Arizona icont/iconx and jcon.
 # Lon 2026-09-11, in-chat to ceo: "Let's make Unicon a third oracle for our Icon testing and performance
 # benchmarks." (CEO-568). Staged for LON TO RUN: the ceo may not build or install under /home/resources
