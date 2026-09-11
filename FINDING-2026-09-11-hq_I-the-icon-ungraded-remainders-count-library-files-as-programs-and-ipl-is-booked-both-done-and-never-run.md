@@ -16,7 +16,7 @@ it, because the comment was there to be read).
 | suite | shipped | **programs** | `.std` refs | graded | **ungraded PROGRAMS** | banner books |
 |---|---|---|---|---|---|---|
 | arizona | 124 | **93** | 90 | 90 | **3** | 34 |
-| jcon | 91 | **82** | 83 | 82 | **0** | 9 |
+| jcon | 91 | **82** | 83 | 82 | **0** (+1 passing but ungradable by name, see below) | 9 |
 | ipl | 851 | **461** | 109 | 108 | **353** | 108 |
 
 ## What that means, suite by suite
@@ -37,9 +37,18 @@ either graded or excluded.
 
 **jcon — the remainder is 0, not 9.** Every one of its 82 programs is graded. The 9 the banner books
 are non-programs. Two loose ends worth naming, neither of which changes the 82:
-- `linking.std` exists with **no `linking.icn` at all** — a ref whose source is gone. That is exactly
-  the blind-side class SCRIP `0e4539a65` was landed for ("a ref whose source is gone"), and here is
-  another live instance.
+- ⛔ **CORRECTED 2026-09-11 by hq_I, same day, before anyone acted on it.** I first wrote that
+  `linking.std` is "a ref whose source is gone — another live instance of the blind-side class".
+  **That was wrong.** Its source is `link1.icn` + `link2.icn` (`link1.icn` carries `link link2`), and
+  `linking.std` is their output run **twice with different argv** — `quick brown fox`, a blank line,
+  then `lazy gray dog`. Verified byte-exact under iconx, and **SCRIP reproduces it byte-exact too**,
+  so it is a real, gradable, *passing* test.
+  ⭐ The true finding is better than the one I filed: **the runner's `NAME.std` → `NAME.icn`
+  convention cannot express a multi-file, multi-invocation test**, so such a test is not red and not
+  excluded — it is *invisible*. jcon's honest shape is 83 gradable units of which 82 are graded; the
+  83rd passes and nobody counts it. I reached the wrong conclusion by checking whether a file named
+  `linking.icn` existed instead of asking what produces `linking.std`: a missing file answers "is
+  this name present", never "is this test real".
 - `tpp.icn` is present but carries no `procedure main()` — the same preprocessor-fixture shape as
   arizona's.
 
