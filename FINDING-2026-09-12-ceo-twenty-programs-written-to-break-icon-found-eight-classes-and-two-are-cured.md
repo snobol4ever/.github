@@ -21,13 +21,13 @@ error number: a traceback names the file, and the master renames every entry. Th
 | 1 | `integer("0x10")` converted to 16 (strtod parses C hex floats) | CURED `969a4bc89`, gate wired |
 | 2 | `string(&cset)[255]` and `[256]` failed: subscript measured the string with strlen past the leading NUL | CURED `3de7f285d`, gate wired, row DONE |
 | 3 | a keyword variable (`&pos`, `&subject`) passed as an argument is dereferenced when evaluated, not at the call | row, ceo; staging measured a dead end |
-| 4 | `find("a", "banana", -3)` fails; the sibling functions take negative positions | row, ceo |
-| 5 | `&null.f` raises 114 where icont raises 107 | row, ceo |
+| 4 | `find("a", "banana", -3)` fails; the sibling functions take negative positions | CURED `46d393490`, gate wired, row DONE |
+| 5 | `&null.f` raises 114 (or fails silently) where icont raises 107 | CURED `46d393490`, gate wired, row DONE |
 | 6 | `image(&current)` counts one activation more than icont | row, ceo |
 | 7 | `args(p)` of a variadic procedure answers 1 for icont's −1 | CURED `83ace92b0`, gate wired, row DONE |
 | 8 | `bal()` yields one result, not a sequence | the existing row |
 
-Five master entries land as visible reds (a01, a03, a09, a11, a13); IcnM reads 974/979 on the coo's next pass until the rows close.
+Five master entries landed as visible reds (a01, a03, a09, a11, a13); with classes 4, 5 and 7 cured the same evening, a09, a11 and the find line of a13 are green, and IcnM reads 977/979 on the coo's next pass until the keyword-dereference, image-count and bal rows close.
 
 ## Named, not cured
 
