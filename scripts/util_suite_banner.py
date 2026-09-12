@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
 usage: util_suite_banner.py [--plain] [--line] [--md] [--render] [--set KEY PASS TOTAL [DATE] [TREE]]
-  (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the all-suites 100/100 verdict, then 3 columns x 7 rows of cells: nick pass/total left eta emoji
+  (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the measured-movement counts (done/up/down/flat, nothing projected), then 3 columns x N rows of cells: nick pass/total left movement emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
   --md       print the markdown table for SCORE.md § THE SUITE TABLE
@@ -251,6 +251,14 @@ def xfail_by_lang(lang):
     _XF_CACHE[lang] = len(names)
     return len(names)
 def eta(r,today):
+    """MEASURED MOVEMENT, NEVER A PROJECTION (Lon 2026-09-12 15:0x CDT, in-chat to cfo, verbatim: "I see that in your
+    grid you will deliver some yesterday. Hmm?" -- the cells read "-> 09-12" on 09-12: a date computed as
+    today + remaining/rate, i.e. an extrapolation, and one that could land in the past).  The economy rule of this
+    seat is measured never projected, and a banner Lon reads is the last place a projection belongs.  What a cell
+    can state is what was MEASURED: two readings of the same population and their difference.  Returns
+    ('MOVE', (delta, basis_date)) where delta = today_pass - the earlier reading on the same criterion (the first
+    reading, or the like-for-like basis when the criterion changed), or DONE / XFAIL / XFUNKNOWN / NEW / NOROWS /
+    ONEDAY / NORUNNER exactly as before.  Nothing here is a rate, an ETA, or a curve."""
     if r['today_pass'].strip()=='' or r['today_date'].strip()=='': return 'NORUNNER',None
     fp,ft,tp,tt=int(r['first_pass']),int(r['first_total']),int(r['today_pass']),int(r['today_total'])
     rem=tt-tp
@@ -261,23 +269,15 @@ def eta(r,today):
             if xf is None: return 'XFUNKNOWN', None
             if xf > 0:     return 'XFAIL', xf
         return 'DONE',None
-    # ⭐ A RE-CRITERIONED ROW IS COMPARED, NOT EXCUSED (Lon 2026-09-08). Its first_*/today_* pair cannot be
-    # subtracted, but likeforlike() computes a real movement from the progress table on a fixed population,
-    # so the row gets a real rate and a real ETA like every other row. Only a suite the table cannot see at
-    # all falls through to NOCMP, and that says "no rows", which is a fact about our instrumentation rather
-    # than a verdict about the suite.
+    # ⭐ A RE-CRITERIONED ROW IS COMPARED, NOT EXCUSED (Lon 2026-09-08): likeforlike() reads the progress table on a
+    # fixed population, so the movement is real; only a suite the table cannot see falls through to NOROWS/ONEDAY.
     if recriterioned(r):
         L=likeforlike(r)
         if not L: return ('NOROWS' if lfl_why(r)=='norows' else 'ONEDAY'),None
-        days=(d(r['today_date'])-d(L['basis'])).days
-        rate=(L['now']-L['then'])/days if days>0 else 0
-        if rate<=0: return 'STUCK',None
-        return 'ETA', today+dt.timedelta(days=rem/rate)
+        return 'MOVE', (L['now']-L['then'], L['basis'])
     days=(d(r['today_date'])-d(r['first_date'])).days
     if days<=0: return 'NEW',None
-    rate=(tp-fp)/days
-    if rate<=0: return 'STUCK',None
-    return 'ETA', today+dt.timedelta(days=rem/rate)
+    return 'MOVE', (tp-fp, r['first_date'])
 def xfail_annotation(r, k):
     """The one sentence a master row carrying xfails must show when eta() is NOT already saying it.
     Returns '' for a non-master, an unreadable census, a zero count, or k=='XFAIL' (which says it itself)."""
@@ -289,7 +289,7 @@ def xfail_annotation(r, k):
     return (f"⛔ {xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
             f"numerator, so this row can only close by CURING them, never by re-captioning")
 def banner(plain=False, grid=True, ncol=3):
-    head,rows=load(); today=dt.date.today(); cells=[]; parts=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]; recrit=[]
+    head,rows=load(); today=dt.date.today(); cells=[]; parts=[]; up=[]; down=[]; flat=[]; new=[]; done=0; stale=[]; recrit=[]
     DEF=deferred_rows()
     for r in rows:
         k,e=eta(r,today)
@@ -304,12 +304,15 @@ def banner(plain=False, grid=True, ncol=3):
         if k=='DONE': col=G; tail='✅ done'; done+=1
         elif k=='XFAIL': col=R; tail=f'⛔ {e} xfail=fail'
         elif k=='XFUNKNOWN': col=Y; tail='⚠ xfail unreadable'
-        elif k=='STUCK': col=R; tail='⛔ stuck'; stuck.append(r['nick'])
         elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
         elif k=='NOROWS': col=C; tail='◻ no rows'; recrit.append(r['nick'])
         elif k=='ONEDAY': col=C; tail='◻ 1 day'; recrit.append(r['nick'])
         else:
-            col=Y if e>dt.date(2026,9,10) else G; tail='→ '+e.strftime('%m-%d'); worst=e if (worst is None or e>worst) else worst
+            delta,basis=e
+            if delta>0: col=G; up.append(r['nick'])
+            elif delta<0: col=R; down.append(r['nick'])
+            else: col=Y; flat.append(r['nick'])
+            tail=f"{delta:+d} since {basis[5:]}"
         # a master still carrying xfails is RED and says so beside its ETA, however the fraction reads
         if xfail_annotation(r, k):
             col=R; tail=f'⛔{xfail_by_lang(r["lang"])}x ' + tail
@@ -332,19 +335,24 @@ def banner(plain=False, grid=True, ncol=3):
         cell = pad(pad(nick, nw) + " " * (pw - dw(pas)) + pas + "/" + pad(tot, tw) + "Δ" + pad(dlt, dwid) + " " + pad(tail, tlw) + " " + mark, cellw)
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
-    if stuck: verdict=f"ALL {n} SUITES 100/100: NOT ON THE CURVE — {len(stuck)} stuck ({', '.join(stuck)})"; vc=R
-    elif recrit: verdict=f"ALL {n} SUITES 100/100: {len(recrit)} suite(s) the progress table cannot see yet ({', '.join(recrit)})"; vc=C
-    elif new: verdict=f"ALL {n} SUITES 100/100: unknown — {len(new)} suites have one reading"; vc=C
-    elif worst: verdict=f"ALL {n} SUITES 100/100 → {worst.strftime('%Y-%m-%d')} at today's rates"; vc=G
-    else: verdict=f"ALL {n} SUITES 100/100: DONE"; vc=G
-    hdr=f"🏁 {today.strftime('%m-%d')} {verdict} · {done}/{n} done" + (f" · ⏳ {len(stale)} STALE >24h ({', '.join(stale)})" if stale else '')
+    # ⛔ FACTS ONLY, NO VERDICT ABOUT THE FUTURE: counts of what the rows measured.  Red if anything regressed,
+    # yellow if anything sits flat or unmeasured, green only when every row moved up or is done.
+    facts=[f"{done} done"]
+    if up: facts.append(f"{len(up)} up")
+    if down: facts.append(f"{len(down)} DOWN ({', '.join(down)})")
+    if flat: facts.append(f"{len(flat)} flat ({', '.join(flat)})")
+    if new: facts.append(f"{len(new)} one reading")
+    if recrit: facts.append(f"{len(recrit)} not comparable ({', '.join(recrit)})")
+    verdict=f"{n} SUITES, measured movement since each first reading: " + " · ".join(facts)
+    vc=R if down else (Y if (flat or stale or recrit) else G)
+    hdr=f"🏁 {today.strftime('%m-%d')} {verdict}" + (f" · ⏳ {len(stale)} not measured today ({', '.join(stale)})" if stale else '')
     print(hdr if plain else f"{B}{vc}{hdr}{Z}")
     if not grid: print(' │ '.join(cells)); return
     nrow=-(-len(cells)//ncol)
     for i in range(nrow): print(' │ '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def md():
     head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
-    print('| suite | lang | first graded reading | today | at today\'s rate |'); print('|---|---|---|---|---|')
+    print('| suite | lang | first graded reading | today | measured movement |'); print('|---|---|---|---|---|')
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
@@ -374,10 +382,10 @@ def md():
                 mv='—'
         else:
             mv=f"{int(r['today_pass'])-int(r['first_pass']):+d}"
-        named={'DONE':'✅ done','XFAIL':f'⛔ {e} xfail=fail','XFUNKNOWN':'⚠ xfail unreadable','STUCK':'⛔ stuck','NEW':'🆕 one reading',
+        named={'DONE':'✅ done','XFAIL':f'⛔ {e} xfail=fail','XFUNKNOWN':'⚠ xfail unreadable','NEW':'🆕 one reading',
                'NOROWS':'◻ the progress table holds no rows for this suite yet, so nothing can be compared',
                'ONEDAY':'◻ every recorded row is from one day — a second day of readings makes this comparable'}
-        tail=named[k] if k in named else ('→ '+e.strftime('%Y-%m-%d') if e else '')
+        tail=named[k] if k in named else ((f"{e[0]:+d} since {e[1]}" + (' ⛔ regressed' if e[0]<0 else (' ◻ flat' if e[0]==0 else ''))) if k=='MOVE' else '')
         # ⭐ AND THE CONVENTION IS STATED WHEREVER THE ROW IS READ, not only when the fraction closes.
         # eta() can only return 'XFAIL' when pass==total, so the moment a master row is corrected to the
         # honest 1871/1898 the xfail count VANISHES from the cell -- the reader then sees a 27-wide gap with
