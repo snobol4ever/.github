@@ -1,22 +1,22 @@
 # THE SUITE TABLE, machine record (ceo custody; hq_T wires util_score_row.py to rewrite a row when its runner measures). One row per suite. Dates are box-clock CDT days. first_* = the first graded reading on file; today_* = the latest reading; tree = the SCRIP hash it was measured on (or the SCORE.md cell that carries it).
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree	criterion_changed
 gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-12	123	132	27ae59250	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
-csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-12	70	72	43331c956	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
-snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-12	118	124	43331c956	2026-09-07:ceo-383-stream-equal-and-per-program
-aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-12	4	7	43331c956	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
-dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-12	5	5	43331c956	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
-testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-12	1	2	43331c956	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
-arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-12	88	88	43331c956	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
-jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-12	82	82	43331c956	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
-ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-12	193	194	43331c956	2026-09-07:ceo-372-and-per-program
-inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-12	434	445	43331c956	
-swi	SWI	🦉	prolog	2026-09-05	0	114	2026-09-12	565	2935	43331c956	2026-09-12:hq-c-ceo-601-denominator-118-to-59-the-59-suite-lines-were-counted-twice-from-two-paths-and-the-row-is-the-run-tier
-gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-12	11	11	43331c956	
-fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-12	116	181	43331c956	2026-09-06:ceo-372-and-per-program
-pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-12	292	427	43331c956	2026-09-06:ceo-372-and-per-program
+csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-12	70	72	f6784d0e8	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
+snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-12	118	124	f6784d0e8	2026-09-07:ceo-383-stream-equal-and-per-program
+aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-12	4	7	f6784d0e8	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
+dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-12	5	5	f6784d0e8	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
+testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-12	1	2	f6784d0e8	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
+arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-12	88	88	f6784d0e8	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
+jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-12	82	82	f6784d0e8	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
+ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-12	194	194	f6784d0e8	2026-09-07:ceo-372-and-per-program
+inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-12	434	445	f6784d0e8	
+swi	SWI	🦉	prolog	2026-09-05	0	114	2026-09-12	565	2935	f6784d0e8	2026-09-12:hq-c-ceo-601-denominator-118-to-59-the-59-suite-lines-were-counted-twice-from-two-paths-and-the-row-is-the-run-tier
+gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-12	11	11	f6784d0e8	
+fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-12	116	181	f6784d0e8	2026-09-06:ceo-372-and-per-program
+pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-12	292	427	f6784d0e8	2026-09-06:ceo-372-and-per-program
 roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-06	5	986	a5aea2ad1	
-sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-12	1879	1894	43331c956	2026-09-06:ceo-372-and-per-program
-icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-12	806	806	43331c956	2026-09-06:ceo-372-and-per-program
+sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-12	1879	1894	f6784d0e8	2026-09-06:ceo-372-and-per-program
+icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-12	821	826	f6784d0e8	2026-09-06:ceo-372-and-per-program
 pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-12	529	560	55aaa01ad	
 pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-12	246	246	577298671	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
 raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-12	680	880	55aaa01ad	
