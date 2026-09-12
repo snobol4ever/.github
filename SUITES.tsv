@@ -6,8 +6,8 @@ snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-12	117	124	0c2ca91ef	202
 aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-12	4	7	eec5d65ed	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
 dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-12	5	5	0c2ca91ef	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
 testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-12	1	2	0c2ca91ef	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
-arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-12	86	88	55aaa01ad	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
-jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-12	81	82	55aaa01ad	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
+arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-12	88	88	5eeeb3a47	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
+jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-12	82	82	5eeeb3a47	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
 ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-12	162	162	55aaa01ad	2026-09-07:ceo-372-and-per-program
 inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-12	402	445	55aaa01ad	
 swi	SWI	🦉	prolog	2026-09-05	0	114	2026-09-12	9	59	55aaa01ad	2026-09-12:hq-c-ceo-601-denominator-118-to-59-the-59-suite-lines-were-counted-twice-from-two-paths-and-the-row-is-the-run-tier
@@ -16,7 +16,7 @@ fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-10	116	181	c8701b17e	2026-09-06:c
 pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-10	292	427	c8701b17e	2026-09-06:ceo-372-and-per-program
 roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-06	5	986	a5aea2ad1	
 sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-12	1878	1894	e94f329ab	2026-09-06:ceo-372-and-per-program
-icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-12	805	806	55aaa01ad	2026-09-06:ceo-372-and-per-program
+icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-12	806	806	5eeeb3a47	2026-09-06:ceo-372-and-per-program
 pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-12	529	560	55aaa01ad	
 pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-12	243	246	55aaa01ad	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
 raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-12	680	880	55aaa01ad	
