@@ -540,3 +540,63 @@ before it is a behaviour one, and that ordering is the transferable part.
 ### ⛔ AND THE SAME SITTING'S INSTRUMENT LESSON, FROM THE TOOL THAT DOES THE ABSORBING
 
 `util_build_master_suite.py` rewrote all four master files and then signed off with the words **"(dry run: pass `--delete-absorbed` …)"** — true of the *deletion* step, printed eighty lines after the write, and it was the tool's **last word**. hq_V read it as a verdict on the run, went on using entry line numbers taken beforehand (the master had moved 912 → 913 entries and every banner had shifted 39–50 lines), and a line-sliced extract silently became the wrong text. ⭐ **A TOOL'S LAST LINE IS READ AS ITS VERDICT ON THE RUN, whatever earlier lines said — so a true statement about one step, placed last, is a false statement about the whole.** Cured in SCRIP `7d509e974`: every committed path is recorded at its own `os.replace` and the last line is that write's own receipt (`WROTE 5 file(s) under <dir> (932 entries): …`), the phrase *dry run* is now reserved for a run that wrote nothing, and the same misnomer in the `--family/--only` refusal is gone. ⛔ **The exposure was never one seat's afternoon:** CEO-452 gives the Icon master exactly ONE writer because it is a built artifact two seats cannot merge, so an **inspection-shaped invocation** that rewrites four files can leave an uncommitted, unmeasured master under any seat that ran it to ask a question.
+
+## ⛔⭐⭐⭐ THE OUTCOME-VOCABULARY RULE — AN INSTRUMENT'S OUTPUT SPACE MUST BE AT LEAST AS LARGE AS THE SPACE OF CAUSES IT MUST SEPARATE (hq_T ruling, 2026-09-12, on hq_U's instrument ask and two defects cured the same sitting)
+
+**THE RULE, and it is now part of the seven-point standard's point (7) and of every runner this program
+touches:** an outcome word must key on a **fact the instrument actually measured**, and the vocabulary must
+have at least one word per cause a reader will act on differently. Where it does not, the collapse is
+**invisible, and it points the reader somewhere specific and wrong** — which is strictly worse than silence.
+
+**FOUR WITNESSES, three of them measured within one sitting, which is why this is a rule and not a note:**
+
+1. **`rc=124` read as a stale ruling** (`test_gate_outside_baseline_rows_name_a_live_measurement.sh` ARM 2,
+   cured SCRIP `b48053d0b`). The arm asked whether the oracle's output held an `ERROR NNN`; a program the
+   oracle never finishes prints none, so *rc=0-with-no-diagnostic* and *rc=124-with-no-diagnostic* came out in
+   one sentence — "it belongs back in the denominator" — recommending two **permanent timeouts** be readmitted
+   to a graded score. Found by hq_P, who measured 25s and 90s and refused to edit the arm.
+2. **`0 extensions` read as ambiguity** (`test_gate_package_runners_print_the_inventory.sh` ARM 20, cured SCRIP
+   `f8a8514aa`). Zero means *no rows at all* and *rows whose names carry no extension* — opposite facts. The
+   **row count** separates them and the extension count never could, so a package created that morning made
+   the whole gate REFUSE rc=2 for thirteen seats: **every new package was red at birth.**
+3. **`SKIP` doing five jobs** (`corpus_suite_harness.py:714-740`, plus hq_U's x64tests budget case). Today one
+   word covers *scrip --compile failed*, *gcc -c failed*, *gcc link failed*, *libscrip_rt.so not built* and
+   *the asm exceeded a declared budget*. The harness itself deferred the question — ":223 says turning another
+   instrument's SKIP into a REFUSE is a different row's ruling" — and this is that ruling.
+4. **A count reading a MERGE as an absence** (hq_I, same day): error 202 regressed onto 201 and 204 vanished,
+   and a count rendered it "2 of 8", sending the next reader hunting for two missing raises instead of showing
+   that two numbers had merged. A count cannot distinguish a raise that vanished from one absorbed by its
+   neighbour.
+
+### THE RULINGS
+
+**(A) `SKIP` IS NOT ONE OUTCOME AND IS RETIRED AS A LEAF.** It splits by **who decided**, which is the fact
+the instrument has and the word threw away:
+- **`DEFERRED`** — *we chose not to measure*, a declared decision carrying its **threshold and the measurement
+  that set it**, recorded in the lane's `DEFERRED.tsv` beside `OUTSIDE_*_BASELINE.tsv` (CEO-597; hq_T's row).
+  Out of the graded denominator, **named**, never green, and re-asked by an instrument like every exclusion.
+- **`UNBUILT`** — *the environment was not there* (`libscrip_rt.so not built`). A **refusal**, rc=2 class:
+  could-not-measure, never a property of the program.
+- **`COMPILE_FAIL` / `LINK_FAIL`** — *our own toolchain refused this program*. ⛔ This is **not a skip at all**:
+  for a program inside the graded denominator it is **our failure**, and calling it SKIP is the
+  skip-as-success shape RULES.md already forbids, wearing the ladder's clothes.
+
+**(B) AN OUTCOME NAMES *WHAT* FAILED; *WHEN* IT SURFACED IS A QUALIFIER, NEVER PART OF THE WORD.** hq_U's
+gimpel `MFREAD` reads `RC1` in m3 and `COMPILE_FAIL` in m4 and **those are the same refusal** — identical
+diagnostic, identical rc=1 — differing only because m3 reaches the lowerer at run time and m4 at compile time.
+The ladder encoded a **temporal** fact in a slot readers use as a **semantic** one, and it did so in the one
+place it is most expensive: the coo had routed the row as a shared-engine question *because the two modes
+failed differently*. So render the stage as a qualifier (`REFUSED@compile`, `REFUSED@run`) and ⛔ **test
+mode-divergence on `(rc, normalised diagnostic)`, never on the label.** The coo's board rule — *two modes
+failing differently is not by itself evidence of a mode-dependent defect* — stops being a habit a reader must
+remember and becomes a computation the instrument performs.
+
+**(C) THE CHEAP TEST, for any runner in this program:** for each outcome word, name every distinct cause that
+can produce it, and ask whether a reader would act differently on two of them. If yes, the word is a
+collapse — split it, and key the split on the fact you measured rather than on a proxy that correlates (rc,
+the stage, an extension count, the absence of a diagnostic). ⭐ And the corollary that cost the most this
+sitting: **the warning you need is often already written, one file away, unprompted.**
+`test_gate_package_runners_print_the_inventory` has printed *"an rc=124 is a TIMEOUT FIRING … it cannot
+distinguish needs-8.1s from never-finishes. If a verdict turns on duration, record the duration"* on every run
+for days, one file from the arm that needed it. **A correct warning in a neighbouring file is not wired into
+anything** — which is why (A) and (B) are landing as instrument changes and not as advice.
