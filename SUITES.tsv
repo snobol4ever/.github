@@ -3,7 +3,7 @@ key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	toda
 gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-11	122	132	a1b05e699	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
 csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-12	70	72	0f7cef1d8	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
 snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-12	117	124	0c2ca91ef	2026-09-07:ceo-383-stream-equal-and-per-program
-aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-10	4	7	c8701b17e	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
+aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-12	4	7	eec5d65ed	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
 dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-12	5	5	0c2ca91ef	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
 testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-12	1	2	0c2ca91ef	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
 arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-12	86	88	55aaa01ad	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
@@ -24,4 +24,4 @@ snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-12	196	235	55aaa01ad	202
 reb-master	RebM	🧩	rebus	2026-09-03	15	48	2026-09-12	38	43	55aaa01ad	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
 logtalk	Logtalk	🧿	prolog	2026-09-12	1218	3617	2026-09-12	1593	3617	55aaa01ad	2026-09-11:vendored-09-11-3617-cases-(3268-test/2-plus-349-legacy-forms)-row-prolog-logtalk-iso-3268-conformance-cases-have-no-runner-hq_R-ceo-580-spike-util_logtalk_extract.py
 gnu_fd	GnuFD	🧮	prolog						30		2026-09-11:vendored-09-11-30-programs-DEFERRED-by-lon-ceo-572-fd-is-superset-and-ceo-579-do-not-count-as-failures-row-prolog-gnu-fd-thirty-constraint-programs-await-lons-superset-ruling
-x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-12	18	36	35bf3ab90	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U
+x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-12	18	36	eec5d65ed	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U
