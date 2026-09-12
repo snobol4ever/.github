@@ -47,6 +47,31 @@ HERE=os.path.dirname(os.path.abspath(__file__))
 # redirect that covers one of two outputs is not a redirect; measured live, it moved a real row.
 TSV=os.environ.get('S4E_SUITES_TSV') or os.path.join(HERE,'..','SUITES.tsv')
 R='\033[31m'; G='\033[32m'; Y='\033[33m'; C='\033[36m'; B='\033[1m'; Z='\033[0m'
+# ⛔⭐ DEFERRED IS READ, NEVER INFERRED FROM AN EMPTY READING (hq_T 2026-09-12, ceo CEO-593). A row with no
+# today_pass renders `◻ no runner`, which is the honest word for A POPULATION NOBODY GRADES YET -- and it is
+# the WRONG word for one Lon has ruled DEFERRED (CEO-579, *"Do not count the FD as failures for us."*). The
+# two look identical in this table and are opposite facts: "no runner" is a debt nobody has scheduled, and
+# DEFERRED is a debt SCHEDULED OUT, on the record, with the work it waits on named. ⛔ So the discriminator is
+# `.github/DEFERRED.tsv` and nothing else: never the emptiness of a cell, and never the suite's name.
+DEFERRED_TSV=os.environ.get('S4E_DEFERRED_TSV') or os.path.join(HERE,'..','DEFERRED.tsv')
+def deferred_rows():
+    """{suite_key: {'count': N, 'ruled_by': str, 'waiting_on': str}} -- {} when the record is absent."""
+    out={}
+    if not os.path.exists(DEFERRED_TSV): return out
+    head=None
+    for l in open(DEFERRED_TSV,encoding='utf-8'):
+        if l.startswith('#') or not l.strip(): continue
+        f=l.rstrip('\n').split('\t')
+        if head is None: head=f; continue
+        r=dict(zip(head,f))
+        k=r.get('suite','').strip()
+        if not k: continue
+        e=out.setdefault(k,{'count':0,'ruled_by':'','waiting_on':''})
+        try: e['count'] += int(r.get('count','0') or 0)
+        except ValueError: pass
+        for col in ('ruled_by','waiting_on'):
+            if r.get(col): e[col] = (e[col] + '; ' + r[col]) if e[col] else r[col]
+    return out
 def load():
     rows=[]; head=None
     for l in open(TSV,encoding='utf-8'):
@@ -265,11 +290,14 @@ def xfail_annotation(r, k):
             f"numerator, so this row can only close by CURING them, never by re-captioning")
 def banner(plain=False, grid=True, ncol=3):
     head,rows=load(); today=dt.date.today(); cells=[]; parts=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]; recrit=[]
+    DEF=deferred_rows()
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
-            if grid: parts.append((C, r['nick'], '—', r['today_total'], '—', '◻ no runner', r['emoji']))
-            else: cells.append((lambda c: c if plain else f"{C}{c}{Z}")(f"{r['emoji']}{r['nick']} —/{r['today_total']} ◻ no runner"))
+            dfr=DEF.get(r['key'])
+            tail=f"⏸ deferred {dfr['count']}" if dfr else '◻ no runner'
+            if grid: parts.append((C, r['nick'], '—', r['today_total'], '—', tail, r['emoji']))
+            else: cells.append((lambda c: c if plain else f"{C}{c}{Z}")(f"{r['emoji']}{r['nick']} —/{r['today_total']} {tail}"))
             recrit.append(r['nick']); continue
         frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
         if (today-d(r['today_date'])).days>=1: stale.append(r['nick'])
@@ -315,13 +343,26 @@ def banner(plain=False, grid=True, ncol=3):
     nrow=-(-len(cells)//ncol)
     for i in range(nrow): print(' │ '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def md():
-    head,rows=load(); today=dt.date.today()
+    head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
     print('| suite | lang | first graded reading | today | at today\'s rate |'); print('|---|---|---|---|---|')
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
             why=r['criterion_changed'].split(':',1)[-1] if r['criterion_changed'] else 'no runner yet'
-            print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (vendored, no runner yet) | ◻ NO RUNNER, NO READING: {why} — a population with no grader is a debt on the board, never an absence from it |")
+            dfr=DEF.get(r['key'])
+            if dfr:
+                # ⛔ DEFERRED PRINTS ITS RULING AND THE WORK IT WAITS ON, every time, because that is condition 3
+                # of ARCH-PROGRAM-LEDGER § DEFERRED: a deferral that stops naming what it waits on has become an
+                # abandonment, and nothing on the board would say so.
+                # ⛔ THE RULING'S OWN TEXT IS DATA IN A MARKDOWN TABLE, so every `|` in it becomes `·`. Measured:
+                # gnu_fd's waiting_on names the grep proving the substrate is absent (attr_var·put_attr·coroutin)
+                # and those three pipes turned one 7-field row into nine -- the table stops parsing for every
+                # reader downstream. ⭐ SUBSTITUTED, NOT BACKSLASH-ESCAPED: `\\|` satisfies a markdown renderer
+                # and NOT an instrument that splits the row on '|', and the instruments are the harder reader.
+                _w=dfr['waiting_on'][:400].replace('|','·'); _b=dfr['ruled_by'].replace('|','·')
+                print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (⏸ {dfr['count']} DEFERRED, not counted as failures) | ⏸ DEFERRED by Lon ({_b}), IN SCOPE AND NOT A FAILURE — waiting on: {_w} |")
+            else:
+                print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (vendored, no runner yet) | ◻ NO RUNNER, NO READING: {why} — a population with no grader is a debt on the board, never an absence from it |")
             continue
         rc=recriterioned(r)
         if rc:

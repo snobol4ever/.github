@@ -1,0 +1,33 @@
+# DEFERRED.tsv — THE ONE RECORD OF POPULATIONS LON HAS RULED DEFERRED (hq_T 2026-09-12, ceo CEO-593).
+#
+# ⛔⭐ DEFERRED IS NOT OUTSIDE-BASELINE, AND THE DIFFERENCE IS THE WHOLE POINT (ARCH-PROGRAM-LEDGER.md
+# § DEFERRED, sovereign; this file is its machine twin, never a second authority). OUTSIDE-BASELINE says
+# THE ORACLE REFUSES THIS, IT IS NOT OUR LANGUAGE — a fact about the oracle, closed forever. DEFERRED says
+# THIS IS OUR LANGUAGE, WE INTEND TO BUILD IT, WE HAVE NOT, AND IT WILL NOT DEPRESS THE SCORE WHILE IT
+# WAITS — a scheduling decision by Lon, and a DEBT. Collapsing the two turns an owed name into a closed one.
+#
+# ⛔⭐ WHY THIS FILE LIVES IN .github AND NOT AS A SIDECAR BESIDE EACH PACKAGE, which is where UNGRADED.tsv,
+# UNGRADABLE.tsv and NARROW.tsv live. Those three record MEASUREMENTS, and the lane that measures owns them.
+# A deferral is a RULING, and it LIFTS A SCORE: a row here moves programs out of the bucket that can be red.
+# ⛔ So it must not be editable by the lane whose number it raises, and it must be version-controlled in the
+# repo whose custody is the ceo's. One record, under review, beside SUITES.tsv — never one per package where
+# the beneficiary writes it.
+#
+# ⛔ THE THREE CONDITIONS, ALL MANDATORY (ARCH-PROGRAM-LEDGER § DEFERRED). A row failing any of them is not a
+# deferral, it is a FAIL wearing one, and test_gate_deferred_rows_name_a_ruling_and_the_work_they_wait_on.sh
+# REFUSES rather than reporting it:
+#   1. A RULING NAMES IT — `ruled_by` carries the CEO number(s), `ruled_on` the date, `ruling_verbatim` Lon's
+#      own words in quotes with his name. ⛔ NO SEAT DEFERS ANYTHING ON ITS OWN JUDGEMENT, EVER.
+#   2. IT IS PRINTED, NEVER SUBTRACTED IN SILENCE — `deferred=N` is the sixth PACKAGE_INVENTORY term, the
+#      names print beside it, and PASS+FAIL+OUTSIDE+UNGRADABLE+UNGRADED+DEFERRED == the shipped population.
+#   3. IT CARRIES THE WORK IT IS WAITING ON — `waiting_on` names the subsystem, the prerequisite and the
+#      MEASURED size, so a deferral can never quietly become an abandonment.
+#
+# ⛔ `count` IS RE-MEASURED BY THE GATE AGAINST `population` ON EVERY RUN, and a disagreement REFUSES. A
+# deferral whose size has drifted is the exclusion-list defect (FINDING-2026-09-09-hq_T): a name that cannot
+# be red, held by a number nobody re-asked.
+#
+# population = glob relative to S4E_HOME. package = the INV_PACKAGE spelling its runner uses (or will use),
+# which is the key lib_inventory.sh joins on; suite = the SUITES.tsv key, so the board and the ruling agree.
+suite	package	lang	population	count	ruled_by	ruled_on	ruling_verbatim	waiting_on	measured_by	tree
+gnu_fd	gnu_fd	prolog	corpus/packages/prolog/gnu_fd/*.pl	30	CEO-572,CEO-579	2026-09-11	Lon 2026-09-11, in-chat to ceo: "I say the FD is superset." and, the same sitting, "Do not count the FD as failures for us."	THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var|put_attr|coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10.5% of gprolog's 108830 C/H lines (14667 counting its .pl and .fd sources too). The 30 programs need 14 distinct fd_* builtins (fd_all_different fd_atmost fd_at_most_one fd_domain fd_element fd_element_var fd_exactly fd_labeling fd_labelingff fd_min fd_minimize fd_only_one fd_set_vector_max fd_tell) and REIFICATION as a second layer over propagation: #<=> alone appears 96 times. ⛔ ARCH-PROGRAM-LEDGER says 13568 lines and about a quarter of their system; neither reproduces under any counting I could find (c+h 11452, all files 14815, c+h+pl+fd 14667; denominator 108830) — my numbers are here with their method, the divergence is routed to the ceo, and the order-of-magnitude claim the row rests on is unaffected.	hq_T	corpus af23ce381
