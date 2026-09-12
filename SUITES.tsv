@@ -6,18 +6,18 @@ snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-10	117	124	484f2fb2c	202
 aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-10	4	7	c8701b17e	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
 dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-08	5	5	de403d5a1	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
 testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-10	1	2	484f2fb2c	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
-arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-12	87	88	12971dfc9	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
-jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-12	82	82	12971dfc9	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
-ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-12	160	161	f008879f8	2026-09-07:ceo-372-and-per-program
-inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-12	402	445	f008879f8	
+arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-12	85	88	ed48b170b	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
+jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-12	80	82	ed48b170b	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
+ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-12	161	162	ed48b170b	2026-09-07:ceo-372-and-per-program
+inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-12	402	445	ed48b170b	
 swi	SWI	🦉	prolog	2026-09-05	0	114	2026-09-12	9	59	d2be2c928	
 gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-07	11	11	52de694e0	
 fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-10	116	181	c8701b17e	2026-09-06:ceo-372-and-per-program
 pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-10	292	427	c8701b17e	2026-09-06:ceo-372-and-per-program
 roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-06	5	986	a5aea2ad1	
 sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-12	1869	1894	f008879f8	2026-09-06:ceo-372-and-per-program
-icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-12	806	806	f008879f8	2026-09-06:ceo-372-and-per-program
-pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-12	528	559	f008879f8	
+icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-12	804	806	ed48b170b	2026-09-06:ceo-372-and-per-program
+pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-12	528	559	ed48b170b	
 pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-08	243	246	de403d5a1	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
 raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-08	656	820	d4799c97a	
 snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-08	196	235	de403d5a1	2026-09-08:coo-corrected-ast-was-wrongly-scored-into-this-row-run-population-only-icn-precedent
