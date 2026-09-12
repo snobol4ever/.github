@@ -22,3 +22,6 @@ pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-08	243	246	de403d5a1	2
 raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-08	656	820	d4799c97a	
 snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-08	196	235	de403d5a1	2026-09-08:coo-corrected-ast-was-wrongly-scored-into-this-row-run-population-only-icn-precedent
 reb-master	RebM	🧩	rebus	2026-09-03	15	48	2026-09-08	38	43	de403d5a1	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
+logtalk	Logtalk	🧿	prolog						3617		2026-09-11:vendored-09-11-3617-cases-(3268-test/2-plus-349-legacy-forms)-row-prolog-logtalk-iso-3268-conformance-cases-have-no-runner-hq_R-ceo-580-spike-util_logtalk_extract.py
+gnu_fd	GnuFD	🧮	prolog						30		2026-09-11:vendored-09-11-30-programs-DEFERRED-by-lon-ceo-572-fd-is-superset-and-ceo-579-do-not-count-as-failures-row-prolog-gnu-fd-thirty-constraint-programs-await-lons-superset-ruling
+x64tests	X64T	🧷	snobol4						36		2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U

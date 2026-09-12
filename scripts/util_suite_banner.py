@@ -226,6 +226,7 @@ def xfail_by_lang(lang):
     _XF_CACHE[lang] = len(names)
     return len(names)
 def eta(r,today):
+    if r['today_pass'].strip()=='' or r['today_date'].strip()=='': return 'NORUNNER',None
     fp,ft,tp,tt=int(r['first_pass']),int(r['first_total']),int(r['today_pass']),int(r['today_total'])
     rem=tt-tp
     if rem<=0:
@@ -265,7 +266,11 @@ def xfail_annotation(r, k):
 def banner(plain=False, grid=True, ncol=3):
     head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]; recrit=[]
     for r in rows:
-        k,e=eta(r,today); frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
+        k,e=eta(r,today)
+        if k=='NORUNNER':
+            cell=pad(f"{r['nick']:<7}{'—':>5}/{r['today_total']:<5}Δ{'—':<4} " + pad('◻ no runner', 12) + f" {r['emoji']}", 39) if grid else f"{r['emoji']}{r['nick']} —/{r['today_total']} ◻ no runner"
+            cells.append(cell if plain else f"{C}{cell}{Z}"); recrit.append(r['nick']); continue
+        frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
         if (today-d(r['today_date'])).days>=1: stale.append(r['nick'])
         if k=='DONE': col=G; tail='✅ done'; done+=1
         elif k=='XFAIL': col=R; tail=f'⛔ {e} xfail=fail'
@@ -299,6 +304,10 @@ def md():
     print('| suite | lang | first graded reading | today | moved | at today\'s rate |'); print('|---|---|---|---|---|---|')
     for r in rows:
         k,e=eta(r,today)
+        if k=='NORUNNER':
+            why=r['criterion_changed'].split(':',1)[-1] if r['criterion_changed'] else 'no runner yet'
+            print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (vendored, no runner yet) | — | ◻ NO RUNNER, NO READING: {why} — a population with no grader is a debt on the board, never an absence from it |")
+            continue
         rc=recriterioned(r)
         if rc:
             L=likeforlike(r)
