@@ -24,7 +24,7 @@ error number: a traceback names the file, and the master renames every entry. Th
 | 4 | `find("a", "banana", -3)` fails; the sibling functions take negative positions | row, ceo |
 | 5 | `&null.f` raises 114 where icont raises 107 | row, ceo |
 | 6 | `image(&current)` counts one activation more than icont | row, ceo |
-| 7 | `args(p)` of a variadic procedure answers 1 for icont's −1 | row, ceo |
+| 7 | `args(p)` of a variadic procedure answers 1 for icont's −1 | CURED `83ace92b0`, gate wired, row DONE |
 | 8 | `bal()` yields one result, not a sequence | the existing row |
 
 Five master entries land as visible reds (a01, a03, a09, a11, a13); IcnM reads 974/979 on the coo's next pass until the rows close.
