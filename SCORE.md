@@ -4,33 +4,33 @@
 
 One row per suite — our seven masters and every vendored package suite alike — with the FIRST graded reading (date) and TODAY's reading (from the cell below it, tree-labelled there). The `moved` column was REMOVED on Lon's word 2026-09-12 ("worthless info"): a difference between two readings taken under different criteria is not a movement. ⛔ **A report to Lon is THIS TABLE, never a per-language percentage or roll-up** (RULES.md § ONE LEADERBOARD, amended 2026-09-06). The per-language grid below stays as the runners' write target and provenance; this table is what is read back. Every runner that rewrites a cell below rewrites its row here in the same landing (hq_T wires it through `util_score_row.py`, row `score-suite-table-row-rewritten-by-the-runner-that-measured-it`); until then the ceo rewrites it at every tick from the cells. ⭐ MACHINE RECORD: `SUITES.tsv` (this table is `python3 scripts/util_suite_banner.py --md`, regenerated at every ceo tick; the banner every seat and the ceo print every turn is the same script with no flag — Lon 2026-09-06 11:19: *"Make it driven by the leaderboard and always show the current status every turn. A compressed string giving counts for each suite."*). A runner that measures a suite rewrites its row with `util_suite_banner.py --set <key> <pass> <total> [date] [tree]` in the same landing as its cell (hq_T wires this into `util_score_row.py`, row `suite-table-row-rewritten-by-the-runner-through-util-suite-banner-set`). ETA column = remaining / (movement per day since the first reading); ⛔ STUCK = no movement since the first reading; 🆕 = one reading only.
 
-| suite | lang | first graded reading | today | measured movement |
+| suite | lang | first graded reading | today | state |
 |---|---|---|---|---|
-| 🎩 Gimpel (gimpel) | snobol4 | 58/126 (09-04) | 122/132 (09-11, `a1b05e699`) | +64 since 2026-09-03 · 🔀 criterion changed (spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🐍 Budne (csnobol4) | snobol4 | 55/118 (09-04) | 70/72 (09-11, `4f47a9494`) | +25 since 2026-09-03 · 🔀 criterion changed (spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| ❄️ Flake (snoflake) | snobol4 | 63/180 (08-28) | 117/124 (09-10, `484f2fb2c`) | +18 since 2026-09-07 · 🔀 criterion changed (ceo-383-stream-equal-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🤖 AIS (aisnobol) | snobol4 | 0/2 (09-04) | 4/7 (09-10, `c8701b17e`) | +1 since 2026-09-06 · 🔀 criterion changed (cto-6-the-spitbol-versions-are-the-graded-set), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🟦 Dotnet (dotnet) | snobol4 | 5/5 (09-04) | 5/5 (09-08, `de403d5a1`) | ✅ done |
-| 🧪 TPgm (testpgms) | snobol4 | 1/2 (09-08) | 1/2 (09-10, `484f2fb2c`) | ◻ the progress table holds no rows for this suite yet, so nothing can be compared |
-| 🌵 Zona (arizona) | icon | 39/89 (08-30) | 86/88 (09-12, `55aaa01ad`) | +50 since 2026-09-03 · 🔀 criterion changed (ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| ☕ Jcon (jcon) | icon | 34/81 (08-30) | 81/82 (09-12, `55aaa01ad`) | +38 since 2026-09-06 · 🔀 criterion changed (ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 📚 IPL (ipl) | icon | 34/60 (09-05) | 162/162 (09-12, `55aaa01ad`) | ✅ done |
-| 🇫🇷 INRIA (inria) | prolog | 261/445 (09-04) | 402/445 (09-12, `55aaa01ad`) | +141 since 2026-09-04 |
-| 🦉 SWI (swi) | prolog | 0/114 (09-05) | 9/59 (09-12, `55aaa01ad`) | +1 since 2026-09-03 · 🔀 criterion changed (hq-c-ceo-601-denominator-118-to-59-the-59-suite-lines-were-counted-twice-from-two-paths-and-the-row-is-the-run-tier), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🐂 GNU (gnu) | prolog | 6/62 (09-03) | 11/11 (09-07, `52de694e0`) | ✅ done |
-| 🐬 FPC (fpc) | pascal | 119/181 (08-30) | 116/181 (09-10, `c8701b17e`) | +0 since 2026-09-07 ◻ flat · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 📜 PAT (pat) | pascal | 298/427 (09-04) | 292/427 (09-10, `c8701b17e`) | +0 since 2026-09-07 ◻ flat · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🦋 Roast (roast) | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) | +1 since 2026-09-03 |
-| 🧵 SnoM (sno-master) | snobol4 | 1841/1842 (09-06) | 1878/1894 (09-12, `e94f329ab`) | +17 since 2026-09-03 · ⛔ 12 xfail counted as FAIL of a 16-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🪄 IcnM (icn-master) | icon | 642/655 (09-06) | 805/806 (09-12, `55aaa01ad`) | +50 since 2026-09-03 · 🔀 criterion changed (ceo-372-and-per-program), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🔮 ProM (pl-master) | prolog | 324/404 (09-03) | 529/560 (09-12, `55aaa01ad`) | +205 since 2026-09-03 |
-| 🏛️ PasM (pas-master) | pascal | 248/251 (09-06) | 243/246 (09-12, `55aaa01ad`) | +0 since 2026-09-08 ◻ flat · 🔀 criterion changed (coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🐪 RakM (raku-master) | raku | 620/762 (09-03) | 680/880 (09-12, `55aaa01ad`) | +60 since 2026-09-03 · ⛔ 156 xfail counted as FAIL of a 200-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| 🧊 SncM (snc-master) | snocone | 176/206 (09-03) | 196/235 (09-12, `55aaa01ad`) | +0 since 2026-09-08 ◻ flat · ⛔ 16 xfail counted as FAIL of a 39-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning · 🔀 criterion changed (coo-corrected-ast-was-wrongly-scored-into-this-row-run-population-only-icn-precedent), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🧩 RebM (reb-master) | rebus | 15/48 (09-03) | 38/43 (09-12, `55aaa01ad`) | +0 since 2026-09-06 ◻ flat · ⛔ 4 xfail counted as FAIL of a 5-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning · 🔀 criterion changed (coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree), so `moved` is the same programs re-read: today's graded set compared against its own earliest reading |
-| 🧿 Logtalk (logtalk) | prolog | 1218/3617 (09-12) | 1593/3617 (09-12, `55aaa01ad`) | 🆕 one reading |
-| 🧮 GnuFD (gnu_fd) | prolog | — | —/30 (⏸ 30 DEFERRED, not counted as failures) | ⏸ DEFERRED by Lon (CEO-572,CEO-579), IN SCOPE AND NOT A FAILURE — waiting on: THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var·put_attr·coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10. |
-| 🧷 X64T (x64tests) | snobol4 | 18/36 (09-12) | 18/36 (09-12, `35bf3ab90`) | 🆕 one reading |
+| Gimpel | snobol4 | 58/126 (09-04) | 122/132 (09-11, `a1b05e699`) |  |
+| Budne | snobol4 | 55/118 (09-04) | 70/72 (09-11, `4f47a9494`) |  |
+| Flake | snobol4 | 63/180 (08-28) | 117/124 (09-10, `484f2fb2c`) |  |
+| AIS | snobol4 | 0/2 (09-04) | 4/7 (09-10, `c8701b17e`) |  |
+| Dotnet | snobol4 | 5/5 (09-04) | 5/5 (09-08, `de403d5a1`) | done |
+| TPgm | snobol4 | 1/2 (09-08) | 1/2 (09-10, `484f2fb2c`) |  |
+| Zona | icon | 39/89 (08-30) | 86/88 (09-12, `55aaa01ad`) |  |
+| Jcon | icon | 34/81 (08-30) | 81/82 (09-12, `55aaa01ad`) |  |
+| IPL | icon | 34/60 (09-05) | 162/162 (09-12, `55aaa01ad`) | done |
+| INRIA | prolog | 261/445 (09-04) | 402/445 (09-12, `55aaa01ad`) |  |
+| SWI | prolog | 0/114 (09-05) | 9/59 (09-12, `55aaa01ad`) |  |
+| GNU | prolog | 6/62 (09-03) | 11/11 (09-07, `52de694e0`) | done |
+| FPC | pascal | 119/181 (08-30) | 116/181 (09-10, `c8701b17e`) |  |
+| PAT | pascal | 298/427 (09-04) | 292/427 (09-10, `c8701b17e`) |  |
+| Roast | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) |  |
+| SnoM | snobol4 | 1841/1842 (09-06) | 1878/1894 (09-12, `e94f329ab`) | 12 xfail counted as FAIL of a 16-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| IcnM | icon | 642/655 (09-06) | 805/806 (09-12, `55aaa01ad`) |  |
+| ProM | prolog | 324/404 (09-03) | 529/560 (09-12, `55aaa01ad`) |  |
+| PasM | pascal | 248/251 (09-06) | 243/246 (09-12, `55aaa01ad`) |  |
+| RakM | raku | 620/762 (09-03) | 680/880 (09-12, `55aaa01ad`) | 156 xfail counted as FAIL of a 200-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| SncM | snocone | 176/206 (09-03) | 196/235 (09-12, `55aaa01ad`) | 16 xfail counted as FAIL of a 39-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| RebM | rebus | 15/48 (09-03) | 38/43 (09-12, `55aaa01ad`) | 4 xfail counted as FAIL of a 5-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| Logtalk | prolog | 1218/3617 (09-12) | 1593/3617 (09-12, `55aaa01ad`) |  |
+| GnuFD | prolog | - | -/30 (30 DEFERRED, not counted as failures) | DEFERRED by Lon (CEO-572,CEO-579), IN SCOPE AND NOT A FAILURE - waiting on: THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var·put_attr·coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10. |
+| X64T | snobol4 | 18/36 (09-12) | 18/36 (09-12, `35bf3ab90`) |  |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)

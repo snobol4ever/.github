@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
 usage: util_suite_banner.py [--plain] [--line] [--md] [--render] [--set KEY PASS TOTAL [DATE] [TREE]]
-  (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the measured-movement counts (done/up/down/flat, nothing projected), then 3 columns x N rows of cells: nick pass/total left movement emoji
+  (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the suite count and how many are done, then 3 columns x N rows of cells: nick pass/total left state emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
   --md       print the markdown table for SCORE.md § THE SUITE TABLE
@@ -286,73 +286,40 @@ def xfail_annotation(r, k):
     if not xf: return ''
     gap = int(r['today_total']) - int(r['today_pass'])
     same = ' — the whole gap' if gap == xf else f' of a {gap}-wide gap'
-    return (f"⛔ {xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
+    return (f"{xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
             f"numerator, so this row can only close by CURING them, never by re-captioning")
 def banner(plain=False, grid=True, ncol=3):
-    head,rows=load(); today=dt.date.today(); cells=[]; parts=[]; up=[]; down=[]; flat=[]; new=[]; done=0; stale=[]; recrit=[]
+    """PLAIN TEXT. Lon 2026-09-12 15:3x CDT, verbatim: "Get rid of your stupid colors and your stupid emojis." -- and
+    the same sitting: "You can remove that silly verbiage +xx since. Who cares. It means nothing. That is not a
+    rate." / "It is so strange to see all the green when it it NOT at 100%."  A cell is the suite, pass/total and
+    the gap to 100%; the only states are done, the xfail count a master still carries (CEO-416), deferred, no
+    runner, and 'stale' when the reading is from before today.  No colour, no glyph, no rate, no projection."""
+    head,rows=load(); today=dt.date.today(); parts=[]; done=0; stale=[]
     DEF=deferred_rows()
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
             dfr=DEF.get(r['key'])
-            tail=f"⏸ deferred {dfr['count']}" if dfr else '◻ no runner'
-            if grid: parts.append((C, r['nick'], '—', r['today_total'], '—', tail, r['emoji']))
-            else: cells.append((lambda c: c if plain else f"{C}{c}{Z}")(f"{r['emoji']}{r['nick']} —/{r['today_total']} {tail}"))
-            recrit.append(r['nick']); continue
-        frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
-        if (today-d(r['today_date'])).days>=1: stale.append(r['nick'])
-        if k=='DONE': col=G; tail='✅ done'; done+=1
-        elif k=='XFAIL': col=R; tail=f'⛔ {e} xfail=fail'
-        elif k=='XFUNKNOWN': col=Y; tail='⚠ xfail unreadable'
-        elif k=='NEW': col=C; tail='🆕 new'; new.append(r['nick'])
-        elif k=='NOROWS': col=C; tail='◻ no rows'; recrit.append(r['nick'])
-        elif k=='ONEDAY': col=C; tail='◻ 1 day'; recrit.append(r['nick'])
-        else:
-            delta,basis=e
-            if delta>0: col=G; up.append(r['nick'])
-            elif delta<0: col=R; down.append(r['nick'])
-            else: col=Y; flat.append(r['nick'])
-            tail=f"{delta:+d} since {basis[5:]}"
-        # a master still carrying xfails is RED and says so beside its ETA, however the fraction reads
-        if xfail_annotation(r, k):
-            col=R; tail=f'⛔{xfail_by_lang(r["lang"])}x ' + tail
-        mark='⏳' if r['nick'] in stale else r['emoji']
-        if grid: parts.append((col, r['nick'], str(r['today_pass']), str(r['today_total']), str(left), tail, mark))
-        else: cells.append((f"{mark}{r['nick']} {frac} {tail}") if plain else f"{col}{mark}{r['nick']} {frac} {tail}{Z}")
-    # ⛔⭐ EVERY GRID WIDTH IS MEASURED FROM THE ROWS, NOT TYPED. They were five hardcoded numbers
-    # (nick 7, pass 5, total 5, delta 4, tail 12, cell 39) and the tail one was ALREADY TOO SMALL: SnoM's
-    # "⛔24x → 09-30" is 13 display columns, pad() cannot shrink, so that one cell rendered 40 wide and
-    # test_gate_banner_leads_with_the_suite_line.sh ARM 6 went red -- the whole blocking set, for every
-    # seat, over a suite table nobody had touched. ⭐ AND IT ONLY BECAME VISIBLE WHEN THE SUITE COUNT
-    # CHANGED: at 22 suites SnoM sat in the last column, where no separator follows it and nothing can be
-    # out of line; at 25 it moved into column 2 and the same cell, unchanged, started reding the fleet.
-    # A latent width bug is invisible until the reflow that moves it left, so the cure is to stop having
-    # widths that can be too small rather than to enlarge the one that was.
-    def _w(i, floor): return max([floor] + [dw(p[i]) for p in parts]) if parts else floor
-    nw, pw, tw, dwid, tlw = _w(1, 7), _w(2, 5), _w(3, 5), _w(4, 4), _w(5, 12)
-    cellw = nw + pw + 1 + tw + 1 + dwid + 1 + tlw + 1 + 2
-    for col, nick, pas, tot, dlt, tail, mark in parts:
-        cell = pad(pad(nick, nw) + " " * (pw - dw(pas)) + pas + "/" + pad(tot, tw) + "Δ" + pad(dlt, dwid) + " " + pad(tail, tlw) + " " + mark, cellw)
-        cells.append(cell if plain else f"{col}{cell}{Z}")
+            parts.append((r['nick'], '-', r['today_total'], '-', f"deferred {dfr['count']}" if dfr else 'no runner')); continue
+        left=int(r['today_total'])-int(r['today_pass'])
+        st=''
+        if k=='DONE': st='done'; done+=1
+        elif k=='XFAIL': st=f'{e} xfail'
+        elif k=='XFUNKNOWN': st='xfail unreadable'
+        elif xfail_annotation(r, k): st=f'{xfail_by_lang(r["lang"])} xfail'
+        if (today-d(r['today_date'])).days>=1: stale.append(r['nick']); st=(st+' stale').strip()
+        parts.append((r['nick'], str(r['today_pass']), str(r['today_total']), str(left), st))
+    def _w(i, floor): return max([floor] + [len(p[i]) for p in parts]) if parts else floor
+    nw, pw, tw, dwid, tlw = _w(0, 7), _w(1, 5), _w(2, 5), _w(3, 4), _w(4, 8)
+    cells=[nick.ljust(nw) + pas.rjust(pw) + "/" + tot.ljust(tw) + " gap " + dlt.rjust(dwid) + " " + st.ljust(tlw) for nick, pas, tot, dlt, st in parts]
     n=len(rows)
-    # ⛔ FACTS ONLY, NO VERDICT ABOUT THE FUTURE: counts of what the rows measured.  Red if anything regressed,
-    # yellow if anything sits flat or unmeasured, green only when every row moved up or is done.
-    facts=[f"{done} done"]
-    if up: facts.append(f"{len(up)} up")
-    if down: facts.append(f"{len(down)} DOWN ({', '.join(down)})")
-    if flat: facts.append(f"{len(flat)} flat ({', '.join(flat)})")
-    if new: facts.append(f"{len(new)} one reading")
-    if recrit: facts.append(f"{len(recrit)} not comparable ({', '.join(recrit)})")
-    verdict=f"{n} SUITES, measured movement since each first reading: " + " · ".join(facts)
-    vc=R if down else (Y if (flat or stale or recrit) else G)
-    hdr=f"🏁 {today.strftime('%m-%d')} {verdict}" + (f" · ⏳ {len(stale)} not measured today ({', '.join(stale)})" if stale else '')
-    print(hdr if plain else f"{B}{vc}{hdr}{Z}")
-    if not grid: print(' │ '.join(cells)); return
+    print(f"{today.strftime('%m-%d')} {n} SUITES, {done} done" + (f"; {len(stale)} not measured today: {', '.join(stale)}" if stale else ''))
+    if not grid: print(' | '.join(c.rstrip() for c in cells)); return
     nrow=-(-len(cells)//ncol)
-    for i in range(nrow): print(' │ '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
+    for i in range(nrow): print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)).rstrip())
 def md():
     head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
-    print('| suite | lang | first graded reading | today | measured movement |'); print('|---|---|---|---|---|')
+    print('| suite | lang | first graded reading | today | state |'); print('|---|---|---|---|---|')
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
@@ -368,9 +335,9 @@ def md():
                 # reader downstream. ⭐ SUBSTITUTED, NOT BACKSLASH-ESCAPED: `\\|` satisfies a markdown renderer
                 # and NOT an instrument that splits the row on '|', and the instruments are the harder reader.
                 _w=dfr['waiting_on'][:400].replace('|','·'); _b=dfr['ruled_by'].replace('|','·')
-                print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (⏸ {dfr['count']} DEFERRED, not counted as failures) | ⏸ DEFERRED by Lon ({_b}), IN SCOPE AND NOT A FAILURE — waiting on: {_w} |")
+                print(f"| {r['nick']} | {r['lang']} | - | -/{r['today_total']} ({dfr['count']} DEFERRED, not counted as failures) | DEFERRED by Lon ({_b}), IN SCOPE AND NOT A FAILURE - waiting on: {_w} |")
             else:
-                print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (vendored, no runner yet) | ◻ NO RUNNER, NO READING: {why} — a population with no grader is a debt on the board, never an absence from it |")
+                print(f"| {r['nick']} | {r['lang']} | - | -/{r['today_total']} (vendored, no runner yet) | NO RUNNER, NO READING: {why} - a population with no grader is a debt on the board, never an absence from it |")
             continue
         rc=recriterioned(r)
         if rc:
@@ -382,10 +349,8 @@ def md():
                 mv='—'
         else:
             mv=f"{int(r['today_pass'])-int(r['first_pass']):+d}"
-        named={'DONE':'✅ done','XFAIL':f'⛔ {e} xfail=fail','XFUNKNOWN':'⚠ xfail unreadable','NEW':'🆕 one reading',
-               'NOROWS':'◻ the progress table holds no rows for this suite yet, so nothing can be compared',
-               'ONEDAY':'◻ every recorded row is from one day — a second day of readings makes this comparable'}
-        tail=named[k] if k in named else ((f"{e[0]:+d} since {e[1]}" + (' ⛔ regressed' if e[0]<0 else (' ◻ flat' if e[0]==0 else ''))) if k=='MOVE' else '')
+        named={'DONE':'done','XFAIL':f'{e} xfail=fail','XFUNKNOWN':'xfail unreadable'}
+        tail=named[k] if k in named else ''
         # ⭐ AND THE CONVENTION IS STATED WHEREVER THE ROW IS READ, not only when the fraction closes.
         # eta() can only return 'XFAIL' when pass==total, so the moment a master row is corrected to the
         # honest 1871/1898 the xfail count VANISHES from the cell -- the reader then sees a 27-wide gap with
@@ -394,21 +359,23 @@ def md():
         # (ceo ruling to the coo, 2026-09-08: "Set it, state the convention in the cell.")
         xa = xfail_annotation(r, k)
         if xa: tail = (tail + ' · ' if tail else '') + xa
-        if rc and k not in ('DONE','XFAIL','XFUNKNOWN','NOROWS','ONEDAY'):
-            tail += (f" · 🔀 criterion changed ({rc.split(':',1)[-1]}), so `moved` is the same programs"
-                     f" re-read: today's graded set compared against its own earliest reading")
-        print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {tail} |")
+        print(f"| {r['nick']} | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
     import io, contextlib
     buf=io.StringIO()
     with contextlib.redirect_stdout(buf): md()
     return buf.getvalue().rstrip('\n').split('\n')
+_NICK2KEY=None
 def _row_key(line):
-    """The suite key a rendered markdown row belongs to, e.g. `| \u2744\ufe0f Flake (snoflake) | snobol4 | ...` -> snoflake.
-    None for the header and separator rows, which therefore always pass through untouched."""
-    m = re.match(r'^\|[^|(]*\(([^)]+)\)\s*\|', line)
-    return m.group(1) if m else None
+    """The suite key a rendered markdown row belongs to: the row names the suite by its NICKNAME only (Lon
+    2026-09-12: one name, not the nickname and the key), and the nickname resolves to the key through SUITES.tsv.
+    None for the header and separator rows, and for any first cell that is not a nickname on file."""
+    global _NICK2KEY
+    if _NICK2KEY is None:
+        _head,_rows=load(); _NICK2KEY={r['nick']:r['key'] for r in _rows}
+    m = re.match(r'^\|\s*([^|]+?)\s*\|', line)
+    return _NICK2KEY.get(m.group(1)) if m else None
 def render_table(only_key=None):
     """Re-render SCORE.md § THE SUITE TABLE (the rows under the '| suite | lang |' header) from SUITES.tsv, in place.
     Returns a one-line note; never silent, never a guess: a table it cannot find is said NOT rendered.
