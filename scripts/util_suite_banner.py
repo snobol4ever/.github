@@ -288,35 +288,39 @@ def xfail_annotation(r, k):
     same = ' — the whole gap' if gap == xf else f' of a {gap}-wide gap'
     return (f"{xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
             f"numerator, so this row can only close by CURING them, never by re-captioning")
-def banner(plain=False, grid=True, ncol=3):
-    """PLAIN TEXT. Lon 2026-09-12 15:3x CDT, verbatim: "Get rid of your stupid colors and your stupid emojis." -- and
-    the same sitting: "You can remove that silly verbiage +xx since. Who cares. It means nothing. That is not a
-    rate." / "It is so strange to see all the green when it it NOT at 100%."  A cell is the suite, pass/total and
-    the gap to 100%; the only states are done, the xfail count a master still carries (CEO-416), deferred, no
-    runner, and 'stale' when the reading is from before today.  No colour, no glyph, no rate, no projection."""
-    head,rows=load(); today=dt.date.today(); parts=[]; done=0; stale=[]
+def banner(plain=False, grid=True, ncol=2):
+    """PLAIN TEXT GRID, FIXED-WIDTH FIELDS, TWO COLUMNS SO 25 SUITES FIT 80 CHARACTERS WITHOUT WRAPPING.
+    Lon 2026-09-12, verbatim: "Get rid of your stupid colors and your stupid emojis." / "You can remove that silly
+    verbiage +xx since. Who cares. It means nothing. That is not a rate." / "Your banner is un-readable. Poorly
+    formatted. Not vertically aligned. The word stale means what. How would you know?" / "Put in a grid."
+    A cell is: suite, pass/total, the gap to 100%, the DATE the row was last measured (the fact 'stale' stood
+    for), and a state only when it is one: done, the xfail count a master still carries (CEO-416), deferred,
+    no runner.  Nothing here is a colour, a glyph, a rate or a projection."""
+    head,rows=load(); today=dt.date.today(); parts=[]; done=0
     DEF=deferred_rows()
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
             dfr=DEF.get(r['key'])
-            parts.append((r['nick'], '-', r['today_total'], '-', f"deferred {dfr['count']}" if dfr else 'no runner')); continue
+            parts.append((r['nick'], '-/'+r['today_total'], '-', '-', f"defer {dfr['count']}" if dfr else 'norun')); continue
         left=int(r['today_total'])-int(r['today_pass'])
         st=''
         if k=='DONE': st='done'; done+=1
         elif k=='XFAIL': st=f'{e} xfail'
-        elif k=='XFUNKNOWN': st='xfail unreadable'
+        elif k=='XFUNKNOWN': st='xfail?'
         elif xfail_annotation(r, k): st=f'{xfail_by_lang(r["lang"])} xfail'
-        if (today-d(r['today_date'])).days>=1: stale.append(r['nick']); st=(st+' stale').strip()
-        parts.append((r['nick'], str(r['today_pass']), str(r['today_total']), str(left), st))
-    def _w(i, floor): return max([floor] + [len(p[i]) for p in parts]) if parts else floor
-    nw, pw, tw, dwid, tlw = _w(0, 7), _w(1, 5), _w(2, 5), _w(3, 4), _w(4, 8)
-    cells=[nick.ljust(nw) + pas.rjust(pw) + "/" + tot.ljust(tw) + " gap " + dlt.rjust(dwid) + " " + st.ljust(tlw) for nick, pas, tot, dlt, st in parts]
+        parts.append((r['nick'], f"{r['today_pass']}/{r['today_total']}", str(left), r['today_date'][5:], st))
+    W=(7,9,4,5,9)
+    def cell(t): return f"{t[0]:<{W[0]}} {t[1]:>{W[1]}} {t[2]:>{W[2]}} {t[3]:>{W[3]}} {t[4]:<{W[4]}}"
+    hdrcell=cell(('suite','pass/tot','gap','date','state'))
+    cells=[cell(t) for t in parts]
     n=len(rows)
-    print(f"{today.strftime('%m-%d')} {n} SUITES, {done} done" + (f"; {len(stale)} not measured today: {', '.join(stale)}" if stale else ''))
-    if not grid: print(' | '.join(c.rstrip() for c in cells)); return
+    print(f"{today.strftime('%m-%d')} {n} SUITES, {done} done")
+    if not grid: print(' | '.join(cells)); return
     nrow=-(-len(cells)//ncol)
-    for i in range(nrow): print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)).rstrip())
+    print(' | '.join([hdrcell]*ncol))
+    print('-+-'.join(['-'*len(hdrcell)]*ncol))
+    for i in range(nrow): print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def md():
     head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
     print('| suite | lang | first graded reading | today | state |'); print('|---|---|---|---|---|')
