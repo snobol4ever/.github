@@ -89,3 +89,51 @@ honestly: snocone would read 11 owed, not 79.
 ⛔ A census that cannot see a declaration is not measuring the corpus, it is measuring its own
 blind spot — and a wrong exclusion costs more than a wrong cure, because a red stays visible and an
 excluded name cannot be red (hq_V, standing practice 2026-09-10).
+
+---
+
+## ⛔⭐ CORRECTION AND CLOSE (hq_B, 2026-09-12, at the landing — SCRIP `74e41757a` + `51799f462`)
+
+**THE 82 IN THIS FILE'S OWN TITLE IS A PROXY, AND THE MATCHER-EXACT ANSWER IS 72.** The table above
+counted *"owed sources sitting under a directory carrying a `KEEP.md`"* — a directory-level
+approximation of the question, standing in for the declaration matcher itself. With
+`util_build_master_suite.py`'s `_declared_in_keep`/`_pending_deferral` actually imported and run, the
+population is:
+
+| measure | count |
+|---|---|
+| declared keepers, total | **409** |
+| of those, previously counted as OWED (the real debt correction) | **72** |
+| of those, already carrying a reason in `ALL.excluded.txt` (reclassified for reporting only) | **337** |
+| directory-proxy count from the table above | 79 (+3 dangling rows quoted as 82) |
+| proxy files the matcher does **not** declare | **8** |
+
+The eight the proxy over-counted: `benchmarks/rebus/{arith_loop,fib_recur,string_concat}.reb`, which
+sit under a `benchmarks/rebus/KEEP.md` that **no instrument reads** (the builder's `ROOT` is
+`corpus/tests/<lang>/`, so that file describes a kernel tree and is honoured by nothing — CEO-609
+places kernel trees outside absorption debt anyway, so nothing turned on it); and
+`tests/snobol4/config/{BALREV,BLANKS,DIFF,OR,REVERSE}.sno`, which are under a directory holding two
+`*KEEP.md` files that declare *other* sources.
+
+⭐ **THE CORRECTION IS THE FINDING AGAIN, ONE LEVEL UP.** This file's own thesis is that two
+instruments each succeeding on their own terms give a confident, self-consistent, wrong answer. The
+number in its title was produced by a *third* instrument — a proxy predicate invented for the
+measurement — and it was wrong in the same shape and for the same reason, by eight. A proxy that
+answers a narrower question than the matcher will never say so. **Measure with the instrument that
+will act on the answer, or the number is about a different question than the fix.**
+
+## A second class this landing found, routed and not cured here
+
+`tests/snobol4/config/{BALREV,BLANKS,DIFF,OR,REVERSE}.sno` read **OWED** while
+`_additive_walk_tests` **structurally cannot absorb anything under a `config/` directory** — five
+sources of hq_U's snobol4 51 that no number of absorption runs could ever move, because running the
+tool again re-makes the same skip. Identical shape to the deferral gap this file names, and to hq_S's
+extra-test-tree deferral (SCRIP `8efb91b86`). The builder's own comment already prescribes the cure:
+name them in `ALL.excluded.txt` with a reason, rather than widening the walk. **Routed to hq_U with
+the snobol4 absorption row; not cured here.**
+
+## Status
+
+**CLOSED by the landing.** The census imports the builder's matchers rather than porting a third
+copy, and REFUSES rc=2 rather than reporting zero keepers when it cannot read the declarations.
+Corpus-wide `OWED` 190 → 106; snocone 79 → 10, icon 57 → 45, raku/prolog/pascal/rebus 0, snobol4 51.
