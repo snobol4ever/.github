@@ -302,17 +302,17 @@ def banner(plain=False, grid=True, ncol=2):
         k,e=eta(r,today)
         if k=='NORUNNER':
             dfr=DEF.get(r['key'])
-            parts.append((r['nick'], '-/'+r['today_total'], '-', '-', f"defer {dfr['count']}" if dfr else 'norun')); continue
+            parts.append((r['nick'], '-', r['today_total'], '-', '-', f"deferred {dfr['count']}" if dfr else 'no runner')); continue
         left=int(r['today_total'])-int(r['today_pass'])
         st=''
         if k=='DONE': st='done'; done+=1
         elif k=='XFAIL': st=f'{e} xfail'
-        elif k=='XFUNKNOWN': st='xfail?'
+        elif k=='XFUNKNOWN': st='xfail unreadable'
         elif xfail_annotation(r, k): st=f'{xfail_by_lang(r["lang"])} xfail'
-        parts.append((r['nick'], f"{r['today_pass']}/{r['today_total']}", str(left), r['today_date'][5:], st))
-    W=(7,9,4,5,9)
-    def cell(t): return f"{t[0]:<{W[0]}} {t[1]:>{W[1]}} {t[2]:>{W[2]}} {t[3]:>{W[3]}} {t[4]:<{W[4]}}"
-    hdrcell=cell(('suite','pass/tot','gap','date','state'))
+        parts.append((r['nick'], r['today_pass'], r['today_total'], str(left), r['today_date'][5:], st))
+    W=(7,4,4,4,5,11)
+    def cell(t): return f"{t[0]:<{W[0]}} {t[1]:>{W[1]}}/{t[2]:>{W[2]}} {t[3]:>{W[3]}} {t[4]:>{W[4]}} {t[5]:<{W[5]}}"
+    hdrcell=cell(('suite','pass','tot','gap','date','state'))
     cells=[cell(t) for t in parts]
     n=len(rows)
     print(f"{today.strftime('%m-%d')} {n} SUITES, {done} done")
