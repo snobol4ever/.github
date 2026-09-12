@@ -1,0 +1,20 @@
+# FINDING 2026-09-12 (cfo) — `write` AND `writes` STOPPED AT THE FIRST NUL BYTE ON STDOUT, SO A BINARY PBM LOOKED LIKE A WRONG COMPUTATION
+
+SCRIP `12971dfc9` → cure `c533c5157` · corpus `eb60529ae` · row `icon-shootout-five-programs-are-raw-upstream-and-cannot-parse-under-scrip` (CEO-586, cfo).
+
+**WHAT WAS SEEN.** Converting the five Benchmarks Game Icon kernels to the kernel convention (CEO-567), mandelbrot at w=64 differed from the oracle's `.ref` at byte 10 and the SCRIP rows were nearly all `0xFF` where the oracle's were nearly all `0x00`. That reads as an escape test gone wrong: `if Tr+Ti > 4.0 then break` inside an `every`, chained real assignment, `ishift`/`ior` bit packing. Two probes of exactly those constructs matched the oracle line for line. The real kernel at w=8 with the rows printed through `image()` matched too. Only `writes(output, i)` of the raw row string differed — and SCRIP's stream was SHORTER (13 bytes vs 15 at w=8, 23 vs 41 at w=16).
+
+**THE DEFECT, PINNED.** `s := "a" || char(0) || "b" || char(0) || "c"` — `*s` is 5 and `image(s)` is `"a\x00b\x00c"` under both engines; `writes(s)`, `write(s)`, `writes(&output, s)`, `write(&output, s)` print one byte under SCRIP and five under iconx, in both modes. The shared write/writes body (`by_name_dispatch.c`, `BID_write`) sent a stdout/stderr string through `out_write_descr` → `out_write_str` → `fputs`, NUL-terminated, while the file-destination branch three lines above had been length-aware (`fwrite(s, slen)`) since `7fbb787eb` (iobig, 2026-09-07). A cure that reached files and not the console.
+
+**THE CURE** (one line): the length-aware branch applies to every destination when the string carries a NUL within its length (`memchr`); a NUL-free string on stdout still takes the path it always took, so the Raku/Rebus gist markup that `out_write_str` interprets (`\x01`/`\x03`) is untouched.
+
+**CONTROL.** All 76 pre-existing `icn_*`/`icon_*` gates before and after: six non-green either side, name-for-name identical (`icn_ipl_reason_is_the_oracles_own_words` red, `icn_rbp_census_ratchet` red, four rc=2 refusals: `icn_list_element_alternation_position`, `icn_rundir_contract`, `icn_suspend_record_stack_alignment`, `icon_master_per_entry_identity`). The new gate `test_gate_icn_write_is_byte_exact_through_an_embedded_nul.sh` is red on the pre-cure binary and green after; `GATE_FAIL_ONCE=1` makes it red on demand. `make preflight` 33/0.
+
+**THREE THINGS WORTH KEEPING.**
+1. **A truncation reads as a wrong answer when the format is binary.** A PBM row missing bytes shifts every later pixel; the visible symptom was "all the bits are set", nothing about length. Probing the arithmetic first cost twenty minutes; `wc -c` on the two streams would have cost one. When a binary ref differs, compare LENGTHS before contents.
+2. **`$(...)` cannot grade this class at all** (CFO-52 trap 2 again): a capture ends at NUL and strips trailing newlines, so a gate written that way passes a truncating `writes` — the gate and the shootout gate both use `cmp` on files.
+3. **Half a cure is a finding shape.** `7fbb787eb` made write byte-exact "on files" and said so; the console path was the same builtin ten lines away. When a cure names a destination, ask what the other destinations do.
+
+**SIDE FINDING, NOT CURED HERE (minted as a row):** SCRIP's run-time error traceback names the LAST PROGRAM ARGUMENT as the file — `File 7; Line 58` for `fannkuch.icn -- 7`, `File reverse-complement.fasta; Line 49` — where iconx says `File fannkuch.icn; Line 58`. The line number is right; the file name is argv's tail.
+
+**ALSO MEASURED, A STATEMENT ABOUT THE ORACLE:** two of the five Unicon-authored kernels die under Arizona Icon 9.5 itself — fannkuch (`Run-time error 122`, three-argument `insert` on a list is Unicon's) and reverse-complement (`Run-time error 106`, `stat()` is Unicon's, `&null` under Icon). SCRIP dies with the same number at the same line on both, which is the right answer for an Icon compiler; both are OUTSIDE the baseline with the oracle's own words and a gate control arm that re-asks the oracle every run.
