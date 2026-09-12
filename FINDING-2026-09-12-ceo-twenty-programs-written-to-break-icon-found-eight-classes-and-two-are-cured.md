@@ -25,7 +25,7 @@ error number: a traceback names the file, and the master renames every entry. Th
 | 5 | `&null.f` raises 114 (or fails silently) where icont raises 107 | CURED `46d393490`, gate wired, row DONE |
 | 6 | `image(&current)` counts one activation more than icont | row, ceo |
 | 7 | `args(p)` of a variadic procedure answers 1 for icont's −1 | CURED `83ace92b0`, gate wired, row DONE |
-| 8 | `bal()` yields one result, not a sequence | the existing row |
+| 8 | `bal()` yields one result, not a sequence | CURED `1fad3c574`, gate wired, row DONE |
 
 Five master entries landed as visible reds (a01, a03, a09, a11, a13); with classes 4, 5 and 7 cured the same evening, a09, a11 and the find line of a13 are green, and IcnM reads 977/979 on the coo's next pass until the keyword-dereference, image-count and bal rows close.
 
