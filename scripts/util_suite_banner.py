@@ -316,12 +316,12 @@ def banner(plain=False, grid=True, ncol=3):
     for i in range(nrow): print(' │ '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def md():
     head,rows=load(); today=dt.date.today()
-    print('| suite | lang | first graded reading | today | moved | at today\'s rate |'); print('|---|---|---|---|---|---|')
+    print('| suite | lang | first graded reading | today | at today\'s rate |'); print('|---|---|---|---|---|')
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
             why=r['criterion_changed'].split(':',1)[-1] if r['criterion_changed'] else 'no runner yet'
-            print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (vendored, no runner yet) | — | ◻ NO RUNNER, NO READING: {why} — a population with no grader is a debt on the board, never an absence from it |")
+            print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | — | —/{r['today_total']} (vendored, no runner yet) | ◻ NO RUNNER, NO READING: {why} — a population with no grader is a debt on the board, never an absence from it |")
             continue
         rc=recriterioned(r)
         if rc:
@@ -348,7 +348,7 @@ def md():
         if rc and k not in ('DONE','XFAIL','XFUNKNOWN','NOROWS','ONEDAY'):
             tail += (f" · 🔀 criterion changed ({rc.split(':',1)[-1]}), so `moved` is the same programs"
                      f" re-read: today's graded set compared against its own earliest reading")
-        print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {mv} | {tail} |")
+        print(f"| {r['emoji']} {r['nick']} ({r['key']}) | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
     import io, contextlib
