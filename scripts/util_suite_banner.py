@@ -264,12 +264,13 @@ def xfail_annotation(r, k):
     return (f"⛔ {xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
             f"numerator, so this row can only close by CURING them, never by re-captioning")
 def banner(plain=False, grid=True, ncol=3):
-    head,rows=load(); today=dt.date.today(); cells=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]; recrit=[]
+    head,rows=load(); today=dt.date.today(); cells=[]; parts=[]; worst=None; stuck=[]; new=[]; done=0; stale=[]; recrit=[]
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
-            cell=pad(f"{r['nick']:<7}{'—':>5}/{r['today_total']:<5}Δ{'—':<4} " + pad('◻ no runner', 12) + f" {r['emoji']}", 39) if grid else f"{r['emoji']}{r['nick']} —/{r['today_total']} ◻ no runner"
-            cells.append(cell if plain else f"{C}{cell}{Z}"); recrit.append(r['nick']); continue
+            if grid: parts.append((C, r['nick'], '—', r['today_total'], '—', '◻ no runner', r['emoji']))
+            else: cells.append((lambda c: c if plain else f"{C}{c}{Z}")(f"{r['emoji']}{r['nick']} —/{r['today_total']} ◻ no runner"))
+            recrit.append(r['nick']); continue
         frac=f"{r['today_pass']}/{r['today_total']}"; left=int(r['today_total'])-int(r['today_pass'])
         if (today-d(r['today_date'])).days>=1: stale.append(r['nick'])
         if k=='DONE': col=G; tail='✅ done'; done+=1
@@ -285,8 +286,22 @@ def banner(plain=False, grid=True, ncol=3):
         if xfail_annotation(r, k):
             col=R; tail=f'⛔{xfail_by_lang(r["lang"])}x ' + tail
         mark='⏳' if r['nick'] in stale else r['emoji']
-        if grid: cell=pad(f"{r['nick']:<7}{r['today_pass']:>5}/{r['today_total']:<5}Δ{left:<4} " + pad(tail, 12) + f" {mark}", 39)
-        else: cell=f"{mark}{r['nick']} {frac} {tail}"
+        if grid: parts.append((col, r['nick'], str(r['today_pass']), str(r['today_total']), str(left), tail, mark))
+        else: cells.append((f"{mark}{r['nick']} {frac} {tail}") if plain else f"{col}{mark}{r['nick']} {frac} {tail}{Z}")
+    # ⛔⭐ EVERY GRID WIDTH IS MEASURED FROM THE ROWS, NOT TYPED. They were five hardcoded numbers
+    # (nick 7, pass 5, total 5, delta 4, tail 12, cell 39) and the tail one was ALREADY TOO SMALL: SnoM's
+    # "⛔24x → 09-30" is 13 display columns, pad() cannot shrink, so that one cell rendered 40 wide and
+    # test_gate_banner_leads_with_the_suite_line.sh ARM 6 went red -- the whole blocking set, for every
+    # seat, over a suite table nobody had touched. ⭐ AND IT ONLY BECAME VISIBLE WHEN THE SUITE COUNT
+    # CHANGED: at 22 suites SnoM sat in the last column, where no separator follows it and nothing can be
+    # out of line; at 25 it moved into column 2 and the same cell, unchanged, started reding the fleet.
+    # A latent width bug is invisible until the reflow that moves it left, so the cure is to stop having
+    # widths that can be too small rather than to enlarge the one that was.
+    def _w(i, floor): return max([floor] + [dw(p[i]) for p in parts]) if parts else floor
+    nw, pw, tw, dwid, tlw = _w(1, 7), _w(2, 5), _w(3, 5), _w(4, 4), _w(5, 12)
+    cellw = nw + pw + 1 + tw + 1 + dwid + 1 + tlw + 1 + 2
+    for col, nick, pas, tot, dlt, tail, mark in parts:
+        cell = pad(pad(nick, nw) + " " * (pw - dw(pas)) + pas + "/" + pad(tot, tw) + "Δ" + pad(dlt, dwid) + " " + pad(tail, tlw) + " " + mark, cellw)
         cells.append(cell if plain else f"{col}{cell}{Z}")
     n=len(rows)
     if stuck: verdict=f"ALL {n} SUITES 100/100: NOT ON THE CURVE — {len(stuck)} stuck ({', '.join(stuck)})"; vc=R
