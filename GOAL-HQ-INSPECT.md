@@ -138,6 +138,29 @@ first match wins, dead residue, not this rung's row.
 a SCORE.md row."* So every ladder sitting produces a forbidden edit the seat must remember to throw away — twice
 now. That is an instrument shape, not a seat's discipline problem; sent to hq_B.
 
+⭐⭐ **THE COO ASKED FOR A REAL PROGRAM MID-SITTING AND SNOCONE HAS ONE, BUT IT IS NOT USABLE YET** — full
+write-up in `FINDING-2026-09-13-hq_I-the-self-hosting-snocone-compiler-is-not-a-drop-in-control-arm-because-it-is-written-in-koenigs-1985-syntax-not-this-dialect.md`.
+The coo's argument (it landed a Pascal change with all fifteen gates green and every suite unchanged, and the
+vendored Pascal-P4 compiler still rejected its own source with 105 errors) is the strongest instrument argument
+I have heard this week, so I spent twenty minutes testing it against this lane. Koenig's self-hosting
+`snocone.sc` (1071 lines, `/home/resources/SNOCONE.zip`) **fails at line 13, on a comment**, and every blocker
+behind it is a *deliberate* dialect divergence already recorded in the ladder: 172 `#` comment lines (rung10),
+261 space-before-paren calls, 11 two-word `go to` (rung12), 3 infix `%` (rung19's own REFUSE case). **Nothing
+there is a defect** — a program in the ancestor syntax is expected not to build, and a seat who files these as
+bugs is filing four rulings back at the people who made them.
+⭐ **It still paid for itself twice.** It uses `procedure` 50 times and nominates locals in 13 declarations —
+both rung19 forms. Extracting all 13 verbatim: **12 of 13 parse now, 0 of 13 parsed before today's cure**, which
+is a real-program control arm for the rung obtained from one grep. And the 13th is a **cross-rung collision no
+synthetic witness would have produced**: `procedure emiteos() out, goto, s, del` nominates a local named `goto`,
+and `goto` is reserved *everywhere an identifier may appear* — pinned four ways, including as a plain variable —
+which is the direct, correct consequence of rung12 collapsing `go to` into one keyword. Koenig could use it as a
+name precisely because his spelling was two words. **Not a defect, not proposing a cure**; recorded because
+rung12 and rung19 are each green alone and only a program predating the decision shows the interaction.
+⛔ **The separable row, for whoever takes it:** a COMMITTED, REVIEWABLE dialect normalizer (`#`→`//`, `go to`→
+`goto`, strip the space before a call paren, `%`→`REMDR()`, rename the `goto` local) — never a hand-edited copy,
+because a hand-edited self-hoster is a fork that silently stops matching upstream and the whole value of the arm
+is that it is somebody else's code. I stopped at the parse boundary and claim nothing past it.
+
 **NEXT ROW FOR THIS SEAT** (named, not started): **rung20 `augmented_assignment`** (`+=` `-=` `*=` `/=`, a SCRIP
 dialect extension with no Koenig spelling — TT_AUGOP; old ladder marks PASS, which after this sitting is a claim
 to grade against the oracle and not a status to trust). Then the declared ladder runs to rung26, and the SncM
