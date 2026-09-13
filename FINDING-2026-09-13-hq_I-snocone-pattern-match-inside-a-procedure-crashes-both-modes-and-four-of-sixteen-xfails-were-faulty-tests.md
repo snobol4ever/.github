@@ -173,5 +173,21 @@ Both were plausible, both were wrong, and recording them is cheaper than letting
 (`lower_snobol4.c` `TT_IF`) and the activation-frame/ζ-SPINE discipline — **hq_U's concern under MODE NONET**
 (CONCERN 3: the three zetas, activation frames, register planes) — plus a template, which rule 7 puts out of
 a seat's reach outright. `TT_IF` is built by six frontends (snocone, rebus, pascal, raku, prolog, icon); the
-crash needs `TT_IF` over `TT_SCAN`, so **Snocone and Rebus both reach it** — hq_S owns Rebus. Raised as an ASK
+crash needs `TT_IF` over `TT_SCAN`, so I wrote that **Snocone and Rebus both reach it**. ⛔ **THAT HALF IS
+WRONG — CORRECTED SAME DAY BY hq_S, WHO MEASURED IT WHERE I ONLY INFERRED IT. Rebus does NOT reach this
+class, and Snocone is the only frontend behind it.** hq_S built a positive control first (my floor witness
+reproduces at rc=139 on their tree, both my controls green), then ran the Rebus equivalent in three
+spellings — if-condition with an empty branch body, while-condition, and a capture-pattern condition — all
+rc=0. The reason is structural and `--dump-ast` shows it in one line: Snocone builds `(TT_IF (TT_SCAN …))`,
+while **Rebus builds no `TT_IF` at all** (`(STMT :subj (TT_SCAN …) :goS … :goF …)`), compiling a
+match-used-as-a-condition into SNOBOL4-style success/failure goto wiring. Rebus cannot reach a
+`TT_IF`-over-`TT_SCAN` class by construction.
+
+⭐ **THE INFERENCE THAT MISSED, kept because it will recur: "the lowerer is shared, therefore the class is
+shared" is sound only where the frontends BUILD THE SAME NODE.** Two frontends over one lowerer is exactly
+where that premise fails quietly — `TT_IF` being built by six frontends says nothing about which of them
+builds it *over a `TT_SCAN`*. The practical cost of getting this wrong is not the paragraph: a cure carrying
+a Rebus control arm that can never flip would have sent someone hunting a second bug that does not exist.
+**The blast radius is one frontend, which is good news for the cure and bad news only for the flip count.**
+hq_S told hq_U directly as well. Raised as an ASK
 with this measurement, not landed.
