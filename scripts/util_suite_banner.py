@@ -289,38 +289,68 @@ def xfail_annotation(r, k):
     return (f"{xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
             f"numerator, so this row can only close by CURING them, never by re-captioning")
 def banner(plain=False, grid=True, ncol=2):
-    """PLAIN TEXT GRID, FIXED-WIDTH FIELDS, TWO COLUMNS SO 25 SUITES FIT 80 CHARACTERS WITHOUT WRAPPING.
+    """PLAIN TEXT GRID, FIXED-WIDTH FIELDS, TWO COLUMNS SO 25 SUITES FIT WITHOUT WRAPPING, GROUPED BY LANGUAGE.
     Lon 2026-09-12, verbatim: "Get rid of your stupid colors and your stupid emojis." / "You can remove that silly
     verbiage +xx since. Who cares. It means nothing. That is not a rate." / "Your banner is un-readable. Poorly
     formatted. Not vertically aligned. The word stale means what. How would you know?" / "Put in a grid."
+    Lon 2026-09-13, verbatim: "Add language and group by language the test suite banner."
     A cell is: suite, pass/total, the gap to 100%, the DATE the row was last measured (the fact 'stale' stood
     for), and a state only when it is one: done, the xfail count a master still carries (CEO-416), deferred,
-    no runner.  Nothing here is a colour, a glyph, a rate or a projection."""
-    head,rows=load(); today=dt.date.today(); parts=[]; done=0
+    no runner.  Nothing here is a colour, a glyph, a rate or a projection.
+
+    ⛔ THE GROUP RULE CARRIES ITS LANGUAGE'S OWN ARITHMETIC AND IT EXCLUDES WHAT IT CANNOT READ.  A suite with
+    no runner, or one Lon has deferred, has NO READING -- its population is real and its passes are unknown, so
+    it is summed into neither side of the fraction and is named separately on the rule ("+N unread").  Folding
+    an ungraded population in as zero passes would read as failure, and folding it in as absent would shrink
+    the denominator until the percentage flattered us; UNKNOWN IS NOT ZERO AND IT IS NOT ABSENT
+    (ARCH-PROGRAM-LEDGER § THE DENOMINATOR RULE).  The first line still prints the fleet-wide suite and done
+    counts unchanged, because test_gate_banner_leads_with_the_suite_line.sh reads it."""
+    head,rows=load(); today=dt.date.today(); done=0
     DEF=deferred_rows()
-    for r in rows:
-        k,e=eta(r,today)
-        if k=='NORUNNER':
-            dfr=DEF.get(r['key'])
-            parts.append((r['nick'], '-', r['today_total'], '-', '-', f"deferred {dfr['count']}" if dfr else 'no runner')); continue
-        left=int(r['today_total'])-int(r['today_pass'])
-        st=''
-        if k=='DONE': st='done'; done+=1
-        elif k=='XFAIL': st=f'{e} xfail'
-        elif k=='XFUNKNOWN': st='xfail unreadable'
-        elif xfail_annotation(r, k): st=f'{xfail_by_lang(r["lang"])} xfail'
-        parts.append((r['nick'], r['today_pass'], r['today_total'], str(left), r['today_date'][5:], st))
     W=(7,4,4,4,5,11)
     def cell(t): return f"{t[0]:<{W[0]}} {t[1]:>{W[1]}}/{t[2]:>{W[2]}} {t[3]:>{W[3]}} {t[4]:>{W[4]}} {t[5]:<{W[5]}}"
     hdrcell=cell(('suite','pass','tot','gap','date','state'))
-    cells=[cell(t) for t in parts]
+    GW=len(hdrcell)*ncol+3*(ncol-1)
+    groups={}
+    for r in rows:
+        k,e=eta(r,today)
+        lang=r['lang'] or '?'
+        g=groups.setdefault(lang,{'cells':[],'pass':0,'tot':0,'done':0,'unread':0,'n':0})
+        g['n']+=1
+        if k=='NORUNNER':
+            dfr=DEF.get(r['key'])
+            g['cells'].append(cell((r['nick'],'-',r['today_total'],'-','-',f"deferred {dfr['count']}" if dfr else 'no runner')))
+            g['unread']+=1
+            continue
+        left=int(r['today_total'])-int(r['today_pass'])
+        st=''
+        if k=='DONE': st='done'; done+=1; g['done']+=1
+        elif k=='XFAIL': st=f'{e} xfail'
+        elif k=='XFUNKNOWN': st='xfail unreadable'
+        elif xfail_annotation(r, k): st=f'{xfail_by_lang(r["lang"])} xfail'
+        g['pass']+=int(r['today_pass']); g['tot']+=int(r['today_total'])
+        g['cells'].append(cell((r['nick'], r['today_pass'], r['today_total'], str(left), r['today_date'][5:], st)))
     n=len(rows)
     print(f"{today.strftime('%m-%d')} {n} SUITES, {done} done")
-    if not grid: print(' | '.join(cells)); return
-    nrow=-(-len(cells)//ncol)
+    if not grid:
+        print(' | '.join(c for g in groups.values() for c in g['cells'])); return
     print(' | '.join([hdrcell]*ncol))
     print('-+-'.join(['-'*len(hdrcell)]*ncol))
-    for i in range(nrow): print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
+    # ⭐ WORST GAP FIRST, ties broken by name, so the language with the most work left is the one the eye lands
+    # on and the order is still deterministic for a banner printed every turn.
+    for lang in sorted(groups, key=lambda L: (-(groups[L]['tot']-groups[L]['pass']), L)):
+        g=groups[lang]
+        gap=g['tot']-g['pass']
+        bits=f"{g['n']} suite{'' if g['n']==1 else 's'}"
+        if g['done']: bits+=f", {g['done']} done"
+        if g['unread']: bits+=f", +{g['unread']} unread"
+        frac=f"{g['pass']}/{g['tot']} gap {gap}" if g['tot'] else "no reading"
+        lead=f"-- {lang} {frac} -- {bits} "
+        print(lead + '-'*max(0, GW-len(lead)))
+        cells=g['cells']
+        nrow=-(-len(cells)//ncol)
+        for i in range(nrow):
+            print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def md():
     head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
     print('| suite | lang | first graded reading | today | state |'); print('|---|---|---|---|---|')
