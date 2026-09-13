@@ -82,10 +82,45 @@ matters most here, because the generated parsers are tracked and `make` has no b
 edit that is not regenerated changes nothing and every board stays green. Raku parser fixtures 80/97,
 unchanged. RK-ZC-8 invariant B (the full Raku smoke suite) 719/0 both modes.
 
-⚠️ **The 221-arm blocking set was still running when this landed, and the landing did not wait on it.** The
-bar under MODE line 2 is the row's DONE-WHEN plus the gates the landing touched plus `make preflight`, and
-all three are green above. Reported rather than omitted: the set is at 31 of 221 with no red after ~50
-minutes, slowed by three sibling seats measuring on the same box. Its verdict follows in the baton.
+### The 221-arm blocking set, and the measurement I broke myself
+
+The landing did not wait on it — the bar under MODE line 2 is the row's DONE-WHEN plus the gates the landing
+touched plus `make preflight`. It finished afterwards: `11 blocking arm(s) failed, 10 refused`.
+
+⛔ **That reading is not the tree's, and nine of the ten refusals were mine.** I rebuilt the binary while the
+set was running. Arms 33–44 refused in a block, and `test_gate_runners_refuse_on_a_stale_binary.sh` went RED
+saying exactly that. Re-run on the settled tree, **all nine clear rc=0.**
+⭐ **A long measurement is a tree, not a command.** Anything that changes the tree mid-run invalidates every
+arm after it — and the honest tell was the single gate whose entire job is to notice that the binary moved.
+Every other arm just reported its own confusion.
+
+⭐⭐ **One arm named me, and it was right — which is the better half of this FINDING.**
+`test_gate_baton_donewhen_runnable.sh`: `runnable=398 UNCLOSEABLE=105, ceiling 89 — GREW by 16`, with the
+message *"if you minted one, make it a command before you push."* **Three of that day's growth were rows I
+minted in this very sitting**, each with a DONE-WHEN written as prose. A row like that can be **cured
+perfectly and record no flip**, because `done` refuses a criterion that cannot exit 0 — so the work
+disappears rather than the row, and the cost lands on whoever picks it up later, never on whoever minted it.
+That is the shape that does not self-correct.
+
+Fixed all three on the spot and proved each on **both** arms: `rc=1` naming the open defect, `rc=2` when it
+cannot measure. Two of the three had refused with *bash's* message rather than naming themselves — the same
+defect one level down — and now print `REFUSE(2): …` in their own voice. ⭐ This is the refusal-arm extension
+of fail-once that CEO-671 asked be filed, applied to my own work within the hour it was asked for.
+
+⛔ **Then the census turned on me.** By owner, the 102 uncloseable rows are **hq_T 33** · hq_P 19 · hq_B 12 ·
+hq_U 10 · hq_C 8 · hq_R 7 · hq_V 5 · hq_I 4 · hq_S 3 · coo 1. The largest share is mine, which is the only
+reason the backlog row earns its rank. The valve rather than the mop is at the mint:
+`mint-refuses-a-done-when-whose-first-word-is-not-a-command` (hq_B) — whose own DONE-WHEN mints a probe row
+with a prose criterion, cleans it up, and today reports **`FAIL: mint ACCEPTED a prose DONE-WHEN and wrote
+the row`**. The defect demonstrated live rather than described.
+
+**Also red and in my lane, rowed rather than patched:** the raku master is 977 of 1025 entries out of its
+builder's order — not from this landing (the corpus commit touched `LADDER.tsv` and nothing else). ⛔ I did
+not simply run `--resort`: it moves a population of 1025 rows, which is exactly the shape of
+`FINDING-2026-09-12-hq_T-moving-a-population-blinds-every-instrument-that-derives-it-and-the-gate-stays-green`.
+Running it as a tail-end action would have repeated the mistake that FINDING exists to prevent.
+
+✅ **Every Raku arm in the set is green.**
 
 ⛔ **`test_gate_raku_zframe.sh` invariant A is RED and is NOT this landing** — it asserts that the
 `SCRIP_RK_ZFRAME=0` killswitch still reproduces a bomb on `sub f($a){return $a*2} say f(21);`, and that
