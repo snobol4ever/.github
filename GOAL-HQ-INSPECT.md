@@ -42,6 +42,82 @@ hq_I owns the ICON SUITES: arizona (43/89), jcon_tests (44/81), ipl (851, run-gr
 3. Read this file's LIVE CURSOR, then `SCORE.md` § THE SEPTEMBER 10 GRID for your lane's cells, then assign each of your seats its first row (`s4e_msg.sh assign seatNN <topic>`, a runnable DONE-WHEN proven red once).
 
 ## LIVE CURSOR
+**2026-09-13 ~23:5x CDT hq_I — THIRD SITTING UNDER NONET; rung20 LANDED, AND THE SITTING'S REAL WORK WAS A BREAK
+I DID NOT CAUSE AND ALMOST FILED AGAINST MYSELF.**
+
+**LANDED — corpus `e874175bd`, read back from origin after the push.** `test_snocone_ladder.sh --to 20` reads
+**238/238 PASS FAIL=0** (witnesses=119) · forms check **106/106** · `make preflight` **40 arms, 0 red**. No full
+blocking set (CEO-697); no board; no SCORE.md row.
+
+**rung20 `augmented_assignment`, five forms.** SPITBOL has no augmented assignment, so as with rungs 17/18 the
+twins encode the desugaring the dialect DECLARES. ⭐ **Every ref is DISCRIMINATING rather than merely correct,
+which is where the thinking went:** `minus` 10,3 → 7 (swapped gives −7) · `div` 10,4 → **2**, grading operand
+order (swapped gives 0) *and* integer truncation (a real-promoting lowering prints 2.5) — inputs deliberately
+inexact, since an exact quotient would have graded neither · `pow` 3,2 → 9 (swapped gives 8) · `times` 10,2 → 20,
+which cannot grade order at all (commutative) but is distinct from all four other operators on the same input ·
+`plus` applied twice (15, 20) to prove update-in-place accumulation. The old row's own warning — that the prior
+art bundles all five into ONE chained probe, so its PASS graded the chain and not the operators — was right and
+is now discharged.
+
+⛔⭐⭐ **THE BREAK: `util_add_ladder_witness.py`, THE SANCTIONED ADD-A-WITNESS PATH, WAS REFUSING rc=2 FOR THIS
+LANGUAGE AND NOTHING WAS GOING RED.** `a6646f04c` removed the modes=ast entries from all seven masters on Lon's
+word (snocone 387 → 320) but left the banner sequence numbers and the CSV `rank` column at their OLD values —
+first entry banner 32, ranks 32..387 over 320 rows. The tool re-serializes the existing master through the
+harness's own reader/writer and refuses if it cannot reproduce it byte-for-byte; the writer numbers from 1, disk
+said 32. Repaired with that same reader/writer plus `--reindex` (corpus `15367bdf5`), verified content-invariant
+keyed by entry name: **320 of 320 source blocks and 320 of 320 ref blocks byte-identical, order unchanged**.
+⭐ **It was invisible to every gate I own** — ladder green, forms green, preflight green, master-order gate
+reads snocone *ok* — and I found it only by reaching for a tool I had never used. **A property with no gate is
+not a property anybody is holding.** Measured and *not* claimed: ranks are non-contiguous in **all seven**
+masters now, but icon, raku and snobol4 still pass the same round-trip, so I repaired snocone alone and told the
+coo rather than sweeping six masters I do not own.
+
+⛔⭐ **I ALMOST FILED IT AGAINST MYSELF, AND THE REASON IS THE KEEPER.** My first bisect checked the commit
+*before* my rung19 work and the commit *after* it, saw the refusal appear across that span, and pointed at my own
+landing. **It skipped the one commit that mattered.** Re-run naming each commit explicitly: my re-sort passes, my
+rung19 passes, `a6646f04c` refuses. **A bisect that does not test every commit in the span it accuses is not a
+bisect** — and mine failed in the self-blaming direction only by luck; the same gap points outward just as easily.
+
+⭐⭐ **I USED THE WRONG TOOL FOR rung19 AND THE DIFFS SAY SO.** rung20 through `util_add_ladder_witness.py`:
+**5 CSV rows, 11 ref lines, 27 source lines, ZERO deletions.** rung19 through the loose-pair builder route:
+**782 insertions against 707 deletions** for eight entries, because absorbing re-sorts and renumbers every banner
+after the insertion point. Same corpus, same kind of work. I did not know the script existed until I went looking
+for why the other route was so loud. **The sanctioned path for adding a ladder witness is
+`util_add_ladder_witness.py --oracle-twin --twin-equivalence`, not the builder.**
+
+**ROUTED, NOT CURED — three from this rung, each with the scope already separated:**
+1. **A SIXTH augmented operator exists and is not declared** — the remainder-assign form *works* (17,5 → 2)
+   while the **bare** remainder operator is a hard parse error, which is rung19's own REFUSE case. So the dialect
+   removed the operator and kept its compound form: either an oversight (dead grammar arm to delete) or a
+   deliberate extension (an undeclared sixth form). ⛔ **I did not declare it as a form, and that is the decision
+   I most want reviewed** — declaring it would have *blessed* it, and a graded form is hard to retract because
+   removing a witness reads as a regression. ASKed the ceo; better a measured gap than a minted fact.
+2. **`a[1] += 5` aborts FATAL** where the hand-desugared `a[1] = a[1] + 5` works — `lower_snobol4.c:766` accepts
+   a simple-variable lhs only. Everyday code, but that node is reached by the **Rebus** frontend too, so it is a
+   shared node and an ASK, never a ladder seat's landing.
+3. **A non-numeric arithmetic operand is silently swallowed** (`OUTPUT = 1 + 'x'` → prints nothing, continues,
+   rc=0) where `sbl -bf` raises ERROR 002. Reproduces on the **`.sno`** path and on the plain `+`, so it is
+   general, not augmented-assignment's and not Snocone's. Sent to the cfo. **Fails in the dangerous direction:**
+   a program the oracle halts produces a plausible answer under scrip.
+
+⭐ **hq_B answered both of yesterday's instrument reports and one answer corrects me:** `s4e_msg.sh send`
+**already refuses on an unescaped backtick** — the guard I asked for exists — **and it could not have saved me**,
+because my shell ate the backticks *before* send ran, so what reached the guard was clean prose with a hole in
+it. The guard answers *does this contain a backtick*; my question was *did this lose a word to substitution*, and
+the evidence is destroyed upstream. **The real cure is `send --stdin` with a quoted heredoc, which takes my shell
+out of the body path entirely — adopted for every message from here.** ⭐⭐ And hq_B's own near-miss is the line I
+am keeping: its first draft of the cured refusal text said `--stdin` lets you write backticks freely, which is
+FALSE (hq_T applies the guard on every path) — **a correct procedure with a false explanation, drafted inside the
+commit curing a correct procedure with a false explanation**, caught only by running both paths instead of
+reading the code and believing itself. The test this root's digest already names: **what would be observably
+different if my stated reason were false? If "nothing", I am holding a habit, not a fact.**
+
+**NEXT ROW FOR THIS SEAT** (named, not started): **rung21 `expression_list_vlist`** — and its declared row warns
+it is UNCLEAR, listing two old-ladder entries under one grammar node without explaining their relationship, so
+the first work is deciding whether it is one rung or two. After this sitting I will grade that row's claims
+against the oracle before believing any of them. The declared ladder runs to rung26; the SncM gap and its xfails
+are still untouched by this seat.
+
 **2026-09-13 ~22:4x CDT hq_I — SECOND SITTING UNDER NONET; SNOCONE LADDER WALKED TO rung19, THE LARGEST RUNG SO FAR.**
 Pulled all three repos first. Inbox carried one message from the cfo offering `simple_output_64` as the name of
 the SNOBOL4 master red this seat refused to quote last sitting; read, replied, cleared. ⛔ **THAT NAME IS
