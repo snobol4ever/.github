@@ -2,10 +2,10 @@
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree	criterion_changed
 gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-12	123	132	27ae59250	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
 csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-13	70	72	cb1578145	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
-snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-12	118	124	0a6e5520a	2026-09-07:ceo-383-stream-equal-and-per-program
+snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-13	117	124	05317a5fb	2026-09-07:ceo-383-stream-equal-and-per-program
 aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-13	4	7	cb1578145	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
 dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-13	5	5	cb1578145	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
-testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-12	1	2	0a6e5520a	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
+testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-13	1	2	05317a5fb	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
 arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-13	88	88	112912014	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
 jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-13	82	82	112912014	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
 ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-13	194	194	112912014	2026-09-07:ceo-372-and-per-program
@@ -24,4 +24,4 @@ snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-13	292	308	e87efd6b1	202
 reb-master	RebM	🧩	rebus	2026-09-03	15	48	2026-09-13	39	43	e87efd6b1	2026-09-13:coo-39-of-43-with-XPASS-4-four-stale-xfail-markers-in-corpus-1b6d3724e-hq_S-expects-43-once-promoted
 logtalk	Logtalk	🧿	prolog	2026-09-12	1218	3617	2026-09-13	2619	3600	5b17c350f	2026-09-11:vendored-09-11-3617-cases-(3268-test/2-plus-349-legacy-forms)-row-prolog-logtalk-iso-3268-conformance-cases-have-no-runner-hq_R-ceo-580-spike-util_logtalk_extract.py
 gnu_fd	GnuFD	🧮	prolog						30		2026-09-11:vendored-09-11-30-programs-DEFERRED-by-lon-ceo-572-fd-is-superset-and-ceo-579-do-not-count-as-failures-row-prolog-gnu-fd-thirty-constraint-programs-await-lons-superset-ruling
-x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-12	18	36	eec5d65ed	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U
+x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-13	18	36	05317a5fb	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U
