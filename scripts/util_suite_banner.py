@@ -352,41 +352,35 @@ def banner(plain=False, grid=True, ncol=2):
         for i in range(nrow):
             print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def grid():
-    """⛔⭐ THE GRID LON READS (Lon 2026-09-13, in-chat to ceo, verbatim: "Just display the test
-    suite scores as a grid, i.e. columns that line-up vertically."; CEO-688). FIXED-WIDTH COLUMNS,
-    ONE ROW PER SUITE, AND NARROW ENOUGH THAT NOTHING WRAPS -- the wrapping is the whole complaint
-    the textual banner earned, so width is the criterion and not decoration. 48 columns total; the
-    cells are TRUNCATED, never allowed to push the row wider. Grouped by language because that is
-    how the score is read, and a language line carries its own aggregate."""
+    """⛔⭐ THE ONE FORMAT LON READS THE SCORE IN (Lon 2026-09-13, chosen from candidates after
+    three were refused: the wrapping text banner, a published HTML page, and a first grid whose
+    per-language header lines broke the very alignment he asked for; CEO-688).
+    ONE UNIFORM TABLE. EVERY LINE IN THE SAME COLUMNS -- no group headers, no blank lines, no cell
+    allowed to push a row wider. Sorted worst gap first, so what needs attention is at the top.
+    ⛔ WIDTH IS A CRITERION AND NOT DECORATION: wrapping is the entire complaint the text banner
+    earned, so the row is built to 42 columns and cells are TRUNCATED to hold it."""
     head, rows = load(); today = dt.date.today()
-    by = {}
-    for r in rows: by.setdefault(r['lang'], []).append(r)
-    W_S, W_R, W_G, W_D = 8, 12, 5, 9
-    out = []
-    out.append('%-*s %*s %*s  %-*s' % (W_S, 'SUITE', W_R, 'RESULT', W_G, 'GAP', W_D, 'GRADED'))
-    out.append('-' * (W_S + W_R + W_G + 8))
+    W_S, W_L, W_R, W_G = 8, 8, 10, 6
+    FMT = '%-*s %-*s %*s %*s  %s'
+    out = [FMT % (W_S, 'SUITE', W_L, 'LANG', W_R, 'RESULT', W_G, 'GAP', 'GRADED')]
+    def gap_of(r):
+        if not r['today_pass']: return -1
+        return int(r['today_total']) - int(r['today_pass'])
     gp = gt = 0
-    for lang in sorted(by, key=lambda L: -sum(int(x['today_total'] or 0) - int(x['today_pass'] or 0) for x in by[L])):
-        lp = lt = 0
-        for r in by[lang]:
-            if r['today_pass'] == '' or r['today_date'] == '': continue
-            lp += int(r['today_pass']); lt += int(r['today_total'])
-        gp += lp; gt += lt
-        tag = 'CLOSED' if lp == lt and lt else ('gap %d' % (lt - lp))
-        out.append('')
-        out.append('%s  %d/%d  %s' % (lang.upper()[:W_S], lp, lt, tag))
-        for r in sorted(by[lang], key=lambda x: -(int(x['today_total'] or 0) - int(x['today_pass'] or 0))):
-            nick = r['nick'][:W_S]
-            if r['today_pass'] == '' or r['today_date'] == '':
-                out.append('%-*s %*s %*s  %-*s' % (W_S, nick, W_R, '-/' + (r['today_total'] or '?'), W_G, '-', W_D, 'deferred'))
-                continue
-            pp, tt = int(r['today_pass']), int(r['today_total'])
-            g = tt - pp
-            age = (today - d(r['today_date'])).days
-            when = 'today' if age == 0 else ('1 day' if age == 1 else '%d days' % age)
-            out.append('%-*s %*s %*s  %-*s' % (W_S, nick, W_R, '%d/%d' % (pp, tt), W_G, ('0' if g == 0 else '-%d' % g), W_D, when))
-    out.append('')
-    out.append('%-*s %*s %*s' % (W_S, 'ALL', W_R, '%d/%d' % (gp, gt), W_G, '-%d' % (gt - gp)))
+    for r in sorted(rows, key=lambda x: -gap_of(x)):
+        nick, lang = r['nick'][:W_S], r['lang'][:W_L]
+        if not r['today_pass'] or not r['today_date']:
+            out.append(FMT % (W_S, nick, W_L, lang, W_R, '-/' + (r['today_total'] or '?'),
+                              W_G, '-', 'deferred'))
+            continue
+        pp, tt = int(r['today_pass']), int(r['today_total'])
+        gp += pp; gt += tt
+        g = tt - pp
+        a = (today - d(r['today_date'])).days
+        when = 'today' if a == 0 else ('1 day' if a == 1 else '%d days' % a)
+        out.append(FMT % (W_S, nick, W_L, lang, W_R, '%d/%d' % (pp, tt),
+                          W_G, ('0' if g == 0 else '-%d' % g), when))
+    out.append(FMT % (W_S, 'ALL', W_L, '', W_R, '%d/%d' % (gp, gt), W_G, '-%d' % (gt - gp), ''))
     for ln in out: print(ln.rstrip())
 
 def md():
