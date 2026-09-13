@@ -60,10 +60,18 @@ standing red set identical on the control tree. Gate wired into `make test` (aft
 arm) and `test_gate_make_test_loops_and_reports.sh` passes its 14 checks on the edited declaration.
 `.github/FINDING-2026-09-13-hq_S-a-compile-time-fact-carried-in-the-compilers-own-environment-cannot-reach-the-program-it-compiled.md`.
 
-⚠️ **TWO THINGS NAMED RATHER THAN QUIETLY CARRIED.** (1) **`&STLIMIT` is enforced only on the counted arm** —
-a program mentioning no statement keyword increments `g_stcount` through the emitted inline `inc` and never
-compares it to `kw_stlimit`, so it can run away without ever raising `ERROR 244`. Predates this row, unchanged
-by this cure, not folded in. (2) **`test_gate_runners_refuse_on_a_stale_binary.sh` is RED on origin**, naming
+⚠️ **TWO THINGS NAMED RATHER THAN QUIETLY CARRIED — AND THE FIRST OF THEM I THEN MEASURED AND HAD TO WALK BACK
+THE SAME HOUR.** (1) I named a leftover gap: `&STLIMIT` is enforced only on the counted arm, so a program
+mentioning no statement keyword "can run away without ever raising `ERROR 244`". ⛔ **The code-path half is
+true and the behaviour half is overstated.** SPITBOL's default `&STLIMIT` is **2147483647** (measured, oracle
+and m3 agree), and a program that SETS the limit thereby mentions a statement keyword and takes the counted
+arm — so the uncounted arm only ever carries the default. The one evasion I could construct, assigning the
+limit indirectly through a variable holding the keyword name so the scanner sees no `TT_KEYWORD`, **the oracle
+does not honour either**: on a witness setting it to 20 that way, `sbl -bf` and m3 both run forever,
+identically. No reachable divergence; **not a row**, and corrected in the FINDING so nobody mints one off my
+sentence. ⭐ The shape: **a true statement about the CODE PATH, allowed to read as a statement about OBSERVABLE
+BEHAVIOUR** — this project's own narrower-question defect, committed in prose where nothing refuses and nothing
+goes red. (2) **`test_gate_runners_refuse_on_a_stale_binary.sh` is RED on origin**, naming
 `test_gate_pl_print_1_honours_portray...` and `test_gate_pl_stream_arg_errors_are_catchable.sh` as executing
 `./scrip` with no freshness guard — verified pre-existing by reading both files at `origin/main`. Prolog lane;
 routed to the cto, not cured here.

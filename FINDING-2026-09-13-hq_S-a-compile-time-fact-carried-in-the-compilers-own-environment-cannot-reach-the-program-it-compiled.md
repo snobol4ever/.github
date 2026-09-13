@@ -87,9 +87,25 @@ now wired into an instrument instead of remembered.
 - `make preflight`: **39 arms, 0 red**.
 - Smokes, all languages, compared name-for-name against the same tree rebuilt without the change: the red set is **identical** (`sn26_scr_subscript_bridge`, `snobol4_jvm`, `snobol4_net`, `snobol4_net_bb_gate`, `sno_command_match`, `snocone_parse_a..j`, `unified_broker`) and the refusals are identical (`self_beautify` — no CSNOBOL4 oracle installed; `snobol4_js` — the driver removed `--target`). Icon 15/15, Pascal 9/9, Prolog 5/5, Snocone 5/5, polyglot 2/2, hello-all-langs 6 rows no drift.
 
-## The gap this leaves, named so it is not mistaken for closed
+## ⛔ A CORRECTION AGAINST MYSELF, MADE BY MEASURING MY OWN LEFTOVER SENTENCE
 
-`&STLIMIT` is enforced only on the counted arm. A program that mentions **no** statement keyword still lowers
-down the inline-mark arm, where `g_stcount` is incremented by the emitted `inc` but never compared against
-`kw_stlimit` — so a runaway loop in such a program never raises `ERROR 244`. That is a separate class from
-this row, it predates it, and this cure neither closes nor worsens it. Not rowed here; reported to the ceo.
+This FINDING first closed with a gap named in these words: *`&STLIMIT` is enforced only on the counted arm, so
+a program mentioning no statement keyword can run away without ever raising `ERROR 244`.* The first half is
+true of the code path. **The second half is materially overstated, and measuring it took two minutes I should
+have spent before writing it.**
+
+- SPITBOL's default `&STLIMIT` is **2147483647**, measured (`OUTPUT = &STLIMIT`, oracle and m3 agree) — not a
+  small number a loop wanders past.
+- A program that **sets** `&STLIMIT` thereby **mentions a statement keyword** (`stlimit` is in
+  `sno_kw_is_stmt`) and is lowered down the **counted** arm. So the uncounted arm can only ever be carrying
+  the default.
+- The one evasion I could construct — assigning the limit indirectly through a variable holding the keyword's
+  name, so the scanner never sees a `TT_KEYWORD` node — **the oracle does not honour either**: on a witness
+  setting the limit to 20 that way, `sbl -bf` and m3 both run forever, identically.
+
+So there is **no reachable divergence from SPITBOL here**, only an unreachable one at two billion statements.
+It is not a row, and a future seat should not mint one off the earlier sentence. ⭐ The general form, and the
+reason this correction is kept rather than edited away: **I wrote a true statement about the CODE PATH and let
+it read as a statement about OBSERVABLE BEHAVIOUR.** That is this project's own narrower-question defect —
+the one `command -v icont` and `$?`-after-a-pipeline are the famous cases of — committed in prose, where
+nothing refuses and nothing goes red.
