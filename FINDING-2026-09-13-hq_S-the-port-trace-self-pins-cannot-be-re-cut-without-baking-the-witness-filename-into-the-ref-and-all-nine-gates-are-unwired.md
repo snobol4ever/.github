@@ -65,6 +65,33 @@ in a file nobody reads while re-cutting a port-trace ref.**
 that is an instrument limit and not a result. Icon is out of scope by construction: `test_gate_icn_port_trace.sh` is the
 **oracle-diff** shape and deliberately not built on this body.
 
+⛔⭐ **CORRECTED BY A FULL SWEEP — IT IS NOT TWO REDS, IT IS ZERO GREEN OUT OF SIX.** I first reported "two self-pins
+red (pas + reb)" from a partial run. All nine port-trace gates, measured on SCRIP `985e66ce8`:
+
+| gate | shape | rc |
+|---|---|---|
+| `icn_port_trace` | **ORACLE DIFF** | **0 — GREEN** |
+| `pl_port_trace_oracle_diff` | **ORACLE DIFF** | **0 — GREEN** |
+| `pas_port_trace` | self-pin | 1 — RED |
+| `raku_port_trace` | self-pin | 1 — RED |
+| `reb_port_trace` | self-pin | 1 — RED |
+| `sc_port_trace` | self-pin | 1 — RED |
+| `pl_port_trace` | self-pin | **124 — TIMEOUT, unmeasured** |
+| `sno_port_trace` | self-pin | **2 — REFUSED** |
+| `sno_port_trace_oracle_diff` | oracle diff | **2 — REFUSED** |
+
+**Not one of the six self-pins is green. Both working oracle diffs are.** ⭐ That is an empirical argument about
+instrument design and not a coincidence: **a ref cut from our own output rots with every legitimate machine change,
+and a ref cut from an oracle does not.** The `SNO$STMT` preamble was a wanted cure, and it invalidated six refs while
+touching neither oracle-anchored gate. The digest already ranks the oracle diff as "strictly stronger" than the
+self-pin; this is the first measurement of what the weaker shape costs — it goes red on its own side's improvements,
+and the six reds here are *nobody's defect*. A self-pin is a rename-and-improvement detector wearing a correctness
+gate's clothes.
+
+⛔ The four reds are **not one class**. `reb` and `sc` are filename-exposed, so plausibly mine; `pas` and `raku` carry
+**no filename line at all**, so theirs is something else. `pl` is a timeout and `sno` a refusal — **neither is a
+reading**, and the honest word for both is *unmeasured*. I am attributing only Rebus.
+
 ⛔ **`test_gate_pas_port_trace.sh` is ALSO RED, and it is NOT this class** — Pascal carries no filename line. I am not
 attributing it and I am not claiming it; it is a separate row for whoever owns Pascal.
 

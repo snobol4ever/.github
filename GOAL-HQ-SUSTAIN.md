@@ -49,8 +49,13 @@ identical hazard is already written down in `lib_ladder.sh` for Icon's stderr tr
 filename … would rot the first time an origin is renamed"* — so the warning existed, in a file nobody reads while
 re-cutting a port-trace ref. **EXPOSED, measured with real extracted witnesses: snobol4, rebus, snocone** (the three
 lowering through `lower_snobol4.c`); **not exposed: raku, pascal**; **prolog UNMEASURED** (its gate exited rc=124, a
-timeout firing, which its own banner says cannot distinguish slow from hung). `test_gate_pas_port_trace` is **also red
-and is NOT this class** (no filename line) — someone else's row, not claimed. ⛔⛔ **AND THE REASON A RED SURVIVED NINE
+timeout firing, which its own banner says cannot distinguish slow from hung). ⛔⭐ **CORRECTED BY A FULL SWEEP: it is not two reds, it is ZERO GREEN OUT OF SIX SELF-PINS** — `pas` `raku` `reb` `sc`
+RED, `pl` rc=124 TIMEOUT, `sno` rc=2 REFUSED — **while BOTH working oracle diffs (`icn`, `pl_oracle_diff`) are GREEN.**
+⭐ That is a measurement about instrument design: **a ref cut from our own output rots with every legitimate machine
+change; a ref cut from an oracle does not.** The `SNO$STMT` preamble was a wanted cure and it invalidated six refs
+while touching neither oracle-anchored gate — so a self-pin is a rename-and-improvement detector in a correctness
+gate's clothes, and these six reds are nobody's defect. The four reds are NOT one class (`pas`/`raku` carry no filename
+line); `pl` and `sno` are not readings at all. I attribute only Rebus. ⛔⛔ **AND THE REASON A RED SURVIVED NINE
 DAYS: ALL NINE PORT-TRACE GATES ARE UNWIRED** — every one is `TASK` in `gate_wiring.tsv` and `make test`'s recipe
 contains no `port_trace` at all, so **item 6 of the seven-point standard is built for all seven languages and graded by
 nothing automatically.** ⭐ A false negative I caught one command later: my first Snocone/Raku probes said "not
