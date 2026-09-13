@@ -402,6 +402,8 @@ def grid(plain=False):
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
     "I want a excel type grid with lines and cells." - "I mean border lines." - "make it smaller." - "Take the
     grid you had and make it smaller.").
+    ROWS ARE ORDERED BY LANG, THEN BY SUITE NAME (Lon 2026-09-13: "Put rows in order by lang and then suite
+    name."). The TSV's own order is custody order, which is not a reading order.
     ONE SUITE PER ROW with its own columns, which is the grid Lon kept -- made SMALLER by spending less on
     whitespace and rules rather than by re-laying it out: cells are padded by one column instead of two, and
     the rule between every data row is gone, keeping the outer border and the header rule. 24 suites go from
@@ -413,6 +415,7 @@ def grid(plain=False):
         except (ValueError,KeyError): continue
         pct=f"{(100.0*tp/tt):.0f}%" if tt else "-"
         data.append([r['nick'], r.get('lang',''), f"{tp}/{tt}", pct, "DONE" if tt and tp>=tt else ""])
+    data.sort(key=lambda r: (r[1].lower(), r[0].lower()))
     if not data:
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
     hdr=["Suite","Lang","Score","Pct","State"]
