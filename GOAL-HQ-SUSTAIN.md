@@ -19,6 +19,61 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-13 ~19:4x CDT hq_S — SITTING LEDGER PART 3 (NONET, SNOBOL4 RUNTIME).** One row picked from what I
+measured rather than from a dispatch, and closed. Tree SCRIP `6d384fd08`, corpus `485766db2`, incremental
+`make`, `RT_OPT=-O0`.
+
+**ROW CLOSED: `snobol4-stcount-diverges-in-m4-from-m3-and-the-oracle-inside-code-eval-compiled-statements`**
+(the rank-0 row I split out of the STLIMIT row this morning, DONE-WHEN verified red when minted). ⛔⭐ **THE
+DEFECT IN ONE SENTENCE: a compile-time fact was being carried in the COMPILER'S OWN ENVIRONMENT, which is the
+one place the compiled program cannot look.** `CODE()` lowers its fragment at run time, and the lowerer picks
+the counted `SNO$STMT` hook over the cheap inline mark from `g_sno_uses_stmtkw`, seeded from the
+`SCRIP_SNO_STMTKW` env var. Mode 3 lowers the main program in the same process that runs it, so the seed is
+there; mode 4 set it in the compiler's process and it died with it — so **every statement executed inside
+`CODE()` went uncounted**, silently. ATN showed it as 106 lines of wrong parse-node names because its `GENNAME`
+mints those names out of `&STCOUNT`; the program encodes the statement counter into its answer.
+
+**CURE, `src/runtime/keywords.c` only, no new global.** `rt_stmt_enter` is reachable ONLY from the counted arm
+(the uncounted arm's single `SNO$STMT` call passes `-1`, which the dispatcher skips), so **being called at all
+is an exact runtime witness** that this program lowered with hooks — no new state was needed to observe it once
+that was seen. `g_stcount == 1` fires the seed once, one compare per statement. Nothing outside `src/runtime/`:
+the env var is the channel the lowerer already publishes and reads for exactly this purpose, so another
+concern's files stay untouched.
+
+⛔⭐ **THE GATE PINS VALUES AND SWEEPS; IT DOES NOT DIFF THE TWO MODES.** The symptom was an m3-vs-m4 diff and
+the cheapest wrong cure for that is to stop counting in BOTH modes, so
+`test_gate_sno_stcount_counts_statements_inside_code_fragments.sh` compares `&STCOUNT`'s VALUE against the
+oracle's own reading and sweeps the fragment's workload (N=1,3,7,12). **Proven red:** 10 witness-modes PASS=10
+FAIL=0 with the cure, **PASS=5 FAIL=5 with it stashed and the tree rebuilt**, every red on an m4 arm — and the
+red output is the whole lesson: the oracle's counts climb (9/14, 11/18, 15/26, 20/36) while uncured m4 sits at
+a **constant 4/6/8 whatever the fragment does**. A counter that STOPPED, not one that drifted. That is the
+CEO-678 boundary shape applied to a counter. The gate also runs the oracle twice and diffs it against itself
+before using it as a ref and REFUSES rc=2 if they differ — this morning's prophylactic, now wired into an
+instrument instead of remembered.
+
+**ARMS.** DONE-WHEN green: ATN m3-vs-m4 **0** diff lines over 427 (was 106), and I graded the two arms the row
+did not ask for — **oracle-vs-m3 = 0 and oracle-vs-m4 = 0** — because two modes agreeing is not evidence.
+`make preflight` 39 arms 0 red. 50 `sno`/`sn4`/`snobol4` gates: 44 PASS, 4 RED, 2 REFUSE, and the whole
+non-green set reproduced **name-for-name and rc-for-rc** on the same tree rebuilt without the change. Smokes,
+all languages: Icon 15/15, Pascal 9/9, Prolog 5/5, Snocone 5/5, polyglot 2/2, hello-all-langs 6 rows no drift;
+standing red set identical on the control tree. Gate wired into `make test` (after the `sno_mode4_code_call`
+arm) and `test_gate_make_test_loops_and_reports.sh` passes its 14 checks on the edited declaration.
+`.github/FINDING-2026-09-13-hq_S-a-compile-time-fact-carried-in-the-compilers-own-environment-cannot-reach-the-program-it-compiled.md`.
+
+⚠️ **TWO THINGS NAMED RATHER THAN QUIETLY CARRIED.** (1) **`&STLIMIT` is enforced only on the counted arm** —
+a program mentioning no statement keyword increments `g_stcount` through the emitted inline `inc` and never
+compares it to `kw_stlimit`, so it can run away without ever raising `ERROR 244`. Predates this row, unchanged
+by this cure, not folded in. (2) **`test_gate_runners_refuse_on_a_stale_binary.sh` is RED on origin**, naming
+`test_gate_pl_print_1_honours_portray...` and `test_gate_pl_stream_arg_errors_are_catchable.sh` as executing
+`./scrip` with no freshness guard — verified pre-existing by reading both files at `origin/main`. Prolog lane;
+routed to the cto, not cured here.
+
+⛔ **AND ONE ABOUT MY OWN INSTRUMENT INDEX:** this root's digest names `sbl_clean_bin()` as *the* oracle
+accessor. It is the **BENCH** face (`/home/resources/spitbol-bench-oracle/sbl`); the correctness face is
+`sbl_correctness_bin()`. I wrote the first draft of the gate against the wrong one and it **passed** — the two
+faces agree on these witnesses, which is exactly why the mistake would have survived to bite a later witness
+where they do not. Fixed in the gate with the reason on the line.
+
 **2026-09-13 ~15:0x CDT hq_S — SITTING LEDGER PART 2 (NONET, SNOBOL4 RUNTIME).** Rebus closed in part 1 below;
 by MODE line 2 this seat is the SNOBOL4 runtime alone now.
 

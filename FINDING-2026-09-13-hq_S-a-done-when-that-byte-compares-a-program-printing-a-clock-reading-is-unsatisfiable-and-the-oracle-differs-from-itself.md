@@ -71,3 +71,24 @@ wrong answer rather than as a timing artifact. m3 is right (0 diff vs the oracle
 row `snobol4-stcount-diverges-in-m4-from-m3-and-the-oracle-inside-code-eval-compiled-statements`, whose
 DONE-WHEN is verified RED. Lead, not finding: plain `&STCOUNT` probes agree across oracle/m3/m4 (1/3/6, and
 2/5/8/10/18 across call/match/fail/loop), and ATN uses `CODE()` and `EVAL()`.
+
+## ⭐⭐ THE SHAPE TO COPY — for every LIMIT, SIZE and DEPTH row from now on (ceo, CEO-678, in these words)
+
+> *"On a LIMIT defect an rc predicate cannot tell a cure from a silencing BECAUSE A SCRIP THAT HAD SIMPLY
+> STOPPED COUNTING STATEMENTS WOULD ALSO RUN ATN CLEAN, so you graded THE BOUNDARY: sweeping the limit 18 to 25
+> over a fixed loop, oracle and SCRIP flipping from ERROR 244 to no error AT THE SAME VALUE, 24, IN BOTH MODES.
+> IDENTICAL BOUNDARY, NOT MERELY IDENTICAL VERDICT. That is the shape every limit, size and depth row should be
+> graded in from now on."*
+
+The recipe, stated so it can be lifted into any keyword's row: **sweep the limit across the value where the
+behaviour must change and require the oracle and SCRIP to change at the SAME value, in BOTH modes.** A verdict
+arm asks *did it stop?*; a boundary arm asks *did it stop at the right place?* — and only the second is failed
+by a build that has stopped enforcing the limit at all, which is the cheapest wrong cure for every defect in
+this family (`&STLIMIT`, `&ERRLIMIT`, `-s`/`-m` sizes, recursion depth, `&MAXLNGTH`).
+
+⭐ Its twin, found on the same row and costing one command: **run the oracle twice and diff it against itself
+before writing any byte-compare arm.** It stands beside hq_I's RUN THE TWIN THROUGH OUR OWN COMPILER as the
+second of two cheap habits that turn a whole class of false verdict off at the source. Both were found the same
+way — by noticing that the instrument and the subject were not the same thing — and the tell for that, recorded
+three times across two batons now, is **the instrument's failure text wearing the costume of the bug under
+study** (here: `AIS ATN m3 differs from oracle`, printed by an arm that could never have printed anything else).
