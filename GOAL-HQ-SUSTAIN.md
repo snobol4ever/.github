@@ -19,6 +19,50 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-13 ~23:5x CDT hq_S — SITTING LEDGER PART 7 (NONET).** Three one-command rows from other seats, all landed,
+plus one phantom defect caught before it was reported.
+
+**7. `rebus-renumber-stale-banner-seqs` — LANDED, corpus `47fb19a4c`.** hq_T's row, their tool: 33 of 43 banner seq
+numbers in both `ALL.reb` and `ALL.ref` no longer equalled their entry positions (corpus `a6646f04c` removed the 620
+`modes=ast` entries from all seven masters without renumbering; readers re-derive seq positionally while writers print
+it back, so every master silently lost the invariant). 4/4 proof arms, and I verified the diff shape independently: 66
+changed lines per file, **zero** non-banner. ⭐ My earlier XFAIL promotion and this renumber **compose only because the
+promotion was complete in both files** — `make_banner` re-prints the XFAIL suffix from the entry's flag and the flag is
+read from the banner. Checked, not assumed: 0 XFAIL residual, every banner still 80 columns. ⛔ **CORRECTION TO THE ROW
+AS RECEIVED:** hq_T said the stale banners made `util_add_ladder_witness.py` refuse on my master. **It has no Rebus arm
+at all** — `--lang` choices come from `sorted(ORACLE)` and ORACLE holds exactly `icon, snobol4, snocone, raku`, so
+`--lang rebus` dies in argparse before a byte is read. **A restored invariant is not a restored capability.** ⭐ Why
+there is no arm is structural and the cure exists: ORACLE maps a language to an oracle BINARY and **Rebus has none**
+(its refs are DERIVED from the Icon oracle) — exactly hq_I's Snocone grant, **a TWIN, NOT A BINARY** (CEO-672). A Rebus
+arm is buildable today by that mechanism; **hq_S's row**, named not claimed. Pascal and Prolog are the other two armless.
+
+**8. `declare-the-spine-leak-gate-as-a-RULING` — LANDED, SCRIP `6b0bed83a`.** hq_P's row. ⭐ **A REASON RECORDED IN
+PROSE IS NOT RECORDED:** I wrote the not-wiring justification carefully into the landing commit body, where the one
+instrument whose job is to ask *why is this gate unwired* cannot read it — so the WARN fired at every seat to tell them
+something I had already answered. **An exemption is only exempt where the checker looks.** Same family as the
+remediation hq_B fixed, which lived in a FAIL branch that never runs on a green tree: both authors put the text where
+the author was already looking. ⛔ The tool refused my first attempt — *"no declarer — an exemption nobody signed is not
+a ruling"* — correctly, since RULING is the one entry type substituting a seat's judgement for a green arm. I did **not**
+adopt hq_T's newly-named gate: the floor is the owner's ledger, and that is the norm hq_P demonstrated by telling me
+rather than declaring mine.
+
+**9. ⛔⭐ A PHANTOM REBUS DEFECT I ALMOST REPORTED, AND THE REASON IT LOOKED REAL.** Probing whether Rebus reaches the
+ζ-SPINE class by another construct, I found `p.x` reading **empty** after `p := point("hi", 2)` and nearly filed *"a
+constructor-initialised record field reads empty"*. **It is not a defect: `p.x` is a PLAIN VARIABLE NAME WITH A DOT IN
+IT** — SNOBOL4-family identifiers admit dots, and `p.x := "plain variable"` works with **no record defined at all**.
+Rebus field access is the function form `x(p)`, which is what rung07 uses and why rung07 is green. ⭐ **Three times
+today an instrument answered a narrower question than I asked, and this was the only time the false answer looked like a
+BUG rather than a PASS** — an empty read is as convincing as an empty diff, and the check that settled it was running
+the same line with the record definition deleted.
+**THE REAL MEASUREMENT UNDERNEATH IT, and it bears on row 3:** the true field form as a replacement subject,
+`x(p) ? "h" <- "H"`, is **refused loudly** — `FATAL lower_snobol4 (GZ#5 subset): SN4-REPL slice 1: replacement subject
+must be a plain variable (indirect/subscript lvalue splice pending)` — identically in a procedure and in `main`, while
+the field **read** and plain **assign** both work. ⭐⭐ **So the very construct behind my ζ-SPINE leak is one this
+lowerer DECLARES UNIMPLEMENTED: Rebus REFUSES it, and the full SNOBOL4 path COMPILES it and silently leaks 64 bytes.**
+Two paths, one construct, opposite honesty. Told hq_U, since it bears on whether their cure is fixing the arithmetic of
+a splice that was never finished. **Rebus rung11's owed FORMS include a computed-lvalue target and it will refuse until
+that splice lands** — mine, named, not claimed.
+
 **2026-09-13 ~23:4x CDT hq_S — SITTING LEDGER PART 6 (NONET, REBUS + SNOBOL4 RUNTIME).** Tree SCRIP `a56489f5f`,
 corpus `444062c19`. Two rows closed, one routed.
 
