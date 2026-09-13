@@ -23,9 +23,9 @@ One row per suite — our seven masters and every vendored package suite alike �
 | Roast | raku | 6/986 | 2026-09-13 (today) | `e51a643b3` |  |
 | SnoM | snobol4 | 1928/1939 | 2026-09-13 (today) | `5b17c350f` | 10 xfail counted as FAIL of a 11-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnM | icon | 826/826 | 2026-09-13 (today) | `71b32337f` | done |
-| ProM | prolog | 529/560 | 2026-09-12 (yesterday) | `55aaa01ad` |  |
-| PasM | pascal | 246/246 | 2026-09-12 (yesterday) | `577298671` | done |
-| RakM | raku | 680/880 | 2026-09-12 (yesterday) | `55aaa01ad` | 123 xfail counted as FAIL of a 200-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| ProM | prolog | 539/563 | 2026-09-13 (today) | `ddfe8159e` |  |
+| PasM | pascal | 246/246 | 2026-09-13 (today) | `ddfe8159e` | done |
+| RakM | raku | 746/888 | 2026-09-13 (today) | `ddfe8159e` | 107 xfail counted as FAIL of a 142-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | SncM | snocone | 292/308 | 2026-09-13 (today) | `e87efd6b1` | 16 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | RebM | rebus | 39/43 | 2026-09-13 (today) | `e87efd6b1` |  |
 | Logtalk | prolog | 2619/3600 | 2026-09-13 (today) | `5b17c350f` |  |
