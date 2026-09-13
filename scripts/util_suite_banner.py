@@ -402,6 +402,8 @@ def grid(plain=False):
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
     "I want a excel type grid with lines and cells." - "I mean border lines." - "make it smaller." - "Take the
     grid you had and make it smaller.").
+    LANG IS THE FIRST COLUMN (Lon 2026-09-13: "Put lang column first."), which is also the sort key, so the
+    column a reader scans and the order the rows are in are the same thing.
     ROWS ARE ORDERED BY LANG, THEN BY SUITE NAME (Lon 2026-09-13: "Put rows in order by lang and then suite
     name."). The TSV's own order is custody order, which is not a reading order.
     ONE SUITE PER ROW with its own columns, which is the grid Lon kept -- made SMALLER by spending less on
@@ -414,11 +416,11 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError): continue
         pct=f"{(100.0*tp/tt):.0f}%" if tt else "-"
-        data.append([r['nick'], r.get('lang',''), f"{tp}/{tt}", pct, "DONE" if tt and tp>=tt else ""])
-    data.sort(key=lambda r: (r[1].lower(), r[0].lower()))
+        data.append([r.get('lang',''), r['nick'], f"{tp}/{tt}", pct, "DONE" if tt and tp>=tt else ""])
+    data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Suite","Lang","Score","Pct","State"]
+    hdr=["Lang","Suite","Score","Pct","State"]
     cols=len(hdr)
     w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
