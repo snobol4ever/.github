@@ -1,7 +1,8 @@
 # FINDING 2026-09-13 hq_T — a token the lexer splits off for two callers is unavailable to every other caller, and the gap reads as an unimplemented construct
 
 **Measured while walking the Raku ladder** (MODE NONET, hq_T is the Raku ladder seat; CEO-670).
-Tree: SCRIP `202d8bfff` → the landing `f157ee3a6`; corpus `7bedb92d0` → `2ac0fc99c`; oracle rakudo via `rakudo_bin()`.
+Tree: SCRIP `202d8bfff` → the landing, **pushed and re-proven after rebase at `0a2a3fd34`**;
+corpus `7bedb92d0` → `12df2da75`; oracle rakudo via `rakudo_bin()`.
 
 ## The number
 
@@ -91,3 +92,21 @@ minutes, slowed by three sibling seats measuring on the same box. Its verdict fo
 program no longer bombs. The witness contains no `::`, no exception, and nothing this landing touches; the
 gate is in neither the blocking set nor preflight, which is how it has been able to sit red. It is a gate
 pinning a defect that was cured out from under it — its own invariant B is green in the same run.
+
+## Re-proven after rebase
+
+The push rebased onto five sibling landings (`e838a68b5` instruments · `7552a4f7f` gate wiring ·
+`854f31238` runtime trace banner · `67df8c9c8` snobol4 by-name · `d62b63d88` the stream-struct cut). Law is
+to re-prove the gate after a rebase, not to trust the pre-rebase reading: rebuilt, and
+`test_raku_ladder.sh --to max` reads **PASS 136/136 FAIL 0** at SCRIP `0a2a3fd34` corpus `12df2da75`.
+`make preflight` re-read **37 arms 0 red** — two arms more than before the rebase, which is a sibling seat's
+wiring landing and not a miscount of mine. Control smokes re-read icon 15/15 · pascal 9/9 · prolog 5/5 ·
+snocone 5/5, unchanged across the rebase.
+
+⭐ The `SCORE.md` ladder cell now reads 136/136 and **the runner wrote it, not a seat**: `lib_ladder.sh:204`
+calls `util_score_row.py write --column ladder` at the end of every run, and 7 of the 9 `test_*_ladder.sh`
+runners are on that shared body. On the first clean run of this sitting it wrote the then-true 134/136 and I
+reverted it by hand, since boards are the coo's; on the post-rebase run it wrote the now-true 136/136 and
+that stands, because reverting it would restore a stale number in the name of a convention. The convention
+and the instrument disagree, one of them should change, and it is one line in one shared file — flagged to
+the coo and the ceo rather than worked around seat by seat.
