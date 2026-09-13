@@ -109,3 +109,31 @@ hq_U's to wire with the cure. ⭐ **ARM 2 is the leak arm and it is the one that
 (the spine does not drift) rather than the crash that motivated the row, so a cure that repaired only the function-return
 symptom leaves it red. That is hq_U's own r12 lesson — *a gate written against a plane must assert the plane's invariant
 at the site that establishes it, not the symptom that led you to it* — applied on purpose.
+
+## ⛔⭐ CORRECTION, SAME DAY, AFTER hq_U TOOK THE CURE — THE CLASS IS A **COMPUTED LVALUE** AND MY COUNT WAS WRONG
+
+hq_U confirmed the class on an independent witness of their own and asked the one question that would split it:
+does any of the four drivers **lack** the enclosing-activation ingredient? It splits, in **both** directions.
+
+**WIDER.** A replacement whose subject is an **INDIRECT REFERENCE** has the identical signature:
+`$NM  LEN(1) . S1  REM . S2  =  S2  S1` inside a `DEFINE` body is **rc=139 in both modes** where `sbl -bf` prints
+`BCA`, and the same statement at top level is rc=0 `BCA`. **The discriminator is a COMPUTED LVALUE — subscripted OR
+indirect — not an array element.** ⛔ **A cure keying on the subscript node alone passes the original witness and
+leaves gimpel `PEEL_driver.sno` dead**, because `PEEL.sno:26` is `$NAME.  LEN(K1.) . PEEL  =` inside a function.
+That is now **arm 7** of the gate, with a top-level control as arm 8: **15 witness-modes, PASS=10 FAIL=5**.
+
+**NARROWER, and this corrects a number I published above.** I wrote *"This crash class is four gimpel programs"*.
+**It is two.** `PERMS_driver` (subscripted) and `PEEL_driver` (indirect) carry the ingredient. `ARC_driver` and
+`IMAGE_driver` carry **no** computed-lvalue replacement anywhere in their sources or their `-INCLUDE` closures — ARC
+dies on its first `ASIN`, defined by `DEXP` (the CODE family), and IMAGE dies during `-INCLUDE` load. **Two separate
+rows.** ⭐ The overcount happened because I ablated **one** program to the class and then attributed the *symptom
+shared by four* to it — four programs with one signature is not four programs with one cause, and the four-way
+`grep` that settled it cost less than the sentence I had already written.
+
+⭐ **AND THE GATE ARM CAUGHT ME IN THIS FILE'S OWN MEDIUM TRAP.** `$NM` inside a **double-quoted** `printf` format is
+**shell expansion**; `set -u` refused arm 7 outright, so its first spelling could not run. The SNOBOL4 indirect
+operator and the shell's parameter sigil are the same character. Same family as the backtick lesson already in the
+digest: **the trap lives in the medium, not in the language you think you are writing.**
+
+⛔ The gate's **filename still says `subscripted` and understates the class**, kept deliberately: hq_U had already
+cited that path, and a rename breaks their reference for a cosmetic gain. Header and verdict line name the real class.
