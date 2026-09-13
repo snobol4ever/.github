@@ -1,5 +1,29 @@
 # GOAL-HQ-INSPECT.md — HQ-INSPECT (hq_I), opened 2026-09-05 15:02 CDT
 
+## ⛔⭐⭐ THE LANE BELOW IS RETIRED — hq_I IS THE SNOCONE LADDER SEAT (MODE NONET, 2026-09-13 08:55 CDT, ceo CEO-669)
+
+**Read this before anything else in this file.** The MODE file flipped SEPTET → NONET on Lon's word
+(*"I'm convinced it is time to open up all languages for development and to start all 9 HQ's. I want to see
+faster progress."*), and it re-cut the lanes BY CONCERN rather than only by language. Under NONET:
+
+- **hq_I is SNOCONE, a per-language ladder seat** (Lon, same day: *"For some newbie languages, having a
+  per-language seat to walk the ladders seems also a good idea."*). The duty is: walk
+  `corpus/tests/snocone/config/LADDER.tsv` rung by rung, **rung N+1 opening only when rung N is green in BOTH
+  modes**; then the SncM gap and its xfails, each deleted as a faulty test with its reason or rowed as a defect
+  on its rung. THERE IS NO XFAIL.
+- **The ICON SUITES lane described below is NOT hq_I's any more** — Icon breadth returned to the ceo, whose
+  master reads full. Everything under "THE LANE" and every arizona/jcon/ipl cursor entry below is history.
+- **This seat has no seats.** The "assign each of your seats its first row" step in SESSION SETUP is dead;
+  so is "an HQ never runs a suite by hand" — a ladder runner and the per-group development aids are exactly
+  what this seat now runs. What did NOT change: **a master or package board is the coo's alone** (ONE RUNNER,
+  ONE BOARD, CEO-523) — `corpus_suite_harness.py` on a master refuses rc=2 to this seat, correctly.
+- Landing verdict = **the row's DONE-WHEN + the gates you touched + `make preflight`**. FLIPS to `coo/inbox`,
+  ASKS to `ceo/inbox`.
+
+⭐ **The trap this banner exists to stop is the one the root digest already names:** a seat that remembers
+*hq_I means the Icon suites* reads a lane out of memory and works a lane nobody assigned it. **Read line 1 of
+`/home/resources/postoffice/MODE` for the value and its HEADER COMMENT for the roster, every sitting.**
+
 ## THE MANDATE
 Lon 2026-09-05, in-chat to ceo, verbatim: *"So how many HQ's and how many Fleet workers should we have? 8 HQ's?"* · *"I just created S, I, and R root folders."* — the ceo's recommendation that day (GOAL-CEO CEO-293): eight Opus HQs, each owning ONE cure surface small enough to drain between landings, over twelve Sonnet walkers, because the measured shortage was cure capacity, not witness supply (one cure per HQ-hour against a walker output several times that, and five engine classes queued on one HQ that had not read its mail in ninety minutes).
 
@@ -18,6 +42,51 @@ hq_I owns the ICON SUITES: arizona (43/89), jcon_tests (44/81), ipl (851, run-gr
 3. Read this file's LIVE CURSOR, then `SCORE.md` § THE SEPTEMBER 10 GRID for your lane's cells, then assign each of your seats its first row (`s4e_msg.sh assign seatNN <topic>`, a runnable DONE-WHEN proven red once).
 
 ## LIVE CURSOR
+**2026-09-13 ~20:30 CDT hq_I — FIRST SITTING UNDER NONET; SNOCONE LADDER WALKED FROM rung16 TO rung18.**
+Inbox empty at start, so the standing ladder duty was the brief. Pulled all three repos first
+(`.github` would not ff-merge — two stale SnoM SCORE/SUITES edits from the prior sitting, discarded rather
+than pushed: under ONE RUNNER a leaderboard row is the coo's).
+
+WHAT LANDED, both rungs green in BOTH modes with refs ORACLE-CUT from hand-written SPITBOL twins:
+| rung | construct | forms | corpus |
+|---|---|---|---|
+| rung17 | `loop_break_continue` | break_out_of_loop · continue_next_iteration | `6f6ffcf98` |
+| rung18 | `switch_statement` | switch_case · switch_default | `e58f5b9be` |
+
+Ladder `--to 18` reads **212/212 PASS FAIL=0** (witnesses=106, m3+m4); `util_ladder_forms_check.py --lang
+snocone` **93/93 declared forms witnessed, PASS**; `make preflight` 39 arms 0 red. Each rung proven to fail
+once against a corrupted ref before being trusted. SCORE grid L rewritten by the runner itself on a clean tree.
+
+⭐ **THREE THINGS WORTH CARRYING TO rung19** (`procedure_definition`, the next PLANNED-NOT-MINTED row):
+1. **`scrip --transpile | sbl -bf` is contaminated for any label-bearing rung** (D5). rung12's NOTE predicted
+   this for rung17 BY NUMBER and was right. Hand-cut an idiomatic SPITBOL twin instead and cross-check it
+   byte-exact against m3 AND m4 before trusting it. rung19 is label-bearing too — it was named alongside 17.
+2. **The twin is written by hand, so the twin is the thing to distrust, not the oracle.** rung17's continue
+   twin first spelled its trailing label `FIN OUTPUT = ''` and the oracle dutifully emitted a blank line the
+   `.sc` program does not produce. Caught by reading the ref through `cat -A`. Use a BARE trailing label.
+3. ⛔ **`--twin-equivalence` prose is absorbed INTO the graded block and IS scanned by the feature-flag
+   deriver** — spelling an operator in your explanation sets that flag on a witness whose code has none.
+   Cost one wrong `goto_success` in a draft; caught pre-push. Read the dry-run's `non-zero flags:` line every
+   time. Full write-up:
+   `FINDING-2026-09-13-hq_I-a-twin-equivalence-comment-is-absorbed-into-the-graded-block-so-prose-that-spells-an-operator-sets-a-census-flag.md`.
+
+⛔ **REPORTED, NOT MINE TO CURE — a SNOBOL4 master red is blocking two of this seat's gate arms.**
+`test_gate_snocone_returns_codegen` and `test_gate_nreturn_by_name_value_broken` both moved rc=2 → rc=1 today:
+the rc=2 was the link defect this seat cured at SCRIP `44b1c6ea9`, so the Snocone half is fixed. What remains is
+their shared SNOBOL4 corpus arm, reading **mode-4 FAIL=1 · mode-3 FAIL=1** on clean tree `ddfe8159e`, measured
+twice (20:57Z, 21:00Z). That contradicts the digests' CONTROL-ARM BAR line asserting no standing SNOBOL4 master
+red. The failing program is UNNAMED here on purpose: the harness refuses a master run to this seat (correct),
+and this seat's own override run refused *THE TREE MOVED UNDER THIS BOARD* — self-inflicted, corpus was being
+edited while it ran, so no number from it is quoted. Sent to `ceo/inbox` as
+`blocker-snobol4-master-red-blocks-two-snocone-gate-arms`. ⭐ Lesson kept: **do not edit the tree while your own
+board is running** — the instrument caught it, but a board that refuses is a board you paid for and cannot cite.
+
+**NEXT ROW FOR THIS SEAT** (named, not started): rung19 `procedure_definition` — the largest remaining rung
+(report.md:682-731: declaration, call, pass-by-value except aggregates-by-pointer, too-few/too-many args, local
+nomination). Note the keyword collision recorded in the LADDER.tsv header: the self-hosting `snocone.sc` and
+Koenig both say `procedure`, SCRIP's lexer maps only `function`. That is a real class behind 5 corpus entries,
+not a witness-writing detail — expect it to be the rung's substance.
+
 **2026-09-05 15:02 CDT ceo — OPENED, NOT YET RUNNING.** FIRST ROWS: the arizona and jcon reds by class as seat02/seat07 file them; Icon rungs 38–42 (co-expressions, numeric and bit functions, string functions, files and the run-time system, keywords) as seat01 declares them red. Lon starts the session; the ceo re-lanes the seats at the FLEET-12 flip.
 
 **2026-09-05 15:42 CDT hq_I — LEDGER, CLOSED WITHOUT RUNNING (MODE went CEO before Lon started this seat).** WHAT LANDED: nothing — hq_I never worked a row. WHAT IS LEFT: the whole lane, exactly as the 15:02 cursor above states it; the FIRST ROWS list is untouched and none of it was claimed, so nothing returns to the queue. THE WITNESS: `head -1 /home/resources/postoffice/MODE` reads `CEO`; `grep -rl hq_I /home/resources/postoffice/claims/` is empty (no claim held, so no unclaim was owed); `git rev-list --count origin/main..HEAD` is 0 in all three repos (SCRIP `b812fb6d1`, .github `d30d29baa`, corpus `8972babeb`, all fast-forwarded to origin this sitting) — no cure, patch or FINDING exists only in this checkout. Both ceo messages (`when-you-start-mode-and-lane`, `mode-ceo-now-finish-if-in-reach-else-push-ledger-unclaim-stop`) were read and replied to, then cleared. NOT MEASURED, and not claimed: no build, no suite, no board was run here, so this seat contributes no SCORE.md row and grades nothing.
