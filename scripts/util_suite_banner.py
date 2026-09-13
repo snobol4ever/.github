@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
-usage: util_suite_banner.py [--plain] [--line] [--md] [--render] [--set KEY PASS TOTAL [DATE] [TREE]]
+usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--render] [--set KEY PASS TOTAL [DATE] [TREE]]
   (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the suite count and how many are done, then 3 columns x N rows of cells: nick pass/total left state emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
@@ -351,6 +351,44 @@ def banner(plain=False, grid=True, ncol=2):
         nrow=-(-len(cells)//ncol)
         for i in range(nrow):
             print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
+def grid():
+    """⛔⭐ THE GRID LON READS (Lon 2026-09-13, in-chat to ceo, verbatim: "Just display the test
+    suite scores as a grid, i.e. columns that line-up vertically."; CEO-688). FIXED-WIDTH COLUMNS,
+    ONE ROW PER SUITE, AND NARROW ENOUGH THAT NOTHING WRAPS -- the wrapping is the whole complaint
+    the textual banner earned, so width is the criterion and not decoration. 48 columns total; the
+    cells are TRUNCATED, never allowed to push the row wider. Grouped by language because that is
+    how the score is read, and a language line carries its own aggregate."""
+    head, rows = load(); today = dt.date.today()
+    by = {}
+    for r in rows: by.setdefault(r['lang'], []).append(r)
+    W_S, W_R, W_G, W_D = 8, 12, 5, 9
+    out = []
+    out.append('%-*s %*s %*s  %-*s' % (W_S, 'SUITE', W_R, 'RESULT', W_G, 'GAP', W_D, 'GRADED'))
+    out.append('-' * (W_S + W_R + W_G + 8))
+    gp = gt = 0
+    for lang in sorted(by, key=lambda L: -sum(int(x['today_total'] or 0) - int(x['today_pass'] or 0) for x in by[L])):
+        lp = lt = 0
+        for r in by[lang]:
+            if r['today_pass'] == '' or r['today_date'] == '': continue
+            lp += int(r['today_pass']); lt += int(r['today_total'])
+        gp += lp; gt += lt
+        tag = 'CLOSED' if lp == lt and lt else ('gap %d' % (lt - lp))
+        out.append('')
+        out.append('%s  %d/%d  %s' % (lang.upper()[:W_S], lp, lt, tag))
+        for r in sorted(by[lang], key=lambda x: -(int(x['today_total'] or 0) - int(x['today_pass'] or 0))):
+            nick = r['nick'][:W_S]
+            if r['today_pass'] == '' or r['today_date'] == '':
+                out.append('%-*s %*s %*s  %-*s' % (W_S, nick, W_R, '-/' + (r['today_total'] or '?'), W_G, '-', W_D, 'deferred'))
+                continue
+            pp, tt = int(r['today_pass']), int(r['today_total'])
+            g = tt - pp
+            age = (today - d(r['today_date'])).days
+            when = 'today' if age == 0 else ('1 day' if age == 1 else '%d days' % age)
+            out.append('%-*s %*s %*s  %-*s' % (W_S, nick, W_R, '%d/%d' % (pp, tt), W_G, ('0' if g == 0 else '-%d' % g), W_D, when))
+    out.append('')
+    out.append('%-*s %*s %*s' % (W_S, 'ALL', W_R, '%d/%d' % (gp, gt), W_G, '-%d' % (gt - gp)))
+    for ln in out: print(ln.rstrip())
+
 def md():
     head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
     print('| suite | lang | result | graded | tree | state |'); print('|---|---|---|---|---|---|')
@@ -469,6 +507,7 @@ def main(a):
                      f"beside an unwritten SCORE.md is the split state every board reader then has to guess at.")
         print(note)
     if '--render' in a: print(render_table()); return
-    if '--md' in a: md()
+    if '--grid' in a: grid()
+    elif '--md' in a: md()
     else: banner('--plain' in a, grid='--line' not in a)
 main(sys.argv[1:])
