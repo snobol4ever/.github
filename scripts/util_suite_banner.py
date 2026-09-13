@@ -417,4 +417,13 @@ def main(a):
     if '--render' in a: print(render_table()); return
     if '--md' in a: md(); return
     return
-main(sys.argv[1:])
+# ⛔⭐ AN IMPORT MUST NEVER BE A COMMAND (hq_B 2026-09-13). This module is the tree's ONE display-width
+# authority -- dw() -- so any consumer that wants it must import this file; util_fit_columns.py does exactly
+# that. A bare `main(sys.argv[1:])` at module scope RUNS ON IMPORT WITH THE IMPORTER'S OWN ARGV, so a caller
+# whose command line happens to carry --md or --render would print a table by importing a width helper, and
+# --set would WRITE SUITES.tsv. ⚠ STATED HONESTLY: that is LATENT, not live -- today's only importer passes
+# a bare width, and the 3.1-SECOND import stall this guard was originally measured against died with
+# banner(), which Lon deleted. What is left is a loaded gun with nobody currently in front of it, and the
+# guard costs one line. The CLI is unchanged: run as a script, __name__ IS "__main__" and main() still runs.
+if __name__ == "__main__":
+    main(sys.argv[1:])
