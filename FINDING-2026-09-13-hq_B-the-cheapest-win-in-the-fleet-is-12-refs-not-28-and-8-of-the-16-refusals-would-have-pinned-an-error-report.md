@@ -65,8 +65,31 @@ convenience, it is where `DEAD_REPORT` lives.
 
 - **12 refs are cuttable today**, reproducibly, one command each:
   `python3 scripts/util_gen_library_driver.py cut <driver> --suite gimpel`
-  They are the cfo's to land (with their `ALL.csv` rows), not mine. I have not written into the
-  vendored package.
+  They are the cfo's to land (with their `ALL.csv` rows), not mine.
+
+⛔⭐⭐ **CORRECTION, AND IT IS AGAINST MYSELF: THE FIRST VERSION OF THIS FINDING CLAIMED "I have not
+written into the vendored package", AND THAT WAS FALSE WHEN I WROTE IT.** The 28-driver run left
+`corpus/packages/snobol4/gimpel/asmtemp` behind. `ASM.sno` opens a DISK work file by the relative
+name `asmtemp`, and the oracle door deliberately runs each program in the **program's own directory**
+so a relative `-INCLUDE` resolves — so the work file landed in the vendored package. It was caught by
+a `git status` at handoff, not by any check of mine, and it stood for about twenty minutes.
+
+⭐ **And it was a KNOWN defect I walked into, not a new one.** `test_snobol4_gimpel_suite.sh` carries
+the identical overlay cure, for the identical reason, under its own row
+(`snobol4-gimpel-runner-writes-asmtemp-into-the-vendored-dir-and-blocks-its-own-score-write`) — and
+there the consequence was that `util_score_row.py` correctly refused the leaderboard row, because *a
+number measured on a dirty tree describes no tree anyone can check out.* The lesson was already
+written down, in this tree, by someone else, in the very runner I was calling. Reading it would have
+cost a minute. ⛔ **A grader that writes into what it grades is the same defect as a gate that edits
+the artifact it measures** — and my tool was doing it while its docstring lectured about refusals.
+
+Cured: `cut` now copies the driver's directory to a scratch overlay and runs there, and — because the
+gimpel runner's own history says two seats could not settle a witnessed leak by argument —
+fingerprints the real directory before and after and REFUSES rc=2 naming the escaped files. Gate arm
+12 asserts the **observable** rather than the mechanism: run a file-writing driver, then require the
+source directory to be byte-identical. Removing the overlay reds it two independent ways.
+⭐ The reusable half: **my claim was about my intent, and the tree is the only thing that can answer a
+question about the tree.** "I did not write there" is not a measurement; `git status` is.
 - **16 need a human**, and each has a named, non-guessed cause above. ⛔ None is a defect in SCRIP:
   every one of these is what the **oracle** does with the driver as written.
 - ⛔ **3 drivers are listed in `ALL.csv` while carrying no `.ref` at all**, measured by name:
