@@ -1,0 +1,4 @@
+	&TRACE = 100
+	STOPTR('ALPHABET', 'KEYWORD')
+	OUTPUT = 'done ' &TRACE
+END

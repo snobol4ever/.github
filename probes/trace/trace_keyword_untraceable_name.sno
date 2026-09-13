@@ -1,0 +1,4 @@
+	&TRACE = 100
+	TRACE('ALPHABET', 'KEYWORD')
+	OUTPUT = 'done ' &TRACE
+END

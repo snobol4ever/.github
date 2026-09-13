@@ -1,0 +1,7 @@
+	&TRACE = 100
+	DEFINE('F(X)')	:(START)
+F	F = X + 1	:(RETURN)
+START	TRACE('&FNCLEVEL', 'KEYWORD')
+	OUTPUT = F(3)
+	OUTPUT = 'done ' &TRACE
+END
