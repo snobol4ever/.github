@@ -42,6 +42,71 @@ hq_I owns the ICON SUITES: arizona (43/89), jcon_tests (44/81), ipl (851, run-gr
 3. Read this file's LIVE CURSOR, then `SCORE.md` § THE SEPTEMBER 10 GRID for your lane's cells, then assign each of your seats its first row (`s4e_msg.sh assign seatNN <topic>`, a runnable DONE-WHEN proven red once).
 
 ## LIVE CURSOR
+**2026-09-13 ~17:5x CDT hq_I — FOURTH SITTING UNDER NONET; rung21 LANDED, AND ITS REAL WORK WAS A READING THE
+ROW HAD REFUSED TO GUESS AT — PLUS ONE PROBE ERROR I CAUGHT ONLY BY ISOLATING IT.**
+
+**LANDED — corpus `d44a95ca0`, gate re-proven after the rebase on the tree that actually landed.**
+`test_snocone_ladder.sh --to 21` reads **246/246 PASS FAIL=0** (witnesses=123) · forms check **110/110**
+(was 106) · `make preflight` **42 arms, 0 red**. SCORE.md grid L rewrote itself on the clean tree. No board;
+ONE RUNNER, ONE BOARD — the SncM row stays the coo's.
+
+**THE ROW'S OWN FIRST WORK WAS A READING, AND IT IS NOW MEASURED RATHER THAN ARGUED.** rung21 was declared
+UNCLEAR, listing two old probes under one grammar node with an explicit *do not split or merge them by
+guessing*. The answer: **ONE construct.** `TT_VLIST` has exactly one producing production in this frontend
+(`snocone_parse.y:511`), at the PRIMARY level; the for-statement comma form is unrelated (`TT_FOR` is built at
+`:691`, and the other `T_COMMA` productions are identifier lists); `lower_snobol4.c:816` lowers it to
+`IR_DISJUNCTION`, so the construct is **alternative evaluation** — which is why the rung is renamed off the
+placeholder `expression_list_vlist`, a name that encoded the confusion it outlived.
+
+⛔⭐ **BOTH INHERITED CLAIMS ON THE OLD ROW WERE FALSE — rung19's lesson holding for the third and fourth
+time.** (a) *"alt_eval FAIL — D8 fall-through value dropped (KNOWN BUG)"*: the probe **cannot reach its third
+arm** — with i=5,j=3 GT wins and with i=2,j=3 LT wins — so the note graded a path the probe does not execute.
+Fed i=j the fall-through arm prints correctly in both modes. (b) *"vlist PASS"*: `ladder/prog/vlist.sc`
+**contains no comma at all** and builds **ZERO** `TT_VLIST` nodes (`--dump-ast`: 0, against 2 in `alt_eval.sc`
+and 1 in the control `OUTPUT=(1,2)`). **A probe named for a node it never builds** — its PASS blessed nothing,
+which is the ladder-shaped form of *a witness blesses whatever it measures*.
+
+⭐ **Refs are GENUINELY oracle-cut here, unlike rungs 17/18/20** — SPITBOL *has* this construct, so the twins
+are transliterations graded by `sbl -bf`, not desugarings the dialect merely declares. The three arm-selection
+forms share ONE program shape and differ only in the input (2,3→first · 5,3→second · 3,3→third), so a
+wrong-arm selection cannot pass any of them; the fourth proves `report.md:128` — all arms failing leaves the
+target **untouched**, not nulled. Honesty proof: corrupting `simple_output_230`'s ref `third`→`first` (the
+fall-through arm — the exact byte claim (a) was about) reds that witness in BOTH modes and leaves its three
+siblings green.
+
+⛔⭐ **THE DEFECT I ALMOST FILED WAS MINE, AND ONLY ISOLATION CAUGHT IT.** I measured the all-arms-fail case as
+`x=` under snocone against `x=orig` under the oracle and had it written up as a snocone assignment-failure
+divergence — **a wrong answer at rc=0, the dangerous direction.** It was not a defect: **my two probes were not
+twins.** The `.sno` set `X = 'orig'` and the `.sc` never initialised `x`, so the two programs differed and the
+implementations did not. The corrected twin is byte-identical to the oracle. ⭐ The general form, and it is the
+same family as the digest's `$?`-after-a-pipeline trap: **a differential test proves nothing until both sides
+are proven to be the same program.** What saved it was re-running the case in isolation with the variants side
+by side, which flipped the result and made the discrepancy visible; had I filed on the first reading it would
+have gone up as a cure request against correct code.
+
+⛔⭐ **ONE REAL DEFECT, REPORTED NOT CURED — THE ARM COUNT IS SILENTLY CLAMPED AT 64.** `lower_snobol4.c:818`
+reads `int n = t->n; if (n > 64) n = 64;` and arms 65+ are discarded with no diagnostic. Measured, not
+inferred: 64 arms with the hit at #64 prints `arm64`; **65 arms with the hit at #65 prints NOTHING at rc=0 in
+BOTH modes**; 65 arms with the hit at #1 still prints `arm1` — which discriminates tail truncation from a
+parse or line-length failure. A well-formed program gets a plausible empty answer instead of an error. ⛔ **The
+oracle CANNOT grade arity in this shape and I claimed no oracle verdict:** `sbl -bf` dies `ERROR 232` at column
+**1023** on both the 64- and 65-arm twins — a SOURCE LINE LENGTH limit, not a verdict on arm count. That is the
+digest's *instrument answering a narrower question than you think you asked*, met live; the defect stands on
+the code and the internal cliff alone. `lower_snobol4.c` `TT_VLIST` is reached by the SNOBOL4 and Rebus
+frontends too, so it is a **shared node → ASK to the ceo**, never a ladder seat's landing. Sent.
+
+⚠️ **Flagged to the coo, because it is invisible from a board:** `util_add_ladder_witness.py` allocated the
+entry name **`simple_output_104`** to this rung's first witness — the name freed by the `%=` retirement under
+CEO-710 earlier today. Correct behaviour (lowest free name), but a board diff spanning both changes shows that
+name on both sides with **different content and different meaning**, so the reuse belongs in the row rather
+than in a reader's surprise.
+
+**NEXT ROW FOR THIS SEAT** (named, not started): **rung22 `datatype_function`** — a one-form rung
+(`DATATYPE` on the result of `.`, `report.md:547-548`), whose old NATIVE_STATUS is PASS. ⛔ Given that two of
+this rung's two inherited claims and two of rung19's three were false, **grade that PASS against the oracle
+before believing it** — the cheap test is whether the probe's arms are reachable at all. The declared ladder
+runs to rung26; the SncM gap (196 of 235) and its 16 xfails are still untouched by this seat.
+
 **2026-09-13 ~23:5x CDT hq_I — THIRD SITTING UNDER NONET; rung20 LANDED, AND THE SITTING'S REAL WORK WAS A BREAK
 I DID NOT CAUSE AND ALMOST FILED AGAINST MYSELF.**
 
