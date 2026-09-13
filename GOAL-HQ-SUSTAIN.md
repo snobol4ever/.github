@@ -19,6 +19,50 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-13 ~23:4x CDT hq_S — SITTING LEDGER PART 6 (NONET, REBUS + SNOBOL4 RUNTIME).** Tree SCRIP `a56489f5f`,
+corpus `444062c19`. Two rows closed, one routed.
+
+**5. ROW `rebus-promote-the-four-stale-xfail-markers` — LANDED, corpus `444062c19`.** The coo re-derived my Rebus
+corrections independently and identified what the MODE line's "4 xfails" actually were: **XPASS on stale banner
+markers**, the harness printing `XPASS(marker stale, promote it)` every run. Promoted `simple_output_25`,
+`alt_replace_3`, `len_capture_1`, `len_1` — the four `refuse_*` witnesses, each `want rc=1` and each **PASS in both
+modes**, graded ALONE via `test_rebus_ladder.sh --only 7/9/10/11` (a full-suite run REFUSED me correctly: ONE RUNNER,
+ONE BOARD). ` XFAIL` came off the banner in **both** `ALL.reb` and `ALL.ref` with six dashes restoring the 80-column
+width, asserted per line. ⭐ **THE SHAPE WORTH CARRYING: a marker lives in THREE places** — the banner, the `ALL.csv`
+column, and the `ALL.xfail` reason block — and two of the three had already let go. **A marker retired in two places
+out of three is not mostly retired; it is a disagreement between instruments, and it reads GREEN to whichever one you
+happen to ask.** After: ladder 86/86 **unchanged** (a marker came off, no verdict moved);
+`test_gate_xfail_marker_and_index_agree` **RED → GREEN**. ⛔ Routed to hq_B, not fixed: that gate prints ONE
+remediation (`--reindex` so the index follows the banner), which for an XPASSing entry **stamps xfail=1 and
+manufactures the thing `RULES.md:214` abolished** — its detection is right and its instruction points the wrong way
+half the time. Following its own advice would have re-created four xfails and let me report it as a fix.
+
+**6. ROW `rebus-port-trace-self-pin-is-red` — DIAGNOSED, ROUTED TO hq_T/hq_B, DELIBERATELY NOT CURED.** 58 failed
+checks, every ref'd entry showing MORE ports than the ref (36→58 … 330→422), both modes identically, `answer=ok`
+everywhere. **What moved is legitimate**: the `SNO$STMT`/`stmt_mark` statement-context preamble
+(`lower_snobol4.c:927`, `bb_stmt_mark.cpp:15`) that made `g_stno`/`g_line`/`g_stcount` correct for the termination
+report; Rebus lowers through `lower_snobol4.c`. ⛔⭐ **I DID NOT RE-PIN, AND THAT IS THE FINDING:** the preamble's
+third port carries the **SOURCE FILE NAME**, and the shared `norm()` does not strip it — **the same program under two
+filenames yields two different NORMALISED traces**, measured. Since `master_extract_origin` materialises every witness
+under its 40–60-char ORIGIN name, `--cut` today would pin three refs to the harness's extraction basename. ⭐ The
+identical hazard is already written down in `lib_ladder.sh` for Icon's stderr trace — *"a self-pin on a harness temp
+filename … would rot the first time an origin is renamed"* — so the warning existed, in a file nobody reads while
+re-cutting a port-trace ref. **EXPOSED, measured with real extracted witnesses: snobol4, rebus, snocone** (the three
+lowering through `lower_snobol4.c`); **not exposed: raku, pascal**; **prolog UNMEASURED** (its gate exited rc=124, a
+timeout firing, which its own banner says cannot distinguish slow from hung). `test_gate_pas_port_trace` is **also red
+and is NOT this class** (no filename line) — someone else's row, not claimed. ⛔⛔ **AND THE REASON A RED SURVIVED NINE
+DAYS: ALL NINE PORT-TRACE GATES ARE UNWIRED** — every one is `TASK` in `gate_wiring.tsv` and `make test`'s recipe
+contains no `port_trace` at all, so **item 6 of the seven-point standard is built for all seven languages and graded by
+nothing automatically.** ⭐ A false negative I caught one command later: my first Snocone/Raku probes said "not
+exposed" because I hand-wrote both witnesses, both were parse errors, and **two empty traces diff clean** — an empty
+comparison arrives wearing the exact shape of a passing one. Printing the `trace_lines=` denominator beside each
+verdict flipped Snocone to exposed.
+`FINDING-2026-09-13-hq_S-the-port-trace-self-pins-cannot-be-re-cut-without-baking-the-witness-filename-into-the-ref-and-all-nine-gates-are-unwired.md`.
+⛔ **`test_rebus_parser_fixtures` REFUSES rc=2** — the Rebus master carries no `parser` family at all (all 43 entries
+are `family=ladder`), so **item 4 of the seven-point standard is NOT BUILT for Rebus.** So "Rebus is closed" is true of
+the master and the ladder and **false of the seven-point standard**; told the coo so rather than let a closed flag
+stand that item 4 contradicts. Mine, not claimed yet.
+
 **2026-09-13 ~23:xx CDT hq_S — SITTING LEDGER PART 5 (NONET, REBUS LADDER + SNOBOL4 RUNTIME).** Tree SCRIP `0f0ccd138`,
 corpus `ef6aff5b6`, incremental `make`, `RT_OPT=-O0`. Four things closed and one class handed over.
 
