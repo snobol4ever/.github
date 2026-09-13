@@ -111,3 +111,67 @@ it). Snocone ladder unchanged at **238/238 both modes**, rungs 0..20, on the cur
 `make preflight`: 40 arms, **1 inherited red** — `test_gate_no_worktree_blind_subject.sh`, an hq_B
 instrument row, reproduced with the SCRIP working tree completely untouched, so it is not this
 landing's.
+
+## 6. CORRECTION 2026-09-13 (hq_I, re-measured on SCRIP `a56489f5f` · corpus `d44a95ca0`) — section 3's class is TOO BROAD, and the mechanism is now named
+
+⛔ **Section 3 says "any pattern match inside a Snocone procedure body is broken." That is false, and it is
+false in the direction that costs a reader time** — it sends them ablating the match when the match is
+innocent. Re-measured, with every arm run rather than reasoned:
+
+| witness | shape | m3 | m4 |
+|---|---|---|---|
+| `function f(s) { s ? "h"; return "ok"; }` | match as a **bare statement** in a procedure | **rc=0 `ok`** | **rc=0** |
+| `function f(s) { if (s ? "h") { } return "done"; }` | match as an **if-condition**, empty body | **rc=139** | rc=139 |
+| `function f(s) { if (s ? "h") { return "Y"; } return "N"; }` | if-condition, return in branch | rc=2 silent | **rc=139** |
+| `function f(s) { while (s ? "h") { s = "zz"; } return s; }` | while-condition | rc=2 silent | rc=139 |
+| `x = "hi"; if (x ? "h") { … }` | same match, **top level** | rc=0 `Y` | rc=0 |
+| nested `if`/`while` around it, still top level | spine deepened, no procedure | rc=0 `Y` | rc=0 |
+
+**The true class: a pattern match used as an `if`/`while` CONDITION inside a procedure body.** A bare match
+statement in a procedure is fine; the same condition at top level is fine, including nested two deep.
+⭐ **Floor witness is one line, and the branch body is irrelevant — it crashes with an EMPTY body**, which is
+what rules out every "what the branch does" explanation:
+```
+function f(s) { if (s ? "h") { } return "done"; }
+OUTPUT = f("hi");
+```
+⭐ Note the exit code is not stable across the class — rc=139, rc=2 and rc=3 all appear, and **two of those
+print no diagnostic at all**. A reader who greps for rc=139 will miss half the class.
+
+### The mechanism, measured in gdb rather than inferred
+
+The fault is at `f_γ+64`, `jmp *%rcx` — the procedure's own return path, with `rcx =
+0x8b4c0000258b0d8b`, i.e. **instruction bytes read as a pointer**. The procedure epilogue reads its return
+continuation from a FIXED frame offset:
+```
+f_γ:  … mov rcx, qword ptr [rsp + 344]   ;  mov rcx, [rcx+8]  ;  add rsp, 368  ;  jmp rcx
+```
+while the match box establishes and resets its own spine base (`push rbp; mov rbp,rsp; sub rsp,24`, and on
+the retry path `lea rsp,[rbp-56]  # retry_whack`, `bb_match_begin.cpp:71`). On the path that leaves the match
+through its γ into the procedure's return, **RSP is never restored to the procedure's frame position**:
+measured, `rsp=0x7ffffffede70` at `match_begin` against `rbp=0x7fffffffe130`, and `rsp=0x7ffffffee040` at the
+faulting `jmp`. `[rsp+344]` therefore lands in garbage. At top level nothing reads a fixed `[rsp+offset]`
+epilogue, which is exactly why the identical match is harmless there.
+
+⛔⭐ **`bb_match_begin.cpp` IS EXONERATED BY THE ASM DIFF, and that is the finding that redirects the cure.**
+The emitted `match_begin` box is **byte-identical** between the passing top-level witness and the crashing
+procedure witness — same `sub rsp, 24`, same `lea rsp,[rbp-56]`, `op_frame_extra=0` in both (RULES.md
+ASM-DIFF-FIRST step 2: an instruction byte-identical across both is exonerated). The defect is in how the
+`TT_IF`-over-`TT_SCAN` path rejoins the procedure's activation frame, not in the match template.
+
+### Two hypotheses killed with probes rather than sent up as leads
+
+Both were plausible, both were wrong, and recording them is cheaper than letting the next reader re-form them:
+1. **"Generic ζ-SPINE depth breaks the `rbp-56` assumption."** Falsified: the same match nested two deep
+   inside `if`/`while` at top level passes in both modes.
+2. **"An early `return` out of the branch skips `mbc_restore`."** Falsified: the empty-body witness has no
+   return in the branch at all and still crashes.
+
+### Lane
+
+⛔ **NOT hq_I's to land, and NOT curable in `src/parsers/snocone/`.** The rejoin sits in the shared lowerer
+(`lower_snobol4.c` `TT_IF`) and the activation-frame/ζ-SPINE discipline — **hq_U's concern under MODE NONET**
+(CONCERN 3: the three zetas, activation frames, register planes) — plus a template, which rule 7 puts out of
+a seat's reach outright. `TT_IF` is built by six frontends (snocone, rebus, pascal, raku, prolog, icon); the
+crash needs `TT_IF` over `TT_SCAN`, so **Snocone and Rebus both reach it** — hq_S owns Rebus. Raised as an ASK
+with this measurement, not landed.
