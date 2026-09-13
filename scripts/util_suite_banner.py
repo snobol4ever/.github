@@ -288,101 +288,15 @@ def xfail_annotation(r, k):
     same = ' — the whole gap' if gap == xf else f' of a {gap}-wide gap'
     return (f"{xf} xfail counted as FAIL{same} (CEO-416): they are in the denominator and not the "
             f"numerator, so this row can only close by CURING them, never by re-captioning")
-def banner(plain=False, grid=True, ncol=2):
-    """PLAIN TEXT GRID, FIXED-WIDTH FIELDS, TWO COLUMNS SO 25 SUITES FIT WITHOUT WRAPPING, GROUPED BY LANGUAGE.
-    Lon 2026-09-12, verbatim: "Get rid of your stupid colors and your stupid emojis." / "You can remove that silly
-    verbiage +xx since. Who cares. It means nothing. That is not a rate." / "Your banner is un-readable. Poorly
-    formatted. Not vertically aligned. The word stale means what. How would you know?" / "Put in a grid."
-    Lon 2026-09-13, verbatim: "Add language and group by language the test suite banner."
-    A cell is: suite, pass/total, the gap to 100%, the DATE the row was last measured (the fact 'stale' stood
-    for), and a state only when it is one: done, the xfail count a master still carries (CEO-416), deferred,
-    no runner.  Nothing here is a colour, a glyph, a rate or a projection.
-
-    ⛔ THE GROUP RULE CARRIES ITS LANGUAGE'S OWN ARITHMETIC AND IT EXCLUDES WHAT IT CANNOT READ.  A suite with
-    no runner, or one Lon has deferred, has NO READING -- its population is real and its passes are unknown, so
-    it is summed into neither side of the fraction and is named separately on the rule ("+N unread").  Folding
-    an ungraded population in as zero passes would read as failure, and folding it in as absent would shrink
-    the denominator until the percentage flattered us; UNKNOWN IS NOT ZERO AND IT IS NOT ABSENT
-    (ARCH-PROGRAM-LEDGER § THE DENOMINATOR RULE).  The first line still prints the fleet-wide suite and done
-    counts unchanged, because test_gate_banner_leads_with_the_suite_line.sh reads it."""
-    head,rows=load(); today=dt.date.today(); done=0
-    DEF=deferred_rows()
-    W=(7,4,4,4,5,11)
-    def cell(t): return f"{t[0]:<{W[0]}} {t[1]:>{W[1]}}/{t[2]:>{W[2]}} {t[3]:>{W[3]}} {t[4]:>{W[4]}} {t[5]:<{W[5]}}"
-    hdrcell=cell(('suite','pass','tot','gap','date','state'))
-    GW=len(hdrcell)*ncol+3*(ncol-1)
-    groups={}
-    for r in rows:
-        k,e=eta(r,today)
-        lang=r['lang'] or '?'
-        g=groups.setdefault(lang,{'cells':[],'pass':0,'tot':0,'done':0,'unread':0,'n':0})
-        g['n']+=1
-        if k=='NORUNNER':
-            dfr=DEF.get(r['key'])
-            g['cells'].append(cell((r['nick'],'-',r['today_total'],'-','-',f"deferred {dfr['count']}" if dfr else 'no runner')))
-            g['unread']+=1
-            continue
-        left=int(r['today_total'])-int(r['today_pass'])
-        st=''
-        if k=='DONE': st='done'; done+=1; g['done']+=1
-        elif k=='XFAIL': st=f'{e} xfail'
-        elif k=='XFUNKNOWN': st='xfail unreadable'
-        elif xfail_annotation(r, k): st=f'{xfail_by_lang(r["lang"])} xfail'
-        g['pass']+=int(r['today_pass']); g['tot']+=int(r['today_total'])
-        g['cells'].append(cell((r['nick'], r['today_pass'], r['today_total'], str(left), r['today_date'][5:], st)))
-    n=len(rows)
-    print(f"{today.strftime('%m-%d')} {n} SUITES, {done} done")
-    if not grid:
-        print(' | '.join(c for g in groups.values() for c in g['cells'])); return
-    print(' | '.join([hdrcell]*ncol))
-    print('-+-'.join(['-'*len(hdrcell)]*ncol))
-    # ⭐ WORST GAP FIRST, ties broken by name, so the language with the most work left is the one the eye lands
-    # on and the order is still deterministic for a banner printed every turn.
-    for lang in sorted(groups, key=lambda L: (-(groups[L]['tot']-groups[L]['pass']), L)):
-        g=groups[lang]
-        gap=g['tot']-g['pass']
-        bits=f"{g['n']} suite{'' if g['n']==1 else 's'}"
-        if g['done']: bits+=f", {g['done']} done"
-        if g['unread']: bits+=f", +{g['unread']} unread"
-        frac=f"{g['pass']}/{g['tot']} gap {gap}" if g['tot'] else "no reading"
-        lead=f"-- {lang} {frac} -- {bits} "
-        print(lead + '-'*max(0, GW-len(lead)))
-        cells=g['cells']
-        nrow=-(-len(cells)//ncol)
-        for i in range(nrow):
-            print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
-def grid():
-    """⛔⭐ THE ONE FORMAT LON READS THE SCORE IN (Lon 2026-09-13, chosen from candidates after
-    three were refused: the wrapping text banner, a published HTML page, and a first grid whose
-    per-language header lines broke the very alignment he asked for; CEO-688).
-    ONE UNIFORM TABLE. EVERY LINE IN THE SAME COLUMNS -- no group headers, no blank lines, no cell
-    allowed to push a row wider. Sorted worst gap first, so what needs attention is at the top.
-    ⛔ WIDTH IS A CRITERION AND NOT DECORATION: wrapping is the entire complaint the text banner
-    earned, so the row is built to 42 columns and cells are TRUNCATED to hold it."""
-    head, rows = load(); today = dt.date.today()
-    W_S, W_L, W_R, W_G = 8, 8, 10, 6
-    FMT = '%-*s %-*s %*s %*s  %s'
-    out = [FMT % (W_S, 'SUITE', W_L, 'LANG', W_R, 'RESULT', W_G, 'GAP', 'GRADED')]
-    def gap_of(r):
-        if not r['today_pass']: return -1
-        return int(r['today_total']) - int(r['today_pass'])
-    gp = gt = 0
-    for r in sorted(rows, key=lambda x: -gap_of(x)):
-        nick, lang = r['nick'][:W_S], r['lang'][:W_L]
-        if not r['today_pass'] or not r['today_date']:
-            out.append(FMT % (W_S, nick, W_L, lang, W_R, '-/' + (r['today_total'] or '?'),
-                              W_G, '-', 'deferred'))
-            continue
-        pp, tt = int(r['today_pass']), int(r['today_total'])
-        gp += pp; gt += tt
-        g = tt - pp
-        a = (today - d(r['today_date'])).days
-        when = 'today' if a == 0 else ('1 day' if a == 1 else '%d days' % a)
-        out.append(FMT % (W_S, nick, W_L, lang, W_R, '%d/%d' % (pp, tt),
-                          W_G, ('0' if g == 0 else '-%d' % g), when))
-    out.append(FMT % (W_S, 'ALL', W_L, '', W_R, '%d/%d' % (gp, gt), W_G, '-%d' % (gt - gp), ''))
-    for ln in out: print(ln.rstrip())
-
+# ⛔⛔⛔ THE PRINTED SUITE BANNER IS DELETED (Lon 2026-09-13, in-chat to hq_S, verbatim: "See that banner you
+# just output. The header says suite pass/tot gap date state. Delete whatever produced that. I want it gone.
+# I've ordered that removed." and, when the first cut took only the header row: "I want the entire text gone.
+# Not just the header.").  banner() and grid() -- the two functions that rendered that table to STDOUT -- are
+# GONE, and so is the dispatch that called them, so a no-arg run of this script now prints NOTHING and exits 0.
+# ⛔ DO NOT RE-ADD A DISPLAY PATH HERE.  What survives is FILE WRITING ONLY: --set writes one SUITES.tsv row and
+# re-renders that row in SCORE.md, --render and --md return the table TEXT for SCORE.md.  Those are the ONE
+# LEADERBOARD Lon ordered kept ("so whenever we want to know the state it is there not an hour away of running
+# tests") -- a file a reader opens on purpose, which is the opposite of text printed at someone every turn.
 def md():
     head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
     print('| suite | lang | result | graded | tree | state |'); print('|---|---|---|---|---|---|')
@@ -501,7 +415,6 @@ def main(a):
                      f"beside an unwritten SCORE.md is the split state every board reader then has to guess at.")
         print(note)
     if '--render' in a: print(render_table()); return
-    if '--grid' in a: grid()
-    elif '--md' in a: md()
-    else: banner('--plain' in a, grid='--line' not in a)
+    if '--md' in a: md(); return
+    return
 main(sys.argv[1:])
