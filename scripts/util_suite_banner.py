@@ -402,6 +402,9 @@ def grid(plain=False):
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
     "I want a excel type grid with lines and cells." - "I mean border lines." - "make it smaller." - "Take the
     grid you had and make it smaller.").
+    SCORE IS TWO COLUMNS, Pass and Total (Lon 2026-09-13: "break out score into two columns."), so both
+    numbers right-align in their own cell and a reader can compare denominators down the column instead of
+    parsing a slash out of a string.
     LANG IS THE FIRST COLUMN (Lon 2026-09-13: "Put lang column first."), which is also the sort key, so the
     column a reader scans and the order the rows are in are the same thing.
     ROWS ARE ORDERED BY LANG, THEN BY SUITE NAME (Lon 2026-09-13: "Put rows in order by lang and then suite
@@ -416,16 +419,16 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError): continue
         pct=f"{(100.0*tp/tt):.0f}%" if tt else "-"
-        data.append([r.get('lang',''), r['nick'], f"{tp}/{tt}", pct, "DONE" if tt and tp>=tt else ""])
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", pct, "DONE" if tt and tp>=tt else ""])
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Lang","Suite","Score","Pct","State"]
+    hdr=["Lang","Suite","Pass","Total","Pct","State"]
     cols=len(hdr)
     w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
     def line(cs): return "\u2502" + "\u2502".join(pad(cs[c],w[c]) for c in range(cols)) + "\u2502"
-    done=sum(1 for r in data if r[4]=="DONE")
+    done=sum(1 for r in data if r[5]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
     print(line(hdr))
     print(rule("\u251c","\u253c","\u2524"))
