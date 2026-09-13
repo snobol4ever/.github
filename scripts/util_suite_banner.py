@@ -397,6 +397,36 @@ def render_table(only_key=None):
     if changed==0: return "suite table: SCORE.md § THE SUITE TABLE already matches SUITES.tsv (0 rows changed)%s" % scope
     L[st:en]=new; open(SCORE,'w',encoding='utf-8').write('\n'.join(L))
     return f"suite table: SCORE.md § THE SUITE TABLE re-rendered from SUITES.tsv in the same call ({changed} row(s) changed){scope}"
+def grid(plain=False):
+    """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "No, it should not print
+    anything but SUCCESS and FAILURE. And a grid of the test suite scores." then "Ensure a grid is output not
+    text from the shell script." then "No, the grid must not be text." then "I want a excel type grid with
+    lines and cells."). RULED CELLS, not aligned columns: every row and every column is separated by a drawn
+    line, with a header row, the way a spreadsheet is. The shell caller prints the verdict word and NOTHING
+    else, so this is the only place a suite number is formatted in the banner path.
+    Widths come from dw(), this file's display-width authority, because len() lies on these nicknames."""
+    head,rows=load()
+    data=[]
+    for r in rows:
+        try: tp,tt=int(r['today_pass']),int(r['today_total'])
+        except (ValueError,KeyError): continue
+        pct=f"{(100.0*tp/tt):.0f}%" if tt else "-"
+        data.append([r['nick'], r.get('lang',''), f"{tp}/{tt}", pct, "DONE" if tt and tp>=tt else ""])
+    if not data:
+        print("SUITE GRID: no readable rows in SUITES.tsv"); return
+    hdr=["Suite","Lang","Score","Pct","State"]
+    cols=len(hdr)
+    w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) for c in range(cols)]
+    def rule(l,m,rr): return l + m.join("\u2500"*(w[c]+2) for c in range(cols)) + rr
+    def line(cells): return "\u2502" + "\u2502".join(" "+pad(cells[c],w[c])+" " for c in range(cols)) + "\u2502"
+    done=sum(1 for r in data if r[4]=="DONE")
+    print(rule("\u250c","\u252c","\u2510"))
+    print(line(hdr))
+    for r in data:
+        print(rule("\u251c","\u253c","\u2524"))
+        print(line(r))
+    print(rule("\u2514","\u2534","\u2518"))
+    print(f"{len(data)} suites, {done} at 100%")
 def main(a):
     if '--set' in a:
         i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else dt.date.today().isoformat(); tree=a[i+5] if len(a)>i+5 else None
@@ -416,6 +446,7 @@ def main(a):
         print(note)
     if '--render' in a: print(render_table()); return
     if '--md' in a: md(); return
+    grid(plain='--plain' in a)
     return
 # ⛔⭐ AN IMPORT MUST NEVER BE A COMMAND (hq_B 2026-09-13). This module is the tree's ONE display-width
 # authority -- dw() -- so any consumer that wants it must import this file; util_fit_columns.py does exactly
