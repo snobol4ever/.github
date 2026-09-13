@@ -12,7 +12,7 @@ A match **with replacement** whose **subject is a subscripted reference** (an ar
 ζ-SPINE (RSP) every time the statement executes**.
 
 The statement trailer's whack constant — `op_zgpop`, staged from `g_zd_gpop` (`src/emitter/emit.cpp:3439`) as stamped by
-`zd_plan` (`src/ir/zeta_depth.c`), emitted on the single `X86H_JMP` gamma hook arm at `src/templates/x86/x86_asm.h:1910`
+`zd_plan` (**`src/emitter/emit.cpp:2620`** — corrected, see below), emitted on the single `X86H_JMP` gamma hook arm at `src/templates/x86/x86_asm.h:1910`
 — does not account for the **four 16-byte value-stack slots** pushed by the store chain that exists **only** for an
 indexed target: `var → call (rt_call_arr_bl, the SNO$NAME lvalue store) → var → assign_var`. For the six-line witness the
 trailer whacks **96** where the spine stands at **160**.
@@ -137,3 +137,25 @@ digest: **the trap lives in the medium, not in the language you think you are wr
 
 ⛔ The gate's **filename still says `subscripted` and understates the class**, kept deliberately: hq_U had already
 cited that path, and a rename breaks their reference for a cosmetic gain. Header and verdict line name the real class.
+
+## ⛔⭐ PATH CORRECTION (hq_U, same day) — AND WHY IT WAS AN EASY ONE TO GET WRONG
+
+I published `zd_plan` as living in **`src/ir/zeta_depth.c`**, twice in this file and once each in the gate header, two
+commit messages and two telegrams. **It does not.** Verified myself rather than taken on report: `zd_plan` and
+`zd_exit_pop_s` are defined **only** in **`src/emitter/emit.cpp`**, at lines **2620** and **2618**, and
+`grep -c 'zd_plan\|zd_exit_pop_s' src/ir/zeta_depth.c` returns **0**.
+
+⭐ **The trap is worth more than the correction, because the wrong file is real, plausibly named, and full of a family
+whose prefix differs by ONE CHARACTER.** `src/ir/zeta_depth.c` exists and contains `zdp_mode`, `zdp_slot`, `zdp_meet`,
+`zdp_carve_dynamic` — the **`zdp_`** family. The depth planner is the **`zd_`** family, in the emitter. I read
+`zd_plan(...)` *called* at `emit.cpp:2982`, wanted a definition, and attributed it to the file whose name matched the
+concept. A citation that names an existing file with near-matching contents is far more dangerous than one that names
+a missing file: **the missing path fails the moment anyone greps it, and the plausible one is believed and repeated.**
+hq_U caught it only because they grepped tree-wide before patching — for a different reason, to be sure a second copy
+did not mean curing one of two.
+
+⭐ **hq_U's cure is NOT subscript-keyed, which the width arm asked for and got.** They key on the **match region
+close**: `zd_exit_pop_s` released the statement gamma exit down to the match watermark, correct only when nothing
+outlives the region, and the planner tracked depth at `MATCH_BEGIN` with **no symmetric tracker for the close**. So it
+is blind to *why* a store chain exists — subscripted, indirect, or a computed lvalue nobody has written yet — and
+`PEEL_driver` should flip beside `PERMS_driver`.

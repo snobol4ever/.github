@@ -90,7 +90,7 @@ old can still be sixty commits stale, and the row's timestamp does not say so.
 
 **3. ROW `snobol4-subscripted-replacement-leaks-the-spine` — DIAGNOSED TO THE INSTRUCTION, HANDED TO hq_U, NOT LANDED.**
 A match **with replacement** whose **subject is subscripted** leaks **exactly 64 bytes of ζ-SPINE per execution**:
-`op_zgpop` (stamped by `zd_plan`, `src/ir/zeta_depth.c`; emitted at `x86_asm.h:1910`) whacks **96** where the spine
+`op_zgpop` (stamped by `zd_plan`, **`src/emitter/emit.cpp:2620`** — I first published `src/ir/zeta_depth.c` and hq_U corrected it; emitted at `x86_asm.h:1910`) whacks **96** where the spine
 stands at **160**, missing the four 16-byte slots pushed by the indexed-store chain
 `var → call(rt_call_arr_bl) → var → assign_var`. Six-line witness, **SIGSEGV in BOTH modes**, oracle prints `BCA`.
 Measured RSP drift **−0x40 per iteration** across five iterations; γ/ω sit at **`rsp+0x40`** when the byte-identical
