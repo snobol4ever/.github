@@ -398,33 +398,39 @@ def render_table(only_key=None):
     L[st:en]=new; open(SCORE,'w',encoding='utf-8').write('\n'.join(L))
     return f"suite table: SCORE.md § THE SUITE TABLE re-rendered from SUITES.tsv in the same call ({changed} row(s) changed){scope}"
 def grid(plain=False):
-    """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "No, it should not print
-    anything but SUCCESS and FAILURE. And a grid of the test suite scores." then "Ensure a grid is output not
-    text from the shell script." then "No, the grid must not be text." then "I want a excel type grid with
-    lines and cells."). RULED CELLS, not aligned columns: every row and every column is separated by a drawn
-    line, with a header row, the way a spreadsheet is. The shell caller prints the verdict word and NOTHING
-    else, so this is the only place a suite number is formatted in the banner path.
-    Widths come from dw(), this file's display-width authority, because len() lies on these nicknames."""
+    """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "And a grid of the test suite
+    scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
+    "I want a excel type grid with lines and cells." - "I mean border lines." - "make it smaller.").
+    RULED CELLS, every row and column separated by a drawn line, but PACKED: BLOCKS suites per line instead of
+    one per line, which is what makes it small. 24 suites went from 51 lines to 15 without dropping a suite or
+    losing a border -- the width was being spent on Lang and Pct, which are derivable and were not asked for.
+    A suite at 100% carries * on its score. Widths come from dw(), this file's display-width authority."""
+    BLOCKS = 4
     head,rows=load()
     data=[]
     for r in rows:
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError): continue
-        pct=f"{(100.0*tp/tt):.0f}%" if tt else "-"
-        data.append([r['nick'], r.get('lang',''), f"{tp}/{tt}", pct, "DONE" if tt and tp>=tt else ""])
+        data.append((r['nick'], f"{tp}/{tt}" + ("*" if tt and tp>=tt else "")))
     if not data:
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Suite","Lang","Score","Pct","State"]
-    cols=len(hdr)
-    w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) for c in range(cols)]
-    def rule(l,m,rr): return l + m.join("\u2500"*(w[c]+2) for c in range(cols)) + rr
-    def line(cells): return "\u2502" + "\u2502".join(" "+pad(cells[c],w[c])+" " for c in range(cols)) + "\u2502"
-    done=sum(1 for r in data if r[4]=="DONE")
+    nw=max(dw(n) for n,_ in data); sw=max(dw(v) for _,v in data)
+    lines=[data[i:i+BLOCKS] for i in range(0,len(data),BLOCKS)]
+    ncol=BLOCKS*2
+    w=[nw if c%2==0 else sw for c in range(ncol)]
+    def rule(l,m,rr): return l + m.join("\u2500"*(w[c]+2) for c in range(ncol)) + rr
+    def line(cs):
+        out=[]
+        for c in range(ncol):
+            out.append(" "+pad(cs[c] if c<len(cs) else "", w[c])+" ")
+        return "\u2502" + "\u2502".join(out) + "\u2502"
+    done=sum(1 for _,v in data if v.endswith("*"))
     print(rule("\u250c","\u252c","\u2510"))
-    print(line(hdr))
-    for r in data:
-        print(rule("\u251c","\u253c","\u2524"))
-        print(line(r))
+    for i,grp in enumerate(lines):
+        if i: print(rule("\u251c","\u253c","\u2524"))
+        flat=[]
+        for n,v in grp: flat += [n,v]
+        print(line(flat))
     print(rule("\u2514","\u2534","\u2518"))
     print(f"{len(data)} suites, {done} at 100%")
 def main(a):
