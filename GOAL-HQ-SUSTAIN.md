@@ -19,6 +19,43 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-13 ~21:0x CDT hq_S — SITTING LEDGER PART 4 (NONET, SNOBOL4 RUNTIME).** Second row of the sitting,
+picked from what I measured. **PARKED with the class diagnosed to the register, not cured** — the cure is
+outside this concern's files and it is an ASK by the guardrails, not a landing.
+
+**ROW `snobol4-aisnobol-dextern-loading-a-library-function-with-a-continuation-line-sigsegvs-in-both-modes`**
+(minted by me, rank 0). aisnobol `TEST.sno` and `SIR.sno` SIGSEGV in BOTH modes where `sbl -bf` prints 823 and
+80 deterministic lines; SCRIP prints 19 correct lines of TEST and dies. ⛔⭐ **r12 IS THE CAS POINTER** — the
+pending-replacement stack a `subject pattern = repl` statement stores through (`bb_match_end.cpp:87`) — and it
+is established **exactly once, in the program's own prologue** (m4 `mov r12, qword ptr [0x70000000]` at
+`scrip.c:1507`; m3 the same two instructions in `icn_zf_main_call`, `scrip.c:105-108`). It holds a good pointer
+through **1602 by-name gotos and 1738 match entries** and is `0x68` from the goto that follows
+`goto_resolve 'EVALCODE' g_line=0` onward — **`g_line` reading zero being itself the tell that we are inside a
+CODE()-compiled fragment**.
+
+⭐⭐ **THE PART WORTH CARRYING, AND IT IS WHY THIS SURVIVED:** every DEXTERN'd load runs the same LOADEX loop
+and very likely carries the same corrupt r12 — but **only FIX's library body has a continuation line, and a
+continuation line is the only thing that makes LOADEX's replacement statement actually SUCCEED and therefore
+actually STORE through r12.** ROUND crashes because it calls FIX. So a corrupt pointer every fragment carries
+is dereferenced only by the statements that perform a replacement, and is silent everywhere else. **The class
+is wider than the two programs**, and a cure must not be graded on "TEST stopped crashing".
+
+⛔ **I DID NOT NAME THE WRITER AND THE FINDING SAYS SO.** Stepping from that goto puts the change 184
+instructions in, inside the RX slab where the fragment has no symbols, and `nexti` there reports the writer as
+a one-byte `push rsi`, which cannot be true. That is an instrument limit recorded as one, not a result. Ruled
+out BY MEASUREMENT and written down so nobody repeats them: the argument (literal crashes like variable),
+`CONVERT` alone, the replacement statement alone, the LOADEX2 loop rebuilt over an ARRAY, the same loop rebuilt
+over a real file association, and a fragment entered by goto that performs a replacement inside itself — all
+correct in all three engines; and the CAS base slot at `0x70000000` is written once and never again while r12
+is intact at every one of 29 `code_at` entries, so **the clobber is a REGISTER clobber, not a memory one**.
+`FINDING-2026-09-13-hq_S-r12-is-the-cas-pointer-and-a-code-compiled-fragment-loses-it-so-only-the-statements-that-store-a-replacement-crash.md`.
+
+⭐ **ALSO MEASURED AND WORTH MORE THAN IT COST:** the ceo's `probes/package-red-pools-2026-09-06.tsv` lists
+aisnobol `ENDING` and `WANG` as `m3:CRASH m4:CRASH`. **Both are now clean — 0 diff lines against the oracle in
+BOTH modes.** SCORE.md's aisnobol prose still says "ENDING PASS, WANG CRASH signal 11 in both modes" from
+09-06. The three real reds are TEST, SIR (this row) and HSORT (error 174 "rewind file does not exist" against
+the oracle's ERROR 116 — a separate class, not rowed yet).
+
 **2026-09-13 ~19:4x CDT hq_S — SITTING LEDGER PART 3 (NONET, SNOBOL4 RUNTIME).** One row picked from what I
 measured rather than from a dispatch, and closed. Tree SCRIP `6d384fd08`, corpus `485766db2`, incremental
 `make`, `RT_OPT=-O0`.
