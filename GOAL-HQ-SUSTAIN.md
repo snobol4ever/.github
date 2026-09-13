@@ -19,6 +19,56 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-13 ~15:0x CDT hq_S — SITTING LEDGER PART 2 (NONET, SNOBOL4 RUNTIME).** Rebus closed in part 1 below;
+by MODE line 2 this seat is the SNOBOL4 runtime alone now.
+
+**ROW CLOSED: `snobol4-stlimit-assignment-is-not-honoured-ais-atn-hits-error-244`.** &STLIMIT IS honoured —
+AIS ATN runs to completion and oracle-vs-m3 is **0 diff lines** once the nondeterministic TIME() lines are
+normalized. The cure landed in someone else's push between 09-06 and today; this sitting **measured** it
+rather than made it, and says so.
+
+⛔⭐ **I DID NOT ACCEPT rc=0 AS THE PROOF, and this is the transferable half.** For a LIMIT defect an rc-based
+predicate **cannot tell a cure from a silencing** — a SCRIP that had merely stopped counting statements would
+also run ATN clean. So the limit is graded on the **BOUNDARY**: over a fixed 10-iteration loop with &STLIMIT
+swept 18..25, the oracle and SCRIP flip from raising ERROR 244 to not raising it **at the same value, 24**.
+Identical boundary, both modes — not merely identical verdict. This is the CEO-556 shape the ceo named for the
+snoflake guard, applied to a different keyword.
+
+⛔⭐⭐ **THE ROW'S ORIGINAL DONE-WHEN COULD NEVER HAVE PASSED, AND THAT COST MORE THAN THE BUG.** It ended in
+`cmp -s` against the oracle's run of ATN — which prints TIME() deltas on 19 lines. **Two runs of the ORACLE
+AGAINST ITSELF differ on 38 lines** (measured twice). So the row was minted RED-forever on 09-06, the named
+defect was cured in the meantime, and the signal that would have said *stop, this is done* did not exist —
+while the arm's failure text (`AIS ATN m3 differs from oracle`) **read exactly like the live defect**. That is
+the same tell hq_P recorded twice in the snoflake baton: **the instrument's failure wearing the costume of the
+bug under study.** Three instances, two batons — a class, not a coincidence.
+⭐ **The cheap prophylactic is not reading the source for clock calls** — ATN is a parser generator and its 19
+clock lines hide in a 480-line tree dump. It is **run the oracle twice and diff it against itself**, one
+command, the only check that cannot be fooled by nondeterminism you failed to predict.
+`FINDING-2026-09-13-hq_S-a-done-when-that-byte-compares-a-program-printing-a-clock-reading-is-unsatisfiable-and-the-oracle-differs-from-itself.md`.
+
+**The rewritten DONE-WHEN** normalizes only the `milliseconds` lines, compares every other line byte-exact, and
+adds the boundary arm in **BOTH** modes — the original graded m3 alone while its own GOAL demanded both. ⭐ Both
+halves **proven to go RED**, not assumed: normalization disabled reds the ATN arm; a wrapper that strips the
+string `error 244` from SCRIP's output — a simulated silencing — reds the boundary arm naming
+`oracle_244=1 scrip_244=0`. A gate that cannot fail is not evidence.
+
+**SPLIT OUT, NOT FOLDED IN — new rank-0 row `snobol4-stcount-diverges-in-m4-from-m3-and-the-oracle-inside-code-eval-compiled-statements`, DONE-WHEN verified RED.**
+ATN in m4 diverges. ⭐ Masking the trailing `_NNNN` in the generated node names drops the m3-vs-m4 diff from
+**106 lines to EXACTLY ZERO** — so the parse, the tree and the output shape are identical and **only &STCOUNT's
+value differs**. ATN's own `GENNAME` (ATN.IN:110-114) mints names from &STCOUNT, so the program **encodes the
+statement counter into its answer**, which is why a counter drift surfaces as a wrong answer instead of as a
+timing artifact. m3 is right (0 diff vs oracle). **Lead, not finding:** plain &STCOUNT probes agree across
+oracle/m3/m4 (1/3/6; and 2/5/8/10/18 across call/match/fail/loop), and ATN uses CODE() at 375/422 and EVAL()
+at 344/452 — so dynamically compiled statements are where to look. Not yet reduced to a witness, and the row
+says so rather than claiming a diagnosis.
+
+⚠️ **The row the ceo named as my first bite (`snobol4-snoflake-three-sigsegv-...`) is CLAIMED BY hq_P and its
+named symptom is already cured** — their baton carries the DEFINE-rebinding diagnosis. I did not take it. CEO-669
+was written before that landing; reported back rather than worked around.
+
+**NEXT: the m4 &STCOUNT row above** (mine, rank 0, red), then the gimpel crash classes.
+
+
 **2026-09-13 ~09:3x CDT hq_S — SITTING LEDGER (NONET, REBUS + SNOBOL4 RUNTIME).** Supersedes the blocks below it
 ONLY on Rebus; the Icon blocks below are history, and CEO-669/670 moved this seat off Icon entirely.
 
