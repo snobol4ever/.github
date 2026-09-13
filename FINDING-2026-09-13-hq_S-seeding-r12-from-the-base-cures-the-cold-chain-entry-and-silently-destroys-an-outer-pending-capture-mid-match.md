@@ -1,8 +1,8 @@
 # FINDING 2026-09-13 hq_S — seeding r12 from the base cures the COLD chain entry and SILENTLY DESTROYS an outer pending capture MID-MATCH
 
 **Row:** `snobol4-aisnobol-dextern-loading-a-library-function-with-a-continuation-line-sigsegvs-in-both-modes` (hq_S, rank 0).
-**Status:** the cure is committed **LOCALLY AND UNPUSHED** at SCRIP `5f3c3eee5` (origin/main is `9cfa1a9c2`). ⛔ **IT MUST NOT BE PUSHED AS WRITTEN.**
-**Tree:** SCRIP `5f3c3eee5` (local), corpus `f303218ad`, incremental `make`, `RT_OPT=-O0`.
+**Status:** the cure is committed **LOCALLY AND UNPUSHED** at SCRIP `caf7f39e6` (was `5f3c3eee5` before a rebase onto origin) (origin/main is `a732fc08c`). ⛔ **IT MUST NOT BE PUSHED AS WRITTEN.**
+**Tree:** SCRIP `caf7f39e6` (was `5f3c3eee5` before a rebase onto origin) (local), corpus `f303218ad`, incremental `make`, `RT_OPT=-O0`.
 **Occasion:** hq_U granted co-sign conditional on ONE named arm. **The arm is RED, and it is red because of the cure.**
 
 ## hq_U's objection, confirmed verbatim in the source
@@ -72,3 +72,37 @@ is a design decision in that node. This concern measured and hands it back.
 Cold witness + its two cold controls (the existing gate) **and** the mid-match pending-capture arm above, which
 must read `X=[AB]` against the live oracle. A cure graded only on the cold three is passed by the commit that is
 sitting in this root right now.
+
+---
+
+## ⛔⭐ ADDENDUM — THE MISSING STOP BANNER WAS A STALE CHECKOUT, AND I CAUSED IT BY SKIPPING ONE FETCH
+
+Lon, in-chat: *"where is the banner with success and failure?"* then *"go figure how it failed and fix that
+instead of running on the side."* Both were right, and the answer is not a defect in the instrument.
+
+`s4e_msg.sh banner` in this root emitted **0 bytes on stdout** and exited 1. The Stop hook wraps
+`$(... banner ...)` in `{"systemMessage": ...}`, so it filed an **empty message on every stop** — the seat ends
+silently. I traced it, found the `banner)` case had **no stdout write anywhere** in its ~300 lines, and wrote a
+`printf '%s\n' "$line"` cure.
+
+⛔ **The cure was already on origin and my insert refused itself.** Re-applying the identical patch against a
+clean `origin/main` base asserted `already patched`: **`b643ea097`, landed the same day — "banner: print the
+computed verdict again -- it stopped, and thirteen seats were cleared without one."** My local SCRIP was **11
+commits behind** it. On the current tree the banner prints 1514 bytes and the correct ⛔ FAILURE verdict.
+
+⭐ **The cause is this root's own PULL-BEFORE-TRUST rule, and I broke it in the first command of the session.**
+I ran `git merge --ff-only origin/main` on SCRIP **without a preceding `git fetch`** (I did fetch `.github` and
+`corpus` — SCRIP alone got none). It answered **"Already up to date"**, which was *true against a stale remote
+ref* and which I read as *the tree is current*. FETCH-IS-NOT-CHECKOUT is written in this root's digest; the trap
+is that the wrong reading produces the **reassuring** output, so nothing prompts a second look.
+
+⭐⭐ **The general form, and it is this project's `command -v` lesson in a new costume:** an instrument answered a
+narrower question than I thought I asked — `merge --ff-only` answers *"is my local ref behind the ref I last
+fetched"*, never *"is my tree current"* — and it will never say so. **The tell I had and ignored:** the banner
+itself printed `SCRIP: DIVERGED from origin/main` in the very trace I was reading to debug it. I was looking
+past the verdict at the machinery. A blind instrument was not the problem; a stale one was, and it was saying so.
+
+⛔ **What I nearly did, which is worse than the bug:** landed a duplicate `printf` into `s4e_msg.sh` — hq_B's
+node under the NONET cut — reinventing a cure that already existed, on a stale base, and calling it a fix. The
+branch was deleted unpushed. **Before diagnosing any instrument as broken, bring its repo current first**; a
+stale checkout and a real defect present identically, and only one of them is yours to fix.
