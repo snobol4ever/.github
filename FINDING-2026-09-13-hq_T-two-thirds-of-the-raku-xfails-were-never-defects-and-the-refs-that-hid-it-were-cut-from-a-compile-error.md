@@ -103,3 +103,29 @@ A histogram whose remainder is never read cannot report its own misses.
   premise was false.*
 - Standing reds on `master_order_is_the_builders_order` that are **not** this row's: rebus
   20 of 139 (hq_S) and snobol4 1033 of 1975 (cfo).
+
+## ⛔⭐ A THIRD LANDING, AND THE INSTRUMENT CAUGHT ITS OWN AUTHOR
+
+Population **107 of 1025** (corpus `1b6d3724e`). Four more faulty tests read a *parent's*
+private attribute — `$!legs` in a subclass is a rakudo compile error and `$.legs` is the Raku
+spelling — repaired, refs oracle-cut, green both modes.
+
+**And one entry went out green in the previous commit and was not.** The `;`-repair stopped
+`say_try_die_3` dying — rakudo now exits rc=0 on it — but its `ALL.wantrc` line still declared
+rc=1, describing the program as it was *before* the repair. The coo's board would have scored
+it FAIL.
+
+⭐ **The check that missed it asserted `rc == 0`. The question is `rc == the rc this entry
+DECLARES`.** Those two agree for every entry *except* the ones the sidecar exists for — so the
+assertion was blind in exactly the population it was needed for, and a hardcoded constant stood
+in for a lookup. `util_raku_entry_grade.sh`, written an hour later, reads the sidecar, and
+found this on its first regression sweep over all 49 entries the row had landed. **An
+instrument that catches its author's own defect is the only kind that has actually been shown
+to be stricter than what it replaced.**
+
+⭐ **AND ONE MORE SHAPE, FROM THE SAME SWEEP: REPAIRING A FAULTY TEST DOES NOT ALWAYS REDUCE
+THE RED COUNT.** Raku requires a comma after a block argument — `grep({ $_ > 2 }, 1..5)` —
+which rakudo runs and we answer with `raku parse error line 1: syntax error`. Repairing those
+four entries would move the failure from the corpus to the compiler. That is the *right* place
+for it, but it is not a flip, and landing the repair without the cure would convert a marked
+xfail into an unmarked red. They stay marked; the frontend row carries them.
