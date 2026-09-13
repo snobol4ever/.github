@@ -353,7 +353,7 @@ def banner(plain=False, grid=True, ncol=2):
             print(' | '.join(cells[i+j*nrow] for j in range(ncol) if i+j*nrow<len(cells)))
 def md():
     head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
-    print('| suite | lang | first graded reading | today | state |'); print('|---|---|---|---|---|')
+    print('| suite | lang | result | graded | tree | state |'); print('|---|---|---|---|---|---|')
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
@@ -369,9 +369,9 @@ def md():
                 # reader downstream. ⭐ SUBSTITUTED, NOT BACKSLASH-ESCAPED: `\\|` satisfies a markdown renderer
                 # and NOT an instrument that splits the row on '|', and the instruments are the harder reader.
                 _w=dfr['waiting_on'][:400].replace('|','·'); _b=dfr['ruled_by'].replace('|','·')
-                print(f"| {r['nick']} | {r['lang']} | - | -/{r['today_total']} ({dfr['count']} DEFERRED, not counted as failures) | DEFERRED by Lon ({_b}), IN SCOPE AND NOT A FAILURE - waiting on: {_w} |")
+                print(f"| {r['nick']} | {r['lang']} | -/{r['today_total']} ({dfr['count']} DEFERRED, not counted as failures) | never graded | - | DEFERRED by Lon ({_b}), IN SCOPE AND NOT A FAILURE - waiting on: {_w} |")
             else:
-                print(f"| {r['nick']} | {r['lang']} | - | -/{r['today_total']} (vendored, no runner yet) | NO RUNNER, NO READING: {why} - a population with no grader is a debt on the board, never an absence from it |")
+                print(f"| {r['nick']} | {r['lang']} | -/{r['today_total']} (vendored, no runner yet) | never graded | - | NO RUNNER, NO READING: {why} - a population with no grader is a debt on the board, never an absence from it |")
             continue
         rc=recriterioned(r)
         if rc:
@@ -393,7 +393,8 @@ def md():
         # (ceo ruling to the coo, 2026-09-08: "Set it, state the convention in the cell.")
         xa = xfail_annotation(r, k)
         if xa: tail = (tail + ' · ' if tail else '') + xa
-        print(f"| {r['nick']} | {r['lang']} | {r['first_pass']}/{r['first_total']} ({r['first_date'][5:]}) | {r['today_pass']}/{r['today_total']} ({r['today_date'][5:]}, `{r['tree']}`) | {tail} |")
+        _ago=(today-d(r['today_date'])).days; _age='today' if _ago==0 else ('yesterday' if _ago==1 else f'{_ago} days ago')
+        print(f"| {r['nick']} | {r['lang']} | {r['today_pass']}/{r['today_total']} | {r['today_date']} ({_age}) | `{r['tree']}` | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
     import io, contextlib

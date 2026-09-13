@@ -2,35 +2,35 @@
 
 ## ⭐⭐⭐ THE SUITE TABLE — HOW LON READS THE SCORE (Lon 2026-09-06 10:48 CDT, in-chat to ceo, verbatim: *"That presentation of the state of correctness by test suite is how I want to see the report from now on. Forget this stupid percentages by language."*)
 
-One row per suite — our seven masters and every vendored package suite alike — with the FIRST graded reading (date) and TODAY's reading (from the cell below it, tree-labelled there). The `moved` column was REMOVED on Lon's word 2026-09-12 ("worthless info"): a difference between two readings taken under different criteria is not a movement. ⛔ **A report to Lon is THIS TABLE, never a per-language percentage or roll-up** (RULES.md § ONE LEADERBOARD, amended 2026-09-06). The per-language grid below stays as the runners' write target and provenance; this table is what is read back. Every runner that rewrites a cell below rewrites its row here in the same landing (hq_T wires it through `util_score_row.py`, row `score-suite-table-row-rewritten-by-the-runner-that-measured-it`); until then the ceo rewrites it at every tick from the cells. ⭐ MACHINE RECORD: `SUITES.tsv` (this table is `python3 scripts/util_suite_banner.py --md`, regenerated at every ceo tick; the banner every seat and the ceo print every turn is the same script with no flag — Lon 2026-09-06 11:19: *"Make it driven by the leaderboard and always show the current status every turn. A compressed string giving counts for each suite."*). A runner that measures a suite rewrites its row with `util_suite_banner.py --set <key> <pass> <total> [date] [tree]` in the same landing as its cell (hq_T wires this into `util_score_row.py`, row `suite-table-row-rewritten-by-the-runner-through-util-suite-banner-set`). ETA column = remaining / (movement per day since the first reading); ⛔ STUCK = no movement since the first reading; 🆕 = one reading only.
+One row per suite — our seven masters and every vendored package suite alike — with the RESULT, **the date that result was graded**, and the tree it was graded on. ⛔ **THE `first graded reading` COLUMN WAS REMOVED ON LON'S WORD 2026-09-13** (in-chat to ceo, verbatim: *"Regarding the grid, remove the column named 'first grade reading.' Nobody cares."*; CEO-682) and the `graded` column added in the same edit on his next word (verbatim: *"Add the date of the grading for each test suite. Say when was the last time the test was run which produced the results which are being reported."*). ⭐ **THE DATE IS NOT DECORATION: IT IS THE ANSWER TO "IS THIS NUMBER STILL TRUE?"** — a row graded three days ago is a claim about a tree hundreds of landings behind origin, and the column says so in plain words (`today` / `yesterday` / `N days ago`) rather than leaving a reader to subtract. `first_*` stays in `SUITES.tsv` as the basis for the rate and ETA computations and is no longer displayed. The `moved` column was REMOVED on Lon's word 2026-09-12 ("worthless info"): a difference between two readings taken under different criteria is not a movement. ⛔ **A report to Lon is THIS TABLE, never a per-language percentage or roll-up** (RULES.md § ONE LEADERBOARD, amended 2026-09-06). The per-language grid below stays as the runners' write target and provenance; this table is what is read back. Every runner that rewrites a cell below rewrites its row here in the same landing (hq_T wires it through `util_score_row.py`, row `score-suite-table-row-rewritten-by-the-runner-that-measured-it`); until then the ceo rewrites it at every tick from the cells. ⭐ MACHINE RECORD: `SUITES.tsv` (this table is `python3 scripts/util_suite_banner.py --md`, regenerated at every ceo tick; the banner every seat and the ceo print every turn is the same script with no flag — Lon 2026-09-06 11:19: *"Make it driven by the leaderboard and always show the current status every turn. A compressed string giving counts for each suite."*). A runner that measures a suite rewrites its row with `util_suite_banner.py --set <key> <pass> <total> [date] [tree]` in the same landing as its cell (hq_T wires this into `util_score_row.py`, row `suite-table-row-rewritten-by-the-runner-through-util-suite-banner-set`). ETA column = remaining / (movement per day since the first reading); ⛔ STUCK = no movement since the first reading; 🆕 = one reading only.
 
-| suite | lang | first graded reading | today | state |
-|---|---|---|---|---|
-| Gimpel | snobol4 | 58/126 (09-04) | 123/132 (09-12, `27ae59250`) |  |
-| Budne | snobol4 | 55/118 (09-04) | 70/72 (09-13, `cb1578145`) |  |
-| Flake | snobol4 | 63/180 (08-28) | 118/124 (09-12, `0a6e5520a`) |  |
-| AIS | snobol4 | 0/2 (09-04) | 4/7 (09-13, `cb1578145`) |  |
-| Dotnet | snobol4 | 5/5 (09-04) | 5/5 (09-13, `cb1578145`) | done |
-| TPgm | snobol4 | 1/2 (09-08) | 1/2 (09-12, `0a6e5520a`) |  |
-| Zona | icon | 39/89 (08-30) | 88/88 (09-13, `112912014`) | done |
-| Jcon | icon | 34/81 (08-30) | 82/82 (09-13, `112912014`) | done |
-| IPL | icon | 34/60 (09-05) | 194/194 (09-13, `112912014`) | done |
-| INRIA | prolog | 261/445 (09-04) | 434/445 (09-13, `1d0a3d3d4`) |  |
-| SWI | prolog | 0/114 (09-05) | 659/2935 (09-13, `1d0a3d3d4`) |  |
-| GNU | prolog | 6/62 (09-03) | 11/11 (09-13, `1d0a3d3d4`) | done |
-| FPC | pascal | 119/181 (08-30) | 116/181 (09-13, `cb1578145`) |  |
-| PAT | pascal | 298/427 (09-04) | 271/427 (09-13, `cb1578145`) |  |
-| Roast | raku | 4/986 (09-03) | 5/986 (09-06, `a5aea2ad1`) |  |
-| SnoM | snobol4 | 1841/1842 (09-06) | 1928/1939 (09-13, `5b17c350f`) | 10 xfail counted as FAIL of a 11-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| IcnM | icon | 642/655 (09-06) | 826/826 (09-13, `71b32337f`) | done |
-| ProM | prolog | 324/404 (09-03) | 529/560 (09-12, `55aaa01ad`) |  |
-| PasM | pascal | 248/251 (09-06) | 246/246 (09-12, `577298671`) | done |
-| RakM | raku | 620/762 (09-03) | 680/880 (09-12, `55aaa01ad`) | 156 xfail counted as FAIL of a 200-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| SncM | snocone | 176/206 (09-03) | 196/235 (09-12, `55aaa01ad`) | 16 xfail counted as FAIL of a 39-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| RebM | rebus | 15/48 (09-03) | 38/43 (09-12, `55aaa01ad`) | 4 xfail counted as FAIL of a 5-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| Logtalk | prolog | 1218/3617 (09-12) | 2619/3600 (09-13, `5b17c350f`) |  |
-| GnuFD | prolog | - | -/30 (30 DEFERRED, not counted as failures) | DEFERRED by Lon (CEO-572,CEO-579), IN SCOPE AND NOT A FAILURE - waiting on: THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var·put_attr·coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10. |
-| X64T | snobol4 | 18/36 (09-12) | 18/36 (09-12, `eec5d65ed`) |  |
+| suite | lang | result | graded | tree | state |
+|---|---|---|---|---|---|
+| Gimpel | snobol4 | 123/132 | 2026-09-12 (yesterday) | `27ae59250` |  |
+| Budne | snobol4 | 70/72 | 2026-09-13 (today) | `cb1578145` |  |
+| Flake | snobol4 | 118/124 | 2026-09-12 (yesterday) | `0a6e5520a` |  |
+| AIS | snobol4 | 4/7 | 2026-09-13 (today) | `cb1578145` |  |
+| Dotnet | snobol4 | 5/5 | 2026-09-13 (today) | `cb1578145` | done |
+| TPgm | snobol4 | 1/2 | 2026-09-12 (yesterday) | `0a6e5520a` |  |
+| Zona | icon | 88/88 | 2026-09-13 (today) | `112912014` | done |
+| Jcon | icon | 82/82 | 2026-09-13 (today) | `112912014` | done |
+| IPL | icon | 194/194 | 2026-09-13 (today) | `112912014` | done |
+| INRIA | prolog | 434/445 | 2026-09-13 (today) | `1d0a3d3d4` |  |
+| SWI | prolog | 659/2935 | 2026-09-13 (today) | `1d0a3d3d4` |  |
+| GNU | prolog | 11/11 | 2026-09-13 (today) | `1d0a3d3d4` | done |
+| FPC | pascal | 116/181 | 2026-09-13 (today) | `cb1578145` |  |
+| PAT | pascal | 271/427 | 2026-09-13 (today) | `cb1578145` |  |
+| Roast | raku | 5/986 | 2026-09-06 (7 days ago) | `a5aea2ad1` |  |
+| SnoM | snobol4 | 1928/1939 | 2026-09-13 (today) | `5b17c350f` | 10 xfail counted as FAIL of a 11-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| IcnM | icon | 826/826 | 2026-09-13 (today) | `71b32337f` | done |
+| ProM | prolog | 529/560 | 2026-09-12 (yesterday) | `55aaa01ad` |  |
+| PasM | pascal | 246/246 | 2026-09-12 (yesterday) | `577298671` | done |
+| RakM | raku | 680/880 | 2026-09-12 (yesterday) | `55aaa01ad` | 123 xfail counted as FAIL of a 200-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| SncM | snocone | 196/235 | 2026-09-12 (yesterday) | `55aaa01ad` | 16 xfail counted as FAIL of a 39-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| RebM | rebus | 38/43 | 2026-09-12 (yesterday) | `55aaa01ad` |  |
+| Logtalk | prolog | 2619/3600 | 2026-09-13 (today) | `5b17c350f` |  |
+| GnuFD | prolog | -/30 (30 DEFERRED, not counted as failures) | never graded | - | DEFERRED by Lon (CEO-572,CEO-579), IN SCOPE AND NOT A FAILURE - waiting on: THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var·put_attr·coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10. |
+| X64T | snobol4 | 18/36 | 2026-09-12 (yesterday) | `eec5d65ed` |  |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
