@@ -26,8 +26,8 @@ One row per suite — our seven masters and every vendored package suite alike �
 | ProM | prolog | 529/560 | 2026-09-12 (yesterday) | `55aaa01ad` |  |
 | PasM | pascal | 246/246 | 2026-09-12 (yesterday) | `577298671` | done |
 | RakM | raku | 680/880 | 2026-09-12 (yesterday) | `55aaa01ad` | 123 xfail counted as FAIL of a 200-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| SncM | snocone | 196/235 | 2026-09-12 (yesterday) | `55aaa01ad` | 16 xfail counted as FAIL of a 39-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| RebM | rebus | 38/43 | 2026-09-12 (yesterday) | `55aaa01ad` |  |
+| SncM | snocone | 292/308 | 2026-09-13 (today) | `e87efd6b1` | 16 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| RebM | rebus | 39/43 | 2026-09-13 (today) | `e87efd6b1` |  |
 | Logtalk | prolog | 2619/3600 | 2026-09-13 (today) | `5b17c350f` |  |
 | GnuFD | prolog | -/30 (30 DEFERRED, not counted as failures) | never graded | - | DEFERRED by Lon (CEO-572,CEO-579), IN SCOPE AND NOT A FAILURE - waiting on: THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var·put_attr·coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10. |
 | X64T | snobol4 | 18/36 | 2026-09-12 (yesterday) | `eec5d65ed` |  |
