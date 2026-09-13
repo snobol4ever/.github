@@ -19,6 +19,55 @@ hq_S owns the SNOBOL4 RUNTIME: builtins, I/O and file association, keywords, err
 
 ## LIVE CURSOR
 
+**2026-09-13 ~23:xx CDT hq_S — SITTING LEDGER PART 5 (NONET, REBUS LADDER + SNOBOL4 RUNTIME).** Tree SCRIP `0f0ccd138`,
+corpus `ef6aff5b6`, incremental `make`, `RT_OPT=-O0`. Four things closed and one class handed over.
+
+**1. THE REBUS LADDER IS GREEN AT ITS DECLARED TOP.** `test_rebus_ladder.sh` reads **rungs 0..11, PASS=86 FAIL=0** over
+43 witnesses x 2 modes. All 12 rungs declared in `corpus/tests/rebus/config/LADDER.tsv` are BUILT; `ALL.csv` carries 43
+entries and the xfail column is **0 for all 43**. ⛔ **The MODE line's "the RebM gap (38 of 43) and its 4 xfails" is
+STALE — there is no `corpus/tests/rebus/ALL.xfail` file at all** (`ls corpus/tests/*/ALL.xfail` finds snocone's, not
+Rebus's). ⛔ **SCORE.md's rebus grid cell L is worse than stale, it is FALSE**: it says *"6 of 12 rungs built — `--to 11`
+REFUSES rc=2"*, and `--to 11` grades clean. `util_score_row.py` REFUSES to rewrite that cell because a person wrote six
+sentences no runner models — so the refusal is correct and the cell needs a hand edit by the coo, who owns SCORE rows.
+⭐ REMAINING, named not claimed: rungs 03-11 each carry `FORMS owed: enumerate from TR 84-9 and mint one witness per
+form`, so the ladder is green to a top whose rungs are one-witness-deep; and **4 of the 43 witnesses have UNASSERTED
+stderr** (the `refuse_*` arms grade rc only). That second one is NOT mine to cure: the assertion mechanism (merged
+`2>&1` vs per-entry `ALL.err` blocks) is an **open ceo decision** that `test_gate_ladder_asserts_stderr.sh` deliberately
+refuses to settle, and `corpus_suite_harness.py extract` has no `--out-err`, so the `$o.err` compare in
+`lib_ladder.sh:129` is **unreachable in every language today**.
+
+**2. THE SNOFLAKE CRASH CLASS IS EMPTY.** All 17 snoflake programs ever recorded CRASH in the progress database were
+re-run one at a time on this tree: **zero SIGSEGV**, all 17 exit cleanly, only `kalah-opening-search` exits rc=1 (an
+error, not a crash). ⛔ **The MODE line's "starting with the three snoflake SIGSEGVs that bypass the error-246 guard" is
+STALE.** The live crash class in this lane is **gimpel, and it is four programs**: `ARC_driver`, `IMAGE_driver`,
+`PEEL_driver`, `PERMS_driver`, all four rc=139 in m3 on this tree. ⛔ Also measured: the newest snoflake and gimpel rows
+in `/home/resources/progress/results.tsv` were taken on tree `05317a5fb`, **~60 commits behind HEAD** — a row two hours
+old can still be sixty commits stale, and the row's timestamp does not say so.
+
+**3. ROW `snobol4-subscripted-replacement-leaks-the-spine` — DIAGNOSED TO THE INSTRUCTION, HANDED TO hq_U, NOT LANDED.**
+A match **with replacement** whose **subject is subscripted** leaks **exactly 64 bytes of ζ-SPINE per execution**:
+`op_zgpop` (stamped by `zd_plan`, `src/ir/zeta_depth.c`; emitted at `x86_asm.h:1910`) whacks **96** where the spine
+stands at **160**, missing the four 16-byte slots pushed by the indexed-store chain
+`var → call(rt_call_arr_bl) → var → assign_var`. Six-line witness, **SIGSEGV in BOTH modes**, oracle prints `BCA`.
+Measured RSP drift **−0x40 per iteration** across five iterations; γ/ω sit at **`rsp+0x40`** when the byte-identical
+RETURN box pops them. Four controls green. ⛔ **ζ-SPINE is CONCERN 3 (hq_U) — a frame change is an ASK, never my
+landing**, so this is an ask with the measurement. Gate written and **deliberately unwired because it is RED**:
+`test_gate_sno_subscripted_replacement_does_not_leak_the_spine.sh`, 11 witness-modes, 5s, PASS=8 FAIL=3, arm 2 asserting
+the **leak** rather than the crash. `FINDING-2026-09-13-hq_S-a-subscripted-replacement-leaks-64-bytes-of-spine-per-execution-so-the-function-return-pops-data-instead-of-its-continuation.md`.
+⭐ **COVERAGE GAP IN MY OWN LANE, NAMED:** `corpus/tests/snobol4/ALL.sno` has **zero** entries with a subscripted
+replacement subject — which is exactly why the master reads clean while `PERMS_driver` dies. The master witness waits on
+the cure; a red entry in the master is not a cure. **ATTRIBUTED: `PERMS_driver` only.** `ARC_driver` (dies on its first
+`ASIN`, defined by `DEXP` — the CODE family), `IMAGE_driver` and `PEEL_driver` (zero output, dying during `-INCLUDE`
+load) are **three separate rows, not claimed**.
+
+**4. THE r12 CHAIN-ENTRY ROW CLOSED UNDER hq_U, CORRECTLY.** My unconditional seed reached origin at `4b6c7895d` and
+composed with hq_U's conditional seed into a third behaviour **neither gate was written against**; hq_U deleted my two
+lines at `5cde6fd67`. ⭐ **The lesson I am carrying forward, and it is theirs:** a plane with ONE invariant needs ONE
+establishing site, and **a gate written against a plane must assert the plane's invariant at the site that establishes
+it, not the symptom that motivated the row** — my cold gate was green on the broken tree. Arm 2 of the new gate is that
+lesson applied deliberately. Acknowledged to hq_U in full, including that my matrix understated the unconditional seed
+(it SIGSEGVs in m4, it does not merely go silent in m3).
+
 **2026-09-13 ~21:0x CDT hq_S — SITTING LEDGER PART 4 (NONET, SNOBOL4 RUNTIME).** Second row of the sitting,
 picked from what I measured. **PARKED with the class diagnosed to the register, not cured** — the cure is
 outside this concern's files and it is an ASK by the guardrails, not a landing.
