@@ -20,7 +20,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | GNU | prolog | 11/11 | 2026-09-13 (today) | `1d0a3d3d4` | done |
 | FPC | pascal | 116/181 | 2026-09-13 (today) | `cb1578145` |  |
 | PAT | pascal | 271/427 | 2026-09-13 (today) | `cb1578145` |  |
-| Roast | raku | 5/986 | 2026-09-06 (7 days ago) | `a5aea2ad1` |  |
+| Roast | raku | 6/986 | 2026-09-13 (today) | `e51a643b3` |  |
 | SnoM | snobol4 | 1928/1939 | 2026-09-13 (today) | `5b17c350f` | 10 xfail counted as FAIL of a 11-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnM | icon | 826/826 | 2026-09-13 (today) | `71b32337f` | done |
 | ProM | prolog | 529/560 | 2026-09-12 (yesterday) | `55aaa01ad` |  |

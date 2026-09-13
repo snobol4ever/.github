@@ -1,6 +1,6 @@
 # RAKU-COVERAGE.md — computed by scripts/raku_roast_scoreboard.sh
 
-**Generated:** 2026-09-06T18:08:59Z · scrip `a5aea2ad1` · roast ``
+**Generated:** 2026-09-13T19:45:50Z · scrip `e51a643b3` · roast ``
 
 This table is the ONLY sanctioned source of a Raku coverage claim (RAKU-100 ladder,
 COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
@@ -9,10 +9,10 @@ COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
 
 | Verdict | Files | % of in-tier |
 |---------|-------|--------------|
-| **PASS** | 5 | **0.5%** |
-| FAIL (runs, some `not ok`) | 8 | 0.8% |
-| PARSE-FAIL | 924 | 93.7% |
-| NO-TAP (ran, emitted no TAP) | 7 | 0.7% |
+| **PASS** | 6 | **0.6%** |
+| FAIL (runs, some `not ok`) | 9 | 0.9% |
+| PARSE-FAIL | 921 | 93.4% |
+| NO-TAP (ran, emitted no TAP) | 8 | 0.8% |
 | CRASH / TIMEOUT | 1 | 0.1% |
 | missing from roast tree | 41 | — |
 | **IN-TIER DENOMINATOR** | **986** | 100% |
@@ -110,6 +110,6 @@ COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
 | S32-list | 0 | 36 | 0.0% |
 | S32-num | 0 | 25 | 0.0% |
 | S32-scalar | 0 | 3 | 0.0% |
-| S32-str | 0 | 40 | 0.0% |
+| S32-str | 1 | 40 | 2.5% |
 | S32-temporal | 0 | 5 | 0.0% |
 | S32-trig | 0 | 16 | 0.0% |
