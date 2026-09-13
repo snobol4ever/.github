@@ -39,6 +39,13 @@ def pad(s, width):
     """left-justify to WIDTH display columns; never truncates, so a wide cell pushes its row instead of lying."""
     d = dw(s)
     return s + ' ' * (width - d) if d < width else s
+def rpad(s, width):
+    """RIGHT-justify to WIDTH display columns (Lon 2026-09-13: "right justify the numbers"), for NUMERIC cells
+    only. A column of right-aligned figures puts the units under the units, so 2619 and 6 and 1928 compare by
+    eye down the column; left-aligned they do not, which is the whole reason a reader scans a score grid.
+    Never truncates, same as pad(): a wide cell pushes its row rather than lying about its value."""
+    d = dw(s)
+    return ' ' * (width - d) + s if d < width else s
 HERE=os.path.dirname(os.path.abspath(__file__))
 # ⛔ S4E_SUITES_TSV EXISTS SO A SCRATCH HARNESS CAN BE SCRATCH IN BOTH OF ITS OUTPUTS (hq_T 2026-09-06,
 # ceo CEO-363).  util_score_row.py now mirrors a V/M write into the suite table by calling this script,
@@ -427,10 +434,12 @@ def grid(plain=False):
     cols=len(hdr)
     w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
-    def line(cs): return "\u2502" + "\u2502".join(pad(cs[c],w[c]) for c in range(cols)) + "\u2502"
+    NUM={2,3,4}   # Pass, Total, Pct -- the numeric cells, right-justified; Lang/Suite/State stay left.
+    def line(cs, hdr_row=False):
+        return "\u2502" + "\u2502".join((rpad if (c in NUM and not hdr_row) else pad)(cs[c],w[c]) for c in range(cols)) + "\u2502"
     done=sum(1 for r in data if r[5]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
-    print(line(hdr))
+    print(line(hdr, hdr_row=True))
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
