@@ -432,11 +432,22 @@ def grid(plain=False):
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
     hdr=["Lang","Suite","Pass","Total","Pct","State"]
     cols=len(hdr)
-    w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) for c in range(cols)]
+    # ⭐ ONE EXTRA COLUMN OF ROOM PER CELL (Lon 2026-09-13: "Give one extra space in each column to give room
+    # to breath."). Added to the WIDTH, so the rules that span each column widen with it and the box still
+    # closes; pad() and rpad() then place the slack on the correct side -- left of a right-justified number,
+    # right of a left-justified name -- which is why this is one number here and not a space glued onto a cell.
+    w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) + 1 for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
     NUM={2,3,4}   # Pass, Total, Pct -- the numeric cells, right-justified; Lang/Suite/State stay left.
     def line(cs, hdr_row=False):
-        return "\u2502" + "\u2502".join((rpad if (c in NUM and not hdr_row) else pad)(cs[c],w[c]) for c in range(cols)) + "\u2502"
+        # ⭐ THE EXTRA COLUMN IS A TRAILING SPACE ON EVERY CELL, not slack handed to the justifier. Give it to
+        # rpad() instead and a right-justified number lands FLUSH AGAINST THE RIGHT BORDER with the gap on its
+        # far side, which is the opposite of room to breathe. So each cell is justified into w-1 and then gets
+        # one space: names breathe on the right, numbers breathe on the right, and the columns still line up.
+        def cell(c):
+            j = rpad if (c in NUM and not hdr_row) else pad
+            return j(cs[c], w[c]-1) + " "
+        return "\u2502" + "\u2502".join(cell(c) for c in range(cols)) + "\u2502"
     done=sum(1 for r in data if r[5]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
     print(line(hdr, hdr_row=True))
