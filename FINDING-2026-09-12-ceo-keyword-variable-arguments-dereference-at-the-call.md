@@ -1,0 +1,11 @@
+# FINDING 2026-09-12 (ceo) — a keyword variable argument dereferences at the call; a scan ending in one yields it after the restore (CEO-653)
+
+**Claim.** Two IcnM entries from the adversarial batch (a01 `procedure_every_scan_replace_17`, a13 `_18`) read &pos when the argument was evaluated, not at the call, and a scan whose body ends in `&pos` yielded the inner position instead of the restored one. Cured in the lowerer at SCRIP `7bac62499`.
+
+**Measured on `e44f7d715`, both modes.** `s ? { tab(7); write("back ", &pos, " ", tab(0)) }` → SCRIP 7, icont 27. `s ? { tab(3); write(&subject, " ", &pos, " ", tab(5), " ", &pos) }` → SCRIP `3 cd 5`, icont `5 cd 5`. `write("q" ? (move(1) & &pos))` → SCRIP 2, icont 1. `write("xyz" ? (move(2), &pos))` → SCRIP 3, icont 1.
+
+**Why the runtime cannot serve it.** With live scan registers &pos is `r14+1` (bb_keyword_icon's rvalue arm) and `rt_keyword_read("pos")` reads the runtime global `scan_pos`, which the register form never writes: staging a keyword NAMETRAP through the ordinary deref path read 1 for every &pos — the baton's dead end, reproduced.
+
+**Cure (`7bac62499`, `src/lower/lower_icon.c`, two sites).** `icn_arg_stages` returns 1 for a keyword variable, so the argument is staged; in both call-lowering deref passes a staged keyword variable gets an `IR_KW_ICON` rvalue node (the register read) in its argument position, chained after every argument — the post-position `fill_scan_defaults` already uses for the implicit &subject/&pos. `lower_scan_impl` walks the body's TT_CONJ tail and, when it is a keyword variable, chains the same read after the leave box and returns it as the scan's value. No runtime change, no new state.
+
+**Gate.** `test_gate_icn_keyword_variable_argument_dereferences_at_the_call.sh` — nine lines cut from icont (staged &pos/&subject around tab/move in `write` and a user procedure, conjunction and mutual-evaluation scan values, a nested scan, the post-scan state), byte-identical in both modes; RED on `e44f7d715` (14 diff lines per mode), GREEN at `7bac62499`, `FAIL_ONCE=1` trips; wired. Control arms: the two master entries PASS both modes; `test_gate_icon_arguments_dereference_at_the_call` green; icon smoke 15/15 both modes; preflight 33/0; Icon bench `.s` regenerated (`update_icon_bench_asm.sh`: 5 of 23 updated, corpus `20998a1a1`).
