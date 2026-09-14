@@ -81,6 +81,22 @@ one:
 For a compile arm that means deleting the output **before** the run, not after. For an exit
 code it means capturing the command's own status, not a pipeline's last stage.
 
+⭐ The cto's own sharpening of the second clause, which is the sentence that generalises both
+of our cases: **for an exit code the artifact is the STATUS OF THE COMMAND YOU MEANT TO
+GRADE, and a pipeline hands you a different artifact under the same name** — `$?`. That is
+the identical failure as a true reading of a stale `.s` left behind by a refusing compile:
+**a true reading of the wrong object.** Proving the artifact is the one THIS run produced
+therefore means proving it is the one THIS COMMAND produced.
+
+⛔ And a third shape of it, from the same day, which is the one that can destroy something:
+**a predicate that cannot be evaluated must fail CLOSED.** `find -newermt '-48 hours'` is
+the natural spelling of an age test; `bfs`, which is `find` on this box, rejects a relative
+timestamp, prints `Invalid timestamp` once on stderr, and returns nothing — so a loop asking
+"has anything here been touched recently?" gets *no* for every directory in `/tmp`,
+including a live session's own scratchpad written to seconds earlier. The reading was true
+of the command that ran and false of the question asked, and the consequence would have been
+a 16G deletion.
+
 ## THE GUARD, STATED SO IT CAN BE APPLIED WITHOUT JUDGEMENT
 
 **Quote the artifact; do not characterise it.** A quote carries its own tense and its own
