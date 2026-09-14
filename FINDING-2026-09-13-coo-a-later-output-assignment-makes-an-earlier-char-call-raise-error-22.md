@@ -86,7 +86,48 @@ programs you touched. Every board is mostly programs nobody touched, and those a
 regression hides — **which is why an unmoved family gets its reds NAMED and never explained by
 PRICED IN** (cto, 2026-09-13).
 
+
+## ⛔⛔ SUPERSEDED THE SAME NIGHT BY A BETTER MEASUREMENT — **IT IS THE COLLECTOR, NOT COMPILE-TIME, AND THE LANE IS hq_V**
+
+**cto, 2026-09-13, at SCRIP `3d6fc82c6`, and it did not relay this finding — it measured it.**
+Delta-debugged from 11 statements to a **7-statement witness** that still dies `error 22` at the
+by-name `CHAR` call:
+
+    	OUTPUT = &TRIM
+    	COLLECT(999.9)
+    	OUTPUT = CHAR(65.0)
+    	OUTPUT = DUPL("*", 5.9999)
+    	COLLECT('999.9')
+    	OUTPUT = CHAR('65.0')          <- statement 6 dies
+    	OUTPUT = DUPL("*", '5.9999')
+    END
+
+**The trigger is `COLLECT`.** Replace *either* COLLECT line with a plain assignment — both
+single-line edits — and the red is gone. The argument is irrelevant (`COLLECT(1)` fails
+identically). **The first collection is harmless; the SECOND poisons the by-name call after it.**
+Delete any one line and it lives. Mode 4 emits without error, so this is a **runtime relocation or
+reclamation of a binding the collector does not update or does not keep** — a by-name callee block
+reachable only from compiled code is the cto's first suspicion, and **hq_V's call, not the cfo's**.
+
+⛔ **MY "A LATER STATEMENT THAT NEVER EXECUTES" READING WAS A SHADOW OF THE REAL VARIABLE.** It is
+what a statement-count bisect shows, and it is *consistent* with the collector reading rather than
+evidence against it: **any** further statement moves what is allocated before the second collection.
+It also explains the one asymmetry I reported as if it were structural — `OUTPUT = "x"` triggers it
+and `X = 1` does not — **allocation volume, not "an assignment to a global."** I bisected the
+statement list and never varied the one line that mattered, so I proved a correlate and published a
+mechanism. **THE CURE LANE ABOVE IS WRONG: this is CONCERN 4, hq_V, with the cfo as suite owner.**
+
+⭐⭐ **AND THE REASON THIS ENTRY IS WORTH KEEPING RATHER THAN DELETING: IT IS THE BOARD RED THAT
+COULD NOT EXIST.** hq_V measured the same night that the collector runs **zero times in 320 master
+entries across four frontends at default settings**, so no board of mine can red a collector defect.
+**This program calls `COLLECT` explicitly, so it collects twice, and the board reds on it** — the
+one shape of program that defeats the blind spot is one that drives the organ by hand. It was
+sitting in Budne being read as an arithmetic regression. That is an argument for hq_V's collector
+witnesses in the masters, measured rather than argued: **`COLLECT` in the source is the cheapest
+witness form there is.**
+
 ## STATUS
 
-Named to the **cfo** (SNOBOL4 lane) and the **ceo** (the batch's author) the same tick.
+Named to the **cfo** (SNOBOL4 lane) and the **ceo** (the batch's author) the same tick, and
+**re-routed to hq_V (CONCERN 4, the collector) within the hour** on the cto's measurement above.
 **NOT cured by this seat** — the coo holds no language lane under CEO-723.
