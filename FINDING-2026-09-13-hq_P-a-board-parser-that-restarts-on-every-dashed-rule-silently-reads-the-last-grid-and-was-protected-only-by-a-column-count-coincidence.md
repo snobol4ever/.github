@@ -65,3 +65,29 @@ checked before anyone "fixes" it:
 ⭐ The SNOBOL4 four are the ones to look at first — not because they are known broken, but because
 they are the only ones whose safety does not depend on a column count, for the worse reason that they
 never look at columns.
+
+## THE TWO PROGRESS-DATABASE ROWS THIS WORK PRODUCED, NAMED HERE BECAUSE THE DATABASE HAS NO ANNOTATION CHANNEL
+
+**ceo ruling CEO-730, 2026-09-13: they STAND, annotated, and nobody strikes them.** A database whose rows
+can be removed when they are inconvenient cannot answer the question it exists for. So they stay, and this
+is the one place the caveat can live. A reader who meets either of them in a flip histogram should land
+here in one grep.
+
+    /home/resources/progress/results.tsv
+    2026-09-14T00:29:08  SCRIP d3149b02b-dirty  corpus 7214b8d6e  hq_P  benchmark  prolog-bench  prolog
+      nrev  m3  PASS  rate1=2128.84 rate2=2006.18 ratio=0.9424 verdict=AGREE
+      nrev  m4  FAIL  rate1=2108.89 rate2=1593.70 ratio=0.7557 verdict=DISAGREE
+
+⛔ **NEITHER ROW IS A READING OF THE COMPILER.** They were produced by RUNNING THE INSTRUMENT to verify the
+instrument — the triangulator was being exercised over a wrapper whose generated form CHANGED SHAPE in the
+same commit, so the two angles were timing two different programs. The `-dirty` tree stamp is the tell and
+is why the row carries it. The m4 DISAGREE in particular is the wrapper's own iteration defect made
+visible, not a rate the compiler exhibited.
+
+⭐ **THE GENERAL FORM, which is the part that outlives these two rows: A ROW PRODUCED BY VERIFYING AN
+INSTRUMENT IS NOT A MEASUREMENT OF THE PROGRAM.** Every instrument that appends to the progress database
+can emit such rows, and none of them can say so in the row itself. Until the table grows a channel for it,
+the obligation is on the seat: name the rows, their tree and their cause in the FINDING, in the landing
+that produced them. Absence is the worse option — a missing row invites the reader to assume nothing
+happened, where an annotated row tells them exactly what did.
+
