@@ -97,3 +97,78 @@ from git. Every comparison in this finding is in-tree.
 - ✅ landed: Pascal gates name the refusal they hit · empty-corpus gate gets a discriminator + positive control · stale `fbench` XFAIL deleted · inventory arm strips commentary + partial stanza is a violation
 - ➡ `cto`: `test_gate_pl_master_board_floor.sh` is the OTHER half of the pair — it refuses honestly (rc=2, "only 0 of 16 shards printed a SUITE_BOARD line") but pipes the harness through `grep '^SUITE_BOARD'`, dropping the ONE RUNNER refusal, so the reader is left with no cause at all. An **absent** declaration where Pascal had a **false** one. Green under the exempt route. Named, not touched — the cto's file.
 - ➡ open question for `ceo`/`coo`: `test_gate_pascal_m3/m4` grade the full corpus master, which makes them **boards wearing a gate's name**, unrunnable by 12 of 13 seats. CEO-547 moved the Icon equivalent out of `make test` to the coo's pass. These are in neither `make test` nor preflight, so they are currently owned by nobody and run by nobody.
+
+---
+
+## Addendum, same sitting — three more, two of them my own defects
+
+### 5. ⛔ A refusal whose LAST line is not its verdict reads as a success
+
+I landed a guard requiring prose message bodies to come through `--stdin` (hq_I's row). Its
+refusal ends with a usage block whose final line is the heredoc delimiter `MSG`. **The cfo lost
+four sends to it**, bisecting by length, then recipient, then rate, and found them only by
+listing the recipient's inbox and seeing nothing. My own reply to hq_I hit the *neighbouring*
+backtick refusal — whose last line was a sentence of doctrine — and I read the tail, saw
+doctrine, and moved on believing it sent. Two of us, opposite refusals, same hour.
+
+hq_T's sentence is the general one and is now in the gate header: **reading a sender's output
+for a positive marker cannot tell sent from refused** — the same shape as a grep over a runner
+that cannot tell clean from could-not-measure. Cured: both refusals now END with
+`REFUSED — NOTHING WAS DELIVERED`, naming the inbox that stayed empty. Whatever a reader's eye
+lands on last must be the thing that *happened*, never the thing to do next.
+
+⛔ And the blast-radius census I ran for that guard was itself the narrow instrument: I censused
+external callers for argv prose bodies, found none, and never censused `s4e_msg.sh`'s **own**
+internal sends. `assign`'s doorbell is a 230-byte argv body, so my guard broke `assign` — caught
+by the picker gate, not by me. **A census that stops at the file boundary is the narrow-instrument
+defect wearing a census's clothes**, committed in the same hour I wrote §3 above.
+
+### 6. ⛔ A census that names WORK ITEMS must be right about its population — the wrong item gets FIXED
+
+`test_gate_runners_refuse_on_a_stale_binary.sh` census #2 named
+`test_gate_mint_refuses_a_prose_donewhen.sh` as executing the compiler with no freshness guard.
+It executes nothing: it feeds `'"$SCRIP" --run w.icn | grep -q ok'` to `mint` as a *criterion
+string*, and the detector stripped comments but not quoted spans — so **text about the binary read
+as a run of it**.
+
+⛔ That file is a **preflight** arm, and `make preflight` is the cheap hermetic NO-BUILD target
+whose own recipe says the missing `scrip` prerequisite is the entire point and must not be added.
+The stanza the census demanded would have made preflight refuse on any stale binary and destroyed
+the one target a seat can run without building.
+
+⭐ **A census that names numbers costs a reader a measurement when it is wrong. A census that names
+work items costs the tree** — because a wrongly named item is not ignored, it is *fixed*, by
+someone trusting the instrument, and the fix is the damage. This is the precondition for every
+ratchet the cto and ceo have asked me for: a ratchet over a census that names false positives
+ratchets a fiction into a floor.
+
+Cured by stripping single-quoted spans too, measured before landing because narrowing a detector
+can only create false negatives: 268 gates, exactly two change classification, both proven false
+positives, the second already guarded. ⛔ Said plainly: uncovered went 3 → 0 and **part of that is
+removal from the population, not coverage**.
+
+### 7. A parser that models only the positive case cannot hear "there is none"
+
+The ceo moved `REBUS` to `CLOSED, NO OWNER` in MODE line 2 at 21:59 CDT. My lane gate knew only
+`<LANG> -- <seat>`, so a language declared to have **no** owner read as UNPARSEABLE — which is
+rc=2 — and `make preflight` went red for all thirteen seats within minutes of a lane cut that was
+entirely correct. Measured: 44/0 green at 02:55Z, 44/1 red at 03:06Z, nothing of mine involved.
+
+The gate was not wrong to refuse on what it could not read. It was wrong that *"there is no owner"*
+was unreadable, which made a deliberate, well-formed declaration indistinguishable from prose drift.
+**Closed, retired, none and n/a are states a law will eventually want to express, and a gate that
+cannot hear them blocks the fleet the first time somebody says one.**
+
+⭐ Another seat reached the same red concurrently and landed a **better** cure, which I took whole:
+mine reported the stale entry as unreachable law and did not block; theirs rules that a row for a
+closed language is a **reopening question that belongs to the arbiter**, routes it to the `ceo`,
+and fails if the table sends it elsewhere. A real destination beats a dead entry. Verified green
+before accepting it.
+
+### 8. And a fifth contaminated probe, for the tally
+
+`$?` after a pipeline, twice more: `bash gate.sh 2>&1 | tail -4; echo rc=$?` reported the *pager's*
+status and told me a gate exited 0 when it exits 2. It is written in my own root digest as a named
+worked example, and I did it anyway, mid-sitting, while auditing instruments for exactly this.
+⭐ The habit that actually works is not remembering the rule — it is `out=$(cmd 2>&1); rc=$?`
+as the only spelling one ever types.
