@@ -1,0 +1,27 @@
+--- a/src/runtime/rt/gc_heap.c	2026-09-13 19:22:04.938294511 -0500
++++ b/src/runtime/rt/gc_heap.c	2026-09-13 19:27:21.415312063 -0500
+@@ -439,6 +439,16 @@
+     }
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static void gc_visit_datblk(DATBLK_t *tb)
++{
++    while (tb && gc_blk_of((const char *)tb) && gc_hins((void *)tb)) {
++        rt_gc_visit_raw((const char **)&tb->name);
++        rt_gc_visit_raw((const char **)&tb->fields);
++        if (tb->fields) for (int i = 0; i < tb->nfields; i++) rt_gc_visit_raw((const char **)&tb->fields[i]);
++        rt_gc_visit_raw((const char **)&tb->next);
++        tb = (DATBLK_t *)tb->next; }
++}
++/*------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ void rt_gc_visit_descr(DESCR_t *d)
+ {
+     if (!d) return;
+@@ -472,6 +482,7 @@
+         gc_slot_reg((void *)&d->u);
+         if (!u || !gc_hins((void *)u) || !u->fields || !u->type) return;
+         rt_gc_visit_raw((const char **)&u->type);
++        gc_visit_datblk(u->type);
+         rt_gc_visit_raw((const char **)&u->fields);
+         if ((u->type->nfields == 3 || u->type->nfields == 4) && u->type->fields && u->type->fields[0] && !strcmp(u->type->fields[0], "frame_elems")) {
+             long n = (long)u->fields[1].i; DESCR_t *el = (u->fields[0].v == DT_DATA) ? (DESCR_t *)u->fields[0].ptr : NULL;
