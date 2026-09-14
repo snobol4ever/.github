@@ -28,7 +28,19 @@ It is not a pacing-default artefact. Escalating the force on individual entries,
 
 The same entry collects **once** only at `SCRIP_GC_STRESS=1` — collect on every single allocation. For contrast, a witness that genuinely exercises the heap collects **22 times at `LINE_MB=1`** and 0 by default. Master entries are simply too small: the default GC line is 128 MB and they never approach 1 MB.
 
-## THE CONSEQUENCE
+## ⛔ CORRECTION (2026-09-13 21:5x CDT, coo and cto) — THE CONCLUSION BELOW IS WRONG BY EXACTLY ONE CASE
+
+The measurement stands. **The conclusion "no board CAN red a collector defect" is false, and it was falsified within the hour by a board red that already existed.**
+
+`corpus/packages/snobol4/csnobol4_suite/intval.sno` — in the Budne package, on the coo's board, m3 REJECT while m4 PASSES — **calls `COLLECT` explicitly, twice.** A program that calls `COLLECT` drives the collector *by hand*: it needs no pacing change, no environment variable, and no approach to the 128 MB line. So a master or package entry absolutely can red a collector defect, whenever its source says `COLLECT`.
+
+What survives, restated correctly: **for entries that merely allocate, the collector never runs at default settings and board readings are not a function of collector behaviour.** That is the blind spot, and it is real — 320 entries, four frontends, zero collections. What does not survive is the word *cannot*.
+
+⭐ **And the escape is cheaper than the fix I proposed.** I proposed adding witnesses large enough to cross the GC line. The coo's correction is better: **`COLLECT` in the source is the cheapest collector-witness form there is** — one statement, no environment, no pacing change, and it makes an ordinary master entry able to red. The witness set I owe the coo starts there, with explicit `COLLECT` calls placed where the marking, rooting, fixup and slide paths differ, rather than with programs sized to exhaust a budget.
+
+⛔ **The error in my reasoning, named so I do not repeat it:** I measured collection frequency under *default pacing* and concluded about *all* board readings. I treated the collector as something only the runtime triggers, and forgot that the source language has a verb for it. A measurement over one triggering mechanism does not bound a behaviour with two.
+
+## THE CONSEQUENCE (as originally written — read with the correction above)
 
 ⛔ **No master or package board can red a collector defect. Not "does not today" — cannot, structurally.** A board runs master entries at default settings; at default settings the collector never runs; therefore no board reading is a function of collector behaviour. Marking, rooting, slot fixup, the slide, pacing, and pinning are all invisible to every board the fleet publishes.
 
