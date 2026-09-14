@@ -1,0 +1,51 @@
+diff --git a/src/runtime/rt/gc_heap.c b/src/runtime/rt/gc_heap.c
+index 7685f2ae7..e060b8067 100644
+--- a/src/runtime/rt/gc_heap.c
++++ b/src/runtime/rt/gc_heap.c
+@@ -10,7 +10,9 @@
+ #include "rt_arena.h"
+ #include "gc_heap.h"
+ #define GC_HEAP_MB 512
+-static inline int hb_pinned(uint16_t t) { return t == HB_WS || t == HB_WSS || t == HB_DINST || t == HB_ARR; }
++static inline int hb_no_move(uint16_t t) { return t == HB_WS || t == HB_WSS || t == HB_DINST || t == HB_ARR; }
++static inline int hb_scan_interior(uint16_t t) { return t == HB_WS || t == HB_WSS || t == HB_DINST || t == HB_ARR; }
++static inline int hb_root_blanket(uint16_t t) { return t == HB_WS || t == HB_WSS || t == HB_DINST || t == HB_ARR; }
+ #include "descr.h"
+ #include "pin_va.h"
+ _Static_assert(sizeof(rt_hblk_t) == 16, "rt_hblk_t must be one 16-byte title unit");
+@@ -646,7 +648,7 @@ static long gc_collect_ex(int cons_stack)
+     { static int cov = -1; if (cov < 0) { const char *e = getenv("SCRIP_GC_COVERAGE"); cov = (e && *e && *e != '0') ? 1 : 0; }
+       if (cov) fprintf(stderr, "[GC-COV] ranges=%ld cas_scanned_bytes=%ld pz=%d cons_stack=%d\n", g_gc_rrng_n, g_gc_cas_bytes, pz, cons_stack); }
+     { static int fm = -1; if (fm < 0) { const char *e = getenv("SCRIP_GC_PIN_AGGREGATES"); fm = (e && *e && *e != (char)48) ? 1 : 0; }
+-      if (fm) for (long i = 0; i < g_gc_nblk; i++) { rt_hblk_t *h = g_gc_idx[i]; if (hb_pinned(h->type) && !(h->flags & HBF_MARK)) { h->flags |= HBF_MARK; h->fwd = (uint64_t)(uintptr_t)g_gc_mhead; g_gc_mhead = h; } } }
++      if (fm) for (long i = 0; i < g_gc_nblk; i++) { rt_hblk_t *h = g_gc_idx[i]; if (hb_root_blanket(h->type) && !(h->flags & HBF_MARK)) { h->flags |= HBF_MARK; h->fwd = (uint64_t)(uintptr_t)g_gc_mhead; g_gc_mhead = h; } } }
+     core_gc_roots(); gen_gc_roots(); pas_gc_roots(); pl_gc_roots(); rt_gc_root_args();
+     if (pz) { extern uint64_t rtccb[32]; for (int ci = 0; ci < 32; ci++) rt_gc_visit_raw((const char **)&rtccb[ci]); }
+     if (pz && g_gc_seam_sp) { char *sst = gc_stack_top(); if (g_gc_seam_sp < sst) gc_zeta_frame(g_gc_seam_sp, sst); }
+@@ -654,7 +656,7 @@ static long gc_collect_ex(int cons_stack)
+     if (g_gc_shield_r) rt_gc_visit_raw(g_gc_shield_r);
+     { int wl; long walked = 0, nscan = 0, rounds = 0; { const char *e = getenv("SCRIP_GC_WORKLIST"); wl = (e && *e == (char)48) ? 0 : 1; }
+       if (wl) { while (g_gc_mhead) { rt_hblk_t *h = g_gc_mhead; g_gc_mhead = (rt_hblk_t *)(uintptr_t)h->fwd; h->fwd = 0; walked++; nscan++;
+-            if (hb_pinned(h->type) || h->type == HB_PLJ) { gc_zeta_frame((const char *)(h + 1), (const char *)h + h->size); continue; }
++            if (hb_scan_interior(h->type) || h->type == HB_PLJ) { gc_zeta_frame((const char *)(h + 1), (const char *)h + h->size); continue; }
+             if (h->type == HB_AGGV) { gc_visit_vcell((VCELL_t *)(h + 1)); continue; }
+             if (h->type == HB_AGGB) continue;
+             if (h->type == HB_AGGP) { TBPAIR_t *e = (TBPAIR_t *)(h + 1); if (e->key) gc_mark_agg(e->key);
+@@ -666,7 +668,7 @@ static long gc_collect_ex(int cons_stack)
+         while (changed) { changed = 0; rounds++;
+           for (long i = 0; i < g_gc_nblk; i++) { rt_hblk_t *h = g_gc_idx[i]; walked++;
+               if (scanned[i] || !(h->flags & HBF_MARK)) continue;
+-              if (hb_pinned(h->type) || h->type == HB_PLJ) { scanned[i] = 1; changed = 1; nscan++; gc_zeta_frame((const char *)(h + 1), (const char *)h + h->size); continue; }
++              if (hb_scan_interior(h->type) || h->type == HB_PLJ) { scanned[i] = 1; changed = 1; nscan++; gc_zeta_frame((const char *)(h + 1), (const char *)h + h->size); continue; }
+               if (h->type == HB_AGGV) { scanned[i] = 1; changed = 1; nscan++; gc_visit_vcell((VCELL_t *)(h + 1)); continue; }
+               if (h->type == HB_AGGB) { scanned[i] = 1; changed = 1; nscan++; continue; }
+               if (h->type == HB_AGGP) { TBPAIR_t *e = (TBPAIR_t *)(h + 1); scanned[i] = 1; changed = 1; nscan++; if (e->key) gc_mark_agg(e->key);
+@@ -679,7 +681,7 @@ static long gc_collect_ex(int cons_stack)
+     { int fold = gc_walk_fold();
+     if (fold) { gc_live_grow(0); liveo = g_gc_liveo; livef = g_gc_livef; }
+     for (long i = 0; i < g_gc_nblk; i++) { rt_hblk_t *h = g_gc_idx[i];
+-        if ((h->flags & HBF_MARK) && hb_pinned(h->type)) { h->fwd = (uint64_t)(uintptr_t)h; dest = (char *)h + h->size; nlive++; npin++; }
++        if ((h->flags & HBF_MARK) && hb_no_move(h->type)) { h->fwd = (uint64_t)(uintptr_t)h; dest = (char *)h + h->size; nlive++; npin++; }
+         else if (h->flags & HBF_MARK) { h->fwd = (uint64_t)dest; dest += h->size; nlive++; }
+         else h->fwd = 0;
+         if (fold && h->fwd) { if (li >= g_gc_lcap) { gc_live_grow(li); liveo = g_gc_liveo; livef = g_gc_livef; } liveo[li] = h; livef[li] = h->fwd; li++; } }
