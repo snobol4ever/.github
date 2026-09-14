@@ -9,19 +9,19 @@ testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-13	1	2	70e201f1a	2026-09-08:fi
 arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-13	88	88	112912014	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
 jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-13	82	82	112912014	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
 ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-13	194	194	112912014	2026-09-07:ceo-372-and-per-program
-inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-13	434	445	1d0a3d3d4	
-swi	SWI	🦉	prolog	2026-09-05	0	114	2026-09-13	659	2935	1d0a3d3d4	2026-09-12:hq-c-ceo-601-denominator-118-to-59-the-59-suite-lines-were-counted-twice-from-two-paths-and-the-row-is-the-run-tier
-gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-13	11	11	1d0a3d3d4	
+inria	INRIA	🇫🇷	prolog	2026-09-04	261	445	2026-09-13	432	445	62bad32d9	
+swi	SWI	🦉	prolog	2026-09-05	0	114	2026-09-13	577	2935	62bad32d9	2026-09-12:hq-c-ceo-601-denominator-118-to-59-the-59-suite-lines-were-counted-twice-from-two-paths-and-the-row-is-the-run-tier
+gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-13	11	11	62bad32d9	
 fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-13	116	181	cb1578145	2026-09-06:ceo-372-and-per-program
 pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-13	279	427	13214eba9	2026-09-06:ceo-372-and-per-program
 roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-13	6	986	e51a643b3	
 sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-13	1951	1962	aa4a139f4	2026-09-06:ceo-372-and-per-program; 2026-09-13:coo-denominator-1949-to-1962-measured-as-an-entry-set-diff-not-a-subtraction-34-added-13-rung22-ACCESS-STOPTR-witnesses-plus-keyword_37-to-47-and-the-capture-indirect-keyword-family-less-28-retired-test_parser-and-probe-entries-net-master-plus13-pass-plus13-nothing-traded
 icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-13	826	826	71b32337f	2026-09-06:ceo-372-and-per-program
-pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-13	540	563	5867eb0f9	2026-09-13:coo-AND-per-program-over-each-entry-own-declared-modes-83-entries-are-m3-only-by-ALL.csv
+pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-13	541	563	62bad32d9	2026-09-13:coo-AND-per-program-over-each-entry-own-declared-modes-83-entries-are-m3-only-by-ALL.csv
 pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-13	246	246	ddfe8159e	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
 raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-13	797	912	1f99e3687	2026-09-13:coo-AND-per-program-746-of-888-raw-AND-753-minus-7-xfail-marked-entries-that-passed
 snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-13	322	335	aa4a139f4	2026-09-13:coo-denominator-308-to-324-all-run-graded-now-ast-entries-removed-at-a6646f04c-plus-hq_I-three-faulty-tests-cured-and-B07_percent_assign-retired-under-CEO-710-population-per-ALL.csv; 2026-09-13:coo-denominator-324-to-335-measured-as-an-entry-set-diff-11-added-simple_output_104-229-230-231-two-rung22-datatype_function-five-rung23-keyword_and_system_variables-pass-plus11-nothing-traded
 reb-master	RebM	🧩	rebus	2026-09-03	15	48	2026-09-13	43	43	aa4a139f4	2026-09-13:coo-43-of-43-both-modes-FAIL-0-rebus-is-CLOSED-the-38-of-43-and-its-4-xfails-had-no-denominator-there-is-no-ALL.xfail-file-and-the-ALL.csv-xfail-column-is-0-for-every-entry-the-4-are-XPASS-with-STALE-BANNER-MARKERS-named-simple_output_25-alt_replace_3-len_1-len_capture_1-owed-promotion-in-corpus-hq_S
-logtalk	Logtalk	🧿	prolog	2026-09-12	1218	3617	2026-09-13	2810	3600	13214eba9	2026-09-11:vendored-09-11-3617-cases-(3268-test/2-plus-349-legacy-forms)-row-prolog-logtalk-iso-3268-conformance-cases-have-no-runner-hq_R-ceo-580-spike-util_logtalk_extract.py
+logtalk	Logtalk	🧿	prolog	2026-09-12	1218	3617	2026-09-13	2852	3600	62bad32d9	2026-09-11:vendored-09-11-3617-cases-(3268-test/2-plus-349-legacy-forms)-row-prolog-logtalk-iso-3268-conformance-cases-have-no-runner-hq_R-ceo-580-spike-util_logtalk_extract.py | 2026-09-13:OUTSIDE-BASELINE-bucket-first-printed-0-to-40-and-UNGRADED-174-to-137-so-the-plus-42-is-largely-re-bucketing-not-flips-coo-board-62bad32d9-and-the-progress-append-REFUSED-rc2-on-outcome-OUTSIDE-so-no-per-program-evidence-exists-see-FINDING-2026-09-13-coo-the-law-added-a-verdict-value
 gnu_fd	GnuFD	🧮	prolog						30		2026-09-11:vendored-09-11-30-programs-DEFERRED-by-lon-ceo-572-fd-is-superset-and-ceo-579-do-not-count-as-failures-row-prolog-gnu-fd-thirty-constraint-programs-await-lons-superset-ruling
 x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-13	18	36	aa4a139f4	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U
