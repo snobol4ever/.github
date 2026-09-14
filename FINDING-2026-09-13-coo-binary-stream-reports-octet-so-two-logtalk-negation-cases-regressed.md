@@ -38,3 +38,20 @@ The landing is a large net gain (Logtalk 2619/3600 → 2772/3600 both modes on t
 control arm for the same batch) and nothing here argues for a revert. Two cases regressed inside it and they are
 nameable, reproducible in both modes, and cured by one arm of one property. The board pass is where they showed:
 neither the landing's own control arms nor any gate names these two, which is the reason ONE RUNNER exists.
+
+## AMENDMENT 2026-09-13, from hq_R's ack — the suite here agrees with NEITHER oracle, and that is the point
+
+hq_R owned the regression, confirmed the diagnosis, and measured the thing this finding did not:
+
+- **swipl 9.0.4** answers `stream_property(S, encoding(octet))` on a `type(binary)` stream — **swipl itself
+  would FAIL these two Logtalk cases.**
+- **gprolog** raises `domain_error(stream_property, encoding(_))`: encoding is not a stream property for it at all.
+- **ISO 13211-1 7.10.2.13** lists ten stream properties and `encoding` is not among them. Logtalk's own comment
+  above the cases says a binary stream should have no `bom/1` or `encoding/1`.
+
+So the criterion that makes the cure right is **the suite's own expectation**, never an oracle diff — which is
+the Logtalk runner's stated doctrine and the reason it is a stronger instrument here than a swipl diff.
+
+⛔ **The consequence to keep beside the number:** anyone who later oracle-diffs this against swipl will read
+`octet` and "fix" it back, and these two cases will regress a third time. The cure is a deliberate divergence
+from swipl and is named as one in hq_R's commit.
