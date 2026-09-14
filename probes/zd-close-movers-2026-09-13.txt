@@ -1,0 +1,107 @@
+# THE 98 SNOBOL4 MASTER ENTRIES WHOSE EMISSION MOVES UNDER SCRIP_ZD_CLOSE (hq_U, 2026-09-13)
+# Tree: SCRIP branch hq_U-zd-close-on-aa4a139f4 at 75d145755 (base aa4a139f4), corpus 6536ffb30.
+# Method: ALL.sno split to 1939 entries of ALL.csv's 1970 rows; each compiled --compile twice, SCRIP_ZD_CLOSE=0
+# and =1, the emitted .s compared byte for byte. 1126 of 1939 PLAN a match region and so reach the changed
+# lines; the emission MOVES on the 98 below. Each was then graded m3+m4 against a live sbl -bf in BOTH
+# positions: 0 regressed, 0 flipped, 2 red in both and unmoved (demo_json, benchmark_json, m3 pass m4 fail).
+# ⛔ A BOARD RED OUTSIDE THESE 98 NAMES IS NOT THIS CHANGE. That is the falsifiable half of this file.
+# ⭐ hq_V's rule, taken literally: a control arm is only evidence if you can name an entry in it that
+# executed the changed lines. 1126 is that number here; for icon/prolog/pascal/raku it is ZERO.
+arb_capture_alt_1
+arb_capture_alt_2
+arb_capture_alt_branch_1
+arbno_arb_rpos_replace_branch_1
+arbno_arb_rpos_replace_branch_2
+arbno_fence_pos_branch_17
+arbno_fence_pos_branch_27
+arbno_fence_pos_branch_3
+arbno_fence_pos_branch_36
+arbno_fence_pos_replace_branch_9
+arbno_fence_span_replace_branch_2
+arbno_pos_rpos_1
+arbno_pos_rpos_branch_10
+arbno_pos_rpos_branch_12
+arbno_pos_rpos_branch_13
+arbno_pos_rpos_branch_18
+arbno_pos_rpos_branch_26
+arbno_pos_rpos_branch_27
+arbno_pos_rpos_branch_28
+arbno_pos_rpos_branch_3
+arbno_pos_rpos_branch_4
+arbno_pos_rpos_branch_42
+arbno_pos_rpos_branch_44
+arbno_pos_rpos_branch_45
+arbno_pos_rpos_branch_66
+arbno_pos_rpos_branch_67
+arbno_pos_rpos_branch_68
+arbno_pos_rpos_branch_69
+arbno_pos_rpos_branch_70
+arbno_pos_rpos_branch_71
+arbno_pos_rpos_branch_80
+arbno_pos_rpos_branch_9
+arbno_pos_rpos_branch_93
+arbno_pos_rpos_branch_95
+arbno_pos_rpos_branch_96
+arbno_pos_rpos_replace_branch_1
+arbno_pos_rpos_replace_branch_2
+arbno_pos_rpos_replace_branch_3
+arbno_pos_rpos_replace_branch_6
+arbno_span_pos_1
+arbno_span_pos_branch_14
+arbno_span_pos_branch_29
+arbno_span_pos_branch_3
+arbno_span_pos_branch_7
+arbno_span_pos_branch_8
+benchmark_json
+break_pos_rpos_branch_2
+break_rem_size_1
+break_trim_capture_branch_1
+capture_alt_11
+capture_alt_12
+capture_alt_3
+capture_alt_5
+capture_alt_7
+capture_alt_branch_2
+capture_alt_branch_3
+capture_alt_branch_4
+capture_alt_branch_5
+capture_alt_branch_6
+capture_alt_branch_7
+capture_alt_branch_8
+capture_alt_replace_branch_1
+capture_alt_replace_branch_2
+capture_alt_replace_branch_3
+capture_imm_capture_keyword_1
+capture_keyword_1
+demo_json
+fence_break_pos_branch_1
+fence_break_rem_branch_1
+fence_break_rem_branch_2
+fence_break_rem_branch_3
+fence_pos_imm_capture_branch_1
+fence_span_any_1
+fence_span_any_2
+fence_span_capture_1
+fence_span_pos_branch_3
+imm_capture_keyword_1
+pos_abort_capture_replace_branch_1
+pos_capture_alt_branch_1
+pos_capture_alt_branch_5
+pos_defer_imm_capture_branch_1
+pos_imm_capture_alt_branch_1
+pos_imm_capture_alt_branch_2
+pos_imm_capture_alt_branch_3
+pos_imm_capture_alt_branch_4
+pos_imm_capture_alt_branch_5
+pos_rpos_defer_branch_1
+pos_rpos_imm_capture_branch_1
+pos_rpos_len_branch_1
+pos_rpos_len_branch_13
+pos_rpos_len_branch_2
+pos_rpos_len_branch_3
+span_any_branch_2
+span_notany_tab_branch_1
+tab_pos_rpos_branch_1
+tab_pos_rpos_branch_4
+user_function_arbno_span_branch_1
+user_function_eval_arbno_replace_branch_1
