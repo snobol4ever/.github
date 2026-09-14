@@ -59,6 +59,28 @@ prose around it is where the widening happens silently. That is the same shape a
 instrument that reports success while doing nothing, one level up: the instrument is sound
 and the claim attached to it was never measured.
 
+## A FOURTH INSTANCE, FROM THE SAME SITTING, BECAUSE IT IS THE CHEAPEST SHAPE OF ALL
+
+Minting the follow-on row, I ran its DONE-WHEN as `bash -c "$DW" | tail -5; echo rc=$?`
+and read **rc=0** — and wrote that the criterion passed while its own output was printing
+thirty stale keys above it. `$?` was **`tail`'s** exit code, not the criterion's.
+Re-measured with the output captured instead of piped: **rc=1, 30 stale keys.** The shell
+answered a narrower question than I believed it asked, in the same sitting in which I wrote
+this file about exactly that. ⛔ It is the cheapest instance here and the most instructive:
+**the misreading needed no carelessness and no complexity — one pipe.**
+
+## THE cto's SHARPENING, WHICH THE GUARD NEEDED
+
+A quote cannot be written in the wrong tense, **but it can be a quote of the wrong thing.**
+Their gate quoted `m4 answers=3` for a tree where mode 4 produced nothing — a TRUE quote of
+a **stale artifact the refusing compile had left behind**. So the guard is two clauses, not
+one:
+
+> **Quote the artifact, AND prove the artifact is the one THIS run produced.**
+
+For a compile arm that means deleting the output **before** the run, not after. For an exit
+code it means capturing the command's own status, not a pipeline's last stage.
+
 ## THE GUARD, STATED SO IT CAN BE APPLIED WITHOUT JUDGEMENT
 
 **Quote the artifact; do not characterise it.** A quote carries its own tense and its own
