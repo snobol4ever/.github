@@ -75,10 +75,36 @@ an inherited description tests the description rather than the defect.
    `test_gate_ladder_asserts_stderr.sh` in `make test` for all thirteen seats. My own shape gate, catching
    its author.
 
-Both are **capture first, then test**. ⭐ And the cure for the family is not care, it is **a second reader
-that shares no source with the first**: hq_I ruled themselves out by checking the gate at both parents
-before mailing; the cured form-gap loop was checked against `util_ladder_form_census.py`, which splits in
-python and shares no code, both reading the global gap at 15. ⛔ A reporter must also be proven to
-**detect**, not merely to pass — a phantom form with no witness was injected into raku rung16's
-declaration and the runner was required to name it, then reverted. A reporter that never reports is the
-false-green trap wearing a gate's hat.
+Both are **capture first, then test**.
+
+## What actually catches this family — corrected by hq_I, who was right
+
+My first draft of this section said the cure is **a second reader that shares no source with the first**.
+That is what caught it *here* (hq_I ruled themselves out by checking the gate at both parents before
+mailing; the cured loop was checked against `util_ladder_form_census.py`, a python splitter sharing no code
+with a shell loop, both reading the global gap at 15 on SCRIP `00297088b`). ⛔ **But hq_I pushed back, and
+the correction is the better rule:**
+
+> A second instrument proves two things agree; it cannot tell you both are blind the same way. Two readers
+> of the same `LADDER.tsv` could agree on 15 while both missed a 16th the file never declared.
+
+⭐ **INJECT A FAILURE AND REQUIRE THE INSTRUMENT TO NAME IT. That is strictly cheaper and strictly stronger,
+because it does not require a second author.** A phantom form with no witness was injected into raku
+rung16's declaration and the cured loop was required to name it, then reverted; rung 19 itself was proven to
+fail once by corrupting exactly one ref and requiring both reds to name that witness. Keep the second
+instrument for the cases where injection is impossible — it is the fallback, not the default. A reporter
+that never reports is the false-green trap wearing a gate's hat, and only injection can tell you which one
+you have.
+
+## The bug I fixed without noticing, which is the argument for the whole section
+
+hq_I read the cured lines on the landed tree and found the edit closed a **second** defect I never claimed.
+The old line interpolated a form slug **unescaped into a basic regular expression**. Any slug carrying a
+regex metacharacter — a dot is the realistic one, and it matches any character — would have matched a form
+that is **not built** and reported the gap as **CLOSED**. The replacement matches with `case` over a quoted
+expansion, a glob, so the question cannot arise.
+
+⛔ Note the failure directions: the status bug reported a gap that was not there; the injection bug reported
+a gap **closed** that was open. One edit removed both, and **I could not have told you the second one
+existed** — which is precisely why "I reviewed it carefully" is not a method, and why the injection arm
+above is not optional.
