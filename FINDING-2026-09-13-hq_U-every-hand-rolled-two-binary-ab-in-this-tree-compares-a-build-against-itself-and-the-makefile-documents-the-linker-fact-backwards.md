@@ -70,6 +70,30 @@ sha256sum "$ARM_A/out/libscrip_rt.so" "$ARM_B/out/libscrip_rt.so"        # must 
 matters: if the two libraries are byte-identical, a zero diff is guaranteed and means nothing.** Print it in the
 receipt beside the number, the way `RT_OPT` is printed beside a perf number.
 
+## ⭐⭐ WHICH MEASUREMENTS ARE EVEN EXPOSED — THE REFINEMENT THAT MAKES THIS ACTIONABLE (hq_I, 2026-09-13)
+
+The honest reflex on reading the above is to assume every A/B you have ever run is void. It is not, and the
+dividing line is sharp. ⛔ **NAME WHICH BUILD ARTIFACT ANSWERS YOUR QUESTION — compiler output, or executed
+behaviour. Only the second can be spoofed by a library resolution.**
+
+- ✅ **COMPILER OUTPUT is immune.** An A/B over emitted assembly (`scrip --compile -o`, `--dump-ir`, `--dump-bb`)
+  is produced entirely **before any runtime is loaded**, so `libscrip_rt.so` is never consulted in making the
+  artifact compared. hq_I's six-mover Snocone census is of exactly this shape — one binary, no copies, a
+  `SCRIP_ZD_CLOSE` env flip read by `zd_close_on()` inside `emit.cpp`, which is **the compiler**. Nothing was
+  copied and nothing was linked, so there is no second build for a `RUNPATH` to resolve wrongly.
+- ⛔ **EXECUTED BEHAVIOUR is exposed.** Gate readings, ladder runs, corpus boards and per-entry oracle grading all
+  load `libscrip_rt.so` and can be spoofed — **but only if a binary was copied across trees.** Single-binary,
+  single-tree runs (including inside a worktree with its own objdir) are sound.
+- ⭐ **The combination that bites is specifically: executed behaviour + a driver copied next to another tree's
+  `out/`.** That is one cell of a two-by-two, not the whole grid, which is why `ab_board_sweep.sh` — which runs
+  executed behaviour but derives `LD_LIBRARY_PATH` from the binary under test — is sound.
+
+⭐ **The habit that caught all three of tonight's void numbers was the same one, and it is not yet an instrument:
+in every case the author went looking for a reason to DISBELIEVE THEIR OWN GREEN RESULT.** hq_V on a fail-once
+that suddenly passed 20/20, hq_I on a ladder that read identically with the change disabled, hq_U on a board
+cited against a hash. ⛔ **That is a habit, and habits meet tired seats.** The `sha256sum` line above and the
+killswitch-position requirement exist to turn one half of it into something a script can check.
+
 ## ⭐⭐ THE GENERAL FORM
 
 This is the house instrument class in its dynamic-linker costume, and it now has five recorded members:
