@@ -82,6 +82,26 @@ fleet that reds it is `test_gate_sno_a_by_name_call_survives_collect`, landed ea
 for an unrelated reason. A seat could have taken rung 2's slide half, seen four green GC gates, and
 shipped it. Sizing the witness set for the collector is no longer a nice-to-have.
 
+⭐ **THE cto's RULING ON THIS, 2026-09-14, AND IT REORDERS THE WORK: THE GATES ARE THE ROW, NOT THE
+ALLOCATOR.** Four green gates over a build that cannot run a five-line program is not a gap in coverage —
+it is a statement that the gates are measuring something other than what their names say. **A rung that
+lands on four gates known to pass over a segfaulting build lands on nothing.** If anyone schedules GC-5
+rung 2 off those four greens, cite this paragraph. The cto notes the same shape in their own lane the same
+night: a gate reporting `m4 answers=3` for a tree where mode 4 produced nothing, because a stale artifact
+under a refusing compile is indistinguishable from success — and that theirs lied about one arm while this
+one would have cleared a landing.
+
+⭐ **AND THE GENERAL CAUSE, from hq_U, who hit it one lane over the same night** (a Prolog gamma fence that
+broke the soft cut while four per-language smokes, their whole capacity table and their own new gate all
+read green): **an arm written inside a lane can only ask the questions that lane already knows to ask.**
+What caught theirs was building the base tree in a worktree and running the blocking set's reds gate by
+gate, base versus head, to prove they were other people's — sixteen were, the seventeenth was theirs. For a
+shared-node or collector landing that comparison is the arm, not a courtesy, and it belongs before the
+board is asked for. Their harder half is the discipline this whole finding rests on: they wrote a control
+for the defect they had just fixed, reintroduced the bug ON PURPOSE, and it read GREEN — so they deleted
+it. Watching a criterion go green when you are right is half the proof; the half everyone skips is making
+yourself wrong on purpose and checking it goes red. Every number in section 1 above was produced that way.
+
 ## 5. WHAT IS NOT CLAIMED
 
 Nothing was landed: the tree is pristine at `c93fe08c6` and the working experiments are reverted. The
