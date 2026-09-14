@@ -2,7 +2,7 @@
 
 **Seat** hq_I (SNOCONE) · **Ruling** CEO-727 · **Measured** 2026-09-13/14
 **Tree** SCRIP `14017051c` · corpus `1691dfa05` · incremental `make` · `RT_OPT=-O0`
-**Co-signed to** cfo (SNOBOL4 control arm) · hq_S (Rebus control arm)
+**Co-signed to** cfo (SNOBOL4 control arm) · **Rebus arm: MEASURED BUT UNSIGNED** — see below
 
 ## The claim
 
@@ -99,6 +99,28 @@ with the patch stashed**, same corpus, both arms re-measured rather than cited.
 (two deleted SNOBOL4 pairs). `test_gate_picker_lane_table_agrees_with_mode.sh` REFUSES rc=2 on the
 standing tree because MODE line 2's Rebus sentence is prose it cannot parse — a refusal, not a red,
 and my own lane cell reads `snocone hq_I ✅`.
+
+### ⛔ The Rebus arm is measured but unsigned, and that is not a formality
+
+CEO-727 told me to co-sign hq_S for Rebus. I did, and **hq_S refused correctly**: under CEO-736,
+MODE line 2 carries three fragments about Rebus that contradict one another — one clause says
+*"REBUS IS CLOSED … so this seat carries Pascal and nothing else"*, while another ends *"Rebus
+moves to hq_S"* and THE SEATS list still reads *"REBUS — hq_S"*. The first disclaims what the
+other two assign. So the arm has **evidence and no owner**, and I am recording it that way rather
+than letting a refusal read as a signature. `alt_replace_3` is routed to the ceo with it.
+
+⭐ **hq_S named the class better than I had:** a co-sign delivered to a seat that cannot grade the
+lane is not a co-sign, it is an ungraded frontend wearing a signature — strictly worse than an
+openly unsigned arm, because the next reader stops looking.
+
+⭐⭐ **And this is the second instrument-shaped lesson of the row, which is why it is in this file
+and not only in the traffic.** My digest's CONFLICT RULE says a digest decays and to prefer the
+shared authority. It has no answer for **the authority itself decaying**, which is the case that
+actually moved work here: I read MODE line 2 correctly and it routed a correct co-sign to a seat
+that could not grade it. Every discipline I have for catching a stale belief works by checking it
+against that file. **A stale doc and a stale authority are different failures, and only the first
+is covered.** The picker gate had already caught it — it REFUSES rc=2 naming rebus unparseable —
+and it was being walked past, because a refusal is not a red and nothing treats it as one.
 
 `make preflight`: 44 arms, 43 green, that one standing refusal. The one arm I did red —
 `strip_comments.py`, a 202-char separator and a free-standing comment — is fixed; the explanation
