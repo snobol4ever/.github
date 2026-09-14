@@ -1,11 +1,11 @@
 # THE SUITE TABLE, machine record (ceo custody; hq_T wires util_score_row.py to rewrite a row when its runner measures). One row per suite. Dates are box-clock CDT days. first_* = the first graded reading on file; today_* = the latest reading; tree = the SCRIP hash it was measured on (or the SCORE.md cell that carries it).
 key	nick	emoji	lang	first_date	first_pass	first_total	today_date	today_pass	today_total	tree	criterion_changed
-gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-13	126	132	13214eba9	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
-csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-13	70	72	cb1578145	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
-snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-13	117	124	05317a5fb	2026-09-07:ceo-383-stream-equal-and-per-program
-aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-13	4	7	cb1578145	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
-dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-13	5	5	cb1578145	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
-testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-13	1	2	cd0b4f4ef	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
+gimpel	Gimpel	🎩	snobol4	2026-09-04	58	126	2026-09-13	126	132	aa4a139f4	2026-09-08:spitbol-recut-refs-cut-from-sbl-bf-the-one-oracle-lon-2026-09-07
+csnobol4	Budne	🐍	snobol4	2026-09-04	55	118	2026-09-13	70	72	aa4a139f4	2026-09-08:spitbol-recut-denominator-120-to-97-spitbol-refused-programs-left-the-baseline
+snoflake	Flake	❄️	snobol4	2026-08-28	63	180	2026-09-13	118	124	aa4a139f4	2026-09-07:ceo-383-stream-equal-and-per-program
+aisnobol	AIS	🤖	snobol4	2026-09-04	0	2	2026-09-13	5	7	aa4a139f4	2026-09-07:cto-6-the-spitbol-versions-are-the-graded-set
+dotnet	Dotnet	🟦	snobol4	2026-09-04	5	5	2026-09-13	5	5	aa4a139f4	2026-09-07:ceo-372-and-per-program-hang-is-not-pass
+testpgms	TPgm	🧪	snobol4	2026-09-08	1	2	2026-09-13	1	2	aa4a139f4	2026-09-08:first-row-ceo-391-one-oracle-prior-cell-read-2-of-4-under-ceo-281-csnobol4-regrade
 arizona	Zona	🌵	icon	2026-08-30	39	89	2026-09-13	88	88	112912014	2026-09-11:ceo-527-outside-arizona-baseline-denominator-90-to-88-libcfunc-so-ships-in-the-oracles-own-bin
 jcon	Jcon	☕	icon	2026-08-30	34	81	2026-09-13	82	82	112912014	2026-09-09:ceo-470-outside-arizona-baseline-denominator-82-to-76-two-false-greens-left-the-baseline
 ipl	IPL	📚	icon	2026-09-05	34	60	2026-09-13	194	194	112912014	2026-09-07:ceo-372-and-per-program
@@ -15,13 +15,13 @@ gnu	GNU	🐂	prolog	2026-09-03	6	62	2026-09-13	11	11	1d0a3d3d4
 fpc	FPC	🐬	pascal	2026-08-30	119	181	2026-09-13	116	181	cb1578145	2026-09-06:ceo-372-and-per-program
 pat	PAT	📜	pascal	2026-09-04	298	427	2026-09-13	279	427	13214eba9	2026-09-06:ceo-372-and-per-program
 roast	Roast	🦋	raku	2026-09-03	4	986	2026-09-13	6	986	e51a643b3	
-sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-13	1938	1949	a56489f5f	2026-09-06:ceo-372-and-per-program
+sno-master	SnoM	🧵	snobol4	2026-09-06	1841	1842	2026-09-13	1951	1962	aa4a139f4	2026-09-06:ceo-372-and-per-program; 2026-09-13:coo-denominator-1949-to-1962-measured-as-an-entry-set-diff-not-a-subtraction-34-added-13-rung22-ACCESS-STOPTR-witnesses-plus-keyword_37-to-47-and-the-capture-indirect-keyword-family-less-28-retired-test_parser-and-probe-entries-net-master-plus13-pass-plus13-nothing-traded
 icn-master	IcnM	🪄	icon	2026-09-06	642	655	2026-09-13	826	826	71b32337f	2026-09-06:ceo-372-and-per-program
 pl-master	ProM	🔮	prolog	2026-09-03	324	404	2026-09-13	540	563	5867eb0f9	2026-09-13:coo-AND-per-program-over-each-entry-own-declared-modes-83-entries-are-m3-only-by-ALL.csv
 pas-master	PasM	🏛️	pascal	2026-09-06	248	251	2026-09-13	246	246	ddfe8159e	2026-09-08:coo-first-per-program-board-run-population-only-ast-informational-icn-precedent-prior-cell-had-no-tree
 raku-master	RakM	🐪	raku	2026-09-03	620	762	2026-09-13	797	912	1f99e3687	2026-09-13:coo-AND-per-program-746-of-888-raw-AND-753-minus-7-xfail-marked-entries-that-passed
-snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-13	311	324	46dcdfabd	2026-09-13:coo-denominator-308-to-324-all-run-graded-now-ast-entries-removed-at-a6646f04c-plus-hq_I-three-faulty-tests-cured-and-B07_percent_assign-retired-under-CEO-710-population-per-ALL.csv
-reb-master	RebM	🧩	rebus	2026-09-03	15	48	2026-09-13	43	43	0142a1c2a	2026-09-13:coo-43-of-43-both-modes-FAIL-0-rebus-is-CLOSED-the-38-of-43-and-its-4-xfails-had-no-denominator-there-is-no-ALL.xfail-file-and-the-ALL.csv-xfail-column-is-0-for-every-entry-the-4-are-XPASS-with-STALE-BANNER-MARKERS-named-simple_output_25-alt_replace_3-len_1-len_capture_1-owed-promotion-in-corpus-hq_S
+snc-master	SncM	🧊	snocone	2026-09-03	176	206	2026-09-13	322	335	aa4a139f4	2026-09-13:coo-denominator-308-to-324-all-run-graded-now-ast-entries-removed-at-a6646f04c-plus-hq_I-three-faulty-tests-cured-and-B07_percent_assign-retired-under-CEO-710-population-per-ALL.csv; 2026-09-13:coo-denominator-324-to-335-measured-as-an-entry-set-diff-11-added-simple_output_104-229-230-231-two-rung22-datatype_function-five-rung23-keyword_and_system_variables-pass-plus11-nothing-traded
+reb-master	RebM	🧩	rebus	2026-09-03	15	48	2026-09-13	43	43	aa4a139f4	2026-09-13:coo-43-of-43-both-modes-FAIL-0-rebus-is-CLOSED-the-38-of-43-and-its-4-xfails-had-no-denominator-there-is-no-ALL.xfail-file-and-the-ALL.csv-xfail-column-is-0-for-every-entry-the-4-are-XPASS-with-STALE-BANNER-MARKERS-named-simple_output_25-alt_replace_3-len_1-len_capture_1-owed-promotion-in-corpus-hq_S
 logtalk	Logtalk	🧿	prolog	2026-09-12	1218	3617	2026-09-13	2810	3600	13214eba9	2026-09-11:vendored-09-11-3617-cases-(3268-test/2-plus-349-legacy-forms)-row-prolog-logtalk-iso-3268-conformance-cases-have-no-runner-hq_R-ceo-580-spike-util_logtalk_extract.py
 gnu_fd	GnuFD	🧮	prolog						30		2026-09-11:vendored-09-11-30-programs-DEFERRED-by-lon-ceo-572-fd-is-superset-and-ceo-579-do-not-count-as-failures-row-prolog-gnu-fd-thirty-constraint-programs-await-lons-superset-ruling
-x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-13	18	36	05317a5fb	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U
+x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-13	18	36	aa4a139f4	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U
