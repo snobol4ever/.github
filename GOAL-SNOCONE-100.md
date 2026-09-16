@@ -45,6 +45,44 @@ Snocone is C-syntax SNOBOL4, and the C syntax did not replace the SNOBOL4 spelli
 
 **THE RULE:** before quoting any population count for this lane, name BOTH spellings of the construct or state that you checked there is only one. ⭐ And the general form, which is why this is law and not a note: **a narrow true answer is indistinguishable from a broad one at the point of reading.** The grep did not fail, the shell did not warn, and nothing was wrong except the question. This is the same class as the instrument traps in root `CLAUDE.md` (`command -v` answering *is it on PATH*, `$?` after a pipeline answering about the pager) — except that here there is no instrument to blame: the narrowing was in the fingers, so no refusal, default or gate can catch it.
 
+## ⛔⭐⭐⭐ THE ONE DEFECT UNDER ALL SEVEN PARSERS — A USER FUNCTION CALLED INSIDE A DEFERRED CAPTURE TARGET FAILS THE MATCH, SNOCONE ONLY (hq_snocone 2026-09-16, three-line witness)
+
+**THE WITNESS, and it contains no parser:**
+
+```snocone
+function INNER(x) { INNER = .dummy; nreturn; }
+function OUTER(t) { INNER('v'); OUTER = .dummy; nreturn; }
+if ('' ? epsilon . *OUTER('P')) OUTPUT = 'MATCH'; else OUTPUT = 'FAIL';
+```
+
+| arm | answer |
+|---|---|
+| `sbl -bf` on the SNOBOL4 twin | **MATCH** |
+| `scrip` on the SNOBOL4 twin | **MATCH** |
+| `scrip` on the Snocone source above | **FAIL** |
+
+**The class:** a **user-defined** function call nested *inside* a deferred conditional-assignment target (`… . *F()`) makes the match fail. Remove the nested call and it matches. Call a **builtin** instead (`SIZE`) and it matches. It is the nesting of a *user* call that breaks it.
+
+⛔ **THIS IS WHY ALL SEVEN PARSERS SCORE ZERO, AND IT IS ONE BUG, NOT SEVEN.** Every `parser_*.sc` is built on `Shift` and `Reduce` from `bootstrap/ShiftReduce.sc`, and both are invoked exactly this way — `p . thx . *Shift(t, thx)` and `epsilon . *Reduce(tag, n)` — while their bodies call `Push`, `Pop` and `tree`, all user functions. So every reduction in every grammar silently fails the match, and the failure surfaces at the top as a bare `Parse Error`. The parsers are not (only) stale: **the language they are written in cannot run them today.**
+
+**The ablation, in the order it actually went, because the wrong turns are the useful part:**
+
+| probe | result | what it killed |
+|---|---|---|
+| `epsilon . dummy` (plain variable target) | MATCH | not conditional assignment itself |
+| `LEN(1) . *F()` standalone | MATCH | not deferred targets as such |
+| same, with the 14-file library chain prepended | MATCH | not the library, not the `OPSYN` of `~`/`&` |
+| 6-parameter function called with 2 args | MATCH | not arity |
+| `nreturn` from inside an `if` block | MATCH | not nreturn placement |
+| a statement that FAILS inside the body (`GT(xTrace,4)…`) | MATCH | not statement failure |
+| full hand-clone of `Push` as the direct target | MATCH | not `Push`'s body |
+| a wrapper calling that same clone **nested** | **FAIL** | ⭐ the nesting |
+| a wrapper calling the builtin `SIZE` nested | MATCH | user functions only |
+
+⭐ **TWO WRONG ROOT CAUSES I PUBLISHED TO MYSELF AND KILLED BY CHECKING.** (1) `ShiftReduce.sc` calls `tree(` lowercase while `tree.sc` defines `Tree` — a real-looking case mismatch in a case-sensitive language. It is NOT a bug: `tree.sc:1` declares `struct tree { t, v, n, c }`, so `tree(…)` is the **runtime record constructor**, invisible to any static census. Exactly the DATA-registration trap this lane already has a law about. (2) I read `DIFFER(p)` returning the null string as "p is null" and concluded `reduce()` returned nothing; DIFFER returns null **on success**, so it had been returning a valid pattern all along. Both were caught by running one more probe instead of writing the fix.
+
+⛔ **DO NOT "FIX" `ShiftReduce.sc`, `semantic.sc` OR `counter.sc` FOR THIS.** They are correct SPITBOL and they run correctly under `sbl -bf` and under our own SNOBOL4 frontend. The defect is in the Snocone frontend's lowering of a deferred capture target, and that is where the cure belongs. `FoldOp` (referenced at `semantic.sc:66`, defined nowhere) is a separate real gap and does not cause this.
+
 ## ⛔⭐⭐⭐ THE SEVEN SELF-HOSTED PARSERS — MEASURED 2026-09-16 BY hq_snocone: SEVEN EXIST, **ZERO RUN**, AND THE SCORE IS 0/7
 
 `parser_pascal.sc` is written and landed (SCRIP `49b1baeb7`), so the directory now holds **seven** — icon, pascal, prolog, raku, rebus, snobol4, snocone. ⛔ **That is a count of files, not a score.** The measured score on CEO-770's actual question — do they parse corpus programs into a proper `tree_t` with proper `TT_*` types — is **ZERO**, and every claim below is a command's answer, not a reading of a doc.
