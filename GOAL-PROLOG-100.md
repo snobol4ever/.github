@@ -118,6 +118,17 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-16 hq_prolog — **THE cto'S FRAME RUNGS 3(e) AND 3(d): THE PROLOG ARMS** (CTO-59 / CTO-60; per-case red NAME sets, both modes, master + SWI)
+
+**RUNG 3(e) — DISCHARGED, FLAT, ZERO FLIPS.** Base `3a530b12e` vs head `d5f59c9ad` (*a straight temp read only by one sealed det leaf's operand j is granted the argv block's slot j; r/1 272 -> 224, prelude 30208 -> 25424 B*), one scratch clone, each arm built with its own `make` and graded before the next checkout.
+- **Prolog MASTER**, 16 shards, m3+m4: base `total=563 m3_pass=542 m3_fail=21 m4_pass=459 m4_fail=11 all_pass=542` — head **identical in every bucket**, crash=0 hang=0 both sides.
+- **SWI package board**, m3+m4, per case: base and head both `declared=2935 graded=2858 m3_pass=1090 m3_fail=1768 m4_pass=1046 m4_fail=1812 ungraded=77`; **red NAME sets 2000 = 2000 with a diff of 0 lines** — the same ones red, not merely the same count. ⭐ This is the form the cto asked for and the only form that can see a SWAP; a scalar floor cannot.
+
+**RUNG 3(d) — ARM IN FLIGHT, FOLDED WITH 3(e) ON THE cto'S OFFER.** Base `3a530b12e` vs head `987a8ea74` (*the dead-result scratch overlays a pool slot when no dead write lands inside a pooled interval; r/1 224 -> 208*), the same instrument and the same two boards. ⛔ **The fold is graded as a BATCH and is named as one** (CEO-757): `3a530b12e..987a8ea74` carries more than the two frame rungs — my own `1801b547e`, the collector's `f2270e807` eight-arm deletion, `34141e8c6`, `a9e631623`, `0dbd00d7d`, `7475621de`, `a4378d234`, `62ce5c60d` — so a flip in this arm indicts the batch, not 3(d), and the parent-isolated re-run `62ce5c60d` vs `987a8ea74` is the follow-up that would name the commit. The batch shape is what the cto offered and what the boards actually have to survive; stating which it is costs one line and stops the next reader quoting it as a single-commit proof.
+
+⭐ **WHY THE BASE ARM IS RE-MEASURED RATHER THAN REUSED.** `3a530b12e` was already graded 35 minutes earlier in the 3(e) arm, on the same clone and the same SHA. `corpus` was pulled (`fe66993c8` -> `688d9a93f`) between the two, and the REBASE-BASELINE COROLLARY voids an arm across a pull whether or not the pulled files look relevant — they were all `.s` artifacts, which is exactly the kind of "obviously harmless" that the rule exists to stop being argued. Seven minutes of build is cheaper than a delta nobody can quote.
+
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-16 hq_prolog — **AN ASSERTED CLAUSE'S ATOM NAMES LEAVE THE COLLECTED HEAP; AND A CURE THAT WAS GREEN ON ITS OWN TREE WAS WRONG ON THE NEXT ONE** (row `prolog-an-asserted-clauses-atom-argument-comes-back-empty-or-as-another-atoms-name-after-a-collection`, CLOSED; SCRIP `1801b547e`)
 
 **THE DEFECT WAS A WRONG ANSWER, NEVER A CRASH.** Under `SCRIP_GC_STRESS`, `call(p_N(X))` SUCCEEDED and `X` came back as the **empty atom** for nine of ten clauses and as the atom `p_10` — **another atom's name** — for the tenth. Nothing in the tree noticed it for as long as it existed.
