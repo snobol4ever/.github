@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
-usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--render] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason']]
+usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--check] [--render --only KEY | --render --all-rows] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason']]
   (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the suite count and how many are done, then 3 columns x N rows of cells: nick pass/total left state emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
@@ -347,7 +347,12 @@ def md():
         xa = xfail_annotation(r, k)
         if xa: tail = (tail + ' · ' if tail else '') + xa
         _ago=(today-d(r['today_date'])).days; _age='today' if _ago==0 else ('yesterday' if _ago==1 else f'{_ago} days ago')
-        print(f"| {r['nick']} | {r['lang']} | {r['today_pass']}/{r['today_total']} | {r['today_date']} ({_age}) | `{r['tree']}` | {tail} |")
+        # the CEO-749 shape: OUTSIDE named in the same row -- the last OUTSIDE=N token of the row's own criterion stamp (coo 2026-09-16,
+        # row util-suite-banner-render-rewrites-rows-a-seat-did-not-measure-and-there-is-no-check-mode-that-writes-nothing: a render
+        # used to drop a hand-written OUTSIDE clause, hq_raku measured SnoM 1961/1980 OUTSIDE=8 rendered to a plain 1961/1980)
+        _ot=re.findall(r'OUTSIDE=(\d+)', r.get('criterion_changed') or '')
+        _res=f"{r['today_pass']}/{r['today_total']}" + (f" OUTSIDE={_ot[-1]}" if _ot else "")
+        print(f"| {r['nick']} | {r['lang']} | {_res} | {r['today_date']} ({_age}) | `{r['tree']}` | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
     import io, contextlib
@@ -364,6 +369,36 @@ def _row_key(line):
         _head,_rows=load(); _NICK2KEY={r['nick']:r['key'] for r in _rows}
     m = re.match(r'^\|\s*([^|]+?)\s*\|', line)
     return _NICK2KEY.get(m.group(1)) if m else None
+def check_table():
+    """--check: every suite-table row where SCORE.md and a fresh render from SUITES.tsv DISAGREE, printed side by side, WRITING
+    NOTHING. rc 1 on a disagreement, 0 when the table agrees (population printed), 2 when the table cannot be found. The batch
+    audit runs this every tick; a seat verifying after a rebase runs this, never --render (hq_raku 2026-09-16: --render as a
+    verification step rewrote Zona, Jcon and SnoM rows it never measured, twice, and the only way to ask whether the files agreed
+    was the command that made them agree)."""
+    if not os.path.exists(SCORE):
+        print(f"REFUSE(rc=2): {SCORE} missing beside the TSV"); return 2
+    L=open(SCORE,encoding='utf-8').read().split('\n')
+    hdr=[i for i,l in enumerate(L) if l.startswith('| suite | lang |')]
+    if len(hdr)!=1:
+        print(f"REFUSE(rc=2): {len(hdr)} '| suite | lang |' header(s) in {SCORE}, expected exactly one"); return 2
+    st=hdr[0]; en=st
+    while en<len(L) and L[en].startswith('|'): en+=1
+    fresh={_row_key(l):l for l in md_lines() if _row_key(l)}
+    cur={_row_key(l):l for l in L[st:en] if _row_key(l)}
+    diff=[k for k in cur if k in fresh and cur[k]!=fresh[k]]
+    only_score=[k for k in cur if k not in fresh]; only_tsv=[k for k in fresh if k not in cur]
+    n=len(cur)
+    for k in diff:
+        print(f"DISAGREE {k}:"); print(f"  SCORE.md : {cur[k]}"); print(f"  SUITES.tsv renders: {fresh[k]}")
+    for k in only_score: print(f"DISAGREE {k}: in SCORE.md's table, no SUITES.tsv row renders it")
+    for k in only_tsv: print(f"DISAGREE {k}: SUITES.tsv row with no SCORE.md table row")
+    bad=len(diff)+len(only_score)+len(only_tsv)
+    print(f"population: {n} table row(s) checked against SUITES.tsv; {bad} disagree; nothing written")
+    if bad:
+        print("  a display row is rewritten only by the seat that measured it: util_suite_banner.py --render --only <key>  (or the runner's own write); --render --all-rows rewrites every row from the local TSV and is a different act")
+        return 1
+    print(f"CHECK OK: SCORE.md's suite table agrees with SUITES.tsv on all {n} rows")
+    return 0
 def render_table(only_key=None):
     """Re-render SCORE.md § THE SUITE TABLE (the rows under the '| suite | lang |' header) from SUITES.tsv, in place.
     Returns a one-line note; never silent, never a guess: a table it cannot find is said NOT rendered.
@@ -492,7 +527,19 @@ def main(a):
                      f"SUITES.tsv has been RESTORED to what it held before this call, because a written TSV "
                      f"beside an unwritten SCORE.md is the split state every board reader then has to guess at.")
         print(note)
-    if '--render' in a: print(render_table()); return
+    if '--check' in a: sys.exit(check_table())
+    if '--render' in a:
+        # ⛔ --render REWRITES EVERY ROW FROM THE LOCAL TSV: a different act from verifying, so it is asked for by name -- --all-rows,
+        # or scoped to the one row the caller measured with --only KEY (coo 2026-09-16, hq_raku's finding).
+        if '--only' in a:
+            j=a.index('--only'); k=a[j+1] if len(a)>j+1 else ''
+            head,rows=load()
+            if k not in {r['key'] for r in rows}: sys.stderr.write(f"REFUSE(rc=2): --only {k!r} is no SUITES.tsv key\n"); sys.exit(2)
+            print(render_table(only_key=k)); return
+        if '--all-rows' not in a:
+            sys.stderr.write("REFUSE(rc=2): --render rewrites EVERY suite-table row of SCORE.md from the local SUITES.tsv, rows you never measured included. "
+                             "To verify, run --check (writes nothing). To rewrite one row you measured: --render --only <key>. To rewrite them all, say so: --render --all-rows. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        print(render_table()); return
     if '--md' in a: md(); return
     grid(plain='--plain' in a)
     return
