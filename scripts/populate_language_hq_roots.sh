@@ -33,7 +33,7 @@ for lang in icon prolog raku pascal snocone snobol4; do
   rm -rf "$R/SCRIP/refs"
   for f in "$R/.claude/settings.local.json" "$R/.claude/settings.json"; do
     [ -f "$f" ] || continue
-    if grep -q "/home/claude_$o/" "$f"; then cp -p "$f" "$f.bak-$STAMP-rename"; sed -i "s|/home/claude_$o/|/home/claude_$lang/|g" "$f"; fi
+    if grep -qE "claude_$o([^A-Za-z0-9_]|$)" "$f"; then cp -p "$f" "$f.bak-$STAMP-rename"; sed -i -E "s#claude_$o([^A-Za-z0-9_]|$)#claude_$lang\\1#g" "$f"; fi
   done
   if ! grep -q "RENAMED BY LANGUAGE 2026-09-16" "$R/CLAUDE.md"; then
     cp -p "$R/CLAUDE.md" "$R/CLAUDE.md.bak-$STAMP-rename-$lang"
