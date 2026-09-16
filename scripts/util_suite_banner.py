@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
-usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--render] [--set KEY PASS TOTAL [DATE] [TREE]]
+usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--render] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason']]
   (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the suite count and how many are done, then 3 columns x N rows of cells: nick pass/total left state emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
@@ -457,11 +457,31 @@ def grid(plain=False):
     print(f"{len(data)} suites, {done} at 100%")
 def main(a):
     if '--set' in a:
-        i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else dt.date.today().isoformat(); tree=a[i+5] if len(a)>i+5 else None
+        # ⛔ THE CRITERION STAMP (coo 2026-09-16, CEO-785; row instruments-util-score-row-cannot-stamp-a-criterion-change-so-
+        # every-denominator-move-is-hand-edited-or-unstamped): `--criterion-changed '<YYYY-MM-DD>:<reason in words>'` APPENDS
+        # to column 12 (criterion_changed) with the ' | ' separator the column already uses, and a --set whose TOTAL differs
+        # from the row's previous today_total REFUSES rc=2 without it -- a denominator move without its stamp is the
+        # dishonest-denominator class of CEO-546, and until today the only way to stamp one was a hand edit (the coo's Budne
+        # stamp of 09-13, .github 11de13f9) or none at all (hq_pascal's PAT instrument change, SCRIP fe37edc72, 284 -> 296).
+        stamp=None
+        if '--criterion-changed' in a:
+            j=a.index('--criterion-changed')
+            if len(a)<=j+1 or not re.match(r'^\d{4}-\d{2}-\d{2}:\S', a[j+1]):
+                sys.stderr.write("REFUSE(rc=2): --criterion-changed takes '<YYYY-MM-DD>:<reason in words>' (the day the criterion moved, a colon, then why)\n"); sys.exit(2)
+            stamp=a[j+1]; a=a[:j]+a[j+2:]
+        i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else dt.date.today().isoformat(); tree=a[i+5] if len(a)>i+5 and not a[i+5].startswith('-') else None
         head,rows=load(); r=next((x for x in rows if x['key']==key),None)
         if r is None: sys.exit(f"REFUSE: no suite key {key}")
+        prev=(r.get('today_total') or '').strip()
+        if prev and str(t).strip()!=prev and not stamp:
+            sys.stderr.write(f"REFUSE(rc=2): {key}'s denominator moves {prev} -> {t} and no --criterion-changed '<YYYY-MM-DD>:<reason>' names why. "
+                             f"A denominator move without its stamp is the dishonest-denominator class (CEO-546, CEO-749): pass the stamp, or keep the total. "
+                             f"NOTHING WAS WRITTEN.\n"); sys.exit(2)
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
         if tree: r['tree']=tree
+        if stamp:
+            cur=(r.get('criterion_changed') or '').strip()
+            r['criterion_changed']=(cur+' | '+stamp) if cur else stamp
         before=open(TSV,encoding='utf-8').read()
         save(head,rows)
         try:
