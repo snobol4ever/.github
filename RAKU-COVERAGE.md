@@ -1,6 +1,6 @@
 # RAKU-COVERAGE.md — computed by scripts/raku_roast_scoreboard.sh
 
-**Generated:** 2026-09-13T19:45:50Z · scrip `e51a643b3` · roast ``
+**Generated:** 2026-09-16T15:09:36Z · scrip `a4e800207` · roast ``
 
 This table is the ONLY sanctioned source of a Raku coverage claim (RAKU-100 ladder,
 COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
@@ -10,10 +10,10 @@ COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
 | Verdict | Files | % of in-tier |
 |---------|-------|--------------|
 | **PASS** | 6 | **0.6%** |
-| FAIL (runs, some `not ok`) | 9 | 0.9% |
-| PARSE-FAIL | 921 | 93.4% |
-| NO-TAP (ran, emitted no TAP) | 8 | 0.8% |
-| CRASH / TIMEOUT | 1 | 0.1% |
+| FAIL (runs, some `not ok`) | 10 | 1.0% |
+| PARSE-FAIL | 916 | 92.9% |
+| NO-TAP (ran, emitted no TAP) | 11 | 1.1% |
+| CRASH / TIMEOUT | 2 | 0.2% |
 | missing from roast tree | 41 | — |
 | **IN-TIER DENOMINATOR** | **986** | 100% |
 
@@ -21,7 +21,7 @@ COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
 
 | Section | PASS | Total | % |
 |---------|------|-------|---|
-| integration | 1 | 114 | 0.9% |
+| integration | 0 | 114 | 0.0% |
 | rosettacode | 0 | 2 | 0.0% |
 | S02-lexical-conventions | 1 | 11 | 9.1% |
 | S02-lists | 0 | 2 | 0.0% |
@@ -31,7 +31,7 @@ COMPLETION DEFINITION). Prose estimates are superseded by whatever this prints.
 | S02-names-vars | 0 | 8 | 0.0% |
 | S02-one-pass-parsing | 0 | 1 | 0.0% |
 | S02-packages | 0 | 1 | 0.0% |
-| S02-types | 0 | 54 | 0.0% |
+| S02-types | 1 | 54 | 1.9% |
 | S03-binding | 0 | 7 | 0.0% |
 | S03-feeds | 0 | 1 | 0.0% |
 | S03-junctions | 0 | 4 | 0.0% |
