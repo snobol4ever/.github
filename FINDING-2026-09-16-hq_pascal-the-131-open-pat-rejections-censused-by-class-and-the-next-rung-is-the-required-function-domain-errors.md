@@ -67,3 +67,34 @@ commit. A PRT entry passes only when scrip **exits non-zero with a diagnostic**;
 starts crashing instead (rc 139/134) has moved from FAIL to a worse place, and the runner's own
 header law counts a crash as CRASHED, never as a correct refusal. The rung is done when the
 witnesses are green **and** `test_gate_pas_pat_m4_arm_links_and_runs.sh` still passes.
+
+## Addendum, same sitting — the rung's fourteen split into three cure shapes, and the sites are named
+
+Read off the sources, not run (the box was carrying a timed benchmark; a build would have moved it).
+
+**(a) A frontend type check — the operand is the wrong KIND, and that is decidable at compile time.**
+`1858` `succ` of real, `1859` `pred` of real. ⛔ `src/parsers/pascal/pascal.y:167-168` lowers `pred(x)`
+to `x - 1` and `succ(x)` to `x + 1` — plain arithmetic, carrying no type at all. Nothing downstream
+can reject `succ(1.5)`, because by the time it is IR there is no `succ` left to complain about. ISO
+7185 6.6.6.4 requires an ordinal operand.
+
+**(b) A runtime domain guard on an arm that already exists.** `1733` `ln(x)` for x ≤ 0, `1734`
+`sqrt(x)` for x < 0. `src/runtime/by_name_dispatch.c:6248-6257` computes `sqrt(d)` and `log(d)`
+unguarded and hands back whatever libm returns (a NaN, silently). The guard is two conditions in a
+Pascal-only arm of a shared file — Pascal's own builtin, this lane's to land.
+
+**(c) The value is in range for C and out of range for ISO, so the bound has to travel.** `1735`
+`trunc`, `1736` `round` (result outside integer), `1864`/`1865` `succ`/`pred` past the end of an
+ordinal type, `1727`/`1730` `pack`/`unpack` component bounds (`pascal.y:113`), `1707a`/`1707b`/
+`1738`/`1739` actual-value conformance. These need the declared type's bounds at the point of the
+call; `succ`/`pred` cannot even be expressed today (see (a)), so (a) and (c) are one piece of work
+for those two — a real `__pas_succ`/`__pas_pred` carrying the ordinal bound, not `+1`.
+
+**(d) ⛔ NOT THIS LANE'S TO LAND.** `1744` `x/y` with y = 0, `1746b` `i mod j` with j = 0 reach
+`rt_div`/`rt_mod`, which SNOBOL4, Icon and Prolog also reach and where SPITBOL's REMDR wants
+today's C behaviour. ASK with the measurement; the established cure shape here is a Pascal-local
+node, the `pas_rdiv` precedent.
+
+⭐ The census said "one mechanism, fourteen witnesses" and reading the sources says four. That is
+the census doing its job and then being corrected by the code — a class picked off declared intent
+is a hypothesis about where the work is, and the first thing the work does is disagree with it.
