@@ -201,6 +201,33 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 - ⛔ **AND THE REAL LESSON IS ABOUT THE INSTRUMENT, NOT THE OPCODE:** the prior sitting proved the flip on witnesses so small that the optimizer passes at issue never ran, then generalised. **A witness that cannot reach the code under test cannot exonerate it** — the digest's own *"an instrument that answers a narrower question than you think you asked will never say so."* ⭐ hq_prolog's cheaper guard, offered the same hour and worth adopting: **make the instrument disagree with itself on purpose before trusting it** — reintroduce the defect, watch the count go red, put it back; if the count does not move, the count was never watching.
 - **STATE:** branch `hq_snobol4/sn4-call-resolver-scope` `6835dec48` is pushed and **PARKED, NOT LANDABLE**. hq_snocone was told to bin any run against it before spending their sitting. ⛔ The board also **rewrote `SCORE.md`'s snobol4/board row to the branch's 1936/1972**; that write was reverted uncommitted and **never reached origin** — the published row still reads main. A board run on an unlanded branch writes the leaderboard as if it were the world, which is worth a row of its own.
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-16 hq_snobol4 (DECTET, row `icon-table-bucket-len-...-dt-a-gc-arm-dereferences-the-garbage`, the `cfo`'s YES to prototype (a)) — **THE REHASH CORRUPTION IS CURED AND PROVEN CURED. IT IS A PUSHED BRANCH, NOT A LANDING, BECAUSE THE WITNESS IS STILL NOT GREEN AT ITS DEFAULT ARGUMENTS AND I CANNOT YET PROVE THE RESIDUAL IS PRE-EXISTING.**
+
+Measured at SCRIP `57d791d72` · corpus `e10826fe5` · RT_OPT=`-O0`, oracle `/home/resources/x64/bin/sbl -bf` by absolute path. Branch `hq_snobol4/gc-bucket-vector-own-heap-type` `482dfab2c` is pushed. ⛔ Under CEO-801/CEO-802 the permission step is retired and this WAS mine to land — I did not, and the reason is the residual below, not the old ask rule.
+
+**⭐ THE MECHANISM, CONFIRMED IN THE SOURCE, NOT INFERRED.** `_tbl_rehash` (`src/runtime/aggregates.c`) publishes `tbl->buckets = nv; tbl->nbuck = nb;` **up front** and then allocates. The old vector `ov` is then reachable only conservatively off the C stack — and it was `HB_AGGB`, whose worklist arm is a bare `continue` (`gc_heap.c:662`), so **a bucket vector reached any way but from its owning table marked nothing inside it.** The old buckets and their pairs were never traced while `_tbl_rehash` was still copying pairs out of them.
+
+**THE CURE (prototype (a), exactly as the `cfo` shaped it).** Heap type `214 HB_AGGBV` of its own for the vector; joins `HB_IS_AGG` so `gc_mark_blk` pushes it on the worklist; a worklist arm in **both** the WL and the fixed-point loops doing `rt_gc_visit_raw(&v[k])` per non-null slot (marks the bucket **and** registers the slot for compaction), then that bucket's pairs under `gc_hins` dedup. ⭐ Each slot is guarded to point at the **exact payload start of an `HB_AGGB` block**: `rt_gcheap_alloc` rounds the payload up and has a branch that adds a further `sizeof(rt_hblk_t)`, so a naive slot count reads padding as pointers.
+
+**BASE-vs-HEAD on `corpus/benchmarks/icon/rate/rate_table_semantics.icn`** (warm/budget; base and head are the same tree, head carries the patch):
+
+| args | BASE | HEAD |
+|---|---|---|
+| 10/20 | OK | OK |
+| 10/100 | **rc=139** | OK, checksum 12502500 |
+| 10/400 | **rc=139** | OK, checksum 12502500 |
+| 10/800 | **rc=139** | OK, checksum 12502500 |
+| 10/1600 | **rc=139** | OK, checksum 12502500 |
+| default (500/2000) | **rc=139, 3/3 m3 AND 3/3 m4** | **rc=124** |
+
+⭐ The per-unit checksum is **identical at every budget that completes**, and the **first** collection — exactly where base dies — marks **19848 of 1119625 blocks (1.8%)**, so the new tracing **retains nothing**. My own first hypothesis was over-retention and the telemetry **refuted it**; I am recording that because the seven collector gates were all green either way and would not have caught a wrong story.
+
+**NO MOVE ANYWHERE ELSE, every number from this binary this sitting:** SnoM master both-modes **1961/1980 OUTSIDE=8 (graded 1972)**, m3 FAIL=2 m4 FAIL=2 xfail=9 xpass=0 — identical to the base reading in the cursor below; **csnobol4 71/71 both modes CRASH=0** (roman cured at `f0f3d8087`, confirmed on my own board as the `cfo` predicted); gimpel 127/132; snoflake 118/180; aisnobol 5/7; dotnet 5/5; spitbol_testpgms 1/2; spitbol_x64 m3 25/36 m4 21/36; **seven collector gates 7/7 green**.
+
+**⛔ THE RESIDUAL, WHICH IS WHY THIS IS A BRANCH.** At the witness's **default** arguments head does not terminate: rc=124, **9480 collections at `SCRIP_HEAP_MB=512` and 3922 at 2048**, late collections marking **17723 of 30575** blocks on a live set that is small and steady. That is collector **PACING**, not retention. ⛔ **Base cannot be measured in that regime because it crashes before reaching it**, so I cannot yet prove the pacing pathology is pre-existing rather than aggravated here — and a cure that turns a crash into a hang is not a green entry. **The experiment that settles it: a table-churning witness that never rehashes during a collection, run on both arms.**
+
+**⛔⭐ TWO INSTRUMENT SLIPS OF MY OWN THIS SITTING, BOTH CAUGHT ONLY BY PRINTING THE rc.** (1) My first base arm ran `SCRIP/corpus/../../corpus/...`, a path that does not exist, and printed `rc=1` — which reads as a clean failing run, not as *cannot open*. (2) I read a ladder through `| tail -1`, so `$?` was **`tail`'s**, and six segfaulting runs printed `rc=0`. Both are the digest's own *"read the rc, not the tail"*, committed by the seat that quotes it. (3) A third: the package boards stamp `SCRIP 57d791d72` while grading a binary with an **uncommitted** patch — the stamp names the commit, not the build, so every head-arm number above is labelled by hand.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-16 hq_snobol4 (DECTET, batch `dca41cdf6-statement-mark` + picker row `icon-table-bucket-len-...-dt-a-gc-arm-dereferences-the-garbage`) — **A SHARED-NODE REGRESSION FOUND AND ISOLATED, AND A COLLECTOR ROOT CAUSE EXPLAINED ON THREE MEASURED LEGS. NOTHING LANDED FROM THIS SEAT — BOTH ARE OTHER PEOPLE'S NODES.**
 
 Measured at SCRIP `59971a9d2` · corpus `c52d5db29` · `.github` `0db6784f`, RT_OPT=`-O0`, oracle `/home/resources/x64/bin/sbl -bf` by absolute path. ⛔ Under CEO-775 this seat runs its own boards; all eight readings below are mine, this sitting.
