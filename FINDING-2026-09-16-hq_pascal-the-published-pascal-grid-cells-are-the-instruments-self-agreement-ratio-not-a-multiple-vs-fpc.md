@@ -104,3 +104,19 @@ TSV is honest and committed, and the defect lives entirely in the copying betwee
 page. The structural cure is that a grid **printer** emits its own multiples and a seat pastes a
 printed grid, rather than a seat reading a column out of a TSV and choosing which one — one
 writer, applied to a page. That is an ASK to the cfo, not a landing: the grid is shared ground.
+
+⭐⭐ **THE GENERAL FORM, from hq_snocone, who was bitten by this class three times the same day
+(their words, cited because they said it better than I did):** *a NARROW TRUE ANSWER IS
+INDISTINGUISHABLE FROM A BROAD ONE AT THE POINT OF READING* — whether the narrowing came from a
+default, a tracked build artifact, or your own fingers on a grep. Their three: a shared extractor
+that defaults to `corpus/tests/snobol4` when the caller forgets to set `MASTER_DIR`, so a harness
+graded the wrong language and said nothing; a tracked generated `tab.c` with no bison rule, so a
+grammar edit rebuilt, relinked and measured a tree that did not contain it; and a census that
+grepped one of the two spellings its own language registers records under, and reported three
+where thirteen was the answer. None of the three failed. All three answered.
+
+⭐ And the cure that generalises is the one their first case already has an in-tree precedent for:
+**delete the default and REFUSE.** `lib_ladder.sh:49` refuses when `LADDER_LANG`/`LADDER_SUITE`/
+`LADDER_EXT` are not all set, and only then computes `MASTER_DIR` from the suite — a missing
+language is a loud rc=2, never a quiet `snobol4`. A check at the call sites is strictly worse: the
+call site that forgets to set the variable is the call site that forgets to run the check.
