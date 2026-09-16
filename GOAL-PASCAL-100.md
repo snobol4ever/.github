@@ -182,7 +182,43 @@ engines measured together worth reporting when the box is not quiet.
 
 #### 4. Reading B — the same instrument, the 09-04 engine
 
-PENDING.
+`SCRIP=<worktree>/scrip RT_DIR=<worktree>/out bash scripts/bench_triangulate_pascal.sh` — today's
+instrument and today's corpus kernels against the **09-04 engine** `7d4959828`, built in a git
+worktree outside this root (`make` rc=0, `RT_OPT=-O0`). Started 18:51:18Z under **load 0.24** on 16
+cores, the quietest window of the sitting, and finished 19:38:17Z under **load 4.08** (0.26/core),
+the cfo's parallel build having arrived mid-run. ⛔ Also VOID by its own rules: `rc=1`, DISAGREE
+present, 8 dark cells. Its TSV stayed in the scratchpad and its progress rows went to a scratch DB
+(`S4E_PROGRESS_DB=`) deliberately — a row in the shared table would have carried THIS root's HEAD
+as its `scrip` hash and lied about which binary produced it.
+
+| kernel | a1 m3 | a1 m4 | a2 m3 | a2 m4 |
+|---|---:|---:|---:|---:|
+| bubble | 0.000533 | 0.000596 | 0.000598 | 0.000663 |
+| intmm | — | — | — | 0.002841 |
+| perm | — | — | — | — |
+| queens | — | 0.000947 | 0.001097 | — |
+| quick | 0.001630 | — | — | — |
+| sieve | 0.001430 | 0.001726 | 0.001187 | 0.001345 |
+| towers | — | — | — | — |
+
+⭐⭐ **THE ANSWER TO CEO-782, AND IT IS NEITHER BRANCH THE RULING POSED.** HEAD reads 0.0004x–0.018x;
+the 09-04 engine reads 0.00053x–0.0028x. **Both trees, one instrument, three orders from parity,
+agreeing with each other within about 1.5x on every kernel both measured.** Twelve days of
+shared-node landings did not regress it, and the instrument does not measure a different region
+from the two-number basis — sieve m4 on the 09-04 engine reads **0.001726x** against the 0.00174x
+that opened the dispute, the same number. The published 0.91x–1.07x was never a comparison against
+fpc at all; it is §1's agreement column.
+
+⭐ **And the trap is live, which is the part worth keeping.** This run's own ratio column reads
+1.0044, 1.0129, 1.0708, 1.0504 and 0.9395 for its agreeing cells. A seat repeating the 09-04
+transcription today would publish "bubble 1.00x, intmm 1.07x, towers 0.94x vs fpc" off a run whose
+real multiples are three orders away. Nothing in the instrument has changed to prevent it, which is
+why the cure is a printer that emits its own multiples (ASK to the cfo, this sitting).
+
+⛔ One honest artifact, folded into no verdict: the disk angle read `inblock=232` on bubble and 8–64
+on four others here, against 0 everywhere on HEAD. That is a cold binary and a cold corpus in a
+fresh worktree being paged in, not a property of the 09-04 engine — recorded because the disk
+angle's own rule is that a nonzero is a finding, and this finding is about the worktree.
 
 #### 5. What the cell should say
 
