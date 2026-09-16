@@ -119,6 +119,7 @@ def cmd_flips(a, rows):
     # reading inside it. A -dirty tree stamp is cited for its number, never its position in a series, so a dirty
     # row is not a position here (--include-dirty restores the raw series). Both modes must agree for "any".
     base, latest, dirty_skipped = {}, {}, 0
+    base_row, latest_row, last_pass_row = {}, {}, {}   # the rows behind base/latest, and the last PASS row per key (for the lost lines)
     for r in sel:
         if r["outcome"] in NOT_A_READING:
             continue
@@ -127,8 +128,10 @@ def cmd_flips(a, rows):
             continue
         k = (r["suite"], r["program"], r["mode"])
         if r["ts_utc"] < since or k not in base:
-            base[k] = r["outcome"]
-        latest[k] = r["outcome"]
+            base[k] = r["outcome"]; base_row[k] = r
+        latest[k] = r["outcome"]; latest_row[k] = r
+        if r["outcome"] == "PASS":
+            last_pass_row[k] = r
     cls_of = {}
     for r in sel:
         cls_of.setdefault(r["suite"], r["class"])
@@ -145,9 +148,18 @@ def cmd_flips(a, rows):
           f"master {len(net['master'])}, package {len(net['package'])}, benchmark {len(net['benchmark'])}; "
           f"lost since the base: master {len(lost['master'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}")
     if a.names:
+        # ⛔ A LOST COUNT WITHOUT NAMES CANNOT BE TRIAGED (ceo CEO-778(4)/CEO-779(5); coo 2026-09-16, row util-progress-flips-names-
+        # every-lost-since-base-program): one `lost` line per program with the modes it lost, the last tree and time it read PASS,
+        # and the tree, time and outcome it reads now -- the same shape as the +/- flip lines, and a row for its HQ by name.
         for cls in ("master", "package", "benchmark"):
             for suite, prog in sorted(lost[cls]):
-                print(f"    LOST {suite}:{prog}")
+                parts = []
+                for mode in ("m3", "m4", "ast"):
+                    k = (suite, prog, mode)
+                    if base.get(k) == "PASS" and latest.get(k) != "PASS":
+                        lp = last_pass_row.get(k, base_row.get(k)); lr = latest_row[k]
+                        parts.append(f"{mode}: last PASS {lp['scrip']} {lp['ts_utc'][:16]} -> {lr['outcome']} {lr['scrip']} {lr['ts_utc'][:16]} by {lr['measurer']}")
+                print(f"    lost {suite}:{prog}  " + " · ".join(parts))
     return 0
 
 
