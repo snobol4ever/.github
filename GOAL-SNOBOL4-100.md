@@ -163,6 +163,33 @@ The remaining 49% is 211 programs (csnobol4 63 · snoflake 77 · gimpel 67 · ai
 
 RULES OF THE ROAD (under QUARTET since 20:57 the HQ both witnesses and cures): a seat WITNESSES (ablate to a ≤ 20-line witness under its rung, prove the criterion red once, file the class) and the HQ CURES; a shared-node cure is graded on the SNOBOL4 master FAIL=0 (the two named entries excepted until their rows close) plus the Icon watermark before push; the umbrella DONE-WHENs anchor on the runner's own board line; every suite run rewrites its SCORE row; the oracle is the 18:19 build. Misalignments fixed at this pass: the capture row and the rc1-compilefail row sat FREE in hq_C's lane while its live claim was a 13:15 flounder assign; the SETEXIT blocker sat at rank 3 under the rank-1 rows blocked on it; five csnobol4 class rows sat at ranks 2–8; the testpgms forward-reference defect existed twice (superseded).
 
+## ⛔⛔⭐⭐⭐⭐⭐ RETRACTION AND MEASUREMENT — 2026-09-16 hq_snobol4 — **THE "IT IS ONE TOKEN" FINDING BELOW IS WRONG. THE FLIP COSTS 26 MASTER ENTRIES, THE 2026-09-14 LEDGER'S "54 SITES" WARNING WAS CLOSER TO RIGHT THAN MY REFUTATION OF IT, AND BRANCH `6835dec48` DOES NOT LAND.**
+
+⛔ **RETRACTED, IN THE OPEN, NOT SILENTLY EDITED:** the cursor below states *"THE 2026-09-14 LEDGER'S '54 SITES … A SITTING OF ITS OWN AND WHERE EVERY RISK LIVES' IS WRONG BY MEASUREMENT: IT IS ONE TOKEN"* — that flipping `sx_call_named` to `IR_CALL_SNOBOL4` needs only `|| op == IR_CALL_SNOBOL4` in `zd_nops`. **That is false.** `zd_nops` was **necessary and nowhere near sufficient**. The original finding was measured on three-statement witnesses (`OUTPUT = SIZE('hello')` and siblings) that **never reach the passes that break** — a real measurement over too small a population, published as a general result. The ledger's warning it dismissed was the better guide. ⭐ The sentence below is left standing as written, per the retract-in-the-open rule; **this block supersedes it and every line of it that speaks to sufficiency.**
+
+**THE MEASUREMENT.** SnoM master board, quiet tree, fresh binary, SCRIP `6835dec48` · corpus `aaadcb56d` · `RT_OPT=-O0`, 2026-09-16 13:55 CDT, this seat as its own runner under CEO-775:
+
+| arm | main (`319e8e7ad`) | branch `6835dec48` |
+|---|---|---|
+| master both-modes | **1961/1972** | **1936/1972** |
+| m3 | FAIL=**2** | FAIL=**27** |
+| m4 | FAIL=**2** | FAIL=**23** SKIP=3 |
+
+**26 NEW REDS** (28 listed minus the two this lane already names by row, `dupl_size_replace_branch_1` and `size_keyword_replace_branch_1`). ⛔ **A cure that trades one program for another never lands (CEO-589); this one trades 26. It does not land.**
+
+**⛔⭐⭐ THE MECHANISM, AND IT IS NOT THE RESOLVER SCOPE.** No failure raises `ERROR 022`; every one is a **silent output mismatch**. The scope gate is exonerated — the failing programs call `OUTPUT`, `INPUT`, `ENDFILE`, `TRACE`, all of which are in the 77 `g_sn4_system_fns` and pass the predicate untouched. **The defect is the OPCODE FLIP itself:** `sx_call_named` changes the opcode on *every* SNOBOL4 **and SNOCONE** named call, and the tree carries many sites that test `op == IR_CALL` **directly** rather than through the existing `ir_is_call_kind()` helper (`IR.h:187`, which already lists `IR_CALL_SNOBOL4`). Those sites silently stop matching. **Two filters in one file explain the two largest families one-to-one:**
+
+| site | what it does | family it silently killed |
+|---|---|---|
+| `src/optimizer/gva_collect.c:31` | matches `IR_CALL` named `INPUT`/`OUTPUT`, calls `gva_io_refuse_name()` to keep an I/O-attached variable **out of** global value analysis | the whole `simple_output_5x/6x/9x` family — the variable gets promoted, the file association breaks, `simple_output_55` prints `line=` where the oracle prints `line=hello` |
+| `src/optimizer/gva_collect.c:87` | matches `IR_CALL` named `TRACE`, sets `g_gva_trace_demote` | **all ten** `ladder__rung22_access_*` entries |
+
+A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family structure maps onto the filters exactly, which is the evidence** — this is not a guess about which pass broke.
+
+- ⛔ **THE FIX IS A SHARED-NODE ASK, NOT A LANDING BY THIS SEAT.** `src/optimizer/`, `src/ir/frame_layout.c` and `src/driver/scrip.c` are nodes other frontends lower to. The minimal, behaviour-preserving shape is `op != IR_CALL && op != IR_CALL_SNOBOL4` at each site (⛔ **not** a blanket switch to `ir_is_call_kind()`, which would silently widen every one of these filters to `IR_CALL_ICON` and re-scope Icon). A census of `== IR_CALL` sites that omit the new opcode is the first deliverable of that ask.
+- ⛔ **AND THE REAL LESSON IS ABOUT THE INSTRUMENT, NOT THE OPCODE:** the prior sitting proved the flip on witnesses so small that the optimizer passes at issue never ran, then generalised. **A witness that cannot reach the code under test cannot exonerate it** — the digest's own *"an instrument that answers a narrower question than you think you asked will never say so."* ⭐ hq_prolog's cheaper guard, offered the same hour and worth adopting: **make the instrument disagree with itself on purpose before trusting it** — reintroduce the defect, watch the count go red, put it back; if the count does not move, the count was never watching.
+- **STATE:** branch `hq_snobol4/sn4-call-resolver-scope` `6835dec48` is pushed and **PARKED, NOT LANDABLE**. hq_snocone was told to bin any run against it before spending their sitting. ⛔ The board also **rewrote `SCORE.md`'s snobol4/board row to the branch's 1936/1972**; that write was reverted uncommitted and **never reached origin** — the published row still reads main. A board run on an unlanded branch writes the leaderboard as if it were the world, which is worth a row of its own.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-16 hq_snobol4 (DECTET, rank-0 row `snobol4-dotnet-nine-and-aisnobol-two-outside-entries-are-debt-on-lons-word-cure-every-one-of-the-eleven`, CEO-787) — **THE RED PROOF, MEASURED LIVE BEFORE ANY CURE, AS THE `ceo` ASKED. NOTHING CURED YET. AND THE INSTRUMENT THE PACKAGE SIDECARS CITE FOR "HOW MANY ENDs" IS UNSOUND — IT HAPPENS TO BE RIGHT ABOUT `chap7` AND IS WRONG ABOUT TWO OTHERS.**
 
 **Lon's word (in-chat to ceo 12:0x, via CEO-787), verbatim:** *"Why are there outside=9 for dotnet and outside=2 or AIS. Get those fixed."* The `ceo` measured the per-program cure list on the oracle at 12:07 and routed it; the RED proof was owed by this seat because the `ceo`'s own seat refuses these boards rc=2 by the lane guard (correct under CEO-775).
