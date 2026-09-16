@@ -1,6 +1,6 @@
 # FINDING 2026-09-16 (cto, MODE DECTET, the SPINE) — a sealed det leaf's argv are live only between its alpha and its gamma, so every sealed call of a graph marshals into ONE block, and its result goes through the ordinary reader rule
 
-Row: `frame-slot-reuse-a-live-range-in-a-byrd-graph-extends-to-every-point-reachable-by-recession` (CEO-684 slice 2), RUNG 2 = THE DET-LEAF ARGV NON-GRANT. Predecessors: rung 0 (a9461875f, the relation), rung 1 (d21da7354, the straight-temp pool), the two openers (09c0e5608 the census, 888f9a767 the dump IS the frame), the dead-record cure (5538c5a5e), rung 2 step 1 (ffebafe8e, the seal travels on the IR node).
+Row: `frame-slot-reuse-a-live-range-in-a-byrd-graph-extends-to-every-point-reachable-by-recession` (CEO-684 slice 2), RUNG 2 = THE DET-LEAF ARGV NON-GRANT, landed at SCRIP bbd5c370a. Predecessors: rung 0 (a9461875f, the relation), rung 1 (d21da7354, the straight-temp pool), the two openers (09c0e5608 the census, 888f9a767 the dump IS the frame), the dead-record cure (5538c5a5e), rung 2 step 1 (ffebafe8e, the seal travels on the IR node).
 
 ## THE CLAIM, AND WHERE IT IS HELD
 
