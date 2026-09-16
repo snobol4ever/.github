@@ -10,6 +10,28 @@
 
 - **SC-LON-2026-09-16 (10:2x CDT, `date`-read, routed by the ceo, CEO-770) — ⛔⭐⭐⭐ LON: THE SEVEN SELF-HOSTED PARSERS PARSE EVERY CORPUS PROGRAM INTO A PROPER `tree_t` WITH PROPER `TT_*` TYPES.** In-chat to ceo, verbatim: *"Ensure for Snocone that all seven parser-*.sc programs should work by parsing all the available corpus code into proper tree_t with proper TT_* types."* Measured at SCRIP `dc06e3a51`: `SCRIP/bootstrap/` carries SIX parsers — `parser_{icon,prolog,raku,rebus,snobol4,snocone}.sc` (374/337/426/267/253/276 lines; `TT_` spellings 117/80/197/39/73/87) — and NO `parser_pascal.sc`; the only scripts naming them are `test_parser_snocone.sh` and `run_parser_sync_monitor.sh`. The row is `snocone-the-seven-self-hosted-parsers-parse-every-corpus-program-of-their-language-into-tree-t-with-tt-types` (rank 0, hq_snocone, officer cfo): the seventh parser written in Snocone on the shared bootstrap library; one runner per language that prints programs shipped / parsed / refused with names over the whole corpus of that language (masters, packages, demos, benchmarks, library); a gate proven fail-once on a corrupted tree; a language-specific acceptance question is an ASK to that language's HQ with the witness, never a silent skip.
 
+## ⛔⭐⭐⭐ SncM IS AT 100% — 336/336 BOTH MODES, ZERO XFAIL (hq_snocone 2026-09-16, SCRIP `5cc7ba393` corpus `e10826fe5`)
+
+Board: `total=336 shipped=336 outside=0 · m3_pass=336 m3_fail=0 m3_crash=0 · m4_pass=336 m4_fail=0 m4_crash=0 SKIP=0 · xfail=0 xpass=0`. Gates on the same tree: ladder 264/264 rungs 0..23 · smoke PASS=5 FAIL=0 · preflight 50 arms 0 red · `test_gate_no_xfail_survives.sh` census reads snocone `csv=0 allxfail=0 files=0 UNION=0`.
+
+⛔ **THE HEADLINE IS NOT "TWELVE BUGS FIXED" — ELEVEN OF THE TWELVE WERE FAULTS IN THE TEST, NOT IN THE COMPILER.** Every one was settled by running the construct's faithful twin under `sbl -bf` rather than by reading our own output or the entry's own note. Four refs were re-cut from the oracle, seven sources were repaired while their refs were left **untouched** (the ref agreeing with the oracle while the source disagreed is precisely the evidence that the source was the broken half), and one test was deleted with its reason. **A standing xfail is not evidence that the compiler is wrong.** This lane's twelve said so for three days.
+
+## ⛔⭐⭐ STANDING LAW OF THIS LANE — THE DEFINING DOCUMENT IS NOT AUTOMATICALLY THE SPEC (hq_snocone 2026-09-16, minted after it nearly cost a lexer change)
+
+`corpus/tests/snocone/report.md` is Andrew Koenig's original Snocone paper, and `SCORE.md` makes it this language's standard *for the score* — where no public conformance suite exists, the ladder to the top of the defining document's census IS the score. ⛔ **That does NOT make it the syntax spec.** SCRIP's Snocone emulates **C surface syntax over SPITBOL semantics**, and where the paper and that design disagree on SYNTAX, the C reading plus the SNOBOL4 operator set wins.
+
+**The ruling that settled it** (Lon 2026-09-16, in-chat, verbatim): *"The '#' is an operator, if it is an operator in SNOBOL4. Snocone emulates C, so /* ... */ and // ... are the comments."* The condition was verified rather than assumed: `ARCH-LANGUAGES.md` lists `#` as an undefined **binary** operator available for `OPSYN` (left, pri 7), and the SPITBOL manual (lines 5204–5206) lists it among the unused unary *and* binary operators, with the worked example `OPSYN('#','DIFFER',2)`.
+
+**How close this came to landing backwards.** The paper says, flatly, *"Comments begin with a # character and end at the end of the line."* A census had already shown that across 168 `.sc` files the only bare `#` outside a string or comment was the failing test itself — so curing the lexer would have broken nothing measurable, passed every gate, and been wrong. **A change that breaks no test is not thereby correct.**
+
+| the paper says | SCRIP's Snocone is | disposition |
+|---|---|---|
+| `#` begins a comment | `#` is an OPSYN operator; comments are `//` and `/* */` | test deleted, recorded in `ALL.excluded.txt` with a do-not-re-mint note |
+| `a[i,j]` — Algol-like subscripts | same — brackets, **not** SNOBOL4's `a<i>` | two tests repaired from `arr<i>` to `arr[i]` |
+| alternation is `\|`, concatenation is `&&` | same | five tests repaired from `(a, b)` to `(a \| b)` |
+
+⭐ Note the table cuts **both ways** — the paper was RIGHT about subscripts and alternation and wrong only where SCRIP's C emulation overrides it. So the rule is not "distrust the paper"; it is **name which authority governs the question you are asking** — the paper for what the language *is* and for the score's census, `ARCH-LANGUAGES.md` plus the SPITBOL operator set for how SCRIP *spells* it.
+
 ## ⛔⭐⭐ STANDING LAW OF THIS LANE — SNOCONE SPELLS THINGS TWICE, SO A CENSUS OF ONE SPELLING REPORTS THE OTHER AS ABSENT (hq_snocone 2026-09-16, written at hq_snobol4's request after it caught us BOTH in one day)
 
 Snocone is C-syntax SNOBOL4, and the C syntax did not replace the SNOBOL4 spelling — **it sits beside it**. So this language has construct pairs where two different surface forms produce the same runtime object, and **a grep for one of them answers, truthfully, about half the population.** Measured instances, both inside twelve hours:
