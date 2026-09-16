@@ -91,6 +91,357 @@ bash scripts/jcon_selfhost_build.sh                                             
 - **FORTH RSP/RBP SWITCH — ✅ DONE-BY-INHERITANCE (2026-07-17).** See watermark below.
 - **LAST SESSION (2026-07-21):** RUNG 2 bracket INDEPENDENTLY CONFIRMED — NO CODE LANDED, NO FPC ORACLE NEEDED. SCRIP HEAD `2300678f` (no Pascal commits this session). Build: `scrip` clean from HEAD; `libscrip_rt.so` (176 MB ELF) built fresh (all 91 PIC TUs + link). M3 gate VERIFIED **145/0**. Repros written standalone under SCRIP alone: `rc.pas` (same-named record locals in two procs → prints 99, should be 5 — collision confirmed); `sc.pas` (same with scalars → prints 5, no collision — isolation confirmed). Fix surface pinned: three parser-side sites in `pascal.y` — (a) `pas_array_add`/`pas_recvar_add` at decl (add proc-scope key, mirrors `pas_cap_mangle` pattern for scalars), (b) main-hoist at `:533` (must stop hoisting proc-locals — only true globals need one-time init; `mk_proc:200` already emits per-proc init in each proc body), (c) `pas_resolve_name` (qualify record/array names per-proc, mirroring the scalar `pas_cap_find`/`pas_cap_mangle` branch). Requires `pascal.y` edit → `bison -d -o pascal.tab.c pascal.y` regen → `rm -f scrip && make` → M3 145/0 + M4 145/0 + 4-lang gate (SN4/ICN/PL/RK smokes). Gate scripts: recreate `/tmp/run_gate_m3.sh` + `/tmp/run_gate_m4.sh` each session (in /tmp). M4 links `-lscrip_rt -lm` (NO `-lgc` — Boehm deleted); input files use `.in` extension. fpc not installed in this sandbox; fpc oracle NOT required for RUNG 2 (repro/verify with SCRIP alone via `rc.pas` → `5` = fixed).
 
+## ⭐⭐ 2026-09-16 hq_pascal — MEASURED EVIDENCE, FOLDED IN FROM THE RETIRED FINDING FILES (CEO-796)
+
+⛔ Lon removed every FINDING file this morning (`.github a2a311d0`, CEO-760) and a FINDING file is
+no longer the record. The three this lane wrote on 2026-09-16 are folded in below VERBATIM and
+`git rm`'d in the same commit; history keeps the originals (`git show <hash>^:<name>`). From here
+measured evidence goes to the owning baton ledger or to this cursor, never to a new file.
+
+### THE PASCAL GRID CELL IS THE INSTRUMENT'S SELF-AGREEMENT COLUMN (CEO-782)  (was `FINDING-2026-09-16-hq_pascal-the-published-pascal-grid-cells-are-the-instruments-self-agreement-ratio-not-a-multiple-vs-fpc.md`)
+**Status:** CEO-782 ordered one instrument on two trees to separate *the instrument measures a
+different region* from *twelve days of shared-node landings regressed it*. It is neither. The
+number in the cell was never a comparison against fpc at all: all eight published cells are the
+committed run's own **angle2/angle1 agreement ratio**, printed under a header that reads `× vs fpc`.
+
+#### 1. The arithmetic, from the run's own committed TSV — eight of eight
+
+`corpus/benchmarks/pascal/triangulation-20260904T021323Z.tsv` is the run the cell was written from.
+Its fifth field is `ratio` = angle2/angle1 for ONE engine — a self-consistency check, near 1.0 by
+construction. Compare it to what `SCRIP/README.md` publishes, and to the multiple against fpc that
+the SAME run supports:
+
+| kernel | engine | TSV `ratio` (a2/a1, self-agreement) | published cell | true multiple ours/fpc, same run |
+|---|---|---:|---:|---:|
+| queens | m3 | 0.9948 | **0.99x** | 0.000675 |
+| queens | m4 | 1.0723 | **1.07x** | 0.000741 |
+| quick  | m3 | 0.9594 | **0.96x** | 0.001004 |
+| quick  | m4 | 1.0354 | **1.04x** | 0.001178 |
+| sieve  | m3 | 0.9786 | **0.98x** | 0.001064 |
+| sieve  | m4 | 0.9144 | **0.91x** | 0.001336 |
+| towers | m3 | 0.9639 | **0.96x** | 0.031593 |
+| towers | m4 | 0.9559 | **0.96x** | 0.032980 |
+
+Eight of eight to two decimals. The published *selection* comes from the same column: the four
+kernels shown are exactly the four whose three cells all read `AGREE` in that TSV, and the three
+withheld (`bubble`, `intmm`, `perm`) are exactly those with a `DISAGREE`. The cell reports how well
+our instrument agrees with ITSELF, and the reader is told it is how we compare to fpc.
+
+#### 2. The timeline puts the transcription in a fifteen-minute window
+
+- TSV written `2026-09-04T02:13:23Z` (2026-09-03 21:13 CDT), SCRIP tree `7d4959828`.
+- README grid committed `a44783caf`, 2026-09-03 21:28:39 CDT — fifteen minutes later, the only
+  commit that ever added those four rows (`git log -S'| sieve | 0.98x' -- README.md`).
+- The triangulator at that moment was `6cfb86adf` (pre-SLOPE). It printed a FACT-RULE grid of its
+  own, `perf_row "$k  m3 vs fpc" "$r3" "$rf"` — ours in the reference slot, the swap the current
+  script's own comment records as one that "would silently invert every published multiple if left
+  in place". Neither that grid nor a corrected one yields 0.96x–1.07x from those rates. Only the
+  `ratio` column does. The numbers were read off the TSV, not off the instrument's own grid.
+
+#### 3. Reading A — the cited instrument, origin HEAD
+
+`bash scripts/bench_triangulate_pascal.sh`, SCRIP `319e8e7ad`, corpus `aaadcb56d`, RT_OPT=-O0,
+fpc 3.2.2 `-O2` released default. Started 2026-09-16T17:05:19Z under **load 8.40** (16 cores),
+finished 17:56:25Z under **load 1.03** — the fleet quieted mid-run, which is itself the reason the
+agreement gate fails below. TSV `corpus/benchmarks/pascal/triangulation-20260916T170519Z.tsv`.
+
+⛔ **The run is VOID by its own rules** — `rc=1`, DISAGREE present, and the FACT-RULE grid REFUSES
+7 dark cells. It is reported here as a bound, never as a publishable grid.
+
+Multiple = fpc/ours on the WORK (µs/rep, COST) basis, **computed inside a single angle** so both
+engines meet the same box conditions:
+
+| kernel | a1 m3 | a1 m4 | a2 m3 | a2 m4 |
+|---|---:|---:|---:|---:|
+| bubble | 0.000495 | 0.000432 | — | — |
+| intmm  | — | — | 0.001914 | 0.001775 |
+| perm   | 0.000986 | 0.000850 | — | — |
+| queens | 0.000733 | — | 0.000768 | 0.000763 |
+| quick  | — | 0.001360 | 0.001304 | — |
+| sieve  | — | — | 0.001144 | 0.001109 |
+| towers | 0.018395 | — | 0.014558 | 0.014338 |
+
+⭐ **The agreement gate failed and the multiple did not.** Every DISAGREE this run carries is
+one-sided below 1.0 (angle 2, measured later, is uniformly cheaper) — the signature of the box
+quieting between the two angles, not of an engine. But the multiple is a ratio of two engines
+measured *within* one angle, so the load drift cancels: where both angles produced a cell,
+they agree on the multiple to within a third (queens 0.000733 / 0.000768; towers 0.0184 / 0.0146).
+**No cell on HEAD, in either angle, is within three orders of magnitude of 0.9x.**
+
+This is also the independent confirmation of the 0.00174x sieve reading that opened CEO-782:
+the cited instrument, on HEAD, reads sieve at 0.00111x–0.00114x on its own basis.
+
+#### 3b. Reading A', the replication — same instrument, same tree, half an hour earlier
+
+`triangulation-20260916T163500Z.tsv`, SCRIP `319e8e7ad`, taken at 16:35Z under heavier load
+(every cost roughly 2x the 17:05 run's). Also void by its own rules. Its within-angle multiples:
+bubble 0.000444 / 0.000540, queens 0.000507 / 0.000649, quick 0.000836, sieve 0.000760 / 0.000747,
+towers 0.036950 / 0.014090. **Two runs, one tree, the same three orders.** The absolute costs moved
+with the load; the multiple did not move with it, which is the property that makes a ratio of two
+engines measured together worth reporting when the box is not quiet.
+
+#### 4. Reading B — the same instrument, the 09-04 engine
+
+PENDING.
+
+#### 5. What the cell should say
+
+PENDING the ceo's ruling — no Pascal performance number is published in either direction while
+CEO-782's freeze stands. This finding proposes nothing to the grid; it reports what the cell is.
+
+#### 6. The class, and the cheap check that catches it
+
+A self-agreement ratio is **near 1.0 by construction**. So a published *rival-comparison* column
+whose every cell clusters in 0.96x–1.07x, across seven kernels and both modes, is the tell —
+uniform near-parity is not a measurement, it is a fingerprint of the wrong column. hq_snocone's
+same-day witness (a sieve that reported one millisecond) was caught by a human-scale prior about
+how fast the work could possibly be; this one is catchable by a prior about how *uniform* a real
+measurement can possibly be.
+
+⭐ The instrument cannot assert its way out of this: both angles agreed, the gate was green, the
+TSV is honest and committed, and the defect lives entirely in the copying between the TSV and the
+page. The structural cure is that a grid **printer** emits its own multiples and a seat pastes a
+printed grid, rather than a seat reading a column out of a TSV and choosing which one — one
+writer, applied to a page. That is an ASK to the cfo, not a landing: the grid is shared ground.
+
+⭐⭐ **THE GENERAL FORM, from hq_snocone, who was bitten by this class three times the same day
+(their words, cited because they said it better than I did):** *a NARROW TRUE ANSWER IS
+INDISTINGUISHABLE FROM A BROAD ONE AT THE POINT OF READING* — whether the narrowing came from a
+default, a tracked build artifact, or your own fingers on a grep. Their three: a shared extractor
+that defaults to `corpus/tests/snobol4` when the caller forgets to set `MASTER_DIR`, so a harness
+graded the wrong language and said nothing; a tracked generated `tab.c` with no bison rule, so a
+grammar edit rebuilt, relinked and measured a tree that did not contain it; and a census that
+grepped one of the two spellings its own language registers records under, and reported three
+where thirteen was the answer. None of the three failed. All three answered.
+
+⭐ And the cure that generalises is the one their first case already has an in-tree precedent for:
+**delete the default and REFUSE.** `lib_ladder.sh:49` refuses when `LADDER_LANG`/`LADDER_SUITE`/
+`LADDER_EXT` are not all set, and only then computes `MASTER_DIR` from the suite — a missing
+language is a loud rc=2, never a quiet `snobol4`. A check at the call sites is strictly worse: the
+call site that forgets to set the variable is the call site that forgets to run the check.
+
+### THE 131 OPEN PAT REJECTIONS, CENSUSED BY CLASS  (was `FINDING-2026-09-16-hq_pascal-the-131-open-pat-rejections-censused-by-class-and-the-next-rung-is-the-required-function-domain-errors.md`)
+**Source of the population:** the progress database, not a fresh board. Row `2026-09-16T16:32:51`,
+SCRIP `fe37edc72`, corpus `9e75ac5ce`, measurer hq_pascal — the run that wrote the 296/427 SCORE
+row. No board was re-run to produce this census; the per-program rows the runner already appended
+are the record, which is the whole point of CEO-319/331.
+
+⭐ **The m3 and m4 failing sets are BYTE-IDENTICAL, all 131 names.** That is the shape a rejection
+suite should have, and it is new: before the m4 arm compiled, linked and ran (SCRIP `fe37edc72`,
+CEO-783), m4 could only observe a compile-time refusal, so the two columns disagreed by 12 for an
+instrument reason. They now agree by measurement.
+
+#### The census
+
+A PRT entry declares its own violation in its header comment (`PRT test NNN: <claim>`). This table
+classifies the 131 by that declared claim.
+
+⛔ **It is a census by DECLARED INTENT, not by observed failure mode** — a keyword pass over the
+header lines, useful for picking a rung and worthless as a verdict on any single entry. The names
+are the ground truth; the class is a handle.
+
+| n | class | entries (`iso7185prt` prefix dropped) |
+|---:|---|---|
+| 21 | file-variable state and file I/O (6.6.5.2, 6.9) | 1706a 1706b 1713 1718 1741 1754 1755 1756 1758a 1758b 1767 1839 1840 1841 1866 1875 1876 1877 1878 1879 1880 |
+| 14 | parameter and procedure rules (6.6.3) | 0054 0055 1707a 1707b 1708 1723 1724 1737 1748 1829 1830 1831 1861 1918 |
+| 14 | required-function domain and range errors (6.6.6) | 1727 1730 1733 1734 1735 1736 1738 1739 1744 1746b 1858 1859 1864 1865 |
+| 13 | lexical and token-level rejection (6.1) | 0031 0040 0138 1300 1508 1749 1750 1761 1824 1847 1911 1913 1916 |
+| 13 | subrange, index and range checking (6.4.2.4, 6.5.3.2) | 1701 1762 1763 1809 1811 1823 1828 1852 1855 1881 1882 1907a 1907b |
+| 13 | variant / tagfield active-arm (6.4.3.3, 6.6.5.3) | 1702A 1702b 1702c 1702d 1719 1722 1843 1851 1856 1857 1871 1872 1873 |
+| 12 | goto and label scope (6.8.3.10, 6.1.6) | 0024 1759 1825 1832 1833 1834 1835 1836 1837 1845 1902 1903 |
+| 8 | pointer, new and dispose (6.6.5.3) | 1703 1704 1705 1720 1721 1800 1820 1874 |
+| 5 | statement forms (6.8) | 1821 1904 1905 1906 1909 |
+| 5 | unclassified by the keyword pass | 1732 1743 1846 1849 1917 |
+| 4 | type identity and scope of declarations (6.3, 6.2.2) | 1850 1853 1854 1915 |
+| 3 | set and case rules (6.7.1, 6.8.3.5) | 1751 1822 1901 |
+| 2 | for-statement control variable (6.8.3.9) | 1752 1753 |
+| 2 | string rules (6.4.3.2) | 1764 1765 |
+| 1 | real where an ordinal is required (6.7.1) | 1908 |
+| 1 | undefined value use (6.5.3.2) | 1838 |
+| **131** | | |
+
+#### The next rung, and why it is not the largest class
+
+The largest class is file I/O at 21. The rung I propose is **required-function domain and range
+errors, 14 entries** — `ln(x)` for x ≤ 0, `sqrt(x)` for x < 0, `trunc`/`round` out of integer
+range, `succ`/`pred` past the end of an ordinal type, `x/y` and `i mod j` with a zero divisor,
+`pack`/`unpack` with out-of-range components. Three reasons, in order:
+
+1. **One mechanism, fourteen witnesses.** Every one of them is "a required function must raise an
+   error on a value outside its domain", so the cure is a guard per required function, not a
+   design. The file-I/O class at 21 is at least four different mechanisms sharing a chapter.
+2. **It is the class the instrument change just made reachable.** Every one of these fires at RUN
+   time, not compile time. Until `fe37edc72` the m4 column literally could not see them; they are
+   the population that motivated the arm, so they are the population that proves it earned its keep.
+3. **It has a precedent in this lane for the shared-node hazard.** Two of the fourteen (`1744`
+   `x/y` by zero, `1746b` `i mod j` by zero) reach `rt_div`/`rt_mod`, which SNOBOL4, Icon and
+   Prolog also reach, and SPITBOL's REMDR wants today's C behaviour. ⛔ **Those two are an ASK with
+   the measurement, never a landing** — the cure shape already established here is a Pascal-local
+   node (`pas_rdiv` for real division, ISO `mod` against the shared `rt_mod`), not an edit to the
+   shared one. The other twelve look Pascal-local; that is a claim to verify per entry, not to
+   assume.
+
+#### What this does not say
+
+It does not say any of the 131 is one edit from green, and it does not promise 14 entries from one
+commit. A PRT entry passes only when scrip **exits non-zero with a diagnostic**; an entry that
+starts crashing instead (rc 139/134) has moved from FAIL to a worse place, and the runner's own
+header law counts a crash as CRASHED, never as a correct refusal. The rung is done when the
+witnesses are green **and** `test_gate_pas_pat_m4_arm_links_and_runs.sh` still passes.
+
+#### Addendum, same sitting — the rung's fourteen split into three cure shapes, and the sites are named
+
+Read off the sources, not run (the box was carrying a timed benchmark; a build would have moved it).
+
+**(a) A frontend type check — the operand is the wrong KIND, and that is decidable at compile time.**
+`1858` `succ` of real, `1859` `pred` of real. ⛔ `src/parsers/pascal/pascal.y:167-168` lowers `pred(x)`
+to `x - 1` and `succ(x)` to `x + 1` — plain arithmetic, carrying no type at all. Nothing downstream
+can reject `succ(1.5)`, because by the time it is IR there is no `succ` left to complain about. ISO
+7185 6.6.6.4 requires an ordinal operand.
+
+**(b) A runtime domain guard on an arm that already exists.** `1733` `ln(x)` for x ≤ 0, `1734`
+`sqrt(x)` for x < 0. `src/runtime/by_name_dispatch.c:6248-6257` computes `sqrt(d)` and `log(d)`
+unguarded and hands back whatever libm returns (a NaN, silently). The guard is two conditions in a
+Pascal-only arm of a shared file — Pascal's own builtin, this lane's to land.
+
+**(c) The value is in range for C and out of range for ISO, so the bound has to travel.** `1735`
+`trunc`, `1736` `round` (result outside integer), `1864`/`1865` `succ`/`pred` past the end of an
+ordinal type, `1727`/`1730` `pack`/`unpack` component bounds (`pascal.y:113`), `1707a`/`1707b`/
+`1738`/`1739` actual-value conformance. These need the declared type's bounds at the point of the
+call; `succ`/`pred` cannot even be expressed today (see (a)), so (a) and (c) are one piece of work
+for those two — a real `__pas_succ`/`__pas_pred` carrying the ordinal bound, not `+1`.
+
+**(d) ⛔ NOT THIS LANE'S TO LAND.** `1744` `x/y` with y = 0, `1746b` `i mod j` with j = 0 reach
+`rt_div`/`rt_mod`, which SNOBOL4, Icon and Prolog also reach and where SPITBOL's REMDR wants
+today's C behaviour. ASK with the measurement; the established cure shape here is a Pascal-local
+node, the `pas_rdiv` precedent.
+
+⭐ The census said "one mechanism, fourteen witnesses" and reading the sources says four. That is
+the census doing its job and then being corrected by the code — a class picked off declared intent
+is a hypothesis about where the work is, and the first thing the work does is disagree with it.
+
+#### Second addendum — the title's recommendation is superseded by a bigger lever, read off two witnesses
+
+⛔ **This finding's own title names the required-function class as the next rung. On the evidence
+below that is no longer my recommendation, and the title is left standing as provenance rather than
+rewritten** — the census is dated, and a file whose name quietly changes to match its latest
+conclusion is worth less than one whose disagreement with itself is visible.
+
+Two witnesses from the rank-1 typed-file row, read in full:
+
+```pascal
+program iso7185prt1877;          program iso7185prt1880;
+var f: file of integer;          var f: file of 1..10;
+    x: 1..10;                    begin
+begin                               rewrite(f);
+   rewrite(f); write(f, 42);        write(f, 42)
+   reset(f);  read(f, x)         end.
+end.
+```
+
+Neither is really a *file* test. 1877 needs a range check when a value lands in a subrange
+VARIABLE; 1880 needs one against a file's subrange COMPONENT TYPE. The file is the delivery
+mechanism, not the condition. The same is true of 1875 (read into a subrange of enum) and 1876
+(subrange of char), and it is the whole of the separate 13-entry "subrange, index and range
+checking" class.
+
+**So roughly 25 of the 131 rest on ONE absent capability, not two classes.** And it is absent:
+
+- `pascal.y:429` has the registry — `g_pas_subtypes[]` with `low`/`high`, staged through
+  `g_pas_pend_sub_low`/`_high` by the `constant DOTDOT constant` production at line 880.
+- `type_decl` (line 856) records a NAMED subrange type. `var_decl` (line 910) does **not** record
+  an anonymous one, so `x: 1..10` keeps no bounds at all.
+- The only reader is `pas_subtype_high` at line 431, and its one caller uses it to SIZE AN ARRAY.
+  ⛔ **Nothing anywhere checks a value against a subrange's bounds** — not in the frontend, not in
+  a template, not in the runtime.
+
+⭐ So the lever is: record the anonymous subrange against the variable, carry the pair to the
+assignment / `read` / `write` sites, and raise there. The skeleton exists and is half-built for a
+different purpose, which is the most dangerous shape to read quickly — `grep subrange pascal.y`
+returns hits, and every one of them is about array sizing.
+
+**Revised ranking.** Required functions: 14 entries, four cure shapes, cheap and shallow (the
+`sqrt`/`ln` half is a two-condition guard). Range checking: ~25 entries, one capability, deeper.
+The required-function guard is still worth landing first because it is nearly free — but the
+biggest single lever in this suite is ISO 7185 range checking, and this file previously said
+otherwise.
+
+### NINE PAT ENTRIES WERE GREEN FOR THE WRONG REASON (CEO-791)  (was `FINDING-2026-09-16-hq_pascal-nine-pat-entries-were-green-because-we-refused-them-for-the-wrong-reason-and-a-feature-landing-removed-the-false-green.md`)
+Answering CEO-791 ("name every FPC and PAT entry that was green at its first reading and is red
+today… a lost entry is a regression until its ledger says why"). The ledger reason here is a
+**fourth** one, outside the three the ask names.
+
+#### The instrument, and what it cannot see
+
+`/home/resources/progress/results.tsv`, first recorded `pat` run `2026-09-07T01:29:07` (hq_V,
+SCRIP `3109935b5`) against today's `2026-09-16T16:32:51` (hq_pascal, SCRIP `fe37edc72`).
+⛔ **The DB starts on 09-07, so it cannot see PAT's 09-04 reading of 298 or FPC's 08-30 reading of
+119.** Both lists below are first-RECORDED-run vs today. The gap before 09-07 is unmeasurable from
+this instrument and is not guessed at.
+
+#### PAT — twelve entries lost a cell, nine of them both modes
+
+`iso7185prt` 1706a · 1706b · 1713 · 1718 · 1727 · 1730 · 1875 · 1876 · 1877 · 1878 · 1879 · 1880.
+Twenty-one cells. **Every one of them uses a typed file (`file of`, `packed file of`) or
+`pack`/`unpack`.**
+
+⭐ **They were never passing for their own reason.** A PRT entry is a REJECTION test: it scores
+PASS when scrip exits non-zero **with a diagnostic**. Typed files were a *parse error*, so scrip
+refused these programs — for a construct it had not implemented, nothing to do with the ISO
+condition each entry exists to test. An unrelated parse error read as a correct ISO refusal.
+
+Two Pascal landings made the constructs legal and the accidental refusal left with them:
+
+- `88dfe7505` — typed files (`file of integer`, `packed file of byte`, `file of record`, `f^`,
+  `get`, `put`, `read`, `write`, `eof`, `reset`, `rewrite`; ISO 7185 6.4.3.5).
+- `0a6e5520a` — `pack`/`unpack`, text-file `f^`/`get`/`put`, unopened file is error 103.
+
+The flip is visible run by run, which is how the attribution was made rather than guessed:
+1706a 1713 1718 1875–1880 go PASS→FAIL between SCRIP `f6784d0e8` and `0d737ab38`; 1706b 1727 1730
+between `0d737ab38` and `0a6e5520a`. Both are the coo's runs, one instrument, so no criterion moved.
+
+**So nothing regressed.** A program we used to reject for the wrong reason we now accept, and the
+ISO condition it actually tests is unimplemented. Each entry now owes its own error: a read into a
+subrange out of bounds (1875/1876/1877), a binary write out of the component type (1878/1879/1880),
+altering a file-variable while `f^` is active (1706a/1706b), a file undefined prior to use (1713),
+a write value outside the component type (1718), and `pack`/`unpack` definite assignment
+(1727/1730 — a component both undefined and accessed, which the parent baton already names as a
+harder class than bounds).
+
+Row: `pascal-pat-typed-file-and-pack-entries-lost-their-accidental-parse-refusal-and-owe-their-own-iso-error`, rank 1.
+
+#### FPC — two entries, and the standing explanation does not fit them
+
+`test_tover7` and `webtbs_tw24129`, **m4 only**. Twenty consecutive m4 PASS across the first
+twenty recorded runs (2026-09-07 → 2026-09-10, SCRIP `3109935b5` … `c8701b17e`), then sixteen
+consecutive m4 FAIL from `577298671` (2026-09-12) through today. **m3 is PASS in all thirty-six
+runs.**
+
+⛔ **This is not `pascal-m4-intermittent-segv-layout-sensitive`, and the test is the column, not
+the total.** That row's own header reads *"5 consecutive runs, same tree, same binary, 5 different
+pass counts"* — a flaky cell flips back. These never flip back. Twenty green then sixteen red,
+sticky and deterministic, is a regression wearing the non-determinism's clothes, and it would have
+been absorbed into that row in silence by anyone who read the suite total instead of the two cells.
+
+Range, written down: SCRIP `c8701b17e` corpus `b5440d452` (last green) .. `577298671` corpus
+`b5db43c65` (first red), 267 commits, both readings the coo's on one instrument. First step is a
+bisect, not a hypothesis; the range does carry a Pascal-facing driver change (`3e99f5306`, one
+pipeline per mode, deleting the Pascal-only duplicate) but a named suspect is not a measurement.
+If the culprit is a shared node it goes to the cfo by commit name, never landed here.
+
+Row: `pascal-fpc-tover7-and-tw24129-went-m4-red-deterministically-and-it-is-not-the-intermittent-segv`, rank 2.
+
+#### The general shape, and why it is worth writing down twice
+
+A suite total answers "how many", and every explanation we keep for *why* a number moved is
+attached to a class, not to a cell. Both findings above came from asking a **per-cell** question the
+total cannot answer: is this entry's history *sticky*, and was it green *for its own reason*. The
+first exposed a regression hiding inside a known flake; the second exposed nine greens that were
+never greens. ⭐ Neither needed a board run — the runners already appended every per-program row,
+which is exactly what CEO-319/331 built that table for. **A census taken off the rows a runner has
+already written costs nothing and asks questions the summary line cannot.**
+
+
 ## ▶ ACTIVE RUNG (TOP / FIRST, PIVOT per Lon 2026-08-07) — PAS-ZFRAME: Pascal fully working under ζ-FRAMES ON THE STACK
 
 **THE ASK (Lon, verbatim intent):** get Pascal fully working again, and get it there *under the ζ-frames-on-the-stack mode* — not by re-propping the GLUE enter/whack symmetry that just collapsed under it.
