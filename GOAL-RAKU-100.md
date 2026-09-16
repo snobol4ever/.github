@@ -30,8 +30,18 @@ it or to runtime support for it. Routed to the cto (my officer) the same sitting
 - **Consistent with, and sharpened by, Lon's earlier word** (CEO-798b, 2026-09-16 14:46, relayed by the ceo):
   *"We want Raku to have complete syntax and us find the bugs, not to stop the show."* — complete syntax is the
   object; a defect the sweep uncovers is rowed with its witness and the sweep continues.
-- **The instrument.** Parse coverage is measured by the roast scoreboard over the whole tree, and the census is
-  keyed by the SYMBOL the parser did not know, not by the rendered message (see the roast baton's INSTRUMENT
+- ⛔⛔ **THE INSTRUMENT, CORRECTED 2026-09-16 AFTER I GOT IT WRONG TWICE.** Parse coverage is measured by
+  **`./scrip --dump-ast <file>`, counting rc=0, over the printed denominator** -- and by nothing else.
+  ⛔ **It is NOT the complement of `roast_bucket()`'s `UNGRADED-PARSE`.** That bucket is a RUN-OUTCOME classifier:
+  it assigns `UNGRADED-PARSE` by grepping the FIRST stderr line for `parse error`, so a file whose first line reads
+  `lex error` falls through to the rc arms and lands in `UNGRADED-OTHER`. Measured: **53 of 79 `UNGRADED-OTHER`
+  files are front-end failures** under a post-compile bucket's name, and subtracting the bucket reported **143/1464
+  when the true figure was 66/1464**. ⭐ The general form: *a bucket named for a STAGE tells you which stage it can
+  NAME, never which stage the program actually REACHED*, and a derived number inherits every bucket's blind spots
+  silently while looking clean. **MEASURED BASELINE: 66/1464 (4.5%) at `3b79683b5`; 68/1464 at `a4378d234`.**
+  ⭐ A construct cure usually ADVANCES files rather than COMPLETING them (each roast file uses many unsupported
+  constructs), so read the advancement column beside the parse count and never read a small delta as a failed cure.
+- **The first-error census** is keyed by the SYMBOL the parser did not know, not by the rendered message (see the roast baton's INSTRUMENT
   RULE of this date: a histogram keyed by line text cannot see a missing NAME).
 
 ## ⭐⭐⭐ FRONT STATUS
