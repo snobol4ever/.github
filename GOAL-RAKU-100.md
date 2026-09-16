@@ -8,6 +8,32 @@ the five sources forward with its original wording and provenance; only settled/
 compressed to a pointer. Where two sources disagreed, both readings are kept, dated, with the conflict
 named rather than silently resolved.
 
+## ⛔⭐⭐⭐ LON ORDER 2026-09-16 (in-chat, direct to hq_raku) — THE PARSER REACHES 100% BEFORE LOWER AND RUNTIME
+
+**Verbatim:** *"Ensure that the raku parser is 100% complete even before the lower and runtime are developed."*
+
+**THIS IS AN ORDER-OF-WORK RULING AND IT OUTRANKS THIS FILE'S OWN LADDER ORDERING.** Within the Raku lane the
+FRONT END is finished first: every Raku construct the oracle accepts must PARSE before effort goes to lowering
+it or to runtime support for it. Routed to the cto (my officer) the same sitting, per THE LOOP's override rule.
+
+- **What this changes.** The RakM master at 830/927 and the three-axis mandate (completeness, then speed) are
+  NOT the measure of this order — they grade programs that already parse. The governing number is now
+  **PARSE COVERAGE over the whole roast tree (1464 files)**, which is a strictly larger population than any
+  suite in SUITES.tsv, and the Roast row's 9/1464 is a RUN-AND-GRADE number that must not be read as a parse
+  number. A file that parses and then fails at run time is ON PLAN under this order; a file that does not
+  parse is the debt.
+- **What this does NOT license.** It is not permission to fake a parse: a construct is "parsed" when the parser
+  builds the AST the oracle's reading implies, graded by `--dump-ast`, never when it is swallowed silently or
+  reduced to a no-op. ⛔ A silent accept is WORSE than a parse error here, because it moves a file out of the
+  debt column without moving the parser. The cto's standing ruling on the ten fail-wired Test verbs is the
+  shape: wire to an HONEST FAILING test, never a silent pass.
+- **Consistent with, and sharpened by, Lon's earlier word** (CEO-798b, 2026-09-16 14:46, relayed by the ceo):
+  *"We want Raku to have complete syntax and us find the bugs, not to stop the show."* — complete syntax is the
+  object; a defect the sweep uncovers is rowed with its witness and the sweep continues.
+- **The instrument.** Parse coverage is measured by the roast scoreboard over the whole tree, and the census is
+  keyed by the SYMBOL the parser did not know, not by the rendered message (see the roast baton's INSTRUMENT
+  RULE of this date: a histogram keyed by line text cannot see a missing NAME).
+
 ## ⭐⭐⭐ FRONT STATUS
 
 Raku is a **goal-directed language riding the same four-port Byrd-box machine as SNOBOL4/Icon/Prolog** —
