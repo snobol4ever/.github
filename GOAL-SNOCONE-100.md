@@ -45,6 +45,39 @@ Snocone is C-syntax SNOBOL4, and the C syntax did not replace the SNOBOL4 spelli
 
 **THE RULE:** before quoting any population count for this lane, name BOTH spellings of the construct or state that you checked there is only one. ⭐ And the general form, which is why this is law and not a note: **a narrow true answer is indistinguishable from a broad one at the point of reading.** The grep did not fail, the shell did not warn, and nothing was wrong except the question. This is the same class as the instrument traps in root `CLAUDE.md` (`command -v` answering *is it on PATH*, `$?` after a pipeline answering about the pager) — except that here there is no instrument to blame: the narrowing was in the fingers, so no refusal, default or gate can catch it.
 
+## ⛔⭐⭐⭐ THE SEVEN SELF-HOSTED PARSERS — MEASURED 2026-09-16 BY hq_snocone: SEVEN EXIST, **ZERO RUN**, AND THE SCORE IS 0/7
+
+`parser_pascal.sc` is written and landed (SCRIP `49b1baeb7`), so the directory now holds **seven** — icon, pascal, prolog, raku, rebus, snobol4, snocone. ⛔ **That is a count of files, not a score.** The measured score on CEO-770's actual question — do they parse corpus programs into a proper `tree_t` with proper `TT_*` types — is **ZERO**, and every claim below is a command's answer, not a reading of a doc.
+
+**ALL THREE DRIVERS ARE BROKEN, AND THE WORST OF THEM IS SILENT.**
+
+| driver | what it does today | why |
+|---|---|---|
+| `test_parser_snocone.sh` | REFUSE rc=2 | graded the ast `parser` family Lon retired 2026-09-13; extraction yields an empty directory |
+| `run_parser_sync_monitor.sh` | REFUSE rc=2 | still resolves its runtime chain under `corpus/SCRIP/`, deleted months ago |
+| `run_scrip_parser.sh` | **rc=0, NO OUTPUT** | passes the 14-file chain as bare positionals; `scrip` takes the FIRST as the source and the rest as program args, so it runs `global.sc` alone and exits clean |
+
+⭐ The third is the one to fear: a green exit code over a run that did nothing. Proven by a three-way probe — `--run global.sc` alone, `--run global.sc parser.sc`, and `--run parser.sc global.sc` — where the first two agree (rc=0, silent) and only the third executes a parser.
+
+⛔ **THE ROOT BLOCKER: SNOCONE HAS NO WORKING INCLUDE MECHANISM.** `-L` is the library flag (`src/driver/scrip.c:994`), and it is collected for **every** language — but it is honoured only on the SNOBOL4 path, which expands it into `-INCLUDE` lines and re-parses through `sno_parse_ast` (`:1218`). The Snocone branch calls `snocone_compile()` and **never reads `n_preload`** (`:1153`+). So `scrip -Lglobal.sc … parser_snocone.sc` silently drops every library and dies at `error 22: Undefined function called` on the parser's first library call. A `.sc` program cannot load a chain at all.
+
+**AND THE PARSERS THEMSELVES DO NOT PARSE.** Working around the include hole by concatenating the chain by hand — which demonstrably works, since `digits`, `nl`, `nPush`, `nTop` and `SPAN` all resolve and behave under it — not one parser parses a trivial program of its own language:
+
+| parser | on a trivial program of its own language |
+|---|---|
+| snocone, snobol4, raku, rebus | `Parse Error` |
+| icon | `ERROR 246 — stack overflow` |
+| prolog | `fc_save_register: TABLE FULL at cap 256` |
+| all six, with the `corpus/library/` chain instead of `bootstrap/` | **core dump** |
+
+⭐ **AND IT IS NOT SCRIP'S FAULT.** The Snocone chain transpiled to `.sno` and run under **SPITBOL** answers `Parse Error` too. So the defect is in the parsers or their chain, not in the engine running them — which is exactly what `run_parser_sync_monitor.sh` existed to discriminate, and it is one of the three that no longer runs.
+
+⛔ **TWO LIBRARY DIRECTORIES EXIST AND THEY ARE NOT THE SAME.** `SCRIP/bootstrap/` (lowercase `gen.sc`, `qize.sc`, `tdump.sc`) and `corpus/library/` (capitalised `Gen.sc`, `Qize.sc`, `TDump.sc`, plus `XDump.sc`, `ReadWrite.sc`, `FENCE.sc` which bootstrap lacks). `test_snocone_beauty_self_host.sh` uses the corpus one; the parser drivers use bootstrap. Any runner built for this row must **declare which chain it loads**, because they are different populations and one of them core-dumps.
+
+⭐ **A FINDING ABOUT THE ORACLE, from writing the Pascal parser:** for Pascal, `scrip --dump-ast` is **not a pure parse tree** — the C frontend lowers as it parses (`and`→`TT_MUL`, `or`→`TT_ADD`, `not a`→`TT_EQ(a,0)`, `true`→`TT_EQ(1,1)`, real `/` forced by folding a `1.0` into the left operand, and `a mod b`→`TT_MOD(TT_ADD(TT_MOD(a,b),b),b)`). So "the .sc parser must match the C parser's dump" is, for Pascal alone, parsing **plus** replicating those rewrites. The `mod` one duplicates its right operand three times and there is no subtree-copy primitive in the tree library, so `parser_pascal.sc` emits the faithful `TT_MOD(a,b)` and names the divergence in its own header. The other six languages' dumps are genuine parse trees.
+
+**WHAT THIS ROW ACTUALLY NEEDS, in order:** (1) an include mechanism for `.sc`, or a declared concatenating loader; (2) one runner per language printing shipped / parsed / refused **with names**, over that language's whole corpus; (3) the parsers made to parse at all — starting from a one-line program, not from the corpus; (4) only then a tree-diff against `--dump-ast`. ⛔ Nothing in this row can be scored until (1) and (3) land, and a runner built before them will print a denominator over a population that cannot run.
+
 ## ⭐⭐⭐ FRONT STATUS — READ THIS FIRST: RESTORATION IS THE ACTIVE FRONT, NOT ANYTHING BELOW (as of 2026-08-27)
 
 ⭐ **Lon extended scope 2026-08-24 (s272, in-chat to ceo), verbatim in substance:** *"We are doing well enough to extend scope to Snocone, Raku, and Pascal — at least get them to where they were before the huge month-long ZETA development phase."* Same sitting: *"Throw Rebus in there too — should just fall out, we do not have many tests for it."* Routed via GOAL-CEO.md CEO-20/CEO-21, minted by hq_C. **Reading:** the month of SNOBOL4/Icon-focused THREE-ZETAS conversion work (the bulk of what `GOAL-SNOBOL4-100.md`/`GOAL-ICON-100.md` document) landed on the SAME shared emitter/lowering pipeline Snocone rides, and regressed working Snocone behavior along the way. None of the eleven absorbed files know this happened — their newest entry (IR-BB, 2026-07-21) predates it.
