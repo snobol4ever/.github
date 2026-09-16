@@ -279,3 +279,54 @@ ICON-RTX ladder (RTX-23/25 ⛔ BLOCKED ON LON; rulings in `RTX-CLAIMS.md`) · GN
 
 ## Session-close / push protocol
 See RULES.md — `scripts/handoff_status.sh` verbatim stdout is the ONLY sanctioned completion claim.
+
+## ⭐⭐ 2026-09-16 hq_icon — THE MASTER BOARD CAN MEASURE AGAIN, AND ALL FOUR SUITE ROWS ARE NOW HONEST (SCRIP f2086c5a7, .github 371de165)
+
+**IcnM was a COULD-NOT-MEASURE wearing a green, on the largest Icon suite, for two weeks.**
+`board_icon_master.sh` refused rc=2 on every run since 2026-09-03 (`668b308b9`), so the 826/826 in
+SCORE.md was being maintained **from the harness line, not from the board**. The suite was genuinely
+green the whole time — only its board could not say so, and that is the state the denominator law
+names worse than a red.
+
+⛔ **THE GUARD REFUSED OVER A LINE THE BOARD ITSELF CALLS INFORMATIONAL.** It demanded a non-empty
+*ast* population, three lines above where the board prints the ast figure labelled, verbatim,
+*"INFORMATIONAL -- never part of this board's verdict"*.
+
+⭐ **AND ITS MESSAGE WAS FACTUALLY WRONG, WHICH IS WHY IT SURVIVED SO LONG.** It said *"the modes
+column declares an ast population but zero were graded"*. The modes column declares **no ast
+population at all**: `ALL.csv` is 806 `m3,m4` + 20 `UNKNOWN` + **zero ast, in all 68 commits of that
+file**. The 153 parser-ladder fixtures the guard was written for now live in
+`corpus/tests/icon/parser/` (307 files). Nothing is missing; the master is legitimately run-graded.
+⛔ **So the standing attribution — "the zero-ast population corpus `a6646f04c` created" — is wrong
+and is retired here:** ast-rows reads 0 at `a6646f04c` and at every commit before it.
+
+**Cure:** one over-broad test split into three that say what they mean — *cannot read the field* /
+*declared but ungraded* / *legitimately empty*. All five branches were proved in isolation **before**
+anything ran, because relaxing a refusal is the dangerous direction and a guard that no longer fires
+is indistinguishable from a cured defect. The case it exists for — 97 declared, ast board empty —
+**still refuses**. Watermarks re-pinned **756 → 826** in the same commit: left at 756 a seventy-program
+regression would have passed this board in silence.
+
+⭐ **THE BOARD REFUSED TO WRITE ITS OWN ROW FIRST, AND WAS RIGHT:** *"SCORE.md ROW SKIPPED — SCRIP has
+uncommitted"* (CEO-174). Commit, rebuild, re-run clean; then it landed stamped `f2086c5a7`.
+
+**THE FOUR ROWS AS PUBLISHED** (CEO-786 for the two denominators — the oracle answers those entries
+given their C source, so the gap is **ours**, and our own gap is never subtracted, CEO-749 shape):
+
+| suite | row | note |
+|---|---|---|
+| IcnM | 826/826 | measured by its own board, m3 826 m4 826 FAIL=0 |
+| IPL | 194/194 | union of reds 0 |
+| Zona | **88/90 OUTSIDE=2** | `general/cfuncs.icn`, `general/extlvals.icn` |
+| Jcon | **82/85 OUTSIDE=3** | same shape |
+
+Zona and Jcon are **visibly not full on purpose** — that is the honest reading until the C is vendored.
+Rows minted: `icon-vendor-ipl-cfuncs-so-zona-and-jcon-reach-their-full-denominators` (rank 3) and
+`icon-master-twenty-entries-declare-UNKNOWN-modes-and-are-silently-graded-as-run` (rank 4). Both
+DONE-WHENs were executed at mint and **red correctly today** with specific messages.
+
+⭐ **A GATE THAT DESCRIBES A CURE IN THE PRESENT TENSE IS NOT EVIDENCE THE CURE EXISTS.**
+`test_gate_score_row_criterion_change_is_stamped.sh` calls `--criterion-changed` *"THE CURE UNDER
+TEST"*, so I went to use it instead of hand-editing. It does not exist: the gate is written
+**fail-first** for CEO-785 and reads rc=1 today (3 of 7 arms), because `util_suite_banner.py` still
+lands a stampless denominator move. The stamps here are hand-appended, as the ceo said.
