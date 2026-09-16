@@ -98,3 +98,49 @@ node, the `pas_rdiv` precedent.
 ⭐ The census said "one mechanism, fourteen witnesses" and reading the sources says four. That is
 the census doing its job and then being corrected by the code — a class picked off declared intent
 is a hypothesis about where the work is, and the first thing the work does is disagree with it.
+
+## Second addendum — the title's recommendation is superseded by a bigger lever, read off two witnesses
+
+⛔ **This finding's own title names the required-function class as the next rung. On the evidence
+below that is no longer my recommendation, and the title is left standing as provenance rather than
+rewritten** — the census is dated, and a file whose name quietly changes to match its latest
+conclusion is worth less than one whose disagreement with itself is visible.
+
+Two witnesses from the rank-1 typed-file row, read in full:
+
+```pascal
+program iso7185prt1877;          program iso7185prt1880;
+var f: file of integer;          var f: file of 1..10;
+    x: 1..10;                    begin
+begin                               rewrite(f);
+   rewrite(f); write(f, 42);        write(f, 42)
+   reset(f);  read(f, x)         end.
+end.
+```
+
+Neither is really a *file* test. 1877 needs a range check when a value lands in a subrange
+VARIABLE; 1880 needs one against a file's subrange COMPONENT TYPE. The file is the delivery
+mechanism, not the condition. The same is true of 1875 (read into a subrange of enum) and 1876
+(subrange of char), and it is the whole of the separate 13-entry "subrange, index and range
+checking" class.
+
+**So roughly 25 of the 131 rest on ONE absent capability, not two classes.** And it is absent:
+
+- `pascal.y:429` has the registry — `g_pas_subtypes[]` with `low`/`high`, staged through
+  `g_pas_pend_sub_low`/`_high` by the `constant DOTDOT constant` production at line 880.
+- `type_decl` (line 856) records a NAMED subrange type. `var_decl` (line 910) does **not** record
+  an anonymous one, so `x: 1..10` keeps no bounds at all.
+- The only reader is `pas_subtype_high` at line 431, and its one caller uses it to SIZE AN ARRAY.
+  ⛔ **Nothing anywhere checks a value against a subrange's bounds** — not in the frontend, not in
+  a template, not in the runtime.
+
+⭐ So the lever is: record the anonymous subrange against the variable, carry the pair to the
+assignment / `read` / `write` sites, and raise there. The skeleton exists and is half-built for a
+different purpose, which is the most dangerous shape to read quickly — `grep subrange pascal.y`
+returns hits, and every one of them is about array sizing.
+
+**Revised ranking.** Required functions: 14 entries, four cure shapes, cheap and shallow (the
+`sqrt`/`ln` half is a two-condition guard). Range checking: ~25 entries, one capability, deeper.
+The required-function guard is still worth landing first because it is nearly free — but the
+biggest single lever in this suite is ISO 7185 range checking, and this file previously said
+otherwise.
