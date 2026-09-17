@@ -42,22 +42,22 @@ The compiler already annotates one field *"dead at safe points"* (frame_layout.c
 - Census gates: zero conservative visits in `gc_heap.c` (no `gc_blk_of` on a stack word, no `cons_stack`); zero `rt_gc_collect` calls inside `rt_gcheap_alloc`; every allocating runtime entry has a poll at its emitted return (the safe-point census); every callback site of Rule 4 holds no raw heap pointer across the callback (the residual census). `SCRIP_GC_COVERAGE=1` reports words-scanned = 0.
 - The control arm is base-vs-head on every frontend under CEO-757's batch; the seven masters and the benchmark grids read no worse.
 
-## 5. Rows — THE EMERGENCY SPLIT (Lon 2026-09-17, verbatim: *"In general we are at a reset point an EMERGENCY fork so quit any existing work and concentrate solely on the mess you made with the GC HEAP design."*; CEO-813; MODE line 2 carries it; every seat parks everything else)
+## 5. Rows — THE OFFICERS' SPLIT (Lon 2026-09-17, verbatim: *"In general we are at a reset point an EMERGENCY fork so quit any existing work and concentrate solely on the mess you made with the GC HEAP design."* then *"Just so you know all HQ's are paused until we solve this GC mess. We'll keep the officers, CTO, CFO, and COO if you need them."*; CEO-813/814; MODE line 2 carries both; the six HQs are PAUSED)
 
-Ten seats, one row each, all rank 0, DONE-WHENs red on origin `96c80d49d`, assigned:
+All rank 0, DONE-WHENs red on origin `96c80d49d` (each anchored on the census gate the row must write), assigned:
 
-| seat | row (prefix) | piece | lands |
+| seat | rows | piece | order |
 |---|---|---|---|
-| cto | `gc-frame-placement-proof-...` | LOAD-BEARING: prove every spine/frame slot has a fixed compile-time offset at every allocating call return; name the callee-saved registers that can hold a DESCR/PTR_GC there (Prolog r12–r15 first); where the criterion fails the slot moves to the RBP frame | FIRST |
-| hq_prolog | `gc-safe-points-the-allocator-never-collects-...` | the allocator sets `g_gc_pending` and grows the window, never collects; polls at Prolog allocating returns; `gen_runtime` callback residual | second — alone cures the C-frame class |
-| hq_icon | `gc-compile-time-frame-maps-...-walks-maps-not-words` | the emitter's map table from `zls_field_t` (format fixed with the cto in § 6 today); Icon box polls; gc2 under `setarch -R env -i` over the band is the witness; the gc2 gate loses its dash | third |
-| hq_snobol4 | `gc-every-snobol4-and-snocone-allocating-box-stores-its-result-then-polls-...` | SNOBOL4/Snocone box polls after the result store; `by_name_dispatch`'s 208 callback sites hold no raw heap pointer across the callback | with hq_icon |
-| hq_snocone | `gc-the-compile-time-map-table-is-emitted-beside-the-code-in-both-media-...` | the map table as static data through `x86_asm.h`/xa in the sealed slab (mode 3) and labelled `.rodata` (mode 4), found through one runtime symbol | with hq_icon |
-| cfo | `gc-the-collector-walks-the-rbp-chain-keyed-by-return-pc-...` | `gc_collect_ex` walks main and coexpression stacks by RBP chain keyed by return PC; visits only mapped slots; the scan, the sniff, `cons_stack`, `rt_cas_live_span` deleted; coverage words-scanned 0 | after the table exists |
-| hq_pascal | `gc-every-zeta-slot-of-a-pascal-graph-registers-its-kind-...` | no Pascal frame slot without a `ZK_` kind | parallel |
-| hq_raku | `gc-every-zeta-slot-of-a-raku-and-rebus-graph-registers-its-kind-...` | no Raku/Rebus frame slot without a `ZK_` kind | parallel |
-| coo | `gc-instruments-the-safe-point-census-the-maps-census-and-scrip-gc-coverage-...` | the census gates, each tripping under a planted violation | parallel |
-| ceo | — | the integration audit daily; the ARCH page and § 6 kept current; lifts the emergency on Lon's word | — |
+| cto | `gc-frame-placement-proof-...` | LOAD-BEARING: every spine/frame slot at a fixed compile-time offset at every allocating call return; the callee-saved registers that can hold a DESCR/PTR_GC there (Prolog r12–r15 first); where the criterion fails the slot moves to the RBP frame | FIRST |
+| cto | `gc-compile-time-frame-maps-...` | the map table generated from `zls_field_t` per safe point (format § 6) | second |
+| cto | `gc-the-compile-time-map-table-is-emitted-beside-the-code-in-both-media-...` | the table as static data through `x86_asm.h`/xa: sealed slab (mode 3), labelled `.rodata` (mode 4), one runtime symbol to find it | with the table |
+| cto | `gc-every-snobol4-and-snocone-allocating-box-stores-its-result-then-polls-...` | READ AS EVERY LANGUAGE: each allocating box stores its result to its mapped slot, then polls `g_gc_pending` at the return | with the table |
+| cfo | `gc-safe-points-the-allocator-never-collects-...` | the allocator sets `g_gc_pending` and grows the window, never collects; the callback residual (`by_name_dispatch` 208 sites, `gen_runtime`, the coexpression entry) registers what it holds | second — alone cures the C-frame class |
+| cfo | `gc-the-collector-walks-the-rbp-chain-keyed-by-return-pc-...` | `gc_collect_ex` walks main and coexpression stacks by RBP chain keyed by return PC; visits only mapped slots; the scan, the sniff, `cons_stack`, `rt_cas_live_span` DELETED; coverage words-scanned 0 | after the table exists |
+| coo | `gc-instruments-the-safe-point-census-...` | the census gates and the rate-graded acceptance arms with the poison fill ON (the cfo's clause: a read of vacated ground announcing itself is what proves a map COMPLETE rather than lucky), each tripping under a planted violation | parallel |
+| ceo | `gc-every-zeta-slot-of-a-pascal-graph-...`, `gc-every-zeta-slot-of-a-raku-and-rebus-graph-...` (and Icon/Prolog/SNOBOL4 the same way) | no frame slot without a `ZK_` kind; § 6 with the cto; the gc2 (`setarch -R env -i`, a band) and twelve-entry witnesses; the daily integration audit; lifts the pause on Lon's word | parallel |
+
+**The cfo's acceptance arms, adopted verbatim (CEO-814):** (1) no new conservative visit, no pinned block in any form, no collection inside a runtime call — reverted on sight; (2) a runtime function that calls back into emitted code registers every raw heap pointer it holds across the callback, or the landing is refused; (3) a map row's DONE-WHEN is graded by RATE with the poison fill ON; (4) hq_icon's mark-only halving of the bad gc2 offsets (32/64 → 16/64) is the conservative-rewrite half and hq_raku's unfixed `DATINST_t.type` slot (0xdbdbdbdb) is a map-shaped defect — the DINST layout is one of the maps, re-laned under the maps row, never another hand-written visitor. Control arms while the HQs are paused: the seven smokes plus the SNOBOL4 and Icon masters, run by the landing officer under `S4E_ONE_RUNNER_OVERRIDE` naming MODE line 2, batched per CEO-757.
 
 ## 6. The map table format (to be fixed by the cto and hq_icon today, then frozen)
 
