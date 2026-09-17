@@ -34,6 +34,26 @@
 - `RTCC_GLOBAL_R8_ANCHOR` / `RTCC_GLOBAL_R9_GVA` -> `.github/ARCH-X86-ASM-ENCODER.md` §1 (⛔⭐ the `s11` defect: duplicated unguarded macros + tree-wide `-w` meant no `-D` reached the emitter, and TWO GRADED RUNGS were decided on arms that were the same binary)
 - ⛔ `x86_rtcc_writeback` / `x86_rtcc_reload` -> **names no longer exist**; see `.github/ARCH-X86-ASM-ENCODER.md` §1 last subsection (superseded by the `_bin`/`_text` medium split)
 
+### `src/ir/frame_layout.c` (was `src/contracts/zeta_storage.c`) — the fixed-cell authority family (relocated cto 2026-09-16, row `rationale-zeta-storage-c`; verified at SCRIP `6f5ac9175`)
+
+- `fc_cells_on` / `fc_cells_active` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §1 (THE ONE PORT OPINION, Z4-6; ⛔ the port axis is gone, the predicate is `return 1` and the discipline is what survives)
+- `fc_geom` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §2 (the per-box fixed-cell geometry authority; per-kind MEASURED verdicts; LEN/ANY/NOTANY zero-cell IS the grant; Icon UPTO/FIND/BAL NOT-YET)
+- `zls_fc_cell` / `FL_FC_SYNTH` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §3 (PAT$N REGION NET-OUT s191; unconditional arms only; the loud synthetic window base)
+- `zc_nofc` / `fc_subj_member` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §4 (NOFC-SYM: the killswitch lives on ONE line of `fc_geom`, never at its head; the five-program category error)
+- `SCRIP_ALT_CAP` (the `fc_geom` arm-member guard) -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §4 (ALT-CAP s66: the ALT carves 32 at α, so a denied arm-resident SAVE lands 32 too low; THE GRANT IS THE FIX)
+- `fc_arm_member` / `fc_alt_register` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §5 (ALT-FLAT s202; ORDER IS LOAD-BEARING; N≤10 from the 3N+2 stub budget)
+- `fc_seq_active` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §5 (⛔ stub: SEQ owns no cell and no datum, the LIFO position IS the sequence position; `IR_MATCH_SEQUENCE` deleted)
+- `fc_save_active` / `fc_cond_fp` / `fc_cond_register` / `fc_pair_extent_register` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §5 (captures are TWO boxes, ZB-FC-3c; FLATDISP-LEAF-ORDER, the 039 `0xffff9b20` witness)
+- `fc_head_fp` / `fc_head_register` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §5 (HEAD is not hook-shaped, ZB-FC-3d PARTITION; ALT-free v1 fence)
+- `zw_node_k` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §6 (ZW-1 UNIVERSAL K AUTHORITY; v0 carve-only by design)
+- `zw_carve_k` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §6 (THE ONE CARVE AUTHORITY; the split IS the displacement; ⭐ s137: stop numbering when the number is not wanted)
+- `fc_tables_reset` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §7 (stale node-pointer keys across runtime compiles, the 140/test_case wild jump; ⚠ resets only `fct_n` at HEAD)
+- `fc_frameless_fpr_rsp` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §8 (the ONE ADDRESS-MODE AUTHORITY; the N21 `POS(0) ARBNO ... RPOS(0)` witness)
+- `fc_call_ok` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §9 (⛔ retired stub: CALL2BB 3b, the one-arg user-proc value-spine admission)
+- `rt_proc_is_registered` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §9 (the row's anchor symbol: in CALL2BB it was the fail-safe registry consult at plan time; at HEAD its live use in this file is `zls_callee_is_gen`, `frame_layout.c:10`, deciding the staged call's `callgen.act` grant)
+- `zls_callee_is_gen` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §9
+- ⛔ `zls2_geom` / `ZLS2_*` / `rt_zeta_port_mode` / `ZC_PORT_*` -> **names no longer exist**; `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §10 routes them (ZLS2 history is in the remainder row's material, `git show e25a5daf^:src/contracts/zeta_storage.c`)
+
 ## Remaining clusters, not yet relocated (see QUEUE.tsv / tasks/ for the dispatched rows)
 
 Ranked by stripped-RATIONALE-comment count (heuristic classifier, see the FINDING above for the caveat that this is a lower bound):
@@ -43,7 +63,7 @@ Ranked by stripped-RATIONALE-comment count (heuristic classifier, see the FINDIN
 | 1 | `src/emitter/emit.cpp` (remainder, beyond §3 above) | ~600 | `rationale-emit-cpp-remainder` |
 | ~~2~~ | `src/templates/x86/x86_asm.h` (⭐ path moved; **RC-4/RC-5 + TAB RECORD relocated 2026-09-11** -> `ARCH-X86-ASM-ENCODER.md`) | 186 blocks recovered, ~20 relocated | `rationale-x86-asm-h` ✅ CLOSED · remainder row `rationale-x86-asm-h-objnote-remainder` |
 | 3 | `src/lower/lower_snobol4.c` | 232 | `rationale-lower-snobol4-c` |
-| 4 | `src/contracts/zeta_storage.c` | 132 | `rationale-zeta-storage-c` |
+| ~~4~~ | `src/contracts/zeta_storage.c` (⭐ path moved twice, now `src/ir/frame_layout.c`; **the fixed-cell authority family relocated 2026-09-16** -> `ARCH-FRAME-LAYOUT-FIXED-CELLS.md`) | 199 blocks recovered, ~40 relocated | `rationale-zeta-storage-c` ✅ CLOSED · remainder row `rationale-frame-layout-c-remainder` |
 | 5 | `src/emitter/emit.h` | 119 | `rationale-emit-h` |
 | 6 | `src/runtime/rt/rt.c` | 106 | `rationale-rt-c` |
 | 7 | `src/driver/scrip.c` | 105 | `rationale-scrip-c` |
