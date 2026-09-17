@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys, shutil, os
-SENT = " ⛔⭐ SINCE 2026-09-17 THE COLLECTOR GUESSES NOTHING (Lon, in-chat to ceo; RULES.md FACT RULE; `ARCH-GC-COMPILE-TIME-FRAME-MAPS.md`; CEO-812): the emitter writes a compile-time map per safe point, the collector walks maps not words, the allocator never collects (only emitted code at the return of an allocating runtime call does), no conservative scan and no pinning in any form; rows maps → hq_icon, safe points → hq_prolog."
+SENT = " ⛔⭐ SINCE 2026-09-17 THE COLLECTOR GUESSES NOTHING (Lon, in-chat to ceo; RULES.md FACT RULE; `ARCH-GC-COMPILE-TIME-FRAME-MAPS.md` § 7 FROZEN; CEO-812..818): everything on the emitted stack is a DESCR and its type field is the only tag, one static map per activation frame for the return address, the allocator never collects (only emitted code at the return of an allocating runtime call does, over a virtual-reserve arena), the heap walks typed visitors, no conservative scan and no pinning in any form; the six HQs are PAUSED on Lon's word while the four officers build it in F6's order; a landing that adds a conservative visit, a pinned block or a collection inside a runtime call is reverted on sight."
 ROOTS = ["cto", "coo", "cfo", "icon", "prolog", "raku", "pascal", "snocone", "snobol4"]
 ANCHOR = "ARCH-GC-PINNED-ALLOCATOR-LIFETIME-CLASSES.md"
 for r in ROOTS:
