@@ -137,16 +137,27 @@ def cmd_flips(a, rows):
         cls_of.setdefault(r["suite"], r["class"])
     net = collections.defaultdict(set)
     lost = collections.defaultdict(set)
+    reclass = collections.defaultdict(set)   # PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED: a reclassification, never a loss (ceo CEO-806)
+    RECLASS = {"OUTSIDE", "UNGRADABLE", "UNGRADED", "DEFERRED"}
     for k in latest:
         suite, prog, mode = k
         cls = cls_of.get(suite, "?")
         if base.get(k) != "PASS" and latest.get(k) == "PASS":
             net[cls].add((suite, prog))
         if base.get(k) == "PASS" and latest.get(k) != "PASS":
-            lost[cls].add((suite, prog))
+            # ⛔ A PASS THAT BECAME OUTSIDE IS A RECLASSIFICATION, NOT A LOSS (ceo CEO-806, 2026-09-16: seven of nine 'master losses' were the
+            # SnoM ALL.outside.tsv entries appended as OUTSIDE by hq_snobol4's runner, whose 'last PASS' was the false green CEO-749 named).
+            # 'lost' keeps PASS -> FAIL/CRASH/HANG (and the rest of the red family); the reclassified are printed on their own line, named.
+            (reclass if latest.get(k) in RECLASS else lost)[cls].add((suite, prog))
     print(f"NET distinct programs green now, not green at the window base (dirty rows skipped: {dirty_skipped}): "
           f"master {len(net['master'])}, package {len(net['package'])}, benchmark {len(net['benchmark'])}; "
-          f"lost since the base: master {len(lost['master'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}")
+          f"lost since the base: master {len(lost['master'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}; "
+          f"reclassified (PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED, not a loss): master {len(reclass['master'])}, package {len(reclass['package'])}, benchmark {len(reclass['benchmark'])}")
+    if a.names:
+        for cls in ("master", "package", "benchmark"):
+            for suite, prog in sorted(reclass[cls]):
+                _to = sorted({latest[(suite, prog, m)] for m in ("m3", "m4", "ast") if (suite, prog, m) in latest and latest[(suite, prog, m)] in RECLASS})
+                print(f"    reclassified {suite}:{prog} -> {'/'.join(_to)}")
     if a.names:
         # ⛔ A LOST COUNT WITHOUT NAMES CANNOT BE TRIAGED (ceo CEO-778(4)/CEO-779(5); coo 2026-09-16, row util-progress-flips-names-
         # every-lost-since-base-program): one `lost` line per program with the modes it lost, the last tree and time it read PASS,
