@@ -21,7 +21,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | FPC | pascal | 88/181 | 2026-09-16 (today) | `bb568bb0b` |  |
 | PAT | pascal | 297/427 | 2026-09-16 (today) | `db4a6b1fc` |  |
 | Roast | raku | 9/1464 | 2026-09-16 (today) | `5cc7ba393` |  |
-| SnoM | snobol4 | 1963/1982 | 2026-09-17 (today) | `0567ad829` | 9 xfail counted as FAIL of a 19-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| SnoM | snobol4 | 1963/1982 | 2026-09-17 (today) | `0567ad829` | THE 19-WIDE GAP, NAMED IN FULL (cto, CEO-822 audit): 9 xfail counted as FAIL (CEO-416) + 8 OUTSIDE-baseline entries the oracle itself refuses, which are excluded from the graded 1974 but stay in the published denominator (CEO-749; `ALL.outside.tsv`: simple_output_64, keyword_1, len_datatype_keyword_1, span_datatype_capture_branch_1, arbno_pos_rpos_branch_53/55, arbno_span_pos_branch_9/10) + 2 STANDING reds (dupl_size_replace_branch_1, size_keyword_replace_branch_1). m3 1963/1974 and m4 1963/1974 agree entry for entry (SKIP=0), so all_pass = the per-mode figure. A harness run invoked WITHOUT `--outside` grades those 8 and reads 1970/1982 with 3 fail: the same tree, a wider graded population, 7 of the 8 passing and simple_output_64 failing. This row can only close by CURING, never by re-captioning |
 | IcnM | icon | 826/826 | 2026-09-17 (today) | `0567ad829` | done |
 | ProM | prolog | 542/563 | 2026-09-16 (today) | `119d66c52` |  |
 | PasM | pascal | 246/246 | 2026-09-17 (today) | `9c35971c1` | done |
