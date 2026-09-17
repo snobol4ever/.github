@@ -54,6 +54,35 @@
 - `zls_callee_is_gen` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §9
 - ⛔ `zls2_geom` / `ZLS2_*` / `rt_zeta_port_mode` / `ZC_PORT_*` -> **names no longer exist**; `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §10 routes them (ZLS2 history is in the remainder row's material, `git show e25a5daf^:src/contracts/zeta_storage.c`)
 
+### `src/runtime/rt/rt.c` — the procedure call protocol (relocated cto 2026-09-16, row `rationale-rt-c`; verified at SCRIP `db4a6b1fc`)
+
+- `rt_outer_call` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §1 (the mode-3 entry thunk: r12 = live dcap top seeded from 0x70000000; ONE-SHOT-BRIDGE-M3, the adjuster is 16 not 8, the `002_output_integer_literal` movaps witness; ✅ now also reserves 4 MB ZLS headroom and pushes the landing pair)
+- `rt_outer_call_delta0` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §1 (ICN-FR-5: zero r14 once, a separate symbol so every other language is byte-identical; push/pop, never tail-jmp, because r14 is callee-saved)
+- `rt_proc_t` / `nformals` / `rest_kind` / `jmp_entry` / `zstatic` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §2 (NPSPLIT formals-only bound per SPITBOL Ch.8; rest_kind names WHAT differs, never which language; the regime is RECORDED, never re-derived; offsets baked by the runtime asm, `_Static_assert`ed)
+- `rt_k_level_p` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §2 (RTX-FUNC-1: hidden visibility is load-bearing for the in-.so PC32 asm, the pointer alias crosses the boundary)
+- `rt_proc_register_rec` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §2 (ONE-REG s119: replays the pre-s119 startup sequence exactly; 64-byte record pinned)
+- `rt_call_named_proc` / `rt_call_proc_direct` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §3 (NCB-1 LEAF SPLIT: LIFO context is sound by the language definition) and §6 (SPELLED-TWICE s117: the sealed alpha$ arm; the third path is a suspected twin left verbatim)
+- `rt_proc_open_fn` / `rt_frame_prep` / `rt_jmp_frame_lexprep` / `rt_jmp_frame_lexprep2` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §3 (⛔ stubs since GLOBALS-GONE s55, each with its OWED note; FN-RET OPEN s104: two consumers jumped 0 for a hundred commits)
+- `rt_proc_call_open_fnret` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §3 (the s55 rax-channel contract: admitted == nonzero == the transfer target)
+- `rt_proc_call_open` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §4 (the OPEN LEAF; cells resolved ONLY on the dyn path or the lexical frontends mint spurious globals)
+- `rt_proc_call_open_det` / `rt_proc_call_open_det0` .. `_det4` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §4 (PL-REGAIN-1/4 fused det open: caller-frame cell pointers, one crossing; ⭐ ICN-ARG-NULL s239: `g_call_args` is a process-lifetime medium and nothing else rewrites the tail, the `atan(x,10.0)` witness)
+- `g_call_args` / `CALL_ARGS_MAX` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §0, §4 (the staged-args medium; the tail above nparams is what the collector's root walk reads stale)
+- `rt_proc_call_open_slim` / `rt_c2b_arm_trap` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §4 (BP-7 SCC slim leaves: guards before any side effect, so a 0 return falls back with nothing to undo)
+- `rt_proc_call_prologue` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §4 (NPSPLIT clamp; the save push null-inits every remaining name)
+- `rt_proc_call_prologue_lex` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §4 (ICN-VARARG: the one site holding both the record and the true nargs; ⛔ `jmp_entry` is the load-bearing discriminator or the tail list nests inside itself)
+- `rt_pl_dc_ok` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §4 (PL-DC: the ONE eligibility predicate; `p->fn` deliberately untested; `LBL__` excluded structurally s119; ⚠ the vtmark frame-cell arithmetic as recovered no longer greps)
+- `rt_proc_enter` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §5 (PROC-CONV two landings, EXACTLY FIVE PUSHES; EXPR-THUNK RESULT/EXITS s96; ⭐ WIRE-STACK rung 2: a pushed pair because `rtccb` is a flat global with no nesting, FAIL deeper)
+- `rt_chain_enter` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §5 (⛔ no longer defined in rt.c; survives as assert text in `runtime_eval.c`)
+- `rt_tiny_record_enter` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §6 (the five-quad record, args reversed above the result cell and PINNED at [rsp+16); the s104-s117 three-quad record published nargs=0)
+- `rt_dyn_alpha_fn` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §6 (⭐ D-18c: an unsealed cell is not a target; the stub is the allocator's own sentinel; s108 default ON)
+- `rt_nret_fix` / `rt_nret_fix_tiny` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §6-§7 (SN4-CAP-NAME-STRICT s170; ⛔ the s178-c re-arm is gone from `_tiny`, now a pass-through)
+- `rt_proc_call_epilogue_γ` / `rt_proc_call_epilogue_ω` / `rt_proc_call_epilogue_ret` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §7 (γ is RETURN and NRETURN, ω is FRETURN, no fifth port; the lex arm's port-agnostic read preserved pending a ruling)
+- `rt_proc_save_count` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §7 (NAMED γ/ω TWINS s112: the non-slim arm returned NULL and never restored, `probe/mon/mon_return_contract.sno`; restore base DERIVED, no new global)
+- `rt_define_returns_by_frame` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §7 (ICN-WIRE-PAIR s244: ⛔ the discriminator is `dyn_scope`, not `jmp_entry` alone; `every p(1|2|3)` and `1010_func_recursion`)
+- `rt_genp_entry_c` / `rt_genp_lookup` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §8 (GENP slice-2: generator procedures on their own stack per instance; the s94 five-pop repair; ONE-POP; list membership is the discriminator)
+- `rt_zeta_cstack` -> ⛔ name no longer exists (the storage-axis switch around the C-side frame push); `.github/ARCH-RT-CALL-PROTOCOL.md` §9 routes it to `ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §1
+- `g_pl_retry` / `g_pl_cp_stack` / `g_pl_zf3_stack` / `g_pl_zf_pending_*` / `icn_gen_state_t` / `rt_gen_get_fb` -> ⛔ names no longer exist; `.github/ARCH-RT-CALL-PROTOCOL.md` §9 (PL-FR-4 and ICN-FR-5 history; live designs in `ARCH-PROLOG-THREE-ZETAS.md` and `ARCH-ICON-RTX.md`)
+
 ## Remaining clusters, not yet relocated (see QUEUE.tsv / tasks/ for the dispatched rows)
 
 Ranked by stripped-RATIONALE-comment count (heuristic classifier, see the FINDING above for the caveat that this is a lower bound):
@@ -65,7 +94,7 @@ Ranked by stripped-RATIONALE-comment count (heuristic classifier, see the FINDIN
 | 3 | `src/lower/lower_snobol4.c` | 232 | `rationale-lower-snobol4-c` |
 | ~~4~~ | `src/contracts/zeta_storage.c` (⭐ path moved twice, now `src/ir/frame_layout.c`; **the fixed-cell authority family relocated 2026-09-16** -> `ARCH-FRAME-LAYOUT-FIXED-CELLS.md`) | 199 blocks recovered, ~40 relocated | `rationale-zeta-storage-c` ✅ CLOSED · remainder row `rationale-frame-layout-c-remainder` |
 | 5 | `src/emitter/emit.h` | 119 | `rationale-emit-h` |
-| 6 | `src/runtime/rt/rt.c` | 106 | `rationale-rt-c` |
+| ~~6~~ | `src/runtime/rt/rt.c` (**the procedure call protocol relocated 2026-09-16** -> `ARCH-RT-CALL-PROTOCOL.md`) | 156 blocks recovered, ~70 relocated | `rationale-rt-c` ✅ CLOSED · remainder row `rationale-rt-c-remainder` |
 | 7 | `src/driver/scrip.c` | 105 | `rationale-scrip-c` |
 | 8 | `src/templates/bb_call_proc_staged.cpp` | 81 | `rationale-bb-call-proc-staged` |
 
