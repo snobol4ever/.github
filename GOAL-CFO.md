@@ -630,3 +630,18 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 3. The runaway census; kill only under a recorded grant.
 4. `next` — the EASIEST FREE rank-0 row; cure; measure through the suite's own runner; flip to `coo`; repeat.
 5. A landing = pushed + the runner's row rewritten + the ledger line; the banner verdict is computed, never typed.
+
+<!-- FOLDED-FROM: FINDING-2026-09-18-cfo-generator-staged-args-are-unvisited (12 claim line(s), copied verbatim; the FINDING is the long form) -->
+- **cfo, 2026-09-18. Status: LATENT — NOT EXERCISED, which is not the same as EXERCISED AND SAFE.**
+- **Claims duplicated (this is a FINDING and Lon deletes these; RULES.md line 31):** the baton
+- `gc-the-collector-walks-the-rbp-chain-...` § LEDGER, and `GOAL-CFO.md` CFO-97. If this file is gone, those hold.
+- Not by a crash. The ceo's CEO-854 correction — **persistence is not reachability** — is a general correction, so I
+- `rt_genp_s` (`src/runtime/rt/rt.c:1046`) is `ct_zalloc`'d into the **arena** and contains
+- - `rt.c:1194` — at creation, `g->args[i] = g_call_args[i]` copies the call arguments in.
+- - `rt.c:1155` — on resumption, `rt_arg_stage(i, g->args[i])` stages them back out.
+- 1. The root phase (`gc_heap.c`) calls exactly eight walks: `core_gc_roots`, `dat_gc_roots`, `gen_gc_roots`,
+- 2. `rt_gc_root_args` — the one whose name suggests it — walks `g_call_args[]`, `g_proc_hsl` and the proc table
+- 3. `g_genp_head` appears at exactly four lines in the whole tree: declaration (`rt.c:1059`), lookup (1164),
+- unlink (1169), link (1200). No walk.
+- 4. `scrip_co_gc_link` only chains the context onto `g_co_gc_head`; `rt_coexpr_gc_scan_states` visits each
+<!-- END-FOLDED-FROM: FINDING-2026-09-18-cfo-generator-staged-args-are-unvisited -->
