@@ -6,11 +6,11 @@ One row per suite — our seven masters and every vendored package suite alike �
 
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
-| Gimpel | snobol4 | 127/132 | 2026-09-16 (today) | `59971a9d2` |  |
+| Gimpel | snobol4 | 127/132 | 2026-09-16 (today) | `8f567e685` |  |
 | Budne | snobol4 | 71/72 OUTSIDE=1 | 2026-09-16 (today) | `61315eaa9` | NOT done — CEO-749 shape restored by hq_snobol4: the runner published the graded 71/71, which reads as finished; the shipped population is 72 and `rewind1` is OUTSIDE (the oracle dies on it), so this row is one entry short of closed, not closed |
-| Flake | snobol4 | 118/124 | 2026-09-16 (today) | `59971a9d2` |  |
-| AIS | snobol4 | 5/7 | 2026-09-16 (today) | `59971a9d2` |  |
-| Dotnet | snobol4 | 5/5 | 2026-09-16 (today) | `59971a9d2` | done |
+| Flake | snobol4 | 118/124 | 2026-09-16 (today) | `8f567e685` |  |
+| AIS | snobol4 | 5/7 | 2026-09-16 (today) | `8f567e685` |  |
+| Dotnet | snobol4 | 5/5 | 2026-09-16 (today) | `8f567e685` | done |
 | TPgm | snobol4 | 1/8 OUTSIDE=6 | 2026-09-16 (today) | `61315eaa9` | CEO-749 shape restored by hq_snobol4: the runner published the graded 1/2; the inventory on this same pass reads shipped=8 graded=2 ungradable=6 |
 | Zona | icon | 88/124 | 2026-09-16 (today) | `f2270e807` |  |
 | Jcon | icon | 82/94 | 2026-09-16 (today) | `f2270e807` |  |
@@ -30,7 +30,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | RebM | rebus | 43/43 | 2026-09-17 (today) | `9c35971c1` | done |
 | Logtalk | prolog | 2891/3600 | 2026-09-16 (today) | `119d66c52` |  |
 | GnuFD | prolog | -/30 (30 DEFERRED, not counted as failures) | never graded | - | DEFERRED by Lon (CEO-572,CEO-579), IN SCOPE AND NOT A FAILURE - waiting on: THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var·put_attr·coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10. |
-| X64T | snobol4 | 21/36 | 2026-09-16 (today) | `59971a9d2` |  |
+| X64T | snobol4 | 21/36 | 2026-09-16 (today) | `8f567e685` |  |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
