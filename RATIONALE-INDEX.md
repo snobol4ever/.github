@@ -54,6 +54,23 @@
 - `zls_callee_is_gen` -> `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §9
 - ⛔ `zls2_geom` / `ZLS2_*` / `rt_zeta_port_mode` / `ZC_PORT_*` -> **names no longer exist**; `.github/ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §10 routes them (ZLS2 history is in the remainder row's material, `git show e25a5daf^:src/contracts/zeta_storage.c`)
 
+### `src/ir/frame_layout.c` — the grant, elide and tail families (relocated cto 2026-09-18, row `rationale-frame-layout-c-remainder`; verified at SCRIP `9dce4c610`, 1131 lines)
+
+- `zls_is_wiring` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §11 (THE PHANTOM 16-BYTE RESULT SLOT, ZW-5/O-1/s30/RK-GRAM-3d; `zls_entry` and the result `zls_field` fire BEFORE the switch, which is why the class must be named ahead of it; ⛔ `IR_MOVE_LABEL` has left the class and `IR_GATE_ARM` and `IR_STMT_MARK` have joined it)
+- `zls_grant` / `zls_grant_locals` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §12 and §15 (SN4-FRAME-DIET s174 entry-rooted walk and its wiring-root repair; the ZLS-CALL-BASE and GENP-SPINE s92 grant repairs)
+- `FL_MAX_MARKS` / `zls_group_mark` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §12 (⚠ 262144 at HEAD, not the 65536 the recovered text records; overflow is a named `abort()`, not a degrade)
+- `zls_elide_ok` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §13 (SLOT-ELIDE S1 scratch-alias, Lon s133; the two op-filter safety fences; `IR_CMP_TEST` joined the zero-locals class AUDITED, not assumed)
+- `zls_s4_ok` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §13 (SLOT-ELIDE S4a, Lon s138: the locals-shifted match family's front quad is runtime-DEAD BY CONSTRUCTION)
+- `zls_mark_value_refs` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §13 (an `operands[]` reference is a VALUE use, a γ/ω wire is a CONTROL use and grants nothing)
+- `zls_result_live` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §13 (THE ZB-VAL-8b USE PREDICATE, Lon s182; the IR cannot express it — `ir_node_produces_value()` is OPCODE-keyed and answers a different question; conservative by construction, unknown node answers 1)
+- `zls_slot_census` / `SCRIP_SLOT_CENSUS` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §13 (SLOT-ELIDE S0, Lon s133; the dead count is a conservative FLOOR on the S1 win, never an estimate of it)
+- `fc_tail_candidate` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §14 (CARRY-THE-TAIL R12-EXIT-1 and the PS-3 s153 two-pass finalize; ⭐ its lookup scans BACKWARD — most-recent-entry-wins, the only table in the file that had it, which is §16's hazard solved locally long before anyone named the class)
+- `fc_tail_arbno` / `fc_tail_head` / `fct_fp_range` / `fct_rsp_range` / `fct_pricing` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §14
+- `emit_patzeta_*` / the `pz` table -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §14 and §16 (PS-3 pricing, keyed by GRAPH NAME and updated in place — which is why it is §16's one named reset exclusion)
+- `fc_tables_reset` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §16 (⛔ it reset ONE counter of sixteen while all three runtime-compile entries already called `zls_reset` wholesale beside it; MEASURED: 615 registrations at 609 distinct addresses over 300 compiles, and the caps were a per-PROCESS budget for a per-graph table; cured and held by `test_gate_fc_side_tables_are_reset_at_every_runtime_compile_entry.sh`)
+- `fc_vlit_register` / `fc_vread_register` / `fc_vbinop_register` / `fc_vwpop_register` / `fc_vdj_register` / `fc_vcap` -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §16 (pointer-keyed, reset per compile; `fc_vcap` refuses at the PLANNER before the registrar's own backstop, which is why saturation degraded silently instead of printing)
+- `zls2_geom` / the BUMP·RELEASE protocol -> `.github/ARCH-FRAME-LAYOUT-GRANTS.md` §17 (⛔ gone at HEAD; the ruling that outlived it is Lon s7: ONLY α AND ω PARTICIPATE IN MEMORY ALLOCATION)
+
 ### `src/runtime/rt/rt.c` — the procedure call protocol (relocated cto 2026-09-16, row `rationale-rt-c`; verified at SCRIP `db4a6b1fc`)
 
 - `rt_outer_call` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §1 (the mode-3 entry thunk: r12 = live dcap top seeded from 0x70000000; ONE-SHOT-BRIDGE-M3, the adjuster is 16 not 8, the `002_output_integer_literal` movaps witness; ✅ now also reserves 4 MB ZLS headroom and pushes the landing pair)
