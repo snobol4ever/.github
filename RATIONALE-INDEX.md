@@ -83,6 +83,19 @@
 - `rt_zeta_cstack` -> ⛔ name no longer exists (the storage-axis switch around the C-side frame push); `.github/ARCH-RT-CALL-PROTOCOL.md` §9 routes it to `ARCH-FRAME-LAYOUT-FIXED-CELLS.md` §1
 - `g_pl_retry` / `g_pl_cp_stack` / `g_pl_zf3_stack` / `g_pl_zf_pending_*` / `icn_gen_state_t` / `rt_gen_get_fb` -> ⛔ names no longer exist; `.github/ARCH-RT-CALL-PROTOCOL.md` §9 (PL-FR-4 and ICN-FR-5 history; live designs in `ARCH-PROLOG-THREE-ZETAS.md` and `ARCH-ICON-RTX.md`)
 
+### `src/runtime/rt/rt.c` — the REMAINDER: match-time by-name primitives, the AB-2 leaves, the B1c m4 seam, GENP (relocated cto 2026-09-18, row `rationale-rt-c-remainder`; verified at SCRIP `be0d338c3`)
+
+- `rt_pat_prim_int` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §10 (D08 s22 CLIMB: match-time integer fetch for `LEN(*var)`/`POS(*var)`, manual p.86 coercion; ⭐ a negative return IS the ω channel — there is no separate failure path)
+- `rt_pat_prim_str` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §10 (MODE34-5b: the by-name string fetch for `SPAN`/`ANY`/`NOTANY`/`BREAK`/`BREAKX(var)`; ⭐ read BY NAME because an operand offset is a claim about a frame the preamble may grow — gdb-measured 240 bytes off the DESCR pointer field, `SPAN(WS)` reporting zero characters)
+- `rt_pat_prim_arg` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §10 (⚠ POST-STRIP, NOT IN THE RECOVERED TEXT: the shared leaf that WIDENED the contract — `*name` naming a registered proc is CALLED with zero args at match time, so the deferred-argument road is now a deferred-EVALUATION road)
+- `rt_ab_enter_env` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §11 (the α-side strict leaf: Σ/Σlen snapshot, want-name park and zero, vtmark, `rt_k_level`/`kw_fnclevel`. ⛔ DEAD AT HEAD — ZERO call sites tree-wide; the emitted α inlines the same work as `RTX-FUNC-1 inline enter_env` in `bb_define.cpp`, and the two copies are bound by nothing)
+- `rt_ab_leave_env` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §11 (the β-side strict leaf: dead-window tidy `[fb, fb+16)`, Σ restore, `rt_nret_fix(result, wn)`. ⚠ the value-trail tidy is GONE at HEAD; the fail path now restores `rt_g_want_name`)
+- `AB_OFF_VTMARK` (`src/ir/ab_abi.h`) -> `.github/ARCH-RT-CALL-PROTOCOL.md` §11 (⛔⭐ A NEVER-WRITTEN HOLE AT -0x38: `rt_value_trail_mark` / `rt_value_trail_tidy_dead_window` have zero hits in `src/`, the emitted α skips this slot and the frame is not zeroed at carve — the one `AB_OFF_*` with no reader and no writer. Addressed to whoever builds the AB frame's static GC map under CEO-812, where every emitted-stack qword is read as a DESCR)
+- `rt_ab_undef_fn_stub` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §11 (LADDER AB 2026-08-09: the `fn_cell$<FN>` initial stub, error 022 manual ch.10 p.140; `noreturn` is load-bearing, `core_runtime_error` does not return; ⭐ its second life as the D-18c SENTINEL — an unsealed cell is not a target, and the test is exact because the stub is the allocator's own sentinel)
+- `gva_register` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §12 (B1c m4 seam s170 seat6: the emit-side GVA registry is EMPTY in the m4 runtime image, rebuilt from `__gva_names` in `gva_name(k)` order so index k is reproduced EXACTLY; `gva_count()==0` is a SIGNATURE not a heuristic; ⭐ default flipped ON because "m3 armed, m4 half-armed" is a third configuration nobody grades; measured zero count movement, four m4 b1 witnesses SEGV -> clean Error 22)
+- `rt_genp_s` / `first_done` / `rt_genp_thread_entry` / `rt_genp_spine_enter` / `rt_genp_deliver_γ` / `rt_genp_deliver_ω` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §13 (GENP slice-2 in full: the field layout with `next`@0 and `regs[5]`@8 held by `_Static_assert`, `done` 0/1/2, the ONE-POP once-flag, three sentinel qwords for the 16-byte entry alignment; ⭐ the s94 repair — `rt_proc_enter`'s five-pop γ landing served two frontier states and could not tell retained from unwound, so the instance-thread landings POP NOTHING)
+- `rt_genp_spine_enter_n2` / `rt_genp_deliver_n2_γ` / `region_ft` -> `.github/ARCH-RT-CALL-PROTOCOL.md` §13 (⚠ POST-STRIP: the N-2 ABI twin, five-word entry frame, contract carried as an emitted-asm note at its own site; two hand-written copies of ONE ABI, deliberately)
+
 ## Remaining clusters, not yet relocated (see QUEUE.tsv / tasks/ for the dispatched rows)
 
 Ranked by stripped-RATIONALE-comment count (heuristic classifier, see the FINDING above for the caveat that this is a lower bound):
@@ -94,7 +107,7 @@ Ranked by stripped-RATIONALE-comment count (heuristic classifier, see the FINDIN
 | 3 | `src/lower/lower_snobol4.c` | 232 | `rationale-lower-snobol4-c` |
 | ~~4~~ | `src/contracts/zeta_storage.c` (⭐ path moved twice, now `src/ir/frame_layout.c`; **the fixed-cell authority family relocated 2026-09-16** -> `ARCH-FRAME-LAYOUT-FIXED-CELLS.md`) | 199 blocks recovered, ~40 relocated | `rationale-zeta-storage-c` ✅ CLOSED · remainder row `rationale-frame-layout-c-remainder` |
 | 5 | `src/emitter/emit.h` | 119 | `rationale-emit-h` |
-| ~~6~~ | `src/runtime/rt/rt.c` (**the procedure call protocol relocated 2026-09-16** -> `ARCH-RT-CALL-PROTOCOL.md`) | 156 blocks recovered, ~70 relocated | `rationale-rt-c` ✅ CLOSED · remainder row `rationale-rt-c-remainder` |
+| ~~6~~ | `src/runtime/rt/rt.c` (**✅ FULLY RELOCATED: the call protocol 2026-09-16 §1-§9, the remainder 2026-09-18 §10-§14** -> `ARCH-RT-CALL-PROTOCOL.md`) | 156 blocks recovered, all clusters relocated or verified gone | `rationale-rt-c` ✅ CLOSED · `rationale-rt-c-remainder` ✅ CLOSED — **this file owes nothing** |
 | 7 | `src/driver/scrip.c` | 105 | `rationale-scrip-c` |
 | 8 | `src/templates/bb_call_proc_staged.cpp` | 81 | `rationale-bb-call-proc-staged` |
 
