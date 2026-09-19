@@ -1,0 +1,6 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+b3a1bf743	icn-master	ceo	SUITE_BOARD family=ALL total=826 shipped=826 outside=0 m3_n=826 m3_pass=826 m3_fail=0 m4_n=826 m4_pass=826 m4_fail=0 -- corpus_suite_harness.py run corpus/tests/icon/ALL.icn --by-modes-column --modes m3,m4, graded 2026-09-19 09:29-09:30 CDT on b3a1bf743 (clean), RT_OPT=-O0, oracle icont/iconx 9.5.25a, ceo; CEO-757 arm for the batch open since 884400b30
+b3a1bf743	pl-master	ceo	SUITE_BOARD family=ALL total=563 shipped=563 outside=0 m3_n=563 m3_pass=542 m3_fail=21 m4_n=480 m4_pass=459 m4_fail=11 -- corpus_suite_harness.py run corpus/tests/prolog/ALL.pl --by-modes-column --modes m3,m4, graded 2026-09-19 09:27-09:29 CDT on b3a1bf743 (clean; the 09:20 run on 6e12dffe5-dirty read the same), RT_OPT=-O0, oracle swipl, ceo
