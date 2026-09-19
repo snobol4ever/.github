@@ -39,6 +39,8 @@ The README names Goldberg (*Tag-free garbage collection for strongly typed progr
 
 ## 6. ⛔⭐⭐⭐ THE BIGGER FINDING, ON LON'S PROMPT: WE CARRY THREE BYTES OF PROVENANCE IN EVERY VALUE AND NOTHING READS THEM
 
+⛔ **VOID AS A RULING, 2026-09-19 (CEO-904):** `mint_op` was removed on Lon's word the same night (SCRIP `0a6f75394`, CFO-100 — *“Remove mint_op since it is derivative”*; `src_node` is 24 bits now and subsumes it), and the cfo cured `DT_DATA` on `slen` at `6e9d024e4` before CEO-898 reached them. The measurement below stands; the ruling built on it does not.
+
 **Lon, in-chat to ceo after the reading, verbatim:** *"But our BB's give a completely other level of possibilities than these GC white papers you just read. Is that not correct? … Check that you are utilizing the fact that we are BB that have stamped DESCR's with mint_op and mod_id. And that we are BB with very clear BB FOUR PORTS. Think out of the box."*
 
 **MEASURED, SCRIP `4e1683fa9`.** `DESCR_t` (`src/ir/descr.h`:64–79) is `{ uint8_t v; uint8_t mint_op; uint16_t src_node; uint32_t slen; union {...}; }` — **a one-byte mint op and a two-byte source node beside the tag, in every descriptor in the system, inside the 16 bytes the SysV register-pair return already costs us.** The sentinels are already named (`DESCR_MINT_OP_UNSTAMPED 0`, `DESCR_SRC_NODE_UNSTAMPED 0`, `DESCR_SRC_NODE_OVERFLOW 0xFFFF`). **Usage across all of `src/`: 3 `.mint_op =` writers, 2 `.src_node =` writers, and the only readers are `rtx_unit_test.c:39`'s mismatch `printf` and a comment at `bb_keyword_icon.cpp:34`.**
