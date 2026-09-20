@@ -96,6 +96,42 @@ exactly the class of the cfo's open row `gc-rt-c-c-to-bb-entries-...`. The `NAME
 is **not reached in either arm**, so the dispatch road for `EVAL` is somewhere else and this hypothesis has not been
 put on the witness. Whoever takes it starts by finding that road, not by reading these two files.
 
+## 3b. ⛔⭐ CEO-1024 — THE BAND, ANSWERED FOR THIS LANE RATHER THAN ASSUMED
+
+The ceo's challenge landed while this was being written: the fleet graded GC health at stress 1, 3 and 5, hq_raku
+went to **16** and lost 65 gradings over **36 distinct programs** that the 1-3-5 band called green, and hq_snobol4
+has a witness **red at 25 while green at 10, 12, 16, 20, 35 and 50** — the divergence points are **not monotone in
+the plant**. *"If your lane is clean at 1, 3 and 5 you have not measured it — you have measured the band."* This
+lane's first sweep was 1, 2, 3, 4, 5, 8: inside the weak band. So it was re-run.
+
+**SncM at `SCRIP_HEAP_MB=1` across 1 · 2 · 3 · 4 · 5 · 8 · 10 · 12 · 16 · 20 · 25 · 32 · 35 · 50 · 64 · 100:
+RED at `stress=1` ALONE** — one entry, `eval_datatype_defer_1`, both modes, the same NAME SET at that point and an
+empty name set at every other. No new program appears anywhere above 5.
+
+⛔ **And the second half is the one that makes that a measurement rather than a second flat board.** A HIGHER plant
+collects LESS OFTEN, so a high band point can be inert for exactly the reason the tiny arena was — the same trap one
+level up. Decidability measured at each point over the same 336 entries:
+
+| stress | 1 | 5 | 16 | 25 | 64 | 100 |
+|---|---|---|---|---|---|---|
+| collectors | 336/336 | 336/336 | 336/336 | 336/336 | 336/336 | 336/336 |
+| regenerations | 1268 | 681 | 481 | 357 | 343 | 338 |
+
+**No point in the band is inert**, so *clean above 5* here is a reading and not a band artifact. The row gate now
+grades a BAND (`SNC_GC_BAND`, default `1 16`), asks ARM 1's decidability question **at every point**, refuses rc=2
+on an inert one, and prints a **per-point NAME SET** rather than a count — a same-count comparison between two band
+points hides a divergence that MOVED, which is the one comparison this class walks straight through. ⛔ And the
+plant is named **as a value** in every line: `SCRIP_GC_STRESS` unset IS stress 0, no forced collection at all, so a
+blank must never print as a blank (hq_snobol4's point, taken).
+
+## 3c. THE SPINE-CELL GRID — SNOCONE ANSWERS IT FULLY, AND OFF-GRID IS ZERO
+
+On the cto's pointer that their census carries a GRID line and that snocone could probably answer it fully because
+its graphs are ordinary emitted functions, `test_gate_gc_the_spine_cell_grid_is_anchored_at_the_region_base.sh` was
+pointed at all 336 entries (`GRID_POP`): **`GRID calls=5518 on_grid=4364 off_grid=0 undecidable=1154
+unreached=4163 cell=16`**, all six arms green including the PLANT arm (one 8-byte push below the region base takes
+13 call sites OFF-GRID and the census NAMES them, so the zero is a zero something could have failed to be).
+
 ## 4. CEO-1019 — SNOCONE'S SHARE OF THE ROOTED-ALLOCATION SWEEP, ONE LINE EACH
 
 Snocone lowers through the shared SNOBOL4 road, so this lane's candidates are the SNOBOL4 set the ceo named.
