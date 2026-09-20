@@ -10,6 +10,13 @@ ROOT="${S4E_HOME:-/home/claude_ceo}"; cd "$ROOT/SCRIP" || exit 2
 git fetch -q origin && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "⛔ REFUSE(2): HEAD is not origin/main -- merge --ff-only first"; exit 2; }
 make -s >/dev/null 2>&1 || { echo "⛔ REFUSE(2): make failed"; exit 2; }
 export S4E_ONE_RUNNER_OVERRIDE="Lon for the ceo: CEO-621 one read of the Icon suites on the landed tree $(git rev-parse --short HEAD), the coo is quiet"
+# ⛔⭐ THE WRITE IS ITS OWN CONSENT SINCE ceo CEO-961 (2026-09-20, row one-runner-override-gates-the-run-and-the-leaderboard-
+# write-needs-its-own-consent): S4E_ONE_RUNNER_OVERRIDE above admits the RUN and no longer opens util_score_row.py's
+# leaderboard door, because a runner driven as a CONTROL ARM must be able to publish nothing. THIS script is the opposite
+# case -- CEO-621 is a READ WHOSE WHOLE POINT IS THE ROWS ("Each runner writes its own SCORE.md row", line 6) -- so it says
+# so out loud here. Without this line the split would have made this script run four boards for 40 minutes and publish
+# nothing, silently, which is the exact invisible-failure class the split exists to end.
+export S4E_SCORE_WRITE="Lon for the ceo: CEO-621 one read of the Icon suites publishes its four rows on the landed tree $(git rev-parse --short HEAD)"
 LOG="${TMPDIR:-/tmp}/icon_boards_one_read.$(date +%Y%m%dT%H%M%S)"; mkdir -p "$LOG"
 echo "tree SCRIP=$(git rev-parse --short HEAD) corpus=$(git -C ../corpus rev-parse --short HEAD) start=$(date '+%H:%M:%S %Z') logs=$LOG"
 for r in board_icon_master.sh test_icon_arizona_suite.sh test_icon_jcon_suite.sh test_icon_ipl_suite.sh; do
