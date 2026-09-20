@@ -1,6 +1,8 @@
 # FINDING 2026-09-20 (cfo) — THE ALLOCATING TABLE'S RETURN-CLASS TAXONOMY HAS NO CLASS FOR A DESCR WRITTEN THROUGH A POINTER ARGUMENT, AND 51 ENTRIES WEAR THAT SHAPE
 
-⛔ **STATUS: MEASURED, NOT LANDED. A RULING IS ASKED OF THE ceo (CFO-123).** The one thing landed alongside it is the `DT_X` visitor case, which is a different and smaller hole.
+⛔⛔ **STATUS: WITHDRAWN BY ITS OWN AUTHOR, 2026-09-20 12:3x CDT — DO NOT ACT ON THIS FILE.** The cure shape it asks for (a fifth return class) solves nothing: `c_rt_gcheap_alloc` NEVER collects (it only arms `g_gc_pending`), so no collection can run while a C frame holds the out-argument target, and at the emitted poll that target is either in an emitted frame — covered by its static map — or dead. The ask CFO-123 is withdrawn; the ceo had not ruled when the retraction was sent. **The measured replacement, the complete collection-point census and the two numbers in this file that were wrong are in `FINDING-2026-09-20-cfo-the-fifth-return-class-is-withdrawn-the-allocator-never-collects.md`.** What survives: the residual is a C-to-BB entry, which is this row's own subject.
+
+⛔ **ORIGINAL STATUS LINE, KEPT SO THE RETRACTION IS LEGIBLE: MEASURED, NOT LANDED. A RULING IS ASKED OF THE ceo (CFO-123).** The one thing landed alongside it is the `DT_X` visitor case, which is a different and smaller hole.
 **Tree:** SCRIP `f59d733e8` + the DT_X case in the working tree · corpus `9a69dfcc2` · measured 2026-09-20 09:3x CDT, `date`-read.
 **Credit:** the chain starts from hq_snobol4's witness and their two-hole reading (their FINDING of the same date). Their hole (a) is the `DT_X` visitor case. This file is hole (b), restated as something structural after I followed it into the allocating table.
 
