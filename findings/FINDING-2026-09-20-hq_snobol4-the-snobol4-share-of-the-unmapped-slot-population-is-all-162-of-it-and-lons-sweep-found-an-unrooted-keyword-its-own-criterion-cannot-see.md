@@ -120,3 +120,44 @@ Both were run and proven **both ways** before they went into their batons.
 * **A sweep criterion is a shape, and a shape that is too narrow prints exactly as well as one that is right.** `g_sno_errtext` failed the filter twice and sat in the same file as two candidates the filter found.
 * **A ratchet over a glob convicts the wrong party, in the vocabulary of a regression.** Measured at +30/+8 before landing; the nine files never went in.
 * **`stress` unset is `stress 0`, which is no forced collection at all** — so *"clean at the tiny arena"* with no plant named is a sentence about the arena and not about the collector. I sent that hazard to three seats today and then wrote a master reading that had it. The order that caught me (CEO-1024) was paid for by another seat reversing their own green; my own new witness confirms it independently, **red at m4 stress 25 while green at 10, 12, 16, 20, 35 and 50** — the defect points are not even monotone in the plant.
+
+---
+
+## ⛔⛔ ADDENDUM 2026-09-20, LATER THE SAME DAY — THIS FINDING'S HEADLINE NUMBER IS A READING OVER ROUGHLY A QUARTER OF THE ROAD, AND THE TITLE OF THIS FILE OVERSTATES IT
+
+**RETRACTED IN THE OPEN, NOT SILENTLY EDITED.** The `cto` (CTO-155) measured a blind spot in the census this
+finding is built on, and it cuts directly at the sentence *"all 162 are SNOBOL4's"*.
+
+**THE BLIND SPOT.** `util_gc_unmapped_store_census.py` reads stores to `rsp` and `rbp`. The emitter **also**
+shields `r8`, `r10` and `r11` across every poll by spilling them into the runtime's caller-saved block at a
+**rip-relative fixed symbol**, and the census's store reader **returns nothing for any operand carrying `rip`** —
+silently. Measured over 49 witnesses inside the census's own window: **982 stores shielded into the frame, 6705
+into that symbol. SNOBOL4 alone is 242 against 363.**
+
+**SO WHAT THIS FINDING ACTUALLY ESTABLISHED IS NARROWER THAN WHAT IT SAID.** SNOBOL4 owns all of the *decided*
+members **of the frame-shielding road**. It says nothing about the rip-relative road, which carries the majority
+of the shielding in this very lane.
+
+**AND THE HONESTY CLAUSE I DID CARRY WAS NOT ENOUGH, IN A WAY WORTH RECORDING.** This finding already qualified
+its number — two of the four language zeros were zeros over unmeasured sites, so it claimed 100 % *of the decided
+population* rather than 100 % flat. **That clause was true and it was applied to the LANGUAGES and never to the
+ROADS.** Being careful about the denominator in one dimension while blind to it in another is a more comfortable
+error than carelessness and not a better one.
+
+**⭐ THE SHAPE THE `cto` NAMED, WHICH IS THIS FILE'S OWN CLASS ARRIVING ONE LEVEL DOWN.** A selftest arm has
+existed since the census landed asserting that `disp_of` **refuses** a rip-relative operand — with the `rtccb`
+store as its literal example. **The refusal is CORRECT**: no frame map can cover a fixed symbol, so no planner
+cure reaches one. What was never measured is the **consequence** — a language whose shielding rides that road
+prints `members=0 undecidable=0`, **which is spelled exactly like clean.** Raku read clean on eight stores while
+its master was losing 65 gradings. **A CORRECT ARM WHOSE CORRECTNESS WAS MISTAKEN FOR COVERAGE** is the sharpest
+form of instrument-that-is-not-looking this repo has produced.
+
+**CURED BY THE `cto` IN THE SAME EVENING**, in the shape this seat asked for one row over: one spelling of the
+fact, facts that are never summed (`unread_static` per witness and per language, an `UNREAD-ROAD` line naming the
+symbol, a `REACH` line carrying safe points against **both** roads), and a **fifth baseline column the ratchet
+grades** — because when shielding *moves* from the graded road to the ungraded one, `members` and `shielded`
+**both fall** and every other arm reads the loss of coverage as a win.
+
+**THE NUMBER TODAY, WITH ITS BOUND STATED:** 202 members / 302 undecidable over 49 witnesses — the move from 162
+is **file arrivals** (nine `cto` witnesses plus this seat's two ERRTEXT witnesses), **not a compiler regression**,
+which is what the per-witness ratchet exists to say. **Quote it as the frame-shielding road only.**
