@@ -211,6 +211,32 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 
 **⭐ THE SHAPE TO BUILD ON THE LIFT** (routed to the `ceo`, and it belongs to the `coo`'s instruments row if they want it sooner): a pre-commit staleness refusal — a `SCORE.md`/`SUITES.tsv` commit is refused when the working copy's base is older than origin's last write to that file. Stronger than the obvious alternative (refuse a diff touching a row the committing seat does not own, computed from the lane column) because it does not depend on any seat remembering which rows are theirs. ⛔ With four officers rewriting both files at speed, **every seat holding an uncommitted copy of either file is holding this bomb right now.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-20 hq_snobol4 (SEPTET, GC-ONLY, `no_layout` denominator hole) — **THIRTY OF MY THIRTY-ONE WERE THE INSTRUMENT. THE `cto` LANDED THE SAME CURE WHILE I MEASURED IT, AND THE REASON THEY COULD IS THAT I HAD NOT TELEGRAMMED.**
+
+**TREE:** SCRIP `553678ec2` → landed `5b5f0e236` · corpus `86574b2bf` · `.github` this commit · `RT_OPT=-O0` · RT_TAG `f65f143e2f`. Full receipts: `.github/findings/FINDING-2026-09-20-hq_snobol4-thirty-of-the-thirty-one-snobol4-no-layout-entries-are-the-census-materializing-them-without-their-includes.md`.
+
+**⛔ CEO-993 PUT 72 `no_layout` GRAPHS ON THE ACCEPTANCE TEST AS A DENOMINATOR HOLE. IT IS 42, NOT 72.** My 31 are **30 instrument artifact + 1 real**. `util_zls_frame_map_census.py` materialized each entry into a flat temp dir with **no companion copy and no `SNO_LIB`**, while the grader's `run_suite_entry` does both — so every entry naming a `-INCLUDE` failed to **PARSE inside the census** and was filed under a bucket `util_gc_census.py` prints as *"the compiler refused those entries"*, **a cause the tool never measured.**
+
+**FOUR ARMS, ONE VARIABLE, ARM A THE POSITIVE CONTROL:** neither ingredient **0** of 31 · companions only **8** · `SNO_LIB` only **19** · both **30**. Neither alone suffices and they are not nested.
+```
+BASE  ZLS-MAP lang=snobol4 graphs=4008 words=170578 unkinded=0 holes=0 graded=1951 no_layout=31
+HEAD  ZLS-MAP lang=snobol4 graphs=4506 words=314812 unkinded=0 holes=0 graded=1981 no_layout=1
+```
+⭐ **`holes=0` and `unkinded=0` THROUGHOUT** — the 30 add 498 graph instances (231 distinct shapes) / 144,234 words and bring **no hole**. Completeness evidence, not a new defect. ⛔ **The bucket was 1.6% of ENTRIES but 45.8% of the WORDS** — entry count radically understates it, because these are the big multi-include programs (290 words/graph against the master's 42.6). Other languages: rebus/snocone/pascal identical, **icon words 164,348 → 164,358**, raku 31 and prolog 10 **unmoved**.
+
+**⭐ THE REMAINING 42, EACH NAMING ITSELF** (my landing `5b5f0e236`: a `NO-LAYOUT` row prints rc **with the first line of the refusal**, because `rc=1` alone is a bucket, not a member — the `coo`'s bar — and a bare rc showed an rc=2 COULD-NOT-MEASURE as an rc=1 RED):
+- **snobol4 1:** `trim_alt_keyword_replace_branch_1` — unlanded `lambda(expr)`, a red-on-purpose witness. Honestly `no_layout`.
+- **raku 31:** `raku parse error line 1: syntax error` — the `test_stmt_pfx_BEGIN/_CHECK/_END` family.
+- **prolog 10:** `rc=2: builtin b_getval is not on the ladder yet -- rung 10 lands it`. Honest REFUSALS.
+
+**⛔⭐⭐ THE `cto` LANDED THE COMPANION HALF FIRST (`83fb80ee7`, CTO-96) AND I FOUND OUT WHEN MY BRANCH WOULD NOT FAST-FORWARD.** I reproduced their tree before adding a line — identical numbers. **My code delta is only the member-naming.** ⛔ **The cause of the duplication is mine: I measured for most of an hour before telegramming, so the `ceo` read this seat as idle and the `cto` spent an hour on a cause I already held.** The digest says *a telegram is not a landing*; the converse bit here — **a landing is not a telegram either, and the telegram is the cheaper one to send first.** ⭐ What it bought: two seats reached `30 of 31` by different routes and got byte-identical census lines.
+
+**⛔ A HAZARD CHECKED AND REFUTED, NOT REPORTED:** both versions copy companions into ONE FLAT dir shared by all 1982 entries; same-basename-different-content would collide. **Measured: 51 basenames referenced, ZERO colliding.** Latent, not live — and immunity to something that does not happen is not a reason to land a bigger diff.
+
+**⛔ LON OVERRODE THE ASK.** I had this as a branch because the census is the `ceo`'s tool (CEO-820/821) and MODE line 2 gives instruments to the `coo`. Lon, in chat: *"put your work on the main branch"*. It is on main; the override is routed to the `cfo`, `ceo` and `coo` this sitting per THE MAIL LOOP clause 5. `ZLS-MAP` token untouched.
+
+**GREEN:** raku frame-slot gate PASS(0) · pascal PASS(0) · `test_gate_gc_instrument_censuses_are_wired_and_trip` 7 of 7 arms · `SCRIP_TEST_PLANT_ZLS_HOLE` detector still RED as it must be · `--files` unchanged · `make preflight` 56 arms 0 red.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-20 hq_snobol4 (SEPTET, CEO-979 GC-ONLY, row `snobol4-the-pattern-replacement-class-...-per-poll-set`) — **THE WORD IS NAMED AND NOTHING LANDED. THE ROW'S PREMISE WAS STALE IN ONE DIRECTION AND THE DEFECT WAS REAL IN A NARROWER, BETTER ONE.**
 
 **TREE OF EVERY NUMBER:** SCRIP `76ef697a9` (plain `origin/main`, no local patch) · corpus `9a69dfcc2` · `.github` `fc508a64` · `RT_OPT=-O0` · RT_TAG `f65f143e2f`. Full receipts: `.github/findings/FINDING-2026-09-20-hq_snobol4-a-dt-x-name-string-is-collected-between-its-minting-and-its-use-on-the-defer-road.md`.
