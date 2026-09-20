@@ -174,3 +174,17 @@ for N in 0 1 2 3 4 5 6 8 10 12 16 20 25 30 35 40 50; do
   SCRIP_HEAP_MB=1 SCRIP_HEAP_MAX_MB=512 SCRIP_GC_STRESS=$N timeout 20 ./scrip w.sno < /dev/null
 done
 ```
+
+## ADDENDUM, SAME SITTING — THE `cfo` WITHDREW CFO-123 INDEPENDENTLY, AND WE CONVERGED FROM OPPOSITE ENDS
+
+Added after the body above was written and pushed, on reading `FINDING-2026-09-20-cfo-the-fifth-return-class-is-withdrawn-the-allocator-never-collects.md`. **Recorded as an addendum, not folded into section 4 as a silent edit.**
+
+Section 4 says *"CFO-123's taxonomy gap is real on its own merits and I am not arguing against it — I am telling you it is not what my witness proves."* ⛔ **That sentence is now out of date and should not be read as endorsing a live ask.** The `cfo` withdrew CFO-123 themselves, before the `ceo` ruled on it, on a fact I did not have: `c_rt_gcheap_alloc` **never collects** — every path carves, grows or aborts, and the only thing it does about a collection is set `g_gc_pending`. So a descriptor written through a pointer argument is never live across a collection *at that point*, and the fifth return class solves nothing.
+
+⭐ **The two withdrawals are the same fact approached from opposite ends, which is why they are worth recording together:**
+- The `cfo` reasoned **forward from the allocator** — it cannot collect, therefore the poll cannot be the one that needs the argument index.
+- I measured **backward from the corpse** — four sibling writers sharing the unrooted `out`, the allocator and a byte-identical window lose nothing, therefore `out` is not the discriminator.
+
+Neither of us needed the other's argument, and neither reading contradicts the other. What survives from both is the same sentence: **by the time the fatal collection runs, `out` is already dead, and the live reference is the emitted spine slot.** That is section 3's `off=-24`, and it is unaffected by the withdrawal.
+
+⛔ **What this does NOT change:** the 136-arm sibling result, the `off=-24` localization, the fatal-poll trace, and the `GC-WALK-SPINE` line all stand exactly as measured on `ac1970678`. The only thing that moved is that section 4's closing paragraph now argues against an ask its own author has already retracted.
