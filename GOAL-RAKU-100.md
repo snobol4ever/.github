@@ -839,6 +839,69 @@ own `git log` prior to its `git rm` in this consolidation's commit) and in the `
 cites.
 
 ## LEDGER
+- **2026-09-20 hq_raku — THE `:=` BIND PARSES FOR SCALARS, AND REFUSES BY NAME WHERE LOWERING IT WOULD LIE
+  (SCRIP `d6ccadc69`; the m4 runner `9d3479b42` beside it).** Row `raku-the-six-benchmark-graphs-with-no-frame-
+  layout-…`, 2 of 6 cured. **Frame-map census: raku no_layout 9 → 7, graded 918 → 922**, unkinded=0 holes=0
+  unchanged; RakM **841/929 both modes**; preflight 56/0; parser-generated-files-in-sync GREEN; bison conflicts
+  unchanged at 164 s/r + 11 r/r.
+  **On the parse-coverage order above:** `OP_BIND` had been a lexed token with a precedence line and **no
+  production using it** since the grammar was cut — a token that can be lexed and can never be shifted, which
+  reads to a grepper as though bind were supported. Landed: `my $x := rvalue`, `my T $x := rvalue`, bare
+  `$x := rvalue`, each graded byte-identical to rakudo v2026.05 in m3 and m4.
+  ⭐ **THE TWO GRAPHS IT FREED WERE ONE CONSTRUCT, AND THE ROW'S OWN GOAL HAD THEM AS TWO** — it named
+  man-or-boy *a self-referential closure binding* and point_class_add2 *NQP internals*, and both are the bind
+  (`my $B := { … }` and `my Point $self := nqp::create(self)`, the typed arm). **A per-file construct list
+  written from the failing line is a guess about the family; re-derive it from the parse error.**
+  ⭐⭐ **THE TEST RULE (b) ACTUALLY NEEDS, and it is one command per arm:** does lowering the new construct
+  **INHERIT** a wrong answer or **INTRODUCE** one? Run the `=` spelling of the same program. `my @x = (1,2,3)`
+  is ALREADY CORRECT against rakudo, so lowering `my @x := (1,2,3)` to an assign would INTRODUCE one — refused
+  by name, with the reason in the diagnostic. `my $a = (1,2,3)` is already wrong, so the scalar arm only
+  INHERITS one — landed. That replaces an argument about taste with a measurement.
+  **REFUSED, NOT LOWERED, each printing its own reason:** bind to @array/%hash (List vs Array), and bind whose
+  right side is an lvalue (`my @x := @todo[$x]; @x.shift` mutates the source under rakudo and cannot here —
+  raku aggregates are flat SOH-separated values carried BY VALUE through `rt_make_flat_agg`, so there is no
+  container to alias). ⛔ **ASKED to the cto, rule (d), NOT taken:** a true bind is a container-model change.
+  **DIVERGENCE NAMED, permissive direction:** after `my $a := 5` rakudo refuses `$a = 6` and we allow it — a
+  refusal divergence, never a wrong answer. **DARK-TO-RED NAMED:** point_class_add2 was an m4 SKIP and now
+  compiles and errors 22 LOUDLY; m4_skip 13 → 12, m4_fail 25 → 26, pass unchanged, arithmetic closes exactly.
+  man-or-boy gets its layout and still refuses in both modes at the SMX scope check — its own defect.
+  ⛔ **A no_layout entry clears when the program COMPILES, not when it RUNS** — both cured graphs still fail at
+  or after emission and both are out of the census. That is the row's measure working as written.
+- **2026-09-20 hq_raku — A TRAILING `;` DROPPED EVERY SUB'S RETURN VALUE, AND RUNG 07'S OWN WITNESS COULD NEVER
+  HAVE CAUGHT IT (SCRIP `51199e79a`, corpus `8486bb1e2`).** Row `raku-the-six-benchmark-graphs-with-no-frame-layout-are-
+  cured-one-construct-family-at-a-time` (rank 2, claimed), reached from the rank-0 GC row under CEO-979's
+  GC-only order. `sub_body`/`method_body` build the implicit return from ONE arm, `'{' stmt_list expr '}'` — a
+  final expression with **no semicolon**. Write the semicolon and `expr ';'` folds it into `stmt_list`, where
+  nothing carries its value out. ⛔ **`sub A ($k) { $k + 1; }` returned 1, not empty** — a STALE RETURN
+  REGISTER, which is why this read as a scatter of unrelated wrong answers instead of one defect; an empty
+  answer looks unimplemented, a plausible number looks like an arithmetic bug elsewhere.
+  **Base vs head on ONE tree, same corpus:** RakM **839/927 → 841/929 both modes**, m3_fail 38 and m4_fail 25
+  **unchanged** — +2 gained, 0 lost, exactly the two new witnesses; the cure is board-neutral on every
+  pre-existing entry. Witnesses proven RED on the base binary and green on the cure in m3 and m4; preflight
+  56/0; raku smoke 10/10 both modes; `test_gate_parser_generated_files_in_sync` GREEN; bison conflicts
+  unchanged at 164 s/r + 11 r/r. No shared node — `raku.y` is reached by one frontend.
+  ⭐⭐ **WHY NO WITNESS CAUGHT IT, and the sentence that outlives the construct:** `ladder__rung07_subs_implicit_
+  return` has always read `sub double($x) { $x * 2 }` — **no semicolon**. The rung that exists to grade the
+  implicit return graded only the shape that already worked, and the broken shape is the more idiomatic of the
+  two. This is the 09-20 phaser lesson recurring ONE RUNG OVER: **a construct family graded only on its own
+  witnesses is graded on the shapes someone thought to write down.** Filing it last time as a fact about
+  phasers did not prevent it here — the reusable thing is the sentence, not the family.
+  ⛔ **TWO PLACEMENT FACTS a later reader must not undo.** (1) `rk_tail_value` runs BEFORE `rk_phasers_place`,
+  never after: that function's `tail_ret` arm already lifts a trailing `TT_RETURN` aside and re-appends it
+  after the phasers, so wrapping afterwards wraps a `LEAVE`/`KEEP` body instead of the value. (2) The statement
+  set is a DENYLIST, so an unrecognised node kind keeps today's behaviour rather than being silently handed a
+  value it never had; **`TT_IF` as a final statement is deliberately on it** — rakudo returns the taken
+  branch's value and we do not, and that is a second cure with its own witness, named rather than smuggled in.
+  Witnesses minted through `util_add_ladder_witness.py --lang raku` (refs cut by the oracle, never by us),
+  denominator 927 → 929. ⛔ **THE ORACLE IS `/home/resources/rakudo-local/bin/raku` v2026.05**, not the
+  `/usr/bin/raku` v2022.12 that CLAUDE.md lists on PATH — I minted the row's own GOAL naming the wrong one and
+  corrected it in the baton this sitting.
+  **NAMED, NOT CURED:** `run_raku_via_x86_backend.sh` cannot run at all — it sets `SCRIP` to the tree root and
+  then `SCRIP="${SCRIP:-$ROOT/scrip}"`, so `:-` never fires, and `[ -x "$SCRIP" ]` — the guard that exists to
+  say *scrip not built* — **passes on a directory**, because `-x` means searchable, not runnable. The Prolog
+  twin it claims to mirror has the correct `ROOT` line. ✅ Cured the same sitting, SCRIP `9d3479b42`; any raku
+  m4 red read through that script before it is a FALSE RED and must be re-measured. See
+  `findings/FINDING-2026-09-20-hq_raku-a-trailing-semicolon-dropped-every-raku-sub-return-value-and-the-rung-07-witness-could-never-have-caught-it.md`.
 - **2026-09-20 hq_raku — THE STATEMENT-PREFIX AND PHASER FAMILY, 18 CONSTRUCTS IN ONE CUT (SCRIP `fadeab33f`).**
   Row `raku-the-31-no-layout-graphs-the-compiler-refuses-are-cured-or-named-and-counted-in-the-gc-slot-kind-census`
   (ceo CEO-979, ranked again CEO-999). Frame-map census **no_layout 31 → 9, graded 896 → 918**, unkinded=0
