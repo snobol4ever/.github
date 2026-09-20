@@ -42,7 +42,7 @@ rakudo runs the phasers after the body and before the value reaches the caller (
 ## Named divergences, none of them silent
 
 * `NEXT` does not fire on an explicit `next` statement (it fires on falling off the end of the body). rakudo fires it on both. Measured: ours `1 N 3 N end`, rakudo `1 N N 3 N end`.
-* A loop phaser nested inside an `if` within a loop body is not attached to the loop. It **REFUSES** (`rt_script_die_surface`) rather than running in place — a measured refusal, never a confident wrong answer, per the cto's rule (b).
+* A loop phaser nested inside an `if` within a loop body **REFUSES** (`rt_script_die_surface`, rc=1, naming the phaser) rather than running in place — a measured refusal, never a confident wrong answer, per the cto's rule (b). ⛔ CORRECTED AFTER EXERCISING THE ARM RATHER THAN ASSERTING IT: I first wrote that rakudo attaches such a phaser to the enclosing loop. **It does not** — measured, `for 1..3 { if $i > 0 { FIRST {say "first"} } say $i }` prints `1 2 3` under rakudo and never runs the block at all. So our refusal is CONSERVATIVE against the oracle rather than a divergence from it, and it is not a reachability regression either, because the same program was a parse error before this landing. Both refusal arms were run before this sentence was written; the `once`-in-a-sub arm fires the same way, and rakudo's own answer there (`once call call`) confirms the semantics we cannot yet give it.
 * `BEGIN` runs first at RUN time, not at COMPILE time. Observationally identical for any program that only prints.
 
 ## The two entries that are DECLARED rather than cured
