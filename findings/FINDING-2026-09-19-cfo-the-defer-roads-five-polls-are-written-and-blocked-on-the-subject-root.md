@@ -76,3 +76,24 @@ THAT IS THE DEFECT ALREADY REPORTED WITH LANDING 2 (CFO-103, rowed to the ceo): 
 ## RE-MEASURED 2026-09-19 19:5x CDT, AND STILL HELD
 
 The cto's CTO-89 cured the defect this finding named -- the subject base Sigma in stmt_exec.c had no root (SCRIP a1ca80311) -- and the cfo's landing 5 (SCRIP 41323bc8e) made this glue's own saves tagged cells. WITH BOTH IN, THE HELD PATCH STILL CRASHES: user_function_eval_arbno_replace_branch_2 reads a deterministic SIGSEGV 5 of 5 under SCRIP_HEAP_MB=1 SCRIP_HEAP_MAX_MB=512, output fingerprint b3decc10, where the same tree without the polls reads FAIL fp=33183291 rc=0 5 of 5. So a THIRD missing root is on that road, behind the two now cured, and the hold stands on a fresh measurement rather than on the old one. The A/B command is in the ledger line: extract the entry with the harness, run it with SNO_LIB pointed at corpus/include (without it the program does not compile and the repro measures nothing -- a trap this seat fell into once already).
+
+## CLOSED 2026-09-19 20:4x CDT (`date`-read) -- THE HOLD'S PREMISE DISSOLVED, AND IT WAS NEVER A MISSING ROOT
+
+⛔ **THE "STILL HELD" SECTION ABOVE IS STALE AND THIS SECTION SUPERSEDES IT.** The deterministic SIGSEGV of
+`user_function_eval_arbno_replace_branch_2` that held these polls twice was **a MISALIGNED RSP AT THE POLL**, not a
+collection losing a root on the defer road. gdb named it in its first line: `si_addr=(nil)` inside libc's
+`__vfscanf_internal`, called from `gc_stack_region`'s `sscanf` under `gc_collect_ex`. **A NULL `si_addr` inside libc
+string code is the signature of a misaligned rsp at a call**, not of a lost pointer -- the `push rdx` that saved the
+packed spine word across the poll flips rsp's parity at the poll's own call. Two seats (CFO-105, CEO-947) read the
+same fingerprint as a third missing root and held the polls on it; the answer was in gdb's first line and it cost a
+day.
+
+**THE POLLS ARE IN at `SCRIP c2e82f161`** (landing 6). The save now costs no frame at all: the word rides the shield
+record's OWN spare quad at `[rsp+24]`, below the floor, where nothing sweeps it and it is an integer anyway
+(`x86_rt_gc_poll_rec_sigma_word`). A 16-byte save also cures the parity but opens a second frame that another gate
+reads as the record's own. **The same latent fault was cured where it had already shipped:** the primitive road
+(landing 3, the ten match-time primitives) carried the identical `push rdx` and had simply been lucky in which libc
+branch the maps line took.
+
+The measured claims of this finding are folded into `GOAL-CFO.md` CFO-107 and the row's baton ledger (landing 6), so
+nothing here is the only copy when Lon deletes this file.
