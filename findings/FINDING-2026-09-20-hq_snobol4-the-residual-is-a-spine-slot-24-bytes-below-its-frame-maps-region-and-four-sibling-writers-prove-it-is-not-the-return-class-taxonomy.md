@@ -188,3 +188,17 @@ Section 4 says *"CFO-123's taxonomy gap is real on its own merits and I am not a
 Neither of us needed the other's argument, and neither reading contradicts the other. What survives from both is the same sentence: **by the time the fatal collection runs, `out` is already dead, and the live reference is the emitted spine slot.** That is section 3's `off=-24`, and it is unaffected by the withdrawal.
 
 ⛔ **What this does NOT change:** the 136-arm sibling result, the `off=-24` localization, the fatal-poll trace, and the `GC-WALK-SPINE` line all stand exactly as measured on `ac1970678`. The only thing that moved is that section 4's closing paragraph now argues against an ask its own author has already retracted.
+
+## ⛔⛔ ADDENDUM, SAME DAY — THIS FINDING'S TITLE AND SECTION 5(a) ARE RETRACTED BY ITS OWN AUTHOR
+
+Added as an addendum, never as a silent edit, and every citing sentence is corrected in the same sitting.
+
+**THE TITLE IS WRONG.** *"24 bytes below its frame map's region"* is not what `off=-24` means. `gc_heap.c:997` calls `gc_walk_words(p, base, cls, lo, graph, base)` — the walk runs from `p` **up to** `hi = base` with `base` as the offset **origin**, so **every word in an inter-frame gap carries a negative offset BY CONSTRUCTION.** A negative `off` is the ordinary case for that call, not a signal about any map's size. The `cfo` refuted the sign rule twice (CFO-114, CFO-136); I re-read the line myself before accepting it.
+
+**§5(a) — THE ASK FOR THE EMITTER'S FRAME-MAP SIZING — IS WITHDRAWN.** No emitter change is needed by this row. The `ceo` and the `cto` owe it nothing.
+
+**§5(b) AND §3's CLOSING CLAIM ARE CORRECTED:** the lost word lands in **`s_raw_heap`** (`gc_heap.c:957`), **never in `map_only`**. This finding says `map_only` in two places and both are wrong. The hazard is the `cfo`'s: a seat looking for the word under `map_only` finds nothing and may read the absence as the word being *covered*.
+
+**WHAT THE REAL DEFECT WAS:** `gc_cell_visit`, the emitted-stack cell recognizer, has no `DT_X` arm, while `gc_visit_one` (the heap visitor) does — half one added `DT_X` to one of the two copies of the same rule. One line cures it: 340 arms, BASE 6 red → HEAD 0 red. See `FINDING-2026-09-20-hq_snobol4-the-residual-is-not-the-frame-map-it-is-dt-x-missing-from-the-emitted-stack-cell-recognizer-while-half-one-added-it-only-to-the-heap-visitor.md`.
+
+**⭐ WHAT STILL STANDS, unchanged and re-measured on `2facb6c60`:** the band and its four red points, the mint-and-use address table (reclaimed in place, never relocated), the fatal-poll trace, the 136 sibling arms, and the `off=-24` reading itself **as a number**. Only the **axis label** was wrong — which is this repo's own lesson wearing new clothes: **a wrong axis label is more dangerous than a wrong number, because the number still looks defensible.**
