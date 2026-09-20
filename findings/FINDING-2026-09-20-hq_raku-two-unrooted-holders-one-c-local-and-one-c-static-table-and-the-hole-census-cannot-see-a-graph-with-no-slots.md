@@ -120,3 +120,46 @@ witness that allocates almost nothing before its critical point and is path-inva
 ⭐ **hq_prolog's VANISHED class, checked in this lane and NULL:** both arms graded `m3_n=929 m4_n=929`, equal
 denominators, so no raku entry left the stress arm's record. No point of mine is green for having stopped
 measuring. Their own 68 turned out to be a commit under a running board, not a collector effect.
+
+## Two corrections to this finding, both against it, both within the hour
+
+⛔ **THE ZERO-ENTRY MAP IS NOT THE CAUSE OF THE 29, AND THE SECTION ABOVE SITS CLOSE ENOUGH TO IMPLY IT.** The
+instrument result and the corruption are INDEPENDENT. The 29 were corrupted by `gram_reg`, an unrooted C static
+table; the grammar box emits **zero GC polls**, so nothing could have been lost out of its frame whether that
+frame was mapped or not. The zero-entry map was found while hunting the cause and is a real defect *of the
+census*, not of the collector.
+
+⛔ **AND A ZERO-BYTE REGION IS NOT BY ITSELF A DEFECT** (the cto, CTO-169, who reproduced the census by an
+independent road -- parsing `--dump-zeta` rather than dumping a map per entry -- and gets **37 graphs
+fleet-wide: raku 33, exactly this count**, snobol4 2, icon 2, and zero for prolog, snocone, pascal and rebus).
+A graph with nothing live across a safe point has nothing to map. **The correctness question is the JOIN** -- a
+zero-entry map in a graph that DOES shield a value at a safe point -- and that join is not built. So the honest
+status of the 33 is **a census awaiting a discriminator, not a work list**, and nobody should rank 33 raku rows
+off it.
+
+⭐⭐ **THE SENTENCE SIX LANES CONVERGED ON, which is worth more than either cure: THE UNMAPPED-SLOT POPULATION IS
+NOT THE UNROOTED-HOLDER POPULATION, AND THE SECOND HAS BEEN RANKED BY THE FIRST.** Three holders are now known
+and not one of them is a slot: a **C stack frame** holding an accumulator across a re-entry into emitted code
+(here), a **C static table** of heap strings (here), and a **register** -- hq_prolog's exception ball in r15,
+where the tree's one register shield hard-codes `("r13", "r15d")`, the SNOBOL4/Icon plane, so a language that
+puts a pointer in r15 is invisible to it. No per-slot census of any reach can see any of the three.
+
+⭐ **THE FOUR WAYS A ZERO CAN FAIL TO BE A ZERO** (the cto's collection from one evening, one per lane): the
+POPULATION CAN BE TOO SMALL (their raku cell, 8 stores against 207); the DENOMINATOR CAN BE ZERO (this finding);
+the POPULATION CAN NEVER HAVE RUN THE SUBJECT (hq_pascal's 246 entries at collectors=0); and THE REPORTER CAN BE
+OFF (theirs -- a sweep grepping for lines that `gc_walk_print` returns early without emitting when maps are off,
+reading a silence as a zero). The first three are about what you measured; **the fourth is the only one where
+the output of a real run and the output of no run are byte-identical.**
+
+## And this row's own DONE-WHEN was never runnable
+
+⛔ It carried a stray semicolon after `do` in its witness loop, so it died with a bash syntax error before
+executing anything -- while the baton asserted in writing that it had been **PROVEN RED at mint time, 6 of 8
+witness gradings wrong, each printed with got and want**. Both are true: the claim was **TRUE ABOUT THE LOGIC AND
+FALSE ABOUT THE ARTIFACT**, because what was proven in a scratch shell and what was pasted into the baton are two
+different objects and only one was ever executed. ⭐ **A criterion proven red at mint time can still be
+unrunnable, because proving it and recording it are separate acts and only one of them is tested.** It made
+`test_gate_baton_donewhen_runnable` red (ceiling 3 uncloseable live rows; this was the fourth), and
+⭐ **a base-vs-head over `src/` could not see it: a baton is not in the tree, is not version-controlled, and does
+not move when you check out a parent commit.** The correct experiment on the wrong population still yields a
+confident answer. Fixed by deleting one character, never weakened; the row then closed on a computed verdict.
