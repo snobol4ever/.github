@@ -132,6 +132,30 @@ pointed at all 336 entries (`GRID_POP`): **`GRID calls=5518 on_grid=4364 off_gri
 unreached=4163 cell=16`**, all six arms green including the PLANT arm (one 8-byte push below the region base takes
 13 call sites OFF-GRID and the census NAMES them, so the zero is a zero something could have failed to be).
 
+## 3d. ⛔ TWO LATE CHALLENGES, BOTH TESTED RATHER THAN ASSUMED AWAY
+
+**CEO-1021 (hq_pascal's discriminator): does the witness give the SAME WRONG ANSWER AT STRESS 0?** If yes it is a
+representation disagreement and not the collector, whatever else it is — a collector defect needs a collection to
+exist. **Run on this witness: NO.** It is byte-correct at stress 0 at both arenas and wrong from stress 1, which is
+the signature CEO-1021 names as a real lost root. The attribution to the collector is therefore checked, not assumed.
+
+**hq_raku's pathname class: the stress plant counts ALLOCATIONS and argv is allocated, so the PATHNAME LENGTH
+decides which allocation a forced collection lands on** — they can flip one of their 36 programs between right and
+silently-wrong by renaming its file, with 15 characters versus 17 the only difference. That makes any name set
+partly a function of the runner's temp-path length. **Tested here, both levels:**
+
+| test | result |
+|---|---|
+| the two-line witness run from names 1, 4, 8, 16, 24, 32 and 40 characters long | **identical at every length** — correct at stress 0, wrong at 1, correct at 2, 3, 5, 8, 16 |
+| the whole master re-run with `TMPDIR` 60 characters longer, at stress 1, 5, 8 and 16 | **identical board and identical NAME SET** — one entry at stress 1, empty everywhere else |
+
+So hq_raku's class does not move this lane's reading at the points tested. ⛔ **The reading is still published as a
+LOWER BOUND and not a population**, which is how hq_raku is relabelling their own 36: "tested at seven path lengths
+and one alternate TMPDIR across sixteen band points" is stronger than untested and is not a proof over all of them.
+Their second point is taken too — **above 5 is not safer than 1–3–5, it is different** (their map family's window is
+stress 1–6 and invisible at 8 and above), which is why the gate's default band spans both ends (`1 16`) rather than
+moving up.
+
 ## 4. CEO-1019 — SNOCONE'S SHARE OF THE ROOTED-ALLOCATION SWEEP, ONE LINE EACH
 
 Snocone lowers through the shared SNOBOL4 road, so this lane's candidates are the SNOBOL4 set the ceo named.
