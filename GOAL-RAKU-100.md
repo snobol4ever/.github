@@ -16,7 +16,7 @@ named rather than silently resolved.
 FRONT END is finished first: every Raku construct the oracle accepts must PARSE before effort goes to lowering
 it or to runtime support for it. Routed to the cto (my officer) the same sitting, per THE LOOP's override rule.
 
-- **What this changes.** The RakM master at 830/927 and the three-axis mandate (completeness, then speed) are
+- **What this changes.** The RakM master at 851/927 (830/927 when this order was written; SCRIP `fadeab33f`, 2026-09-20) and the three-axis mandate (completeness, then speed) are
   NOT the measure of this order — they grade programs that already parse. The governing number is now
   **PARSE COVERAGE over the whole roast tree (1464 files)**, which is a strictly larger population than any
   suite in SUITES.tsv, and the Roast row's 9/1464 is a RUN-AND-GRADE number that must not be read as a parse
@@ -839,6 +839,29 @@ own `git log` prior to its `git rm` in this consolidation's commit) and in the `
 cites.
 
 ## LEDGER
+- **2026-09-20 hq_raku — THE STATEMENT-PREFIX AND PHASER FAMILY, 18 CONSTRUCTS IN ONE CUT (SCRIP `fadeab33f`).**
+  Row `raku-the-31-no-layout-graphs-the-compiler-refuses-are-cured-or-named-and-counted-in-the-gc-slot-kind-census`
+  (ceo CEO-979, ranked again CEO-999). Frame-map census **no_layout 31 → 9, graded 896 → 918**, unkinded=0
+  holes=0 unchanged; **RakM 830/927 → 851/927 both modes**, m3_fail 47 → 26.
+  **On the parse-coverage order above**: BEGIN CHECK END INIT ENTER LEAVE KEEP UNDO PRE POST TEMP FIRST LAST
+  NEXT once quietly react do now PARSE, plus the `our` declarator and the paren spelling of `join`. Not one of
+  them is a silent accept — all 18 phaser witnesses are byte-identical to rakudo in BOTH modes, graded by
+  `util_raku_entry_grade.sh`, and the one entry that parses and is still wrong is NAMED and rowed rather than
+  counted as progress (`scrip_test_rk_seq_consumers_arr`, prints `3-1-2-1` for rakudo's `-3-1-2-1`).
+  **The design, in one sentence**: a phaser is a block whose POSITION in the enclosing block is decided by its
+  name, so the whole family is a stable reordering of ONE statement list — no new IR kind, no new box, no new
+  global. Grammar cost 163 → 164 shift/reduce, reduce/reduce 11 unchanged.
+  ⭐⭐ **THE LESSON, WHICH OUTLIVES THE CONSTRUCT**: the first cut emitted LEAVE/KEEP after a trailing `return`,
+  and a statement after TT_RETURN overwrites the value, so a sub printed its phasers and handed back nothing.
+  **Not one of the 18 witnesses could have found it — not one is a sub with a return value.** Only a
+  generalization probe written against the oracle did. A construct family graded only on its own witnesses is
+  graded on the shapes someone thought to write down, which is this file's silent-accept warning pointed at the
+  WITNESS SET instead of at the parser.
+  ⛔ **DEFERRED ON PURPOSE, under the cto's rule (b)**: the three-dot sequence operator. Aliasing it to the range
+  is right for two plain endpoints and SILENTLY WRONG for the list-headed `1, 3 ... 11`, which `arg_list` splits
+  on the comma before the operator can bind. A measured refusal beats a plausible wrong answer; rowed as
+  `raku-the-sequence-operator-is-a-real-list-headed-operator-never-a-range-alias`.
+  Evidence: `findings/FINDING-2026-09-20-hq_raku-the-raku-phaser-family-is-one-construct-and-every-rank-in-it-is-the-oracles.md`.
 
 - [seat15·2026-08-28] Consolidated the five files above into this one, on the pattern of
   GOAL-{SNOBOL4,ICON,PROLOG}-100.md, per ceo/Lon's order (GOAL-CEO.md CEO-30; task baton
