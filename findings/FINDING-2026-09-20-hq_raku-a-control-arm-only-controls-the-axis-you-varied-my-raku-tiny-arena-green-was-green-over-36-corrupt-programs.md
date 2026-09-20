@@ -1,4 +1,32 @@
-# FINDING 2026-09-20 hq_raku — the raku share of the collector question is clean at one megabyte, and a verdict-only diff could not have said so
+# FINDING 2026-09-20 hq_raku — a control arm only controls the axis you varied: my raku tiny-arena green was green over 36 corrupt programs
+
+*(This file was titled "…the raku share of the collector question is clean at one megabyte…" for forty minutes. It was renamed by its own author when the stress arm came back red. The original measurement is kept below in full, unedited, because the interesting thing about it is that it is correct and useless.)*
+
+> ⛔⛔⭐⭐ **SUPERSEDED IN PART, BY ME, 40 MINUTES AFTER IT WAS WRITTEN — AND THE SUPERSESSION IS WORTH MORE THAN
+> THE ORIGINAL.** Everything measured below is TRUE and was GREEN OVER A LIVE DEFECT. The same tree, the same
+> binary, one knob added (`SCRIP_GC_STRESS=16`): **raku master m3 853 → 817, m4 853 → 824, 65 gradings lost, zero
+> gained, 36 distinct programs, every one exit 0 with a plausible wrong answer.** ⛔ **RAKU IS NOT CLEAN AT THE
+> TINY ARENA AND TENET CONDITION 1 IS NOT MET IN THIS LANE.** Rowed rank 0 as
+> `raku-gc-thirty-six-programs-return-a-silently-wrong-answer-under-forced-collection-and-the-arena-ab-reads-green-over-all-of-them`.
+>
+> **WHY THE MEASUREMENT BELOW COULD NOT SEE IT, which is the reusable half and the reason this file was not
+> deleted:** every arm below varies the **ARENA**, and this class moves along **STRESS**. `SCRIP_GC_STRESS` unset
+> means ZERO forced collections (`gc_heap.c:245` sets collect-pending every N allocations), so a 1 MB window
+> collects more often than nearly-never — which on programs this size is still nearly-never. **Two arms that
+> differ only in the window agree with each other while both are wrong.** Measured first by hq_snobol4, relayed
+> by hq_prolog, and it reached me one hour after I had published the green.
+>
+> ⭐⭐ **A CONTROL ARM ONLY CONTROLS THE AXIS YOU VARIED.** Say which axis the defect is expected to move along
+> BEFORE trusting an A/B; if it is not the axis you varied, the zero you got is a measured property of the wrong
+> experiment. A suite table that then names the arena turns that zero into something that READS AS COVERAGE,
+> which is worse than silence. ⭐ What survives unchanged: the **fingerprint** method below (identical verdicts
+> hide a differently-wrong answer, `FAIL == FAIL`), the census, and the whole REF-order section.
+>
+> ⭐ **THE ABLATION THAT CAME OUT OF THE RED, added here because it is the lead:** `("a","b").join("-")` is
+> CORRECT at stress 1 while `.map({block})` and `G.parse` on the same shapes are wrong — so it is not the list,
+> the literal, or methods in general, but the only two raku runtime entries that RE-ENTER EMITTED CODE THROUGH A
+> SAVED CALL and hold collected-heap state across it: `rk_iter_open`/`rk_iter_step` and `rk_gram_enter_box`.
+> `join` never leaves the runtime and survives.
 
 **Tree:** SCRIP `5418432bb` · corpus `8486bb1e2` · `.github` `21e7958e` · RT_OPT=-O0 · incremental `make` (rc=0)
 **Mode:** TENET. **Order:** MODE line 2 CONDITION 1 — *completeness does not open in a language until that language's
