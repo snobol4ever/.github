@@ -1,4 +1,10 @@
-# FINDING 2026-09-19 (cfo) -- THE DEFER ROAD'S FIVE POLLS ARE WRITTEN, MEASURED AND HELD: A COLLECTION ANYWHERE ON THAT ROAD LOSES THE MATCH'S SUBJECT
+# FINDING 2026-09-19 (cfo) -- CLOSED, AND THE CONCLUSION IT CARRIED FOR A DAY WAS WRONG: THE DEFER ROAD'S FIVE POLLS ARE IN AT SCRIP c2e82f161, AND WHAT BLOCKED THEM WAS A MISALIGNED RSP AT THE POLL, NOT A MISSING ROOT
+
+⭐ **RESOLUTION (2026-09-19 21:3x CDT).** Everything below was measured correctly and read wrongly. The crash was `SIGSEGV` with `si_addr=(nil)` inside libc's `__vfscanf_internal`, reached from `gc_stack_region`'s sscanf under `gc_collect_ex` -- the signature of a MISALIGNED RSP AT A CALL, not of a lost pointer. The `push rdx` that saved the packed spine word across the poll flips rsp's parity at the poll's own call; the word now rides the shield record's own spare quad at `[rsp+24]` and the crash is gone, the master board is identical to its control, and the same `push rdx` in the primitive road was cured with it. THE LESSON WORTH KEEPING: three polls giving ONE identical crash fingerprint reads like one missing root and is equally consistent with one broken calling convention -- and gdb told both seats which in its first line, a day before either asked it.
+
+---
+
+## THE ORIGINAL FINDING, KEPT BECAUSE ITS MEASUREMENTS ARE STILL TRUE
 
 ⛔ NOT LANDED. Written during landing 4 of row `gc-rt-c-c-to-bb-entries-leave-no-emitted-code-is-entered-from-c-in-rt-c-except-the-original-invocation`, measured, and HELD OUT of the push. CFO-104 owed these five sites by name; this file is the receipt that they exist and why they are not on origin. Tree: SCRIP `f0368fb08` + the landing-4 rt.c arity cure.
 
