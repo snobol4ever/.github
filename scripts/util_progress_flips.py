@@ -12,6 +12,10 @@ The table: /home/resources/progress/results.tsv (writer: SCRIP/scripts/util_prog
   util_progress_flips.py --coverage
         every suite of .github/SUITES.tsv (and every benchmark suite seen): rows, programs seen / suite total, live vs
         replay rows, last row's age -- the answer to "are we tracking everything?", MISSING named as MISSING.
+  util_progress_flips.py --contradictions [--since 3d] [--suite KEY] [--mode any]
+        every (tree, corpus, suite, program, mode, config) key carrying TWO DIFFERENT OUTCOMES -- impossible under a
+        byte-for-byte oracle diff unless something unrecorded changed, and silently resolved by arrival order in
+        every other reading of this table. rc 1 when any are named.
   util_progress_flips.py --register [--out FILE] [--problems] [--program NAME]
         THE PROGRAM REGISTER: one line per (suite, program): status, when it first passed (began working), when it was
         last seen, its outcome per mode, and -- with --problems -- the queue rows that name it (known problems).
@@ -40,14 +44,35 @@ def load(db):
     if not os.path.isfile(db):
         raise SystemExit(f"REFUSE(2): no progress database at {db}")
     rows = []
+    unnamed = 0
     with open(db, encoding="utf-8", errors="replace", newline="") as f:
         rd = csv.DictReader(f, delimiter="\t")
+        hdr = list(rd.fieldnames or [])
         for r in rd:
             if not r.get("ts_utc") or not r.get("program"):
                 continue
+            # ⛔⭐ A COLUMN THE HEADER DOES NOT NAME IS A COLUMN THIS READER CANNOT READ, AND IT SAYS SO RATHER
+            # THAN DROPPING IT (coo 2026-09-21). csv.DictReader puts every field past the header into the
+            # UNNAMED restkey, silently: that is how `fingerprint` -- written into every row since 2026-09-06 --
+            # stayed invisible to every reader in the fleet for fifteen days while the writer's own gate was
+            # green, because that gate builds its table fresh and a fresh table always gets a complete header.
+            # Swallowing this would turn a wrong reader into a clean bill of health, which is the failure this
+            # whole instrument exists to refuse.
+            if r.get(None):
+                unnamed = max(unnamed, len(r[None]))
             r["note"] = r.get("note") or ""
             r["measurer"] = r.get("measurer") or ""
+            # A row written before the `config` column existed cannot say what it exercised, and `undeclared`
+            # is the truthful reading of that silence -- never `shipped`, which would be this reader inventing
+            # a fact about 3.5M historical runs.
+            r["config"] = (r.get("config") or "").strip() or "undeclared"
             rows.append(r)
+    if unnamed:
+        raise SystemExit(
+            f"REFUSE(2): {db} writes {len(hdr) + unnamed} columns but its header names only {len(hdr)} "
+            f"({', '.join(hdr)}). The last {unnamed} column(s) of every row land in csv's UNNAMED restkey and no "
+            f"reader can reach them by name. This is not a reading. Run any append through "
+            f"SCRIP/scripts/util_progress_append.py, which migrates the header under the table's own lock.")
     rows.sort(key=lambda r: r["ts_utc"])
     return rows
 
@@ -81,7 +106,9 @@ def cmd_flips(a, rows):
     downs = collections.defaultdict(list)
     in_window = 0
     for r in sel:
-        k = (r["suite"], r["program"], r["mode"])
+        # ⛔ SAME KEY AS THE NET MEASURE BELOW: a consecutive reading is only consecutive WITHIN one
+        # configuration. Across configurations it is not a flip, it is a differential.
+        k = (r["suite"], r["program"], r["mode"], r["config"])
         if r["ts_utc"] >= since:
             in_window += 1
         if r["outcome"] in NOT_A_READING:
@@ -92,9 +119,9 @@ def cmd_flips(a, rows):
             continue
         b = bucket_of(r["ts_utc"], a.per)
         if prev["outcome"] != "PASS" and r["outcome"] == "PASS":
-            ups[(b, r["class"])].append(f'{r["suite"]}:{r["program"]}:{r["mode"]}')
+            ups[(b, r["class"])].append(f'{r["suite"]}:{r["program"]}:{r["mode"]}' + ('' if r["config"] == "undeclared" else f' @{r["config"]}'))
         if prev["outcome"] == "PASS" and r["outcome"] != "PASS":
-            downs[(b, r["class"])].append(f'{r["suite"]}:{r["program"]}:{r["mode"]}')
+            downs[(b, r["class"])].append(f'{r["suite"]}:{r["program"]}:{r["mode"]}' + ('' if r["config"] == "undeclared" else f' @{r["config"]}'))
     print(f"bucket({a.per}, UTC)   master +/-   package +/-   bench +/-   (mode {a.mode}; class {a.klass}; rows {len(sel)}; since {since}{'; live only' if a.live_only else ''})")
     if in_window == 0:
         newest = sel[-1]["ts_utc"] if sel else "none"
@@ -114,6 +141,25 @@ def cmd_flips(a, rows):
                 for x in downs[k]:
                     print("    -", x)
     print(f"TOTAL newly-passing in window: master {tm}, package {tp}, benchmark {tb}  (rows in window: {in_window})")
+    # ⛔⭐ A ZERO MUST SAY WHICH ZERO IT IS (coo 2026-09-21, ceo rank 0 at CEO-1047/CEO-1050). The old code said
+    # "this is a recording gap, not zero flips" ONLY when the window held no rows at all -- so the far more
+    # common shape printed a confident 0 with nothing beside it: rows arriving all afternoon, every one of them
+    # either -dirty (skipped by rule 5) or a REPEAT READING of a program already at that outcome. Measured on
+    # the live table this sitting: a 4h window with 3067 rows, ten seats working, and a bare 0 -- while THREE
+    # measurers had appended over THREE of 25 suites and fifteen package suites had been silent for four days.
+    # "Nothing flipped" and "almost nobody recorded" are different facts and an instrument that prints the same
+    # character for both has not measured anything.
+    if in_window and tm + tp + tb == 0:
+        w = [r for r in sel if r["ts_utc"] >= since]
+        w_clean = [r for r in w if not (r["scrip"].endswith("-dirty") or r["corpus"].endswith("-dirty"))]
+        seats = sorted({r["measurer"] for r in w}); suites = sorted({r["suite"] for r in w})
+        print(f"  ⛔ THE ZERO IS NOT A READING OF THE FLEET, IT IS A READING OF WHAT REACHED THIS TABLE: {in_window} rows in the "
+              f"window from {len(seats)} measurer(s) over {len(suites)} suite(s), of which {len(w_clean)} carry a clean tree stamp "
+              f"and {in_window - len(w_clean)} are -dirty and therefore not positions in a series (MASTER-PLAN rule 5).")
+        print(f"     measurers: {', '.join(seats) or '-'}")
+        print(f"     suites:    {', '.join(suites) or '-'}")
+        print(f"     Every suite NOT named above contributed no evidence at all in this window. Run --coverage for their ages "
+              f"before reading this zero as progress.")
     # THE NET MEASURE (coo, COO-50, MASTER-PLAN rule 5): distinct programs green at the LAST clean reading that were
     # not green at the window base -- the base is the last clean reading before the window, else the first clean
     # reading inside it. A -dirty tree stamp is cited for its number, never its position in a series, so a dirty
@@ -126,7 +172,11 @@ def cmd_flips(a, rows):
         if not a.include_dirty and (r["scrip"].endswith("-dirty") or r["corpus"].endswith("-dirty")):
             dirty_skipped += 1
             continue
-        k = (r["suite"], r["program"], r["mode"])
+        # ⛔⭐ THE CONFIGURATION IS PART OF THE KEY (coo 2026-09-21, ceo rank 0 at CEO-1047/CEO-1050). Keyed on
+        # (suite, program, mode) alone, a program run at six GC configurations is ONE cell and the LAST row
+        # appended wins -- so a PASS at the shipped arena silently overwrites a FAIL at arena=1, and the
+        # divergence the fleet is hunting is invisible to this measure by construction.
+        k = (r["suite"], r["program"], r["mode"], r["config"])
         if r["ts_utc"] < since or k not in base:
             base[k] = r["outcome"]; base_row[k] = r
         latest[k] = r["outcome"]; latest_row[k] = r
@@ -140,7 +190,7 @@ def cmd_flips(a, rows):
     reclass = collections.defaultdict(set)   # PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED: a reclassification, never a loss (ceo CEO-806)
     RECLASS = {"OUTSIDE", "UNGRADABLE", "UNGRADED", "DEFERRED"}
     for k in latest:
-        suite, prog, mode = k
+        suite, prog, mode, _cfg = k
         cls = cls_of.get(suite, "?")
         if base.get(k) != "PASS" and latest.get(k) == "PASS":
             net[cls].add((suite, prog))
@@ -156,7 +206,7 @@ def cmd_flips(a, rows):
     if a.names:
         for cls in ("master", "package", "benchmark"):
             for suite, prog in sorted(reclass[cls]):
-                _to = sorted({latest[(suite, prog, m)] for m in ("m3", "m4", "ast") if (suite, prog, m) in latest and latest[(suite, prog, m)] in RECLASS})
+                _to = sorted({v for (s_, p_, m_, c_), v in latest.items() if (s_, p_) == (suite, prog) and v in RECLASS})
                 print(f"    reclassified {suite}:{prog} -> {'/'.join(_to)}")
     if a.names:
         # ⛔ A LOST COUNT WITHOUT NAMES CANNOT BE TRIAGED (ceo CEO-778(4)/CEO-779(5); coo 2026-09-16, row util-progress-flips-names-
@@ -165,13 +215,62 @@ def cmd_flips(a, rows):
         for cls in ("master", "package", "benchmark"):
             for suite, prog in sorted(lost[cls]):
                 parts = []
-                for mode in ("m3", "m4", "ast"):
-                    k = (suite, prog, mode)
+                for k in sorted(k for k in latest if k[0] == suite and k[1] == prog):
+                    mode, cfg = k[2], k[3]
                     if base.get(k) == "PASS" and latest.get(k) != "PASS":
                         lp = last_pass_row.get(k, base_row.get(k)); lr = latest_row[k]
-                        parts.append(f"{mode}: last PASS {lp['scrip']} {lp['ts_utc'][:16]} -> {lr['outcome']} {lr['scrip']} {lr['ts_utc'][:16]} by {lr['measurer']}")
+                        at = "" if cfg == "undeclared" else f" @{cfg}"
+                        parts.append(f"{mode}{at}: last PASS {lp['scrip']} {lp['ts_utc'][:16]} -> {lr['outcome']} {lr['scrip']} {lr['ts_utc'][:16]} by {lr['measurer']}")
                 print(f"    lost {suite}:{prog}  " + " · ".join(parts))
     return 0
+
+
+def cmd_contradictions(a, rows):
+    """⛔⭐ ONE TREE, ONE CORPUS, ONE PROGRAM, ONE MODE, ONE CONFIGURATION -- AND TWO DIFFERENT OUTCOMES.
+
+    Under a byte-for-byte oracle diff that is impossible unless something the row does not record changed. Every
+    reader of this table resolves such a collision BY ARRIVAL ORDER -- `latest[k] = outcome` in a loop over rows
+    sorted by time -- so the losing arm simply disappears and the measure reports the survivor with no sign that
+    anything was overwritten. That is the shape this command refuses to leave silent.
+
+    Measured on the live table when this was written (2026-09-21, before the `config` column existed): 139 such
+    keys since 09-20, e.g. raku-master token_say_4 m3 reading both PASS and FAIL at the CLEAN tree 5418432bb.
+    Those historical rows all read config=undeclared and CANNOT be disambiguated after the fact -- naming them is
+    the honest thing available. A contradiction between two DECLARED configurations is not listed here: that is a
+    differential finding, and it is what the new key preserves instead of destroying.
+
+    rc 0 = none · rc 1 = contradictions named.
+    """
+    since = parse_since(a.since)
+    sel = [r for r in rows if r["ts_utc"] >= since and r["outcome"] not in NOT_A_READING
+           and (a.mode == "any" or r["mode"] == a.mode) and (a.klass == "all" or r["class"] == a.klass)
+           and (not a.suite or r["suite"] == a.suite)]
+    seen = collections.defaultdict(lambda: collections.defaultdict(list))
+    for r in sel:
+        seen[(r["scrip"], r["corpus"], r["suite"], r["program"], r["mode"], r["config"])][r["outcome"]].append(r)
+    bad = {k: v for k, v in seen.items() if len(v) > 1}
+    print(f"contradictions: one tree, one corpus, one program, one mode, ONE CONFIGURATION, two or more outcomes "
+          f"(mode {a.mode}; class {a.klass}; since {since}; rows examined {len(sel)})")
+    if not bad:
+        print(f"  none over {len(seen)} distinct keys -- every key reads one outcome, so no reading in this window was "
+              f"silently overwritten by arrival order.")
+        return 0
+    by_suite = collections.Counter(k[2] for k in bad)
+    undeclared = sum(1 for k in bad if k[5] == "undeclared")
+    print(f"  ⛔ {len(bad)} CONTRADICTORY KEY(S) over {len(seen)} distinct keys. {undeclared} of them carry "
+          f"config=undeclared, which means the table cannot say what differed and the difference is UNRECOVERABLE.")
+    for suite, n in by_suite.most_common():
+        print(f"     {suite:20s} {n}")
+    for k in sorted(bad)[:40]:
+        tree, corpus, suite, prog, mode, cfg = k
+        outs = bad[k]
+        detail = " · ".join(f"{oc} x{len(rs)} ({rs[0]['ts_utc'][:16]} by {rs[0]['measurer']})" for oc, rs in sorted(outs.items()))
+        print(f"    {suite}:{prog}:{mode} @{cfg} tree {tree} corpus {corpus} -> {detail}")
+    if len(bad) > 40:
+        print(f"    ... and {len(bad) - 40} more (narrow with --suite/--since)")
+    print("  ⛔ NOT RESOLVED HERE AND NOT RESOLVABLE HERE. Each of these is a row for the suite's owner: either the run "
+        "was not the configuration the row claims, or the program is nondeterministic, and those are different defects.")
+    return 1
 
 
 def read_suites_tsv():
@@ -262,7 +361,10 @@ def cmd_register(a, rows):
             continue
         if a.suite and r["suite"] != a.suite:
             continue
-        k = (r["suite"], r["program"])
+        # ⛔ ONE ROW PER (suite, program, CONFIGURATION) -- blending configurations here would report a program
+        # as WORKING because it passes at the shipped arena while it CRASHES at arena=1, which is precisely the
+        # class of fact this register exists to surface.
+        k = (r["suite"], r["program"], r["config"])
         e = per[k]
         e["class"], e["lang"] = r["class"], r["lang"]
         e["last"] = max(e["last"], r["ts_utc"])
@@ -280,12 +382,12 @@ def cmd_register(a, rows):
                 md["first_pass"] = r["ts_utc"]
         if prev == "PASS" and r["outcome"] != "PASS":
             md["broke"] = r["ts_utc"]
-    probs = problems_index({p for _, p in per}) if a.problems else {}
+    probs = problems_index({p for _, p, _c in per}) if a.problems else {}
     out = io.StringIO()
     w = csv.writer(out, delimiter="\t", lineterminator="\n")
-    w.writerow(["suite", "program", "class", "lang", "status", "began_working_utc", "last_seen_utc", "m3", "m4", "ast", "last_measurer", "known_problems"])
+    w.writerow(["suite", "program", "config", "class", "lang", "status", "began_working_utc", "last_seen_utc", "m3", "m4", "ast", "last_measurer", "known_problems"])
     counts = collections.Counter()
-    for (suite, prog), e in sorted(per.items()):
+    for (suite, prog, cfg), e in sorted(per.items()):
         modes = e["modes"]
         graded = {m: d["outcome"] for m, d in modes.items()}
         passing = [m for m, o in graded.items() if o == "PASS"]
@@ -301,7 +403,7 @@ def cmd_register(a, rows):
             status = "NEVER-PASSED"
         counts[status.split("(")[0]] += 1
         last_meas = max(modes.values(), key=lambda d: d["ts"])["measurer"] if modes else ""
-        w.writerow([suite, prog, e["class"], e["lang"], status, e["first_pass"] or "-", e["last"], graded.get("m3", "-"), graded.get("m4", "-"), graded.get("ast", "-"), last_meas, "; ".join(probs.get(prog, [])) if a.problems else ""])
+        w.writerow([suite, prog, cfg, e["class"], e["lang"], status, e["first_pass"] or "-", e["last"], graded.get("m3", "-"), graded.get("m4", "-"), graded.get("ast", "-"), last_meas, "; ".join(probs.get(prog, [])) if a.problems else ""])
     text = out.getvalue()
     if a.out:
         with open(a.out, "w", encoding="utf-8", newline="\n") as f:
@@ -325,6 +427,7 @@ def main():
     ap.add_argument("--include-dirty", action="store_true", help="count -dirty tree rows as positions in the NET series (default: skipped, MASTER-PLAN rule 5)")
     ap.add_argument("--names", action="store_true")
     ap.add_argument("--coverage", action="store_true")
+    ap.add_argument("--contradictions", action="store_true", help="name every (tree, corpus, suite, program, mode, config) key carrying two different outcomes -- readings this table's readers resolve by ARRIVAL ORDER")
     ap.add_argument("--register", action="store_true")
     ap.add_argument("--problems", action="store_true", help="with --register: name the queue rows / task files that mention each program (one pass over the postoffice)")
     ap.add_argument("--program", default="", help="with --register: one program")
@@ -333,6 +436,8 @@ def main():
     rows = load(a.db)
     if a.coverage:
         return cmd_coverage(a, rows)
+    if a.contradictions:
+        return cmd_contradictions(a, rows)
     if a.register or a.program:
         a.register = True
         return cmd_register(a, rows)
