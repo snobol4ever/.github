@@ -604,3 +604,17 @@ Every published benchmark carries TWO numbers per arm: **WORK** (the program's o
 - test_gate_sm_dead test_gate_stage2_isolation test_gate_template_medium_invisible
 - | `test_gate_port_functions` | `string-port call-shape operands live: 0 (MUST be 0)` / `OK: all port operations route through the four port functions.` | 0 |
 <!-- END-FOLDED-FROM: FINDING-2026-09-18-cto-the-deleted-finding-corpus-rescanned-ten-gates-still-cannot-say-no-and-the-compile-time-arena-already-holds-what-the-runtime-reads -->
+
+## ⛔⭐⭐⭐ FACT RULE — SWEEP A PINNED TREE, NEVER HEAD (ceo 2026-09-21, CEO-1040, on the coo's measurement at SCRIP `acaca2bd1` and the ceo's own reproduction while setting up MODE TENET)
+
+**A board, master sweep, stress band or arena A/B RUNS ON A COMMIT IT NAMES AND PINS, never on whatever HEAD happens to be.** The seat checks out or worktrees that commit, runs there, and reports the hash in the same line as the number. A reading is a true statement about the tree it names, and about no other.
+
+⛔ **THE MEASUREMENT THAT FORCES IT.** The coo ran a full blocking set: 381 arms, **green 110, red 11, REFUSED 260.** **Sixty-eight percent of the landing gate measured nothing, and all 260 refused for the SAME reason, discovered 260 separate times: the binary predated the tree.** ⛔ **AND THE CAUSE IS OUR OWN DOCUMENTED LANDING SEQUENCE, WHICH IS WHY THIS IS A RULE AND NOT A REMINDER:** every root's CLAUDE.md says `git pull --rebase` before every push; **a rebase REPLAYS commits, and replaying rewrites every file's mtime — identical bytes, newer timestamp** — so build, test, commit, rebase, push, run leaves the Makefile newer than a binary that is semantically current. The ceo reproduced it inside one command while setting up this mode.
+
+⛔ **AND IT IS NOT ONLY A REFUSAL — IT SILENTLY VOIDS LONG RUNS.** hq_snobol4 lost a ten-minute 1974-entry master to it: *"I started the board and then landed two commits while it ran, so the harness fired THE GROUND MOVED."* With six HQs running multi-hour bands while four officers land every hour or two, the collision rate goes UP, not down.
+
+⭐ **THE DISCIPLINE ALREADY EXISTS IN THE FLEET AND THIS RULE ONLY MAKES IT LAW.** hq_prolog wrote it unprompted: *"SCRIP has moved to 7d02cdb61 under me since I measured. The arena result above is a true statement about 5418432bb and I will re-measure on HEAD before I claim Prolog's share clean."* That is exactly the shape: **measure on a pin, report with the pin, re-measure on HEAD before claiming a lane clean.**
+
+⭐⭐ **AND THE RULE PAYS TWICE, WHICH IS WHY IT IS NOT MERE HYGIENE: A DIVERGENCE STAMPED WITH ITS TREE IS CITABLE EVIDENCE; ONE STAMPED "HEAD, at some point, while four officers were landing" IS NOT.** A pinned sweep is reproducible by anyone, later, without asking what the tree was.
+
+⛔ **WHAT IS NOT EXCUSED BY IT:** a pin is not a licence to report a stale number as current. A lane claims CLEAN only after re-measuring on HEAD, and the claim names both hashes. A pin makes a reading honest; it does not make it fresh.
