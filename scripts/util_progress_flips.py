@@ -13,6 +13,7 @@ The table: /home/resources/progress/results.tsv (writer: SCRIP/scripts/util_prog
         every suite of .github/SUITES.tsv (and every benchmark suite seen): rows, programs seen / suite total, live vs
         replay rows, last row's age -- the answer to "are we tracking everything?", MISSING named as MISSING.
   util_progress_flips.py --contradictions [--since 3d] [--suite KEY] [--mode any]
+  util_progress_flips.py --ratchet [--baseline TS]        # rc 0 clean · 1 named · 2 could not measure
         every (tree, corpus, suite, program, mode, config) key carrying TWO DIFFERENT OUTCOMES -- impossible under a
         byte-for-byte oracle diff unless something unrecorded changed, and silently resolved by arrival order in
         every other reading of this table. rc 1 when any are named.
@@ -29,6 +30,15 @@ MASTER_KEYS = {"snobol4-master": "sno-master", "icon-master": "icn-master", "pro
                "raku-master": "raku-master", "snocone-master": "snc-master", "rebus-master": "reb-master"}
 REPLAY = "ceo-replay"
 NOT_A_READING = ("REFUSE", "SKIP", "MISSING", "UNGRADED")  # the run did not measure the program: never a flip, never "the previous reading", never a status
+
+
+# ⛔⭐ THE RATCHET'S BASELINE IS THE COMMIT THAT GAVE THE TABLE A `config` COLUMN, AND IT IS A CONSTANT SO
+# THAT NO CALLER CAN QUIETLY MOVE THE WINDOW UNTIL IT IS GREEN. Rows before it are HISTORY: 3.58M of them predate
+# the column entirely and none can be disambiguated after the fact, so judging them would be a red nobody can
+# ever clear -- and a gate nobody can be green under is turned off rather than obeyed. --baseline overrides it
+# for fixtures and for asking what the table looked like at an older cut; the gate pins the constant.
+CONFIG_BASELINE = "2026-09-21T17:53:17"
+CONFIG_BASELINE_TREE = "f839e933b"
 
 
 def parse_since(s):
@@ -65,6 +75,12 @@ def load(db):
             # A row written before the `config` column existed cannot say what it exercised, and `undeclared`
             # is the truthful reading of that silence -- never `shipped`, which would be this reader inventing
             # a fact about 3.5M historical runs.
+            # ⛔ A SHORT ROW AND AN EXPLICITLY BLANK ONE ARE DIFFERENT FAULTS AND ONLY cmd_ratchet MAY TELL
+            # THEM APART (coo 2026-09-21). csv.DictReader fills a MISSING trailing field with None; a writer
+            # that emitted the column and left it empty gives "". Both read `undeclared` below, which is the
+            # right reading for every other command here -- but only the first means THE WRITER IS STILL
+            # EMITTING THE OLD WIDTH, which is the defect that hid `fingerprint` in 3.58M rows for fifteen days.
+            r["_short"] = r.get("config") is None
             r["config"] = (r.get("config") or "").strip() or "undeclared"
             rows.append(r)
     if unnamed:
@@ -273,6 +289,114 @@ def cmd_contradictions(a, rows):
     return 1
 
 
+def cmd_ratchet(a, rows):
+    """⛔⭐ A LANE THAT HAS DECLARED ITS CONFIGURATION MAY NEVER SILENTLY STOP, AND NO WRITER MAY STILL BE
+    EMITTING THE OLD WIDTH.
+
+    THE HOLE THIS CLOSES, quoted from the writer it closes it around. util_progress_append.py refuses an
+    undeclared row in exactly ONE case: when a GC axis is set IN ITS OWN PROCESS ENVIRONMENT. That refusal is
+    correct and it is also bounded, and the writer's own comment says why -- "the runner may set the axis
+    per-child, so an empty environment here is an ABSENCE OF EVIDENCE about the child". A runner that forks its
+    children with SCRIP_GC_STRESS set and then appends from a clean parent meets no refusal at all. So the
+    undeclared population can grow forever and the writer's guard can never fire on it. That is the ratchet's
+    subject, and it is judged HERE, against the long-lived table, because that is the only place the defect
+    exists -- a gate that builds its subject fresh under mktemp cannot see it (the fifteen-day `fingerprint`
+    blindness is the proof).
+
+    THREE ARMS AND A FLOOR:
+      A  SHORT ROWS -- a row appended at or after the baseline carrying FEWER COLUMNS than the header names.
+         This is the exact shape that hid `fingerprint` inside 3.58M rows for fifteen days while its own gate
+         stayed green. 13610 such rows were appended earlier on the baseline's own day.
+      B  DECLARATION REGRESSION -- a (measurer, suite) pair that HAS declared a real configuration at or after
+         the baseline and later appended `undeclared` anyway. Absence is tolerated; REGRESSION is not.
+      FLOOR  zero rows at or after the baseline is REFUSE(2), never green: an instrument that reports success
+         while doing nothing is the recurring failure (RULES.md INSTRUMENT LAWS).
+
+    ⛔ WHAT THIS DELIBERATELY DOES NOT DO, AND THE NUMBER THAT DECIDED IT: it does not red a lane that has
+    NEVER declared. On the day it was written exactly ONE measurer in the fleet had ever declared a
+    configuration -- hq_snocone, 12096 rows -- and the other nine had not. A ratchet on ABSENCE would therefore
+    have been a fleet-wide red on arrival, and a gate nobody can be green under is turned off rather than
+    obeyed. The floor rises one lane at a time, by that lane's own first declaration, and from then on it
+    cannot fall. That is what makes it a ratchet rather than a deadline.
+
+    rc 0 = clean · rc 1 = named · rc 2 = could not measure.
+    """
+    base = a.baseline or CONFIG_BASELINE
+    # ⛔ THE WINDOW NAMES ITSELF HONESTLY OR THE READING IS UNLABELLED. An overridden baseline is NOT the
+    # column's commit and must never be printed as though it were: this line said "= SCRIP f839e933b" under
+    # --baseline on its first run, which is the same class of fault -- a number wearing a provenance it does
+    # not have -- that this whole instrument exists to refuse.
+    origin = (f"= SCRIP {CONFIG_BASELINE_TREE}, the commit that added the column"
+              if not a.baseline else "OVERRIDDEN by --baseline; this is NOT the column's commit")
+    sel = [r for r in rows if r["ts_utc"] >= base]
+    newest = rows[-1]["ts_utc"] if rows else "<none>"
+    print(f"config ratchet: no short rows, and no lane stops declaring once it has started "
+          f"(baseline {base} {origin}; rows at or after it {len(sel)} of {len(rows)}; "
+          f"newest row in table {newest})")
+    if not sel:
+        print(f"  ⛔ REFUSE(2): NOTHING TO MEASURE. Not one row has been appended at or after the baseline, so "
+              f"every arm below would be vacuously green over an EMPTY population. The newest row in the table "
+              f"is {newest}. A ratchet with no population is not a reading of the fleet, it is a reading of "
+              f"nothing (RULES.md INSTRUMENT LAWS: a missing prerequisite is rc=2, never green).")
+        return 2
+
+    bad = 0
+
+    # ---- ARM A: the writer is still emitting the old width -------------------------------------------------
+    short = [r for r in sel if r.get("_short")]
+    if short:
+        bad += 1
+        by = collections.Counter((r["measurer"], r["suite"]) for r in short)
+        print(f"  ⛔ ARM A -- {len(short)} SHORT ROW(S) of {len(sel)}: appended at or after the baseline with "
+              f"fewer columns than the header names, so the trailing column(s) are ABSENT rather than blank and "
+              f"no reader can tell the difference after the fact.")
+        for (m, s), n in by.most_common(12):
+            first = min(r["ts_utc"] for r in short if r["measurer"] == m and r["suite"] == s)
+            print(f"     {m or '<no measurer>':12s} {s:20s} {n:6d} row(s), first {first}")
+        if len(by) > 12:
+            print(f"     ... and {len(by) - 12} more (measurer, suite) pair(s)")
+        print("     FIX: append through SCRIP/scripts/util_progress_append.py, which writes every column the "
+              "header names and migrates the header under the table's own lock.")
+    else:
+        print(f"  ok   ARM A: 0 short rows of {len(sel)} -- every row at or after the baseline carries the full "
+              f"header width.")
+
+    # ---- ARM B: a lane that declared, then stopped ---------------------------------------------------------
+    first_decl, later_undecl = {}, collections.defaultdict(list)
+    for r in sorted(sel, key=lambda r: r["ts_utc"]):
+        k = (r["measurer"], r["suite"])
+        if r["config"] != "undeclared":
+            first_decl.setdefault(k, r["ts_utc"])
+        elif k in first_decl:
+            later_undecl[k].append(r)
+    if later_undecl:
+        bad += 1
+        print(f"  ⛔ ARM B -- {len(later_undecl)} LANE(S) STOPPED DECLARING after they had started. A pair that "
+              f"has recorded what it exercised and then records `undeclared` is not a lane that never had the "
+              f"axis: it is a lane whose next board collapses into the SAME (suite, program, mode) cell as the "
+              f"reading it should be compared against, and the collision is resolved by ARRIVAL ORDER.")
+        for k, rs in sorted(later_undecl.items(), key=lambda kv: -len(kv[1])):
+            m, s = k
+            print(f"     {m or '<no measurer>':12s} {s:20s} declared first at {first_decl[k]}, then {len(rs)} "
+                  f"undeclared row(s) from {rs[0]['ts_utc']} (e.g. {rs[0]['program']} {rs[0]['mode']})")
+        print("     FIX: declare it -- --config shipped, or --config 'SCRIP_GC_STRESS=5,SCRIP_HEAP_MB=1'. The "
+              "writer GUESSES NOTHING and will not infer `shipped` from an empty environment (CEO-812 applied "
+              "to the record instead of the heap).")
+    else:
+        print(f"  ok   ARM B: {len(first_decl)} lane(s) have declared at or after the baseline and not one of "
+              f"them has stopped.")
+
+    declared = sum(1 for r in sel if r["config"] != "undeclared")
+    print(f"  population: {len(sel)} row(s) at or after the baseline · {declared} declared · "
+          f"{len(sel) - declared} undeclared · {len(first_decl)} declaring lane(s) "
+          f"({', '.join(sorted({m for m, _ in first_decl})) or 'none'})")
+    if bad:
+        print(f"  ⛔ RATCHET RED on {bad} of 2 arm(s).")
+        return 1
+    print("  ✅ RATCHET GREEN. No lane that has declared has stopped, and no writer is emitting the old width.")
+    return 0
+
+
 def read_suites_tsv():
     out = []
     if not os.path.isfile(SUITES_TSV):
@@ -428,6 +552,8 @@ def main():
     ap.add_argument("--names", action="store_true")
     ap.add_argument("--coverage", action="store_true")
     ap.add_argument("--contradictions", action="store_true", help="name every (tree, corpus, suite, program, mode, config) key carrying two different outcomes -- readings this table's readers resolve by ARRIVAL ORDER")
+    ap.add_argument("--ratchet", action="store_true", help="the configuration ratchet: no writer still emits the old column width, and no lane that has declared what it exercised has silently stopped (judged against the LIVE table, never a fixture)")
+    ap.add_argument("--baseline", default="", help="with --ratchet: override the baseline timestamp (default: the commit that added the `config` column)")
     ap.add_argument("--register", action="store_true")
     ap.add_argument("--problems", action="store_true", help="with --register: name the queue rows / task files that mention each program (one pass over the postoffice)")
     ap.add_argument("--program", default="", help="with --register: one program")
@@ -438,6 +564,8 @@ def main():
         return cmd_coverage(a, rows)
     if a.contradictions:
         return cmd_contradictions(a, rows)
+    if a.ratchet:
+        return cmd_ratchet(a, rows)
     if a.register or a.program:
         a.register = True
         return cmd_register(a, rows)
