@@ -1,0 +1,5 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+77922bcf8	snc-master	hq_snocone	SUITE_BOARD family=ALL total=336 shipped=336 outside=0 m3_n=336 m3_pass=336 m3_fail=0 m3_crash=0 m4_n=336 m4_pass=336 m4_fail=0 m4_crash=0 all_pass=336 all_n=336 arena_mb=512
