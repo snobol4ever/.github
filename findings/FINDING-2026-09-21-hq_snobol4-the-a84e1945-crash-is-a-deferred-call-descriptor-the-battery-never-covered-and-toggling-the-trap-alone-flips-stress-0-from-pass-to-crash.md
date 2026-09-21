@@ -36,9 +36,66 @@ Program received signal SIGSEGV, Segmentation fault.
 
 `varname` arrives as an argument from emitted code, not from a static label: `bb_match_defer.cpp`'s `IR_MATCH_DEFER resolve` arm (~line 223-234) is what calls `rt_defer_probe_run`, and its OTHER arm (~line 203-222, `defer_ic_on() && !defer_inline()`) loads the name via `lea rdi, [rip + label]` off `_.op_sval` — a **compile-time rodata constant**, never GC-heap memory, never stale. That path cannot be this crash. The witness's construct is not a bare `*varname` (which is what all ten existing battery witnesses — `hb_mkexpr_unmapped_spine_store` + nine `hb_deferexpr_*` — ablate): it is `EVAL("p . thy . *SHX('" t "', thy)")`, a **deferred CALL** (`*SHX(arg, thy)`) inside a pattern **compiled at runtime by EVAL from a dynamically concatenated string** — so no `_.op_sval` compile-time constant can exist for it; the name/expression the deferred call resolves through must itself be minted on the GC heap (the same `SNO$MKEXPR`/`rt_heap_strdup_c` family that produced the already-cured DT_X case), and its holder is somewhere this specific construct reaches that the ten bare-variable witnesses do not. I did not pin the exact C holder before stopping — that is the next step, not a claim I am making now.
 
-## 6. OWED/NEXT
+## 6. OWED/NEXT (item 1 amended by §7 below — not retracted, ADVANCED; read §7 before acting on item 1 as written here)
 
 1. Mint a **minimal** witness for "deferred CALL target, pattern compiled at runtime via EVAL from a concatenated string" — smaller than this 16-`-INCLUDE` corpus entry — and reproduce the stress-0 crash on it alone. Until that exists, this finding's witness is the real corpus entry (3/3 deterministic, companions required), not yet an ablated one.
 2. Once minimal, find the actual C holder (where the DT_X-or-sibling descriptor for a deferred *call* is stashed between mint and `rt_defer_probe_run`) and route it to the `cfo` as an ASK — `gc_heap.c` is a shared node, and if the fix is a missing visit in the collector's walk this is not mine to land, matching how the DT_X case went (CFO-138).
 3. Characterize the SCRIP_GC_TRAP-alone sensitivity at stress 0 (§2, row 2) on at least one more witness before treating it as a property of this entry rather than a property of the trap; flagged to the `cfo` in the open rather than silently adjusted for.
 4. `python3 scripts/util_gc_acceptance.py`'s ITEM 4 SnoM line still reads **"-26 gradings both-modes, plus 4 HANGS"** — the reading I withdrew on 2026-09-20 (the hangs were a `TIMEOUT=120`-at-`load 21` artifact; the corrected reading is 19 entries, `hang=0 crash=0`). Flagged, not edited — I do not own that script.
+
+## 7. 2026-09-21 (same sitting, after MODE flipped EXECUTIVE→TENET and back, ceo-1051/ceo-1055) — ABLATION: 16 → 11 `-INCLUDE`S, SAME FINGERPRINT, A WIDER BAND, AND A CORRECTION TO §2 ROW 4
+
+Tree unchanged from §1 except SCRIP fast-forwarded to `f839e933b` (the `cfo`'s Pass-B auditor landed; unrelated files, rebuilt, re-confirmed 340/340 DT_X band and `make preflight` clean before touching anything). All work below is READS plus scratch files outside both repos — `git status` empty in SCRIP and corpus throughout, checked before writing this section.
+
+**(a) Construction alone does not crash.** Truncating the master entry right after its `Parse = nP2() ARBNO(*Command) ("'Parse'" & 1) nQ2()` line (i.e. running all seven `shf2`/`EVAL` calls that BUILD `Label`/`Stmt`/`Command`/`Parse`, then stopping before `Src`/`*Parse` ever attempts a match) — trap ON, stress 0, 3/3 — is clean, rc=0, `built`. Matching against real input is a necessary ingredient, not just constructing the EVAL-compiled pattern values.
+
+**(b) A match that SUCCEEDS does not crash, by two independent routes.** `("'Stmt'" & 7)` and `("'Parse'" & 1)` are not debug decoration: `semantic.inc:8` reads `OPSYN('&', 'reduce', 2)`, and `reduce(t,n) = EVAL("epsilon . *Reduce(" t ", " n ")")` (`semantic.inc:17`) is a **second instance of the identical defect-class construct** — an EVAL-compiled pattern containing a deferred CALL, `*Reduce(t,n)`, this time into `ShiftReduce.inc`'s real stack-popping `Reduce(t,n,c,i,r)`. Deleting both `& `-clauses turns the match from `nomatch`→`match` and the crash disappears at every stress point 0–35, trap on or off. Independently, dropping five of the sixteen `-INCLUDE`s down to nine (`global/case/assign/match/counter/stack/tree/ShiftReduce/semantic`, includes untouched otherwise) does the same thing — same `match` outcome, same absence of any crash — without touching the driver at all. **Conclusion: the crash needs BOTH EVAL-compiled deferred-call sites (SHX's and Reduce's) live AND the overall parse to end in FAILURE.** A failed parse makes SNOBOL4's backtracker retry `Stmt`'s alternatives and `Command`'s sequence repeatedly; a clean, quick match visits each site's cache too few times, in too benign an order, to read it back after the block housing it has already been reclaimed.
+
+**(c) File-level bisection: 16 → 11 `-INCLUDE`s, same driver, same fingerprint.** Keeping the full original driver/grammar (unmodified `NRETURN`, unmodified `&`-clauses) and bisecting the sixteen include files:
+
+| `-INCLUDE` set | result (trap ON, stress 0, 3 reps) |
+|---|---|
+| all 16 (original) | SIGSEGV 3/3, `rt_defer_probe_run`, `pattern_match.c:1202`, block `#1066 kind=205`, site=37 |
+| 9: drop `TDump/Gen/Qize/ReadWrite/XDump/omega/trace` | clean, `match`, rc=0 — **not** reproducing |
+| 13: 9 + `TDump+Gen+Qize+ReadWrite` | SIGSEGV 3/3 |
+| 11: 9 + `Qize+ReadWrite` (drop `TDump/Gen/XDump/omega/trace`) | **SIGSEGV 3/3** — reproduces |
+| 11 − `Qize` or 11 − `ReadWrite` (either alone) | clean, `match` — neither suffices alone, both are jointly required |
+| 11 − `case.inc` − `assign.inc` (9: drop those two instead) | clean, `match` — `case.inc`/`assign.inc` are also jointly load-bearing |
+
+**New minimal(er) witness, same driver, 11 of 16 `-INCLUDE`s:** `global.inc case.inc assign.inc match.inc counter.inc stack.inc tree.inc ShiftReduce.inc Qize.inc ReadWrite.inc semantic.inc`. `TDump.inc`, `Gen.inc`, `XDump.inc`, `omega.inc`, `trace.inc` are confirmed NOT needed. The exact mechanism by which `Qize.inc`/`ReadWrite.inc`/`case.inc`/`assign.inc` are load-bearing (almost certainly: real whitespace/tokenizing helpers that change whether `Shift`'s `POS(0) whitespace =` step and `Reduce`'s `IDENT`/`DIFFER` checks take the branch that ultimately fails the parse) was **not traced line-by-line this sitting** — named as unmeasured, not assumed.
+
+gdb on the 11-include witness (same env, `-O0`, no env var, hit 3/3):
+```
+Program received signal SIGSEGV, Segmentation fault.
+0x00007ffff1cdc716 in rt_defer_probe_run (varname=0x7fff4ce65880 '\333' <repeats 199 times>, cur_delta=6, site=27)
+    at src/runtime/pattern_match.c:1202
+1202    if (_merge && varname && varname[0] != '*') {
+```
+Identical function, identical line, identical 0xDB poison signature, identical block kind (205/`HB_WSC`) — only `site=27` vs `37` differs, exactly as expected with fewer EVAL sites minted from fewer includes. **This is the same defect, not a lookalike.**
+
+**(d) A wider, denser band than previously swept, on this 11-include witness (mode 3, arena 1 MB):**
+
+| stress | trap ON | trap OFF (md5, meaning) |
+|---|---|---|
+| 0 | SIGSEGV | `3b192bd3` — oracle-identical PASS |
+| 1,2,3,5,8,21,25,35 | SIGSEGV (all eight) | `a84e1945` — **the same fingerprint that named this whole defect class**, independently reproduced at every one of these eight points, not just the `cfo`'s original {21,35} |
+| 16 | PASS, `match` | `3b192bd3` — oracle-identical PASS |
+
+Only stress ∈ {0, 16} are clean (trap off); every other sampled point 1–35 is bad. This is a much denser confirmation of the `a84e1945` fingerprint than the original witness had been swept for this sitting (previously known bad points: the `cfo`'s {21,35} plus my own stress-0 addition; the 16-include original's own full 0–35 sweep is still owed, separately from this one).
+
+**(e) Correction to §2 row 4 above ("the divergence is mode-specific"): mode 4 is not categorically safe.** On this 11-include witness, mode 4 (`--compile`, standalone, linked against the same `libscrip_rt.so`) SIGSEGVs at **stress 16** — a `[ZGC-STALE]` quarantined-page report ("no block in the vacated ledger covers this address... this ground was vacated before the ledger's oldest entry, so the block is not nameable from here") — while stress 0 and stress 21 both print a correct `match` with all seven `SHX(...)` side-effect lines visible, oracle-consistent. §2 row 4's *measurement* (mode 3 crashes / mode 4 passes, at stress 0 specifically) stands unchanged and is not retracted; the *reading* drawn from it — that mode 4 is broadly immune to this class — does not hold. Mode 4 has its own bad cells on the (stress × mode) grid; they are simply not the same cells as mode 3's. Neither mode's bad-set has been fully mapped yet.
+
+**(f) What I tried toward a from-scratch minimal witness, and why none of it worked.** Hand-writing the mechanism without the shift-reduce demo (no `-INCLUDE`s at all) was attempted first, bottom-up, before the file-level bisection above:
+   - A single `DEFINE`d function `F`, called once via `*F(args)` written directly in source (no `EVAL`) — matches fine, no crash at stress 0–8 (expected: this is the already-known-safe static-name path, `_.op_sval` rodata, per §5).
+   - The same, but with the pattern built via `EVAL("... *F(args) ...")` at runtime (the actual defect shape) — matched once, no loop, no crash at stress 0–35: too little allocation volume and too few site re-visits for a 1 MB arena's natural collection to land in the vulnerable window.
+   - The same wrapped in `ARBNO(pat)` to force repeated re-entry into the one site — still no crash at stress 0–35: **one** EVAL-compiled defer site, however often re-matched, was insufficient in every variant tried.
+   - Verified `.dummy`/`.dummyy` (unary-dot NAME references) do **not** behave as a null-string pattern the way I'd assumed — confirmed via oracle (`*G()` returning `.dummy` fails to match where the same call returning `''` succeeds identically on oracle and ours). Not the cause of anything, but a real trap for the next attempt: use an explicit `''` return, not `.dummy`, when hand-building a witness.
+   - Confirmed empirically (oracle) that SNOBOL4 pattern concatenation is bare juxtaposition and `.` is immediate-value-assignment requiring a NAME on its right (`'a'.'b'` is ERROR 12, "value used where name is required"); `p . thy . *SHX(...)` therefore is NOT `p` concatenated with two things — it is `p` immediate-assigned into `thy`, and separately `thy`'s own match immediate-assigned through the *deferred call target* `*SHX(...)` resolves to (the "land" protocol — `rt_defer_land_γ`/`rt_defer_land_ω` in `pattern_match.c`). I did not fully reverse this protocol from source; it is why the bottom-up rebuild kept producing syntactically-valid-but-behaviorally-inert patterns instead of the crash.
+   - **Conclusion, stated plainly so the next attempt does not re-spend it:** a single interacting EVAL-compiled deferred-CALL site, however matched, was NOT enough to reproduce this sitting, under every construction tried. Two were both necessary, and so far only demonstrated sufficient, in the presence of a parse that ultimately FAILS. Whether two sites and a failing match are achievable without any of the shift-reduce demo's supporting code is still open — named UNMEASURED, not ruled out and not assumed possible.
+
+## 8. UPDATED OWED/NEXT (supersedes §6 item 1 only; §6 items 2–4 stand unchanged)
+
+1. The 11-`-INCLUDE` witness (§7c) is the new best repro — smaller than the 16-include original, same fingerprint, wider confirmed band — but is still "real, not small" by the shipped battery's own standard (all ten existing `gc_witnesses/hb_*` are include-free, single-digit-statement files). It is NOT wired into the battery and must not be, per the DT_X-row precedent (CFO-cure timing; ratchet-over-glob false positive risk) — there is no cure landed for this class yet.
+2. Two concrete next moves, either of which would beat this sitting's result: (i) trace `Qize.inc`+`ReadWrite.inc`+`case.inc`+`assign.inc` line-by-line for the specific control-flow fact that makes the parse fail (§7c's open question) and replace whichever ones are load-bearing with a two-line stub, or (ii) resume the from-scratch bottom-up attempt (§7f) now armed with the corrected `.`/`*NAME(args)`-as-assignment-target semantics, aiming for a witness with two interacting EVAL-compiled defer sites and a deliberately-failing match, no `-INCLUDE`s at all.
+3. Full 0–35 stress sweep of the ORIGINAL 16-include witness (this sitting's §7d table is for the 11-include reduction only) is still owed, for a clean apples-to-apples comparison of the two witnesses' bad-bands.
+4. §6 items 2–4 (route the C holder to the `cfo` once minimal; characterize the trap-alone sensitivity on a second witness; the `util_gc_acceptance.py` stale-number flag) all stand, unchanged, and are now easier: the 11-include witness is a serviceable "second witness" for item 3 whenever picked up.
