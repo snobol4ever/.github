@@ -49,9 +49,12 @@ the SAME `src/runtime/` that SNOBOL4, Prolog, Snocone, Raku and Pascal call.
 3. **MIGRATION: dual-build, per-family kill-switch, then eradicate.**
 4. **REGISTERS: phase-1 blob pins UNCHANGED; RTX owns the volatile nine internally.**
 
-⚠ **Four ungated AT&T-syntax holdouts already violate Ruling 1** (`rt_sg_scan_member`,
-`rt_sg_scan_nonmember`, `rt_sg_member`, `rk_gram_enter_box`) — inherited debt, recorded in
-`GOAL-SNOBOL4-RTX.md` s202. ICON-RTX does not add to it.
+⚠ **Three ungated AT&T-syntax holdouts already violate Ruling 1** (`rt_sg_scan_member`,
+`rt_sg_scan_nonmember`, `rt_sg_member`) — inherited debt, recorded in
+`GOAL-SNOBOL4-RTX.md` s202. ICON-RTX does not add to it. ⭐ **WAS FOUR: `rk_gram_enter_box` and its
+whole file `rt_gram_trampoline.S` were DELETED 2026-09-21 (cto, SCRIP `84a66f65e`) on Lon's order to
+delete the dead C->BB code — it was unreachable by construction, because nothing ever registered the
+`gram__` procedures whose `fn` it needed. One item of this debt is paid, not re-scoped.
 
 ---
 
