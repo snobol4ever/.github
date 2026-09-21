@@ -76,5 +76,16 @@ RULES.md's SHARED-NODE VERDICT SCOPE requires before any landing, which is beyon
 (unrelated single-site Prolog-only fix, `src/runtime/unification.c` `plc_portray_hit`'s success check was
 `r.v == DT_I` where the codebase's actual idiom is `!IS_FAIL_fn(r)` — landed). rung2 is BLOCKED on this shared-node
 root cause for the `asserta_1` group specifically; the other eight rung2 groups are unaffected (assertz_1,
-abolish_1, retract_1, retractall_1, clause_2, cut_0, call_1, call_N all green m3 and m4). rung7 not yet measured
-this session.
+abolish_1, retract_1, retractall_1, clause_2, cut_0, call_1, call_N all green m3 and m4).
+
+⭐ SECOND CONFIRMED INSTANCE, same session, DIFFERENT gate: rung7
+(`test_gate_pl_iso_rung7_a_cut_inside_a_findall_bagof_setof_goal_has_its_own_barrier.sh`) is also red, in group
+`if_then_2` only (the other six arms of that gate are green both modes) — case `lgt_if_then_2_10`, m4_pass=10 <
+floor 11, same `skipped`/`the case's own condition(...) option is false on this system` shape, same absent
+`condition(...)` on the case (`test/2`, not `test/3`), same shared `'$lgt_cond' :- true.` shim line every
+generated program carries. **This is very likely NOT a genuine rung7 cut-barrier defect** — the row named it as
+one of "three different defects wearing one row" and warned against looking for one cause, and that warning was
+right to give, but the measurement now says two of the three (rung2's `asserta_1` and rung7's `if_then_2`) are
+the SAME shared-node coincidence landing on two different files' incidental byte layouts, not two independent
+Prolog defects. Only `print_1` was a real, distinct, Prolog-lane bug. Worth the ceo/cto knowing before either row
+is graded as "two defects owed" — it is one shared-node cure away from clearing both.
