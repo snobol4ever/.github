@@ -313,8 +313,15 @@ def cmd_ratchet(a, rows):
          while doing nothing is the recurring failure (RULES.md INSTRUMENT LAWS).
 
     ⛔ WHAT THIS DELIBERATELY DOES NOT DO, AND THE NUMBER THAT DECIDED IT: it does not red a lane that has
-    NEVER declared. On the day it was written exactly ONE measurer in the fleet had ever declared a
-    configuration -- hq_snocone, 12096 rows -- and the other nine had not. A ratchet on ABSENCE would therefore
+    NEVER declared. On the day it was written exactly ONE measurer had declared a configuration SINCE THE COLUMN
+    EXISTED -- hq_snocone, 12096 rows -- and the other nine had not. ⛔ BOUNDED IN PLACE 2026-09-21 BY THE ceo
+    (CEO-1060) AND THE BOUND IS RIGHT: the `config` column did not EXIST before 17:53:17Z, so "has ever declared"
+    spans THIRTY MINUTES, and a population that could not have contained the thing cannot be evidence that nobody
+    does it -- A NULL RESULT BOUNDS THE PROBE, NOT THE THING PROBED. What the number actually establishes is that
+    ONE SEAT HAS RUN A BOARD THROUGH THE NEW WRITER AND IT DECLARED CORRECTLY: a working mechanism with a sample
+    of one, NOT fleet-wide non-compliance. The design conclusion is UNCHANGED and is if anything stronger -- with
+    nine lanes not yet observed at all, a ratchet on ABSENCE would red seats whose behaviour has never been
+    measured. A ratchet on ABSENCE would therefore
     have been a fleet-wide red on arrival, and a gate nobody can be green under is turned off rather than
     obeyed. The floor rises one lane at a time, by that lane's own first declaration, and from then on it
     cannot fall. That is what makes it a ratchet rather than a deadline.
