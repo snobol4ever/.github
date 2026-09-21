@@ -37,6 +37,17 @@ protocol existed in the tree and the FH table had simply declined to join it.
 
 - `hb_file_name_unrooted.icn` -- ARCH-GC § 9 named `g_fh` in advance and this is its RED witness -- **matches its `.ref` at
   `SCRIP_HEAP_MB=1` at stress 0, 1, 3 and 5**, where before it printed `B file(aaaa...)` at every one of them.
+  ⛔ **THAT LIST IS OFF / HARD / SOFTER / SOFTEST, NOT ASCENDING SEVERITY.** `gc_heap.c:266` reads
+  `if (stress_n > 0 && ++stress_c >= stress_n) g_gc_pending = 1` -- pending every **N**th allocation -- so **N=1 is the hard end**
+  and 3 and 5 are progressively softer. The coo measured this on rebus the same afternoon; I checked the source rather than taking
+  it. The sweep is still a sweep because it includes the hard end, but anyone who cleared a band "at stress 16" tested less than
+  they think.
+  ⛔⭐ **AND THE COLLECTION COUNT PER ARM, BECAUSE A STRESS LIST STATES A CONFIGURATION AND NOT AN EXERCISE** (my own note, applied to
+  myself a day late): this witness runs **collections=1 at stress 0, 12 at stress 1, 4 at stress 3, 3 at stress 5 -- twenty over the
+  whole sweep, and the stress=0 arm is ONE.** The coo and the cto measured the reason jointly and independently: a pending collection
+  only happens at a SAFE POINT, so **the stress axis is bounded above by safe-point density, not by allocation count** -- their EVAL
+  witness ARMS a collection 434 times and collects 4. The cure is proven, because the defect reproduced at every one of these points
+  before it and at none after; but the exercise behind the proof is twenty collections, and it stays that way until the polls land.
 - Witness A's first five lines are now byte-correct, `closing file(tmp3)` included.
 - Pass B no longer names `g_fh` on ANY of the four declared witnesses.
 
