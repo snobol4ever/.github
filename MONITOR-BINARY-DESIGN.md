@@ -275,3 +275,10 @@ Layer 1 is not one statement event but THREE runtime hooks, each with ONE implem
 - hq_snobol4 — last: the `SNO$STMT` / `comm_var` path migrates onto the shared hooks so SNOBOL4 is a plug like the others and the SPITBOL bridge keeps working through the same wire.
 Nobody starts a plug before hq_raku's renamed hooks and helpers are on origin; the ceo reviews each landing after the fact (the officers are down).
 
+### ⭐⭐⭐ STATUS 2026-09-23 03:12 CDT — LANDED AT SCRIP `ab085a22f` (ceo, CEO-1185): THE MONITOR DRIVES ICON, PROLOG, PASCAL AND RAKU
+
+- **Shared layer, landed:** `rt_trace_stmt/_value/_call/_return` (hq_raku's four, rk dropped), one countdown flag `g_trace_budget` (`--trace[=N]`, `SCRIP_TRACE=N` at run time), the binary wire through `mon_emit_trace_bin` (MWK_LABEL/VALUE/CALL/RETURN, no SNOBOL4 name-table filter), dispatch names `__trace_*`, a value-less `__trace_return`.
+- **Plugs, landed:** Raku (re-pointed, byte-identical trace), Icon (statement, call, value, return), Pascal (hq_pascal's parser injection re-gated and re-targeted; the interim `SCRIP_PAS_TRACE` handlers deleted — CEO-1179 fulfilled), Prolog (call at the predicate entry, return before each clause succeed, statement before each goal — **owed:** goal trees carry line 0, so the statement event fires only once the Prolog plug row gives goals a position, the clause/goal number).
+- **Harness and gate, landed:** participants `scr3`/`scr4` in the one auto harness; `test_monitor_2way_sync_step_all_langs.sh` reads 4 of 4 (icon 13 steps · prolog 3 · pascal 25 · raku 15), wired REPORTED in `make test`; one witness per language under `scripts/monitor/witnesses/`.
+- **Owed, by owner:** hq_prolog — goal positions; hq_snobol4 — the `SNO$STMT`/`comm_var` path migrated onto the shared hooks (the last plug; the SPITBOL bridge keeps working through the same wire); hq_icon — the per-language `positions()` map plug (the m3-vs-m4 arm needs no map, an oracle peer will); each HQ — a monitor-safe witness from its own master and the first real bug the technique finds; Lon — the gate (compile-time as landed, or a runtime flag).
+
