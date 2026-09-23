@@ -118,6 +118,37 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog later (DECTET) — **LON'S WORD ROUTED CEO-1200 ("bring your language to 100% through the IPC sync-step monitor, every suite"): SAME ROW, PICKED UP THE OPEN DIVERGENCE — THE PRIOR SITTING'S ζ-SPINE-DEPTH HYPOTHESIS IS DISPROVEN, THE REAL TRIGGER IS RUNTIME JIT RECOMPILATION OF A DYNAMIC PREDICATE CORRUPTING ITS OWN NEXT TRACE LITERAL, AND TWO OF THE THREE REMAINING CANDIDATES ARE SHARED `src/ir/` MACHINERY — ESCALATED TO ceo, NOT LANDED BLIND**
+
+Row `prolog-monitor-the-instrumented-gprolog-oracle-is-completed-and-used-...`, continuing from the entry
+below. ASM-diff-first + gdb this sitting (SCRIP `b7b923d1c` throughout, **no source touched** — a pure
+diagnostic landing). Disproved the prior sitting's guess that the divergence needed BOTH `retract` and
+`assertz` present with a caller-side ζ-SPINE depth mismatch: `assertz` ALONE, immediately followed by a call
+to the SAME predicate in the same clause body, reproduces it on a new 3-line repro; asserting into an
+UNRELATED predicate then calling a different, never-recompiled one is clean; a plain `between/3` generator
+before the call is clean. **gdb on `rt_trace_call`/`rt_trace_stmt` (mode-4 standalone binary) shows the
+corrupted trace-name argument is a live STACK ADDRESS, not the static literal address it should carry** —
+the freshly RUNTIME-JIT-RECOMPILED predicate's own box (`pl_db_store` → `rt_pl_db_recompile`
+`unification.c:2297` → `pl_runtime_define_pred_g` `lower_prolog.c:1747`, the same recompile-on-every-assertz
+path already named by `prolog-assertz-beyond-64-clauses-...`) corrupts ITS OWN next trace literal, not the
+caller's. Exonerated with the evidence named: `CALL_PROC_STAGED` emission (byte-identical asm between
+working/broken compiles); the generator-flag registration (`lower_prolog.c:1635` and `:1773` both hardcode
+generator=1 at load time AND at recompile time — no mismatch); `bb_pool_init()` reset (a lazy, idempotent
+no-op on a second call, `src/ir/bb_pool.c` read in full); `bb_pool_mark`/`bb_pool_release` rollback (Prolog's
+recompile path calls neither). **Three candidates remain unisolated** — a save/restore bug in
+`pl_runtime_define_pred_g` itself (Prolog-owned, landable directly) vs. `zls_forget_graph_nodes`
+(`src/ir/frame_layout.c:818`, shared, also called from SNOBOL4's `runtime_eval.c:221`) vs. something specific
+to how a JIT-emitted box addresses its own literal pool (also `src/ir/` territory). **Two of the three cross
+into shared `src/ir/` JIT/frame-map machinery this seat does not land solo** per CLAUDE.md's shared-node rule
+("a shared box ... is an ASK to your officer with the measurement, base-vs-head gate by gate — never a
+landing"). Full writeup, the new minimal repro, and the isolation plan for next sitting:
+`.github/findings/FINDING-2026-09-23-hq_prolog-a-call-immediately-after-retract-assertz-on-the-same-dynamic-predicate-corrupts-the-next-traced-call-name-and-the-following-stmt-line.md`.
+**ASK sent to ceo** (topic `ask-prolog-assertz-retract-recompile-corrupts-own-trace-literal`) with this
+measurement, per the standing non-blocking rule this seat continues other Prolog-lane work meanwhile rather
+than holding the row idle on the answer.
+
+---
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog (DECTET) — **THE GNU-PROLOG MONITOR ROW (HANDED OFF BY THE ceo, CEO-1190): WITNESS 4 MOVED DIVERGE 20 → 35 (double_quotes NOW DEFAULTS TO codes, ISO/GNU-CORRECT, NOT atom) — AND THE NEW DIVERGENCE POINT IS A REAL, PREVIOUSLY-UNKNOWN SCRIP BUG, INDEPENDENT OF THE MONITOR, NOT THE CONTRACT GAP THE BATON GUESSED**
 
 Row `prolog-monitor-the-instrumented-gprolog-oracle-is-completed-and-used-...`. The ceo built and handed off
