@@ -75,6 +75,19 @@ independently witnessed.
 **Sent to coo** (instrument finding, named under its own topic per cto's ask, not buried in this Icon-lane row),
 copied cto: `gc-instrument-unrooted-static-tables-census-and-two-more-confirmed-instances`.
 
+**cto's reply, folded back in (SCRIP `bd5dd8d62`):** added a POSITIVE CONTROL -- the instrument points itself at
+`_udef_types` (known-rooted, verified by hand) and REFUSEs rc=2 if its own visitor-body extraction cannot find
+it, rather than printing a silent zero the moment a visitor gets renamed or a pointer is reached through a
+typedef. Mutation-proved (a target rename makes it refuse; unmutated it finds the control). cto also named a
+SHARPER shape than plain-unrooted, worth recording rather than chasing further in this row: an object whose
+rooting is DECLARED and does not happen is worse than one that is plainly unrooted, because the declaration
+stops the next reader from looking. Their own example: `rt_gc_root_range_add_seamsafe`'s non-null-`hi` range
+registration (used by the RTCCB spill block) is confirmed 100% inert -- both consumers in `gc_heap.c` skip any
+range with a non-null `hi`, so an entire registration path reads as "rooted" from the source and has never had
+a live consumer. This instrument does not detect that shape (it checks "is the NAME visited", not "is the
+registration call site's target actually reachable by the collector's walk") -- named here as the next widening
+this instrument owes, not built this sitting.
+
 ## A SEPARATE, PRE-EXISTING, UNRELATED FINDING: an agent exceeded its read-only mandate
 
 Forked a research-only subagent to investigate the root-registration mechanism before writing the cure
