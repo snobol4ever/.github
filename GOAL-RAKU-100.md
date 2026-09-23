@@ -8,6 +8,61 @@ the five sources forward with its original wording and provenance; only settled/
 compressed to a pointer. Where two sources disagreed, both readings are kept, dated, with the conflict
 named rather than silently resolved.
 
+## ⛔⭐⭐⭐ LON'S WORD 2026-09-23 02:0x–02:4x CDT (routed via ceo CEO-1174/1175/1176/1177/1178) — THE SYNC-STEP MONITOR IS A SHARED DESIGN; hq_raku DOES NOT BUILD ITS OWN COPY
+
+Verbatim, in order: (1, ~02:0x) *"I've directed Prolog, Pascal, and Raku to begin using IPC sync-step
+monitor technique moving forward to find and fix bugs."* (2, ~02:2x) *"Does Icon have the IPC trace
+feature yet? We should instrument Icon just like SNOBOL4, Prolog, Pascal, and Raku."* (3, ~02:3x) *"You
+might need to bring them all together on the sync-step IPC design to maximize code sharing and re-use."*
+(4, ~02:3x) *"We'll need line numbers coming from the source code and reported at runtime. We'll need a
+hook for every value assignment. A hook for function enter and exit. That easy. It is a common SCRIP
+runtime."* (5, ~02:4x) *"...or some form of statement numbers versus line numbers. All officers are
+stood down."*
+
+**MEASURED STATE (ceo CEO-1175), narrower than (1) assumed:** the IPC sync-step monitor exists for
+SNOBOL4 alone. `--dump-ir` on a five-statement witness per language reads STMT_MARK nodes: snobol4 6,
+icon 0 (Icon emits LINE_MARK — the error-message line — not the statement event), prolog 0, pascal 0,
+**raku 0**. The binary wire in `core.c` is language-blind, but its events reach it only through
+`bb_stmt_mark`, which only `lower_snobol4.c` emits; `build_stno_map.py` maps SNOBOL4 statement numbers
+only; the controller's peers are SPITBOL/CSNOBOL4 with a bridge compiled into the oracle. So the
+technique Lon directed Raku to use could not drive Raku yet, at the moment he directed it.
+
+**THE DESIGN (ceo CEO-1176/1177, `MONITOR-BINARY-DESIGN.md` on origin, section ONE SYNC-STEP DESIGN FOR
+SEVEN LANGUAGES / THE THREE HOOKS):** six layers, ONE implementation each — (1) THREE HOOKS in the common
+runtime: the LINE hook (every frontend emits a line/position mark onto the existing `g_line` carrier,
+wire kind MWK_LABEL — **the position key is Raku's own unit, one integer, rendered by Raku's plug, never
+a second event kind** per CEO-1178), the ASSIGNMENT hook (one runtime entry taking name/DESCR/line on
+MWK_VALUE — SNOBOL4's `comm_var` tap gets REWRITTEN onto it, never copied), the ENTER/EXIT hook (the
+carrier `rt_trace_call_hook_f` already writes for Icon, MWK_CALL/MWK_RETURN, fired at every frontend's
+call/return boxes and at gamma for generators); (2) the wire, `monitor_wire.h` + `mon_send_bin`,
+language-blind; (3) the controller `monitor_sync_bin.py`, parametrised by participants never by
+language; (4) ONE statement-map builder with a per-language PLUG selected by extension; (5) ONE harness
+parametrised by language and participants (`scr3 scr4` for the mode-3-vs-mode-4 self arm); (6) the peer
+— the ONLY per-language layer — self-comparison (m3 vs m4) first, an oracle bridge (real `raku`) only
+where it earns its cost, in `monitor_ipc_spitbol.so`'s shape. **A language joins by adding a plug, never
+by copying layers 1–5; a per-language copy is reverted on sight.**
+
+**OWNERSHIP, AS OF CEO-1178 (officers stood down, same sitting):** the shared layers (three hooks, map
+builder, harness) were routed to the cto, then — on the officers being stood down — reassigned whole to
+**hq_icon**. hq_raku (and hq_prolog, hq_pascal) do **NOT** mint a monitor row and do **NOT** build a
+parallel statement/line-mark mechanism until hq_icon's plug interface is on origin; then hq_raku mints
+ONE row — the three hooks fired from Raku's own boxes, plus the m3-vs-m4 peer arm — referencing
+`MONITOR-BINARY-DESIGN.md` directly, naming any construct Raku's frontend cannot hook rather than
+skipping it silently. **Nothing else changes in this lane's order of work** (CEO-1153: suites to 100%
+stands) except that a shared-node defect found here is landed here, ceo reviewing after the fact.
+
+**WHAT THIS LANE ALREADY BUILT, same sitting, BEFORE this word arrived and NOT the shared mechanism**
+(SCRIP commit `609a17cd3`): a standalone four-type Raku trace facility (`--trace`/`--trace=N`,
+`SCRIP_RK_TRACE` env var for a traced mode-4 binary's own run) — statement/value/call/return, gated to
+zero emitted overhead when off, reusing `trace_spell_value` and `mon_send` (so an event ALSO reaches the
+monitor wire when one is attached) but using its OWN hook functions (`rt_rk_trace_stmt/call/return/value`)
+and its OWN `g_rk_trace` global — **not** `IR_STMT_MARK`/`bb_stmt_mark`/`monitor_wire.h`/
+`monitor_sync_bin.py`, so it is not one of the five shared layers and is not superseded by anything on
+origin yet. It stays as a working, verified, standalone debugging tool (used on a real 7-line
+double()/say program, all four kinds firing correctly, both modes) until hq_icon's plug interface lands,
+at which point wiring Raku's boxes to the OFFICIAL three hooks — rather than this tool's own — is the
+real plug row.
+
 ## ⛔⭐⭐⭐ LON ORDER 2026-09-16 (in-chat, direct to hq_raku) — THE PARSER REACHES 100% BEFORE LOWER AND RUNTIME
 
 **Verbatim:** *"Ensure that the raku parser is 100% complete even before the lower and runtime are developed."*
