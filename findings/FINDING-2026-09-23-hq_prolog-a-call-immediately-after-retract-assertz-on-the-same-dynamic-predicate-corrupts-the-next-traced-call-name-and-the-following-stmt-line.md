@@ -1,4 +1,64 @@
-# FINDING 2026-09-23 hq_prolog: assert/retract-triggered runtime recompilation of a dynamic predicate corrupts its OWN box's next trace CALL/STMT literals — root cause narrowed, not yet fixed
+# FINDING 2026-09-23 hq_prolog: assert/retract-triggered runtime recompilation of a dynamic predicate corrupts its OWN box's next trace CALL/STMT literals — ROOT CAUSE CONFIRMED AND CURED
+
+## UPDATE 2026-09-23 latest (third sitting): ROOT CAUSE CONFIRMED BY GDB, CURED — a dangling-stack-pointer bug in `pl_pred_graph`, Prolog-owned, NOT the shared `src/ir/` candidates
+
+CEO-1208 authorized landing this wherever it fell (permission step retired, CEO-801); the two shared-code
+candidates named in the update below (`zls_forget_graph_nodes`, the JIT literal-pool addressing) were BOTH
+directly investigated with gdb and BOTH EXONERATED — the real defect is neither, and is entirely inside
+Prolog's own `src/lower/lower_prolog.c`.
+
+**GDB EVIDENCE (SCRIP tree at the start of this sitting, `9f5233f70`, 3-line repro
+`:- dynamic(counter/1). counter(0). main :- assertz(counter(1)), counter(C), write(C), nl. :- initialization(main).`,
+mode-4, breakpoint on `rt_trace_call`, walking the caller frames):** `args[0]` (the DESCR_t staged for
+`__trace_call`'s name argument) printed as `{v = 2, slen = 9, s = 0x7ffffffedb30}` — the TAG (`v=2`, a string)
+and LENGTH (`slen=9`, exactly `strlen("counter/1")`) are CORRECT, but the DATA POINTER `s` is
+`0x7ffffffedb30` — **the EXACT stack address that held the `key` PARAMETER of the earlier
+`pl_runtime_define_pred_g(key="counter/1", ...)` call**, confirmed by comparing against that function's own
+breakpoint hit moments earlier in the SAME gdb session. By the time the recompiled box executes (on a LATER
+call, after `pl_runtime_define_pred_g`'s stack frame has long since been popped and reused by intervening
+calls), that address holds whatever garbage the stack currently contains — hence "a live stack address,"
+non-deterministic across runs, exactly as originally observed.
+
+**ROOT CAUSE, `src/lower/lower_prolog.c:1691`, inside `pl_pred_graph` (shared by BOTH the offline/static
+compile path and the runtime-JIT recompile path):**
+```c
+const char * trace_key = key;   // BEFORE — a bare alias to the CALLER's string
+```
+For OFFLINE/static compilation this is harmless: the `.s` emitter dereferences `trace_key` SYNCHRONOUSLY,
+copying its bytes into `.rodata` text before `key`'s owning frame is ever popped. For a RUNTIME-JIT-compiled
+box (assertz/retract recompilation always goes through this same function via
+`pl_runtime_define_pred_g` → `lower_pl_pred_graph` → `pl_pred_graph`), the box instead EMBEDS THE RAW POINTER
+VALUE for later use, and "later" means "on a SUBSEQUENT call, after this function has returned and its frame
+is gone" — a dangling pointer by construction, not a race, not table staleness, not a frame-layout offset bug.
+**This is why my prior static-reading hypotheses about `zls_forget_graph_nodes` and the fc-family tables in
+`src/ir/frame_layout.c` were both wrong**: those tables were confirmed via gdb to be entirely EMPTY
+(`zf_n=0`, `zx_n=0`) at the point of this process's one-and-only runtime recompile — there was no prior
+compile in this process to be stale against. The bug needed no shared-node fix at all.
+
+**CURE, one line, Prolog-owned, no shared code touched:**
+```c
+const char * trace_key = key ? ct_strdup(key) : NULL;   // AFTER — a durable arena copy (ct_alloc-backed, never freed)
+```
+`ct_strdup` (`src/ir/ct_arena.c:109`) is the project's sanctioned arena string-duplication helper (already used
+two lines later in `pl_runtime_define_pred_g` for the SAME `key` string, for predicate registration) — this is
+the correct, already-established idiom for exactly this situation (a string VALUE that must outlive its
+caller's frame; CLAUDE.md's "only string values belong on the heap" rule).
+
+**VERIFIED:** the 3-line repro, previously printing `****1 <garbage>()` / `****2 L1` (or `L209`, varying by
+run) / `****3 RETURN ( = ''`, now prints `****1 counter/1()` / `****2 L1` / `****3 RETURN counter/1 = ''`
+cleanly and DETERMINISTICALLY in BOTH modes (mode-4 `--compile`+assemble+link, and mode-3 `--run`, the latter
+additionally showing `main/0`'s own correctly-named call/return around it). `make preflight`: 59/60 arms
+green, the one red is the pre-existing, unrelated allocator-eradication gate (cfo's cure row, CEO-1208).
+
+**NOT cured by this fix, confirmed still open and unrelated:** monitor witness 4
+(`scripts/monitor/witnesses/sync_step_prolog_4.pl`) still DIVERGEs at step 35 after this cure — but the
+DIVERGENCE ITSELF shows no corrupted text at all: `gpx` emits `LABEL stno=INT=12` where `scr` emits
+`@12 CALL counter/1`, an EVENT-KIND/sequencing mismatch, not a garbled name. This was never claimed to be the
+SAME bug — the original discovery of the trace-literal corruption was via plain `--trace`, independent of the
+monitor, and this cure closes that independently-reproducible defect; witness 4's own divergence needs its
+own separate investigation, unstarted here. Row `prolog-assertz-beyond-64-clauses-...` (clause invisibility
+past 64 asserts, ZLS entry-table overflow under repeated recompiles) was checked and is ALSO NOT reached or
+narrowed by this cure — a different defect on the same recompile path, still fully open.
 
 ## UPDATE 2026-09-23 later (same day, second sitting): the prior hypothesis is DISPROVEN; root narrowed to runtime JIT recompilation
 
