@@ -948,7 +948,7 @@ when a regeneration is needed.
 
 ```bash
 bash scripts/test_smoke_snocone.sh                 # PASS=5 FAIL=0
-bash scripts/test_beauty_snocone_all_modes.sh      # PASS=42 FAIL=0 SKIP=3
+bash scripts/test_gate_snocone_beauty_suite_reads_every_test_in_both_modes_with_no_xfail.sh   # the beauty container, m3+m4, no XFAIL (20/20 both modes 2026-09-23; replaced test_beauty_snocone_all_modes.sh, whose directory the 08-29 re-grid removed)
 bash scripts/test_smoke_unified_broker.sh          # PASS=49 FAIL=0
 ```
 
