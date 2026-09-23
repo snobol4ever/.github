@@ -460,7 +460,15 @@ def grid(plain=False):
     for r in rows:
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError): continue
-        pct=f"{(100.0*tp/tt):.0f}%" if tt else "-"
+        # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
+        # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
+        # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
+        # denominator"); clamp a short suite's rounded display at 99% so it can never borrow that word.
+        if not tt: pct="-"
+        else:
+            pv=round(100.0*tp/tt)
+            if tp<tt and pv>=100: pv=99
+            pct=f"{pv}%"
         data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", pct, "DONE" if tt and tp>=tt else ""])
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
