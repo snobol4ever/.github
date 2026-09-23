@@ -118,6 +118,56 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog (DECTET) — **THE GNU-PROLOG MONITOR ROW (HANDED OFF BY THE ceo, CEO-1190): WITNESS 4 MOVED DIVERGE 20 → 35 (double_quotes NOW DEFAULTS TO codes, ISO/GNU-CORRECT, NOT atom) — AND THE NEW DIVERGENCE POINT IS A REAL, PREVIOUSLY-UNKNOWN SCRIP BUG, INDEPENDENT OF THE MONITOR, NOT THE CONTRACT GAP THE BATON GUESSED**
+
+Row `prolog-monitor-the-instrumented-gprolog-oracle-is-completed-and-used-...`. The ceo built and handed off
+the instrumented GNU Prolog 1.6.0 fork (SCRIP `4a9d5a698`) with three witnesses AGREEing and a fourth
+DIVERGEing on a real SCRIP-side gap, per its own baton. This sitting cured the baton's item 1:
+**`double_quotes` compiled DEFAULT was `atom`; ISO and real GNU Prolog both default it to `codes`.** Fixed
+in `by_name_dispatch.c`'s `pl_flags` table (the `set_prolog_flag(double_quotes,...)` DIRECTIVE form stays
+refused exactly as before, `lower_prolog.c:1862`, rung 10 — untouched, a separate and harder gap). Flipping
+the default exposed that several SWI-style text builtins (`string_concat`, `atom_string`, `number_string`,
+`string_length`, `atomic_concat`/`atom_concat`/`upcase_atom`/`downcase_atom`/`atomic_list_concat`) only
+accepted atoms in `unification.c`'s `plc_atom_op_text` and had no codes/chars-list fallback — added one
+(`plc_atom_op_list_text`, mirrors the existing atom_chars/atom_codes list-decode already in
+`rt_pl_atom_op_cell`), a pure widening, no output-representation change. SCRIP `ceb95d59d`.
+
+**REGRESSION CAUGHT AND CURED BEFORE LANDING, NOT AFTER (CEO-589 discipline):** the default flip cost the
+master board one entry in both modes (563→562, 480→479) — `fact_string_arg_1` (`label("hello").` /
+`write(S)`). Diagnosed as a STALE REF, not a new bug: it was cut from SCRIP's own prior (non-ISO)
+atom-default output, never from the oracle. Real GNU Prolog 1.6.0, run directly this sitting
+(`gprolog --consult-file`, banner/consult noise stripped), prints `[104,101,108,108,111]` for the identical
+3-line program — byte-identical to SCRIP's corrected output. Re-cut the ref (corpus `9cafa02ed`) rather than
+reverting the compiler fix, per "a ref is cut from the oracle, never from our output."
+
+**FULL VERIFICATION, ON THE POST-REBASE MERGED TREE** (SCRIP `39c36da57`, corpus `a1da90fc8`, after
+`git pull --rebase` moved both repos 7 commits and the gate was re-proved, not just re-quoted): master board
+**563/563 m3, 480/480 m4** (back to full green); `test_prolog_ladder.sh --to 18` **568/568** unchanged;
+GNU suite **11/11** unchanged; INRIA outcome-class **442/442**, bindings **439/442** unchanged (same two
+pre-existing named gaps — the double_quotes DIRECTIVE and the `clause/2` body `call/1`-wrap — neither
+touched by this landing).
+
+**THE NEW DIVERGENCE (witness 4, step 35) IS NOT THE BATON'S GUESSED CONTRACT GAP.** The baton's own
+`## NEXT` (before this sitting) predicted the next divergence was "the oracle side does not instrument
+dynamic/multifile/public predicates" — a real, separate, still-open gap, but not what fires here. **Measured
+instead: a CALL into a dynamic predicate immediately after `retract`/`assertz` on that SAME predicate,
+within the same clause body, corrupts the next traced CALL's name and the following STMT's line number** —
+reproduces in bare `--trace --run`, zero monitor/oracle involvement, on a 4-line witness
+(`:- dynamic(counter/1). counter(0). main :- retract(counter(N)), M is N+1, assertz(counter(M)),
+counter(C), write(C), nl.`). Calling `counter/1` WITHOUT a preceding retract/assertz in the same body traces
+correctly. Full repro, what was ruled out (the trace-name literal mechanism, the double_quotes/string-ops
+changes just landed, `intern_name_bin`), and a working but UNPROVEN hypothesis (a ζ-SPINE depth/slot
+mismatch around the `$db_erase`/`$db_assertz_r` `IR_CALL` nodes) are in
+`.github/findings/FINDING-2026-09-23-hq_prolog-a-call-immediately-after-retract-assertz-on-the-same-dynamic-predicate-corrupts-the-next-traced-call-name-and-the-following-stmt-line.md`.
+**NOT attempted as a cure this sitting** — ASM-DIFF-FIRST needs the `.s` diff between a direct dynamic-call
+witness and the retract/assertz-then-call witness before touching codegen; a guessed frame-slot fix is
+exactly the class CEO-589 warns against landing blind. **Next sitting: do that ASM diff, find the actual
+slot/depth mismatch, cure it, re-run `monitor_run.sh` on `sync_step_prolog_4.pl` and expect the divergence
+to move past line 12** (then item 3, `safe_div`/`catch/3`, then item 4, sweeping the Prolog reds through the
+monitor per the row's own USE section — none of that reached yet).
+
+---
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog (DECTET) — **LON'S WORD: PROLOG USES THE IPC SYNC-STEP MONITOR TECHNIQUE GOING FORWARD — BUT THE MEASURED STATE IS IT DOES NOT EXIST FOR THIS LANGUAGE YET, AND THE SHARED LAYERS ARE hq_icon's ROW TO LAND FIRST; INRIA MEANWHILE MOVED 432/445 → 439/442 (harness bugs fixed, not compiler bugs) WITH TWO REAL GAPS LEFT NAMED**
 
 **LON'S WORD, routed by ceo (CEO-1174), 2026-09-23 02:0x CDT, verbatim: "I've directed Prolog, Pascal, and Raku to begin using IPC sync-step monitor technique moving forward to find and fix bugs."** Recorded here per the standing law that I am the only witness to what Lon told me directly and the chat is not the record.
