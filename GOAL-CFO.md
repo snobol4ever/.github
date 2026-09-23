@@ -12,6 +12,22 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
     - The elements are compile-time-arena pointers (`lp_strdup` is `ct_alloc`), so a raw vector with a block-only visit is exact.
   - **MEASURED before the change:** a one-line program's compile-time arena holds 77 MB. That is 64 MB of the runtime pattern slab (`rt_dcap_lazy_init` via `rt_slab_get`) plus the emitter's fixed 8 MB `Q_MAX` queue, so the program-driven part is small (beauty.sno ~10 MB over the baseline). ⛔ **Concern named to the ceo:** compile-time tables on the GC heap count against the hard cap (4 MB shipped, 1 MB testing), and no collection can run mid-compile. The lower group is KBs; frame_layout and the emitter will be measured before they move.
   - **SCRIP_AB row minted at the ceo's request:** `sno-activation-blocks-under-scrip-ab-1-segfault-in-mode-3-and-emit-an-unassemblable-jmp-fn-in-mode-4` (cfo, rank 2). Its DONE-WHEN runs two witnesses in both modes against sbl and reads RED today.
+  - ⛔⭐ **WRAP-UP (18:1x, Lon in-chat, verbatim: *"wrap it up so I can /clear and next."*): LANDING C IS BUILT, PARTLY MEASURED, AND NOT LANDED.** It lives in git `stash@{0}` of this root's SCRIP, with a patch copy plus the four evidence tools and six witnesses in `/home/claude_cfo/.scratch/CFO-156-landing-C/`. The tools hard-code the old scratchpad path `S`, so edit that first. The full state is in the row's ledger entry of 18:1x.
+    - **What it contains:** the lower group (SNOBOL4 exprs/pats/fz/fzw/seal/pro/encl/t4/scd, the transpiler's loop stacks, RK_GRAM_MAX). Plus `cv_t` on the GC heap per Lon: `rt_wsb_realloc`, the statics rooted in `lower_gc_roots`, no `ct_drop` on a vector block, and the Prolog parser scope and lowerer slot map reused per clause.
+    - ⭐ **CTO RULING:** two types; `cv_t` raw on `rt_wsb_realloc` with each static rooted. The evidence owes two arms: the cap binds a whole compile (peak about twice the final tables), so run the JCON self-host at shipped settings and the largest compiles; and runtime compiles, so run stress 1/3/5.
+    - ⛔⭐ **THE LESSON THAT SHAPED IT:** a vector created per clause on the GC heap is garbage that no collection can reach mid-compile. A hello-world Prolog program made 7730 of them, 1 MB, which would fail every Prolog program under the 1 MB testing arena, and the 600-predicate witness hit the shipped 4 MB cap. With one scope owned by the per-parse container and reset per clause: 324 of them, and green at every GC point. [[a-per-unit-vector-on-the-gc-heap-is-garbage-no-compile-can-collect]]
+    - **Measured so far:**
+      - Compile census, 4926 entries: identical to origin at the default cap and at 1 MB.
+      - `pats300` flips from FATAL to sbl's 300; `loops70.sc --transpile` flips from wrong to right.
+      - Gates 18/19 green; the red one's list is identical on origin.
+      - Runtime differential at 1 MB and stress 3: 628 entries (all Prolog, part of Raku), 0 differences, stopped at the wrap-up.
+    - **Blocked witnesses:** `exprs4200.sno` needs the runtime's GLOBAL_MAX 4096 converted first (the cto's row). The Raku one needs `$t.new` to parse.
+    - **NEXT:** pop the stash; finish the differential (SNOBOL4, Snocone, Rebus, Raku at 1 MB and stress 1/3/5) plus the cto's two arms; lower BASELINE by C's delta; preflight; land; then the ir group.
+  - **ECONOMY (the whole sitting, 16:06 -> 18:1x):**
+    - CREDITS: no reading from Lon.
+    - LOAD: 7 -> 39 on 16 cores. No runaways.
+    - DISK: 85% now. My scratchpad worktrees are removed; 18 GB free.
+    - BOARD COST: a full compile census is 1.5 min at 6 jobs. A four-arm GC-law differential runs about 35 min over 3854 entries, because stress is slow.
 
 - **CFO-155 (2026-09-23 16:06 -> 17:4x CDT, `date`-read, cfo; MODE DECTET; 14 inbound read, 4 answered, all cleared) -- THE ceo'S ASSIGNED ROW, TWO LANDINGS: `ct_grow` HAS REALLOC'S CONTRACT (SCRIP `d2efe8a8f`), AND THE FIRST COMPILE-TIME TABLES GROW AS `cv_t` VECTORS (SCRIP `ac237a0e7`). BOTH OF THE ROW'S WITNESSES NOW MATCH THEIR ORACLES. THE ROW STAYS OPEN AT 62 TABLES.**
   - ⭐⭐ **(A) `ct_grow` (ARCH-DYNAMIC-STORAGE § 4.0, Lon's word via CEO-1211):** a grow that fits returns p; the last block at `ct_cur` grows in place; otherwise it moves and the OLD BLOCK IS FREED to its bin (a block above 8 MB: map, copy, unmap). The free is the one behaviour change: alloc-copy-abandon leaked every table's whole growth history.
