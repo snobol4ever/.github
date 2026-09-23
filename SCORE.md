@@ -7,7 +7,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 127/132 | 2026-09-22 (today) | `6ea8abdde` |  |
-| Budne | snobol4 | 70/71 OUTSIDE=1 | 2026-09-22 (today) | `7a1361373` |  |
+| Budne | snobol4 | 70/71 OUTSIDE=1 | 2026-09-23 (today) | `a22f9c6ed` |  |
 | Flake | snobol4 | 110/124 | 2026-09-22 (today) | `58820a280` |  |
 | AIS | snobol4 | 5/7 | 2026-09-16 (today) | `8f567e685` |  |
 | Dotnet | snobol4 | 5/5 | 2026-09-16 (today) | `8f567e685` | done |
@@ -21,7 +21,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | FPC | pascal | 145/181 | 2026-09-23 (today) | `6ab620788` |  |
 | PAT | pascal | 306/427 | 2026-09-23 (today) | `bac9e399a` |  |
 | Roast | raku | 9/1464 | 2026-09-16 (today) | `5cc7ba393` |  |
-| SnoM | snobol4 | 1948/1982 | 2026-09-22 (today) | `7a1361373` | 9 xfail counted as FAIL of a 34-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| SnoM | snobol4 | 1956/1982 | 2026-09-23 (today) | `9dc4d12d4` | 9 xfail counted as FAIL of a 26-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnM | icon | 826/826 | 2026-09-23 (today) | `4a9d5a698` | done |
 | ProM | prolog | 563/563 | 2026-09-23 (today) | `a5240e77a` | done |
 | PasM | pascal | 246/246 | 2026-09-17 (today) | `9c35971c1` | done |
