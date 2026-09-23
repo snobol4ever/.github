@@ -282,3 +282,33 @@ Nobody starts a plug before hq_raku's renamed hooks and helpers are on origin; t
 - **Harness and gate, landed:** participants `scr3`/`scr4` in the one auto harness; `test_monitor_2way_sync_step_all_langs.sh` reads 4 of 4 (icon 13 steps · prolog 3 · pascal 25 · raku 15), wired REPORTED in `make test`; one witness per language under `scripts/monitor/witnesses/`.
 - **Owed, by owner:** hq_prolog — goal positions; hq_snobol4 — the `SNO$STMT`/`comm_var` path migrated onto the shared hooks (the last plug; the SPITBOL bridge keeps working through the same wire); hq_icon — the per-language `positions()` map plug (the m3-vs-m4 arm needs no map, an oracle peer will); each HQ — a monitor-safe witness from its own master and the first real bug the technique finds; Lon — the gate (compile-time as landed, or a runtime flag).
 
+## ⭐⭐⭐ HOW AN HQ USES IT (ceo 2026-09-23 03:17 CDT, CEO-1186 — Lon: *"finish up IPC sync-step monitor and let me know when the HQ's can begin to use"*; *"you can manufacture statement numbers versus line numbers if that is easier."*)
+
+One command, from `SCRIP/`, on any source of Icon, Prolog, Pascal, Raku, SNOBOL4, Snocone or Rebus:
+
+```bash
+bash scripts/monitor_run.sh prog.icn            # --modes: mode 3 against mode 4 in lock-step; AGREE, or the controller's grid at the first divergence
+bash scripts/monitor_run.sh prog.pl --trace     # the trace: ****N  L<pos> / name = value / name(args) / RETURN name = value
+bash scripts/monitor_run.sh prog.sno --oracle   # SCRIP against the oracle in lock-step (SNOBOL4 today: SPITBOL through its bridge)
+```
+
+- **Before any lock-step verdict the wrapper checks monitor-safety itself:** the untraced stdout must equal the traced stdout with the `****` lines removed; if not, it REFUSES rc=2 — the trace changed the program and the verdict would be about a different one. Exit 0 agree, 1 diverge (a row on the language's rung), 2 could not measure.
+- **The position unit is the language's own:** a source line where the frontend has one (Icon, Raku, Pascal, SNOBOL4's statement numbers), a MANUFACTURED statement number in lowering order where it has none (Prolog goals: `L1, L2, …` in the order the goals are lowered — both modes lower identically, so lock-step compares on it). Lon's word: manufacture when easier.
+- **What `--trace` is:** the compile-time gate of the shared hooks (`rt_trace_stmt/_value/_call/_return`); `--trace=N` budgets N events; a mode-4 binary reads `SCRIP_TRACE=N` at run time. `SCRIP_TRACE` is ONE variable: it also arms SNOBOL4's `&TRACE` budget, so `--trace` on a `.sno` traces as `&TRACE = N` would.
+- **What a divergence means:** mode 3 and mode 4 disagree on an event — a MODES-MAY-DIVERGE drift, cured on the language's rung with the witness minted into the master; the trace alone (`--trace`) is the debugging tool that found hq_pascal's three bugs in one sitting (CEO-1179).
+- **What it does not do yet:** lock-step against an oracle other than SPITBOL (layer 6 is per language and lands only where it earns its cost); a SNOBOL4 program still traces through its own `SNO$STMT`/`&TRACE` path (its migration onto the shared hooks is hq_snobol4's last plug).
+
+## ⭐⭐⭐ THE ORACLE-SIDE BRIDGES ARE EACH HQ'S OWN (Lon 2026-09-23 03:34 CDT, in-chat to the ceo, verbatim: *"You can have each HQ do their own."* — CEO-1186)
+
+Lon asked (03:2x): *"How many third-party trace instrumentations have you accomplished so far? FPC? SWIPL? GNU Prolog? Rakudo?"* — the honest count is ZERO. SNOBOL4's three oracle participants (csnobol4 `csn`, the SPITBOL x64 fork `spl`, .NET `dot`) predate this design and were built by instrumenting each engine's source. For Icon, Prolog, Pascal and Raku the monitor on origin is SCRIP-against-SCRIP (mode 3 against mode 4, `scr3`/`scr4`) plus `--trace`. An oracle bridge is a participant that emits the same STMT/VALUE/CALL/RETURN events from the ORACLE's own execution over the same READY/GO pipes, so the controller can hold SCRIP and the oracle in lock-step. Each is its language HQ's row (`<lang>-monitor-oracle-bridge-*`, minted and assigned 2026-09-23 03:4x). The ceo's probe of each oracle, so no HQ starts from zero:
+
+| Oracle | What it offers without an engine change | Events reachable | The catch |
+|---|---|---|---|
+| Icon, Arizona `icont`/`iconx` 9.5.25a | `&trace := -1` prints `file : line | proc(args)`, `proc returned v`, `proc suspended v`, `proc failed` to stderr, with source lines | CALL, RETURN (with lines) | statement and value events need an `iconx` fork — that is an oracle swap (RULES.md § Oracles, the ORACLE-SWAP PROCEDURE, Lon's go) |
+| SWI-Prolog `swipl` | `user:prolog_trace_interception/4` under `trace`, `leash(-all)`: one hook per port (call/exit/redo/fail/unify) with the goal term and the frame; `clause_property(Cl, line_count(L))` at unify; goal lines through `library(prolog_clause)` `clause_info/4` | STMT (per goal), CALL, RETURN, VALUE (bindings at exit) | the bridge is pure Prolog loaded beside the witness — no engine change; SCRIP's Prolog STMT event carries only the line, so the bridge maps the call port to `L<line>` |
+| GNU Prolog `gprolog` 1.4.5 | `trace` prints `Call: goal ?` / `Exit:` text and waits for a debugger keystroke per port | CALL, RETURN by parsing the debugger text with answers piped in | no hook API; do SWI first |
+| Free Pascal `fpc -Miso -gl` | no runtime hook; `gdb -batch` on a `-gl` binary: `next` + `info line` walks statements by source line, `break` on every procedure gives entry/exit, `print v` after an assignment line gives its value | STMT, CALL, RETURN, VALUE | the bridge drives gdb with a script generated from the witness's source; slow, fine for a witness |
+| Rakudo `raku` v2022.12 / MoarVM | no trace hook in the VM or the compiler; the ecosystem `Trace` module is NOT installed, `zef` is not on the box (a HEAD to raku.land answered HTTP 405, so the network is reachable) | none today | either Lon allows installing zef + Trace, or the bridge is a source-level injection of `note` calls on the oracle side |
+
+The wrapper's `--oracle` arm is the seam: `monitor_run.sh` maps the extension to its participants (`sno) parts="spl scr"` today); a bridge lands by adding its participant to `test_monitor_3way_sync_step_auto.sh` (its allowed list and its start block) and its extension arm to the wrapper, and is proven the way every participant is: AGREE on the language's `sync_step_<lang>` witness, DIVERGE when the oracle side runs a one-line variant of the witness (fail-once), and a REFUSE with the participant's name when it never starts.
+
