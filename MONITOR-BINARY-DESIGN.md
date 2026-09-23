@@ -219,3 +219,18 @@ After the binary protocol lands:
 - SCRIP/scripts/test_monitor_3way_sync_step.sh             (NEW)
 - SCRIP/src/runtime/x86/snobol4.c (mon_send + comm_var/call/return)
 - x64/monitor_ipc_bin_spl.c                                  (NEW; build .so)
+
+## ⭐⭐⭐ ONE SYNC-STEP DESIGN FOR SEVEN LANGUAGES (Lon 2026-09-23 02:22 CDT, in-chat to the ceo, verbatim: *"You might need to bring them all together on the sync-step IPC design to maximize code sharing and re-use."*; CEO-1176 — the convening rule; the cto convenes as the spine)
+
+**The measured starting point (CEO-1175):** the sync-step monitor exists for SNOBOL4 alone. `--dump-ir` on one five-statement witness per language reads `STMT_MARK` snobol4 6 · icon 0 · prolog 0 · pascal 0 · raku 0. The wire in `src/runtime/core/core.c` (`mon_send_bin`, the `MWK_*` events, the go-pipe barrier) and the controller (`scripts/monitor/monitor_sync_bin.py`, `monitor_wire.h`) are language-blind already; the events reach them only through `bb_stmt_mark`, emitted only by `lower_snobol4.c`; `build_stno_map.py` maps SNOBOL4 statement numbers; the peers are SPITBOL and CSNOBOL4 through a bridge compiled into the oracle.
+
+**THE RULE: ONE OF EACH, AND A PLUG PER LANGUAGE.** A language joins the monitor by adding a plug, never by copying a layer. The layers, each with exactly one implementation:
+1. **The statement event** — `IR_STMT_MARK` carrying a statement number, emitted at every statement boundary by ONE mechanism for every frontend (lower_common or the driver, never seven lowerer copies); `bb_stmt_mark` stays the one emitter; the number is what the map keys on.
+2. **The wire** — `monitor_wire.h` + `mon_send_bin` in `core.c`; language-blind today, stays so; a language never adds an event KIND — a value that needs a new rendering renders through the existing `MWK_VALUE` with its DESCR type as the tag.
+3. **The controller** — `monitor_sync_bin.py`; one barrier, one byte-compare, one first-divergence report; parametrised by the participants it is handed, never by language.
+4. **The statement map** — ONE builder (`build_stno_map.py`) with a per-language plug selected by extension: the plug answers *which source spans are statements and what number each carries*; nothing else is per language.
+5. **The harness** — ONE runner parametrised by language and participant set (`PARTICIPANTS="scr3 scr4"` for the mode-3-against-mode-4 self arm; `"spl scr"` for SNOBOL4 against SPITBOL); `test_monitor_2way_sync_step_all_langs.sh` is its first form and every per-language arm is an invocation of it, never a sibling script.
+6. **The peer** — the only genuinely per-language layer: the mode-3-against-mode-4 self-comparison first (no oracle bridge, catches MODES-MAY-DIVERGE semantics drift); an oracle-side bridge (iconx, swipl) only where it earns its cost, in the shape `monitor_ipc_spitbol.so` already has, and behind the same wire.
+
+**THE ORDER OF WORK:** the cto lands layers 1, 4 (the builder interface + the SNOBOL4 plug moved into it) and 5 under row `monitor-the-sync-step-statement-event-is-emitted-by-every-frontend-so-the-ipc-monitor-can-drive-icon-prolog-pascal-and-raku`, and writes the plug interface in this section before any HQ mints; each HQ then lands its plug (layer 4) and its peer (layer 6) as one row in its lane, referencing this section; a per-language copy of any of layers 1–5 is reverted on sight. The standing law binds every arm: a MONITOR verdict is a verdict on a different program (`MONITOR_BIN` forces GVA off), so the monitor brackets only a witness proven monitor-safe (default-arm md5 unchanged under `MONITOR_BIN`) and REFUSES rc=2 when a participant never starts.
+
