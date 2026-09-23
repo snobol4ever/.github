@@ -1,6 +1,6 @@
 # FINDING 2026-09-23 (cto) — the eight routed reds of CEO-1161: five cured, one instrumented, two declared; the grew column over 58 witnesses; the shift plant's arithmetic
 
-Tree: SCRIP 89956530b at session start, landings 9ae694007 2e50595ae 25110f402 87ace0aa4 9d3603aa2 2305822d1 a57f0b10e. Every claim below is folded into GOAL-CTO.md CTO-140 and the chop baton; this file is the evidence and may be deleted.
+Tree: SCRIP 89956530b at session start, landings 400e6b03a 9a7fef64f 796c89d84 3da2fb300 321130a35 32d342ade 3d9b24368. Every claim below is folded into GOAL-CTO.md CTO-140 and the chop baton; this file is the evidence and may be deleted.
 
 ## 1. The grew column, measured (232 receipts at 64 KB, 116 at 128 and 256)
 
@@ -23,14 +23,14 @@ hb_plj_batch_b.pl prints no receipt at 64 KB (crashes or refuses at every stress
 
 | gate | reading | class | landing |
 |---|---|---|---|
-| allocating_set table | ONLY_CENSUS=26 (Pascal allocators) | regeneration | 9ae694007 |
-| descriptor_kind_sets | DT_E in gc_visit_one only (hq_icon 39c510f22) | regression, cured in the four spellings | 2e50595ae |
-| safe_point_stores (REPORTED) | five Prolog witnesses unread_static +9 each (hq_prolog 6a6983d9e bb_call.cpp), one witness arrived | re-baseline with attribution | 25110f402 |
+| allocating_set table | ONLY_CENSUS=26 (Pascal allocators) | regeneration | 400e6b03a |
+| descriptor_kind_sets | DT_E in gc_visit_one only (hq_icon 39c510f22) | regression, cured in the four spellings | 9a7fef64f |
+| safe_point_stores (REPORTED) | five Prolog witnesses unread_static +9 each (hq_prolog 6a6983d9e bb_call.cpp), one witness arrived | re-baseline with attribution | 796c89d84 |
 | callee_saved arm 5 | copy residual 293 vs 289: w.pas +11 (the cto's relop rec_sigma reload, 2344d2dc7), w.icn −7 | the cfo's CEO-973 table row (CEO-1164); ceiling untouched | — |
-| no_layout_entry | consumer refused rc=2 at the fake root (coo's 0176b35dd build-currency guard) | instrument, fake root made a built tree | 9d3603aa2 |
-| caller_saved_spill_block (REPORTED) | 1476 detections slot 5, 134 unrepaired, no site | instrumented: graph= line= site= | 87ace0aa4 |
-| coexpression_roots | parked@3 sigma@1 SIGSEGV inside gc_collect_ex memmove | shift plant arithmetic, cured; arms 3 and 5 stay red (plant drift) | 2305822d1 |
-| mark_walk | rc=134 heap exhausted at the 4096 KB cap, 87011 blocks live | declared pin 256 MB | a57f0b10e |
+| no_layout_entry | consumer refused rc=2 at the fake root (coo's 0176b35dd build-currency guard) | instrument, fake root made a built tree | 321130a35 |
+| caller_saved_spill_block (REPORTED) | 1476 detections slot 5, 134 unrepaired, no site | instrumented: graph= line= site= | 3da2fb300 |
+| coexpression_roots | parked@3 sigma@1 SIGSEGV inside gc_collect_ex memmove | shift plant arithmetic, cured; arms 3 and 5 stay red (plant drift) | 32d342ade |
+| mark_walk | rc=134 heap exhausted at the 4096 KB cap, 87011 blocks live | declared pin 256 MB | 3d9b24368 |
 
 ## 3. The shift plant's arithmetic
 
