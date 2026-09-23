@@ -1,0 +1,1407 @@
+file	line	scope	name	bound	size	dims	guard
+src/driver/csnobol4_shim.c	31	local	buf	256	256		
+src/driver/driver_call.c	3	file	call_stack	CALL_STACK_MAX	256		guarded
+src/driver/driver_call.c	5	file	init_tab	INIT_MAX	64		UNGUARDED
+src/driver/driver_call.c	65	local	pnames	64	64		
+src/driver/driver_call.c	66	local	lnames	64	64		
+src/driver/driver_call.c	75	local	ufname	128	128		
+src/driver/driver_data.c	12	file	dat_types	SC_DAT_MAX_TYPES	1024		guarded
+src/driver/driver_data.c	47	local	name	64	64		
+src/driver/driver_data.c	57	local	name	64	64		
+src/driver/driver_data.c	67	local	f	64	64		
+src/driver/driver_data.c	85	local	one	1	1		
+src/driver/driver_data.c	104	local	cb	64	64		
+src/driver/driver_data.c	119	static	lists	12	12	[64][64]	
+src/driver/driver_data.c	119	static	merged	64	64	[64]	
+src/driver/driver_data.c	138	local	merged	64	64	[64]	
+src/driver/driver_data.c	138	local	mhas	64	64		
+src/driver/driver_data.c	138	local	mrw	64	64		
+src/driver/driver_data.c	138	local	mprv	64	64		
+src/driver/driver_data.c	179	local	_m	256	256		
+src/driver/driver_data.c	209	local	mro	64	64		
+src/driver/driver_data.c	233	local	mro	64	64		
+src/driver/driver_data.c	281	local	mro	64	64		
+src/driver/driver_data.c	332	local	mro	64	64		
+src/driver/driver_data.c	344	local	mro	64	64		
+src/driver/driver_data.c	411	local	_m	512	512		
+src/driver/driver_data.c	467	local	nb	64	64		
+src/driver/driver_globals.c	2	file	g_script_exception	512	512		
+src/driver/driver_globals.c	7	file	g_fh	FH_MAX	64		guarded
+src/driver/driver_hooks.c	48	local	_fname	128	128		
+src/driver/driver_label.c	38	static	flatbuf	1024	1024		
+src/driver/driver_label.c	85	local	nb	128	128		
+src/driver/driver_private.h	34	file	g_script_exception	512	512		
+src/driver/driver_private.h	42	file	g_fh	FH_MAX	64		UNGUARDED
+src/driver/driver_private.h	71	file	name	64	64		
+src/driver/driver_private.h	74	field	fname	128	128		
+src/driver/driver_private.h	80	field	shadow	SHADOW_MAX	32		UNGUARDED
+src/driver/driver_private.h	83	file	call_stack	CALL_STACK_MAX	256		UNGUARDED
+src/driver/driver_private.h	91	file	nm	64	64		
+src/driver/driver_private.h	92	file	s	INIT_SLOTS	8		UNGUARDED
+src/driver/driver_private.h	93	file	init_tab	INIT_MAX	64		UNGUARDED
+src/driver/driver_private.h	119	field	name	64	64		
+src/driver/driver_private.h	119	field	fields	64	64	[64]	
+src/driver/driver_private.h	119	field	defaults	64	64		
+src/driver/driver_private.h	119	field	required	64	64		
+src/driver/driver_private.h	120	field	rw	64	64		
+src/driver/driver_private.h	120	field	priv	64	64		
+src/driver/driver_private.h	120	field	parents	8	8	[64]	
+src/driver/driver_private.h	121	field	roles	8	8	[64]	
+src/driver/driver_private.h	121	field	methods	32	32	[64]	
+src/driver/driver_private.h	121	field	build_keys	16	16	[64]	
+src/driver/driver_private.h	122	field	handles_meth	32	32	[64]	
+src/driver/scrip.c	180	local	_anb	300	300		
+src/driver/scrip.c	776	local	_e	1024	1024		
+src/driver/scrip.c	799	local	_esc	1024	1024		
+src/driver/scrip.c	802	local	_esc	1024	1024		
+src/driver/scrip.c	808	local	_esc	1024	1024		
+src/driver/scrip.c	815	local	_esc	1024	1024		
+src/driver/scrip.c	827	local	_nl	64	64		
+src/driver/scrip.c	949	local	e	1024	1024		
+src/driver/scrip.c	955	local	e	1024	1024		
+src/driver/scrip.c	1011	local	preload_path	16	16		
+src/driver/scrip.c	1126	local	segs	64	64		
+src/driver/scrip.c	1158	local	rp	4096	4096		
+src/driver/scrip.c	1160	local	dirbuf	4096	4096		
+src/driver/scrip.c	1168	local	envb	4096	4096		
+src/driver/scrip.c	1172	local	walk	4096	4096		
+src/driver/scrip.c	1178	local	probe	4096	4096		
+src/driver/scrip.c	1447	local	smx_why	256	256		
+src/driver/scrip.c	1514	local	_pfx	256	256		
+src/driver/scrip.c	1551	local	eb	512	512		
+src/driver/scrip.c	1583	local	_esc	1024	1024		
+src/driver/scrip.c	1600	local	_ab	300	300		
+src/driver/scrip.c	1667	local	smx_why	256	256		
+src/driver/scrip.c	1700	local	_m3pfx	300	300		
+src/driver/scrip.c	1740	local	_ab	300	300		
+src/driver/scrip.c	1745	local	_ab	300	300		
+src/driver/scrip.c	1759	local	_pnb	4096	4096		
+src/driver/stmt_ast.c	30	param	val	0	0		
+src/driver/stmt_ast.c	42	local	buf	32	32		
+src/driver/stmt_ast.c	61	param	label	0	0		
+src/driver/stmt_ast.c	96	local	b	160	160		
+src/driver/stmt_ast.c	99	local	b	160	160		
+src/emitter/emit.cpp	67	local	bb_patch_list	BB_PATCH_MAX	65536		guarded
+src/emitter/emit.cpp	73	static	g_flt_lbl	4	4		
+src/emitter/emit.cpp	90	static	b	48	48		
+src/emitter/emit.cpp	90	local	n	0	0		
+src/emitter/emit.cpp	99	static	fn	4	4		
+src/emitter/emit.cpp	113	local	nb	4096	4096		
+src/emitter/emit.cpp	156	static	g_lblfold_from	4096	4096		
+src/emitter/emit.cpp	270	static	ops	6	6	[2]	
+src/emitter/emit.cpp	317	local	nb	4096	4096		
+src/emitter/emit.cpp	329	static	g_wasm_strtab	WASM_STRTAB_MAX	4096		UNGUARDED
+src/emitter/emit.cpp	358	local	name	128	128		
+src/emitter/emit.cpp	358	local	params	WASM_MAX_PARAMS	16	[128]	UNGUARDED
+src/emitter/emit.cpp	359	static	g_wasm_userfns	WASM_USERFNS_MAX	256		UNGUARDED
+src/emitter/emit.cpp	362	static	g_nid_key	262144	262144		
+src/emitter/emit.cpp	363	static	g_nid_val	262144	262144		
+src/emitter/emit.cpp	373	static	g_chain_entry_key	65536	65536		
+src/emitter/emit.cpp	444	static	labels	SMX_STRTAB_CAP	8192		guarded
+src/emitter/emit.cpp	445	static	escbuf	SMX_STRTAB_CAP	8192		guarded
+src/emitter/emit.cpp	446	static	escaped	SMX_STRTAB_CAP	8192		guarded
+src/emitter/emit.cpp	447	static	lblbuf	SMX_STRTAB_CAP	8192	[24]	guarded
+src/emitter/emit.cpp	466	local	tbl	256	256		
+src/emitter/emit.cpp	489	static	rowbuf	SMX_CSETTAB_CAP	256		guarded
+src/emitter/emit.cpp	490	static	rows	SMX_CSETTAB_CAP	256		guarded
+src/emitter/emit.cpp	491	static	labels	SMX_CSETTAB_CAP	256		guarded
+src/emitter/emit.cpp	492	static	lblbuf	SMX_CSETTAB_CAP	256	[24]	guarded
+src/emitter/emit.cpp	596	static	g_flat_chain_set	FLAT_CHAIN_SET_MAX	512		guarded
+src/emitter/emit.cpp	612	local	g_flat_data_buf	FLAT_DATA_BUF_MAX			guarded
+src/emitter/emit.cpp	616	local	text_lbl	80	80		
+src/emitter/emit.cpp	622	static	g_flat_data_pending_lbl	160	160		
+src/emitter/emit.cpp	623	static	g_flat_data_block_lbls	FLAT_DATA_LBL_MAX	32	[96]	UNGUARDED
+src/emitter/emit.cpp	679	local	_e	0	0		
+src/emitter/emit.cpp	921	static	g_bnr_vnode	4096	4096		
+src/emitter/emit.cpp	921	static	g_bnr_vname	4096	4096		
+src/emitter/emit.cpp	1058	static	g_zd_anchor	ZD_NOPS_MAX	64		guarded
+src/emitter/emit.cpp	1069	local	e	0	0		
+src/emitter/emit.cpp	1159	local	_vn	0	0		
+src/emitter/emit.cpp	1184	local	_e	0	0		
+src/emitter/emit.cpp	1205	local	_sv	0	0		
+src/emitter/emit.cpp	1212	local	_sv	0	0		
+src/emitter/emit.cpp	1213	local	_sv	0	0		
+src/emitter/emit.cpp	1215	local	_sv	0	0		
+src/emitter/emit.cpp	1216	local	_sv	0	0		
+src/emitter/emit.cpp	1523	static	g_ab_fn_cells	AB_FNCELL_MAX	1024		guarded
+src/emitter/emit.cpp	1525	static	g_ab_fn_names	AB_FNCELL_MAX	1024	[64]	guarded
+src/emitter/emit.cpp	1598	local	vn	0	0		
+src/emitter/emit.cpp	1745	local	_sv	0	0		
+src/emitter/emit.cpp	1784	local	_sv	0	0		
+src/emitter/emit.cpp	1798	local	_sv	0	0		
+src/emitter/emit.cpp	2538	static	g_blob_lay	512	512		
+src/emitter/emit.cpp	2539	static	g_zls_lay	32768	32768		
+src/emitter/emit.cpp	2787	local	_e	0	0		
+src/emitter/emit.cpp	2788	local	_e	0	0		
+src/emitter/emit.cpp	2925	static	g_gc_map_names	8192	8192		
+src/emitter/emit.cpp	2971	local	eb	512	512		
+src/emitter/emit.cpp	2972	local	b	1024	1024		
+src/emitter/emit.cpp	2995	local	_flt_hoisted	4	4		
+src/emitter/emit.cpp	2996	local	_flt_uid_burn	4	4		
+src/emitter/emit.cpp	3007	local	alt_tr	64	64		
+src/emitter/emit.cpp	3090	local	_refd	4	4		
+src/emitter/emit.cpp	3116	local	_blocker_op	512	512		
+src/emitter/emit.cpp	3141	local	_blocker_op	512	512		
+src/emitter/emit.cpp	3163	local	zw5_pool	ZW5_POOL			guarded
+src/emitter/emit.cpp	3164	local	zw5_stmt_idx	ZW5_POOL			guarded
+src/emitter/emit.cpp	3164	local	zw5_stmt_cnt	ZW5_POOL			guarded
+src/emitter/emit.cpp	3166	local	_depths	ZW5_MAX_DEPTHS			guarded
+src/emitter/emit.cpp	3255	local	_lp	512	512		
+src/emitter/emit.cpp	3364	local	_init	256	256		
+src/emitter/emit.cpp	3382	local	_e	0	0		
+src/emitter/emit.cpp	3387	local	_e	0	0		
+src/emitter/emit.cpp	3465	local	_e	0	0		
+src/emitter/emit.cpp	3476	local	_e	0	0		
+src/emitter/emit.cpp	3508	local	_e	0	0		
+src/emitter/emit.cpp	3529	local	_e	0	0		
+src/emitter/emit.cpp	3589	local	_e	0	0		
+src/emitter/emit.cpp	3652	local	_res	96	96		
+src/emitter/emit.cpp	3730	local	_seg	128	128		
+src/emitter/emit.cpp	3747	local	_seg	128	128		
+src/emitter/emit.cpp	3802	local	chain	8192	8192		
+src/emitter/emit.cpp	3803	local	seen	8192	8192		
+src/emitter/emit.cpp	3804	local	stkv	8192	8192		
+src/emitter/emit.cpp	3838	local	stk	512	512		
+src/emitter/emit.cpp	3887	static	g_fbm_nd	8192	8192		
+src/emitter/emit.cpp	4008	local	_pmp	64	64		
+src/emitter/emit.cpp	4052	local	sb	4096	4096		
+src/emitter/emit.cpp	4068	static	cn	ZCUS_N			guarded
+src/emitter/emit.h	41	local	name	BB_LABEL_NAME_MAX	80		guarded
+src/emitter/emit.h	65	local	bb_patch_list	BB_PATCH_MAX	65536		UNGUARDED
+src/emitter/emit.h	296	field	op_parts_tag	32	32		
+src/emitter/emit.h	297	field	op_parts_str	32	32		
+src/emitter/emit.h	298	field	op_parts_lbl	32	32		
+src/emitter/emit.h	320	field	op_fc_arm_fp	16	16		
+src/emitter/emit.h	389	field	bb_ptr_slot_lbl	88	88		
+src/emitter/emit.h	395	field	bb_ls_buf	64	64		
+src/emitter/emit.h	396	field	bb_rs_buf	64	64		
+src/emitter/emit.h	397	field	bb_op_buf	64	64		
+src/emitter/emit.h	459	field	xa_bb_emit_pair_define	XA_BB_EMIT_PAIR_MAX	1024		UNGUARDED
+src/emitter/emit.h	460	field	xa_bb_emit_pair_jmp	XA_BB_EMIT_PAIR_MAX	1024		UNGUARDED
+src/emitter/emit.h	464	field	x86_uid_kind_buf	48	48		
+src/emitter/emit.h	471	field	op_arbno_zq	8	8		
+src/emitter/emit.h	474	field	flat_cap_off	48	48		
+src/emitter/emit.h	496	field	op_zread	ZD_NOPS_MAX	64		UNGUARDED
+src/emitter/emit.h	499	field	op_zkind	ZD_NOPS_MAX	64		UNGUARDED
+src/emitter/emit.h	534	field	op_zread_xf	ZD_NOPS_MAX	64		UNGUARDED
+src/emitter/emit.h	664	local	buf	4096	4096		
+src/emitter/emit_str.cpp	17	file	b	4	4		
+src/ir/IR.h	193	file	sz	4	4		
+src/ir/IR.h	267	field	ring	AG_RING	16		guarded
+src/ir/IR.h	280	field	ab_nodes	32	32		
+src/ir/ast_print.c	47	local	buf	32	32		
+src/ir/ast_print.c	48	local	buf	32	32		
+src/ir/ct_arena.c	16	file	ct_bin	CT_BINS	20		guarded
+src/ir/frame_layout.c	25	file	ze	FL_MAX_ENTRIES	262144		guarded
+src/ir/frame_layout.c	26	file	zf	FL_MAX_FIELDS	524288		guarded
+src/ir/frame_layout.c	27	file	zs	FL_MAX_SCOPES	16384		guarded
+src/ir/frame_layout.c	28	file	zg	FL_MAX_GRAPHS	16384		guarded
+src/ir/frame_layout.c	29	file	zv	FL_MAX_VSLOTS	16384		guarded
+src/ir/frame_layout.c	30	file	zm	FL_MAX_MARKS	262144		guarded
+src/ir/frame_layout.c	31	file	zx	FL_MAX_ENTRIES	262144		guarded
+src/ir/frame_layout.c	46	file	zq	8	8		
+src/ir/frame_layout.c	47	file	za	1024	1024		
+src/ir/frame_layout.c	48	file	wsv	4	4		
+src/ir/frame_layout.c	138	local	from	1	1		
+src/ir/frame_layout.c	365	static	names	13	13	[24]	
+src/ir/frame_layout.c	380	local	post	49	49		
+src/ir/frame_layout.c	413	local	post	49	49		
+src/ir/frame_layout.c	432	static	anon	FL_MAX_GRAPHS	16384	[8]	guarded
+src/ir/frame_layout.c	436	local	mfirst	FL_MAX_SCOPES	16384		guarded
+src/ir/frame_layout.c	443	local	rb_s	8192	8192		
+src/ir/frame_layout.c	471	local	lv_sbuf	1024	1024		
+src/ir/frame_layout.c	477	local	pool_free	64	64		
+src/ir/frame_layout.c	539	local	vns	2	2		
+src/ir/frame_layout.c	594	local	azq	8	8		
+src/ir/frame_layout.c	653	file	e	0	0		
+src/ir/frame_layout.c	675	file	fp	16	16		
+src/ir/frame_layout.c	675	file	ae	16	16		
+src/ir/frame_layout.c	677	file	fcm	1024	1024		
+src/ir/frame_layout.c	714	file	fcs	512	512		
+src/ir/frame_layout.c	719	file	fcab	512	512		
+src/ir/frame_layout.c	724	file	fvl	2048	2048		
+src/ir/frame_layout.c	726	file	seen	16	16		
+src/ir/frame_layout.c	732	file	fvdj	256	256		
+src/ir/frame_layout.c	737	file	fvs	64	64		
+src/ir/frame_layout.c	746	file	fvb	512	512		
+src/ir/frame_layout.c	747	file	fvcl	64	64		
+src/ir/frame_layout.c	758	file	fcv	256	256		
+src/ir/frame_layout.c	842	file	zlq	FL_MAX_FIELDS	524288		guarded
+src/ir/frame_layout.c	952	local	seen	64	64		
+src/ir/frame_layout.c	967	local	dls	160	160		
+src/ir/frame_layout.c	980	local	ds	64	64		
+src/ir/frame_layout.c	988	local	scr	200	200		
+src/ir/frame_layout.c	1011	local	onb	16	16		
+src/ir/frame_layout.c	1157	local	nm	16	16		
+src/ir/scrip_ir.c	8	file	kind_names	IR_OP_COUNT			guarded
+src/ir/scrip_ir.c	315	local	self	12	12		
+src/ir/scrip_ir.c	317	local	t	8	8		
+src/ir/scrip_ir.c	319	local	gp	12	12		
+src/ir/scrip_ir.c	324	local	ob	160	160		
+src/ir/scrip_ir.c	326	local	r	12	12		
+src/ir/scrip_ir.c	371	local	ent	12	12		
+src/ir/scrip_ir.c	393	local	e	0	0		
+src/ir/stage2.h	19	file	e	STAGE2_FRAME_SLOT_MAX	64		UNGUARDED
+src/ir/stage2.h	42	field	buckets	STAGE2_PL_PRED_TABLE_SIZE	256		UNGUARDED
+src/ir/stage2.h	55	field	mods	STAGE2_MOD_MAX	64		UNGUARDED
+src/ir/stage2.h	69	field	pl_dyn_name	64	64		
+src/ir/stage2.h	70	field	pl_dyn_arity	64	64		
+src/ir/zeta_depth.c	9	file	zdp_key	ZDP_CAP	8192		guarded
+src/ir/zeta_depth.c	9	file	zdp_inb	ZDP_CAP	8192		guarded
+src/ir/zeta_depth.c	9	file	zdp_wy	ZDP_CAP	8192		guarded
+src/ir/zeta_depth.c	42	local	wl	ZDP_CAP	8192		guarded
+src/ir/zeta_depth.c	48	local	ports	2	2		
+src/ir/zeta_depth.c	130	static	tn	3	3		
+src/ir/zeta_depth.c	141	file	zzone_tier	ZDP_CAP	8192		guarded
+src/lower/lower.h	50	file	gen	2	2		
+src/lower/lower_common.c	307	local	e	0	0		
+src/lower/lower_common.c	322	local	e	0	0		
+src/lower/lower_icon.c	14	field	loop_stk_exit	64	64		
+src/lower/lower_icon.c	14	field	loop_stk_fail	64	64		
+src/lower/lower_icon.c	14	field	scan_stk_enter	16	16		
+src/lower/lower_icon.c	24	file	kw	0	0		
+src/lower/lower_icon.c	76	local	seen	256	256		
+src/lower/lower_icon.c	78	local	buf	257	257		
+src/lower/lower_icon.c	173	file	icn_record_names	512	512		
+src/lower/lower_icon.c	460	local	kw	0	0		
+src/lower/lower_icon.c	522	local	elems	64	64		
+src/lower/lower_icon.c	809	local	lvs	16	16		
+src/lower/lower_icon.c	1147	local	spec	2048	2048		
+src/lower/lower_icon.c	1298	local	entv	2	2		
+src/lower/lower_icon.c	1298	local	resv	2	2		
+src/lower/lower_icon.c	1609	local	names	64	64		
+src/lower/lower_icon.c	1762	local	spec	256	256		
+src/lower/lower_pascal.c	9	field	names	PAS_MAX_SCOPE	64		guarded
+src/lower/lower_pascal.c	36	param	nm	0	0		
+src/lower/lower_pascal.c	212	local	buf	32	32		
+src/lower/lower_pascal.c	268	local	outs	64	64		
+src/lower/lower_pascal.c	311	local	av	3	3		
+src/lower/lower_pascal.c	346	local	av	2	2		
+src/lower/lower_pascal.c	549	local	av	3	3		
+src/lower/lower_pascal.c	741	local	spec	256	256		
+src/lower/lower_prolog.c	70	file	g_pl_decl_dyn_name	64	64		
+src/lower/lower_prolog.c	82	file	g_pl_decl_other_name	256	256		
+src/lower/lower_prolog.c	91	file	valias	1024	1024		
+src/lower/lower_prolog.c	103	static	cache	1024	1024		
+src/lower/lower_prolog.c	109	static	buf	264	264		
+src/lower/lower_prolog.c	148	local	kids	2	2		
+src/lower/lower_prolog.c	148	local	kes	2	2		
+src/lower/lower_prolog.c	183	static	cache	64	64		
+src/lower/lower_prolog.c	203	local	bound	256	256		
+src/lower/lower_prolog.c	267	local	key	264	264		
+src/lower/lower_prolog.c	313	local	nb	24	24		
+src/lower/lower_prolog.c	319	local	nb	24	24		
+src/lower/lower_prolog.c	508	local	arm_entry	2	2		
+src/lower/lower_prolog.c	509	local	arms	2	2		
+src/lower/lower_prolog.c	797	local	key	264	264		
+src/lower/lower_prolog.c	812	local	key	264	264		
+src/lower/lower_prolog.c	1049	local	key	264	264		
+src/lower/lower_prolog.c	1159	local	xs	2	2		
+src/lower/lower_prolog.c	1198	local	nb	16	16		
+src/lower/lower_prolog.c	1329	local	pl_fv	64	64		
+src/lower/lower_prolog.c	1346	local	pkids	2	2		
+src/lower/lower_prolog.c	1540	local	key	264	264		
+src/lower/lower_prolog.c	1560	local	props	4	4		
+src/lower/lower_prolog.c	1694	local	nmbuf	256	256		
+src/lower/lower_prolog.c	1700	local	aliased	1024	1024		
+src/lower/lower_prolog.c	1711	local	vs	256	256		
+src/lower/lower_prolog.c	1783	local	pfx	300	300		
+src/lower/lower_prolog.c	1808	local	b	24	24		
+src/lower/lower_prolog.c	1835	local	wname	300	300		
+src/lower/lower_prolog.c	1842	local	key	300	300		
+src/lower/lower_prolog.c	1885	local	init_goals	PL_INIT_GOALS_MAX			guarded
+src/lower/lower_prolog.c	1886	local	dir_goals	PL_INIT_GOALS_MAX			guarded
+src/lower/lower_prolog.c	1887	local	dvn	PL_DIR_VARS_MAX			guarded
+src/lower/lower_prolog.c	1926	local	all_goals	PL_INIT_GOALS_MAX * 2			
+src/lower/lower_prolog.c	1927	local	seeds	PL_INIT_GOALS_MAX * 4			
+src/lower/lower_prolog.c	1932	local	key	264	264		
+src/lower/lower_prolog.c	1943	local	nm	264	264		
+src/lower/lower_prolog.c	2000	local	key	264	264		
+src/lower/lower_prolog.c	2052	local	key	264	264		
+src/lower/lower_prolog.c	2070	local	key	264	264		
+src/lower/lower_raku.c	9	file	g_rk_gram_names	RK_GRAM_MAX	64		guarded
+src/lower/lower_raku.c	11	file	g_rk_class_names	RK_GRAM_MAX	64		guarded
+src/lower/lower_raku.c	13	file	g_rk_multi_names	RK_GRAM_MAX	64	[128]	guarded
+src/lower/lower_raku.c	67	file	s	0	0		
+src/lower/lower_raku.c	71	file	g_rk_listlike_overridden	10	10		
+src/lower/lower_raku.c	266	local	nb	48	48		
+src/lower/lower_raku.c	576	local	takes	64	64		
+src/lower/lower_raku.c	586	local	iname	48	48		
+src/lower/lower_raku.c	589	local	lname	48	48		
+src/lower/lower_raku.c	684	local	mbase	256	256		
+src/lower/lower_raku.c	705	local	tn	32	32		
+src/lower/lower_raku.c	794	local	qn	256	256		
+src/lower/lower_raku.c	813	local	spec	512	512		
+src/lower/lower_raku.c	834	local	base	128	128		
+src/lower/lower_raku.c	871	local	wbuf	256	256		
+src/lower/lower_raku.c	896	local	pbuf	8	8	[64]	
+src/lower/lower_raku.c	896	local	rbuf	8	8	[64]	
+src/lower/lower_raku.c	917	local	_m	256	256		
+src/lower/lower_raku.c	958	local	qname	256	256		
+src/lower/lower_raku.c	1079	file	s	256	256		
+src/lower/lower_raku.c	1095	local	nm	64	64		
+src/lower/lower_raku.c	1141	local	e	0	0		
+src/lower/lower_raku.c	1156	local	pn	320	320		
+src/lower/lower_raku.c	1159	local	lbody	512	512		
+src/lower/lower_raku.c	1161	local	lv1	32	32		
+src/lower/lower_raku.c	1162	local	lv2	32	32		
+src/lower/lower_raku.c	1171	local	lv	64	64		
+src/lower/lower_raku.c	1214	local	spec	256	256		
+src/lower/lower_raku.c	1276	static	blks	512	512		
+src/lower/lower_raku.c	1279	local	nm	64	64		
+src/lower/lower_raku.c	1286	local	ph	16	16		
+src/lower/lower_raku.c	1319	local	base	128	128		
+src/lower/lower_raku.c	1334	local	mb	256	256		
+src/lower/lower_snobol4.c	17	file	pre	64	64		
+src/lower/lower_snobol4.c	20	file	names	SNO_DEF_NAMES_MAX	64		guarded
+src/lower/lower_snobol4.c	37	local	lk	16	16		
+src/lower/lower_snobol4.c	52	file	e	0	0		
+src/lower/lower_snobol4.c	95	local	buf	160	160		
+src/lower/lower_snobol4.c	109	local	buf	40	40		
+src/lower/lower_snobol4.c	158	local	nmb	24	24		
+src/lower/lower_snobol4.c	177	file	g_sno_predef	SNO_DEF_MAX	128		guarded
+src/lower/lower_snobol4.c	321	local	cb	130	130		
+src/lower/lower_snobol4.c	393	local	pb	40	40		
+src/lower/lower_snobol4.c	488	local	fnb	128	128		
+src/lower/lower_snobol4.c	574	local	nmb	24	24		
+src/lower/lower_snobol4.c	838	local	resv	64	64		
+src/lower/lower_snobol4.c	860	local	buf	64	64		
+src/lower/lower_snobol4.c	938	static	sn3	3	3		
+src/lower/lower_snobol4.c	946	static	sc	3	3		
+src/lower/lower_snobol4.c	946	static	sn	3	3		
+src/lower/lower_snobol4.c	957	static	rs	7	7		
+src/lower/lower_snobol4.c	984	local	nmb	24	24		
+src/lower/lower_snobol4.c	1001	local	nmb	24	24		
+src/lower/lower_snobol4.c	1072	file	g_sno_multiproto	SNO_MULTIPROTO_MAX	64		guarded
+src/lower/lower_snobol4.c	1074	file	e	4096	4096		
+src/lower/lower_snobol4.c	1075	file	g_sno_proto_fn	SNO_DEF_MAX	128		guarded
+src/lower/lower_snobol4.c	1087	local	buf	512	512		
+src/lower/lower_snobol4.c	1096	param	entry_opt	0	0		
+src/lower/lower_snobol4.c	1197	local	nb	24	24		
+src/lower/lower_snobol4.c	1201	local	lk	16	16		
+src/lower/lower_snobol4.c	1203	local	cb	130	130		
+src/lower/lower_snobol4.c	1225	file	g_sno_fzw_name	SNO_FZW_MAX	256		guarded
+src/lower/lower_snobol4.c	1226	file	g_sno_fzw_cnt	SNO_FZW_MAX	256		guarded
+src/lower/lower_snobol4.c	1262	local	cb	130	130		
+src/lower/lower_snobol4.c	1284	param	an	0	0		
+src/lower/lower_snobol4.c	1308	file	g_sno_pro	128	128		
+src/lower/lower_snobol4.c	1313	file	g_sno_encl	SNO_PAT_MAX	256		guarded
+src/lower/lower_snobol4.c	1322	file	g_sno_t4	16	16		
+src/lower/lower_snobol4.c	1388	local	cb	130	130		
+src/lower/lower_snobol4.c	1389	local	vb	130	130		
+src/lower/lower_snobol4.c	1408	local	b	224	224		
+src/lower/lower_snobol4.c	1514	local	ent	128	128		
+src/lower/lower_snobol4.c	1514	local	lo	128	128		
+src/lower/lower_snobol4.c	1566	file	stk	24	24		
+src/lower/lower_snobol4.c	1593	local	elems	128	128		
+src/lower/lower_snobol4.c	1711	local	cb	130	130		
+src/lower/lower_snobol4.c	1717	local	pb	40	40		
+src/lower/lower_snobol4.c	1722	local	cb	130	130		
+src/lower/lower_snobol4.c	1786	local	belems	128	128		
+src/lower/lower_snobol4.c	1807	local	pb	56	56		
+src/lower/lower_snobol4.c	1831	local	pb	56	56		
+src/lower/lower_snobol4.c	1852	local	elems	128	128		
+src/lower/lower_snobol4.c	1926	local	alts	64	64		
+src/lower/lower_snobol4.c	1927	local	rstack	64	64		
+src/lower/lower_snobol4.c	1940	local	fc_fp	16	16		
+src/lower/lower_snobol4.c	1940	local	fc_ae	16	16		
+src/lower/lower_snobol4.c	2037	local	cb	130	130		
+src/lower/lower_snobol4.c	2059	local	buf	32	32		
+src/lower/lower_snobol4.c	2078	local	nb	64	64		
+src/lower/lower_snobol4.c	2137	local	wsv	4	4		
+src/lower/lower_snobol4.c	2158	local	promo	64	64		
+src/lower/lower_snobol4.c	2200	local	nb	32	32		
+src/lower/lower_snobol4.c	2274	param	lbl	0	0		
+src/lower/lower_snobol4.c	2294	param	mlbl	0	0		
+src/lower/lower_snobol4.c	2366	local	nmb	24	24		
+src/lower/lower_snobol4.c	2413	local	asns	64	64		
+src/lower/lower_snobol4.c	2415	local	abuf	48	48		
+src/lower/lower_snobol4.c	2429	local	abuf	48	48		
+src/lower/lower_snobol4.c	2440	local	cb	16	16		
+src/lower/lower_snobol4.c	2699	local	nb	128	128		
+src/lower/lower_snobol4.c	2708	local	fb	128	128		
+src/lower/lower_snobol4.c	2790	local	fel	128	128		
+src/lower/lower_snobol4.c	2830	local	vbuf	48	48		
+src/lower/lower_snobol4.c	2833	local	abuf	48	48		
+src/lower/lower_snobol4.c	2865	local	lname	256	256		
+src/lower/lower_snobol4.c	2903	local	defs	SNO_DEF_MAX	128		guarded
+src/lower/lower_snobol4.c	2904	local	def_entry_all	SNO_DEF_MAX * 2	256		
+src/lower/lower_snobol4.c	2905	local	def_body	SNO_DEF_MAX	128		guarded
+src/lower/lower_snobol4.c	2907	local	stmt_bind_fname	SNO_DEF_MAX	128		guarded
+src/lower/lower_snobol4.c	2908	local	exprdef_names	SNO_DEF_MAX	128		guarded
+src/lower/lower_snobol4.c	2993	local	lname	256	256		
+src/lower/tree_to_sno.c	14	field	break_lbl	SNO_LOOP_STACK_MAX	64		guarded
+src/lower/tree_to_sno.c	15	field	cont_lbl	SNO_LOOP_STACK_MAX	64		guarded
+src/lower/tree_to_sno.c	18	field	linebuf	16384	16384		
+src/lower/tree_to_sno.c	137	static	ring	4	4	[256]	
+src/lower/tree_to_sno.c	375	local	Lelse	32	32		
+src/lower/tree_to_sno.c	412	local	Ltop_buf	32	32		
+src/lower/tree_to_sno.c	444	local	Ltop	32	32		
+src/lower/tree_to_sno.c	489	local	Ltop	32	32		
+src/lower/tree_to_sno.c	563	local	swd_raw	32	32		
+src/optimizer/branch_chain.c	23	param	sz	4	4		
+src/optimizer/branch_chain.c	24	local	seen	512	512		
+src/optimizer/branch_chain.c	46	local	sz	4	4		
+src/optimizer/branch_chain.c	53	local	sz	4	4		
+src/optimizer/branch_chain.c	60	local	sz	4	4		
+src/optimizer/branch_chain.c	61	local	sz	4	4		
+src/optimizer/branch_chain.h	7	param	sz	4	4		
+src/optimizer/const_fold.c	30	local	g_core_errjmp_stk	64	64		
+src/optimizer/region_report.c	23	local	tg	2	2		
+src/optimizer/region_report.c	23	local	sg	2	2		
+src/parsers/icon/icn_main.c	28	local	tok	256	256		
+src/parsers/icon/icn_main.c	37	local	asmname	256	256		
+src/parsers/icon/icn_main.c	101	local	obj	256	256		
+src/parsers/icon/icon_driver.c	39	local	vars	2	2		
+src/parsers/icon/icon_driver.c	45	local	d	1024	1024		
+src/parsers/icon/icon_driver.c	55	local	exe	1024	1024		
+src/parsers/icon/icon_driver.c	71	local	dir	1024	1024		
+src/parsers/icon/icon_driver.c	73	local	loaded	64	64		
+src/parsers/icon/icon_driver.c	86	local	path	1200	1200		
+src/parsers/icon/icon_emit.h	13	field	errmsg	256	256		
+src/parsers/icon/icon_lex.c	558	local	msg	64	64		
+src/parsers/icon/icon_lex.c	587	file	icn_pp_src	1024	1024		
+src/parsers/icon/icon_lex.c	623	local	pp_cond	64	64		
+src/parsers/icon/icon_lex.c	690	local	nm	512	512		
+src/parsers/icon/icon_lex.c	692	local	path	1600	1600		
+src/parsers/icon/icon_lex.c	694	local	dir	1024	1024		
+src/parsers/icon/icon_lex.c	730	local	defs	128	128		
+src/parsers/icon/icon_lex.h	142	field	errmsg	256	256		
+src/parsers/icon/icon_lex_test.c	25	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	146	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	148	local	name	64	64		
+src/parsers/icon/icon_lex_test.c	170	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	172	local	name	64	64		
+src/parsers/icon/icon_lex_test.c	187	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	194	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	200	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	207	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	217	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	223	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	237	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	239	local	name	64	64		
+src/parsers/icon/icon_lex_test.c	250	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	267	local	toks	4	4		
+src/parsers/icon/icon_lex_test.c	277	local	name	256	256		
+src/parsers/icon/icon_lex_test.c	299	local	name	128	128		
+src/parsers/icon/icon_lex_test.c	313	local	path	512	512		
+src/parsers/icon/icon_lex_test.c	320	local	toks	64	64		
+src/parsers/icon/icon_lex_test.c	349	local	toks	8	8		
+src/parsers/icon/icon_parse.c	49	local	msg	128	128		
+src/parsers/icon/icon_parse.c	129	local	name	256	256		
+src/parsers/icon/icon_parse.h	12	field	errmsg	512	512		
+src/parsers/icon/icon_parse_test.c	190	local	path	512	512		
+src/parsers/icon/icon_parse_test.c	194	local	name	128	128		
+src/parsers/icon/icon_runtime.c	3	file	icn_stack	ICN_STACK_MAX	256		UNGUARDED
+src/parsers/icon/icon_runtime.c	7	file	subscript_buf	2	2		
+src/parsers/icon/icon_runtime.c	13	param	w	32	32		
+src/parsers/icon/icon_runtime.c	20	file	w	32	32		
+src/parsers/icon/icon_runtime.c	21	local	buf	257	257		
+src/parsers/icon/icon_runtime.c	33	local	x	32	32		
+src/parsers/icon/icon_runtime.c	39	local	x	32	32		
+src/parsers/icon/icon_runtime.c	41	local	y	32	32		
+src/parsers/icon/icon_runtime.c	47	local	x	32	32		
+src/parsers/icon/icon_runtime.c	55	local	x	32	32		
+src/parsers/prolog/pl_cell_test.c	63	local	argsL	2	2		
+src/parsers/prolog/prolog_driver.c	12	file	g_pl_consulted	PL_CONSULT_FILES_MAX			guarded
+src/parsers/prolog/prolog_driver.c	17	local	cand	4096	4096		
+src/parsers/prolog/prolog_driver.c	68	local	pending	PL_CONSULT_FILES_MAX			guarded
+src/parsers/prolog/prolog_lex.c	135	local	eb	8	8		
+src/parsers/prolog/prolog_lex.c	159	local	eb	8	8		
+src/parsers/prolog/prolog_lex.c	354	local	msg	32	32		
+src/parsers/prolog/prolog_lower.c	22	local	buf	256	256		
+src/parsers/prolog/prolog_lower.c	91	file	e	TR_SLOT_MAX	256		guarded
+src/parsers/prolog/prolog_lower.c	167	local	quant	64	64		
+src/parsers/prolog/prolog_lower.c	170	local	gv	128	128		
+src/parsers/prolog/prolog_lower.c	171	local	tv	128	128		
+src/parsers/prolog/prolog_lower.c	172	local	fv	128	128		
+src/parsers/prolog/prolog_lower.c	177	local	b1	32	32		
+src/parsers/prolog/prolog_lower.c	335	local	pld_seed	256	256		
+src/parsers/prolog/prolog_lower.c	337	local	plunit_suite	PL_MAX_CLAUSES	2048	[64]	guarded
+src/parsers/prolog/prolog_lower.c	339	local	cur_suite	64	64		
+src/parsers/prolog/prolog_lower.c	365	param	cur_suite	0	0		
+src/parsers/prolog/prolog_lower.c	371	local	keys	MAX_PREDS	512		guarded
+src/parsers/prolog/prolog_lower.c	372	local	choices	MAX_PREDS	512		guarded
+src/parsers/prolog/prolog_lower.c	529	local	hname	64	64		
+src/parsers/prolog/prolog_parse.c	24	field	ifst	IF_STACK_MAX	32		guarded
+src/parsers/prolog/prolog_parse.c	304	local	dargs	2	2		
+src/parsers/prolog/prolog_parse.c	335	local	buf	32	32		
+src/parsers/prolog/prolog_parse.c	349	local	dargs	2	2		
+src/parsers/prolog/prolog_parse.c	383	file	e	TS_MAX_VARS	256		guarded
+src/parsers/prolog/prolog_parse.c	513	local	one	2	2		
+src/parsers/prolog/prolog_parse.c	751	local	name	32	32		
+src/parsers/prolog/prolog_parse.c	767	local	args	2	2		
+src/parsers/prolog/prolog_parse.c	774	local	args	2	2		
+src/parsers/prolog/prolog_parse.c	826	local	buf_a	256	256		
+src/parsers/prolog/prolog_parse.c	827	local	buf_b	256	256		
+src/parsers/prolog/prolog_parse.c	832	local	ca	2	2		
+src/parsers/prolog/prolog_parse.c	837	local	cb	2	2		
+src/parsers/prolog/prolog_parse.c	840	local	sargs	2	2		
+src/parsers/prolog/prolog_parse.c	866	local	buf	1024	1024		
+src/parsers/prolog/prolog_parse.c	1149	local	user_defined	512	512	[96]	
+src/parsers/prolog/prolog_parse.c	1157	local	wanted	256	256	[96]	
+src/parsers/prolog/prolog_parse.c	1164	local	key	96	96		
+src/parsers/prolog/prolog_parse.c	1178	local	key	96	96		
+src/parsers/prolog/prolog_parse.c	1182	local	calls	64	64	[96]	
+src/parsers/prolog/prolog_parse.c	1189	local	dk	96	96		
+src/parsers/prolog/prolog_parse.c	1205	local	key	96	96		
+src/parsers/prolog/prolog_parse_test.c	139	local	buf	1024	1024		
+src/parsers/raku/re.c	31	field	group_name	MAX_GROUPS	16	[64]	guarded
+src/parsers/raku/re.c	64	field	errbuf	128	128		
+src/parsers/raku/re.c	151	local	capname	64	64		
+src/parsers/raku/re.c	315	local	ids	MAX_STATES	512		guarded
+src/parsers/raku/re.c	317	field	gs	MAX_GROUPS	16		guarded
+src/parsers/raku/re.c	318	field	ge	MAX_GROUPS	16		guarded
+src/parsers/raku/re.c	319	field	lg	MAX_CAPLOG	32		guarded
+src/parsers/raku/re.c	319	field	le	MAX_CAPLOG	32		guarded
+src/parsers/raku/re.c	321	static	g_snaps	MAX_STATES	512		guarded
+src/parsers/raku/re.c	363	local	visited	MAX_STATES	512		guarded
+src/parsers/raku/re.c	377	static	cur_snaps	MAX_STATES	512		guarded
+src/parsers/raku/re.c	404	local	visited	MAX_STATES	512		guarded
+src/parsers/raku/re.h	4	file	bits	32	32		
+src/parsers/raku/re.h	42	field	group_start	MAX_GROUPS	16		UNGUARDED
+src/parsers/raku/re.h	43	field	group_end	MAX_GROUPS	16		UNGUARDED
+src/parsers/raku/re.h	44	field	group_name	MAX_GROUPS	16	[64]	UNGUARDED
+src/parsers/raku/re.h	47	field	caplog_group	MAX_CAPLOG	32		UNGUARDED
+src/parsers/raku/re.h	48	field	caplog_start	MAX_CAPLOG	32		UNGUARDED
+src/parsers/raku/re.h	49	field	caplog_end	MAX_CAPLOG	32		UNGUARDED
+src/parsers/rebus/rebus_lower.c	15	field	loop_top	64	64		
+src/parsers/rebus/rebus_lower.c	16	field	loop_end	64	64		
+src/parsers/rebus/rebus_lower.c	21	local	buf	32	32		
+src/parsers/rebus/rebus_lower.c	279	local	tmpbuf	32	32		
+src/parsers/rebus/rebus_lower.c	337	local	tmpbuf	32	32		
+src/parsers/rebus/rebus_lower.c	369	local	buf	1024	1024		
+src/parsers/rebus/rebus_lower.c	389	local	buf	2048	2048		
+src/parsers/rebus/rebus_lower.c	411	local	flagbuf	64	64		
+src/parsers/snobol4/test_lex.c	78	local	toks	16	16		
+src/parsers/snobol4/test_lex.c	104	local	toks	16	16		
+src/parsers/snobol4/test_lex.c	123	local	toks	16	16		
+src/parsers/snobol4/test_lex.c	130	local	name	32	32		
+src/parsers/snobol4/test_lex.c	139	local	toks	32	32		
+src/parsers/snobol4/test_lex.c	149	local	nm	32	32		
+src/parsers/snobol4/test_lex.c	158	local	toks	32	32		
+src/parsers/snobol4/test_lex.c	168	local	nm	32	32		
+src/parsers/snobol4/test_lex.c	177	local	toks	8	8		
+src/parsers/snobol4/test_lex.c	189	local	toks	8	8		
+src/parsers/snocone/snocone_lex.c	31	file	sc_value_table	512	512		
+src/parsers/snocone/snocone_lex.c	32	file	sc_payload_table	512	512		
+src/parsers/snocone/snocone_lex.c	88	local	buf	64	64		
+src/parsers/snocone/snocone_lex.c	420	file	sc_name_table	512	512		
+src/parsers/snocone/snocone_lex.h	9	field	text	65536	65536		
+src/parsers/snocone/snocone_lex.h	10	field	strbuf	65536	65536		
+src/runtime/aggregates.c	134	local	pb	64	64		
+src/runtime/aggregates.c	155	local	t	24	24		
+src/runtime/aggregates.c	225	local	kb	64	64		
+src/runtime/aggregates.c	278	local	kb	64	64		
+src/runtime/arithmetic.c	47	local	base	96	96		
+src/runtime/arithmetic.c	49	local	prefix	112	112		
+src/runtime/arithmetic.c	54	local	args	3	3		
+src/runtime/arithmetic.c	261	local	g_core_errjmp_stk	64	64		
+src/runtime/arithmetic.c	291	local	g_core_errjmp_stk	64	64		
+src/runtime/arithmetic.c	329	local	nb	400	400		
+src/runtime/arithmetic.c	429	local	_ab	64	64		
+src/runtime/arithmetic.c	460	local	_cbuf	64	64		
+src/runtime/arithmetic.c	468	local	in	256	256		
+src/runtime/bignum.c	9	file	limb	1	1		
+src/runtime/bignum.c	282	local	buf	32	32		
+src/runtime/builtins/gen_runtime.c	18	file	frame_stack	FRAME_STACK_MAX	256		UNGUARDED
+src/runtime/builtins/gen_runtime.c	25	file	scan_saved	SCAN_STACK_MAX	16		guarded
+src/runtime/builtins/gen_runtime.c	64	local	w	2	2		
+src/runtime/builtins/gen_runtime.c	84	local	w	2	2		
+src/runtime/builtins/gen_runtime.c	156	local	w	2	2		
+src/runtime/builtins/gen_runtime.c	169	local	w	2	2		
+src/runtime/builtins/gen_runtime.c	179	param	_e	0	0		
+src/runtime/builtins/gen_runtime.c	184	param	name	0	0		
+src/runtime/builtins/gen_runtime.c	189	param	var	0	0		
+src/runtime/builtins/gen_runtime.c	258	local	w	2	2		
+src/runtime/builtins/gen_runtime.c	266	local	w	2	2		
+src/runtime/builtins/gen_runtime.h	21	field	env	FRAME_SLOT_MAX	64		UNGUARDED
+src/runtime/builtins/gen_runtime.h	25	field	gen	FRAME_DEPTH_MAX	16		UNGUARDED
+src/runtime/builtins/gen_runtime.h	34	field	every_gen	EVERY_GEN_SLOT_MAX	16		UNGUARDED
+src/runtime/builtins/gen_runtime.h	35	field	slotref	FRAME_SLOT_MAX	64		UNGUARDED
+src/runtime/builtins/gen_runtime.h	56	file	frame_stack	FRAME_STACK_MAX	256		UNGUARDED
+src/runtime/builtins/gen_runtime.h	63	file	saved	SCAN_STACK_MAX	16		UNGUARDED
+src/runtime/builtins/gen_runtime.h	80	file	global_names	GLOBAL_MAX	4096		UNGUARDED
+src/runtime/by_name_dispatch.c	197	file	e	0	0		
+src/runtime/by_name_dispatch.c	364	local	tmp	24	24		
+src/runtime/by_name_dispatch.c	438	local	stk	64	64		
+src/runtime/by_name_dispatch.c	487	local	mb	64	64		
+src/runtime/by_name_dispatch.c	554	local	nm	64	64		
+src/runtime/by_name_dispatch.c	559	local	qn	256	256		
+src/runtime/by_name_dispatch.c	561	local	tmp	4096	4096		
+src/runtime/by_name_dispatch.c	588	file	qn	256	256		
+src/runtime/by_name_dispatch.c	606	local	qn	256	256		
+src/runtime/by_name_dispatch.c	610	local	pat	4096	4096		
+src/runtime/by_name_dispatch.c	616	local	caps	2048	2048		
+src/runtime/by_name_dispatch.c	629	local	sb	64	64		
+src/runtime/by_name_dispatch.c	647	local	nb	64	64		
+src/runtime/by_name_dispatch.c	648	local	nb	128	128		
+src/runtime/by_name_dispatch.c	649	local	nb	128	128		
+src/runtime/by_name_dispatch.c	651	local	nb	256	256		
+src/runtime/by_name_dispatch.c	652	local	rb	256	256		
+src/runtime/by_name_dispatch.c	661	local	nb	64	64		
+src/runtime/by_name_dispatch.c	717	local	sept	64	64		
+src/runtime/by_name_dispatch.c	742	local	from	128	128		
+src/runtime/by_name_dispatch.c	742	local	to	128	128		
+src/runtime/by_name_dispatch.c	760	local	jb	64	64		
+src/runtime/by_name_dispatch.c	766	local	fb	256	256		
+src/runtime/by_name_dispatch.c	767	local	fa	2	2		
+src/runtime/by_name_dispatch.c	860	local	chain	64	64		
+src/runtime/by_name_dispatch.c	868	local	roles	8	8		
+src/runtime/by_name_dispatch.c	888	file	mname	128	128		
+src/runtime/by_name_dispatch.c	888	file	args	16	16		
+src/runtime/by_name_dispatch.c	889	file	g_redisp	64	64		
+src/runtime/by_name_dispatch.c	935	local	procname	256	256		
+src/runtime/by_name_dispatch.c	1006	local	scratch0	64	64		
+src/runtime/by_name_dispatch.c	1065	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	1092	local	chain	64	64		
+src/runtime/by_name_dispatch.c	1095	local	proc	256	256		
+src/runtime/by_name_dispatch.c	1113	local	chain	64	64		
+src/runtime/by_name_dispatch.c	1117	local	proc	256	256		
+src/runtime/by_name_dispatch.c	1119	local	keys	16	16		
+src/runtime/by_name_dispatch.c	1120	local	callargs	20	20		
+src/runtime/by_name_dispatch.c	1174	local	mro	64	64		
+src/runtime/by_name_dispatch.c	1184	local	base	64	64		
+src/runtime/by_name_dispatch.c	1211	local	baseA	32	32		
+src/runtime/by_name_dispatch.c	1228	local	mro	64	64		
+src/runtime/by_name_dispatch.c	1229	static	acc_names	256	256	[192]	
+src/runtime/by_name_dispatch.c	1233	local	prefix	192	192		
+src/runtime/by_name_dispatch.c	1327	local	pa	2	2		
+src/runtime/by_name_dispatch.c	1417	local	buf	64	64		
+src/runtime/by_name_dispatch.c	1443	local	buf	64	64		
+src/runtime/by_name_dispatch.c	1463	local	wkey	320	320		
+src/runtime/by_name_dispatch.c	1496	local	key	288	288		
+src/runtime/by_name_dispatch.c	1510	local	key	288	288		
+src/runtime/by_name_dispatch.c	1642	local	elems	4096	4096		
+src/runtime/by_name_dispatch.c	1667	local	nm	200	200		
+src/runtime/by_name_dispatch.c	1687	local	key	256	256		
+src/runtime/by_name_dispatch.c	1705	file	g_tap_todo_reason	512	512		
+src/runtime/by_name_dispatch.c	1721	local	esc	1024	1024		
+src/runtime/by_name_dispatch.c	1741	local	spec	64	64		
+src/runtime/by_name_dispatch.c	1751	local	piece	512	512		
+src/runtime/by_name_dispatch.c	1754	local	cspec	68	68		
+src/runtime/by_name_dispatch.c	1758	local	cspec	68	68		
+src/runtime/by_name_dispatch.c	1762	local	cspec	68	68		
+src/runtime/by_name_dispatch.c	1766	local	cspec	68	68		
+src/runtime/by_name_dispatch.c	1774	local	bits	72	72		
+src/runtime/by_name_dispatch.c	1774	local	tmp	72	72		
+src/runtime/by_name_dispatch.c	1968	local	ev	2	2		
+src/runtime/by_name_dispatch.c	2168	local	ev	2	2		
+src/runtime/by_name_dispatch.c	2188	local	fb	64	64		
+src/runtime/by_name_dispatch.c	2230	file	el	4096	4096		
+src/runtime/by_name_dispatch.c	2231	local	c2	2	2		
+src/runtime/by_name_dispatch.c	2270	file	b	64	64		
+src/runtime/by_name_dispatch.c	2273	local	cb	8	8		
+src/runtime/by_name_dispatch.c	2280	local	fb	8192	8192		
+src/runtime/by_name_dispatch.c	2360	local	tb	64	64		
+src/runtime/by_name_dispatch.c	2443	local	b	3	3		
+src/runtime/by_name_dispatch.c	2468	local	eb	64	64		
+src/runtime/by_name_dispatch.c	2480	local	fb	4096	4096		
+src/runtime/by_name_dispatch.c	2517	local	sb	8192	8192		
+src/runtime/by_name_dispatch.c	2529	local	sb	8192	8192		
+src/runtime/by_name_dispatch.c	2548	local	ba	8192	8192		
+src/runtime/by_name_dispatch.c	2564	local	ba	8192	8192		
+src/runtime/by_name_dispatch.c	2734	local	sb	256	256		
+src/runtime/by_name_dispatch.c	2734	local	el	4096	4096		
+src/runtime/by_name_dispatch.c	2748	local	b	64	64		
+src/runtime/by_name_dispatch.c	2750	local	c2	8	8		
+src/runtime/by_name_dispatch.c	2751	local	b	4096	4096		
+src/runtime/by_name_dispatch.c	2757	local	b	4096	4096		
+src/runtime/by_name_dispatch.c	2786	local	sq	8	8		
+src/runtime/by_name_dispatch.c	2790	local	sq	8	8		
+src/runtime/by_name_dispatch.c	2794	local	sq	8	8		
+src/runtime/by_name_dispatch.c	2797	local	sq	8	8		
+src/runtime/by_name_dispatch.c	2807	local	b	64	64		
+src/runtime/by_name_dispatch.c	2828	local	nm	256	256		
+src/runtime/by_name_dispatch.c	2828	local	cnt	256	256		
+src/runtime/by_name_dispatch.c	2893	local	st	256	256		
+src/runtime/by_name_dispatch.c	2932	static	text	65536	65536		
+src/runtime/by_name_dispatch.c	2938	local	b	65536	65536		
+src/runtime/by_name_dispatch.c	2941	local	el	256	256		
+src/runtime/by_name_dispatch.c	2950	local	el	256	256		
+src/runtime/by_name_dispatch.c	2958	local	b	65536	65536		
+src/runtime/by_name_dispatch.c	2964	static	text	65536	65536		
+src/runtime/by_name_dispatch.c	3017	local	b	64	64		
+src/runtime/by_name_dispatch.c	3098	local	c1	2	2		
+src/runtime/by_name_dispatch.c	3151	static	pl_edin_out_name	256	256		
+src/runtime/by_name_dispatch.c	3156	local	fb	4096	4096		
+src/runtime/by_name_dispatch.c	3176	local	val	48	48		
+src/runtime/by_name_dispatch.c	3176	local	ok	6	6		
+src/runtime/by_name_dispatch.c	3178	static	pl_flags	PL_FLAGS_MAX			guarded
+src/runtime/by_name_dispatch.c	3220	local	fb	128	128		
+src/runtime/by_name_dispatch.c	3230	local	fb	128	128		
+src/runtime/by_name_dispatch.c	3244	local	fb	128	128		
+src/runtime/by_name_dispatch.c	3349	local	b	65536	65536		
+src/runtime/by_name_dispatch.c	3364	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	3366	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	3377	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	3395	param	s	0	0		
+src/runtime/by_name_dispatch.c	3398	param	out	PAS_SET_BYTES	32		guarded
+src/runtime/by_name_dispatch.c	3478	local	mro	64	64		
+src/runtime/by_name_dispatch.c	3481	local	rls	8	8		
+src/runtime/by_name_dispatch.c	3516	local	sb1	512	512		
+src/runtime/by_name_dispatch.c	3516	local	msg	1024	1024		
+src/runtime/by_name_dispatch.c	3520	local	gd	512	512		
+src/runtime/by_name_dispatch.c	3520	local	b	1024	1024		
+src/runtime/by_name_dispatch.c	3535	local	xb	512	512		
+src/runtime/by_name_dispatch.c	3540	local	b	256	256		
+src/runtime/by_name_dispatch.c	3546	local	b	256	256		
+src/runtime/by_name_dispatch.c	3556	local	o_reason	512	512		
+src/runtime/by_name_dispatch.c	3563	local	ln	4096	4096		
+src/runtime/by_name_dispatch.c	3586	local	prefix	160	160		
+src/runtime/by_name_dispatch.c	3587	static	acc_idx	256	256		
+src/runtime/by_name_dispatch.c	3587	static	acc_types	256	256	[8][32]	
+src/runtime/by_name_dispatch.c	3587	static	acc_fixed	256	256		
+src/runtime/by_name_dispatch.c	3609	local	m	256	256		
+src/runtime/by_name_dispatch.c	3638	local	m	256	256		
+src/runtime/by_name_dispatch.c	3701	local	rb	64	64		
+src/runtime/by_name_dispatch.c	3714	local	rb	64	64		
+src/runtime/by_name_dispatch.c	3731	param	vs	0	0		
+src/runtime/by_name_dispatch.c	3742	param	vs	0	0		
+src/runtime/by_name_dispatch.c	3773	local	rb	64	64		
+src/runtime/by_name_dispatch.c	3778	local	rb	64	64		
+src/runtime/by_name_dispatch.c	3792	local	rb	64	64		
+src/runtime/by_name_dispatch.c	3808	param	stale_nm	0	0		
+src/runtime/by_name_dispatch.c	3812	param	nm	0	0		
+src/runtime/by_name_dispatch.c	3821	param	nm	0	0		
+src/runtime/by_name_dispatch.c	3833	param	stale_nm	0	0		
+src/runtime/by_name_dispatch.c	3851	param	stale_nm	0	0		
+src/runtime/by_name_dispatch.c	3870	param	nm	0	0		
+src/runtime/by_name_dispatch.c	3921	local	bits	PAS_SET_BYTES	32		guarded
+src/runtime/by_name_dispatch.c	3943	param	nm	0	0		
+src/runtime/by_name_dispatch.c	4013	local	a	PAS_SET_BYTES	32		guarded
+src/runtime/by_name_dispatch.c	4041	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4083	local	pb	256	256		
+src/runtime/by_name_dispatch.c	4087	local	slots	RK_NAMED_MAX	32		guarded
+src/runtime/by_name_dispatch.c	4093	local	kb0	128	128		
+src/runtime/by_name_dispatch.c	4097	local	kb	128	128		
+src/runtime/by_name_dispatch.c	4102	local	vb2	256	256		
+src/runtime/by_name_dispatch.c	4116	local	sb	256	256		
+src/runtime/by_name_dispatch.c	4132	local	eb	24	24		
+src/runtime/by_name_dispatch.c	4153	local	_sb	512	512		
+src/runtime/by_name_dispatch.c	4181	local	sa	64	64		
+src/runtime/by_name_dispatch.c	4182	local	sb	64	64		
+src/runtime/by_name_dispatch.c	4198	local	sa	64	64		
+src/runtime/by_name_dispatch.c	4199	local	sb	64	64		
+src/runtime/by_name_dispatch.c	4214	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4229	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4243	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4265	local	kb	256	256		
+src/runtime/by_name_dispatch.c	4277	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4298	local	nb	64	64		
+src/runtime/by_name_dispatch.c	4307	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4333	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4354	local	scratch0	64	64		
+src/runtime/by_name_dispatch.c	4356	local	els	64	64		
+src/runtime/by_name_dispatch.c	4357	local	lens	64	64		
+src/runtime/by_name_dispatch.c	4385	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4417	local	scratch0	64	64		
+src/runtime/by_name_dispatch.c	4437	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4443	local	eb	64	64		
+src/runtime/by_name_dispatch.c	4461	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4474	local	rscratch	64	64		
+src/runtime/by_name_dispatch.c	4493	local	scratch0	64	64		
+src/runtime/by_name_dispatch.c	4512	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4522	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4527	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4536	local	nb	24	24		
+src/runtime/by_name_dispatch.c	4544	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4549	local	nb	24	24		
+src/runtime/by_name_dispatch.c	4555	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4561	local	eb	64	64		
+src/runtime/by_name_dispatch.c	4573	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4579	local	eb	64	64		
+src/runtime/by_name_dispatch.c	4591	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4604	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4609	local	eb	64	64		
+src/runtime/by_name_dispatch.c	4619	local	sb	64	64		
+src/runtime/by_name_dispatch.c	4623	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4734	local	fb	512	512		
+src/runtime/by_name_dispatch.c	4739	local	fb	512	512		
+src/runtime/by_name_dispatch.c	4828	local	cand	256	256		
+src/runtime/by_name_dispatch.c	4832	local	nproc	256	256		
+src/runtime/by_name_dispatch.c	4833	local	ca	16	16		
+src/runtime/by_name_dispatch.c	4836	local	smro	64	64		
+src/runtime/by_name_dispatch.c	4837	local	smname	128	128		
+src/runtime/by_name_dispatch.c	4851	local	g_script_exception	512	512		
+src/runtime/by_name_dispatch.c	4856	local	g_script_exception	512	512		
+src/runtime/by_name_dispatch.c	4866	local	g_script_exception	512	512		
+src/runtime/by_name_dispatch.c	4871	local	g_script_exception	512	512		
+src/runtime/by_name_dispatch.c	4887	local	mbuf	8	8		
+src/runtime/by_name_dispatch.c	4955	local	line	4096	4096		
+src/runtime/by_name_dispatch.c	4981	local	scratch	64	64		
+src/runtime/by_name_dispatch.c	4994	local	_m	256	256		
+src/runtime/by_name_dispatch.c	5017	local	_m	256	256		
+src/runtime/by_name_dispatch.c	5025	local	_m	256	256		
+src/runtime/by_name_dispatch.c	5034	local	newproc	256	256		
+src/runtime/by_name_dispatch.c	5055	local	fvals	64	64		
+src/runtime/by_name_dispatch.c	5067	local	mname0	0	0		
+src/runtime/by_name_dispatch.c	5073	local	mro	64	64		
+src/runtime/by_name_dispatch.c	5074	local	buf	1024	1024		
+src/runtime/by_name_dispatch.c	5079	local	ms	256	256		
+src/runtime/by_name_dispatch.c	5080	local	buf	2048	2048		
+src/runtime/by_name_dispatch.c	5085	local	as	256	256		
+src/runtime/by_name_dispatch.c	5086	local	buf	2048	2048		
+src/runtime/by_name_dispatch.c	5107	local	mro	64	64		
+src/runtime/by_name_dispatch.c	5111	local	rls	8	8		
+src/runtime/by_name_dispatch.c	5118	local	fvals	64	64		
+src/runtime/by_name_dispatch.c	5130	local	fvals	64	64		
+src/runtime/by_name_dispatch.c	5151	local	fa	1	1		
+src/runtime/by_name_dispatch.c	5187	local	tproc	256	256		
+src/runtime/by_name_dispatch.c	5209	local	procname	256	256		
+src/runtime/by_name_dispatch.c	5217	local	_m	256	256		
+src/runtime/by_name_dispatch.c	5226	local	delegfield	64	64		
+src/runtime/by_name_dispatch.c	5388	local	rb	64	64		
+src/runtime/by_name_dispatch.c	5402	local	rb	64	64		
+src/runtime/by_name_dispatch.c	5423	local	rb	64	64		
+src/runtime/by_name_dispatch.c	5479	local	kb	64	64		
+src/runtime/by_name_dispatch.c	5480	local	vb	64	64		
+src/runtime/by_name_dispatch.c	5486	local	kb	64	64		
+src/runtime/by_name_dispatch.c	5569	local	kb	64	64		
+src/runtime/by_name_dispatch.c	5580	local	kb	64	64		
+src/runtime/by_name_dispatch.c	5697	local	g_core_errjmp_stk	64	64		
+src/runtime/by_name_dispatch.c	5795	local	a4	4	4		
+src/runtime/by_name_dispatch.c	5843	local	nb	128	128		
+src/runtime/by_name_dispatch.c	5865	local	g_core_errjmp_stk	64	64		
+src/runtime/by_name_dispatch.c	5949	local	tmp	64	64		
+src/runtime/by_name_dispatch.c	5953	local	mant	48	48		
+src/runtime/by_name_dispatch.c	6049	local	rb	64	64		
+src/runtime/by_name_dispatch.c	6057	local	proc	256	256		
+src/runtime/by_name_dispatch.c	6065	local	_rb	64	64		
+src/runtime/by_name_dispatch.c	6259	local	f	63	63		
+src/runtime/by_name_dispatch.c	6269	local	mloc	256	256		
+src/runtime/by_name_dispatch.c	6329	local	nm	14	14		
+src/runtime/by_name_dispatch.c	6330	static	g_dtax	256	256		
+src/runtime/by_name_dispatch.c	6331	static	g_dtax_bid	1025	1025		
+src/runtime/by_name_dispatch.c	6372	local	ub	32	32		
+src/runtime/by_name_dispatch.c	6391	local	g_bidprof	1024	1024		
+src/runtime/by_name_dispatch.c	6394	local	e	0	0		
+src/runtime/by_name_dispatch.c	6458	local	ba	64	64		
+src/runtime/by_name_dispatch.c	6658	local	g_bidprof	1024	1024		
+src/runtime/by_name_dispatch.c	6679	local	g_bidprof	1024	1024		
+src/runtime/by_name_dispatch.c	6694	local	_fv	64	64		
+src/runtime/by_name_dispatch.c	6704	local	_fv	64	64		
+src/runtime/by_name_dispatch.c	6867	local	sb	256	256		
+src/runtime/by_name_dispatch.c	6871	local	sb	256	256		
+src/runtime/by_name_dispatch.c	6883	local	nb	64	64		
+src/runtime/by_name_dispatch.c	6884	local	hb	64	64		
+src/runtime/by_name_dispatch.c	6885	param	needle	0	0		
+src/runtime/by_name_dispatch.c	6905	local	_pb	32	32		
+src/runtime/by_name_dispatch.c	6910	local	_rb	64	64		
+src/runtime/by_name_dispatch.c	6964	local	_bb	400	400		
+src/runtime/by_name_dispatch.c	6974	local	_rb	400	400		
+src/runtime/by_name_dispatch.c	7046	local	_cbuf	64	64		
+src/runtime/by_name_dispatch.c	7301	local	from	256	256		
+src/runtime/by_name_dispatch.c	7301	local	tbl	256	256		
+src/runtime/by_name_dispatch.c	7302	static	map_cache	8	8		
+src/runtime/by_name_dispatch.c	7351	local	_pb	64	64		
+src/runtime/by_name_dispatch.c	7380	local	_pb	64	64		
+src/runtime/by_name_dispatch.c	7407	local	_pb	64	64		
+src/runtime/by_name_dispatch.c	7444	local	stops	32	32		
+src/runtime/by_name_dispatch.c	7488	local	stops	32	32		
+src/runtime/by_name_dispatch.c	7753	local	_rb	64	64		
+src/runtime/by_name_dispatch.c	7899	local	kb	64	64		
+src/runtime/by_name_dispatch.c	7913	local	kb	64	64		
+src/runtime/by_name_dispatch.c	7922	local	kb	64	64		
+src/runtime/by_name_dispatch.c	7939	local	buf	64	64		
+src/runtime/by_name_dispatch.c	8094	local	pv	2	2		
+src/runtime/by_name_dispatch.c	8174	local	fargs	FRAME_SLOT_MAX	64		guarded
+src/runtime/by_name_dispatch.c	8185	local	mbuf	8	8		
+src/runtime/by_name_dispatch.c	8318	local	kb	64	64		
+src/runtime/by_name_dispatch.c	8343	local	sb	192	192		
+src/runtime/by_name_dispatch.c	8347	local	sb	64	64		
+src/runtime/by_name_dispatch.c	8351	local	sb	256	256		
+src/runtime/by_name_dispatch.c	8357	local	sb	128	128		
+src/runtime/by_name_dispatch.c	8379	local	pb	64	64		
+src/runtime/by_name_dispatch.c	8416	local	tb	32	32		
+src/runtime/by_name_dispatch.c	8417	local	tu	32	32		
+src/runtime/by_name_dispatch.c	8442	local	nb	128	128		
+src/runtime/by_name_dispatch.c	8451	local	fb	128	128		
+src/runtime/by_name_dispatch.c	8463	local	kb	64	64		
+src/runtime/by_name_dispatch.c	8609	local	in_set	256	256		
+src/runtime/by_name_dispatch.c	8677	local	_lbuf	64	64		
+src/runtime/by_name_dispatch.c	8704	local	fv	64	64		
+src/runtime/by_name_dispatch.c	8723	local	_pa	8	8		
+src/runtime/by_name_dispatch.c	8741	static	g_rt_syn_new	RT_SYN_MAX	64		guarded
+src/runtime/by_name_dispatch.c	8761	local	buf	128	128		
+src/runtime/by_name_dispatch.c	8907	local	nb	264	264		
+src/runtime/by_name_dispatch.c	8918	local	nb	264	264		
+src/runtime/by_name_dispatch.c	8975	local	key	264	264		
+src/runtime/by_name_dispatch.c	8990	local	ob	32	32		
+src/runtime/by_name_dispatch.c	8990	local	key	264	264		
+src/runtime/by_name_dispatch.c	9037	local	key	264	264		
+src/runtime/by_name_dispatch.c	9045	local	kids	2	2		
+src/runtime/by_name_dispatch.c	9065	local	key	264	264		
+src/runtime/by_name_dispatch.c	9072	local	key	264	264		
+src/runtime/by_name_dispatch.c	9082	local	key	264	264		
+src/runtime/by_name_dispatch.c	9087	local	kids	2	2		
+src/runtime/by_name_dispatch.c	9105	local	key	264	264		
+src/runtime/by_name_dispatch.c	9138	local	key	264	264		
+src/runtime/by_name_dispatch.c	9167	local	ob	64	64		
+src/runtime/by_name_dispatch.c	9196	local	b	64	64		
+src/runtime/by_name_dispatch.c	9245	local	nb	264	264		
+src/runtime/by_name_dispatch.c	9304	local	buf	512	512		
+src/runtime/by_name_dispatch.c	9421	local	nb	64	64		
+src/runtime/by_name_dispatch.c	9433	local	db	64	64		
+src/runtime/by_name_dispatch.c	9451	local	addr	256	256		
+src/runtime/by_name_dispatch.c	9463	local	b	24	24		
+src/runtime/core/argval.c	24	local	buf	64	64		
+src/runtime/core/argval.c	29	local	buf	64	64		
+src/runtime/core/coerce.c	13	local	tmp	64	64		
+src/runtime/core/coerce.c	24	local	tmp	24	24		
+src/runtime/core/core.c	47	file	trace_tab	TRACE_TAB_CAP	256		guarded
+src/runtime/core/core.c	125	local	hb	192	192		
+src/runtime/core/core.c	133	local	banner	13	13		
+src/runtime/core/core.c	144	local	istr	64	64		
+src/runtime/core/core.c	145	local	vtext	512	512		
+src/runtime/core/core.c	270	local	w	2	2		
+src/runtime/core/core.c	300	local	cbargs	2	2		
+src/runtime/core/core.c	323	local	cbargs	2	2		
+src/runtime/core/core.c	332	local	nb	64	64		
+src/runtime/core/core.c	359	local	cbargs	2	2		
+src/runtime/core/core.c	374	local	a	16	16		
+src/runtime/core/core.c	381	file	g_icn_act	ICN_ACT_CAP			guarded
+src/runtime/core/core.c	489	param	vb	0	0		
+src/runtime/core/core.c	505	local	a	16	16		
+src/runtime/core/core.c	515	local	w	2	2		
+src/runtime/core/core.c	521	file	g_icn_gen_ret	256	256		
+src/runtime/core/core.c	527	local	w	2	2		
+src/runtime/core/core.c	568	local	iov	6	6		
+src/runtime/core/core.c	577	local	ack	1	1		
+src/runtime/core/core.c	595	local	lb	32	32		
+src/runtime/core/core.c	600	local	vtext	512	512		
+src/runtime/core/core.c	613	local	vtext	512	512		
+src/runtime/core/core.c	622	local	vtext	512	512		
+src/runtime/core/core.c	624	static	g_trace_value_last_name	256	256		
+src/runtime/core/core.c	625	static	g_trace_value_last_text	512	512		
+src/runtime/core/core.c	759	local	lhdr	MW_HDR_BYTES			guarded
+src/runtime/core/core.c	762	local	iov	2	2		
+src/runtime/core/core.c	764	local	ack	1	1		
+src/runtime/core/core.c	766	local	hdr	MW_HDR_BYTES			guarded
+src/runtime/core/core.c	794	local	hdr	MW_HDR_BYTES			guarded
+src/runtime/core/core.c	796	local	iov	2	2		
+src/runtime/core/core.c	809	local	ack	1	1		
+src/runtime/core/core.c	818	local	buf	8	8		
+src/runtime/core/core.c	853	param	name	0	0		
+src/runtime/core/core.c	941	local	buf	4096	4096		
+src/runtime/core/core.c	1078	file	kw_rtntype	16	16		
+src/runtime/core/core.c	1079	file	ucase	27	27		
+src/runtime/core/core.c	1080	file	lcase	27	27		
+src/runtime/core/core.c	1081	file	digits	11	11		
+src/runtime/core/core.c	1082	file	alphabet	257	257		
+src/runtime/core/core.c	1349	local	jb	4096	4096		
+src/runtime/core/core.c	1357	local	buf	32	32		
+src/runtime/core/core.c	1361	local	abuf	4096	4096		
+src/runtime/core/core.c	1397	file	_io_chan	IO_CHAN_MAX	128		guarded
+src/runtime/core/core.c	1612	local	eb	288	288		
+src/runtime/core/core.c	1724	local	pb	48	48		
+src/runtime/core/core.c	1904	local	except	CLEAR_MAX_EXCEPT	64		guarded
+src/runtime/core/core.c	1916	file	_setexit_label	256	256		
+src/runtime/core/core.c	1919	file	e	0	0		
+src/runtime/core/core.c	1966	local	g_core_errjmp_stk	64	64		
+src/runtime/core/core.c	1975	local	g_core_errjmp_stk	64	64		
+src/runtime/core/core.c	1976	local	which	0	0		
+src/runtime/core/core.c	2020	local	ebuf	256	256		
+src/runtime/core/core.c	2042	local	ebuf	256	256		
+src/runtime/core/core.c	2061	field	fields	DATA_MAX_FIELDS	16		guarded
+src/runtime/core/core.c	2288	local	probe_name	256	256		
+src/runtime/core/core.c	2299	local	fprobe	256	256		
+src/runtime/core/core.c	2342	local	setname	256	256		
+src/runtime/core/core.c	2421	param	e	0	0		
+src/runtime/core/core.c	2436	param	mon_fifo	0	0		
+src/runtime/core/core.c	2440	param	go_pipe	0	0		
+src/runtime/core/core.c	2443	param	names_path	0	0		
+src/runtime/core/core.c	2447	local	mon	0	0		
+src/runtime/core/core.c	2451	param	ev_ftr	0	0		
+src/runtime/core/core.c	2456	param	ev_tr	0	0		
+src/runtime/core/core.c	2461	param	ev_rktr	0	0		
+src/runtime/core/core.c	2621	local	buf	64	64		
+src/runtime/core/core.c	2650	local	buf	128	128		
+src/runtime/core/core.c	2669	local	buf	64	64		
+src/runtime/core/core.c	2711	file	core_err_msgs	40	40		
+src/runtime/core/core.c	2775	local	g_core_errjmp_stk	64	64		
+src/runtime/core/core.c	2786	local	g_core_errjmp_stk	64	64		
+src/runtime/core/core.c	2818	file	g_core_errjmp_stk	64	64		
+src/runtime/core/core.c	2881	local	w	2	2		
+src/runtime/core/core.c	2893	local	w	2	2		
+src/runtime/core/core.c	2906	local	w	2	2		
+src/runtime/core/core.c	2911	local	w	2	2		
+src/runtime/core/core.c	3095	file	_var_buckets	VAR_BUCKETS	512		guarded
+src/runtime/core/core.c	3125	file	g_nv_memo_key	NV_MEMO_N	2048		UNGUARDED
+src/runtime/core/core.c	3126	file	g_nv_memo_val	NV_MEMO_N	2048		UNGUARDED
+src/runtime/core/core.c	3128	file	g_nv_memo_seen	NV_MEMO_N	2048		UNGUARDED
+src/runtime/core/core.c	3266	local	eb	192	192		
+src/runtime/core/core.c	3289	file	eb	192	192		
+src/runtime/core/core.c	3397	local	pb	64	64		
+src/runtime/core/core.c	3403	local	hb	192	192		
+src/runtime/core/core.c	3404	local	b	32	32		
+src/runtime/core/core.c	3405	local	b	64	64		
+src/runtime/core/core.c	3466	local	sb	160	160		
+src/runtime/core/core.c	3476	local	np	160	160		
+src/runtime/core/core.c	3484	local	hb	192	192		
+src/runtime/core/core.c	3513	local	kb	160	160		
+src/runtime/core/core.c	3555	local	eb	256	256		
+src/runtime/core/core.c	3595	file	_nstack	NSTACK_MAX	256		guarded
+src/runtime/core/core.c	3598	file	_nhome	NHOME_MAX	256		guarded
+src/runtime/core/core.c	3629	file	_vstack	VSTACK_MAX	1024		UNGUARDED
+src/runtime/core/core.c	3645	file	_func_buckets	FUNC_BUCKETS	128		guarded
+src/runtime/core/core.c	3895	local	pad	CORE_FN_PAD_MAX	8		guarded
+src/runtime/core/core.c	4197	param	chan	0	0		
+src/runtime/core/core.c	4198	param	spec	0	0		
+src/runtime/core/core.c	4205	local	fname_buf	4096	4096		
+src/runtime/core/core.c	4257	local	fname_buf	4096	4096		
+src/runtime/core/core.h	314	file	kw_rtntype	16	16		
+src/runtime/core/core.h	349	file	ucase	27	27		
+src/runtime/core/core.h	350	file	lcase	27	27		
+src/runtime/core/core.h	351	file	alphabet	257	257		
+src/runtime/core/core.h	352	file	digits	11	11		
+src/runtime/icn_extfn.c	23	local	buf	64	64		
+src/runtime/icn_extfn.c	32	file	b	160	160		
+src/runtime/icn_extfn.c	72	local	buf	64	64		
+src/runtime/icn_extfn.c	114	local	slots	64	64		
+src/runtime/io_format.c	34	local	b	64	64		
+src/runtime/keywords.c	35	file	bits	32	32		
+src/runtime/keywords.c	114	local	w	2	2		
+src/runtime/keywords.c	153	local	a	128	128		
+src/runtime/keywords.c	154	local	a	256	256		
+src/runtime/keywords.c	181	file	g_kw_cset_regc_ptr	64	64		
+src/runtime/keywords.c	227	file	kwb_own	8	8		
+src/runtime/keywords.c	301	local	uk	64	64		
+src/runtime/keywords.c	314	local	alphabet	257	257		
+src/runtime/keywords.c	428	local	ascii_str	128	128		
+src/runtime/keywords.c	441	local	cset_str	256	256		
+src/runtime/keywords.c	524	static	hbuf	256	256		
+src/runtime/keywords.c	531	local	lk	64	64		
+src/runtime/keywords.c	543	local	lk	64	64		
+src/runtime/keywords.c	555	local	kb	128	128		
+src/runtime/keywords.c	560	local	eb	192	192		
+src/runtime/keywords.c	562	local	eb	192	192		
+src/runtime/keywords.c	623	local	lk	64	64		
+src/runtime/keywords.c	634	local	kb	128	128		
+src/runtime/keywords.c	635	local	eb	192	192		
+src/runtime/name_binding.c	6	file	global_names	GLOBAL_MAX	4096		guarded
+src/runtime/name_binding.c	21	file	icn_gnames	GLOBAL_MAX	4096		guarded
+src/runtime/name_binding.c	32	file	rbi_names	GLOBAL_MAX	4096		guarded
+src/runtime/pattern_match.c	63	local	nb	24	24		
+src/runtime/pattern_match.c	88	local	nb	24	24		
+src/runtime/pattern_match.c	273	local	ibuf	32	32		
+src/runtime/pattern_match.c	614	local	pb	48	48		
+src/runtime/pattern_match.c	662	file	g_sno_defer_cells	4096	4096		
+src/runtime/pattern_match.c	712	file	g_dcap_nv_key	RT_DCAP_NVCACHE_N	16		UNGUARDED
+src/runtime/pattern_match.c	713	file	g_dcap_nv_cell	RT_DCAP_NVCACHE_N	16		UNGUARDED
+src/runtime/pattern_match.c	714	file	g_dcap_nv_seen	RT_DCAP_NVCACHE_N	16		UNGUARDED
+src/runtime/pattern_match.c	739	param	_e	0	0		
+src/runtime/pattern_match.c	740	param	_e	0	0		
+src/runtime/pattern_match.c	820	param	_e	0	0		
+src/runtime/pattern_match.c	955	local	vals	16	16		
+src/runtime/pattern_match.c	1023	local	name	0	0		
+src/runtime/pattern_match.c	1043	local	nb	40	40		
+src/runtime/pattern_match.c	1081	local	varname	0	0		
+src/runtime/pattern_match.c	1082	local	varname	0	0		
+src/runtime/pattern_match.c	1136	local	nb	64	64		
+src/runtime/pattern_match.c	1163	local	nb	40	40		
+src/runtime/pattern_match.c	1179	local	varname	0	0		
+src/runtime/pattern_match.c	1186	local	g_sno_defer_cells	4096	4096		
+src/runtime/pattern_match.c	1585	local	nb	64	64		
+src/runtime/pattern_match.c	1644	local	k1	64	64		
+src/runtime/rt/bbprof.c	20	file	g_pcs	BBPROF_PC_CAP	2048		guarded
+src/runtime/rt/bbprof.c	21	file	g_altstack	65536	65536		
+src/runtime/rt/bbprof.c	130	local	by_kind_n	512	512		
+src/runtime/rt/bbprof.c	141	local	exe	512	512		
+src/runtime/rt/bbprof.c	142	local	cmd	4096	4096		
+src/runtime/rt/bbprof.c	144	local	names	15	15	[96]	
+src/runtime/rt/bbprof.c	146	local	l1	256	256		
+src/runtime/rt/gc_audit_b.c	45	local	tx	25	25		
+src/runtime/rt/gc_audit_b.c	45	local	hn	512	512		
+src/runtime/rt/gc_heap.c	245	file	g_ah_tn	512	512		
+src/runtime/rt/gc_heap.c	557	local	bf	4096	4096		
+src/runtime/rt/gc_heap.c	965	local	ln	256	256		
+src/runtime/rt/gc_heap.c	1039	file	g_gc_rep_ranges	GC_REP_POPS	5		guarded
+src/runtime/rt/gc_heap.c	1098	file	g_gw	GC_REP_POPS	5		guarded
+src/runtime/rt/gc_heap.c	1102	file	g_gc_spine_rec	GC_SPINE_REC_CAP	32		guarded
+src/runtime/rt/gc_heap.c	1119	local	tx	25	25		
+src/runtime/rt/gc_heap.c	1134	static	lo	64	64		
+src/runtime/rt/gc_heap.c	1135	local	ln	256	256		
+src/runtime/rt/gc_heap.c	1136	local	pm	8	8		
+src/runtime/rt/gc_heap.c	1249	local	tx	25	25		
+src/runtime/rt/gc_heap.c	1330	local	rg	64	64		
+src/runtime/rt/gc_heap.c	1359	local	st_word	32	32		
+src/runtime/rt/gc_heap.c	1359	local	st_blk	32	32		
+src/runtime/rt/portcount.c	71	local	nm	128	128		
+src/runtime/rt/portcount.c	105	local	nm	128	128		
+src/runtime/rt/rt.c	91	file	g_expression_reg	EXPRESSION_REG_MAX	256		UNGUARDED
+src/runtime/rt/rt.c	309	local	varname	0	0		
+src/runtime/rt/rt.c	366	file	slot	RT_FRAME_SLOT_MAX	64		UNGUARDED
+src/runtime/rt/rt.c	367	file	g_rt_frames	RT_FRAME_STACK_MAX	256		UNGUARDED
+src/runtime/rt/rt.c	589	local	cn	264	264		
+src/runtime/rt/rt.c	767	file	g_call_args	CALL_ARGS_MAX	64		guarded
+src/runtime/rt/rt.c	782	local	chain	5	5		
+src/runtime/rt/rt.c	1000	local	cn	264	264		
+src/runtime/rt/rt.c	1107	local	cn	264	264		
+src/runtime/rt/rt.c	1118	local	cn	264	264		
+src/runtime/rt/rt.c	1122	file	g_initial_fired	RT_INITIAL_MAX	8192		guarded
+src/runtime/rt/rt.c	1133	field	regs	5	5		
+src/runtime/rt/rt.c	1135	field	args	CALL_ARGS_MAX	64		guarded
+src/runtime/rt/rt.c	1165	local	d	2	2		
+src/runtime/rt/rt.c	1186	local	d	2	2		
+src/runtime/rt/rt.c	1212	file	out2	2	2		
+src/runtime/rt/rt.c	1227	local	cregs	5	5		
+src/runtime/rt/rt.c	1241	local	out2	2	2		
+src/runtime/rt/rt.c	1272	local	out2	2	2		
+src/runtime/rt/rt.c	1289	file	g_proc_idx_slot	DCR_CELL_CACHE_SIZE	2048		guarded
+src/runtime/rt/rt.c	1290	file	g_proc_idx_key	DCR_CELL_CACHE_SIZE	2048		guarded
+src/runtime/rt/rt.c	1470	local	_ta	16	16		
+src/runtime/rt/rt.c	1488	file	g_rt_dc_fns_store	RT_DC_FNS_MAX	8192		guarded
+src/runtime/rt/rt.c	1833	file	e	0	0		
+src/runtime/rt/rt.c	1904	local	cell	300	300		
+src/runtime/rt/rt.c	2008	local	buf	64	64		
+src/runtime/rt/rt.c	2043	file	g_rt_cap_list	RT_MAX_CAPTURES	256		UNGUARDED
+src/runtime/rt/rt_coexpr.c	39	file	w	2	2		
+src/runtime/rt/rt_coexpr.c	259	file	regs	7	7		
+src/runtime/rt/rt_coexpr.c	306	local	regs	7	7		
+src/runtime/rt/rt_coexpr.h	28	field	rtcc_spill	32	32		
+src/runtime/rt/rt_coexpr.h	42	local	regs	7	7		
+src/runtime/rt/rt_slab.c	8	file	k_bytes	NKLASS	3		guarded
+src/runtime/rt/rt_slab.c	9	file	g_free	NKLASS	3		guarded
+src/runtime/rt_runtime.c	24	file	g_dcap	BB_DCAP_MAX	32		UNGUARDED
+src/runtime/rt_runtime.c	34	file	name	64	64		
+src/runtime/rt_runtime.c	34	file	fields	64	64	[64]	
+src/runtime/rt_runtime.c	46	file	g_save_stack	SAVE_MAX	4096		UNGUARDED
+src/runtime/rt_runtime.c	52	file	g_seq_cache	SEQ_CACHE_MAX	64		UNGUARDED
+src/runtime/rt_runtime.c	56	file	g_susp_gen_cache	SUSP_GEN_CACHE_MAX	64		UNGUARDED
+src/runtime/rt_runtime.c	62	param	subj_name	0	0		
+src/runtime/rt_runtime.c	250	local	buf	4096	4096		
+src/runtime/rtx/rtcc.h	29	local	rtccb	32	32		
+src/runtime/rtx/rtcc_init.c	6	file	rtccb	32	32		
+src/runtime/rtx/rtx_str_test.c	9	file	bytes	512	512		
+src/runtime/rtx/rtx_str_test.c	46	static	big	600	600		
+src/runtime/rtx/rtx_str_test.c	53	local	nm	64	64		
+src/runtime/runtime_eval.c	41	file	e	0	0		
+src/runtime/runtime_eval.c	234	local	_m3pfx	300	300		
+src/runtime/runtime_eval.c	267	local	e	0	0		
+src/runtime/runtime_eval.c	338	local	g_core_errjmp_stk	64	64		
+src/runtime/runtime_eval.c	470	local	lname	256	256		
+src/runtime/runtime_eval.c	486	local	lname	256	256		
+src/runtime/runtime_eval.c	553	param	lbl	0	0		
+src/runtime/runtime_eval.c	571	param	lbl	0	0		
+src/runtime/runtime_init.c	25	file	g_zdp_rbp_tab	ZDP_RBP_TAB_N * 2	131072		
+src/runtime/runtime_init.c	34	local	b	256	256		
+src/runtime/runtime_init.c	43	file	g_zsm	ZSM_N	65536		guarded
+src/runtime/runtime_init.c	44	file	g_zsm_tr_node	ZSM_TRACE	2048		guarded
+src/runtime/runtime_init.c	45	file	g_zsm_tr_kind	ZSM_TRACE	2048		guarded
+src/runtime/runtime_init.c	51	file	g_zsm_seen_nodes	ZSM_N	65536		guarded
+src/runtime/runtime_init.c	124	local	b	256	256		
+src/runtime/runtime_init.c	133	local	b	256	256		
+src/runtime/runtime_init.c	137	local	b	256	256		
+src/runtime/runtime_init.c	146	local	b	256	256		
+src/runtime/runtime_init.c	150	local	b	256	256		
+src/runtime/runtime_init.c	160	local	b	256	256		
+src/runtime/runtime_init.c	165	local	b	256	256		
+src/runtime/string_builtins.c	26	local	xlat	256	256		
+src/runtime/string_ops.c	108	local	sci	64	64		
+src/runtime/string_ops.c	110	local	digits	40	40		
+src/runtime/string_ops.c	118	local	out	80	80		
+src/runtime/string_ops.c	152	local	sci	64	64		
+src/runtime/string_ops.c	154	local	digits	40	40		
+src/runtime/string_ops.c	160	local	out	64	64		
+src/runtime/unification.c	98	file	seen	1024	1024		
+src/runtime/unification.c	98	file	vnv	256	256		
+src/runtime/unification.c	234	local	fb	64	64		
+src/runtime/unification.c	237	local	t	64	64		
+src/runtime/unification.c	593	local	elems	64	64		
+src/runtime/unification.c	745	local	buf0	512	512		
+src/runtime/unification.c	764	local	bufz	512	512		
+src/runtime/unification.c	795	local	cps	4096	4096		
+src/runtime/unification.c	801	local	cs	8	8		
+src/runtime/unification.c	810	local	out	512	512		
+src/runtime/unification.c	921	local	fpos	256	256		
+src/runtime/unification.c	940	local	u	4	4		
+src/runtime/unification.c	1035	local	dig	32	32		
+src/runtime/unification.c	1035	local	outb	96	96		
+src/runtime/unification.c	1049	local	buf	80	80		
+src/runtime/unification.c	1049	local	outb	82	82		
+src/runtime/unification.c	1094	local	spec	8	8		
+src/runtime/unification.c	1138	local	b0	256	256		
+src/runtime/unification.c	1148	local	c2	2	2		
+src/runtime/unification.c	1149	local	c2	2	2		
+src/runtime/unification.c	1185	local	b0	256	256		
+src/runtime/unification.c	1189	local	c2	2	2		
+src/runtime/unification.c	1195	local	c2	2	2		
+src/runtime/unification.c	1200	local	seen	256	256		
+src/runtime/unification.c	1281	local	a	256	256		
+src/runtime/unification.c	1319	local	pool	8192	8192		
+src/runtime/unification.c	1337	local	svars	8192	8192		
+src/runtime/unification.c	1347	local	elems	4096	4096		
+src/runtime/unification.c	1362	local	out_idx	4096	4096		
+src/runtime/unification.c	1409	local	elems	4096	4096		
+src/runtime/unification.c	1420	local	out_idx	4096	4096		
+src/runtime/unification.c	1439	local	elems	4096	4096		
+src/runtime/unification.c	1463	local	elems	4096	4096		
+src/runtime/unification.c	1468	local	groups	4096	4096		
+src/runtime/unification.c	1473	local	vlist	4096	4096		
+src/runtime/unification.c	1491	local	elems	4096	4096		
+src/runtime/unification.c	1502	local	kelems	4096	4096		
+src/runtime/unification.c	1503	local	velems	4096	4096		
+src/runtime/unification.c	1577	local	pool	8192	8192		
+src/runtime/unification.c	1591	local	rest_pairs	8192	8192		
+src/runtime/unification.c	1661	local	used	8192	8192		
+src/runtime/unification.c	1677	local	pool	8192	8192		
+src/runtime/unification.c	1683	local	nb	32	32		
+src/runtime/unification.c	1760	local	vaddr	256	256		
+src/runtime/unification.c	1789	local	nm	200	200		
+src/runtime/unification.c	1794	local	pi	2	2		
+src/runtime/unification.c	1797	local	ee	2	2		
+src/runtime/unification.c	1800	local	er	2	2		
+src/runtime/unification.c	1813	local	pi	2	2		
+src/runtime/unification.c	1813	local	te	2	2		
+src/runtime/unification.c	1813	local	er	2	2		
+src/runtime/unification.c	1827	local	ee	1	1		
+src/runtime/unification.c	1827	local	pi	2	2		
+src/runtime/unification.c	1827	local	ct	2	2		
+src/runtime/unification.c	1827	local	er	2	2		
+src/runtime/unification.c	1844	local	fe	2	2		
+src/runtime/unification.c	1844	local	er	2	2		
+src/runtime/unification.c	1856	local	fe	1	1		
+src/runtime/unification.c	1856	local	er	2	2		
+src/runtime/unification.c	1867	local	fe	1	1		
+src/runtime/unification.c	1867	local	er	2	2		
+src/runtime/unification.c	1878	local	er	2	2		
+src/runtime/unification.c	1887	local	pi	2	2		
+src/runtime/unification.c	1887	local	pe	3	3		
+src/runtime/unification.c	1887	local	er	2	2		
+src/runtime/unification.c	1903	local	pe	3	3		
+src/runtime/unification.c	1903	local	er	2	2		
+src/runtime/unification.c	1942	local	vaddr	256	256		
+src/runtime/unification.c	1969	local	vaddr	256	256		
+src/runtime/unification.c	2062	local	props	4	4		
+src/runtime/unification.c	2119	local	va	256	256		
+src/runtime/unification.c	2132	local	va	256	256		
+src/runtime/unification.c	2162	local	key	264	264		
+src/runtime/unification.c	2207	local	key	264	264		
+src/runtime/unification.c	2227	local	key	264	264		
+src/runtime/unification.c	2374	local	kids	2	2		
+src/runtime/unification.c	2374	local	va	256	256		
+src/runtime/unification.c	2383	local	key	264	264		
+src/runtime/unification.c	2393	local	key	264	264		
+src/runtime/unification.c	2406	local	va	256	256		
+src/runtime/unification.c	2419	local	nm	264	264		
+src/runtime/unification.c	2419	local	pi	2	2		
+src/runtime/unification.c	2419	local	ee	2	2		
+src/runtime/unification.c	2419	local	er	2	2		
+src/runtime/unification.c	2419	local	th	1	1		
+src/runtime/unification.c	2419	local	kids	2	2		
+src/runtime/unification.c	2439	local	key	264	264		
+src/runtime/unification.c	2451	local	key	264	264		
+src/runtime/unification.c	2455	local	va	256	256		
+src/runtime/unification.c	2456	local	va3	256	256		
+src/templates/bb/bb_assign_frame.cpp	17	local	nm	32	32		
+src/templates/bb/bb_call.cpp	145	local	b1	80	80		
+src/templates/bb/bb_call.cpp	180	local	b2	80	80		
+src/templates/bb/bb_call.cpp	295	local	b1	80	80		
+src/templates/bb/bb_call.cpp	436	local	nd	0	0		
+src/templates/bb/bb_call_proc_staged.cpp	207	local	gk	64	64		
+src/templates/bb/bb_call_proc_staged.cpp	214	file	name	256	256		
+src/templates/bb/bb_call_proc_staged.cpp	251	local	dc_name_z	280	280		
+src/templates/bb/bb_call_proc_staged.cpp	254	local	mang	256	256		
+src/templates/bb/bb_call_proc_staged.cpp	255	static	detN_argreg_z	4	4		
+src/templates/bb/bb_call_proc_staged.cpp	256	local	detN_fp_z	5	5		
+src/templates/bb/bb_call_proc_staged.cpp	262	static	detN_nm_z	5	5		
+src/templates/bb/bb_call_proc_staged.cpp	270	local	scc_gk_z	64	64		
+src/templates/bb/bb_call_proc_staged.cpp	289	local	soffz	29	29		
+src/templates/bb/bb_call_proc_staged.cpp	456	local	detN_fp	5	5		
+src/templates/bb/bb_call_proc_staged.cpp	462	static	detN_argreg	4	4		
+src/templates/bb/bb_call_proc_staged.cpp	465	local	dc_name	280	280		
+src/templates/bb/bb_call_proc_staged.cpp	467	local	mang	256	256		
+src/templates/bb/bb_call_proc_staged.cpp	472	local	scc_gk	64	64		
+src/templates/bb/bb_call_proc_staged.cpp	516	local	soff	29	29		
+src/templates/bb/bb_create.cpp	21	local	contract_regs	7	7		
+src/templates/bb/bb_define.cpp	42	static	b	256	256		
+src/templates/bb/bb_define.cpp	52	local	lbl	300	300		
+src/templates/bb/bb_define.cpp	61	local	cell	300	300		
+src/templates/bb/bb_define.cpp	261	local	blbl	128	128		
+src/templates/bb/bb_define.cpp	562	local	gk4	64	64		
+src/templates/bb/bb_define.cpp	922	local	c2gk	64	64		
+src/templates/bb/bb_match_any.cpp	14	file	an_nlb	24	24		
+src/templates/bb/bb_match_any.cpp	15	file	an_dlb	24	24		
+src/templates/bb/bb_match_any.cpp	57	static	c	24	24		
+src/templates/bb/bb_match_arbno.cpp	29	file	b	8	8	[40]	
+src/templates/bb/bb_match_arbno.cpp	30	file	b	8	8	[40]	
+src/templates/bb/bb_match_atp.cpp	11	static	b	24	24		
+src/templates/bb/bb_match_break.cpp	14	file	bk_nlb	24	24		
+src/templates/bb/bb_match_break.cpp	15	file	bk_dlb	24	24		
+src/templates/bb/bb_match_break.cpp	71	static	c	24	24		
+src/templates/bb/bb_match_breakx.cpp	13	file	bx_dlb	24	24		
+src/templates/bb/bb_match_breakx.cpp	103	static	c	24	24		
+src/templates/bb/bb_match_capture.cpp	36	static	b	24	24		
+src/templates/bb/bb_match_defer.cpp	38	static	b	24	24		
+src/templates/bb/bb_match_defer.cpp	45	static	cl	8	8	[48]	
+src/templates/bb/bb_match_defer.cpp	49	static	pl	8	8	[48]	
+src/templates/bb/bb_match_end.cpp	23	file	b	8	8	[40]	
+src/templates/bb/bb_match_fence1.cpp	13	local	e	0	0		
+src/templates/bb/bb_match_len.cpp	10	static	b	24	24		
+src/templates/bb/bb_match_lit.cpp	35	static	b	24	24		
+src/templates/bb/bb_match_notany.cpp	14	file	na_nlb	24	24		
+src/templates/bb/bb_match_notany.cpp	15	file	na_dlb	24	24		
+src/templates/bb/bb_match_notany.cpp	51	static	c	24	24		
+src/templates/bb/bb_match_pos.cpp	22	static	b	24	24		
+src/templates/bb/bb_match_rpos.cpp	24	static	b	24	24		
+src/templates/bb/bb_match_rtab.cpp	10	static	b	24	24		
+src/templates/bb/bb_match_span.cpp	14	file	sp_nlb	24	24		
+src/templates/bb/bb_match_span.cpp	53	static	c	24	24		
+src/templates/bb/bb_match_tab.cpp	10	static	b	24	24		
+src/templates/bb/bb_scan_many.cpp	15	param	w	4	4		
+src/templates/bb/bb_scan_many.cpp	18	local	bsw	4	4		
+src/templates/bb/bb_scan_upto.cpp	15	param	w	4	4		
+src/templates/bb/bb_scan_upto.cpp	18	local	bsw	4	4		
+src/templates/bb/bb_var_frame.cpp	19	local	nm	32	32		
+src/templates/bb/bb_var_ref.cpp	24	local	nm	32	32		
+src/templates/x86/x86_arg_roles.cpp	249	file	x86_argroles	123	123		
+src/templates/x86/x86_arg_roles.h	2	file	role	6	6		
+src/templates/x86/x86_arg_roles.h	4	file	x86_argroles	123	123		
+src/templates/x86/x86_asm.h	12	local	rtccb	32	32		
+src/templates/x86/x86_asm.h	585	file	b	8	8	[8]	
+src/templates/x86/x86_asm.h	643	local	b2	96	96		
+src/templates/x86/x86_asm.h	876	static	b	16	16	[48]	
+src/templates/x86/x86_asm.h	888	static	b	16	16	[48]	
+src/templates/x86/x86_asm.h	897	static	b	16	16	[48]	
+src/templates/x86/x86_asm.h	915	file	b	8	8	[16]	
+src/templates/x86/x86_asm.h	941	file	b	8	8	[40]	
+src/templates/x86/x86_asm.h	942	file	b	8	8	[40]	
+src/templates/x86/x86_asm.h	943	file	b	8	8	[40]	
+src/templates/x86/x86_asm.h	944	file	b	8	8	[40]	
+src/templates/x86/x86_asm.h	948	file	b	8	8	[48]	
+src/templates/x86/x86_asm.h	950	file	b	8	8	[48]	
+src/templates/x86/x86_asm.h	951	file	n	6	6		
+src/templates/x86/x86_asm.h	952	file	b	8	8	[40]	
+src/templates/x86/x86_asm.h	998	file	b	8	8	[24]	
+src/templates/x86/x86_asm.h	1205	file	b	8	8	[40]	
+src/templates/x86/x86_asm.h	1206	file	b	4	4	[32]	
+src/templates/x86/x86_asm.h	1232	local	rb	8	8		
+src/templates/x86/x86_asm.h	1241	static	ring	16	16	[192]	
+src/templates/x86/x86_asm.h	1264	field	base	8	8		
+src/templates/x86/x86_asm.h	1264	field	sym	96	96		
+src/templates/x86/x86_asm.h	1309	local	ns	32	32		
+src/templates/x86/x86_asm.h	1314	local	bb	8	8		
+src/templates/x86/x86_asm.h	1315	local	ii	8	8		
+src/templates/x86/x86_asm.h	1337	local	bbr	8	8		
+src/templates/x86/x86_asm.h	1872	static	b	8	8	[40]	
+src/templates/x86/x86_asm.h	1910	local	lbl	24	24		
+src/templates/x86/x86_asm.h	1918	local	stem	192	192		
+src/templates/x86/x86_asm.h	2036	local	lblbuf	24	24		
+src/templates/x86/x86_asm.h	2047	local	lblbuf	24	24		
+src/templates/x86/x86_asm.h	2149	local	portof	X86_INTERNAL_MAX	250		guarded
+src/templates/x86/x86_asm.h	2191	local	internal	X86_INTERNAL_MAX	250		guarded
+src/templates/xa/xa_flat.cpp	64	static	argreg	4	4		
+src/templates/xa/xa_flat.cpp	66	static	dcarg4	4	4		
+src/templates/xa/xa_flat.cpp	177	local	nm	32	32		
+src/templates/xa/xa_flat.cpp	350	local	gk	29	29		
+src/templates/xa/xa_flat.cpp	383	local	gk	29	29		
+src/tools/demo_template_productions.c	9	local	buf	16	16		
+src/tools/emit_per_kind_audit.c	12	file	g_audit_nodes	IR_OP_COUNT			UNGUARDED
+src/tools/emit_per_kind_audit.c	16	file	g_audit_child2	2	2		
+src/tools/emit_per_kind_audit.c	17	file	g_audit_child3	3	3		
+src/tools/emit_per_kind_audit.c	216	file	g_audit_sm	SM_OPCODE_COUNT			UNGUARDED
+src/tools/emit_per_kind_audit.c	327	local	tmp	1024	1024		
+src/tools/emit_per_kind_audit.c	349	local	dir_path	1024	1024		
+src/tools/emit_per_kind_audit.c	472	local	dir_path	1024	1024		
+src/tools/test_template_byte_identity.c	12	local	buf	16	16		
