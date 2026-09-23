@@ -118,6 +118,38 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog latest (DECTET) — **THE HOME-STRETCH ROW (Lon 14:1x, "the one task is all test suites to 100%"): LOGTALK RE-RUN, INRIA'S SECOND NAMED GAP CURED, GNU-FD EXCLUDED BY LON'S WORD (CEO-1209) — FIVE SUITES REMAIN, ONE (SWI) FAR FROM DONE**
+
+Row `prolog-all-test-suites-of-the-language-read-100-percent-on-the-suite-table-the-home-stretch`.
+**Logtalk** re-run in full on Lon's word (ceo doorbell `lons-word-1350-...`): 2891/3600 → **2935/3600**
+at SCRIP `6ab620788` (.github `96dde3452`); identity 2935 pass + 487 fail + 40 outside + 138 ungraded =
+3600. **INRIA**'s second named gap (bare-variable clause body via `clause/2` returning the raw variable
+instead of `call/1`-wrapped, per ISO/GNU/SWI) is cured: new `$clause_unify` runtime op
+(`by_name_dispatch.c` + `rtx_plunify.s` trampoline + `bb_call.cpp` table entry), wired only into
+`pl_db_enum`'s `erase==0` (clause/2) path in `lower_prolog.c` — `retract/1`'s `erase==1` path and ordinary
+CALL dispatch of bare-var-body dynamic predicates are untouched and verified unbroken. **439/442 → 440/442**
+at SCRIP `9f4da0b64` (.github `8ff5c5a8`); the one remaining named gap is `double_quotes`-as-directive-form,
+real compiler work, untouched this landing. **GnuFD is OUT of the home-stretch criterion** by Lon's word
+14:4x CDT (CEO-1209): its row is removed from SCORE.md/SUITES.tsv, `ANNOUNCEMENT.md` carries the exclusion,
+`prolog-gnu-fd-thirty-...` parks on it. **THE CRITERION NOW GRADES FIVE SUITES: ProM 563/563 (done) ·
+GNU 11/11 (done) · INRIA 440/442 · Logtalk 2935/3600 · SWI 1051/2935 (untouched this sitting, by far the
+largest remaining gap).** DONE-WHEN is `scripts/util_suite_table_language_verdict.py prolog 0f6724c5b`
+(confirmed on origin, SCRIP `202b61814` — an earlier search this sitting ran unfetched and wrongly reported
+it missing; withdrawn). ⛔ **PROVENANCE HAZARD, worth every seat knowing (coo's row
+`instruments-a-board-does-not-refuse-when-its-own-seat-rebuilds-the-binary-under-it` owns the cure, cite
+there, no new row):** a concurrent `git pull --rebase` in this SAME root moved HEAD mid-board during the
+Logtalk run, before the first pass's provenance stamp was taken; the board did NOT refuse. Re-run standalone
+on the clean, final HEAD independently reproduced the identical 2935/3600, so the number on record is
+correct, but the class of hazard is real and silent. **Per CEO-1209: no pull, no make, no dispatch verb in
+a root while its own board runs (CLAUDE.md THE LOOP 1).** Separately, this sitting also diagnosed and
+escalated the assertz/retract recompile-trace-literal corruption (entry below) — CEO-1208 has since
+authorized landing it wherever it falls, permission-step retired (CEO-801); isolation of the shared
+`src/ir/` candidates (`zls_forget_graph_nodes` and neighboring node-keyed tables in `frame_layout.c`) is
+in progress, next sitting's `## NEXT`. The 11-site allocator/preflight-red in `by_name_dispatch.c` is the
+cfo's cure row (CEO-1208); this seat reviews after, does not touch `wot_open`/`wot_close`/`wot_discard`.
+
+---
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog later (DECTET) — **LON'S WORD ROUTED CEO-1200 ("bring your language to 100% through the IPC sync-step monitor, every suite"): SAME ROW, PICKED UP THE OPEN DIVERGENCE — THE PRIOR SITTING'S ζ-SPINE-DEPTH HYPOTHESIS IS DISPROVEN, THE REAL TRIGGER IS RUNTIME JIT RECOMPILATION OF A DYNAMIC PREDICATE CORRUPTING ITS OWN NEXT TRACE LITERAL, AND TWO OF THE THREE REMAINING CANDIDATES ARE SHARED `src/ir/` MACHINERY — ESCALATED TO ceo, NOT LANDED BLIND**
 
 Row `prolog-monitor-the-instrumented-gprolog-oracle-is-completed-and-used-...`, continuing from the entry
