@@ -244,3 +244,34 @@ Layer 1 is not one statement event but THREE runtime hooks, each with ONE implem
 **Cost discipline, unchanged:** the hooks are guarded by one runtime flag (`g_trace`-shaped, the existing guard the trace taps use, CEO-1140: the poll is not inside the guard), so a program run without a monitor pays one compare per hook site; the emitted asm is byte-identical between a monitored and an unmonitored build (`MONITOR_BIN` remains a runtime knob, never a compile-time arm — ZETA HAS NO MODES). A frontend that cannot fire a hook at a construct names the construct in its plug row; it does not skip the hook silently.
 
 **Position key (Lon 2026-09-23 02:25 CDT, verbatim: *"or some form of statement numbers versus line numbers."*; CEO-1178):** the line hook carries the language's OWN position unit — a source line where the language is line-shaped, a statement number where it is statement-shaped (SNOBOL4's statement numbers, Prolog's clause and goal positions) — as ONE integer on the wire; which unit, and how it renders, is the plug's answer (layer 4), never a second event kind and never a second carrier. `core_error_voice` prints the same unit, so the monitor and the error voice never disagree about where.
+
+## ⭐⭐⭐ THE PLUG INTERFACE, AS THE CODE ON ORIGIN DEFINES IT (ceo, 2026-09-23 02:51 CDT, CEO-1184 — convened on Lon's word; written from hq_raku's landing at SCRIP `7504fe722`, not from prose)
+
+**What exists today (measured):** four runtime entries in `src/runtime/core/core.c` — `rt_rk_trace_stmt(long line)`, `rt_rk_trace_value(const char *name, DESCR_t val)`, `rt_rk_trace_call(const char *name, DESCR_t *args, int nargs)`, `rt_rk_trace_return(const char *name, DESCR_t retval)` — gated by one global `g_rk_trace` (a countdown: `--trace` sets it to 2e9, `--trace=N` to N, `SCRIP_RK_TRACE=N` at run time for a mode-4 binary), each writing a `****<count>  …` line to stdout through `trace_spell_value` and, when `monitor_fd >= 0`, a TEXT wire event through `mon_send("STMT"|"CALL"|"RETURN"|"VALUE", name, text)`; four `__rk_trace_*` names in `by_name_dispatch.c`; the driver flag in `scrip.c`; 67 lines of emission in `lower_raku.c`. The SNOBOL4 path is older and separate: `SNO$STMT` hooks → `IR_STMT_MARK` → `bb_stmt_mark`, the `&TRACE` `comm_var` tap for assignments, and the BINARY wire (`mon_send_bin`, `monitor_wire.h`).
+
+**THE SHARED LAYER — one of each, named now so every plug codes against the same thing:**
+
+| Layer | The one implementation | Owner of the generalisation |
+|---|---|---|
+| hooks | `rt_trace_stmt(long pos)` · `rt_trace_value(const char *name, DESCR_t v)` · `rt_trace_call(const char *name, DESCR_t *args, int n)` · `rt_trace_return(const char *name, DESCR_t v)` — hq_raku's four with the `rk` dropped; `pos` is the language's own unit (line or statement number, CEO-1178); `value` roots what it holds for the call (CEO-1172's comm_var lesson) | hq_raku (row `monitor-hq-rakus-four-runtime-trace-entries-…`) |
+| flag | ONE `g_trace_budget` (the countdown hq_raku built), set by `--trace[=N]` and `SCRIP_TRACE=N`; the language-prefixed names (`g_rk_trace`, `SCRIP_RK_TRACE`, `SCRIP_PAS_TRACE`) go | hq_raku |
+| gate | COMPILE-TIME as landed (the calls are emitted only under `--trace`), OPEN FOR LON against the page's earlier runtime-flag wording; whichever he picks, the monitor-safe rule stands: a witness is monitor-safe when its untraced stdout equals its traced stdout with the `****` lines removed | Lon's ruling, ceo routes |
+| wire | the hooks write BOTH the stdout trace and the binary wire (`mon_send_bin`: `MWK_LABEL` ← stmt, `MWK_VALUE` ← value, `MWK_CALL`/`MWK_RETURN` ← call/return, names through the `MWK_NAME_DEF` intern); the text `mon_send` path is retired once the binary path carries all four | hq_raku |
+| emitter helpers | four helpers in `src/templates/x86/` (one per hook) that any lowerer/box calls: they marshal the name pointer, the DESCR pair and the position and emit the `call`; a lowerer never spells the hook call itself | hq_raku (with the hooks) |
+| map builder | `scripts/monitor/build_stno_map.py` becomes `build_pos_map.py <source>` selecting a plug by extension; a plug is one Python function `positions(source_text) -> [(pos, line, text)]` answering which spans are statements and the number each carries; SNOBOL4's current logic is the first plug | hq_icon (with the Icon plug) |
+| harness | `scripts/test_monitor_2way_sync_step_all_langs.sh --lang <l> --participants "scr3 scr4"` (SCRIP mode 3 against SCRIP mode 4 on one witness) or `"spl scr"` for SNOBOL4 against SPITBOL; one script, never a sibling per language | hq_icon |
+| controller | `monitor_sync_bin.py` unchanged; parametrised by participants | nobody (stays) |
+
+**THE PER-LANGUAGE PLUG — what each HQ lands as ONE row in its lane, referencing this section:**
+1. Its lowerer calls the four emitter helpers at every statement (with the language's position unit), every value assignment, every call and every return (γ for generators, CEO-550); a construct it cannot hook is NAMED in the row, never skipped.
+2. Its `positions()` plug in `build_pos_map.py`.
+3. One monitor-safe witness from its master run through the harness `scr3 scr4` arm, event-for-event equal; the first divergence it finds is a row on the language's rung.
+
+**THE ORDER AND THE OWNERS (Lon 2026-09-23: Prolog, Pascal, Raku use the technique; Icon is instrumented like them; one design, maximum reuse):**
+- hq_raku — the shared layer first (the row above), then Raku's plug is what `lower_raku.c` already emits, re-pointed at the helpers.
+- hq_icon — the map builder and the harness (their assigned row), then Icon's plug; Icon already carries `IR_LINE_MARK`, so its position unit is the line.
+- hq_pascal — Pascal's plug; `SCRIP_PAS_TRACE` (AST-injected, interim, CEO-1179) is deleted in that landing.
+- hq_prolog — Prolog's plug; the position unit is the clause/goal number the plug decides.
+- hq_snobol4 — last: the `SNO$STMT` / `comm_var` path migrates onto the shared hooks so SNOBOL4 is a plug like the others and the SPITBOL bridge keeps working through the same wire.
+Nobody starts a plug before hq_raku's renamed hooks and helpers are on origin; the ceo reviews each landing after the fact (the officers are down).
+
