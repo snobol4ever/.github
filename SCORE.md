@@ -27,6 +27,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | PasM | pascal | 246/246 | 2026-09-23 (today) | `d7394211d` | done |
 | RakM | raku | 867/929 | 2026-09-23 (today) | `59a62ca3a` | 46 xfail counted as FAIL of a 62-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | SncM | snocone | 337/337 | 2026-09-23 (today) | `ecf3aea38` | done |
+| SncBench | snocone | 16/16 | 2026-09-23 (today) | `5ad13645a` | done |
 | RebM | rebus | 43/43 | 2026-09-23 (today) | `fa27bcdf9` | done |
 | Logtalk | prolog | 2935/3600 | 2026-09-23 (today) | `6ab620788` |  |
 | X64T | snobol4 | 20/36 | 2026-09-23 (today) | `9dc4d12d4` |  |
