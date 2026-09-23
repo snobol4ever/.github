@@ -29,7 +29,6 @@ One row per suite — our seven masters and every vendored package suite alike �
 | SncM | snocone | 336/336 | 2026-09-21 (today) | `77922bcf8` | done |
 | RebM | rebus | 43/43 | 2026-09-17 (today) | `9c35971c1` | done |
 | Logtalk | prolog | 2935/3600 | 2026-09-23 (today) | `6ab620788` |  |
-| GnuFD | prolog | -/30 (30 DEFERRED, not counted as failures) | never graded | - | DEFERRED by Lon (CEO-572,CEO-579), IN SCOPE AND NOT A FAILURE - waiting on: THE FINITE-DOMAIN CONSTRAINT SUBSYSTEM, and the prerequisite nothing else can start before is an ATTRIBUTED-VARIABLE / SUSPENSION SUBSTRATE we do not have at all (0 files under SCRIP/src match attr_var·put_attr·coroutin, measured 2026-09-12). Sizes, all re-measured 2026-09-12 rather than transcribed: GNU's own FD is EngineFD 7 files 4881 lines + BipsFD 13 files 6571 lines = 11452 lines of C/H, 10. |
 | X64T | snobol4 | 21/36 | 2026-09-16 (today) | `8f567e685` |  |
 
 
