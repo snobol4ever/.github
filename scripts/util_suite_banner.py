@@ -13,7 +13,7 @@ STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 1
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
 CRITERION rule (hq_T 2026-09-06, after ceo-372; AMENDED coo 2026-09-08 on Lon's word "Fix it so you CAN do a comparison"). A row may carry criterion_changed = <YYYY-MM-DD>:<slug>. When its first_date PREDATES that day, first_* and today_* answer two different questions and their difference is not a movement -- that much stands, and first_* is still never re-baselined. ⛔ WHAT NO LONGER STANDS is printing n/c and stopping: that is true about those two numbers and useless as an answer to "are we getting better?". Instead likeforlike() holds the POPULATION fixed -- today's graded set -- and asks the progress table what those same programs did then and do now. Same programs, same modes, two dates, so a changed denominator cannot distort it, and nothing is invented: it re-reads per-program evidence already on file. The row then gets a real rate and a real ETA like any other. Programs with no reading at the earlier date are excluded from BOTH sides rather than counted as failures-then-passes-now, which would manufacture progress out of missing data. Only two states remain uncomparable and they are told apart: `no rows` (the table has never seen the suite) and `1 day` (rows exist but all from one day, so there is no earlier reading yet) -- both facts about our instrumentation, never verdicts about the suite.
 """
-import sys, os, re, datetime as dt, unicodedata as _ud
+import sys, os, re, subprocess, datetime as dt, unicodedata as _ud
 def dw(s):
     """DISPLAY columns, not len(). The grid misaligned because padding counted CHARACTERS (Lon 2026-09-06:
     "get the suites banner to line up vertically; most likely your length counts are off due to unicode").
@@ -498,7 +498,139 @@ def grid(plain=False):
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
     print(f"{len(data)} suites, {done} at 100%")
+# ⭐ THE README'S SUITE TABLE IS GENERATED FROM THIS RECORD, NEVER TYPED (Lon 2026-09-23 16:2x, in-chat to the ceo: "We want the
+# test suite numbers and the benchmark numbers in the README."; CEO-1216; row instruments-the-readme-suite-table-is-written-from-the-
+# suite-table-and-a-gate-holds-it-current, the coo). SCRIP/README.md read the leaderboard "on 2026-09-07" sixteen days later -- Gimpel
+# 104/127 against 127/132, IPL 75/89 against 194/194 -- because a hand-kept copy has no writer. --readme renders the block between two
+# marker lines from SUITES.tsv and stamps the .github commit it read (the PIN); --readme-check [--pinned] holds it: --pinned proves the
+# block is exactly the render of SUITES.tsv AT ITS PIN (a hand edit or a corrupted cell reds, and it never flaps), the full check also
+# proves every row matches SUITES.tsv as it stands now (the currency the other repo moves about fifty times a day, so it can lag).
+# Raku is labelled IN DEVELOPMENT on Lon's word (CEO-1219) and no other language carries a label.
+README_BEGIN = '<!-- SUITE-TABLE:BEGIN'
+README_END = '<!-- SUITE-TABLE:END -->'
+README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), ('pascal', 'Pascal'), ('raku', 'Raku'),
+                ('snocone', 'Snocone'), ('rebus', 'Rebus')]
+README_IN_DEVELOPMENT = {'raku'}
+README_HEAD_N = 8   # the BEGIN line, four prose lines, a blank, the table header and its rule -- rows start here
+README_RUNNER = {
+    'gimpel': 'test_snobol4_gimpel_suite.sh', 'csnobol4': 'test_snobol4_csnobol4_suite.sh', 'snoflake': 'test_snoflake_suite.sh',
+    'aisnobol': 'test_snobol4_aisnobol_suite.sh', 'dotnet': 'test_snobol4_dotnet_suite.sh',
+    'testpgms': 'test_snobol4_spitbol_testpgms_suite.sh', 'x64tests': 'test_snobol4_spitbol_x64_suite.sh',
+    'arizona': 'test_icon_arizona_suite.sh', 'jcon': 'test_icon_jcon_suite.sh', 'ipl': 'test_icon_ipl_suite.sh',
+    'inria': 'test_prolog_inria_suite.sh', 'swi': 'test_prolog_swi_suite.sh', 'gnu': 'test_prolog_gnu_suite.sh',
+    'logtalk': 'test_prolog_logtalk_suite.sh', 'fpc': 'test_pascal_fpc_suite.sh', 'pat': 'test_pascal_pat_suite.sh',
+    'roast': 'raku_roast_scoreboard.sh --run', 'sno-master': 'test_corpus_snobol4.sh', 'icn-master': 'board_icon_master.sh',
+    'pl-master': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-master': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
+    'raku-master': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-master': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
+    'reb-master': 'corpus_suite_harness.py run tests/rebus/ALL.reb'}
+def _readme_path():
+    root = os.environ.get('S4E_HOME') or os.path.join(HERE, '..', '..')
+    return os.path.join(root, 'SCRIP', 'README.md')
+def _rows_from_text(text):
+    rows=[]; head=None
+    for l in text.split('\n'):
+        if l.startswith('#') or not l.strip(): continue
+        f=l.split('\t')
+        if head is None: head=f; continue
+        rows.append(dict(zip(head,f)))
+    return rows
+def readme_block(rows, pin):
+    """The generated block, markers included. Refuses (SystemExit 2) on a suite with no runner named or a language it cannot place."""
+    known = dict(README_LANGS)
+    for r in rows:
+        if r['key'] not in README_RUNNER:
+            sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} has no runner named in README_RUNNER -- a README row must say what produced it\n"); sys.exit(2)
+        if r.get('lang') not in known:
+            sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} has language {r.get('lang')!r}, which the README does not place\n"); sys.exit(2)
+    out = [f"{README_BEGIN} generated by .github/scripts/util_suite_banner.py --readme from .github/SUITES.tsv at .github@{pin} -- do not edit by hand; scripts/test_gate_readme_suite_table_matches_suites_tsv.sh holds it -->",
+           "Every row is generated from the leaderboard's machine record, `.github/SUITES.tsv` (the SUITE TABLE of `.github/SCORE.md`),",
+           "never typed by hand: the suite's latest reading, written by that suite's own runner in the landing that measured it, with the",
+           "SCRIP tree and the day it was measured. A program counts only when it passes in BOTH modes. The seven masters are our own flat",
+           "suites with refs cut from each oracle; the others are vendored third-party suites. Raku is IN DEVELOPMENT: its rows stand as measured.",
+           "",
+           "| Language | Suite | passing / graded (both modes, the AND per program) | tree | measured | runner |",
+           "|---|---|---|---|---|---|"]
+    for lang, name in README_LANGS:
+        mine = [r for r in rows if r.get('lang') == lang]
+        mine = [r for r in mine if not r['key'].endswith('-master')] + [r for r in mine if r['key'].endswith('-master')]
+        label = name + (' — IN DEVELOPMENT' if lang in README_IN_DEVELOPMENT else '')
+        for r in mine:
+            suite = r['nick'] + (' (master)' if r['key'].endswith('-master') else '')
+            p_, t_ = (r.get('today_pass') or '').strip(), (r.get('today_total') or '').strip()
+            cell = f"**{p_}/{t_}**" if p_ and t_ else "not graded"
+            tree = (r.get('tree') or '').strip()
+            out.append(f"| {label} | {suite} | {cell} | {('`' + tree + '`') if tree else ''} | {(r.get('today_date') or '').strip()} | `{README_RUNNER[r['key']]}` |")
+    out.append(README_END)
+    return out
+def _readme_split(path):
+    L = open(path, encoding='utf-8').read().split('\n')
+    b = [i for i, l in enumerate(L) if l.startswith(README_BEGIN)]
+    e = [i for i, l in enumerate(L) if l == README_END]
+    if len(b) != 1 or len(e) != 1 or e[0] < b[0]:
+        return L, None, None
+    return L, b[0], e[0]
+def _suites_pin():
+    gh = os.path.dirname(os.path.abspath(TSV))
+    dirty = subprocess.run(['git', '-C', gh, 'status', '--porcelain', '--', os.path.basename(TSV)], capture_output=True, text=True)
+    if dirty.returncode != 0:
+        return None, f"cannot read git state of {gh}: {dirty.stderr.strip()}"
+    if dirty.stdout.strip():
+        return None, f"{TSV} has uncommitted changes -- commit the row first; a README must name a state anyone can re-read"
+    h = subprocess.run(['git', '-C', gh, 'log', '-1', '--format=%h', '--', os.path.basename(TSV)], capture_output=True, text=True)
+    return (h.stdout.strip() or None), (None if h.stdout.strip() else "no commit touches SUITES.tsv")
+def readme_write(path):
+    pin, why = _suites_pin()
+    if not pin:
+        sys.stderr.write(f"REFUSE(rc=2): --readme: {why}\n"); return 2
+    L, b, e = _readme_split(path)
+    if b is None:
+        sys.stderr.write(f"REFUSE(rc=2): --readme: {path} needs exactly one '{README_BEGIN} ...' line and one '{README_END}' line after it\n"); return 2
+    _h, rows = load()
+    new = readme_block(rows, pin)
+    if L[b:e + 1] == new:
+        print(f"README suite table: already the render of SUITES.tsv at .github@{pin} (0 lines changed)"); return 0
+    L[b:e + 1] = new
+    open(path, 'w', encoding='utf-8').write('\n'.join(L))
+    print(f"README suite table: rendered {len(new) - README_HEAD_N - 1} row(s) from SUITES.tsv at .github@{pin} into {path}"); return 0
+def readme_check(path, pinned_only=False):
+    """rc 0 the block is exactly its pin's render (and, unless pinned_only, every row matches SUITES.tsv now); 1 a cell differs; 2 unmeasurable."""
+    if not os.path.exists(path):
+        print(f"README-CHECK REFUSED(2): no README at {path}"); return 2
+    L, b, e = _readme_split(path)
+    if b is None:
+        print(f"README-CHECK RED(1): {path} carries no single generated block ({README_BEGIN} ... {README_END}) -- the table is not generated"); return 1
+    m = re.search(r'at \.github@([0-9a-f]{7,40}) ', L[b])
+    if not m:
+        print(f"README-CHECK RED(1): the block's first line names no .github@<commit> pin -- nobody can re-read what it was rendered from"); return 1
+    pin = m.group(1); gh = os.path.dirname(os.path.abspath(TSV))
+    old = subprocess.run(['git', '-C', gh, 'show', f'{pin}:{os.path.basename(TSV)}'], capture_output=True, text=True)
+    if old.returncode != 0:
+        print(f"README-CHECK REFUSED(2): the pin .github@{pin} is not in {gh}'s history -- pull .github, then re-check"); return 2
+    got = L[b:e + 1]
+    want = readme_block(_rows_from_text(old.stdout), pin)
+    bad = [(i, g, w) for i, (g, w) in enumerate(zip(got, want)) if g != w] + ([(-1, f'{len(got)} lines', f'{len(want)} lines')] if len(got) != len(want) else [])
+    if bad:
+        print(f"README-CHECK RED(1): {len(bad)} line(s) of the README block are not the render of SUITES.tsv at its pin .github@{pin} -- a hand edit or a corrupted cell:")
+        for i, g, w in bad[:10]: print(f"    README:   {g}\n    RENDERED: {w}")
+        return 1
+    print(f"README-CHECK PINNED OK: the block is exactly the render of SUITES.tsv at .github@{pin} ({len(got) - README_HEAD_N - 1} rows)")
+    if pinned_only: return 0
+    _h, rows = load()
+    cur = readme_block(rows, pin)
+    lag = [(g, w) for g, w in zip(got[README_HEAD_N:-1], cur[README_HEAD_N:-1]) if g != w] + ([('(row count)', f'{len(got)} vs {len(cur)} lines')] if len(got) != len(cur) else [])
+    if lag:
+        print(f"README-CHECK RED(1): {len(lag)} README row(s) lag SUITES.tsv as it stands now (the block reads .github@{pin}) -- regenerate: python3 .github/scripts/util_suite_banner.py --readme")
+        for g, w in lag[:12]: print(f"    README: {g}\n    NOW:    {w}")
+        return 1
+    print(f"README-CHECK CURRENT OK: every README row matches SUITES.tsv as it stands now")
+    return 0
 def main(a):
+    if '--readme' in a:
+        j=a.index('--readme'); path=a[j+1] if len(a)>j+1 and not a[j+1].startswith('-') else _readme_path()
+        sys.exit(readme_write(path))
+    if '--readme-check' in a:
+        j=a.index('--readme-check'); path=a[j+1] if len(a)>j+1 and not a[j+1].startswith('-') else _readme_path()
+        sys.exit(readme_check(path, pinned_only=('--pinned' in a)))
     if '--set' in a:
         # ⛔ THE CRITERION STAMP (coo 2026-09-16, CEO-785; row instruments-util-score-row-cannot-stamp-a-criterion-change-so-
         # every-denominator-move-is-hand-edited-or-unstamped): `--criterion-changed '<YYYY-MM-DD>:<reason in words>'` APPENDS
