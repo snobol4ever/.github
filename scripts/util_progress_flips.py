@@ -289,7 +289,89 @@ def cmd_contradictions(a, rows):
     return 1
 
 
-def cmd_ratchet(a, rows):
+def ratchet_scan(db, base):
+    """THE CONFIGURATION RATCHET'S INPUTS IN TWO STREAMING PASSES, WITHOUT HOLDING THE TABLE (coo 2026-09-23, the ceo's CEO-1212
+    under CEO-801): load() builds a dict per row of the whole table -- 4.18M rows, measured at 4556 MB tree-wide, the heaviest arm
+    of the blocking set and the one that set its memory cap -- to answer a question about a few per-lane aggregates. This reads
+    the file twice with the SAME csv dialect, the SAME row filter and the SAME column semantics as load(), and emulates load()'s
+    stable sort by timestamp with (ts_utc, file position) keys, so every count, every order and every tie reads exactly as
+    cmd_ratchet read them over load(); test_gate_progress_readers_stream_and_answer_the_same.sh holds that byte for byte.
+    Returns a dict of aggregates, or raises the same SystemExit load() raises on an unnamed column."""
+    if not os.path.isfile(db):
+        raise SystemExit(f"REFUSE(2): no progress database at {db}")
+    def rows_of():
+        with open(db, encoding="utf-8", errors="replace", newline="") as f:
+            rd = csv.reader(f, delimiter="\t")
+            hdr = next(rd, [])
+            yield hdr
+            nh = len(hdr)
+            ix = {h: i for i, h in enumerate(hdr)}
+            i_ts, i_prog, i_mode, i_suite, i_meas, i_cfg = (ix.get(c, 1 << 30) for c in
+                                                            ("ts_utc", "program", "mode", "suite", "measurer", "config"))
+            idx = -1
+            for fl in rd:
+                if not fl:
+                    continue
+                idx += 1
+                n = len(fl)
+                ts = fl[i_ts] if i_ts < n else None
+                prog = fl[i_prog] if i_prog < n else None
+                if not ts or not prog:
+                    yield None   # load() skips these BEFORE it reads their unnamed columns
+                    continue
+                cfg = fl[i_cfg] if i_cfg < n else None
+                yield ((ts, idx), n - nh if n > nh else 0, ts, prog, fl[i_mode] if i_mode < n else None,
+                       fl[i_suite] if i_suite < n else None, (fl[i_meas] if i_meas < n else None) or "",
+                       cfg is None, (cfg or "").strip() or "undeclared")
+    it = rows_of(); hdr = next(it)
+    n_rows = 0; newest = None; unnamed = 0
+    n_sel = 0; declared = 0
+    short_n, short_first, short_min_ts = {}, {}, {}
+    first_decl = {}
+    for row in it:
+        if row is None:
+            continue
+        key, extra, ts, _prog, _mode, suite, meas, short, cfg = row
+        if extra and extra > unnamed: unnamed = extra
+        n_rows += 1
+        if newest is None or ts > newest: newest = ts
+        if ts < base:
+            continue
+        n_sel += 1
+        k = (meas, suite)
+        if short:
+            short_n[k] = short_n.get(k, 0) + 1
+            if k not in short_first or key < short_first[k]: short_first[k] = key
+            if k not in short_min_ts or ts < short_min_ts[k]: short_min_ts[k] = ts
+        if cfg != "undeclared":
+            declared += 1
+            if k not in first_decl or key < first_decl[k]: first_decl[k] = key
+    if unnamed:
+        raise SystemExit(
+            f"REFUSE(2): {db} writes {len(hdr) + unnamed} columns but its header names only {len(hdr)} "
+            f"({', '.join(hdr)}). The last {unnamed} column(s) of every row land in csv's UNNAMED restkey and no "
+            f"reader can reach them by name. This is not a reading. Run any append through "
+            f"SCRIP/scripts/util_progress_append.py, which migrates the header under the table's own lock.")
+    later_n, later_first = {}, {}
+    if first_decl:
+        it = rows_of(); next(it)
+        for row in it:
+            if row is None:
+                continue
+            key, _extra, ts, prog, mode, suite, meas, _short, cfg = row
+            if ts < base or cfg != "undeclared":
+                continue
+            k = (meas, suite)
+            if k in first_decl and key > first_decl[k]:
+                later_n[k] = later_n.get(k, 0) + 1
+                if k not in later_first or key < later_first[k][0]: later_first[k] = (key, prog, mode)
+    return {"n_rows": n_rows, "newest": newest, "n_sel": n_sel, "declared": declared,
+            "short": sorted(((-n, short_first[k], k, n, short_min_ts[k]) for k, n in short_n.items())),
+            "first_decl": {k: v[0] for k, v in first_decl.items()},
+            "later": sorted(((-n, later_first[k][0], k, n, later_first[k]) for k, n in later_n.items()))}
+
+
+def cmd_ratchet(a, _rows=None):
     """⛔⭐ A LANE THAT HAS DECLARED ITS CONFIGURATION MAY NEVER SILENTLY STOP, AND NO WRITER MAY STILL BE
     EMITTING THE OLD WIDTH.
 
@@ -335,12 +417,12 @@ def cmd_ratchet(a, rows):
     # not have -- that this whole instrument exists to refuse.
     origin = (f"= SCRIP {CONFIG_BASELINE_TREE}, the commit that added the column"
               if not a.baseline else "OVERRIDDEN by --baseline; this is NOT the column's commit")
-    sel = [r for r in rows if r["ts_utc"] >= base]
-    newest = rows[-1]["ts_utc"] if rows else "<none>"
+    sc = ratchet_scan(a.db, base)
+    newest = sc["newest"] if sc["n_rows"] else "<none>"
     print(f"config ratchet: no short rows, and no lane stops declaring once it has started "
-          f"(baseline {base} {origin}; rows at or after it {len(sel)} of {len(rows)}; "
+          f"(baseline {base} {origin}; rows at or after it {sc['n_sel']} of {sc['n_rows']}; "
           f"newest row in table {newest})")
-    if not sel:
+    if not sc["n_sel"]:
         print(f"  ⛔ REFUSE(2): NOTHING TO MEASURE. Not one row has been appended at or after the baseline, so "
               f"every arm below would be vacuously green over an EMPTY population. The newest row in the table "
               f"is {newest}. A ratchet with no population is not a reading of the fleet, it is a reading of "
@@ -350,42 +432,34 @@ def cmd_ratchet(a, rows):
     bad = 0
 
     # ---- ARM A: the writer is still emitting the old width -------------------------------------------------
-    short = [r for r in sel if r.get("_short")]
+    short = sc["short"]
     if short:
         bad += 1
-        by = collections.Counter((r["measurer"], r["suite"]) for r in short)
-        print(f"  ⛔ ARM A -- {len(short)} SHORT ROW(S) of {len(sel)}: appended at or after the baseline with "
+        print(f"  ⛔ ARM A -- {sum(x[3] for x in short)} SHORT ROW(S) of {sc['n_sel']}: appended at or after the baseline with "
               f"fewer columns than the header names, so the trailing column(s) are ABSENT rather than blank and "
               f"no reader can tell the difference after the fact.")
-        for (m, s), n in by.most_common(12):
-            first = min(r["ts_utc"] for r in short if r["measurer"] == m and r["suite"] == s)
+        for _neg, _first_key, (m, s), n, first in short[:12]:
             print(f"     {m or '<no measurer>':12s} {s:20s} {n:6d} row(s), first {first}")
-        if len(by) > 12:
-            print(f"     ... and {len(by) - 12} more (measurer, suite) pair(s)")
+        if len(short) > 12:
+            print(f"     ... and {len(short) - 12} more (measurer, suite) pair(s)")
         print("     FIX: append through SCRIP/scripts/util_progress_append.py, which writes every column the "
               "header names and migrates the header under the table's own lock.")
     else:
-        print(f"  ok   ARM A: 0 short rows of {len(sel)} -- every row at or after the baseline carries the full "
+        print(f"  ok   ARM A: 0 short rows of {sc['n_sel']} -- every row at or after the baseline carries the full "
               f"header width.")
 
     # ---- ARM B: a lane that declared, then stopped ---------------------------------------------------------
-    first_decl, later_undecl = {}, collections.defaultdict(list)
-    for r in sorted(sel, key=lambda r: r["ts_utc"]):
-        k = (r["measurer"], r["suite"])
-        if r["config"] != "undeclared":
-            first_decl.setdefault(k, r["ts_utc"])
-        elif k in first_decl:
-            later_undecl[k].append(r)
+    first_decl, later_undecl = sc["first_decl"], sc["later"]
     if later_undecl:
         bad += 1
         print(f"  ⛔ ARM B -- {len(later_undecl)} LANE(S) STOPPED DECLARING after they had started. A pair that "
               f"has recorded what it exercised and then records `undeclared` is not a lane that never had the "
               f"axis: it is a lane whose next board collapses into the SAME (suite, program, mode) cell as the "
               f"reading it should be compared against, and the collision is resolved by ARRIVAL ORDER.")
-        for k, rs in sorted(later_undecl.items(), key=lambda kv: -len(kv[1])):
+        for _neg, _first_key, k, n, (fk, fprog, fmode) in later_undecl:
             m, s = k
-            print(f"     {m or '<no measurer>':12s} {s:20s} declared first at {first_decl[k]}, then {len(rs)} "
-                  f"undeclared row(s) from {rs[0]['ts_utc']} (e.g. {rs[0]['program']} {rs[0]['mode']})")
+            print(f"     {m or '<no measurer>':12s} {s:20s} declared first at {first_decl[k]}, then {n} "
+                  f"undeclared row(s) from {fk[0]} (e.g. {fprog} {fmode})")
         print("     FIX: declare it -- --config shipped, or --config 'SCRIP_GC_STRESS=5,SCRIP_HEAP_MB=1'. The "
               "writer GUESSES NOTHING and will not infer `shipped` from an empty environment (CEO-812 applied "
               "to the record instead of the heap).")
@@ -393,9 +467,9 @@ def cmd_ratchet(a, rows):
         print(f"  ok   ARM B: {len(first_decl)} lane(s) have declared at or after the baseline and not one of "
               f"them has stopped.")
 
-    declared = sum(1 for r in sel if r["config"] != "undeclared")
-    print(f"  population: {len(sel)} row(s) at or after the baseline · {declared} declared · "
-          f"{len(sel) - declared} undeclared · {len(first_decl)} declaring lane(s) "
+    declared = sc["declared"]
+    print(f"  population: {sc['n_sel']} row(s) at or after the baseline · {declared} declared · "
+          f"{sc['n_sel'] - declared} undeclared · {len(first_decl)} declaring lane(s) "
           f"({', '.join(sorted({m for m, _ in first_decl})) or 'none'})")
     if bad:
         print(f"  ⛔ RATCHET RED on {bad} of 2 arm(s).")
@@ -566,13 +640,13 @@ def main():
     ap.add_argument("--program", default="", help="with --register: one program")
     ap.add_argument("--out", default="", help="with --register: write the TSV here instead of stdout")
     a = ap.parse_args()
+    if a.ratchet:
+        return cmd_ratchet(a)   # streams the table itself -- never load() (ratchet_scan)
     rows = load(a.db)
     if a.coverage:
         return cmd_coverage(a, rows)
     if a.contradictions:
         return cmd_contradictions(a, rows)
-    if a.ratchet:
-        return cmd_ratchet(a, rows)
     if a.register or a.program:
         a.register = True
         return cmd_register(a, rows)

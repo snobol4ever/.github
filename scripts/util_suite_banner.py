@@ -143,6 +143,14 @@ def _progress_by_suite():
     try: fh=open(PROGRESS,encoding='utf-8',errors='replace')
     except OSError:
         _LFL_CACHE={}; return _LFL_CACHE
+    # ⛔⭐ ONE RECORD PER (suite, program, mode, DAY), NOT ONE PER ROW (coo 2026-09-23, the ceo's CEO-1212 under CEO-801): this
+    # loaded every row of the table -- 4.18M, 684-716 MB for EVERY score-row write, seven arms of the blocking set -- while its one
+    # consumer, likeforlike(), only ever asks for the last reading at or before the END OF A DAY (its basis) and the latest reading
+    # overall (its newest), which is the last record of the last day. So each (suite, program, mode, day) keeps only its max-ts
+    # record, the first seen on a tie exactly as _state_at() breaks ties, and every quantity likeforlike() computes -- newest,
+    # latest_day, pop, basis, then, now -- reads the same on the kept records as on all of them (275k of 4.18M on the day this
+    # changed). test_gate_progress_readers_stream_and_answer_the_same.sh holds the old and the new answer equal, suite by suite.
+    groups={}
     with fh:
         head=fh.readline().rstrip('\n').split('\t')
         try: i_ts,i_scrip,i_suite,i_prog,i_mode,i_out=(head.index(c) for c in
@@ -156,7 +164,11 @@ def _progress_by_suite():
             if '-dirty' in f[i_scrip]: continue
             prog=f[i_prog].rsplit('/',1)[-1]
             if '.' in prog: prog=prog.rsplit('.',1)[0]
-            out.setdefault(f[i_suite],[]).append((f[i_ts],prog,f[i_mode],f[i_out]))
+            ts=f[i_ts]; g=groups.get(f[i_suite])
+            if g is None: g=groups[f[i_suite]]={}
+            k=(prog,f[i_mode],ts[:10]); cur=g.get(k)
+            if cur is None or ts>cur[0]: g[k]=(ts,prog,f[i_mode],f[i_out])
+    out={s_:list(g.values()) for s_,g in groups.items()}
     _LFL_CACHE=out
     return out
 def _state_at(recs,cutoff,only=None):
