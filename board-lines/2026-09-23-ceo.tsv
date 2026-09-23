@@ -1,0 +1,5 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+fa27bcdf9	reb-master	ceo	SUITE_BOARD family=ALL total=43 shipped=43 outside=0 m3_n=43 m3_pass=43 m3_fail=0 m3_crash=0 m3_hang=0 m3_unproven=0 m3_skip=0 m3_xfail=0 m3_xpass=0 m3_xfail_wrong=0 m3_xfail_crash=0 m3_xfail_hang=0 m3_xfail_unproven=0 m3_xfail_skip=0 m4_n=43 m4_pass=43 m4_fail=0 m4_crash=0 m4_hang=0 m4_unproven=0 m4_skip=0 m4_xfail=0 m4_xpass=0 m4_xfail_wrong=0 m4_xfail_crash=0 m4_xfail_hang=0 m4_xfail_unproven=0 m4_xfail_skip=0 all_pass=43 all_n=43 rt_md5=81604b107b1b arena_kb=128 arena_mb=0
