@@ -112,6 +112,46 @@ The 474 remaining relop sites are retired by the CEO-973 table. Corpus-wide the 
 Icon/Prolog/SNOBOL4 only: **zero Pascal and zero Raku sites in the whole corpus own r13 by anything but the poll's own
 record or a stack address.**
 
+## ⛔⛔⭐⭐ CORRECTION TO MY OWN NUMBER, FOUND WHILE CHECKING THE cto's CURE PREMISE: THE SUBJECT POPULATION IS 283 SITES, NOT 13, AND THE CENSUS CANNOT SEE 270 OF THEM
+
+Above I reported "SUBJECT readings in the entire corpus: 13", and I sent that figure to the cto and the ceo as the whole
+justification for a `rec_sigma` form. **It is the SNOBOL4 subset, not the population.** I found it because the cto's ruling
+keys their cure on "a relop inside a SCANNING EXPRESSION", and my evidence for "outside a scan" was the absence of
+`rt_match_enter` — which is the **SNOBOL4 match** entry. Icon string scanning is a different mechanism with its own entry,
+and all five files carrying the 30 residual relop sites are full of it (`scan_tab` 38–313 occurrences each).
+
+`util_gc_callee_saved_census.py:82` has `SUBJECT_SEED = "rt_match_enter"` — one literal, one language. Measured over the
+same 77 files, asking the emitted code which entry actually seeds r13 (through the poll's spill record where it is spilled):
+
+| seeding entry | distinct r13-owned sites | files | class the census gives it |
+|---|---|---|---|
+| **`rt_scan_enter`** | **202** | 9 Icon | **UNCLASSIFIED / CELL** |
+| **`rt_scan_reenter`** | **66** | 7 | **UNCLASSIFIED / CELL** |
+| **`rt_scan_reenter_live`** | **2** | 1 | **UNCLASSIFIED / CELL** |
+| `rt_match_enter` | 13 | 4 SNOBOL4 | SUBJECT (heap) |
+
+**283 sites seed r13 from a scan or match entry; the census classifies 13 of them as a collected-heap pointer and is blind
+to 270.** Read off `concord.icn.s` graph `n16_scan_enter_α`: `call rt_scan_enter@PLT`, the returned subject in `rax` and
+length in `rdx` spilled to `[rsp+8]`/`[rsp+24]`, `call rt_gc_point_arr_c@PLT`, reload, then `mov r13, rax` / `mov r15, rdx`
+— **the ScanSubjRegs pair of section 6.5, seeded by Icon's entry instead of SNOBOL4's.**
+
+⛔ **WHAT THIS IS AND IS NOT.** It is **not** a demonstrated collector bug: at every site I read, the value reaches r13 by a
+reload out of the poll's OWN spill record, so the pointer *was* handed to the collector and would be fixed up. The rooting
+looks correct. **It is an instrument defect, and it is the shape this census was built to prevent — a fact about
+language-blind boxes held by a single language's symbol.** Two consequences that are not hypothetical:
+1. The gate's **arm 2b reds on `heap=0`**, to guarantee the heap class is exercised. It is satisfied by the 6 SNOBOL4
+   readings while 270 readings of the same semantic class sit in UNCLASSIFIED and the copy ratchet.
+2. The census's own source says *"EVERY heap site is printed, never a sample: the spill-record gate reads this list as its
+   COVERAGE population."* That gate therefore reports coverage over a heap population **missing 270 sites**.
+
+⭐ **AND IT STRENGTHENS THE cto's CHOSEN CURE.** Their form — `bb_binop_relop_val` emits `rec_sigma` only under the
+compile-time IR fact that the relop sits inside a scanning expression — is now backed by measurement rather than by
+instinct: Icon scanning subjects really are live in r13 across relops. My earlier "13" understated their case by 21x.
+**The fix I recommend to the owner of the classifier: `SUBJECT_SEED` becomes the set {`rt_match_enter`, `rt_scan_enter`,
+`rt_scan_reenter`, `rt_scan_reenter_live`}, and the same widening applies to LENGTH for the `rdx` half in `r15`.** Every
+number above this section is unaffected — ownership, the 4886, the 92.8%, the 30-site relop residual are all independent of
+the SUBJECT/UNCLASSIFIED split, because both classes are non-raw and both were already counted.
+
 ## PROVENANCE AND COST (economy, cfo)
 
 - **Denominator:** 86 sources globbed from `corpus/benchmarks/*/*.{sno,sc,icn,pl,reb,raku,pas}`; **77 compile** to mode-4
