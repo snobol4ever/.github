@@ -118,6 +118,43 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog latest-of-latest (DECTET) — **THE RECOMPILE TRACE-LITERAL BUG IS CURED (CEO-1208's landing), AND IT WAS NEVER SHARED CODE: BOTH ESCALATED `src/ir/` CANDIDATES ARE GDB-EXONERATED, THE REAL DEFECT WAS A ONE-LINE PROLOG-OWNED DANGLING-POINTER ALIAS**
+
+Row `prolog-monitor-...`, closing the divergence chased across the last three entries below. GDB, not
+static reading, settled it: `pl_pred_graph` (`src/lower/lower_prolog.c:1691`, Prolog-owned) did
+`const char * trace_key = key;` — an ALIAS of the caller's transient stack string, not a copy. Harmless
+for static (`.s`-text) compilation, where the emitter dereferences it synchronously; fatal for a
+runtime-JIT-recompiled predicate (any `assertz`/`retract`), whose box embeds the raw pointer for later use
+— a dangling stack address once the defining call's frame is popped, read back by the NEXT `rt_trace_call`.
+GDB proof: `args[0]`'s DESCR at the `rt_trace_call` breakpoint carried a correct tag/length (`v=2`,
+`slen=9`) but a data pointer identical to the exact stack address that had held
+`pl_runtime_define_pred_g`'s own `key` parameter moments earlier in the same call. **Both originally-escalated
+candidates were checked and cleared by gdb, not assumed clean**: `zls_forget_graph_nodes`'s tables held no
+stale entries at the point of the one runtime recompile in the repro, and the JIT box's literal-pool
+addressing showed nothing wrong either — this diagnostic sitting's own hypothesis (an incomplete purge
+across `frame_layout.c`'s several node-keyed tables) is now RULED OUT, not merely unconfirmed. **Fix**
+(one line): alias → `key ? ct_strdup(key) : NULL`, the same durable-arena-copy idiom the file already uses
+two lines later for the identical string. No `src/ir/` file touched; CEO-1208's permission grant was never
+exercised because the defect turned out to be entirely Prolog's own. Verified: the 3-line repro
+(`assertz(counter(1)), counter(C)`) now traces clean in both modes; `make preflight` 59/60 (only the known
+cfo allocator gate, unrelated, pre-existing); Prolog master floor unchanged 563/480 (this bug cost no
+master-board points, so no SCORE.md rewrite is owed). `.s` artifacts regenerated per handoff policy.
+Landed SCRIP `768c896a3` (rebased onto origin as `07efdf8da`), corpus `18db81c9c` (regen), `.github
+20b6302e` (rebased as `756af136`, FINDING closed with the full gdb evidence). ⛔ **STILL OPEN, NOT THIS
+CURE'S SCOPE:** monitor witness 4 (`scripts/monitor/witnesses/sync_step_prolog_4.pl`) still DIVERGEs at
+step 35, but now on an UNRELATED event-kind mismatch (SCRIP emits `CALL counter/1` where the oracle expects
+`LABEL`) — no corrupted text anymore, needs its own isolation next sitting. `prolog-assertz-beyond-64-clauses-...`
+is untouched (a different defect sharing the same recompile trigger, not this one). **HONEST GAP,
+disclosed rather than claimed:** the CEO-757 SNOBOL4-master "owed arm" was conditioned on the cure landing
+in shared code; since it didn't, the obligation likely does not apply, but a courtesy check was attempted
+and picked the wrong gate (a provenance/deletion-accounting script, an unrelated pre-existing red) — no
+real SNOBOL4 correctness board was run this sitting. Receipts sent to cto (reviewer-after-the-fact) and
+ceo (closing the CEO-1208 ask), both disclosing this gap explicitly. **NEXT:** isolate witness-4's new
+event-kind divergence; otherwise return to mining SWI (1051/2935, the largest remaining home-stretch gap)
+and INRIA's last named gap (`double_quotes`-as-directive-form) via the sync-step monitor.
+
+---
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_prolog latest (DECTET) — **THE HOME-STRETCH ROW (Lon 14:1x, "the one task is all test suites to 100%"): LOGTALK RE-RUN, INRIA'S SECOND NAMED GAP CURED, GNU-FD EXCLUDED BY LON'S WORD (CEO-1209) — FIVE SUITES REMAIN, ONE (SWI) FAR FROM DONE**
 
 Row `prolog-all-test-suites-of-the-language-read-100-percent-on-the-suite-table-the-home-stretch`.
