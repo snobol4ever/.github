@@ -1,0 +1,5 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+6a6983d9e	pl-master	hq_prolog	SUITE_BOARD family=ALL total=563 shipped=563 outside=0 m3_n=563 m3_pass=560 m3_fail=3 m3_crash=0 m3_hang=0 m3_unproven=0 m3_skip=0 m4_n=563 m4_pass=560 m4_fail=3 m4_crash=0 m4_hang=0 m4_unproven=0 m4_skip=0 all_pass=560 all_n=563 rt_md5=cdfe60eaec69 arena_kb=128 (SCRIP 6a6983d9e corpus cb2e2d49e, both modes, re-proved three times across rebases before landing, identical every time; three named reds remain: bagof_setof_free_variable_grouping_1, catch_throw_directive_replace_1 -- both deferred, shared choice-point/exception-ball machinery too architectural for one sitting; list_directive_4 -- one irreconcilable line, this corpus's own refs disagree on print/1 quoting between two structurally identical witnesses)
