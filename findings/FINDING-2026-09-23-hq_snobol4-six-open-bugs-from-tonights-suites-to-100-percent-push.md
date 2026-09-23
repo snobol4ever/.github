@@ -128,6 +128,31 @@ compile+link+run — identical every time): not a GC bug, genuinely SNOBOL4-lane
 The originally-suspected cause (`prescan_defines()` eager top-level DEFINE prescan) is refuted — it only
 matches literal `DEFINE(...)` at top level, not the bare-variable-argument form used here.
 
+**ADDENDUM (hq_snobol4, 2026-09-23), read-only trace, no dynamic verification done (SCRIP busy with an
+unrelated bisect this sitting) — both named sites look individually correct by static reading; the bug is
+apparently somewhere neither site's own logic accounts for.** `sno_prescan_expr`'s OPSYN handling
+(`lower_snobol4.c` ~2714-2718) does a genuine VALUE COPY of `defs[fo]` into a NEW, independent array slot
+for the new name at the point the prescan visits the `OPSYN` call — for the reduction in this section, that
+visit happens (in both source order and actual runtime order, they coincide here) BEFORE the later
+`DEFINE('F(S)','F2')` statement updates F's own slot, so the copy correctly captures F's ORIGINAL state.
+Likewise the runtime path — `register_fn_alias()` (`core.c:3776`) allocates a genuinely NEW `FNCBLK_t` and
+copies `spec`/`entry_label`/`fn`/`nparams`/`params`/`nlocals`/`locals` BY VALUE from `old_entry` (a pointer
+copy of the STRING pointer, not a shared mutable field) — and the later `DEFINE_fn_entry()` (`core.c:3712`)
+mutates F's *own* `FNCBLK_t.entry_label` field in place, which cannot retroactively change a VALUE ALREADY
+COPIED into a separate struct. Two leads for whoever picks this back up, neither followed: (1) `entry_label`
+is a LABEL-NAME STRING that gets **re-resolved fresh on every call** via `rt_entry_resolve()` (see
+`core_define_entry_label`, `core.c:3739`, and its callers in `rt.c:608/979/1019`) — if it were ever
+re-resolving the *function* name "F" instead of a fixed *label* target, that would explain live-tracking,
+but by-value the copied string reads "F" (the label), which behavior-wise should be label-stable regardless
+of DEFINE; not directly verified whether `rt_entry_resolve` treats it that way in practice. (2) The
+`SCRIP_DEFINE_FOLD` compile-time optimization noted in passing in `bb_goto_deferred.cpp` ("DEFINE-FOLD
+s55 ONE-SHOT: jmp the function's alpha, no chain, no reserve") wires a call STATICALLY when the compiler
+believes a name has exactly one definition — G, having exactly one `defs[]` entry (the OPSYN-copied one),
+may qualify for this fold even though its *aliased* target (F) does not; not checked whether this fold
+applies to G's call site or whether it resolves to the wrong thing if it does. Next attempt: gdb/`--dump-ir`
+on the 8-line reduction to see what `defs[]`'s G-entry and `_func_buckets`'s G-FNCBLK actually contain at
+the point `G('y')` is called, rather than re-deriving from source reading alone.
+
 ## 5. IMAGE_driver — function-frame codegen defect (cto's reduction)
 
 **cto's measured 6-line reduction** (sbl prints `ABCD` then `DONE`; SCRIP segfaults both modes, every arena):
