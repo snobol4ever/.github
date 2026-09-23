@@ -322,7 +322,7 @@ def md():
     for r in rows:
         k,e=eta(r,today)
         if k=='NORUNNER':
-            why=r['criterion_changed'].split(':',1)[-1] if r['criterion_changed'] else 'no runner yet'
+            why=r['criterion_changed'].split(':',1)[-1] if r['criterion_changed'] else "its lane's runner has not written it"
             dfr=DEF.get(r['key'])
             if dfr:
                 # ⛔ DEFERRED PRINTS ITS RULING AND THE WORK IT WAITS ON, every time, because that is condition 3
@@ -336,7 +336,11 @@ def md():
                 _w=dfr['waiting_on'][:400].replace('|','·'); _b=dfr['ruled_by'].replace('|','·')
                 print(f"| {r['nick']} | {r['lang']} | -/{r['today_total']} ({dfr['count']} DEFERRED, not counted as failures) | never graded | - | DEFERRED by Lon ({_b}), IN SCOPE AND NOT A FAILURE - waiting on: {_w} |")
             else:
-                print(f"| {r['nick']} | {r['lang']} | -/{r['today_total']} (vendored, no runner yet) | never graded | - | NO RUNNER, NO READING: {why} - a population with no grader is a debt on the board, never an absence from it |")
+                # ⛔ NO READING IS NOT "VENDORED, NO RUNNER" (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...): the seven
+                # benchmark rows entered this table EMPTY because their lanes write them (CEO-775) and several lanes' runners already exist,
+                # so the old words told a reader two false things about a row nobody has graded yet. An unknown total prints `-`, never `-/`.
+                _tt=(r.get('today_total') or '').strip()
+                print(f"| {r['nick']} | {r['lang']} | {('-/' + _tt) if _tt else '-'} (no reading yet) | never graded | - | NO READING YET: {why} - a population with no grader is a debt on the board, never an absence from it |")
             continue
         rc=recriterioned(r)
         if rc:
@@ -470,8 +474,14 @@ def grid(plain=False):
     head,rows=load()
     data=[]
     for r in rows:
+        # ⛔ A ROW WITH NO READING IS PRINTED, NEVER SKIPPED (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...). This
+        # loop used to `continue` past any row whose today_* did not parse, so a suite nobody had graded yet vanished from the grid while
+        # md() printed it as a debt -- harmless while all 24 rows carried readings, and it would have hidden all seven benchmark rows the
+        # day they entered EMPTY. A suite is a debt on the board, never an absence from it: dashes, and the state says why.
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
-        except (ValueError,KeyError): continue
+        except (ValueError,KeyError):
+            _t=(r.get('today_total') or '').strip()
+            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", "-", "NO READING"]); continue
         # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
         # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
         # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
@@ -534,8 +544,13 @@ README_RUNNER = {
     'roast': 'raku_roast_scoreboard.sh --run', 'sno-master': 'test_corpus_snobol4.sh', 'icn-master': 'board_icon_master.sh',
     'pl-master': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-master': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
     'raku-master': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-master': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
-    'snocone-bench-ref': 'test_snocone_bench_suite.sh',
-    'reb-master': 'corpus_suite_harness.py run tests/rebus/ALL.reb'}
+    'reb-master': 'corpus_suite_harness.py run tests/rebus/ALL.reb',
+    # ⭐ THE BENCHMARK ROWS (Lon 2026-09-23 17:2x, CEO-1221; row instruments-benchmarks-enter-the-suite-grid-..., the coo): KEY = the
+    # progress table's suite name, so no key-to-DB map anywhere needs an entry. None = the lane has not landed its runner yet: a row
+    # with no reading renders `—` there, and a MEASURED row whose runner is None REFUSES the render -- a README row says what produced it.
+    'snobol4-bench-ref': None, 'icon-bench-ref': None, 'prolog-bench-ref': None, 'pascal-bench-ref': 'test_pascal_bench_suite.sh',
+    'raku-bench-ref': None, 'snocone-bench-ref': 'test_snocone_bench_suite.sh', 'rebus-bench-ref': None}
+BENCH_SUFFIX = '-bench-ref'
 def _readme_path():
     root = os.environ.get('S4E_HOME') or os.path.join(HERE, '..', '..')
     return os.path.join(root, 'SCRIP', 'README.md')
@@ -550,29 +565,40 @@ def _rows_from_text(text):
 def readme_block(rows, pin):
     """The generated block, markers included. Refuses (SystemExit 2) on a suite with no runner named or a language it cannot place."""
     known = dict(README_LANGS)
+    def graded(r): return bool((r.get('today_pass') or '').strip() and (r.get('today_total') or '').strip())
     for r in rows:
         if r['key'] not in README_RUNNER:
             sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} has no runner named in README_RUNNER -- a README row must say what produced it\n"); sys.exit(2)
+        if README_RUNNER[r['key']] is None and graded(r):
+            sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} carries a reading and README_RUNNER names no runner for it -- name the runner that wrote it, a README row must say what produced it\n"); sys.exit(2)
         if r.get('lang') not in known:
             sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} has language {r.get('lang')!r}, which the README does not place\n"); sys.exit(2)
+    # ⛔ THE PROSE NAMES THE BENCH ROWS ONLY WHEN THE RECORD CARRIES THEM, so a README rendered at an older pin re-renders byte-identical
+    # under this code and the blocking --pinned arm cannot red in the minute between the .github and SCRIP pushes of one landing.
+    bench = any(r['key'].endswith(BENCH_SUFFIX) for r in rows)
     out = [f"{README_BEGIN} generated by .github/scripts/util_suite_banner.py --readme from .github/SUITES.tsv at .github@{pin} -- do not edit by hand; scripts/test_gate_readme_suite_table_matches_suites_tsv.sh holds it -->",
            "Every row is generated from the leaderboard's machine record, `.github/SUITES.tsv` (the SUITE TABLE of `.github/SCORE.md`),",
            "never typed by hand: the suite's latest reading, written by that suite's own runner in the landing that measured it, with the",
            "SCRIP tree and the day it was measured. A program counts only when it passes in BOTH modes. The seven masters are our own flat",
+           ("suites with refs cut from each oracle; each Bench row is that language's benchmark programs graded as tests, a program passing "
+            "when it prints its ref under all three angles (wrapper process, fixed iterations, fixed time limit); the others are vendored "
+            "third-party suites. Raku is IN DEVELOPMENT: its rows stand as measured.") if bench else
            "suites with refs cut from each oracle; the others are vendored third-party suites. Raku is IN DEVELOPMENT: its rows stand as measured.",
            "",
            "| Language | Suite | passing / graded (both modes, the AND per program) | tree | measured | runner |",
            "|---|---|---|---|---|---|"]
     for lang, name in README_LANGS:
         mine = [r for r in rows if r.get('lang') == lang]
-        mine = [r for r in mine if not r['key'].endswith('-master')] + [r for r in mine if r['key'].endswith('-master')]
+        mine = ([r for r in mine if not r['key'].endswith('-master') and not r['key'].endswith(BENCH_SUFFIX)]
+                + [r for r in mine if r['key'].endswith('-master')] + [r for r in mine if r['key'].endswith(BENCH_SUFFIX)])
         label = name + (' — IN DEVELOPMENT' if lang in README_IN_DEVELOPMENT else '')
         for r in mine:
             suite = r['nick'] + (' (master)' if r['key'].endswith('-master') else '')
             p_, t_ = (r.get('today_pass') or '').strip(), (r.get('today_total') or '').strip()
             cell = f"**{p_}/{t_}**" if p_ and t_ else "not graded"
             tree = (r.get('tree') or '').strip()
-            out.append(f"| {label} | {suite} | {cell} | {('`' + tree + '`') if tree else ''} | {(r.get('today_date') or '').strip()} | `{README_RUNNER[r['key']]}` |")
+            run = f"`{README_RUNNER[r['key']]}`" if graded(r) else "—"
+            out.append(f"| {label} | {suite} | {cell} | {('`' + tree + '`') if tree else ''} | {(r.get('today_date') or '').strip()} | {run} |")
     out.append(README_END)
     return out
 def _readme_split(path):
@@ -659,13 +685,21 @@ def main(a):
             stamp=a[j+1]; a=a[:j]+a[j+2:]
         i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else dt.date.today().isoformat(); tree=a[i+5] if len(a)>i+5 and not a[i+5].startswith('-') else None
         head,rows=load(); r=next((x for x in rows if x['key']==key),None)
-        if r is None: sys.exit(f"REFUSE: no suite key {key}")
+        # ⛔ A REFUSAL EXITS 2 (coo 2026-09-23): sys.exit(<a string>) exits 1, so this refusal and the render refusal below printed
+        # "REFUSE(rc=2)" while returning a RED's code -- measured on the benchmark rows' first write, which is how it was noticed.
+        if r is None: sys.stderr.write(f"REFUSE(rc=2): no suite key {key} in {TSV}. NOTHING WAS WRITTEN.\n"); sys.exit(2)
         prev=(r.get('today_total') or '').strip()
         if prev and str(t).strip()!=prev and not stamp:
             sys.stderr.write(f"REFUSE(rc=2): {key}'s denominator moves {prev} -> {t} and no --criterion-changed '<YYYY-MM-DD>:<reason>' names why. "
                              f"A denominator move without its stamp is the dishonest-denominator class (CEO-546, CEO-749): pass the stamp, or keep the total. "
                              f"NOTHING WAS WRITTEN.\n"); sys.exit(2)
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
+        # ⛔ A ROW'S FIRST READING IS ALSO ITS first_* (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...): a row that
+        # entered the table empty had no first_pass, so eta() read int('') and the render inside this call raised -- the lane's FIRST
+        # write would have been refused and the TSV restored. first_* is "the first graded reading on file"; the write that is the
+        # first reading fills it, once, and never again (an existing first_* is never re-baselined).
+        if not all((r.get(c) or '').strip() for c in ('first_date','first_pass','first_total')):
+            r['first_date'],r['first_pass'],r['first_total']=date,p,t
         if tree: r['tree']=tree
         if stamp:
             cur=(r.get('criterion_changed') or '').strip()
@@ -676,9 +710,9 @@ def main(a):
             note=render_table(only_key=key)
         except Exception as ex:
             open(TSV,'w',encoding='utf-8').write(before)      # ⛔ the two sites move together or not at all
-            sys.exit(f"REFUSE(rc=2): the row was NOT set. Rendering SCORE.md raised {type(ex).__name__}: {ex}. "
-                     f"SUITES.tsv has been RESTORED to what it held before this call, because a written TSV "
-                     f"beside an unwritten SCORE.md is the split state every board reader then has to guess at.")
+            sys.stderr.write(f"REFUSE(rc=2): the row was NOT set. Rendering SCORE.md raised {type(ex).__name__}: {ex}. "
+                             f"SUITES.tsv has been RESTORED to what it held before this call, because a written TSV "
+                             f"beside an unwritten SCORE.md is the split state every board reader then has to guess at.\n"); sys.exit(2)
         print(note)
     if '--check' in a: sys.exit(check_table())
     if '--render' in a:

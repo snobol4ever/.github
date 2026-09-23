@@ -31,6 +31,12 @@ One row per suite — our seven masters and every vendored package suite alike �
 | RebM | rebus | 43/43 | 2026-09-23 (today) | `fa27bcdf9` | done |
 | Logtalk | prolog | 2935/3600 | 2026-09-23 (today) | `6ab620788` |  |
 | X64T | snobol4 | 20/36 | 2026-09-23 (today) | `9dc4d12d4` |  |
+| SnoBench | snobol4 | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| IcnBench | icon | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| ProBench | prolog | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| PasBench | pascal | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| RakBench | raku | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| RebBench | rebus | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
