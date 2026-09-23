@@ -130,8 +130,11 @@ same 77 files, asking the emitted code which entry actually seeds r13 (through t
 | **`rt_scan_reenter_live`** | **2** | 1 | **UNCLASSIFIED / CELL** |
 | `rt_match_enter` | 13 | 4 SNOBOL4 | SUBJECT (heap) |
 
-**283 sites seed r13 from a scan or match entry; the census classifies 13 of them as a collected-heap pointer and is blind
-to 270.** Read off `concord.icn.s` graph `n16_scan_enter_α`: `call rt_scan_enter@PLT`, the returned subject in `rax` and
+**283 DEF INSTANCES seed r13 from a scan or match entry, over 232 DISTINCT SITES; the census classifies 13 of them as a
+collected-heap pointer and is blind to 219.** ⛔ *(Corrected 2026-09-22 23:5x: I first wrote "283 sites". 283 is the count of
+site-by-seed attributions — the per-seed site sets above OVERLAP, because one site can be reached by defs seeded at more
+than one entry. The distinct-site union is 232 = 13 SNOBOL4 + 219 Icon. Same class of error as 4954-vs-4974 earlier in this
+finding, made in my own correction; the by-seed table above is attributions and is right as printed.)* Read off `concord.icn.s` graph `n16_scan_enter_α`: `call rt_scan_enter@PLT`, the returned subject in `rax` and
 length in `rdx` spilled to `[rsp+8]`/`[rsp+24]`, `call rt_gc_point_arr_c@PLT`, reload, then `mov r13, rax` / `mov r15, rdx`
 — **the ScanSubjRegs pair of section 6.5, seeded by Icon's entry instead of SNOBOL4's.**
 
@@ -147,8 +150,27 @@ language-blind boxes held by a single language's symbol.** Two consequences that
 ⭐ **AND IT STRENGTHENS THE cto's CHOSEN CURE.** Their form — `bb_binop_relop_val` emits `rec_sigma` only under the
 compile-time IR fact that the relop sits inside a scanning expression — is now backed by measurement rather than by
 instinct: Icon scanning subjects really are live in r13 across relops. My earlier "13" understated their case by 21x.
-**The fix I recommend to the owner of the classifier: `SUBJECT_SEED` becomes the set {`rt_match_enter`, `rt_scan_enter`,
-`rt_scan_reenter`, `rt_scan_reenter_live`}, and the same widening applies to LENGTH for the `rdx` half in `r15`.** Every
+### ⛔⛔ AND WIDENING `SUBJECT_SEED` ALONE MOVES NOTHING — MEASURED WITH THE CENSUS'S OWN WINDOW
+
+`classify_def` resolves `mov r13, rax` to SUBJECT by looking back **exactly two instructions**
+(`for j in range(i-1, max(-1, i-3), -1)`). Measured over the same 77 files, splitting every scan/match-seeded
+`mov r13, rax` by whether its seed call falls inside that window:
+
+| | def instances | distinct sites |
+|---|---|---|
+| seed **inside** the 2-instruction window (becomes SUBJECT on a seed-set widening) | **13**, all `rt_match_enter` | 13 |
+| seed **outside** it, reached through the poll's spill record | **270** (`rt_scan_enter` 202, `rt_scan_reenter` 66, `rt_scan_reenter_live` 2) | **219** |
+
+**The 13 in-window readings are the ones already classed SUBJECT today. So widening the seed set on its own moves ZERO
+additional readings** — SNOBOL4's match entry happens to sit within two instructions of its `mov r13, rax`, and Icon's
+scanning path never does: between `call rt_scan_enter` and `mov r13, rax` sit the spill of `rax`/`rdx` into the poll's
+record, `call rt_gc_point_arr_c`, four `rtccb` reloads, `add rsp, 32` and a `test`.
+
+**The fix therefore needs BOTH halves, and the second is the load-bearing one:** (1) `SUBJECT_SEED` becomes the set
+{`rt_match_enter`, `rt_scan_enter`, `rt_scan_reenter`, `rt_scan_reenter_live`}, and (2) the `rax` half must be traced
+**through the poll's spill record** — the same "see through the record" the r13 cell tracer already does — or the window
+widened past the `rtccb` reload block. The `rdx`/LENGTH half in `r15` has the identical shape (`mov r15, rdx` sits at
+window positions `test` and `mov r13, rax`, so it too resolves to UNCLASSIFIED) and needs the same two changes. Every
 number above this section is unaffected — ownership, the 4886, the 92.8%, the 30-site relop residual are all independent of
 the SUBJECT/UNCLASSIFIED split, because both classes are non-raw and both were already counted.
 
