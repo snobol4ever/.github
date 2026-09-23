@@ -4,6 +4,35 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
+- **CFO-155 (2026-09-23 16:06 -> 17:4x CDT, `date`-read, cfo; MODE DECTET; 14 inbound read, 4 answered, all cleared) -- THE ceo'S ASSIGNED ROW, TWO LANDINGS: `ct_grow` HAS REALLOC'S CONTRACT (SCRIP `d2efe8a8f`), AND THE FIRST COMPILE-TIME TABLES GROW AS `cv_t` VECTORS (SCRIP `ac237a0e7`). BOTH OF THE ROW'S WITNESSES NOW MATCH THEIR ORACLES. THE ROW STAYS OPEN AT 62 TABLES.**
+  - ⭐⭐ **(A) `ct_grow` (ARCH-DYNAMIC-STORAGE § 4.0, Lon's word via CEO-1211):** a grow that fits returns p; the last block at `ct_cur` grows in place; otherwise it moves and the OLD BLOCK IS FREED to its bin (a block above 8 MB: map, copy, unmap). The free is the one behaviour change: alloc-copy-abandon leaked every table's whole growth history.
+    - **THE AUDIT: all 64 call sites in 37 files** (the ceo said 53 in 31; the tree had grown). Each was read for a pointer held across a grow. ONE DEFECT, cured in the landing: `bb_ab_emit_nodes` (bb_define.cpp) restored a `g_emit` snapshot whose `op_arg_slot` the drop had just freed. It is reachable only under `SCRIP_AB=1`, so no corpus program reaches it. ONE LATENT HAZARD, dead today: a nested NARY-ARBNO collection's `prev_view` points into the outer collection. But the emitter sets `_chain = 1` whenever the geometry exists, and 0 of 4926 entries emit `rt_zcol_push`.
+    - ⛔⭐ **THE CORPUS COULD NOT SEE THE DEFECT, AND POISON COULD NOT EITHER:** an ablation tree (the new `ct_grow` without the carry) was identical to the cure under POISON+NORECYCLE over all 4926 entries. The stale pointer is WRITTEN before it is read, so the paint is overwritten and the readback is self-consistent. A hand witness had to force the stale pointer back INTO the allocator: a 60-name DEFINE, then a 20-name one, under `SCRIP_AB=1`. That dies rc 3 "ct_grow on a block this allocator did not hand out" on the ablation and compiles on the cure. [[poison-sees-a-stale-read-not-a-stale-write-then-read]]
+    - **New blocking gate** `test_gate_ct_grow_takes_reallocs_contract_and_frees_the_old_block.sh` (~1.6 s, adopted). It reads GREEN on the cure, RED on origin (no in-place grow, no free) and RED on the ablation (rc 3). `SCRIP_CT_POISON=1` now paints under `SCRIP_CT_NORECYCLE=1` too, which makes the pair deterministic.
+  - ⭐⭐ **(B) `src/ir/ct_vec.h` `cv_t`**, doubling through `ct_grow`. Converted, each in place under its own name (no new global; the count variables are gone):
+    - SNO_DEF_MAX: four statics and five locals; the FATAL "too many DEFINEs" is gone.
+    - SNO_MULTIPROTO_MAX and MAX_PREDS.
+    - The Prolog clause-variable scopes TS_MAX_VARS and TR_SLOT_MAX. ⛔ The 600-predicate witness crossed them too: its `main` has 600 variables, and on the parent every variable past the 256th printed `_G0` in both modes (244 of 500).
+    - ⛔ **THE DONE-WHEN'S gprolog ARM WAS UNSATISFIABLE:** `gprolog --consult-file` prints four banner lines and two "compiling" lines to STDOUT, 606 lines against a correct 600. It is now gplc's native binary. [[an-oracle-banner-on-stdout-makes-a-criterion-unsatisfiable]]
+  - ⭐ **MEASURED:**
+    - DONE-WHEN: PASS defines200 (20100 in both modes), PASS preds600 (600 lines identical); tables 64 -> 62; RED on the parent on both witnesses.
+    - Compile census, 4926 entries of the seven masters: rc and `.s` identical to the parent before AND after the rebase.
+    - Runtime differential (A): 4926 x m3+m4 x {parent, cure, POISON, POISON+NORECYCLE}, 0 real differences in 1182 s. Three rows are explained: an Icon entry prints `&progname`, which carried each arm's binary name; two benchmarks sat at the 20 s ceiling and were identical at 120 s.
+    - Runtime differential (B): 2925 entries x 2 modes x 3 arms, 0 differences in 770 s.
+    - Census ratchet 366 -> 361; preflight 60 arms, 0 red on the rebased tree.
+  - **FOUND AND NAMED IN THE ROW'S NEXT (same class, not on the checker's list):**
+    - SNO_DEF_NAMES_MAX 64: a DEFINE's names are silently cut at 64, and the scope is cut at STAGE2_FRAME_SLOT_MAX 64.
+    - Fixed tables: `ab_nodes[32]`, `pre[64]`, `sno_proto_encode e[4096]`, PL_MAX_CLAUSES 2048, `pred_str buf[256]`.
+    - lower_prolog's 256-variable tables and `valias[1024]`.
+    - ⛔ `SCRIP_AB=1` is broken on origin in both modes (m3 SIGSEGV; m4 emits an unassemblable `jmp_fn`).
+  - ⭐ **ECONOMY:**
+    - CREDITS: no reading from Lon, none projected.
+    - COMPUTE: load 8 -> 39 on 16 cores (other seats' boards plus mine at 6-8 jobs). No runaways.
+    - DISK: 69% -> 87%, of which 5.7 GB was my scratchpad (4.9 GB of per-arm binaries), deleted: 83% now.
+    - BOARD COST (new rows): full-master compile census, 4926 entries, 1.5 min at 6 jobs. Four-arm runtime differential, 4926 x 2 modes, 20 min at 8 jobs, load ~25. Three-arm differential over 2925, 13 min. Worktree cold build ~1 min, incremental ~8 s. Gate 1.6 s.
+    - ⛔ MY OWN TOOL BUG, caught before it was believed: the census picked each entry's source by directory order, and the concurrent runner had written `p.o` beside it. All 826 Icon entries "failed" rc 2. [[concurrent-sample-runs-need-per-label-scratch-files]]
+  - **NEXT:** the row's 62, one file group per landing (lower, ir, emitter, parsers, driver), each with a witness past the old cap read against the oracle.
+
 - **CFO-154 (2026-09-23 14:19 -> 15:3x CDT, `date`-read, cfo; MODE DECTET) -- LON'S WORD TO THE cfo, IN-CHAT, VERBATIM: *"next"*. I read it as THE CFO LOOP's cue, which moves this seat off the sidelines for one row at a time. THE ROW THE ceo ASSIGNED FROM MY OWN CFO-153 FINDING IS LANDED AND CLOSED BY COMPUTED DONE AT SCRIP `a35750d9b`. (11 inbound read, all answered or acknowledged, cleared.)**
   - ⭐ **THE PICK:** every rank-0 FREE row in the cfo lane is GC, which is the cto's alone on Lon's word (CEO-1181/1202). So I did not run the picker, which would have locked one of them. I claimed the lane's first non-GC row, `instruments-a-retired-include-directory-...` (four live offenders measured on `202b61814`). Then the ceo's doorbell assigned `prolog-runtime-the-four-memstream-capture-sites-...`. I released the instruments row unworked, and it is FREE again.
   - ⭐⭐ **THE CURE (`a35750d9b`):** all five `open_memstream` sites (format/3 via `fh_capture_begin`, `plc_fb_term`, `rt_pl_term_string_cell`, `core_error_voice`, and the `with_output_to` trio) now write into `fh_memsink_*` in `driver_globals.c`. It is a `fopencookie` stream over a collected-heap buffer. The slots are a GROWABLE `HB_DVEC` rooted once in `drv_gc_roots`: the buffer is a `DT_S` DESCR, which the collector visits and forwards, and the scalars are `DT_I`. The cookie is the slot INDEX, because libc holds it where no root walk can reach. The five `ct_drop` calls on libc buffers are gone.
