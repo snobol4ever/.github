@@ -534,7 +534,7 @@ README_RUNNER = {
     'roast': 'raku_roast_scoreboard.sh --run', 'sno-master': 'test_corpus_snobol4.sh', 'icn-master': 'board_icon_master.sh',
     'pl-master': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-master': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
     'raku-master': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-master': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
-    'snc-bench': 'test_snocone_bench_suite.sh',
+    'snocone-bench-ref': 'test_snocone_bench_suite.sh',
     'reb-master': 'corpus_suite_harness.py run tests/rebus/ALL.reb'}
 def _readme_path():
     root = os.environ.get('S4E_HOME') or os.path.join(HERE, '..', '..')
