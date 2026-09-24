@@ -211,6 +211,39 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 
 **⭐ THE SHAPE TO BUILD ON THE LIFT** (routed to the `ceo`, and it belongs to the `coo`'s instruments row if they want it sooner): a pre-commit staleness refusal — a `SCORE.md`/`SUITES.tsv` commit is refused when the working copy's base is older than origin's last write to that file. Stronger than the obvious alternative (refuse a diff touching a row the committing seat does not own, computed from the lane column) because it does not depend on any seat remembering which rows are theirs. ⛔ With four officers rewriting both files at speed, **every seat holding an uncommitted copy of either file is holding this bomb right now.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 (evening) hq_snobol4 (**MODE DECTET**, home-stretch row; CEO-1214 health check → CEO-1215/1218 rulings) — **X64T's SIX MATH REGRESSIONS ARE TWO STACKED DEFECTS, BOTH FOUND AND BOTH LANDED: ROW 712 (SETEXIT RESUME) @ SCRIP 2b89a5ef2, THE zd_plan HANG @ ae2a9e433. CEO-749'S PACKAGE-RUNNER SHAPE @ 606aa3b53. THE OPSYN MATH-ALIAS CURE AND THE X64T MODE-4 BUDGET IN VERIFICATION.**
+
+**TREE:** SCRIP 2b89a5ef2 (712) → ae2a9e433 (zd) → 606aa3b53 (CEO-749 runners) · corpus 5a128a38d · `RT_OPT=-O0` · oracle `/home/resources/x64/bin/sbl -bf` by absolute path.
+
+**THE BISECT (ceo CEO-1214, "bisect 8f567e685..9dc4d12d4 on math_sum"): NEITHER DEFECT IS A COLLECTOR LANDING.**
+- **HANG = `65a1828bb`** (2026-09-17, zeta: zd_plan's SCRIP_ZD_CONSUMER_CUT). O(N²) at COMPILE time: every run node with a 16-byte result scans all n graph nodes with `strncmp(bb_op_name(..))`. math_sum and math_diff (15381 lines, one graph) are HANG only. Flip: parent 96c80d49d passes 15376/15376; 65a1828bb gives rc=124 at 120 s. Row `snobol4-zd-plan-consumer-cut-is-quadratic-and-hangs-the-x64t-math-programs-at-compile-time` (minted, CPU-time DONE-WHEN: wall-clock drifted 2.5x on the CURED binary under load).
+- **CRASH = `a22f9c6ed`** (SETEXIT priority inside EVAL). It is the same one-line condition as the ceo's 0bee8b0d5/06dad5ff1 of 09-14, re-landed, and it only exposed a PRE-EXISTING defect: the no-EVAL witness already SIGSEGVed at 8f567e685. math_ln and math_pow are CRASH only; math_div and math_prod are HANG masking CRASH. NOT reverted (CEO-1218, CEO-589).
+
+**ROW 712 CURE (landed 2b89a5ef2, closed through done):** see the commit for the full mechanism. Monitor bracket: agree to step 9, diverge at 10. gdb: the handler's RETURN jumps through rt_chain_enter's `[level_zero, level_zero]` wire pair.
+- (1) The const-fold trial is speculative (`g_error = -2`) and a failed trial is not folded; EVAL('1 / 0') used to fire the user's handler from INSIDE the optimizer.
+- (2) A frame-preserving handler return: a per-level activation record in rt_stno_stack (2 → 8 longs, no new global), a top-down guard unwind, and a jump through the real wire.
+- **The level rule is SPITBOL's:** a handler runs AT THE RAISING LEVEL (&FNCLEVEL of the erroring function), so RETURN returns from THAT function. Proven against sbl by witness w5 in the gate.
+
+**RECEIPTS (base fa27bcdf9 vs head, by name, both modes, scratch copies so no progress rows):**
+- SnoM shipped 1982: CURED dupl_size_replace_branch_1 and size_keyword_replace_branch_1 in m3 and m4; NEW 0; head m3 1972/1982, m4 1967/1982. Standing on both trees: simple_output_64 (m3, m4); m4 CRASH on user_function_apply_1/2/4, user_function_apply_trim_replace_1 and benchmark_indirect_dispatch; 9 xfail per mode.
+- X64T: 20 → 22/36. math_ln and math_pow go CRASH → PASS; math_exp and math_sqrt go CRASH → FAIL (the next defect, below). No regressions.
+- AIS: 5/7 identical by name. Budne: identical (55/64 harness). Dotnet: identical. Flake: 118/124 identical. Gimpel: identical except RESOLUTI_driver m4, a timing-dependent program (it asserts a MEASURED clock resolution; same m3 fingerprint on both).
+- Other masters (const-fold touches every language), both modes, head == base: Icon 826/826, Prolog 563/563, Pascal 246/246, Snocone 337/337, Rebus 43/43.
+
+**NEXT, IN ORDER (told to the ceo):**
+1. DONE: the zd_plan hang cure LANDED ae2a9e433, closed through done. Census on the landing tree, 3997 programs: 3159 byte-identical; 826 Icon identical modulo emit.cpp line numbers in asm comments; 12 no-asm on both. X64T m3 22 → 26/36. Mode 4 of the four big programs was DEFERRED by the runner's 64 MB asm budget (math_sum 105.3 MB; correct by hand, 15376/15376). The cfo ruled: raise it to 128 MB with the measurement beside it and each .s deleted after its link. That change is in verification. The code-size finding (about 6.95 KB of asm per one-line chks() statement) went to the ceo.
+2. `snobol4-an-opsyn-alias-of-a-math-builtin-skips-its-error-checks-exp-overflow-returns-inf`: CAUSE FOUND AND CURE IN VERIFICATION. rt_call_arr_impl tried the POLYGLOT builtin-by-name table (Icon's unchecked lowercase exp/sqrt) before the SNOBOL4 function table. Once OPSYN made 'exp' a legal SNOBOL4 name, Icon's exp shadowed the alias of EXP. Cure: a SNOBOL4-scoped call to a name in the SNOBOL4 function table that is neither a system function nor a compiled proc goes straight to APPLY_fn. DONE-WHEN green; math_exp 1470/1470, math_sqrt 1232/1232.
+3. CEO-749: RUNNERS LANDED 606aa3b53 (scripts/lib_outside_shape.sh, one authority for the stamp; Gimpel/Budne/Flake/Dotnet/TPgm publish pass over SHIPPED with OUTSIDE=k). The rows themselves are not yet republished: the first publishing pass was refused because I moved the tree mid-run (memory: freshness-guard-rebase-and-worktree-traps).
+4. The benchmark-as-test row (CEO-1221).
+5. `snobol4-query-is-left-associative-and-a-query-chain-lowers` (minted from hq_snocone's finding, red).
+
+**LEADS, NOT ROWED:**
+- SCRIP spells ERRTEXT `Undefined function called` where sbl says `undefined function called`.
+- AIS TEST's monitor bracket sits at step 37, after SPITCORE.sno:86 :(DEXTERN.END): spl lands on stno 972, scr on 979 (numbering drift or a real mis-transfer; unresolved).
+- AIS TEST's runaway loop now aborts at the 4096 KB hard heap cap (sig 6) instead of timing out.
+
+**INSTRUMENT FINDING (sent to the ceo):** util_progress_append.bin_fingerprint() hashes $S4E_HOME's binary, so a worktree run's BINARY_AT_START names the root tree's binary. The harness's own RUNTIME-loaded line is the truth.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 hq_snobol4 (**MODE DECTET**, Lon's "each HQ to 100%" order, CEO-1200/1207; row `snobol4-all-test-suites-of-the-language-read-100-percent-on-the-suite-table-the-home-stretch`) — **csnobol4/Budne REACHES 100% (71/71, MEASURED AND PUSHED); SnoM MASTER IS DOWN TO 2 (m3) / ~7 (m4) OF 1974, BOTH STANDING REDS LOCALIZED TO ONE SHARED-NODE BUG AND ROUTED TO `cfo`; TWO DEEP LANE BUGS (aisnobol TDUMP/END loop, gimpel REDEFINE_driver OPSYN snapshot) INVESTIGATED, NOT CURED.**
 
 **TREE:** SCRIP `3312ba787` · corpus `39ca43e26` (moving targets — this root had multiple other seats pushing concurrently throughout; re-pull before trusting any hash here). `RT_OPT=-O0`, incremental rebuilds throughout, `make preflight` 58/2 red at session start (`test_gate_c_allocators_are_eradicated_and_say_where_they_went.sh`, `test_gate_c2bb_the_generator_arm_is_a_coroutine_start_not_a_box_entry_from_c.sh` — both pre-existing, cross-cutting, neither touched by anything landed this sitting since nothing landed).
