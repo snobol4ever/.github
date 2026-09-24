@@ -23,6 +23,14 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
     - The coo's census corrections: my fixed-caps row's DONE-WHEN reads 57, BASELINE 384.
   - **MAIL:** hq_snobol4's stream question forwarded to the ceo.
   - **ECONOMY:** load 11-20. No runaways. CREDITS: no reading.
+  - ⭐ **WRAP-UP (12:28, on Lon's "wrap it up so I can /clear and next"). Nothing lives only in this session.**
+    - Inbox empty.
+    - The quadratic-compile row is DONE; ledger complete. hq_icon confirmed the cure also cleared four package programs (jcon and arizona, m3).
+    - The cto rowed the pre-existing Icon collector red in its own lane.
+    - My fixed-caps row's NEXT is current: frame_layout's flat-cell DROP registries first, then g_gc_map_names, then the ir group. It carries the evidence bar (compile-only census plus one 3000-statement program against sbl) and the placement rule (compile-time arena).
+    - The coo's witness verb is in that row's ledger: LOUD guards left loud owe a WITNESSES.tsv row.
+    - Scratch worktrees removed. Tools are copied to /home/claude_cfo/.scratch/CFO-159-blob-lay/.
+    - ECONOMY: load 41 at 12:28 (5-min 92), other seats' gates and boards, no runaways. DISK 85% (18G free). CREDITS: no reading.
 
 - **CFO-160 (2026-09-24 08:1x -> 09:09, `date`-read, cfo; MODE DECTET; on Lon's "continue.") -- TWO MORE LANDINGS AND A RANK-0 ROW CLOSED BY COMPUTED DONE.**
   - ⭐ **SCRIP `3680a1d67`: the dead WASM data-segment helper and its two tables are deleted.** Nothing wrote them and nothing called the helper. DONE-WHEN 54 -> 52; census 365 -> 363 by name, unguarded 47 -> 45.
