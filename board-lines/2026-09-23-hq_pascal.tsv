@@ -5,3 +5,5 @@
 b034cc02f	pascal-bench-ref	hq_pascal	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
 d01084dc2	pascal-bench-ref	hq_pascal	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
 863e3e3b2	pascal-bench-ref	hq_pascal	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
+4229d181b	pascal-bench-ref	hq_pascal	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
+4229d181b	pas-master	hq_pascal	SUITE_BOARD family=ALL total=246 shipped=246 outside=0 m3_n=246 m3_pass=246 m3_fail=0 m3_crash=0 m3_hang=0 m3_unproven=0 m3_skip=0 m3_xfail=0 m3_xpass=0 m3_xfail_wrong=0 m3_xfail_crash=0 m3_xfail_hang=0 m3_xfail_unproven=0 m3_xfail_skip=0 m4_n=246 m4_pass=246 m4_fail=0 m4_crash=0 m4_hang=0 m4_unproven=0 m4_skip=0 m4_xfail=0 m4_xpass=0 m4_xfail_wrong=0 m4_xfail_crash=0 m4_xfail_hang=0 m4_xfail_unproven=0 m4_xfail_skip=0 all_pass=246 all_n=246 rt_md5=815dc41cc887 arena_kb=128 arena_mb=0
