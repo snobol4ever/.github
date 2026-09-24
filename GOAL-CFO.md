@@ -4,7 +4,32 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
-- **CFO-157 (2026-09-23 18:26 -> , `date`-read, cfo; MODE DECTET) -- LANDING C'S EVIDENCE, AND LON'S WORD ON THE BEAUTY SUITES.**
+- **CFO-157 (2026-09-23 18:26 -> , `date`-read, cfo; MODE DECTET) -- LANDING C IS MEASURED AND HELD ON ONE PRE-EXISTING GC HOLDER THAT ITS OWN DIFFERENTIAL FOUND; AND LON'S WORD ON THE BEAUTY SUITES.**
+  - ⛔⭐ **LANDING C IS HELD, NOT LANDED.** It lives in the cfo root's SCRIP working tree; the patch, a probe, the tools and the six witnesses are in `/home/claude_cfo/.scratch/CFO-157-landing-C-held/`. The baton's 19:2x ledger entry holds every number.
+    - **GREEN on origin `ab43ca7bb`:**
+      - Compile census, 4926 entries: identical at the shipped arena and at 1 MB.
+      - JCON self-host: 293/553 on both trees, identical per module (the cto's arm).
+      - 54 gates identical to origin.
+      - The census ratchet goes 361 -> 351 by C's own delta.
+      - DONE-WHEN: 62 -> 54 tables.
+    - ⛔ **RED:** the runtime differential (3854 entries x 2 modes x 5 arms, `setarch -R`) found SIX SnoM entries that die ZGC-STALE in m3 on C and never on origin. All six are ONE pre-existing holder on origin: `runtime_eval.c` `eval_string_transient` holds `s` across `eval_chain_run_guarded`, whose polls collect, then reads it in `eval_cache_put`.
+      - On origin it is silent: at stress 1 plus shift, gdb reads the cache key as `00 00 00`, so the chain is cached under a garbage key.
+      - C's layout moves the vacated ground into a quarantined page and makes the same read fault.
+    - **THE PROBE:** a key copied before the run clears all seven cells. But `ct_strdup` in the runtime breaks the arena-in-runtime ratchet (c_allocators arm (d) 107 -> 109), so it is NOT landable and I did not raise the ratchet. Finding plus correction sent to the cto (the GC is the cto's) at 19:08 and 19:17.
+    - ⛔ **MY OWN ERRORS THIS SITTING, caught before any belief rested on them:**
+      - A differential passed its population as a relative path, so every m4 cell read NOCOMPILE. I resolved the path.
+      - In gdb, `run < file` replaces the `--args` list. For twenty minutes I read "does not reproduce under gdb" as a layout effect; scrip was printing its usage.
+      - I overwrote a baton NEXT instead of demoting it, then restored it.
+  - **ECONOMY (18:26 -> 19:2x):**
+    - CREDITS: no reading from Lon.
+    - LOAD: 5 -> 27 on 16 cores. No runaways.
+    - DISK: 85% -> 90% (13 GB free). My four worktrees are about 0.7 GB.
+    - BOARD COST:
+      - Compile census, 4926 entries: ~30 s per tree per arm at 6-8 jobs.
+      - Five-arm, two-tree runtime differential over 3854 entries, both modes: ~20 min at 8 jobs, load 15-20.
+      - JCON self-host at the shipped arena: ~7 min per tree.
+      - The 41-gate touched set: ~15 min per tree, of which p7 (the van Roy board) is 598 s alone.
+      - `make preflight`: 60 arms in 84 s at load 27.
   - ⭐ **LON'S WORD TO THE cfo, IN-CHAT, VERBATIM, 18:4x, THREE MESSAGES:** *"oh and the SNOBOL4 beauty test suite."* · *"oh and the SNOBOL4 beauty test suite should be in the test suite grid. And Snocone beauty test suite."* · *"or maybe all those were consolidated into SnoM and SncM."*
     - **MEASURED, SNOBOL4: YES, already consolidated.** All 17 `beauty_suite` drivers were absorbed into SnoM on 08-29 by Lon's zero-subfolders ruling (corpus `dcdf7140f`, `11a36c87f`). `tests/snobol4/ALL.csv` keeps each one's provenance as origin `beauty_suite_<module>_driver`, so they are graded inside SnoM.
     - **MEASURED, SNOCONE: NO.** `tests/snocone/beauty_modules.sc` (20 tests, its own `.ref`) sits beside SncM. SncM's `ALL.csv` has 0 beauty-provenance entries and `SUITES.tsv` has no beauty row. hq_snocone's row landed it at 20/20 in both modes with no xfail (origin `ecf3aea38`), but the grid cannot see it.
