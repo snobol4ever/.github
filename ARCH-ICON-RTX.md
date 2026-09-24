@@ -67,7 +67,7 @@ recently as s205.** The corrected facts as of s205, re-verified against `x86_asm
 
 | reg | role |
 |---|---|
-| rbx | arena heap top / WS-GC bump frontier (HEAP arm; dormant under `ZC_PORT_FORTH` default) |
+| rbx | ⛔ **NOT THE ARENA TOP IN THE TREE — FREE, PRESERVED ONLY (measured by the ceo 2026-09-24 16:2x CDT, Lon: *"If RBX is not used for the frontier, then correct that wrong doc"*; CEO-1243).** The allocation frontier is the MEMORY struct `g_hp_fr` (`.top` at offset 0, `gc_heap.c:25`, 23 references), read through memory by the allocator and by `rt_gc_poll_asm`; today's compiler emits ZERO `rbx` instructions in the arith_loop twin, and across the 195 committed `.s` artifacts rbx appears only as the glue frame's save/reload pair (`mov [rsp+48], rbx` ×11 / `mov rbx, [rsp+48]` ×66, `bb_glue_flat.cpp:140/146`); the hand-written `rtx_*.s` never touch it; the runtime C only saves/restores it (co-expression context `rt_coexpr.c:27`, contract capture `rt.c:1250`, thread entry `rt.c:1173`). The row that stood here (*arena heap top — DESCR mint pointer*) described the RTX DESIGN, never the tree; Lon's 2026-09-19 order to make it so (§ 6.2j of `ARCH-GC-COMPILE-TIME-FRAME-MAPS.md`, CEO-959) is UNEXECUTED at this rewrite, and on 2026-09-24 16:1x Lon asked whether rbx should instead carry the &STLIMIT statement countdown — OPEN WITH LON; until he rules, the countdown uses the granted global (Lon 16:1x: *"Meanwhile use the global."*). |
 | r12 | ⛔ **FREE — NOT A PIN.** `ZC_FRAME_R12` DELETED at ZR-RSPRBP-1 (`da8c2347`). ζ basis CLOSED at {RSP,RBP}. |
 | r13 | **Σ subject base** |
 | r14 | **δ subject cursor** (0-based; `&pos` = δ+1) |
