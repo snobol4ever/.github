@@ -4,7 +4,7 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
-- **CFO-162 (2026-09-24 12:29 -> 13:1x, `date`-read, cfo; MODE DECTET; THE LOOP on Lon's word) -- LON RULES THE PLACEMENT (COMPILE-TIME HEAP, ALLOC/COPY/ABANDON); SWI-PROLOG IS INSTRUMENTED AND AGREES ON ALL THREE WITNESSES BUT IS HELD UNPUSHED; STOPPED FOR FLEET QUIET, AND MY BUILDS RAN INSIDE ITS WINDOW.**
+- **CFO-162 (2026-09-24 12:29 -> 13:58, `date`-read, cfo; MODE DECTET; THE LOOP on Lon's word) -- LON RULES THE PLACEMENT (COMPILE-TIME HEAP, ALLOC/COPY/ABANDON); SWI-PROLOG IS INSTRUMENTED AND AGREES ON ALL THREE WITNESSES BUT IS HELD UNPUSHED; STOPPED FOR FLEET QUIET, AND MY BUILDS RAN INSIDE ITS WINDOW.**
   - ⛔⭐ **LON, in-chat to the cfo, 12:4x CDT (`date` 12:42), verbatim:** *"Use the special compile-time heap, and use alloc/copy/abandon at geometric growth for dynamic arrays and buffers."*
     - It answered my question: where do compile-time tables that grow with program size live? ARCH-DYNAMIC-STORAGE § 3 carries Lon's 09-23 word "use realloc approach but on the GC heap". But nothing collects during a compile and the GC heap's hard cap is 4 MB, so 066451721's four GC-heap indexes killed a 3000-statement compile with error 204, and 874b1187a (arena) cured it.
     - MY READING, named as mine: (1) every compile-time population lives in the compile-time arena (`src/ir/ct_arena.c`), never the GC heap; (2) growth doubles by alloc, copy, ABANDON -- the old block is not returned to a bin. That overrides § 3's compile-time bullet, the § 4 cv_t paragraph, and § 4.0 case 3's `ct_drop` (my own d2efe8a8f contract and its gate). The in-place growth at the frontier (09-23, CEO-1211) is not contradicted.
@@ -24,6 +24,12 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
     - I told the ceo each run and its time, so any benchmark reading between 12:55 and 13:07 can be voided. MEMORY WRITTEN.
     - Stopped at 13:16 with nothing pushable. Only the inbox is read until the all-clear.
   - **ECONOMY (13:16):** load 1.5 once my runs stopped. No runaways; my one stuck process (a FIFO reader blocked on a pipe whose writer had died) was killed by PID. DISK 86%. CREDITS: no reading.
+  - ⭐ **WRAP-UP (13:58, on Lon's "wrap it up so we can /clear and next"; fleet quiet still in force, so file and git work only). Nothing lives only in this session.**
+    - Inbox empty, and no all-clear from the ceo yet. The next sitting reads its inbox first: while quiet holds, no make, gate, suite or build.
+    - SCRIP `main` was reset to origin (521f57bac), so the startup's ff-only merge works. The held SWI work is on the LOCAL branch `cfo-162-swipl-mon-held`: 169914a2f (the landing as measured) and 3f49621cb (the WIP fix, not green). Copies are in `.scratch/CFO-162-swipl-mon/`.
+    - The SWI row (rank 0, RUNNING) has a current NEXT with seven steps, the first two being the build script's FIFO-check timeout and the source-location restore. The fixed-caps row's NEXT is current: the flat-cell design and Lon's placement word.
+    - corpus and .github are clean and at origin. The SWI build trees in `.scratch/swipl-mon/` (170 MB, reproducible) were left alone during quiet.
+    - ECONOMY: load 2.7 (the ceo's quiet benchmark pass). DISK 82% (23G free). No runaways of mine. CREDITS: no reading.
 
 - **CFO-161 (2026-09-24 09:09 -> 10:5x, `date`-read, cfo; MODE DECTET) -- THE QUADRATIC-COMPILE ROW IS DONE BY COMPUTED RECEIPT (ab8160ea9), AND A REGRESSION OF MINE WAS LIVE FOR ABOUT 23 MINUTES, CURED AT 874b1187a.**
   - ⭐ **FOUR LANDINGS: b5f3d1f34, 066451721, 874b1187a, ab8160ea9.**
