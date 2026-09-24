@@ -4,6 +4,27 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
+- **CFO-162 (2026-09-24 12:29 -> 13:1x, `date`-read, cfo; MODE DECTET; THE LOOP on Lon's word) -- LON RULES THE PLACEMENT (COMPILE-TIME HEAP, ALLOC/COPY/ABANDON); SWI-PROLOG IS INSTRUMENTED AND AGREES ON ALL THREE WITNESSES BUT IS HELD UNPUSHED; STOPPED FOR FLEET QUIET, AND MY BUILDS RAN INSIDE ITS WINDOW.**
+  - ⛔⭐ **LON, in-chat to the cfo, 12:4x CDT (`date` 12:42), verbatim:** *"Use the special compile-time heap, and use alloc/copy/abandon at geometric growth for dynamic arrays and buffers."*
+    - It answered my question: where do compile-time tables that grow with program size live? ARCH-DYNAMIC-STORAGE § 3 carries Lon's 09-23 word "use realloc approach but on the GC heap". But nothing collects during a compile and the GC heap's hard cap is 4 MB, so 066451721's four GC-heap indexes killed a 3000-statement compile with error 204, and 874b1187a (arena) cured it.
+    - MY READING, named as mine: (1) every compile-time population lives in the compile-time arena (`src/ir/ct_arena.c`), never the GC heap; (2) growth doubles by alloc, copy, ABANDON -- the old block is not returned to a bin. That overrides § 3's compile-time bullet, the § 4 cv_t paragraph, and § 4.0 case 3's `ct_drop` (my own d2efe8a8f contract and its gate). The in-place growth at the frontier (09-23, CEO-1211) is not contradicted.
+    - Routed to the ceo the same turn; the law page is the ceo's to rewrite.
+  - **THE PICK:** `next` RESUMEd the parked GC row `gc-rt-c-c-to-bb-entries-...` (claim preserved since 09-19). GC is the cto's alone (CEO-1181/1202), so I did not work it. My ceo-ASSIGNED row is the fixed-caps row; its NEXT (1), frame_layout.c's flat-cell registries, is the work.
+  - **ECONOMY (12:30):** load 8 (5-min 61), no runaways (the top processes are other seats' `scrip` runs, seconds old). DISK 86% (18G free). CREDITS: no reading.
+  - **THE FIXED-CAPS ROW, PAUSED 12:44:** the flat-cell design and Lon's word are in its NEXT. frame_layout.c's 13 node-keyed registries become one generation-stamped node map in the arena. Five dead tables and functions go (fcs, fcab, fc_alt_fp, fc_alt_n, fc_alt_arm_range). The reset gate's arm 1 must be re-keyed, not its floor lowered. No code written.
+  - ⭐ **THE ceo'S RANK-0 ASSIGNMENT (CEO-1236, Lon 12:3x: "To complete the IPC sync-step monitor for Prolog we must instrument SWIPL in the same manner as Gnu Prolog."): participant `swx`, BUILT AND AGREEING, HELD.**
+    - Design: CALL in the VM at pl-vmi.c `depart_or_retry_continue` for predicates flagged `P_MON_CALL` (FLAG64(40)). STMT and RETURN are injected by `boot/init.pl` `'$store_clause'`, with lines from the reader's subterm positions. The VM alone cannot do STMT: it keeps no per-goal line, and `=`, `!`, `==` and `\+` compile inline with no port. The loader injects only when the READY pipe is named.
+    - Measured on SCRIP 169914a2f with build_swipl_mon.sh's own artefact (97 s from the drop): the DONE-WHEN's three witnesses AGREE at steps 5, 24 and 27; sync_step_prolog 9, _2 57, _3 16, the same as gpx; _4 DIVERGES at 35 on both oracles. There, scr fires CALL for the dynamic counter/1 and then a prelude line (L216). Three monitor gates PASS.
+    - ⛔ HELD: 169914a2f's line cache used malloc/realloc/free. The allocator ratchet read outside_src_sites 25 -> 30 (preflight 59 arms, 1 red), and that was my red.
+    - The uncommitted fix moves the cache into Prolog, but then the fork aborts: "Assertion failed: source_line_no != -1". Opening the source file inside `'$store_clause'` clobbers the loader's source location. The next step is to restore it with `'$set_source_location'`; the steps are in the row's NEXT.
+    - The commit, the fix and the fork's init.pl are saved in `.scratch/CFO-162-swipl-mon/`. SCRIP main has the local commit and a dirty working tree.
+  - ⛔⛔ **FLEET QUIET (CEO-1237, Lon 12:5x: "Let's bring the fleet quiet for a while and measure all language benchmark suites and see how well our new GC improves speed."):**
+    - The ceo's order was sent at 12:53:38. I read it at 13:15, because the hook only surfaces mail on a prompt and I did not check the bus between heavy steps.
+    - My load inside the window: fork builds at make -j8 (12:55, and 12:59-13:01 with 207 s CPU, and 13:05-13:07), witnesses, three gates, preflight (13:03), and an incremental make.
+    - I told the ceo each run and its time, so any benchmark reading between 12:55 and 13:07 can be voided. MEMORY WRITTEN.
+    - Stopped at 13:16 with nothing pushable. Only the inbox is read until the all-clear.
+  - **ECONOMY (13:16):** load 1.5 once my runs stopped. No runaways; my one stuck process (a FIFO reader blocked on a pipe whose writer had died) was killed by PID. DISK 86%. CREDITS: no reading.
+
 - **CFO-161 (2026-09-24 09:09 -> 10:5x, `date`-read, cfo; MODE DECTET) -- THE QUADRATIC-COMPILE ROW IS DONE BY COMPUTED RECEIPT (ab8160ea9), AND A REGRESSION OF MINE WAS LIVE FOR ABOUT 23 MINUTES, CURED AT 874b1187a.**
   - ⭐ **FOUR LANDINGS: b5f3d1f34, 066451721, 874b1187a, ab8160ea9.**
     - The row's witness compiled N=1000 in 14.9 s at mint; now 2.0-2.2 s.
