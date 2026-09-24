@@ -4,6 +4,35 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
+- **CFO-159 (2026-09-24 06:59 -> 07:53, `date`-read, cfo; MODE DECTET; the loop run on Lon's word) -- hq_snocone's Rebus-parser wall is emit.cpp's `g_blob_lay[512]`: CURED AND MEASURED, NOT LANDED. The classifier denied my read of the last three results.**
+  - **MAIL, 13 items, each acted on:**
+    - The cto asked for the 431 s EVAL entry as a slowness class. It is in my row's ledger, measured today: shipped 0.3 s (234 collections), stress 5 17.2 s, stress 3 27.1 s, stress 1+RELOC 106.3 s (492047 collections) at load 1-6, about 0.2 ms per collection.
+    - The coo asked which of its 47 unguarded tables my ir group converts: at most four, named.
+    - hq_pascal's two bar asks: verified against Pascal-P5's own .ecp transcripts and forwarded to the ceo, who ruled both in CEO-1231(6).
+    - Lon's grant of the global g_pas_scope, relayed by hq_pascal: forwarded to the ceo.
+    - hq_pascal's reading of CEO-1228(1): it rules on a class, so it reaches new programs. Keep the five.
+  - ⛔ **THE BLOCKING RATCHET WAS RED ON ORIGIN (366 vs 364).** I named hq_icon's two constant tables by census diff. The coo ruled to count them, and hq_icon landed BASELINE 366 at `300e59ca3`.
+  - ⭐ **THE WALL:**
+    - A pattern built at run time and matched through `*P` compiles into an rtpat blob that needs 4 layout entries per unfenced alternation plus 8.
+    - `blob_lay_push` silently dropped every entry past 512, so the tiling check aborted. gdb read `g_blob_lay_n == 512` at the abort.
+    - **CURE:** a `cv_t` on the GC heap, rooted by `emit_gc_roots` through `lower_gc_roots`, with a new DONE-WHEN witness `blobs150.sno` (608 entries).
+  - **EVIDENCE SO FAR:**
+    - blobs150: origin rc 134 in both modes; the cure prints sbl's 490 in both.
+    - hq_snocone's `parser_rebus.sno`: m3 and m4 byte-identical to sbl.
+    - Reach census: 585 of 4926 master entries fill a blob layout.
+    - Fixed-caps census 366 -> 365, ratchet GREEN.
+    - Safe-point census identical on both trees. `allocating_entries` goes +7, all emitter functions, none called from emitted code.
+    - Preflight 61/0.
+  - **OWED, and where the patch and the plan are:** `/home/claude_cfo/.scratch/CFO-159-blob-lay/README.txt`.
+  - **FOUND ON THE WAY, in my row:** the SNOBOL4 alternation cap 64 and sequence cap 128 are FATALs on legal programs, and `g_gc_map_names[8192]` is a silent drop.
+  - **ROUTED TO THE ceo AS A ROW CANDIDATE:** the rtpat compile is superlinear. 1626 nodes take 92 s and 2438 nodes take 276 s, where sbl answers at once.
+  - **ECONOMY:**
+    - CREDITS: no reading from Lon.
+    - LOAD: 0.9 at 07:01 -> 43-46 by 07:36 (the ceo's Logtalk suite, the cto's GC population machines, hq_icon's gates, the coo's flips) -> 18 at 07:53. No runaways. One sleeping 10 h `ugrep` of hq_snocone's at 0% CPU is left alone.
+    - DISK: 80% -> 85% in 46 min, then 83% after I removed my own 11 landed-work worktrees through `git worktree remove` (2 GB).
+    - Three `/tmp/ipl_suite_*` dirs from 09-23 hold 5.7 GB. They are left behind when a `test_icon_ipl_suite.sh` run is killed before its EXIT trap fires. Not mine, so they are reported, not deleted.
+    - My 2.5 GB `08776be1` scratchpad still waits on Lon.
+
 - **CFO-158 (2026-09-23 20:36 -> 21:4x, `date`-read, cfo; MODE DECTET; Lon: *"next"*) -- LANDED: SCRIP `d06eb02c3` (the EVAL frame record) + `543b5c539` (landing C, BASELINE 364), parent `61b3875a5`.**
   - **The cto ruled "no objection" to the frame record, with two notes, both measured:**
     - The key's address moves inside the run and its bytes stay intact, under PLANT_SHIFT and under RELOC.
