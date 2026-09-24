@@ -35,7 +35,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | IcnBench | icon | 26/26 | 2026-09-24 | `5d751c855` | done |
 | ProBench | prolog | 23/23 | 2026-09-23 | `3b5f301f1` | done |
 | PasBench | pascal | 11/11 | 2026-09-24 | `0595c3ede` | done |
-| RakBench | raku | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| RakBench | raku | 5/17 | 2026-09-24 | `fa8d8fe6d` |  |
 | RebBench | rebus | 3/3 | 2026-09-23 | `84f956364` | done |
 
 
