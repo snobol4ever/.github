@@ -6,35 +6,35 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
-| Gimpel | snobol4 | 127/132 | 2026-09-22 (today) | `6ea8abdde` |  |
-| Budne | snobol4 | 71/71 OUTSIDE=1 | 2026-09-23 (today) | `3312ba787` | done |
-| Flake | snobol4 | 110/124 | 2026-09-22 (today) | `58820a280` |  |
-| AIS | snobol4 | 4/7 | 2026-09-23 (today) | `9dc4d12d4` |  |
-| Dotnet | snobol4 | 5/5 | 2026-09-16 (today) | `8f567e685` | done |
-| TPgm | snobol4 | 1/8 OUTSIDE=6 | 2026-09-16 (today) | `61315eaa9` | CEO-749 shape restored by hq_snobol4: the runner published the graded 1/2; the inventory on this same pass reads shipped=8 graded=2 ungradable=6 |
-| Zona | icon | 88/88 | 2026-09-23 (today) | `9f4da0b64` | done |
-| Jcon | icon | 82/82 | 2026-09-23 (today) | `9f4da0b64` | done |
-| IPL | icon | 194/194 | 2026-09-23 (today) | `3fab59506` | done |
-| INRIA | prolog | 439/442 | 2026-09-23 (today) | `10f6dd939` |  |
-| SWI | prolog | 1051/2935 | 2026-09-23 (today) | `a5240e77a` |  |
-| GNU | prolog | 11/11 | 2026-09-21 (today) | `ffbf5f3e6` | done |
-| FPC | pascal | 134/181 OUTSIDE=15 | 2026-09-23 (today) | `d01084dc2` |  |
-| PAT | pascal | 332/427 | 2026-09-23 (today) | `d01084dc2` |  |
-| Roast | raku | 9/1464 | 2026-09-16 (today) | `5cc7ba393` |  |
-| SnoM | snobol4 | 1956/1982 | 2026-09-23 (today) | `9dc4d12d4` | 9 xfail counted as FAIL of a 26-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| IcnM | icon | 826/826 | 2026-09-23 (today) | `9f4da0b64` | done |
-| ProM | prolog | 563/563 | 2026-09-23 (today) | `a5240e77a` | done |
-| PasM | pascal | 246/246 | 2026-09-23 (today) | `d01084dc2` | done |
-| RakM | raku | 867/929 | 2026-09-23 (today) | `59a62ca3a` | 46 xfail counted as FAIL of a 62-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| SncM | snocone | 337/337 | 2026-09-23 (today) | `ecf3aea38` | done |
-| SncBench | snocone | 16/16 | 2026-09-23 (today) | `8a2e9bdff` | done |
-| RebM | rebus | 43/43 | 2026-09-23 (today) | `fa27bcdf9` | done |
-| Logtalk | prolog | 2935/3600 | 2026-09-23 (today) | `6ab620788` |  |
-| X64T | snobol4 | 20/36 | 2026-09-23 (today) | `9dc4d12d4` |  |
+| Gimpel | snobol4 | 127/132 | 2026-09-22 | `6ea8abdde` |  |
+| Budne | snobol4 | 71/71 OUTSIDE=1 | 2026-09-23 | `3312ba787` | done |
+| Flake | snobol4 | 110/124 | 2026-09-22 | `58820a280` |  |
+| AIS | snobol4 | 4/7 | 2026-09-23 | `9dc4d12d4` |  |
+| Dotnet | snobol4 | 5/5 | 2026-09-16 | `8f567e685` | done |
+| TPgm | snobol4 | 1/8 OUTSIDE=6 | 2026-09-16 | `61315eaa9` | CEO-749 shape restored by hq_snobol4: the runner published the graded 1/2; the inventory on this same pass reads shipped=8 graded=2 ungradable=6 |
+| Zona | icon | 88/88 | 2026-09-23 | `9f4da0b64` | done |
+| Jcon | icon | 82/82 | 2026-09-23 | `9f4da0b64` | done |
+| IPL | icon | 194/194 | 2026-09-23 | `3fab59506` | done |
+| INRIA | prolog | 439/442 | 2026-09-23 | `10f6dd939` |  |
+| SWI | prolog | 1051/2935 | 2026-09-23 | `a5240e77a` |  |
+| GNU | prolog | 11/11 | 2026-09-21 | `ffbf5f3e6` | done |
+| FPC | pascal | 134/181 OUTSIDE=15 | 2026-09-23 | `d01084dc2` |  |
+| PAT | pascal | 332/427 | 2026-09-23 | `d01084dc2` |  |
+| Roast | raku | 9/1464 | 2026-09-16 | `5cc7ba393` |  |
+| SnoM | snobol4 | 1956/1982 | 2026-09-23 | `9dc4d12d4` | 9 xfail counted as FAIL of a 26-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| IcnM | icon | 826/826 | 2026-09-23 | `9f4da0b64` | done |
+| ProM | prolog | 563/563 | 2026-09-23 | `a5240e77a` | done |
+| PasM | pascal | 246/246 | 2026-09-23 | `d01084dc2` | done |
+| RakM | raku | 867/929 | 2026-09-23 | `59a62ca3a` | 46 xfail counted as FAIL of a 62-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| SncM | snocone | 337/337 | 2026-09-23 | `ecf3aea38` | done |
+| SncBench | snocone | 16/16 | 2026-09-23 | `8a2e9bdff` | done |
+| RebM | rebus | 43/43 | 2026-09-23 | `fa27bcdf9` | done |
+| Logtalk | prolog | 2935/3600 | 2026-09-23 | `6ab620788` |  |
+| X64T | snobol4 | 20/36 | 2026-09-23 | `9dc4d12d4` |  |
 | SnoBench | snobol4 | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | IcnBench | icon | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | ProBench | prolog | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
-| PasBench | pascal | 11/11 | 2026-09-23 (today) | `d01084dc2` | done |
+| PasBench | pascal | 11/11 | 2026-09-23 | `d01084dc2` | done |
 | RakBench | raku | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | RebBench | rebus | 3/3 | 2026-09-23 (today) | `84f956364` | done |
 

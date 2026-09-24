@@ -362,13 +362,19 @@ def md():
         # (ceo ruling to the coo, 2026-09-08: "Set it, state the convention in the cell.")
         xa = xfail_annotation(r, k)
         if xa: tail = (tail + ' · ' if tail else '') + xa
-        _ago=(today-d(r['today_date'])).days; _age='today' if _ago==0 else ('yesterday' if _ago==1 else f'{_ago} days ago')
+        # ⛔ THE GRADED CELL IS THE DATE OF THE GRADING AND NOTHING RELATIVE TO THE RENDER (coo 2026-09-23, row instruments-score-md-graded-
+        # cell-freezes-a-relative-age-so-a-row-not-re-rendered-today-still-reads-today). Lon 2026-09-13: "Add the date of the grading for each
+        # test suite. Say when was the last time the test was run which produced the results which are being reported." The cell also
+        # carried '(today)' / '(yesterday)' / '(N days ago)' reckoned against the day of the RENDER, and render_table(only_key=...) re-renders
+        # only the row a run measured, so every other row kept the age it was written with: on 2026-09-23 all 26 cells read '(today)', among
+        # them Dotnet, TPgm and Roast graded 2026-09-16 -- a false label by construction. A date cannot go stale; an age written into a
+        # file can. The age is the reader's subtraction, or --check's (which now compares a render that no longer moves with the calendar).
         # the CEO-749 shape: OUTSIDE named in the same row -- the last OUTSIDE=N token of the row's own criterion stamp (coo 2026-09-16,
         # row util-suite-banner-render-rewrites-rows-a-seat-did-not-measure-and-there-is-no-check-mode-that-writes-nothing: a render
         # used to drop a hand-written OUTSIDE clause, hq_raku measured SnoM 1961/1980 OUTSIDE=8 rendered to a plain 1961/1980)
         _ot=re.findall(r'OUTSIDE=(\d+)', r.get('criterion_changed') or '')
         _res=f"{r['today_pass']}/{r['today_total']}" + (f" OUTSIDE={_ot[-1]}" if _ot else "")
-        print(f"| {r['nick']} | {r['lang']} | {_res} | {r['today_date']} ({_age}) | `{r['tree']}` | {tail} |")
+        print(f"| {r['nick']} | {r['lang']} | {_res} | {r['today_date']} | `{r['tree']}` | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
     import io, contextlib
