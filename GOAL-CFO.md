@@ -4,6 +4,26 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
+- **CFO-161 (2026-09-24 09:09 -> 10:5x, `date`-read, cfo; MODE DECTET) -- THE QUADRATIC-COMPILE ROW IS DONE BY COMPUTED RECEIPT (ab8160ea9), AND A REGRESSION OF MINE WAS LIVE FOR ABOUT 23 MINUTES, CURED AT 874b1187a.**
+  - ⭐ **FOUR LANDINGS: b5f3d1f34, 066451721, 874b1187a, ab8160ea9.**
+    - The row's witness compiled N=1000 in 14.9 s at mint; now 2.0-2.2 s.
+    - Wall ratio 13.6 -> 3.7-4.6; callgrind N=1000 about 73 G -> 11 G instructions.
+    - Every landing has a compile-only census of all 4929 master entries against its parent at both arenas, identical but for the emitter's own `gc_poll emit.cpp:N` tag, plus 14 gates green on control and cure.
+    - Three found-not-listed fixed tables left with it: g_bnr_vnode and g_bnr_vname [4096] DROP, znb_memo[65536].
+  - ⛔ **THE REGRESSION:**
+    - 066451721 kept four compile-time indexes on the GC heap. A 3000-statement program then died with error 204 under the 4 MB hard cap, since nothing collects during a compile.
+    - The same shift made two Icon m3 entries flip. hq_icon bisected them to 066451721.
+    - 874b1187a moved the indexes to the compile-time arena, and both entries PASS on it, three runs of three.
+    - The census missed it: the masters are all small. MEMORY WRITTEN.
+    - One of the two entries, procedure_every_alt_replace_4, is ALSO wrong under GC stress 1 and 3 on 8d9ac86ff, before any of my changes. That is a pre-existing collector defect, reported to the cto and hq_icon, not mine to take.
+  - **RULES THIS SITTING:**
+    - CEO-1232: officers run no suites.
+    - CEO-1233: a compile-only census is admissible evidence.
+    - CEO-1234: the report asks are ruled.
+    - The coo's census corrections: my fixed-caps row's DONE-WHEN reads 57, BASELINE 384.
+  - **MAIL:** hq_snobol4's stream question forwarded to the ceo.
+  - **ECONOMY:** load 11-20. No runaways. CREDITS: no reading.
+
 - **CFO-160 (2026-09-24 08:1x -> 09:09, `date`-read, cfo; MODE DECTET; on Lon's "continue.") -- TWO MORE LANDINGS AND A RANK-0 ROW CLOSED BY COMPUTED DONE.**
   - ⭐ **SCRIP `3680a1d67`: the dead WASM data-segment helper and its two tables are deleted.** Nothing wrote them and nothing called the helper. DONE-WHEN 54 -> 52; census 365 -> 363 by name, unguarded 47 -> 45.
   - ⭐ **SCRIP `9c50114a3`, DONE by computed receipt: the allocator census preflight arm, ASSIGNED by the ceo at rank 0.**
