@@ -21,11 +21,11 @@ By directory (file+static / field / local / param): runtime 47/0/448/18 · lower
 
 One question per declaration: **can a legal program of the industry-standard language make it overflow?**
 
-- **Class A — bounded by the machine or by the language definition. STAYS FIXED, named on this page.** Register planes (16), one instruction's encoding buffer (`X86_INTERNAL_MAX`), an enum's count (`IR_OP_COUNT`), the wire header (`MW_HDR_BYTES`), `NKLASS` 3, `GC_REP_POPS` 5, `PAS_SET_BYTES` 32 (an ISO Pascal set is 0..255 by the standard), the DESCR tag set.
+- **Class A — bounded by the machine or by the language definition. STAYS FIXED, named on this page.** Register planes (16), one instruction's encoding buffer (`X86_INTERNAL_MAX`), an enum's count (`IR_OP_COUNT`), the wire header (`MW_HDR_BYTES`), `NKLASS` 3, `GC_REP_POPS` 5, `PAS_SET_BYTES` 32 (an ISO Pascal set is 0..255 by the standard), the DESCR tag set. Named class A by table, each landed with its BASELINE step (hq_icon 2026-09-24, on the coo's word): `k_one_char_str[513]` (`src/runtime/pattern_match.c`) is one NUL-terminated one-character string per byte value, 256 entries fixed by the 8-bit alphabet, so a one-character substring needs no allocation (SCRIP `c8d4cb157`); `g_scan_empty[1]` (`src/runtime/builtins/gen_runtime.c`) is the one constant empty string whose ADDRESS is the no-subject sentinel, compared by identity (SCRIP `8f4fabb68`).
 - **Class B — scratch for ONE value of fixed width.** `char buf[32]` for a 64-bit integer or a hex address. STAYS FIXED when sized from the type; ⛔ program-derived text (a name, a path, a message, a term, a token) never passes through one — that is class C wearing a buffer.
 - **Class C — a POPULATION a program grows: tables, stacks, pools, caches-without-eviction, string and token buffers. MUST BE DYNAMIC.** Every entry of § 6.
 
-The ratchet counts only file/static/field declarations today (366). The 750 locals are a second census: a local `char name[256]` holding an identifier is class C and is converted when its file is touched; the page's rule binds it now, the ratchet later.
+The ratchet counts only file/static/field declarations (the count is `scripts/fixtures/dyn_caps/BASELINE` in SCRIP, never a copy on this page: a copied number nothing checks is the drift the cfo caught at 364 vs 366 on 2026-09-24). The 750 locals are a second census: a local `char name[256]` holding an identifier is class C and is converted when its file is touched; the page's rule binds it now, the ratchet later.
 
 ## 3. WHERE EACH POPULATION LIVES — THE ONE PLACE LON'S WORD MEETS A STANDING RULING
 
@@ -53,7 +53,7 @@ The growth POLICY is the vector's: doubling, `newcap = max(2*cap, need)`. The re
 
 1. A population grows on demand; **the ONLY refusal is allocator exhaustion**, loud, naming the table and the size it asked for. No silent drop, no silent truncation, no silent FAIL, no wrong value — the four shapes § 1 measured are each a defect class.
 2. Until a table is converted it COMPARES AND REFUSES LOUDLY at its cap (the zls row's discipline, kept): the 49 unguarded tables get their comparison first (the coo's row), then their conversion (the owning officer's row).
-3. **The ratchet:** `util_dyn_caps_witness.sh census` reads the census against `scripts/fixtures/dyn_caps/BASELINE` (366) — the count may only fall, and a landing that lowers it lowers BASELINE in the same commit; a new fixed table is RED unless this page names it class A or B first. The coo wires it as a blocking arm (`test_gate_dyn_caps_ratchet.sh`).
+3. **The ratchet:** `util_dyn_caps_witness.sh census` reads the census against `scripts/fixtures/dyn_caps/BASELINE` (read the number THERE, never here) — the count may only fall, and a landing that lowers it lowers BASELINE in the same commit; a new fixed table is RED unless this page names it class A or B first. The coo wires it as a blocking arm (`test_gate_dyn_caps_ratchet.sh`).
 4. **Every conversion lands with a witness that exceeds the OLD cap and reads the ORACLE's answer** (the three of `util_dyn_caps_gen.py` are the first; each converted table adds its own), plus the gates it touched and `make preflight`; a shared-node conversion owes the CEO-757 arms.
 5. A cap macro that survives as a GROWTH HINT (initial capacity) is renamed `*_INIT` so the census stops reading it as a limit; a macro that survives as a class-A bound is listed in § 2.
 
