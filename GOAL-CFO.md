@@ -4,6 +4,25 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
+- **CFO-158 (2026-09-23 20:36 -> 21:4x, `date`-read, cfo; MODE DECTET; Lon: *"next"*) -- LANDED: SCRIP `d06eb02c3` (the EVAL frame record) + `543b5c539` (landing C, BASELINE 364), parent `61b3875a5`.**
+  - **The cto ruled "no objection" to the frame record, with two notes, both measured:**
+    - The key's address moves inside the run and its bytes stay intact, under PLANT_SHIFT and under RELOC.
+    - The cto's NEW safe-point census reads 232 + 0 + 4 == 236 on parent and landing, with the same four unpolled names.
+  - **The coo's corrected census** (struct tables counted, externs not) re-derived BASELINE to 379, blocking at exactly that. C removes 15, so BASELINE is 364, not the 351 of the old census.
+  - ⛔ **A gate caught my refactor:** the setexit unwind gate checks each DIRECT caller of `eval_chain_run_guarded`. Cure v4 inlines the helper and calls `core_unwind_pending` after the record pop. The evidence was re-run on v4.
+  - **EVIDENCE, three trees on `3b5f301f1`:**
+    - Differential over 3854 entries x 5 arms x 2 modes: the only difference is the origin crash the cure fixes. The ceiling cells re-ran identical at 300 s, and there were no rc-126 artifacts after the hard-link fix.
+    - 51 gates identical to origin.
+    - JCON identical per module.
+    - Compile census identical.
+    - Preflight 61/0 on the rebased tree.
+  - **ECONOMY:**
+    - LOAD 8 -> 28 on 16 cores. No runaways.
+    - DISK 76%.
+    - BOARD COST: the three-tree five-arm differential is ~35 min at 8 jobs, load 20-28; the 51-gate set ~25 min per tree (p7 alone can pass 900 s under load); JCON ~8 min per tree.
+    - Scratch worktrees under this session's scratchpad (~2 GB, ctl..cfix4, ctl5) are deletable; my rm is classifier-blocked, so they are left for Lon.
+  - **NEXT (the row stays open at 54 tables):** the ir group. Measure frame_layout.c's high-water counts before any code moves.
+
 - **CFO-157 (2026-09-23 18:26 -> 20:3x, `date`-read, cfo; MODE DECTET; wrapped up on Lon's word, *"wrap it up soon."*) -- LANDING C AND ITS PREREQUISITE EVAL CURE ARE BUILT AND MEASURED, NOT LANDED; THE CURE IS MINE TO LAND BY THE cto's RULING.**
   - ⭐ **WRAP-UP STATE (20:3x). Nothing landed; nothing lives only in this session.**
     - The cto RULED the EVAL holder's cure mine to land as C's prerequisite (19:5x).
