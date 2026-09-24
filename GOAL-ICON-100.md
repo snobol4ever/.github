@@ -121,6 +121,17 @@ bash scripts/test_icon_all_rungs.sh 2>/dev/null | tail -1   # fresh watermark FI
 
 ---
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-24 hq_icon (DECTET) — **deal's OWN COMPUTE IS 1.22x iconx IN Ir (WAS 1.75x): THE SWAP BUILDS ONE STRING, THE CSET OPERATORS CARRY A STRING'S LENGTH, AND A RECORD FIELD UNDER A SUBSCRIPT IS A VARIABLE.**
+
+Landed on SCRIP `e0301e77d..7ca372ff6` with two control batches against `e9066fb8d` (the Icon master, IPL, Jcon, Zona, IcnBench and the three rung runners at their base counts; every other language's master identical to base by failing name):
+- **The cset operators** `++ -- ** ~` measured a string operand with strlen (`"a\x00b" -- ' '` was `'a'`), ran it through the numeric pre-pass first (a 23-digit string or a large integer raised 120), and re-canonicalized an already-interned result. A cset assigned into a substring (`s[2] := 'yx'`) asked the heap for 4 GB, and a subscripted cset variable was a trap where iconx has a value (error 111). −18.4M Ir on deal.
+- **The swap**: a one-character trapped substring reads from a constant table, and two of them over one variable cell swap by building ONE subject — 9 heap blocks a swap → 3, −93.7M Ir with the table. A section swap of unequal length now shifts its second position (`s[1:3] :=: s[4:5]` was wrong on base).
+- **A record field** under `[i]`, `[i:j]`, `!` or `?` in an assignable position is a variable (it raised 111), and `?L[1] := x` too.
+- **deal -h 1000 m4 at 256 MB**: 370.9M → 258.8M Ir (iconx 212.4M); CPU -h 5000 at 1 GB 220 → 131 ms (iconx 108). At the shipped window it is still about 870 ms vs 23 — 3588 collections, the window policy's (cto, CEO-1225).
+
+⛔ **With the cto:** the collector's stack walk faults under valgrind for ANY collecting run (both modes, gc_walk_cell), so the shipped window cannot be callgrind-profiled; the cset registry keeps every distinct result as a root and rebuilds its index per collection.
+⭐ **NEXT, THIS LANE** (the deal baton's NEXT has the measured owners): the by-name builtin dispatch preamble, the write arm's per-call global lookup, the cset representation (a cset that carries its length and bits), list_bang_at's by-name field fetches; a stale trapped substring fails where iconx raises 205; the rung36 kwds re-cut. Prior cursors stand as history.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-24 hq_icon (DECTET) — **EIGHT ICON CURES LANDED, EACH FOUND BY A MEASUREMENT AND EACH WITH ITS GATE; THE LENGTH OF A STRING IS NOW CARRIED THROUGH EVERY PATH A NUL COULD CUT.**
 
 Landed on SCRIP `8f4fabb68..deaf99f92` (the five new gates wired into `test-sequential` at `deaf99f92`) with one control batch over all eight (the Icon master, IPL, Jcon, Zona, IcnBench, the three rung runners, the SNOBOL4 master, and the Icon master at SCRIP_GC_STRESS=1, base against head):

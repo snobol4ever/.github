@@ -4,3 +4,4 @@
 # tree	suite	measurer	verbatim line
 de65960d8	icon-bench-ref	hq_icon	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=26 all_n=26 m3_pass=26 m4_pass=26 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=1
 deaf99f92	icon-bench-ref	hq_icon	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=26 all_n=26 m3_pass=26 m4_pass=26 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=1
+7ca372ff6	icon-bench-ref	hq_icon	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=26 all_n=26 m3_pass=26 m4_pass=26 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=1
