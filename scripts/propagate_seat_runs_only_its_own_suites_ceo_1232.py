@@ -17,16 +17,24 @@ FOOT = "## \u26d4\u2b50 THE CONTROL-ARM BAR"
 FOOTNEW = FOOT + " \u2014 \u26d4 THE BATCH FORM BELOW IS RETIRED 2026-09-24 (CEO-1232): the OTHER frontends' arms are each HQ's next per-landing pass on origin, never the lander's run; the bar (no worse than a clean tree, every tolerated red named) is unchanged and is now applied by the HQ that reads it"
 apply = "--apply" in sys.argv
 stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
+NOTE = ("(\u26d4 SUPERSEDED 2026-09-24, CEO-1232 -- Lon to hq_prolog: a seat runs only its own language's suites; every other "
+        "language's verdict on a shared-node landing is read by that language's HQ's next per-landing pass on origin, the lander names "
+        "the node and the frontends in the commit and cures or reverts what the HQ's bisect names; the CEO-757 batch and the one-runner "
+        "override as a road to another language's board are retired; RULES.md section SHARED-NODE VERDICT SCOPE, 2026-09-24 paragraph) ")
 for f in sorted(glob.glob("/home/claude_*/CLAUDE.md")):
     t = open(f, encoding="utf-8").read()
     if "CEO-1232" in t:
         print("already:", f); continue
-    n = t.count(MARK); m = t.count(FOOT)
-    if n == 0:
-        print("no batch bullet, skipped:", f); continue
-    new = t.replace(MARK, OV + MARK, 1)
-    if m == 1: new = new.replace(FOOT, FOOTNEW, 1)
-    print(("APPLY " if apply else "would ") + f + " (batch bullets %d, foot %d)" % (n, m))
+    if MARK in t:
+        new = t.replace(MARK, OV + MARK, 1); how = "batch bullet"
+    elif "SHARED-NODE" in t:
+        new = t.replace("SHARED-NODE", NOTE + "SHARED-NODE", 1); how = "first SHARED-NODE mention"
+    elif "CEO-757" in t:
+        new = t.replace("CEO-757", NOTE + "CEO-757", 1); how = "first CEO-757 mention"
+    else:
+        print("no anchor, skipped (carries no cross-language-arms law):", f); continue
+    if new.count(FOOT) == 1: new = new.replace(FOOT, FOOTNEW, 1)
+    print(("APPLY " if apply else "would ") + f + " at its " + how)
     if apply:
         shutil.copy2(f, f + ".bak-" + stamp + "-ceo1232")
         open(f, "w", encoding="utf-8").write(new)
