@@ -152,7 +152,7 @@ Reasoning:
 - **A Lon decision is requested** on the recommended fix (above). Once received, follow-up commit will implement the chosen path.
 - **Empirical probes** (`probe_assoc.sno`, `mixed_op_truth.sno`) live at `/home/claude/work/` in the session sandbox; not committed (one-shot session artifacts).
 
-**Bonus fix landed alongside the audit (`src/lower/lower_sno.c`):** TT_ADD/SUB/MUL/DIV emission was binary-only (`c[0] op c[1]`), silently dropping n-ary children `c[2..n-1]`. Rewrote as left-folded n-ary emission. Verified end-to-end: `--dump-sno` of `20-5+2` → SPITBOL = 17 (was 5); `100-30+10-5` → 75 (was 65). Snocone fixture gate 60/7/0 pre = post.
+**Bonus fix landed alongside the audit (`src/lower/lower_sno.c`):** TT_ADD/SUB/MUL/DIV emission was binary-only (`c[0] op c[1]`), silently dropping n-ary children `c[2..n-1]`. Rewrote as left-folded n-ary emission. Verified end-to-end: `--transpile` of `20-5+2` → SPITBOL = 17 (was 5); `100-30+10-5` → 75 (was 65). Snocone fixture gate 60/7/0 pre = post.
 
 ---
 

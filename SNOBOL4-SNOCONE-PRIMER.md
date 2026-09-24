@@ -21,8 +21,8 @@ At most a few characters will need to be chaned to fix a bug."*
    downstream means anything until SPITBOL runs it.
 3. **THEN THE IPC SYNC-STEP MONITOR, SCRIP AGAINST SPITBOL, ON THAT SAME .sno**:
    `bash scripts/monitor_run.sh prog.sno --oracle --input <input>` — the first divergence names the SCRIP defect.
-   (`scripts/run_parser_sync_monitor.sh` still loads the runtime from the retired `corpus/SCRIP/` path; use `monitor_run.sh`,
-   CEO-1186, the one sanctioned entry point.)
+   For a bootstrap parser, `bash scripts/run_parser_sync_monitor.sh <lang> <sample>` does steps 1–3 in order and stops with
+   rc 4 ("STEP 2 NOT DONE") when SPITBOL itself does not parse the sample (SCRIP 84f956364).
 4. **THEN THE .sc ON SCRIP** — *"First get parser_\*.sno working. Then use those working SNO to get the SC ones working."*
 
 ⛔ **NEVER REWRITE A `parser_*.sc` OR THE BOOTSTRAP LIBRARY.** They are Lon's design and they worked (PARSER-SC closed
@@ -1257,7 +1257,7 @@ the next parser session.
 | 21 | Driver tail iterates `c(ptree)[i]`; the type error surfaces at the iteration site | ✅ TRUE | Trace pinned it to `cmd = ITEM(c(ptree),i)` |
 | 22 | `OPSYN('~','shift',2)` and `OPSYN('&','reduce',2)` | ✅ TRUE | semantic.sc lines 1–2 |
 | 23 | `sbl -bf`: `-b` suppress sign-on, `-f` disable case-folding | ✅ TRUE | Manual Ch 13 option list |
-| 24 | `scrip --dump-sno` is the transpile entry; `lower_sno.c` walks the AST | ✅ TRUE | Verified by running |
+| 24 | `scrip --transpile` is the transpile entry; `lower_sno.c` walks the AST | ✅ TRUE | Verified by running |
 | 25 | `--dump-ast` (oracle) uses attribute form `(STMT :eq :subj …)`; candidate uses positional `(TT_STMT …)` | ✅ TRUE | Empirical, both run |
 | 26 | Implicit pattern-match by juxtaposition (`SUBJECT PATTERN`, whitespace = match) is standard SNOBOL4 | ✅ TRUE | Manual Ch 6 ("In SNOBOL4, a blank can signify a pattern match as well as concatenation") |
 | 27 | Counter-frame invariant: (pushes within frame) == nTop() at frame end | ✅ TRUE | Same as #8 |

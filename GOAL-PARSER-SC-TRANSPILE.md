@@ -1,5 +1,7 @@
 # GOAL-PARSER-SC-TRANSPILE.md — Six parser_*.sc → portable .sno via Snocone→SNOBOL4 transpile
 
+⛔ **THE SWITCH IS `scrip --transpile` (corrected 2026-09-24, hq_snocone, measured): `--dump-sno`, named throughout this file until today, no longer exists — the driver reads it as a filename (`scrip: cannot open '--dump-sno'`). `--transpile` takes every file given and merges them into one `.sno`. Lon, the same day: *"SCRIP has a command-line switch to generate SNO from SC."* The method this file serves is at the head of SNOBOL4-SNOCONE-PRIMER.md.**
+
 ## ⛔⛔⛔⭐⭐⭐ FACT RULE — NO NEW GLOBAL VARIABLES WITHOUT LON'S EXPLICIT PERMISSION (Lon 2026-08-13, in-chat) ⛔⛔⛔
 
 **██ NO SESSION CREATES ANY NEW GLOBAL VARIABLE — file-scope mutable state, pinned VA slot, exported cell, parallel array, or any equivalent — in ANY repo, for ANY reason, without FIRST obtaining Lon's explicit in-chat permission in that same session. Linkage and state ride registers (r10/r11 wires) and the stack. We do not do that here. ██**
@@ -47,7 +49,7 @@ parser_<lang>.sc
        ▼
    tree_t AST                                  ← trust LOWER
        │  tree_to_sno.c (renamed from lower_sno.c, confirmed 2026-08-29)
-       │  Driven by:  scrip --dump-sno
+       │  Driven by:  scrip --transpile
        ▼
 parser_<lang>_transpiled.sno
        │
@@ -58,7 +60,7 @@ parser_<lang>_transpiled.sno
                                       (scripts/run_parser_sync_monitor.sh)
 ```
 
-`tree_to_sno(ast, FILE*)` in `src/lower/tree_to_sno.c` (renamed from `lower_sno.c`, confirmed 2026-08-29) is the transpiler entry. Public CLI: `--dump-sno`.
+`tree_to_sno(ast, FILE*)` in `src/lower/tree_to_sno.c` (renamed from `lower_sno.c`, confirmed 2026-08-29) is the transpiler entry. Public CLI: `--transpile`.
 
 ---
 
@@ -92,10 +94,10 @@ parser_<lang>_transpiled.sno
 
 ### Phase 1 — Transpile MVP per language
 
-- [x] **SCT-1** parser_snobol4.sc → .sno (tree_to_sno.c, renamed from lower_sno.{c,h}, `--dump-sno`, all 30 TT_* tags)
+- [x] **SCT-1** parser_snobol4.sc → .sno (tree_to_sno.c, renamed from lower_sno.{c,h}, `--transpile`, all 30 TT_* tags)
 - [x] **SCT-1b** statement-position control flow + label-sanitize
 - [x] **SCT-1c** SNOBOL4 line-continuation for >1024-char emissions
-- [x] **SCT-1d** multi-file `--dump-sno` + `-CASE 0` prelude + tail dedup
+- [x] **SCT-1d** multi-file `--transpile` + `-CASE 0` prelude + tail dedup
 - [x] **SCT-1e** explicit `?` operator fix in TT_SCAN expression case
 - [x] **SCT-2** parser_rebus.sc → .sno (qtag REPLACE eq-length fix + label_sanitize on TT_VAR)
 - [x] **SCT-SN4-ERR041** parser_snobol4.sc multi-stmt — deleted 2 stray `nInc()` before `*StmtRepl` in `Stmt`. PASS=49→64/88. (2026-05-21d, Opus 4.7)
@@ -121,11 +123,11 @@ parser_<lang>_transpiled.sno
 
 ## 🧠 Critical invariants
 
-1. **Transpiler is C code** (`src/lower/tree_to_sno.c`). Walks `tree_t*`, emits SNOBOL4 to stdout. Driven by `scrip --dump-sno`.
+1. **Transpiler is C code** (`src/lower/tree_to_sno.c`). Walks `tree_t*`, emits SNOBOL4 to stdout. Driven by `scrip --transpile`.
 2. **Trust LOWER.** Transpiler is mechanical — if it emits `oops`, LOWER probably emitted `oops` first. Fix LOWER.
 3. **6 functions only** in parser_*.sc: shift, reduce, nPush, nInc, nTop, nPop. Any 7th is a separate ticket.
 4. **Pattern functions run at BUILD time, not match time.** To defer, use `*FunctionCall()` (deferred operator). The runtime wrappers `nPush()`/`nPop()`/`nInc()` already return `epsilon . *XxxCounter()` patterns, so they ARE deferred — but their **side effects are not reversed on backtrack** (Manual Ch 18). This is the root cause of SCT-9-arbno-fence.
-5. **Canonical runtime chain** (per `scripts/run_scrip_parser.sh`): `global case assign match counter stack tree ShiftReduce tdump gen qize semantic omega trace`. **All 14 must be included in `--dump-sno`** — `assign.sc` in particular is referenced by parser_snocone.sc's `*assign(.captured_*, token)` pattern but easy to miss.
+5. **Canonical runtime chain** (per `scripts/run_scrip_parser.sh`): `global case assign match counter stack tree ShiftReduce tdump gen qize semantic omega trace`. **All 14 must be included in `--transpile`** — `assign.sc` in particular is referenced by parser_snocone.sc's `*assign(.captured_*, token)` pattern but easy to miss.
 
 ---
 
@@ -146,7 +148,7 @@ Adding a new file under `src/lower/`: update both the SRC list and the explicit 
 # ⚠ paths corrected 2026-08-29: corpus/SCRIP/ (the old source location) is retired -- the bootstrap
 # sources now live INSIDE the SCRIP repo itself at SCRIP/bootstrap/, run from the sibling root.
 SD=SCRIP/bootstrap
-SCRIP/scrip --dump-sno \
+SCRIP/scrip --transpile \
     $SD/global.sc $SD/case.sc $SD/assign.sc $SD/match.sc \
     $SD/counter.sc $SD/stack.sc $SD/tree.sc $SD/ShiftReduce.sc \
     $SD/tdump.sc $SD/gen.sc $SD/qize.sc $SD/semantic.sc \
@@ -157,7 +159,7 @@ SCRIP/scrip --dump-sno \
 cat fixture.sc | /home/resources/x64/bin/sbl -bf /tmp/p_snocone.sno 2>&1 | grep -v '^$'
 ```
 
-### `--dump-sno` tree_to_sno.c structure (renamed from lower_sno.c, confirmed 2026-08-29)
+### `--transpile` tree_to_sno.c structure (renamed from lower_sno.c, confirmed 2026-08-29)
 
 `src/lower/tree_to_sno.c`, top-to-bottom:
 1. `sno_ctx_t` — emission state
@@ -232,7 +234,7 @@ later src reorgs (verified against live source, not assumed from a single prior 
 | Repo | Path | Role |
 |------|------|------|
 | SCRIP  | `src/lower/tree_to_sno.c` (renamed from `lower_sno.{c,h}`) | Transpile pass |
-| SCRIP  | `src/driver/scrip.c`                   | `--dump-sno` CLI |
+| SCRIP  | `src/driver/scrip.c`                   | `--transpile` CLI |
 | SCRIP  | `src/ir/ast_print.c` (was `src/ast/ast_print.c`) | TDump-matching length-budget formatter (SCT-9c) |
 | SCRIP  | `src/parsers/snocone/snocone_parse.y` (was `src/frontend/snocone/`) | n-ary flatten for `+ - * /` (SCT-9d) |
 | SCRIP  | `Makefile`                             | build rule + SRC for `tree_to_sno.c` |
@@ -400,7 +402,7 @@ runtime behaviour change. 24 Parse Errors are a separate issue (pattern fixtures
 
 ## Session 2026-05-21c (Claude Opus 4.7) — SCT-BEAUTY-SC + SCT-LOWER-FOR-IDX
 
-**Goal pivot:** Get the Snocone beauty.sc working under SCRIP transpiler (`--dump-sno` → SPITBOL). Carry over constructs verbatim from beauty.sno where the .sc translation diverged.
+**Goal pivot:** Get the Snocone beauty.sc working under SCRIP transpiler (`--transpile` → SPITBOL). Carry over constructs verbatim from beauty.sno where the .sc translation diverged.
 
 **Triage of all three execution modes for parser-driven .sc:**
 
@@ -408,7 +410,7 @@ runtime behaviour change. 24 Parse Errors are a separate issue (pattern fixtures
 |------|--------|
 | `scrip --run` | Infinite "Error 5 Undefined function or operation" at stmt 14 (Shift/nPush not resolved by interpreter). Times out. |
 | `scrip --run` | Same Error 5 loop, 54k stderr lines, timeout. |
-| `scrip --dump-sno` → SPITBOL `-bf` | **Working path.** Transpiles, runs to completion. |
+| `scrip --transpile` → SPITBOL `-bf` | **Working path.** Transpiles, runs to completion. |
 
 Both `--run` and `--run` remain broken for tree-building parsers (pre-existing per session 2026-05-18 notes). Only transpile path is viable.
 
@@ -452,7 +454,7 @@ shift = EVAL('p . thx . *Shift(' qtag(t) ', thx)')
 
 **Option B (lower_sno.c fix):** When lowering a Snocone `TT_FNC` call to `shift(arg, tag)` where tag is a string literal, emit the inlined form `arg . thx . *Shift(tag, thx)` directly instead of a function call. Fixes the transpiler for all six `parser_*.sc` files automatically and is the more robust fix.
 
-**Verify:** after fix, `scrip --dump-sno beauty.sc | sbl -bf` on `x = 5\nEND\n` must produce `Push(Id) Shift(Id, x)` (not Parse Error).
+**Verify:** after fix, `scrip --transpile beauty.sc | sbl -bf` on `x = 5\nEND\n` must produce `Push(Id) Shift(Id, x)` (not Parse Error).
 
 Commits this session:
 - SCRIP `01577f1a` — SCT-LOWER-FOR-IDX
