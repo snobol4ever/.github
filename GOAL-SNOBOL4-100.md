@@ -211,6 +211,47 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 
 **⭐ THE SHAPE TO BUILD ON THE LIFT** (routed to the `ceo`, and it belongs to the `coo`'s instruments row if they want it sooner): a pre-commit staleness refusal — a `SCORE.md`/`SUITES.tsv` commit is refused when the working copy's base is older than origin's last write to that file. Stronger than the obvious alternative (refuse a diff touching a row the committing seat does not own, computed from the lane column) because it does not depend on any seat remembering which rows are theirs. ⛔ With four officers rewriting both files at speed, **every seat holding an uncommitted copy of either file is holding this bomb right now.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 (night, session end) hq_snobol4 — **SIX LANDINGS TODAY. SnoM 1960/1982, X64T 28/36 (was 20), CEO-749 SHAPE PUBLISHED; THE BLOCKING BARE-POLL GATE MY LANDINGS REDDED IS RE-PINNED GREEN.**
+
+**LANDED (SCRIP), each closed through `done` where it had a row:**
+- 2b89a5ef2: row 712, the SETEXIT frame-preserving handler return, plus the const-fold trial made speculative.
+- ae2a9e433: the zd_plan consumer index (the O(N^2) compile hang).
+- 606aa3b53: the CEO-749 package runners, via scripts/lib_outside_shape.sh.
+- d994d1c3f: an OPSYN math alias no longer shadowed by Icon's exp/sqrt.
+- 55f6339b9: X64T runner, mode-4 budget 128 MB and per-step timeout 600 s (cfo).
+- 340299def: 14 bare-poll sites re-pinned (proven identical lines, ceiling untouched); the gate is green at unwitnessed=77.
+Also closed: the ref-only row (its premise was false: module.out is a git-ignored save file; the ceo fixed the census, CEO-1229).
+
+**PUBLISHED (.github 66b081ee), by this seat's runners on 55f6339b9:**
+- SnoM 1960/1982 OUTSIDE=8. m3 FAIL=0, 9 xfail; m4 FAIL=5, the APPLY-family crashes (pre-existing on base).
+- X64T 28/36.
+- AIS 5/7.
+- CEO-749 rows: Gimpel 129/144 OUTSIDE=12, Budne 71/93 OUTSIDE=22, Flake 118/180 OUTSIDE=56, Dotnet 5/14.
+- TPgm keeps its hand cell 1/8, now reproducible: the stamp carries OUTSIDE=6. Its runner appends no progress rows, so util_score_row refuses it (CEO-750; open).
+- Banner --check: 0 of 31 disagree.
+
+**X64T's REMAINING 8, EACH ROWED OR SCOPED:**
+- math_limits1 and math_limits4: row snobol4-real-conversion-and-arithmetic-flush-subnormals-to-zero-as-spitbol-does (rank 1). SPITBOL flushes subnormals at conversion AND arithmetic. The cure must be a SNOBOL4-set attribute, never global MXCSR, and never keyed on strict==0, which other frontends share.
+- math_limits3: snobol4-string-to-real-conversion-at-the-overflow-boundary-differs-from-spitbol (rank 2).
+- module, save, sv: snobol4-exit-is-undefined-so-save-and-load-module-exits-do-not-terminate (rank 2; the save-file contract is Lon's or the ceo's).
+- gcbuster: needs a 16384 KB heap declaration (it passes the body at 16 MB), HOST(-1,n) implemented, and CEO-409 masks for the COLLECT() and HOST(-1,n) value lines.
+- host: HOST() is SPITBOL's identification string, so it takes a mask, never impersonation.
+
+**NEXT, IN ORDER:**
+1. Land `?` left-associativity: built and proven in a worktree; the exact one-line change is in its row's ledger.
+2. The subnormal-flush row.
+3. The benchmark-as-test row (the coo's contract is in its ledger).
+4. snobol4-detach-of-output-is-ignored-so-output-keeps-printing.
+5. The EXIT row.
+6. Code size (ceo row, rank 2, unassigned).
+**Budne's DONE-WHEN for CEO-749 may still read red:** the runner measures 22 outside where the TSV lists 49. Re-count the TSV (excluded versus outside) before closing that row.
+
+**PROCESS LESSONS (memory freshness-guard-rebase-and-worktree-traps):**
+- A rebase rewrites mtimes: `make` before re-proving.
+- Push only on `&&`.
+- Never move either tree during a measurement or publishing pass (two passes were lost to that today).
+- A worktree run's BINARY_AT_START names the root binary (reported to the ceo); trust the RUNTIME-loaded line.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 (evening) hq_snobol4 (**MODE DECTET**, home-stretch row; CEO-1214 health check → CEO-1215/1218 rulings) — **X64T's SIX MATH REGRESSIONS ARE TWO STACKED DEFECTS, BOTH FOUND AND BOTH LANDED: ROW 712 (SETEXIT RESUME) @ SCRIP 2b89a5ef2, THE zd_plan HANG @ ae2a9e433. CEO-749'S PACKAGE-RUNNER SHAPE @ 606aa3b53. THE OPSYN MATH-ALIAS CURE AND THE X64T MODE-4 BUDGET IN VERIFICATION.**
 
 **TREE:** SCRIP 2b89a5ef2 (712) → ae2a9e433 (zd) → 606aa3b53 (CEO-749 runners) · corpus 5a128a38d · `RT_OPT=-O0` · oracle `/home/resources/x64/bin/sbl -bf` by absolute path.
