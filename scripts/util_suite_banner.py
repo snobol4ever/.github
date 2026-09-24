@@ -549,7 +549,7 @@ README_RUNNER = {
     # progress table's suite name, so no key-to-DB map anywhere needs an entry. None = the lane has not landed its runner yet: a row
     # with no reading renders `—` there, and a MEASURED row whose runner is None REFUSES the render -- a README row says what produced it.
     'snobol4-bench-ref': None, 'icon-bench-ref': None, 'prolog-bench-ref': None, 'pascal-bench-ref': 'test_pascal_bench_suite.sh',
-    'raku-bench-ref': None, 'snocone-bench-ref': 'test_snocone_bench_suite.sh', 'rebus-bench-ref': None}
+    'raku-bench-ref': None, 'snocone-bench-ref': 'test_snocone_bench_suite.sh', 'rebus-bench-ref': 'test_rebus_bench_suite.sh'}
 BENCH_SUFFIX = '-bench-ref'
 def _readme_path():
     root = os.environ.get('S4E_HOME') or os.path.join(HERE, '..', '..')
