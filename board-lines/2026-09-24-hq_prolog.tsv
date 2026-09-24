@@ -1,0 +1,6 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+825d2ca80	inria	hq_prolog	INRIA_SUITE_BOARD total=445 m3_pass=442 m3_fail=0 m3_crash=0 m4_pass=442 m4_fail=0 m4_crash=0 OUTSIDE=3 is the OUTCOME-CLASS-ONLY upper bound, which ignores what a goal bound and can only move down when tightened
+825d2ca80	pl-master	hq_prolog	SUITE_BOARD total=563 m3_pass=563 m4_pass=563 fail=0 crash=0 (corpus_suite_harness.py run ALL.pl ALL.ref --lang prolog --modes m3,m4, SCRIP 825d2ca80 corpus fdc8455da, shipped arena 128 KB, 2026-09-24, hq_prolog)
