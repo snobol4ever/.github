@@ -36,7 +36,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | ProBench | prolog | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | PasBench | pascal | 11/11 | 2026-09-23 (today) | `d01084dc2` | done |
 | RakBench | raku | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
-| RebBench | rebus | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| RebBench | rebus | 3/3 | 2026-09-23 (today) | `84f956364` | done |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
