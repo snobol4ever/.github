@@ -29,7 +29,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | SncM | snocone | 337/337 | 2026-09-23 | `ecf3aea38` | done |
 | SncBench | snocone | 16/16 | 2026-09-23 | `8a2e9bdff` | done |
 | RebM | rebus | 43/43 | 2026-09-23 | `fa27bcdf9` | done |
-| Logtalk | prolog | 2941/3600 | 2026-09-23 (today) | `30d3340cd` |  |
+| Logtalk | prolog | 2941/3600 | 2026-09-23 | `30d3340cd` |  |
 | X64T | snobol4 | 20/36 | 2026-09-23 | `9dc4d12d4` |  |
 | SnoBench | snobol4 | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | IcnBench | icon | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
