@@ -32,7 +32,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | Logtalk | prolog | 3235/3600 | 2026-09-24 | `985b89273` |  |
 | X64T | snobol4 | 28/36 | 2026-09-23 | `55f6339b9` |  |
 | SnoBench | snobol4 | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
-| IcnBench | icon | 26/26 | 2026-09-23 | `7ca372ff6` | done |
+| IcnBench | icon | 26/26 | 2026-09-24 | `24dc6f75a` | done |
 | ProBench | prolog | 23/23 | 2026-09-23 | `3b5f301f1` | done |
 | PasBench | pascal | 11/11 | 2026-09-24 | `0595c3ede` | done |
 | RakBench | raku | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
