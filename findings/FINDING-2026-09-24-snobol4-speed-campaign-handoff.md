@@ -71,3 +71,24 @@ The fleet is QUIET under CEO-1237 since 12:53; the all-clear is Lon's. hq_snobol
 
 ## 9. Session setup for the next sitting
 `git -C SCRIP fetch && git -C SCRIP merge --ff-only origin/main` (same for corpus, .github), `make` in SCRIP, `bash scripts/s4e_msg.sh check`, then `bash scripts/s4e_msg.sh next` from the ceo seat serves the campaign row and runs its probe; read this file, then start at § 3 item 1 with the treebank profile (`corpus/demos/snobol4/treebank/treebank.sno`, input ×1024, `SCRIP_HEAP_KB=524288`, `ulimit -s 262144`).
+
+## 10. ICON, MEASURED THE SAME EVENING (Lon 17:5x: *"run the Icon benchmarks and report comparison to before-reported numbers and to Arizona Icon"*)
+
+**The ten-kernel grid** (`scripts/bench_icon_kernels.sh`, the README's own 09-10 instrument: callgrind Ir, m4 × vs Arizona `iconx` 9.5.25a = iconx Ir / m4 Ir; all ten PASS byte-identically in both modes), today's `c8ba94210` against the README's 09-10 reading on `3bbdfc8c7`:
+
+| kernel | 09-10 | today | ratio |
+|---|---:|---:|---:|
+| int_loop | 9.04x | 8.93x | 1.0 |
+| mod_isolate | 6.75x | 5.04x | 1.3 |
+| concat_dispatch | 23.61x | 21.02x | 1.1 |
+| list_dispatch | 3.55x | 0.49x | 7.2 |
+| concat_strvar | 2.84x | 0.56x | 5.1 |
+| table_miss_dispatch | 1.92x | 0.38x | 5.1 |
+| concat_int_dispatch | 1.09x | 0.47x | 2.3 |
+| table_miss_semantics | 1.09x | 0.17x | 6.3 |
+| concat_intvar | 0.95x | 0.41x | 2.3 |
+| concat_table | refused (wall 0.59x) | 0.20x (wall 0.06x) | ~10 |
+
+Geometric mean over the nine the 09-10 grid published: **3.16x then, 1.00x now**; the integer loops are unchanged and every string-concatenation, list, table and dispatch kernel fell 2–7x — the same classes as SNOBOL4's losses (string_manip, table_access, name_indirection, the call path), which points at the shared runtime nodes (allocation and the GC poll on every allocating return, the by-name/dispatch path, table stores) rather than the Icon front end. The SNOBOL4 campaign's cures are therefore graded on these ten too; hq_icon holds the Icon row.
+
+**The classic set** (`bench_icon_classic_set.sh`, the README's other 09-10 instrument) is BROKEN as an instrument: it links mode 4 with `gcc -no-pie` (line 146; the harness abandoned `-no-pie` — a PIE relocation failure now reads BUILDFAIL) and its mode-3 arm reports rc=1 on programs that run clean by hand (`concord` m3 rc=0, 61,565 bytes, at the shipped arena). Run by hand (best of 5 whole-program wall, iconx on the icont-compiled program, SCRIP arena 512 MB, outputs identical across the three engines): concord 30 KB 22.6 / 40.7 / 31.0 ms → m3 0.56x, m4 0.73x (09-10: 0.33x); rsg 23.3 / 53.6 / 30.7 → 0.43x / 0.76x (09-10: 0.33x); ipxref 6 KB 2.4 / 23.2 / 5.5 → 0.10x / 0.43x; deal and queens ran their argument-less defaults (iconx 0.6 and 1.0 ms — startup, not comparable to the 09-10 rows, which passed arguments); **geddump 379 KB 115.3 / 2583.7 / 2499.8 ms → 0.04x / 0.05x — correct now (09-10: SIGSEGV in both modes), and the worst Icon workhorse by 20x.** The instrument fix (`-no-pie` off, the m3 arm's rc read) and the geddump profile are hq_icon's; they are the Icon mirror of § 3 items 1, 3 and 5.
