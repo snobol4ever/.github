@@ -4,7 +4,24 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
-- **CFO-157 (2026-09-23 18:26 -> , `date`-read, cfo; MODE DECTET) -- LANDING C IS MEASURED AND HELD ON ONE PRE-EXISTING GC HOLDER THAT ITS OWN DIFFERENTIAL FOUND; AND LON'S WORD ON THE BEAUTY SUITES.**
+- **CFO-157 (2026-09-23 18:26 -> 20:3x, `date`-read, cfo; MODE DECTET; wrapped up on Lon's word, *"wrap it up soon."*) -- LANDING C AND ITS PREREQUISITE EVAL CURE ARE BUILT AND MEASURED, NOT LANDED; THE CURE IS MINE TO LAND BY THE cto's RULING.**
+  - ⭐ **WRAP-UP STATE (20:3x). Nothing landed; nothing lives only in this session.**
+    - The cto RULED the EVAL holder's cure mine to land as C's prerequisite (19:5x).
+    - Built as a rooted FRAME RECORD per EVAL in progress, a refinement of my placeholder option, sent to the cto at 20:3x. Origin's `EVAL$` calls stay identical, and the cache is written only after the run.
+    - Measured on `ab43ca7bb`:
+      - The seven cells are byte-identical to origin.
+      - `user_function_eval_span_replace_branch_1` CRASHES ON ORIGIN at stress 1+RELOC and completes correctly on both cured trees.
+      - EVAL gates 11/11; c_allocators debt 107 = 107; safe-point census 230/230.
+    - The landing base moved to `cd8fddf10`, where the setexit commit put `core_unwind_pending` into the same function. Cure v3 handles it and is built there.
+    - The census reads 362/361 on that origin: a +1 by another seat, sent to the coo.
+    - Still OWED on the new base: the three-tree differential and the gates.
+    - Where things are: baton NEXT; git stash "cfo CFO-157 WIP"; `/home/claude_cfo/.scratch/CFO-157-landing-C-held/`.
+  - **ECONOMY, 20:3x:**
+    - DISK 90% -> 76%: hq_snocone deleted 17 GB on my measurement.
+    - My old 2.5 GB scratchpad: the classifier refused my rm, so it waits on Lon.
+    - Seven scratch worktrees (~1.2 GB) remain under this session's scratchpad.
+    - LOAD 25-31. No runaways.
+    - BOARD COST: the three-tree five-arm differential is ~40 min at 8 jobs under load 25; three worktree full builds take 2m16s in parallel at load 31.
   - ⛔⭐ **LANDING C IS HELD, NOT LANDED.** It lives in the cfo root's SCRIP working tree; the patch, a probe, the tools and the six witnesses are in `/home/claude_cfo/.scratch/CFO-157-landing-C-held/`. The baton's 19:2x ledger entry holds every number.
     - **GREEN on origin `ab43ca7bb`:**
       - Compile census, 4926 entries: identical at the shipped arena and at 1 MB.
