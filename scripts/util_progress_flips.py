@@ -26,8 +26,24 @@ import sys, csv, argparse, collections, datetime, os, re, glob, io
 HERE = os.path.dirname(os.path.abspath(__file__))
 SUITES_TSV = os.path.join(HERE, "..", "SUITES.tsv")
 PO = "/home/resources/postoffice"
-MASTER_KEYS = {"snobol4-master": "sno-master", "icon-master": "icn-master", "prolog-master": "pl-master", "pascal-master": "pas-master",
-               "raku-master": "raku-master", "snocone-master": "snc-master", "rebus-master": "reb-master"}
+# ⛔ THE SUITES.tsv KEY -> PROGRESS SUITE MAP IS READ FROM ITS ONE AUTHORITY, NEVER COPIED HERE (coo 2026-09-24, on the ceo's CEO-1230
+# tick: "X64T MISSING by KEY MISMATCH (SUITES.tsv x64tests, the runner appends spitbol_x64, 1656 rows; util_suite_rows_vs_progress.py
+# maps it, util_progress_flips.py --coverage does not"). This file carried its own copy, MASTER_KEYS, which knew the seven masters and
+# not x64tests, so --coverage printed X64T MISSING beside 1656 live rows under "(not in SUITES.tsv)" -- two instruments, two answers,
+# one table. It now imports DBNAME from SCRIP/scripts/util_suite_rows_vs_progress.py, the map that audit already used.
+def suite_db_names():
+    """SUITES.tsv key -> the progress table's suite name (a key it does not name is its own name), or None when the one map cannot be
+    read -- a caller REFUSES then, because guessing the names is exactly how a suite with 1656 rows read MISSING."""
+    sd = os.path.join(os.environ.get("S4E_HOME") or os.path.join(HERE, "..", ".."), "SCRIP", "scripts")
+    sys.path.insert(0, sd)
+    try:
+        import util_suite_rows_vs_progress as _m
+        return dict(_m.DBNAME)
+    except (ImportError, AttributeError):
+        return None
+    finally:
+        if sys.path and sys.path[0] == sd:
+            sys.path.pop(0)
 REPLAY = "ceo-replay"
 # The declared configuration that CONTINUES a runner's undeclared series when the runner began declaring (cmd_flips' NET rule, coo
 # 2026-09-23). MEASURED, not assumed: over 2026-09-20T22:00Z..09-23T22:42Z the table's declared labels were `shipped` (394,631 rows, the
@@ -571,13 +587,17 @@ def cmd_coverage(a, rows):
         if r["ts_utc"] > b["last"]:
             b["last"] = r["ts_utc"]
     suites = read_suites_tsv()
-    inv = {v: k for k, v in MASTER_KEYS.items()}
+    names = suite_db_names()
+    if names is None:
+        print("REFUSE(rc=2): --coverage cannot read the SUITES.tsv-key -> progress-suite map from SCRIP/scripts/util_suite_rows_vs_progress.py "
+              "(DBNAME) beside this .github -- without it a suite whose runner appends under another name reads MISSING", file=sys.stderr)
+        return 2
     print(f"{'suite (SUITES.tsv key)':24s} {'nick':8s} {'db suite':16s} {'rows':>6s} {'live':>6s} {'programs':>12s} {'modes':8s} {'last row (UTC)':20s} age")
     missing = []
     seen = set()
     for s in suites:
         key = s["key"]
-        dbk = inv.get(key, key)
+        dbk = names.get(key, key)
         seen.add(dbk)
         b = by.get(dbk)
         total = s.get("today_total", "?")
