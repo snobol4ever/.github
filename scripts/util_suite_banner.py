@@ -93,6 +93,29 @@ def save(head,rows):
     for r in rows: lines.append('\t'.join(r[h] for h in head)+'\n')
     open(TSV,'w',encoding='utf-8').write(''.join(lines))
 def d(s): return dt.date.fromisoformat(s)
+def box_clock_day():
+    """The BOX-CLOCK day -- the box's own zone (/etc/timezone, else the /etc/localtime link), never the calling process's TZ.
+
+    ⛔ WHY NOT dt.date.today() (coo 2026-09-23, CEO-1229, row instruments-suite-banner-set-refuses-a-date-later-than-the-box-clock-
+    day): SUITES.tsv's dates are box-clock CDT days, and a writer running under another zone labels an evening reading TOMORROW --
+    measured: .github 4f4ca80f, committed 19:59 CDT on 2026-09-23, wrote pat and pas-master dated 2026-09-24 while fpc and
+    pascal-bench-ref in the same commit read 2026-09-23. A guard computed in the caller's zone would inherit the caller's error."""
+    tz = ""
+    try:
+        tz = open("/etc/timezone", encoding="utf-8").read().strip()
+    except OSError:
+        pass
+    if not tz:
+        try:
+            _l = os.readlink("/etc/localtime")
+            tz = _l.split("zoneinfo/", 1)[1] if "zoneinfo/" in _l else ""
+        except OSError:
+            pass
+    try:
+        from zoneinfo import ZoneInfo
+        return dt.datetime.now(ZoneInfo(tz)).date() if tz else dt.date.today()
+    except Exception:
+        return dt.date.today()
 def recriterioned(r):
     """The row's first reading was taken under a DIFFERENT criterion than today's, so today_pass
     and first_pass are not two readings of one thing and their difference is not a movement.
@@ -689,7 +712,18 @@ def main(a):
             if len(a)<=j+1 or not re.match(r'^\d{4}-\d{2}-\d{2}:\S', a[j+1]):
                 sys.stderr.write("REFUSE(rc=2): --criterion-changed takes '<YYYY-MM-DD>:<reason in words>' (the day the criterion moved, a colon, then why)\n"); sys.exit(2)
             stamp=a[j+1]; a=a[:j]+a[j+2:]
-        i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else dt.date.today().isoformat(); tree=a[i+5] if len(a)>i+5 and not a[i+5].startswith('-') else None
+        i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else box_clock_day().isoformat(); tree=a[i+5] if len(a)>i+5 and not a[i+5].startswith('-') else None
+        # ⛔ A READING CANNOT BE GRADED TOMORROW (CEO-1229): a DATE later than the box-clock day is refused before a byte moves, naming
+        # the key, the date and the day, so the writer that computed its day in another zone is found by the refusal on its next run.
+        try:
+            _dd = d(date)
+        except ValueError:
+            sys.stderr.write(f"REFUSE(rc=2): {key}'s DATE {date!r} is not YYYY-MM-DD. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        _bc = box_clock_day()
+        if _dd > _bc:
+            sys.stderr.write(f"REFUSE(rc=2): {key}'s DATE {date} is later than the box-clock day {_bc} -- a reading cannot be graded "
+                             f"tomorrow; the writer computed its day in another zone (UTC past 19:00 CDT is the measured case). The "
+                             f"table's dates are box-clock days. NOTHING WAS WRITTEN.\n"); sys.exit(2)
         head,rows=load(); r=next((x for x in rows if x['key']==key),None)
         # ⛔ A REFUSAL EXITS 2 (coo 2026-09-23): sys.exit(<a string>) exits 1, so this refusal and the render refusal below printed
         # "REFUSE(rc=2)" while returning a RED's code -- measured on the benchmark rows' first write, which is how it was noticed.
