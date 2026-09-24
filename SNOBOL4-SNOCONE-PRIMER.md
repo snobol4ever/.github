@@ -7,6 +7,31 @@ Update this file every time you discover something you wished you knew.
 
 ---
 
+## ⛔⭐⭐⭐ LON'S METHOD FOR FINDING AND FIXING ANY SNOCONE PROBLEM — AND THE NO-REWRITE RULE (2026-09-24)
+
+Lon, verbatim: *"So you have a perfect storm of how to find and fix problems in Snocone. You transpile to \*.sno, then run
+the \*.sno with IPC sync-step monitor to compare SCRIP to SPITBOL. But first you get the transpiled program working is
+SPITBOL. Are you taking notes?"* — and, the same hour: *"Ensure there is no re-write of any of the parser_\*.sc programs.
+At most a few characters will need to be chaned to fix a bug."*
+
+1. **TRANSPILE** the Snocone program to SNOBOL4: `scrip --transpile prog.sc > prog.sno` (a parser: the 14-file bootstrap
+   runtime chain + `parser_<lang>.sc`, in the order `util_parser_sc_census.py` uses).
+2. **GET THE .sno WORKING ON SPITBOL FIRST**: `/home/resources/x64/bin/sbl -bf [-s64m] prog.sno < input`. If the oracle
+   cannot run it, the fault is in the transpile (`src/lower/tree_to_sno.c`) or in the program — fix that first; nothing
+   downstream means anything until SPITBOL runs it.
+3. **THEN THE IPC SYNC-STEP MONITOR, SCRIP AGAINST SPITBOL, ON THAT SAME .sno**:
+   `bash scripts/monitor_run.sh prog.sno --oracle --input <input>` — the first divergence names the SCRIP defect.
+   (`scripts/run_parser_sync_monitor.sh` still loads the runtime from the retired `corpus/SCRIP/` path; use `monitor_run.sh`,
+   CEO-1186, the one sanctioned entry point.)
+4. **THEN THE .sc ON SCRIP** — *"First get parser_\*.sno working. Then use those working SNO to get the SC ones working."*
+
+⛔ **NEVER REWRITE A `parser_*.sc` OR THE BOOTSTRAP LIBRARY.** They are Lon's design and they worked (PARSER-SC closed
+2026-05-07, `beauty.sc` 1148/1148 on SCRIP). When one fails, assume it is right and find what changed underneath it. A fix to
+a parser is a few characters; a bigger change is Lon's call, asked first. Measured cost of breaking this: hq_snocone
+rewrote `parser_rebus.sc` and `parser_snocone.sc` on 2026-09-23 (SCRIP 241563a2e, d1455f883) — withdrawn, restored
+byte-for-byte at b83cdf352 — and every real cause that day was outside the parsers (the transpiler, `&MAXLNGTH`, `REAL()`,
+two compiler zd_plan defects).
+
 ## THE most important thing — `.` vs `$` execution model
 
 **This is the #1 source of bugs. Read it before anything else.**
