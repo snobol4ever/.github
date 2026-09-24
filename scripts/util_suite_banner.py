@@ -554,7 +554,7 @@ README_RUNNER = {
     # ⭐ THE BENCHMARK ROWS (Lon 2026-09-23 17:2x, CEO-1221; row instruments-benchmarks-enter-the-suite-grid-..., the coo): KEY = the
     # progress table's suite name, so no key-to-DB map anywhere needs an entry. None = the lane has not landed its runner yet: a row
     # with no reading renders `—` there, and a MEASURED row whose runner is None REFUSES the render -- a README row says what produced it.
-    'snobol4-bench-ref': None, 'icon-bench-ref': 'test_icon_bench_suite.sh', 'prolog-bench-ref': None, 'pascal-bench-ref': 'test_pascal_bench_suite.sh',
+    'snobol4-bench-ref': None, 'icon-bench-ref': 'test_icon_bench_suite.sh', 'prolog-bench-ref': 'test_prolog_bench_suite.sh', 'pascal-bench-ref': 'test_pascal_bench_suite.sh',
     'raku-bench-ref': None, 'snocone-bench-ref': 'test_snocone_bench_suite.sh', 'rebus-bench-ref': 'test_rebus_bench_suite.sh'}
 BENCH_SUFFIX = '-bench-ref'
 def _readme_path():
