@@ -211,6 +211,36 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 
 **⭐ THE SHAPE TO BUILD ON THE LIFT** (routed to the `ceo`, and it belongs to the `coo`'s instruments row if they want it sooner): a pre-commit staleness refusal — a `SCORE.md`/`SUITES.tsv` commit is refused when the working copy's base is older than origin's last write to that file. Stronger than the obvious alternative (refuse a diff touching a row the committing seat does not own, computed from the lane column) because it does not depend on any seat remembering which rows are theirs. ⛔ With four officers rewriting both files at speed, **every seat holding an uncommitted copy of either file is holding this bomb right now.**
 
+## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-24 (day) hq_snobol4 — **? IS LEFT ASSOCIATIVE (LANDED 8458c3918 + WITNESS 7d5489925); SnoM 1963/1985 PUBLISHED; THE MODE-4 APPLY CRASH IS FOUND AND CURED IN A WORKTREE (SnoM m4 CRASH 5 -> 0), LANDING HELD FOR THE cto's PUSH; THE TERMINATION REPORT IS NAMED AS THE BIGGEST LEVER AND ASKED.**
+
+**TREE:** SCRIP 825d2ca80 · corpus c91ff9f39 · `RT_OPT=-O0` · oracle `/home/resources/x64/bin/sbl -bf` by absolute path.
+
+**LANDED:**
+- SCRIP 8458c3918: `expr1 : expr1 T_2QUEST expr2`. The regenerated snobol4.tab.c must come from `scripts/regenerate_parser_and_lexer_from_sources.sh`: raw bison reds the in-sync gate, because the allocator post-process is part of generation. Receipts are in the row's ledger. SnoM 1984 base vs head is identical by name in both modes. The AST census (1167 sources, 178 .inc, 15 .scrip) and the m3 runtime differential (639 package programs) are identical; both instruments were proven able to DIFF on the witness, including CODE() at run time.
+- corpus 7d5489925: witness `query_left_assoc_chain` (1984 -> 1985).
+- corpus c91ff9f39: simple_output_62's stale xfail reason gets a dated addendum. The hang is gone; it is red on the termination report.
+- .github 0bb27a74: **SnoM 1963/1985 OUTSIDE=8 on 8458c3918**, published with its criterion change (three witnesses entered today).
+- Rows closed by computed done: `snobol4-query-is-left-associative-and-a-query-chain-lowers`, and the execute-bit row (after the cfo's 9c50114a3).
+
+**IN HAND, NOT LANDED -- `snobol4-apply-in-mode-4-dumps-core-...` (rank 0, claimed):**
+- Class: in mode 4, APPLY of a user-defined function with at least one actual SIGSEGVs.
+- Mechanism: 94cc8f6e2 (09-21) sends argument-bearing APPLY down the named road, where `rt_call_open_by_name` returns `p->fn` with how=1 and the call site enters with push-γ/ω. Mode 3 registers the body `LBL__F`. Mode 4 registers the role-4 SIG shim `F_α` through bb_define.cpp's `SCRIP_DEFINE_FN_DIRECT_ALPHA` branch (205f54b31, 08-29). The shim reads a signature record from rcx and gets γ's code address instead.
+- Cure: delete that branch, so the registration is `lbl_t0` in both media (3 lines -> 1). Worktree on 75ad12789: the APPLY gate is GREEN in both modes. SnoM by name moves m4 CRASH 5 -> 0 (user_function_apply_1/2/4, apply_trim_replace_1, benchmark_indirect_dispatch) and nothing else. The m4 runtime differential over 639 package programs is identical. The 15 polyglots are identical with the knob off and on, so the polyglot reason for the knob is gone.
+- **HELD on the cto's word:** land after the cto's next push. In the landing, re-cut `scripts/gc_bare_poll_witnesses.tsv` with `util_gc_safe_point_contract.py ... --write-bare-poll-table`. The 5 bb_define.cpp rows slide by -2 (lines 430, 708, 757, 805, 944). Run the bare-poll gate and name the rows in the commit. If the re-cut moves anything else, send the diff to the cto instead of landing.
+
+**ROWS MINTED (mine, rank 1, red):** an expression-level `?` whose pattern is a nested scan, an assignment or a list FATALs in lowering, while the same operands work at statement level; and a statement-level chain `A ? B ? C` is a parse error.
+
+**THE BIGGEST LEVER, ASKED (cfo, 2026-09-24):** SPITBOL's error-termination report.
+- 23 csnobol4 and 33 gimpel programs are excluded as "oracle died: graceful fatal report". That matches Budne OUTSIDE=22 and Gimpel OUTSIDE=12, and SnoM simple_output_62 is the same class.
+- The cure site is `core_error_voice` (core.c), shared by every language, so I asked for a ruling on how to select the report without a language name or a new global. My preference is a SNOBOL4-family lowered node that hands the runtime a report shape.
+
+**INSTRUMENT FINDINGS:**
+- `corpus_suite_harness.py run --shard` refuses on any suite with an outside list: it filters before the presence check. The coo's row, rank 1. My arm uses `--outside-none` meanwhile.
+- A worktree harness run without `S4E_HOME` reads the include dir under the worktree's parent, so every `-INCLUDE` entry reads FAIL m3 / SKIP m4 (memory updated).
+- `test_gate_no_new_function_scope_static.sh` is red on origin, identically on base (6 runtime files over their ceilings). It is not wired into the Makefile.
+
+**NEXT, IN ORDER:** 1. Land APPLY on the cto's push. 2. The caps row (alternation 64 / sequence 128). 3. The rtpat row. 4. The two `?` siblings. 5. The termination report when it is ruled. 6. The subnormal-flush row (X64T). 7. The EXIT row.
+
 ## ⛔⭐⭐⭐⭐⭐ LIVE CURSOR — 2026-09-23 (night, session end) hq_snobol4 — **SIX LANDINGS TODAY. SnoM 1960/1982, X64T 28/36 (was 20), CEO-749 SHAPE PUBLISHED; THE BLOCKING BARE-POLL GATE MY LANDINGS REDDED IS RE-PINNED GREEN.**
 
 **LANDED (SCRIP), each closed through `done` where it had a row:**
