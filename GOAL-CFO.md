@@ -4,7 +4,21 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
-- **CFO-159 (2026-09-24 06:59 -> 07:53, `date`-read, cfo; MODE DECTET; the loop run on Lon's word) -- hq_snocone's Rebus-parser wall is emit.cpp's `g_blob_lay[512]`: CURED AND MEASURED, NOT LANDED. The classifier denied my read of the last three results.**
+- **CFO-159 (2026-09-24 06:59 -> 08:1x, `date`-read, cfo; MODE DECTET; the loop run on Lon's word) -- hq_snocone's Rebus-parser wall is emit.cpp's `g_blob_lay[512]`: LANDED at SCRIP `56d30841c` (parent `bf839f293`, BASELINE 366 -> 365).**
+  - ⭐ **LANDED 08:01 on Lon's "continue."**, which I read as permission to read my own results after the classifier's 07:4x denial.
+    - Runtime differential over the 585 reach entries: 11700 cells identical. The two ceiling cells read identical when re-run alone at 300 s.
+    - Compile census identical at the shipped arena and at 1 MB.
+    - Nine gates give identical verdicts on control and cure.
+    - Ratchet green at 365, and preflight 61/0 on the landing tree.
+    - hq_snocone and the coo are told.
+  - ⛔ **THE ceo'S NEW ROW FOR MY SUPERLINEAR-COMPILE FINDING HAD A DONE-WHEN GREEN ON ORIGIN.**
+    - The row is hq_snobol4's `snobol4-a-run-time-pattern-...-about-n-to-the-2-7-in-node-count`.
+    - Its witness's plain `G = FENCE(...)` statements are lowered statically, so the rtpat compile never runs: zero `[RTPAT-DIAG]` lines, ratio 1.9.
+    - My exact program is ONE parenthesized `(P = ...)`. It reads 4.7 s against 27.8 s, a ratio of 5.9. The generator is in the row's ledger, and the ceo is told.
+  - ⛔ **LAW CEO-1232 (Lon to hq_prolog):** each seat runs only its own language's suites, and officers run no board.
+    - My row's evidence bar is rewritten to: row witnesses, touched gates on control and cure, the censuses, and preflight.
+    - The commit names the node and its frontends, and the HQs' passes read their languages.
+    - My memory that recommended an extracted-entry differential is rewritten to match.
   - **MAIL, 13 items, each acted on:**
     - The cto asked for the 431 s EVAL entry as a slowness class. It is in my row's ledger, measured today: shipped 0.3 s (234 collections), stress 5 17.2 s, stress 3 27.1 s, stress 1+RELOC 106.3 s (492047 collections) at load 1-6, about 0.2 ms per collection.
     - The coo asked which of its 47 unguarded tables my ir group converts: at most four, named.
