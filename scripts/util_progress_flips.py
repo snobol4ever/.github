@@ -29,6 +29,12 @@ PO = "/home/resources/postoffice"
 MASTER_KEYS = {"snobol4-master": "sno-master", "icon-master": "icn-master", "prolog-master": "pl-master", "pascal-master": "pas-master",
                "raku-master": "raku-master", "snocone-master": "snc-master", "rebus-master": "reb-master"}
 REPLAY = "ceo-replay"
+# The declared configuration that CONTINUES a runner's undeclared series when the runner began declaring (cmd_flips' NET rule, coo
+# 2026-09-23). MEASURED, not assumed: over 2026-09-20T22:00Z..09-23T22:42Z the table's declared labels were `shipped` (394,631 rows, the
+# board runners) and stress or arena campaigns (SCRIP_HEAP_MB=1, SCRIP_GC_STRESS=N and their combinations, the ceo's and hq_snocone's),
+# which continue nothing. ⛔ ITS LIMIT, NAMED: a program whose normal run declares its own arena (CEO-1167, e.g. a benchmark at
+# SCRIP_HEAP_KB=16384) is not continued by this set; if runners begin declaring another default label, it joins here with its census.
+CONTINUES_UNDECLARED = ("shipped",)
 NOT_A_READING = ("REFUSE", "SKIP", "MISSING", "UNGRADED")  # the run did not measure the program: never a flip, never "the previous reading", never a status
 
 
@@ -198,6 +204,42 @@ def cmd_flips(a, rows):
         latest[k] = r["outcome"]; latest_row[k] = r
         if r["outcome"] == "PASS":
             last_pass_row[k] = r
+    # ⛔⭐ A STOPPED UNDECLARED SERIES IS SUPERSEDED, NEVER A VERDICT OF ITS OWN (coo 2026-09-23, row instruments-progress-flips-counts-a-
+    # program-lost-when-its-runner-began-declaring-a-config-and-the-undeclared-series-stopped; the ceo's 17:0x measurement). Keying on the
+    # config is right (a shipped PASS must never hide an arena FAIL), but the day a runner began DECLARING its config, the program's
+    # undeclared series stopped, and its last reading stayed its verdict forever: 37 master programs read LOST over 09-20..09-23 while every
+    # one PASSED on its latest published clean reading. ONE RULE: an undeclared series is SUPERSEDED when the declared series that
+    # CONTINUES it -- the same (suite, program, mode) at a configuration in CONTINUES_UNDECLARED -- has a clean reading after its last one.
+    # It stops being a position, and the continuing series, when it was BORN INSIDE THE WINDOW after the undeclared base, INHERITS that
+    # base, so the program is compared base -> now ACROSS the switch: a regression across the change stays LOST, a red-to-green across it
+    # is a GAIN (the mirror the old rule missed), a green-then-red across it is no longer a gain (the mirror false gain). ⛔ ONLY THE
+    # CONTINUING SERIES INHERITS. The first cut handed the base to EVERY declared series born in the window, and on the frozen 4.18M-row
+    # snapshot master LOST went 37 -> 83: sixty stress and arena series (SCRIP_HEAP_MB=1, SCRIP_GC_STRESS=N, born inside the window, most
+    # of them STOPPED) read as losses against an undeclared PASS they never continued. Across configurations a change is a differential,
+    # not a flip (this function's own rule, and --contradictions says the same), so an arena series keeps its own base exactly as before.
+    # A declared series is NEVER superseded: one whose own base was green and whose last reading is red stays LOST even beside a later
+    # shipped PASS, and when it has stopped (a retired arm) it says STOPPED beside the program's latest reading. The superseded are
+    # COUNTED on the NET line and NAMED under --names, so the rule is itself a reading.
+    groups = collections.defaultdict(list)
+    for k in latest:
+        groups[k[:3]].append(k)
+    superseded, stopped_decl, inherited = {}, {}, set()
+    for g, ks in groups.items():
+        u = g + ("undeclared",)
+        decl = [k for k in ks if k[3] != "undeclared"]
+        if u in latest and decl:
+            later = [k for k in decl if k[3] in CONTINUES_UNDECLARED and latest_row[k]["ts_utc"] > latest_row[u]["ts_utc"]]
+            if later:
+                superseded[u] = max(later, key=lambda k: latest_row[k]["ts_utc"])
+                for k in later:
+                    if base_row[k]["ts_utc"] >= since and base_row[k]["ts_utc"] > base_row[u]["ts_utc"]:
+                        base[k] = base[u]; base_row[k] = base_row[u]; inherited.add(k)
+                        if k not in last_pass_row and u in last_pass_row:
+                            last_pass_row[k] = last_pass_row[u]
+        newest = max(ks, key=lambda k: latest_row[k]["ts_utc"])
+        for k in decl:
+            if latest_row[k]["ts_utc"] < latest_row[newest]["ts_utc"]:
+                stopped_decl[k] = latest_row[newest]
     cls_of = {}
     for r in sel:
         cls_of.setdefault(r["suite"], r["class"])
@@ -205,11 +247,16 @@ def cmd_flips(a, rows):
     lost = collections.defaultdict(set)
     reclass = collections.defaultdict(set)   # PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED: a reclassification, never a loss (ceo CEO-806)
     RECLASS = {"OUTSIDE", "UNGRADABLE", "UNGRADED", "DEFERRED"}
+    gained_across = set()
     for k in latest:
+        if k in superseded:
+            continue
         suite, prog, mode, _cfg = k
         cls = cls_of.get(suite, "?")
         if base.get(k) != "PASS" and latest.get(k) == "PASS":
             net[cls].add((suite, prog))
+            if k in inherited:
+                gained_across.add((suite, prog))
         if base.get(k) == "PASS" and latest.get(k) != "PASS":
             # ⛔ A PASS THAT BECAME OUTSIDE IS A RECLASSIFICATION, NOT A LOSS (ceo CEO-806, 2026-09-16: seven of nine 'master losses' were the
             # SnoM ALL.outside.tsv entries appended as OUTSIDE by hq_snobol4's runner, whose 'last PASS' was the false green CEO-749 named).
@@ -218,8 +265,21 @@ def cmd_flips(a, rows):
     print(f"NET distinct programs green now, not green at the window base (dirty rows skipped: {dirty_skipped}): "
           f"master {len(net['master'])}, package {len(net['package'])}, benchmark {len(net['benchmark'])}; "
           f"lost since the base: master {len(lost['master'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}; "
-          f"reclassified (PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED, not a loss): master {len(reclass['master'])}, package {len(reclass['package'])}, benchmark {len(reclass['benchmark'])}")
+          f"reclassified (PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED, not a loss): master {len(reclass['master'])}, package {len(reclass['package'])}, benchmark {len(reclass['benchmark'])}; "
+          f"superseded undeclared series (a declared series of the same program and mode read after their last reading, so they are not positions): {len(superseded)}")
     if a.names:
+        # ⭐ WHAT THE OLD RULE MADE OF EACH SUPERSEDED SERIES IS PRINTED BESIDE IT, and every gain is named, because the ceo's 17:0x
+        # measurement found the LOSS half and the GOAL asked for the mirror in the GAIN half to be measured and named: a series that
+        # went red-to-green before the switch read as a gain the program does not have, and a program red before the switch and green
+        # after it read as no gain at all. Equal counts can hide different programs; only names show which ones moved.
+        for u in sorted(superseded):
+            ur, d = latest_row[u], superseded[u]; dr = latest_row[d]
+            was = (" -- the old rule read this series a LOSS" if base[u] == "PASS" and latest[u] != "PASS" and latest[u] not in RECLASS
+                   else " -- the old rule read this series a GAIN" if base[u] != "PASS" and latest[u] == "PASS" else "")
+            print(f"    superseded {u[0]}:{u[1]} {u[2]}: undeclared last {ur['outcome']} {ur['scrip']} {ur['ts_utc'][:16]} -> @{d[3]} {dr['outcome']} {dr['scrip']} {dr['ts_utc'][:16]}{was}")
+        for cls in ("master", "package", "benchmark"):
+            for suite, prog in sorted(net[cls]):
+                print(f"    gained {suite}:{prog}" + (" (across the config switch: red on the undeclared base, green on a declared series now)" if (suite, prog) in gained_across else ""))
         for cls in ("master", "package", "benchmark"):
             for suite, prog in sorted(reclass[cls]):
                 _to = sorted({v for (s_, p_, m_, c_), v in latest.items() if (s_, p_) == (suite, prog) and v in RECLASS})
@@ -231,12 +291,16 @@ def cmd_flips(a, rows):
         for cls in ("master", "package", "benchmark"):
             for suite, prog in sorted(lost[cls]):
                 parts = []
-                for k in sorted(k for k in latest if k[0] == suite and k[1] == prog):
+                for k in sorted(k for k in latest if k[0] == suite and k[1] == prog and k not in superseded):
                     mode, cfg = k[2], k[3]
                     if base.get(k) == "PASS" and latest.get(k) != "PASS":
                         lp = last_pass_row.get(k, base_row.get(k)); lr = latest_row[k]
                         at = "" if cfg == "undeclared" else f" @{cfg}"
-                        parts.append(f"{mode}{at}: last PASS {lp['scrip']} {lp['ts_utc'][:16]} -> {lr['outcome']} {lr['scrip']} {lr['ts_utc'][:16]} by {lr['measurer']}")
+                        across = " (across the config switch: its base is the undeclared series')" if k in inherited else ""
+                        st = stopped_decl.get(k)
+                        stop = (f" -- STOPPED: this configuration has no reading since; the program's latest reading is {st['outcome']}"
+                                f" @{st['config']} {st['scrip']} {st['ts_utc'][:16]}") if st else ""
+                        parts.append(f"{mode}{at}: last PASS {lp['scrip']} {lp['ts_utc'][:16]} -> {lr['outcome']} {lr['scrip']} {lr['ts_utc'][:16]} by {lr['measurer']}{across}{stop}")
                 print(f"    lost {suite}:{prog}  " + " · ".join(parts))
     return 0
 
