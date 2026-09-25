@@ -242,3 +242,45 @@ THE READING: -O2 buys 1.1–1.6x on the C-heavy paths and nothing on the algorit
 **What it corrects.** § 1's "README 08-28 m4" column (calculator-1 2.10x, calculator-2 2.64x) does NOT reproduce on the 09-03 tree under this driver (0.50x / 0.62x): that README figure was taken under conditions this campaign cannot reproduce and is not the regression baseline. On the like-for-like reading today's tree is ahead of 09-03 on treebank, json and porter, even on calculator-1, and behind on claws5 (44 → 65 ms) and calculator-2 (53 → 60 ms). The 09-03 tree itself was behind SPITBOL on five of six demos: restoring it was never the 2x.
 
 **Where the two remaining demo regressions sit** (`perf stat -r 3`, both at 512 MB): claws5 — user cycles 63.1 → 65.0 M and instructions 191.8 → 210.4 M (+10%), but KERNEL cycles 10.0 → 38.1 M, page faults 972 → 3,617, RSS 24 → 52 MB: the regression is memory touched, not work done (the § 15 fault attribution: 57% in `n1_match_arbno_bx`, 33% in `n9_match_assign_cond_bx` — the matcher's ARBNO and conditional-capture state held for the whole match; the spine-retained-frame row). calculator-2 — instructions 109.2 → 108.1 M (equal), user cycles 45.2 → 57.9 M: more cycles per instruction, cause not yet diagnosed. calculator-1 is even on every counter. Kernels: the README's `380cc4162` column (measured 09-24 afternoon) against today's 1.16x / 1.26x; the largest per-kernel gaps are table_access (1.29x → 0.36x) and table_variety (0.68x → 0.46x), and the 09-03 tree's default arena was 512 MB (`GC_HEAP_MB`, read from its gc_heap.c) against today's shipped 128 KB (CEO-1095): at 1 MB today's table_access reads 0.93x (§ 16).
+
+## 21 — 2026-09-25 10:0x–11:xx CDT: SPITBOL's defaults, the diagnostics switch, and WHERE THE COMPILER LOSES TO A THREADED-CODE INTERPRETER (CEO-1261/1262)
+
+**Lon, 10:06 (in-chat, verbatim):** *"Find where our true compiler is slower than an threaded-code interpreter? We should be 2-3x faster since we do not have any interpreter overhead."*
+
+**The instrument** (`scratchpad/cls/percls.sh`, to be landed as a script): every kernel's generated ITERATION twin at R and 3R repetitions, run under `perf stat -e instructions:u,cycles:u` on BOTH engines (SPITBOL `sbl -bf` at its own defaults; SCRIP mode 4 at its new SPITBOL defaults with `SCRIP_DIAG=0`); the per-repetition figure is the SLOPE, so startup, compile and the test pass cancel. Instructions are load-immune; the cycle columns were taken under the blocking set's load and are indicative (re-read on a quiet box before any grid).
+
+| kernel | SPITBOL instr/rep | SCRIP instr/rep | instr x | SPITBOL cyc/rep | SCRIP cyc/rep | cycles x |
+|---|---:|---:|:---:|---:|---:|:---:|
+| op_dispatch | 508,777 | 263,319 | 1.93x | 293,880 | 68,933 | 4.26x |
+| test_icon | 6,678 | 3,643 | 1.83x | 4,586 | 1,080 | 4.25x |
+| arith_loop | 241,724 | 120,498 | 2.01x | 122,294 | 30,199 | 4.05x |
+| var_access | 610,494 | 271,571 | 2.25x | 274,291 | 71,710 | 3.83x |
+| arith_loop_twin | 77,475,526 | 39,600,320 | 1.96x | 33,350,558 | 10,504,563 | 3.17x |
+| ident_call2 | 291,768 | 187,498 | 1.56x | 141,799 | 45,906 | 3.09x |
+| ident_call1 | 295,779 | 193,498 | 1.53x | 128,716 | 51,351 | 2.51x |
+| array_sum | 5,717,390 | 5,101,255 | 1.12x | 2,764,224 | 1,231,050 | 2.25x |
+| func_call | 421,773 | 335,498 | 1.26x | 158,464 | 77,862 | 2.04x |
+| fibonacci | 3,010,681 | 2,860,026 | 1.05x | 1,093,756 | 673,458 | 1.62x |
+| fib_recur | 47,143,199 | 44,791,893 | 1.05x | 17,317,473 | 10,750,319 | 1.61x |
+| string_concat | 255,989 | 760,692 | 0.34x | 272,496 | 176,754 | 1.54x |
+| string_concat_twin | 1,137,554 | 2,963,274 | 0.38x | 953,498 | 725,329 | 1.31x |
+| pattern_bt | 1,681,055 | 2,162,592 | 0.78x | 1,028,747 | 784,322 | 1.31x |
+| table_access | 7,110,280 | 11,414,506 | 0.62x | 3,459,301 | 2,873,539 | 1.20x |
+| table_variety | 4,746,501 | 9,697,463 | 0.49x | 2,714,698 | 2,576,190 | 1.05x |
+| string_manip | 612,388 | 1,164,742 | 0.53x | 298,509 | 289,171 | 1.03x |
+| roman | 1,242,550 | 2,967,211 | 0.42x | 749,615 | 773,527 | 0.97x |
+| string_pattern | 786,365 | 1,309,544 | 0.60x | 297,540 | 356,075 | 0.84x |
+| mixed_workload | 320,277 | 640,893 | 0.50x | 141,417 | 171,999 | 0.82x |
+| eval_fixed | 1,234,035 | 2,922,480 | 0.42x | 651,459 | 979,016 | 0.67x |
+| indirect_dispatch | 307,218 | 912,998 | 0.34x | 127,808 | 252,138 | 0.51x |
+| name_indirection | 9,604,544 | 33,161,268 | 0.29x | 4,592,818 | 11,176,802 | 0.41x |
+
+**THE ANSWER.** Where the operation is resolved when the program is COMPILED — arithmetic, variables, direct calls to DEFINE'd functions, arrays, the statement loop — SCRIP executes half SPITBOL's instructions at twice its IPC and reads 2–4x: the compiler already delivers the "no interpreter overhead" premise there. Every kernel below 1.5x spends its time in a RUNTIME PATH REACHED BY NAME, where SPITBOL follows one or two pointers the compiler already resolved: `$name` (a string hashed and a C dispatcher entered for every indirection — SPITBOL's `gtnvr` hashes too, but in ~150 instructions against SCRIP's ~550), `APPLY` and every runtime-made call (the C open/prologue/land protocol, ~900 instructions against ~300), `EVAL` (SCRIP runs its whole compiler — parse, lower, emit, assemble text — per call), the deferred call inside a pattern (`. *f()`, the calculator's and treebank's hot path), and the C string/pattern/table primitives at -O0 (REPLACE, BREAK, table hashing: SCRIP executes 2–3x SPITBOL's instructions there and only its higher IPC keeps it near parity). SPITBOL is a threaded-code interpreter, but its runtime primitives are hand-written assembly; SCRIP's are C built at -O0, so the "interpreter overhead" SCRIP removed is paid back, with interest, wherever it calls into its own runtime.
+
+**The collector at the default window** (calculator-1 ×4, m4, stack 64 MB, cap 512 MB): 1 MB window 1,139 ms (16 collections), 4 MB 432 ms (5), 16 MB 83 ms (0), 64 MB 63 ms; SPITBOL `-d512m -i64m -s256m` 30 ms. Each collection walks a stack made deep by the retained deferred-call frames at ~70 ms per walk (callgrind: 13.0 G instructions, `gc_walk_interior` 5.9 G of them). SPITBOL cannot run the program at its own default heap with a big stack at all (*Stack memory unavailable*), so the demo grid's line is `-d512m -i64m -s256m` for BOTH engines from now on (RULES.md hard-cap rule clause 8(e)).
+
+**The first cure of the list, `$name` (worktree, not yet landed):** `SNO$NAME` gets a direct-table row (it already carried the leaf bit, so the asm bid entry looked it up and missed); a string operand is looked up by its own bytes and length (no C string built, no second hash); every name lookup hashes a word at a time (`nv_hash_n`, 44 instructions for a 6-byte name against 104); and a plain variable comes back as its own cell (the DATA-field precedent), so the read and the write skip `NV_GET`/`NV_SET`. name_indirection twin: 6.73 G → 4.54 G instructions (1,666 → 1,124 per iteration), output equal to the oracle, the I/O-associated, OUTPUT, traced, protected and new-variable cases equal to SPITBOL in both modes.
+
+**EVAL (eval_fixed 0.62x):** the compiled-expression cache already exists; each call still spends ~2,950 instructions against SPITBOL's ~1,230 per iteration: three number parses of the string before the cache (`strtoll`, `rt_str_to_real`, `strtod` — 8%), the generic by-name dispatcher before the EVAL arm (333 per call), and five by-name reads and writes of the result temporary (20%). The first cut (worktree): a string whose first non-blank character is a letter skips the number parses — and that also cures `EVAL('INF')`, which strtod's `inf` spelling made a real where SPITBOL evaluates the variable INF. Two EVAL divergences from SPITBOL are pre-existing and rowed: `EVAL('  12 ')` answers a real, `EVAL('.5')` answers 0.5 where SPITBOL's EVAL fails.
+
+**The calculator's memory, attributed:** `perf record -e page-faults` puts the faults in the `PAT$n` bodies and `match_defer` boxes — the matcher's frames pushed onto fresh stack pages, not the heap. The commit pump does not accumulate frames (the glue restores the stack by fixed amounts); the retention is each `*X` deferred-pattern activation kept as ARBNO backtrack state for the whole-file match. SPITBOL keeps backtrack state too (it overflows its own 4 MB default on this program) at roughly a third of SCRIP's footprint. On calculator-1 SCRIP runs 2.2x SPITBOL's user instructions AND 2.6x its page faults (13,674 vs 5,203; kernel cycles ~40% of the run).
