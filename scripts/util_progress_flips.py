@@ -261,8 +261,16 @@ def cmd_flips(a, rows):
         cls_of.setdefault(r["suite"], r["class"])
     net = collections.defaultdict(set)
     lost = collections.defaultdict(set)
-    reclass = collections.defaultdict(set)   # PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED: a reclassification, never a loss (ceo CEO-806)
-    RECLASS = {"OUTSIDE", "UNGRADABLE", "UNGRADED", "DEFERRED"}
+    reclass = collections.defaultdict(set)   # PASS -> OUTSIDE: a reclassification by the oracle's own measurement, never a loss (ceo CEO-806)
+    RECLASS = {"OUTSIDE"}
+    # ⛔⭐ PASS -> DEFERRED OR UNGRADABLE IS A PROGRAM THAT WENT DARK, NEVER "NOT A LOSS" (coo 2026-09-25, ceo CEO-1270). CEO-806 ruled
+    # PASS -> OUTSIDE a reclassification, and this reader had widened that set to UNGRADABLE, UNGRADED and DEFERRED without a ruling. So
+    # X64T's math_diff/div/prod/sum -- m4 PASS on 55f6339b9, then DEFERRED on 04549eb5c when the statement switch took their asm past the
+    # runner's 128 MB budget -- read "lost 0" and "reclassified 4, not a loss": correct programs the runner stopped grading, reported as
+    # nothing lost. They are not red either, so they get their own line: the measurement was lost (CEO-582, DARK is worse than RED).
+    # UNGRADED is not here because it is NOT_A_READING, so the last real reading stands.
+    dark = collections.defaultdict(set)
+    DARK = {"DEFERRED", "UNGRADABLE"}
     gained_across = set()
     for k in latest:
         if k in superseded:
@@ -277,11 +285,12 @@ def cmd_flips(a, rows):
             # ⛔ A PASS THAT BECAME OUTSIDE IS A RECLASSIFICATION, NOT A LOSS (ceo CEO-806, 2026-09-16: seven of nine 'master losses' were the
             # SnoM ALL.outside.tsv entries appended as OUTSIDE by hq_snobol4's runner, whose 'last PASS' was the false green CEO-749 named).
             # 'lost' keeps PASS -> FAIL/CRASH/HANG (and the rest of the red family); the reclassified are printed on their own line, named.
-            (reclass if latest.get(k) in RECLASS else lost)[cls].add((suite, prog))
+            (reclass if latest.get(k) in RECLASS else dark if latest.get(k) in DARK else lost)[cls].add((suite, prog))
     print(f"NET distinct programs green now, not green at the window base (dirty rows skipped: {dirty_skipped}): "
           f"master {len(net['master'])}, package {len(net['package'])}, benchmark {len(net['benchmark'])}; "
           f"lost since the base: master {len(lost['master'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}; "
-          f"reclassified (PASS -> OUTSIDE/UNGRADABLE/UNGRADED/DEFERRED, not a loss): master {len(reclass['master'])}, package {len(reclass['package'])}, benchmark {len(reclass['benchmark'])}; "
+          f"went DARK (PASS -> DEFERRED/UNGRADABLE: a program that passed and is no longer graded -- not red, and never no loss): master {len(dark['master'])}, package {len(dark['package'])}, benchmark {len(dark['benchmark'])}; "
+          f"reclassified (PASS -> OUTSIDE, CEO-806, not a loss): master {len(reclass['master'])}, package {len(reclass['package'])}, benchmark {len(reclass['benchmark'])}; "
           f"superseded undeclared series (a declared series of the same program and mode read after their last reading, so they are not positions): {len(superseded)}")
     if a.names:
         # ⭐ WHAT THE OLD RULE MADE OF EACH SUPERSEDED SERIES IS PRINTED BESIDE IT, and every gain is named, because the ceo's 17:0x
@@ -290,12 +299,16 @@ def cmd_flips(a, rows):
         # after it read as no gain at all. Equal counts can hide different programs; only names show which ones moved.
         for u in sorted(superseded):
             ur, d = latest_row[u], superseded[u]; dr = latest_row[d]
-            was = (" -- the old rule read this series a LOSS" if base[u] == "PASS" and latest[u] != "PASS" and latest[u] not in RECLASS
+            was = (" -- the old rule read this series a LOSS" if base[u] == "PASS" and latest[u] != "PASS" and latest[u] not in RECLASS and latest[u] not in DARK
                    else " -- the old rule read this series a GAIN" if base[u] != "PASS" and latest[u] == "PASS" else "")
             print(f"    superseded {u[0]}:{u[1]} {u[2]}: undeclared last {ur['outcome']} {ur['scrip']} {ur['ts_utc'][:16]} -> @{d[3]} {dr['outcome']} {dr['scrip']} {dr['ts_utc'][:16]}{was}")
         for cls in ("master", "package", "benchmark"):
             for suite, prog in sorted(net[cls]):
                 print(f"    gained {suite}:{prog}" + (" (across the config switch: red on the undeclared base, green on a declared series now)" if (suite, prog) in gained_across else ""))
+        for cls in ("master", "package", "benchmark"):
+            for suite, prog in sorted(dark[cls]):
+                _to = sorted({f"{m_} {v}" for (s_, p_, m_, c_), v in latest.items() if (s_, p_) == (suite, prog) and v in DARK})
+                print(f"    went dark {suite}:{prog} -> {', '.join(_to)} (it passed at the base; no graded reading since)")
         for cls in ("master", "package", "benchmark"):
             for suite, prog in sorted(reclass[cls]):
                 _to = sorted({v for (s_, p_, m_, c_), v in latest.items() if (s_, p_) == (suite, prog) and v in RECLASS})
