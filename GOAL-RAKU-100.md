@@ -900,7 +900,7 @@ cites.
   `is-approx`, `chomp` of "\r\n", `nqp::create`/`bindattr`; the Raku monitor plug fires exactly rkx's events (measured
   form by form: `use Module` fires, `use v6` does not; a hoisted block is not a routine; tail statements keep their
   line; `.=`/`++`/list stores and internal temps fire no VALUE; a block value is CODE) with
-  `test_gate_raku_monitor_agrees_with_rkx_on_use_blocks_and_stores.sh` (RULING: needs rkx). Roast walk: 10 -> 19 of
+  `test_gate_raku_monitor_agrees_with_rkx_on_use_blocks_and_stores.sh` (RULING: needs rkx). Roast walk: 10 -> 16 of
   31 runnable files agree event-for-event; Roast board 9 -> **20/1464 both modes**. Landing 3 (SCRIP `b2a00fbcc`,
   corpus `1f032d800` naming `eee274720`): a lowercase `sub main` is an ordinary sub (bracket: rkx LABEL 4 vs scr LABEL
   2), `\x` escapes; 29 Rakudo-refused entries rewritten in standard Raku, 17 lowercase-main entries given a call, all
