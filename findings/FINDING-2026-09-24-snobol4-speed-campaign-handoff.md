@@ -225,3 +225,20 @@ THE READING: -O2 buys 1.1–1.6x on the C-heavy paths and nothing on the algorit
 **Gate:** `test_gate_sno_a_capture_slices_the_subject_and_table_convert_mkpat_take_the_direct_table.sh`, wired blocking after the DATA gate, RED on the pushed runtime 0459c3a5c in a second worktree (rt_str_alloc over 4,000 captures 4,007 → 3; c_rt_call_bid_sn4 over 1,001 TABLE() 1,003 → 2; rt_call_arr_impl over 3,003 CONVERT 3,004 → 1). Preflight 60/0; seven masters unchanged in both modes; the artifact chain landed corpus `b288d5a1c`.
 
 **Where the gap is now, by demo:** calculator (0.46x/0.57x) — the deferred-call protocol's remaining ~900 Ir per `. *f()` (the pump loop, the star finish's by-name assignment of the NRETURN'd name, the prologue, `rt_match_enter`'s C tail formatting an INTEGER subject per match); treebank (0.64x) — the same protocol for its 30,467 star calls, the six run-time EVAL compiles, `bn_array`'s prototype parsing; json (0.75x) — the pump and the star finish, `rt_coerce_str_d`, the deferred-pattern open/close; porter (0.80x) — the `PAT$n` bodies themselves and the collector. The asm pump (baton item 2) is the one lever that reaches three of the four.
+
+## 20 — 2026-09-25 09:4x CDT: the 09-03 tree measured side by side on the demos (CEO-1260)
+
+**Method.** `380cc4162` rebuilt in a scratch worktree (18 s), each demo compiled by ITS compiler from today's corpus source and linked to ITS runtime; all six answered SPITBOL's output byte for byte. Then SPITBOL, the 09-03 binary (`SCRIP_HEAP_MB=512`, its default) and today's binary (`SCRIP_HEAP_KB=524288`) timed INTERLEAVED round by round, best of 7, stack 256 MB, load ~1.4 (`scratchpad/tri.sh`).
+
+| demo | SPITBOL ms | 09-03 ms | today ms | 09-03 | today |
+|---|---:|---:|---:|:---:|:---:|
+| claws5 ×16 | 68 | 44 | 65 | 1.55x | 1.05x |
+| treebank ×1024 | 113 | 240 | 170 | 0.47x | 0.66x |
+| json citm | 34 | 49 | 44 | 0.69x | 0.77x |
+| porter ×4 | 218 | 288 | 273 | 0.76x | 0.80x |
+| calculator-1 ×4 | 29 | 58 | 60 | 0.50x | 0.48x |
+| calculator-2 ×4 | 33 | 53 | 60 | 0.62x | 0.55x |
+
+**What it corrects.** § 1's "README 08-28 m4" column (calculator-1 2.10x, calculator-2 2.64x) does NOT reproduce on the 09-03 tree under this driver (0.50x / 0.62x): that README figure was taken under conditions this campaign cannot reproduce and is not the regression baseline. On the like-for-like reading today's tree is ahead of 09-03 on treebank, json and porter, even on calculator-1, and behind on claws5 (44 → 65 ms) and calculator-2 (53 → 60 ms). The 09-03 tree itself was behind SPITBOL on five of six demos: restoring it was never the 2x.
+
+**Where the two remaining demo regressions sit** (`perf stat -r 3`, both at 512 MB): claws5 — user cycles 63.1 → 65.0 M and instructions 191.8 → 210.4 M (+10%), but KERNEL cycles 10.0 → 38.1 M, page faults 972 → 3,617, RSS 24 → 52 MB: the regression is memory touched, not work done (the § 15 fault attribution: 57% in `n1_match_arbno_bx`, 33% in `n9_match_assign_cond_bx` — the matcher's ARBNO and conditional-capture state held for the whole match; the spine-retained-frame row). calculator-2 — instructions 109.2 → 108.1 M (equal), user cycles 45.2 → 57.9 M: more cycles per instruction, cause not yet diagnosed. calculator-1 is even on every counter. Kernels: the README's `380cc4162` column (measured 09-24 afternoon) against today's 1.16x / 1.26x; the largest per-kernel gaps are table_access (1.29x → 0.36x) and table_variety (0.68x → 0.46x), and the 09-03 tree's default arena was 512 MB (`GC_HEAP_MB`, read from its gc_heap.c) against today's shipped 128 KB (CEO-1095): at 1 MB today's table_access reads 0.93x (§ 16).
