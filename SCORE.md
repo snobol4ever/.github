@@ -35,7 +35,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | IcnBench | icon | 26/26 | 2026-09-25 | `d2c925623` | done |
 | ProBench | prolog | 23/23 | 2026-09-23 | `3b5f301f1` | done |
 | PasBench | pascal | 11/11 | 2026-09-24 | `0595c3ede` | done |
-| RakBench | raku | 5/17 | 2026-09-24 | `fa8d8fe6d` |  |
+| RakBench | raku | 6/17 | 2026-09-25 | `b2fade45a` |  |
 | RebBench | rebus | 3/3 | 2026-09-25 | `aaec8450d` | done |
 
 
