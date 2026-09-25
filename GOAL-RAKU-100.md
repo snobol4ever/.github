@@ -894,6 +894,21 @@ own `git log` prior to its `git rm` in this consolidation's commit) and in the `
 cites.
 
 ## LEDGER
+- **2026-09-25 hq_raku — LANDINGS 2 AND 3: THE ROAST WALK WITH rkx, AND EVERY GRADED MASTER REF IS RAKUDO'S (CEO-1271).**
+  Landing 2 (SCRIP `6612224cb`, corpus `5a2942937` naming its pre-rebase `9c16bbf14`): `||` had no lowering at all
+  (a BOMB in a condition), `&&`/`||` answer an operand, a Range invocant is its elements, the Str sub forms, `e`/`tau`,
+  `is-approx`, `chomp` of "\r\n", `nqp::create`/`bindattr`; the Raku monitor plug fires exactly rkx's events (measured
+  form by form: `use Module` fires, `use v6` does not; a hoisted block is not a routine; tail statements keep their
+  line; `.=`/`++`/list stores and internal temps fire no VALUE; a block value is CODE) with
+  `test_gate_raku_monitor_agrees_with_rkx_on_use_blocks_and_stores.sh` (RULING: needs rkx). Roast walk: 10 -> 19 of
+  31 runnable files agree event-for-event; Roast board 9 -> **20/1464 both modes**. Landing 3 (SCRIP `b2a00fbcc`,
+  corpus `1f032d800` naming `eee274720`): a lowercase `sub main` is an ordinary sub (bracket: rkx LABEL 4 vs scr LABEL
+  2), `\x` escapes; 29 Rakudo-refused entries rewritten in standard Raku, 17 lowercase-main entries given a call, all
+  re-cut; 3 runtime deaths declare rc=1. **Provenance after: reproduces 935 · ruled_pin 4 · refuses 4 (the
+  prelude-hooked benches; the census does not load prelude_rakudo) · differs 0.** RakM **883/943**, RakBench **7/17**.
+  Next reds named by the re-cut: class-body `;` and Raku regex syntax (landing 4, graded 894/943 on its worktree),
+  the `@x = ''` array model, `for grep {...}, list -> $v`, try/CATCH with default, `.^methods`/`.^attributes`/`.WHAT`
+  gists, Rat.
 - **2026-09-25 hq_raku — TENET CRAWL, LANDING 1: FIVE CURES, RakM 867/929 -> 874/934 BOTH MODES, ZERO NEW REDS (SCRIP `b2fade45a`, corpus `d5446ca41`).**
   (1) a sub whose last statement is not an expression fell to SUCCEED with a stale `rax:rdx`, and the caller tests
   `cmp al, 104` for DT_FAIL — an Int 104 left in rax FAILED the caller's statement (merge-sort lost its recursion tail at
