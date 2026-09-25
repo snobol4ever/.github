@@ -679,12 +679,18 @@ def cmd_register(a, rows):
     for (suite, prog, cfg), e in sorted(per.items()):
         modes = e["modes"]
         graded = {m: d["outcome"] for m, d in modes.items()}
-        passing = [m for m, o in graded.items() if o == "PASS"]
-        if graded and len(passing) == len(graded):
+        # ⛔ THE STATUS IS READ OVER THE GRADED MODES, m3 AND m4, WHEREVER THE PROGRAM HAS ONE (coo 2026-09-25, ceo CEO-1269).
+        # The harness's dead "ast" default graded --dump-ast against run refs and wrote rebus-master ast FAIL rows three
+        # times (coo 09-21, ceo 09-24 and 09-25), so arith_divide at the shipped config read PARTIAL(m3,m4) with m3 and m4
+        # both PASS -- 75 rebus-master register rows carried ast=FAIL. ast still decides an entry that was only ever
+        # graded in ast (the parser-ladder entries before corpus a6646f04c), and its column is still printed.
+        basis = {m: o for m, o in graded.items() if m in ("m3", "m4")} or graded
+        passing = [m for m, o in basis.items() if o == "PASS"]
+        if basis and len(passing) == len(basis):
             status = "WORKING"
         elif passing:
             status = "PARTIAL(" + ",".join(sorted(passing)) + ")"
-        elif e["ever_pass"]:
+        elif any(modes[m].get("first_pass") for m in basis):
             status = "REGRESSED"
         elif not graded:
             status = "UNGRADED"
