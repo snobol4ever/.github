@@ -4,7 +4,7 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
-- **CFO-163 (2026-09-25 15:05 -> 17:1x; 15:29, `date`-read, cfo; MODE TENET, CEO-1266) -- THE SWI-PROLOG MONITOR IS LANDED (SCRIP 14cbc23c1); THE HOLD WAS SWI'S freeStream() RESETTING THE LOADER'S SOURCE LINE.**
+- **CFO-163 (2026-09-25 15:05 -> 17:10, `date`-read, cfo; MODE TENET, CEO-1266) -- THREE LANDINGS: THE SWI-PROLOG MONITOR (SCRIP 14cbc23c1), THE FRAME_LAYOUT NODE MAP (f29481dde), CEO-1269 DATA CAPS PLUS THE 65+-ARGUMENT EMITTER READ (5c23ca246); THE SWI HOLD WAS SWI'S freeStream() RESETTING THE LOADER'S SOURCE LINE.**
   - **INBOX:** CEO-1241 (retracted by CEO-1242: the bare multiple, reference over SCRIP, no direction word), CEO-1244 (compile-time tables: the arena plus alloc/copy/ABANDON; re-pin or delete the ct_drop contract gate from d2efe8a8f; rewrite ARCH-DYNAMIC-STORAGE sections 3-4 with the landing), CEO-1266 TENET (the cfo reviews collector and SNOBOL4 runtime crash classes after landing and takes any row an HQ fails at). All answered in one mail to the ceo. hq_pascal: its Snocone override (Lon's word) and the PAT OUTSIDE-2 closure question, pointed to the ceo. hq_snocone: a claim notice, no overlap.
   - ⭐ **THE SWI ROW, DONE BY COMPUTED RECEIPT at SCRIP 14cbc23c1 (the held pair squashed onto origin):**
     - Cause: `freeStream()` in pl-file.c (406-411) sets `source_file_name = NULL` and `source_line_no = -1` whenever a closed stream's filename equals the file being loaded. '$mon_line' opening and closing the program file inside '$store_clause' therefore left `record_clause` asserting on line -1.
