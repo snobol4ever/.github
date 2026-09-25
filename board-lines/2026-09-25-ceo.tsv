@@ -4,3 +4,4 @@
 # tree	suite	measurer	verbatim line
 d566528fa	snobol4-bench-ref	ceo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=5 bud_ms=500 memory_declared=0
 3a936a797	snobol4-bench-ref	ceo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=5 bud_ms=500 memory_declared=0
+be0e10b9a	snobol4-bench-ref	ceo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=5 bud_ms=500 memory_declared=0

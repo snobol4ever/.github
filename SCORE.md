@@ -31,7 +31,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | RebM | rebus | 43/43 | 2026-09-23 | `fa27bcdf9` | done |
 | Logtalk | prolog | 3235/3600 | 2026-09-24 | `985b89273` |  |
 | X64T | snobol4 | 28/36 | 2026-09-23 | `55f6339b9` |  |
-| SnoBench | snobol4 | 23/23 | 2026-09-25 | `3a936a797` | done |
+| SnoBench | snobol4 | 23/23 | 2026-09-25 | `be0e10b9a` | done |
 | IcnBench | icon | 26/26 | 2026-09-24 | `5d751c855` | done |
 | ProBench | prolog | 23/23 | 2026-09-23 | `3b5f301f1` | done |
 | PasBench | pascal | 11/11 | 2026-09-24 | `0595c3ede` | done |
