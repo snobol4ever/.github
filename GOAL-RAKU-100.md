@@ -894,6 +894,35 @@ own `git log` prior to its `git rm` in this consolidation's commit) and in the `
 cites.
 
 ## LEDGER
+- **2026-09-25 hq_raku — TENET CRAWL, LANDING 1: FIVE CURES, RakM 867/929 -> 874/934 BOTH MODES, ZERO NEW REDS (SCRIP `b2fade45a`, corpus `d5446ca41`).**
+  (1) a sub whose last statement is not an expression fell to SUCCEED with a stale `rax:rdx`, and the caller tests
+  `cmp al, 104` for DT_FAIL — an Int 104 left in rax FAILED the caller's statement (merge-sort lost its recursion tail at
+  105 elements); the fall-through is now an explicit valueless RETURN (Nil). (2) `rt_make_flat_agg` capped a flattening
+  list at nargs*64 elements. (3) `.list .flat .Array .List .Slip .Seq .eager .cache` answered an empty list. (4) an
+  `@array` operand of a numeric operator is its `.elems`. (5) `\b \r \a \e \f` escapes. Five witnesses, each RED on
+  base `62a21f70f`. Flips: benchmark_merge-sort, benchmark_spinner. Ladder 228/228, preflight 60/0, blocking Raku gates
+  green; the tiny-arena master gate REFUSED twice because this seat moved the tree under its shards (no verdict).
+  **Brackets:** the monitor could not bracket merge-sort — rkx fires no VALUE for a sigilless bind (`my \SCALE`, `\p`)
+  and scr does, so both runs diverged on the instrument before the program; bracketed by hand bisection instead.
+  ⭐ **PROVENANCE CENSUS OF THE MASTER (util_master_ref_provenance.py, rakudo-local 2026.05, SCRIP 62a21f70f, 929
+  entries):** oracle_reproduces 894 · ruled_pin 4 · oracle_refuses 14 · oracle_differs 17. The 17 are one class — a
+  lowercase `sub main()` Rakudo never calls, refs cut from SCRIP, all PASSING. Of the 894, 22 "reproduce" only as an
+  empty ref beside a Rakudo refusal (rc=1). Re-classified by Rakudo's own stderr: **29 entries Rakudo refuses to
+  COMPILE** (SCRIP-only helpers arr_get/hash_exists/hash_set/delete(), two methods on one line, a block argument
+  without a comma, unless/else, unquoted regex metacharacters, a typed-Num literal Int) — 19 are xfail reds, 10 PASS on
+  SCRIP-cut refs; the 4 benchmark_point_class_add*/send-more-money/string-escape "refusals" are NOT: Rakudo reproduces
+  them with `-Mprelude_rakudo` (wall_ms hooks) — an instrument gap in the census, not a baseline question. 3 are
+  runtime deaths that ARE Rakudo's answer (multi_sub_say_3, say_try_die_1, simple_assign_27: stdout + rc=1).
+  Denominator decisions are the officers' (CEO-1270); asked of the ceo 2026-09-25.
+  ⭐ **ROAST WALK WITH THE MONITOR (Lon in-chat 16:2x: "walk the roast test suite using IPC sync-step monitor"):**
+  inventory 1464 files: 13 GRADED-PASS · 27 GRADED-FAIL · 2 NO-TAP · 1 CRASH · 27 EMITTER · 65 LEX · 1329 PARSE. The
+  31 runnable files are walked with `monitor_run.sh --oracle` (rkx). Instrument alignments the walk forced, all on
+  SCRIP's side and measured against rkx one form at a time: `use <Module>` fires a statement event (only `use v6*`
+  does not); a hoisted block `__blk_N` is not a routine (no CALL/RETURN); a block's tail statement keeps its line;
+  `.=`, `++`/`--` and list destructuring fire no VALUE, internal temps never do. Language cures it found: `||` had NO
+  lowering at all (BOMB in a condition, SUCCEED in a value), `&&` in value position returned its left operand, a Range
+  invocant was its first element, Str sub forms (tc tclc fc chomp chop flip wordcase trim-*) were undefined, `e`/`tau`,
+  `is-approx`, `chomp` of "\r\n". Staged behind landing 1 in a worktree; pi.t and chomp.t go fully green on it.
 - **2026-09-20 hq_raku — CORRECTION TO THE TWO ENTRIES BELOW, ISSUED BEFORE THEY WERE CITED: the `839/927 -> 841/929` readings were a DEVELOPMENT PASS ON A COPY OF THE MASTER WITHOUT ITS COMPANIONS and their ABSOLUTE is wrong by twelve programs.** The copy had `ALL.raku`/`ALL.ref`/`ALL.csv` only; the master also ships `ALL.wantrc`, `ALL.argv.bare` and `config/`, which the harness resolves BY PATH beside the suite — so entries needing argv got none and entries with a declared non-zero rc were graded as plain failures. **The real board reads `853/929` both modes** (SCRIP `d6ccadc69`, corpus `8486bb1e2`, published to SCORE.md and SUITES.tsv this sitting), against `851/927` published at `fadeab33f`: **+2 pass, +2 denominator, 0 lost.** ⭐⭐ **THE DELTA SURVIVES, THE ABSOLUTE DOES NOT** — base and head ran on the identical incomplete copy, so the comparison is sound while every level read off it is not. **Never publish an absolute from a dev pass**, and never copy a suite away from its sidecars: `test_gate_master_companions_resolve.sh` is in the blocking set for exactly this failure. The commit messages of `51199e79a` and `d6ccadc69` carry the dev-pass absolute and cannot be rewritten; this line is the correction of record.
 - **2026-09-20 hq_raku — THE `:=` BIND PARSES FOR SCALARS, AND REFUSES BY NAME WHERE LOWERING IT WOULD LIE
   (SCRIP `d6ccadc69`; the m4 runner `9d3479b42` beside it).** Row `raku-the-six-benchmark-graphs-with-no-frame-
