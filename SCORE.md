@@ -6,12 +6,12 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
-| Gimpel | snobol4 | 131/148 OUTSIDE=12 | 2026-09-25 | `92ffc0cfd` |  |
-| Budne | snobol4 | 71/93 OUTSIDE=22 | 2026-09-25 | `92ffc0cfd` |  |
-| Flake | snobol4 | 121/180 OUTSIDE=56 | 2026-09-26 | `448fd78ce` |  |
-| AIS | snobol4 | 7/7 | 2026-09-25 | `92ffc0cfd` | done |
-| Dotnet | snobol4 | 5/13 OUTSIDE=8 | 2026-09-25 | `92ffc0cfd` |  |
-| TPgm | snobol4 | 1/8 OUTSIDE=6 | 2026-09-16 | `61315eaa9` |  |
+| Gimpel | snobol4 | 131/142 EXCLUDED=6 OUTSIDE=12 | 2026-09-25 | `92ffc0cfd` |  |
+| Budne | snobol4 | 71/73 EXCLUDED=20 OUTSIDE=22 | 2026-09-25 | `92ffc0cfd` |  |
+| Flake | snobol4 | 121/132 EXCLUDED=48 OUTSIDE=56 | 2026-09-26 | `448fd78ce` |  |
+| AIS | snobol4 | 7/8 EXCLUDED=0 OUTSIDE=1 | 2026-09-25 | `92ffc0cfd` |  |
+| Dotnet | snobol4 | 5/12 EXCLUDED=1 OUTSIDE=8 | 2026-09-25 | `92ffc0cfd` |  |
+| TPgm | snobol4 | 1/8 EXCLUDED=0 OUTSIDE=6 | 2026-09-16 | `61315eaa9` |  |
 | Zona | icon | 113/119 | 2026-09-25 | `afa922883` |  |
 | Jcon | icon | 86/86 | 2026-09-25 | `afa922883` | done |
 | IPL | icon | 194/843 | 2026-09-25 | `afa922883` |  |
@@ -30,7 +30,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | SncBench | snocone | 16/16 | 2026-09-25 | `6a38a1189` | done |
 | RebM | rebus | 43/43 | 2026-09-25 | `6ac5caa1b` | done |
 | Logtalk | prolog | 3421/3528 | 2026-09-25 | `5e9ba4bf3` |  |
-| X64T | snobol4 | 28/36 | 2026-09-25 | `92ffc0cfd` |  |
+| X64T | snobol4 | 28/36 EXCLUDED=0 OUTSIDE=0 | 2026-09-25 | `92ffc0cfd` |  |
 | SnoBench | snobol4 | 23/23 | 2026-09-25 | `be0e10b9a` | done |
 | IcnBench | icon | 26/26 | 2026-09-25 | `afa922883` | done |
 | ProBench | prolog | 23/23 | 2026-09-26 | `83b784400` | done |

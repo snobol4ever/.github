@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
-usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--check] [--render --only KEY | --render --all-rows] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason']]
+usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--check] [--render --only KEY | --render --all-rows] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason'] [--excluded N]]
   (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the suite count and how many are done, then 3 columns x N rows of cells: nick pass/total left state emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
@@ -85,12 +85,14 @@ def load():
         if l.startswith('#') or not l.strip(): continue
         f=l.rstrip('\n').split('\t')
         if head is None: head=f; continue
-        rows.append(dict(zip(head,f)))
+        r=dict(zip(head,f))
+        for h in head: r.setdefault(h,'')
+        rows.append(r)
     return head,rows
 def save(head,rows):
     lines=[l for l in open(TSV,encoding='utf-8') if l.startswith('#')]
     lines.append('\t'.join(head)+'\n')
-    for r in rows: lines.append('\t'.join(r[h] for h in head)+'\n')
+    for r in rows: lines.append('\t'.join(r.get(h,'') for h in head)+'\n')
     open(TSV,'w',encoding='utf-8').write(''.join(lines))
 def d(s): return dt.date.fromisoformat(s)
 def box_clock_day():
@@ -396,7 +398,10 @@ def md():
         # row util-suite-banner-render-rewrites-rows-a-seat-did-not-measure-and-there-is-no-check-mode-that-writes-nothing: a render
         # used to drop a hand-written OUTSIDE clause, hq_raku measured SnoM 1961/1980 OUTSIDE=8 rendered to a plain 1961/1980)
         _ot=re.findall(r'OUTSIDE=(\d+)', r.get('criterion_changed') or '')
-        _res=f"{r['today_pass']}/{r['today_total']}" + (f" OUTSIDE={_ot[-1]}" if _ot else "")
+        # the CEO-1286 shape (Lon 2026-09-26): EXCLUDED=k, the programs NOT IN THE SPITBOL DIALECT the denominator leaves out, from the
+        # row's own today_excluded column (set by --set ... --excluded k), shown whenever the column carries a count, zero included.
+        _ex=(r.get('today_excluded') or '').strip()
+        _res=f"{r['today_pass']}/{r['today_total']}" + (f" EXCLUDED={_ex}" if _ex.isdigit() else "") + (f" OUTSIDE={_ot[-1]}" if _ot else "")
         print(f"| {r['nick']} | {r['lang']} | {_res} | {r['today_date']} | `{r['tree']}` | {tail} |")
 SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
 def md_lines():
@@ -510,7 +515,7 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError):
             _t=(r.get('today_total') or '').strip()
-            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", "-", "NO READING"]); continue
+            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", (r.get('today_excluded') or '').strip() or "", "-", "NO READING"]); continue
         # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
         # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
         # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
@@ -520,11 +525,13 @@ def grid(plain=False):
             pv=round(100.0*tp/tt)
             if tp<tt and pv>=100: pv=99
             pct=f"{pv}%"
-        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", pct, "DONE" if tt and tp>=tt else ""])
+        # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
+        # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the masters).
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, "DONE" if tt and tp>=tt else ""])
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Lang","Suite","Pass","Total","Pct","State"]
+    hdr=["Lang","Suite","Pass","Total","Excl","Pct","State"]
     cols=len(hdr)
     # ⭐ ONE EXTRA COLUMN OF ROOM PER CELL (Lon 2026-09-13: "Give one extra space in each column to give room
     # to breath."). Added to the WIDTH, so the rules that span each column widen with it and the box still
@@ -532,7 +539,7 @@ def grid(plain=False):
     # right of a left-justified name -- which is why this is one number here and not a space glued onto a cell.
     w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) + 1 for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
-    NUM={2,3,4}   # Pass, Total, Pct -- the numeric cells, right-justified; Lang/Suite/State stay left.
+    NUM={2,3,4,5}   # Pass, Total, Excl, Pct -- the numeric cells, right-justified; Lang/Suite/State stay left.
     def line(cs, hdr_row=False):
         # ⭐ THE EXTRA COLUMN IS A TRAILING SPACE ON EVERY CELL, not slack handed to the justifier. Give it to
         # rpad() instead and a right-justified number lands FLUSH AGAINST THE RIGHT BORDER with the gap on its
@@ -542,7 +549,7 @@ def grid(plain=False):
             j = rpad if (c in NUM and not hdr_row) else pad
             return j(cs[c], w[c]-1) + " "
         return "\u2502" + "\u2502".join(cell(c) for c in range(cols)) + "\u2502"
-    done=sum(1 for r in data if r[5]=="DONE")
+    done=sum(1 for r in data if r[6]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
     print(line(hdr, hdr_row=True))
     print(rule("\u251c","\u253c","\u2524"))
@@ -735,6 +742,15 @@ def main(a):
             if len(a)<=j+1 or not re.match(r'^\d{4}-\d{2}-\d{2}:\S', a[j+1]):
                 sys.stderr.write("REFUSE(rc=2): --criterion-changed takes '<YYYY-MM-DD>:<reason in words>' (the day the criterion moved, a colon, then why)\n"); sys.exit(2)
             stamp=a[j+1]; a=a[:j]+a[j+2:]
+        # ⭐ --excluded N (Lon 2026-09-26, CEO-1286): the programs NOT IN THE SPITBOL DIALECT this row's TOTAL leaves out, written to the
+        # today_excluded column and shown as EXCLUDED=N in the suite table and as Excl in the grid; the column is added to the record on
+        # first use so an older TSV still loads.
+        excluded=None
+        if '--excluded' in a:
+            j=a.index('--excluded')
+            if len(a)<=j+1 or not re.match(r'^\d+$', a[j+1]):
+                sys.stderr.write("REFUSE(rc=2): --excluded takes a count\n"); sys.exit(2)
+            excluded=a[j+1]; a=a[:j]+a[j+2:]
         i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else box_clock_day().isoformat(); tree=a[i+5] if len(a)>i+5 and not a[i+5].startswith('-') else None
         # ⛔ A READING CANNOT BE GRADED TOMORROW (CEO-1229): a DATE later than the box-clock day is refused before a byte moves, naming
         # the key, the date and the day, so the writer that computed its day in another zone is found by the refusal on its next run.
@@ -764,6 +780,11 @@ def main(a):
         if not all((r.get(c) or '').strip() for c in ('first_date','first_pass','first_total')):
             r['first_date'],r['first_pass'],r['first_total']=date,p,t
         if tree: r['tree']=tree
+        if excluded is not None:
+            if 'today_excluded' not in head:
+                head.append('today_excluded')
+                for x in rows: x.setdefault('today_excluded','')
+            r['today_excluded']=excluded
         if stamp:
             cur=(r.get('criterion_changed') or '').strip()
             r['criterion_changed']=(cur+' | '+stamp) if cur else stamp
