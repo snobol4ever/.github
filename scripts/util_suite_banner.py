@@ -559,8 +559,11 @@ def grid(plain=False):
 # Raku is labelled IN DEVELOPMENT on Lon's word (CEO-1219) and no other language carries a label.
 README_BEGIN = '<!-- SUITE-TABLE:BEGIN'
 README_END = '<!-- SUITE-TABLE:END -->'
-README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), ('pascal', 'Pascal'), ('raku', 'Raku'),
-                ('snocone', 'Snocone'), ('rebus', 'Rebus')]
+README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), ('pascal', 'Pascal'), ('raku', 'Raku')]
+# ⛔ THE README SHOWS FIVE LANGUAGES' NUMBERS (Lon 2026-09-26 13:5x CDT, in-chat to the ceo, verbatim: "Do not show Rebus or Snocone test-suite
+#   or benchmark numbers in the README."; ceo CEO-1284): the Snocone and Rebus rows stay in SUITES.tsv and SCORE.md (the leaderboard grades them
+#   like every other suite) and are HIDDEN from the README block -- placed, never refused, never rendered.
+README_HIDDEN_LANGS = {'snocone', 'rebus'}
 README_IN_DEVELOPMENT = {'raku'}
 README_HEAD_N = 8   # the BEGIN line, four prose lines, a blank, the table header and its rule -- rows start here
 README_RUNNER = {
@@ -600,7 +603,7 @@ def readme_block(rows, pin):
             sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} has no runner named in README_RUNNER -- a README row must say what produced it\n"); sys.exit(2)
         if README_RUNNER[r['key']] is None and graded(r):
             sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} carries a reading and README_RUNNER names no runner for it -- name the runner that wrote it, a README row must say what produced it\n"); sys.exit(2)
-        if r.get('lang') not in known:
+        if r.get('lang') not in known and r.get('lang') not in README_HIDDEN_LANGS:
             sys.stderr.write(f"REFUSE(rc=2): SUITES.tsv row {r['key']!r} has language {r.get('lang')!r}, which the README does not place\n"); sys.exit(2)
     # ⛔ THE PROSE NAMES THE BENCH ROWS ONLY WHEN THE RECORD CARRIES THEM, so a README rendered at an older pin re-renders byte-identical
     # under this code and the blocking --pinned arm cannot red in the minute between the .github and SCRIP pushes of one landing.
