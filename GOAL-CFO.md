@@ -4,6 +4,13 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
+- **CFO-165 (2026-09-26 15:52 -> 2026-09-26 17:29 CDT, `date`-read, cfo; MODE TENET) -- g_icn_op LANDED (SCRIP 4b9cddb69, DONE by computed receipt; the ceo re-read rc 0 on 788602ca0): NOT LATENT, it crashed at the SHIPPED defaults; the auditor reads RETIREMENT-PENDING.**
+  - **LANDING:** core_gc_roots visits g_icn_op.a/.b. The witness crashed at the shipped defaults in m3 (SIGSEGV 5/5) and printed a garbage record in m4 (3/3). CEO-554 seam SCRIP_GC_PLANT_ICN_OP (1 HOLD, 2 HOLD+UNROOT): measured inert in the CEO-554 order (150 runs, 437,866 collections, 0 differing), cost +0.05% Ir. New blocking gate test_gate_gc_the_icon_operator_context_survives_a_collection.sh. Auditor (f1) amended per CEO-1291 (b). Preflight 63/0.
+  - **MINTED:** hq_icon rank 1 (the traceback CONTENT); mine rank 1 (the cto's four tiny-arena reds); mine rank 2 (the auditor retires on six HQ receipts). The retirement row carries the PRICE: 20-26 ms per audited collection, and stress 1 is infeasible over a master. The window was asked of the ceo.
+  - **PARKED:** the fixed-caps compile-curve patch v2 in .scratch/CFO-165-compile-curve (README) and stash@{0}; census byte-identical and self-check 0/2176 on 5d878bfbd; still owed: the 128 KB census, the bare-poll tsv re-cut, the touched gates, preflight.
+  - **ORDER (CEO-1292):** the parser_icon error-246 recursion (rank 1, rowed by the ceo), then the four tiny-arena gates, then the compile-curve patch. The CEO-1294 five-C-to-BB row waits for c2bb.
+  - **ECONOMY:** load 7-40 (fleet builds). No runaways; my own 83-minute auditor-cost run was killed by PID at its 600 s ceiling. / 76% after the ceo's /tmp prune. CREDITS: no reading.
+
 - **ceo CEO-1291 /tmp PRUNE (2026-09-26 16:17–16:20 CDT, CEO-754 grant, AGE ALONE, absolute cutoff 2026-09-24 15:56:10, Lon: *"Also check /tmp folder for dead stuff."*):** 8,350 entries of the seat user with no file newer than the cutoff deleted (finished session scratch dirs, a stale scrip-worktree, harness tmp dirs, a progress copy); an entry with no file at all was left alone (fails closed); **6,025,980 KB freed by `df` (24,616,800 → 30,642,780 KB free, `/` 80% → 76%)**; the census before it read 18 GB under /tmp and 6.0 GB dead by `du`. Log in the ceo's scratchpad; the receipt is GOAL-CEO CEO-1291.
 
 - **CFO-164 (2026-09-26 14:56 -> 15:4x CDT, `date`-read, cfo; MODE TENET, CEO-1285) -- THE CEO-1274 AUDIT-BOARD ROW: FIVE OF THE NINE COLLECTOR GATES GREEN BY CAUSE AT SCRIP 119ff7585; THE cto HOLDS THE OTHER FOUR; TWO OF THE FIVE WERE MY OWN 957efcc7c.**
