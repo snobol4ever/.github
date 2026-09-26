@@ -27,7 +27,7 @@ logtalk	Logtalk	🧿	prolog	2026-09-12	1218	3617	2026-09-25	3421	3528	5e9ba4bf3	
 x64tests	X64T	🧷	snobol4	2026-09-12	18	36	2026-09-25	28	36	92ffc0cfd	2026-09-11:vendored-09-11-36-programs-24-converted-to-uppercase-under-ceo-571-lon-word-12-resist-hq_C-row-runner-row-snobol4-spitbol-x64-tests-self-check-but-nothing-reads-their-verdict-hq_U | 2026-09-23:x64t-runner-instrument-change-mode-4-asm-budget-64-to-128-MB-and-per-step-timeout-120-to-600-s-each-measured-cfo-economy-answer
 snobol4-bench-ref	SnoBench	⏱️	snobol4	2026-09-25	23	23	2026-09-25	23	23	be0e10b9a	
 icon-bench-ref	IcnBench	⏱️	icon	2026-09-23	26	26	2026-09-25	26	26	afa922883	
-prolog-bench-ref	ProBench	⏱️	prolog	2026-09-23	23	23	2026-09-23	23	23	3b5f301f1	
+prolog-bench-ref	ProBench	⏱️	prolog	2026-09-23	23	23	2026-09-26	23	23	83b784400	
 pascal-bench-ref	PasBench	⏱️	pascal	2026-09-23	11	11	2026-09-25	11	11	ccde5aa7d	
 raku-bench-ref	RakBench	⏱️	raku	2026-09-24	5	17	2026-09-25	6	17	33af62106	
 rebus-bench-ref	RebBench	⏱️	rebus	2026-09-23	3	3	2026-09-25	3	3	6ac5caa1b	
