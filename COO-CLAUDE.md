@@ -39,9 +39,9 @@ Another coo session may have ended in this root minutes before yours. Read the t
 
 **MODE** is `/home/resources/postoffice/MODE`. Line 1 is THE VALUE. Line 2 is the roster, the lanes and each seat's share, plus any stand-down procedure. Keyed lines carry `LANES:`, `ORDER-OF-WORK:`, `REPORT-TO-LON:` and `CONCERNS:`. Read it and never assume it: it has flipped more than 20 times since 08-29, so a reading goes stale within minutes. Say which mode you believe you are in whenever your reasoning depends on it.
 
-**Mail.** Run `bash SCRIP/scripts/s4e_msg.sh check`, ACT OR REPLY, then `clear`. `clear` deletes exactly what `check` displayed, read or not, and an empty inbox is the acknowledgement. Send with `send <identity> <topic> "one paragraph"` in plain text, because the bus eats backticks (PROTOCOL.md).
+**Mail.** Run `bash SCRIP/scripts/s4e_msg.sh check`, ACT OR REPLY, then `clear`. `clear` deletes exactly what the last `check` displayed, read or not, so never pipe `check` into `head`: a cut display keeps the rest unread. An empty inbox is the acknowledgement. Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a prose body passed as a shell argument and delivers nothing, and it eats backticks, so write plain text (PROTOCOL.md).
 - Flips arrive here. Under TENET, so do the HQs' asks about instruments, runners, accounting and denominators (CEO-1270).
-- Every other ask belongs to the ceo; forward a misrouted one in one line. Your postoffice `HQ` file names `ceo`, so `ask <topic> "text"` reaches the ceo as `q-<topic>`.
+- Every other ask belongs to the ceo; forward a misrouted one in one line. Your postoffice `HQ` file names `ceo`, so `ask <topic> --stdin` reaches the ceo as `q-<topic>`.
 - Verbs: `check | clear | send | ask | next | claim | done | unclaim | park | fleet | board | sweep | banner | whoami`.
   - `done` is COMPUTED against the baton's `DONE-WHEN:` and refuses rc=2 when it cannot measure.
   - `claim` and `next` announce the claim on the bus (RULES.md, Lon 2026-09-20).
