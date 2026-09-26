@@ -2,6 +2,14 @@
 
 **Minted s221-PL (2026-07-30).** Ladder: `GOAL-PROLOG-RTX.md`. Ledger: `RTX-CLAIMS.md`.
 
+## ⛔⭐⭐⭐⭐ LON DIRECTIVE 2026-09-26 — UNIFICATION MIRRORS THE SNOBOL4 MATCHER: r13/r14/r15 THE SUBJECT, r12 THE BINDING STACK (CEO-1279)
+
+**Lon, in-chat to the ceo, 10:2x CDT, verbatim:** *"The Prolog unification needs to mirror SNOBOL4's pattern matching, using R13, R14, and R15, and also R12 as a stack."*
+
+**The plane it names** (`ARCH-SNOBOL4-RTX.md` §1): r13 = Σ the subject base, r14 = δ the subject cursor, r15 = Δ the subject length/end, r12 = the conditional-assignment stack top (Lon's directive of 2026-08-02; the CAS base is a MATCH_BEGIN frame slot, never a register). **Read for Prolog:** unification is pattern matching over a term's cells — r13 the base of the term being walked, r14 the cursor over its cells, r15 its end — and a binding is a conditional assignment: pushed on the r12 stack as it is made, undone from that stack on backtracking (the trail IS the CAS twin, which is what this plane already keeps in r12). The get, put and unify steps are emitted boxes with α/β/γ/ω ports exactly as a SNOBOL4 pattern node is (`ARCH-PROLOG-BYRD-BOX-TRANSLATION.md`), and the C walk — `plw_unify_cells`, `plw_cell_deref_slow`, `plw_bind`, `plw_mkc_kids`, `rt_pl_deref_val`, `rt_pl_dop_unify_ci_c` in `src/runtime/by_name_dispatch.c` — is deleted, not wrapped.
+
+**What the plane pins today, measured 2026-09-26 (SCRIP `b6d8c9bb8`):** r12 = TR, the trail top (`rtx_plunify.s` CTX_TR); r13 = B, the choice point / barrier (`rtx_plunify.s` CTX_B; `bb_bound.cpp:22` saves it at a fence); r14 = nothing in a Prolog graph (the Σ/δ scan reservation of `GOAL-PROLOG-100.md`'s contract of record, line 89; scratch inside the unify leaf); r15 = the exception ball, a collected-heap pointer (`PL_BALL_ARM`/`PL_BALL_DROP`; the 2026-09-20 finding at line 362: r15 is an integer LENGTH in the SNOBOL4 plane and a POINTER here, and the shared GC shield hard-codes the SNOBOL4 reading). **The consequence the directive carries:** B and the ball leave the registers for slots — the trail arena header already carries a ball slot (`PL_TR_BALL_SLOT`, the finding's candidate A, ζ-STANDING), and B takes a frame or arena slot the same way — so that r13/r14/r15 mean the same kind in every plane and the collector's register shield needs no per-language reading. The cost was measured before the directive: unification, dereference and binding as C calls are 30–45% of nreverse (0.05x swipl), queens_8 (0.30x), zebra (0.10x) and fib (0.51x) in mode 4 (README § Prolog at SCRIP `a6d057a31`; CEO-1278). The row: `prolog-speed-get-put-and-unify-are-emitted-inline-not-c-calls-per-cell-…` (hq_prolog, rank 1, criterion `bench_prolog_bar.sh kernel nreverse 1.0`).
+
 ## 0. ⛔ THIS CONTRACT DELIBERATELY DOES NOT RESTATE STEP 0
 
 **The shared checklist is `ARCH-SNOBOL4-RTX.md` §7. READ IT THERE.** Icon's additions live in
