@@ -894,6 +894,28 @@ own `git log` prior to its `git rm` in this consolidation's commit) and in the `
 cites.
 
 ## LEDGER
+- **2026-09-25 hq_raku — LANDINGS 4 AND 5: RAKU REGEX SYNTAX REACHES THE ENGINE, CLASS BODIES TAKE `;`, SCALARS TAKE SUBSCRIPTS, LISTOPS ANSWER VALUES.**
+  Landing 4 (SCRIP `b73c4ceb4`, corpus `09dc7f940`): raku.l translates each `/.../`, `m:g/.../`, `s/.../.../` from Raku
+  regex syntax to the dialect re.c reads (insignificant whitespace, `#` comments, quoted literals, `<[a..z]>`/`<-[...]>`,
+  `$<name>=(...)`, non-capturing `[...]` via a new `(?:...)` in re.c, `||`, the common named rules); a named capture
+  takes no positional number; `say $0`/`say $<n>` print the Match gist; `;` may follow a class member. RakM 883 -> 896
+  of 945, RakBench 7/17, Roast 21/1464 both modes. Landing 5 (SCRIP `33af62106`, corpus `337f4fd74`): `$r[i]`,
+  `$h{k}`, `$h<k>` (+ :exists/:delete/assignment) on a scalar via lexer trailing context, so `if $x {` and `$i < $n`
+  are untouched; `grep`/`sort BLOCK, LIST`; a map/grep listop outside a `for` source becomes `(LIST).map/grep({...})`.
+  No monitor bracket was possible for any of these: each died at parse or at the engine's compile before an event.
+  NEXT REDS, by class: the one-empty-string array (`my @a = ""`, five entries -- the SOH array model cannot hold it);
+  Rat (pi-sequential, dragon-curve, and much of Roast); `.^methods`/`.^attributes`/type-object gists `(Cat)`;
+  custom infix operators (`multi sub infix:«<»`); try/CATCH without `default` rethrowing; Any vs Nil; the benchmark
+  constructs (await/start, `flat` with list-index slices, hyper `+«`, array `:=`); the listop's full comma list.
+  Per-landing on `33af62106`: RakM **901/947** both modes, Roast **21/1464**, RakBench **6/17** -- the one kernel lost
+  (point_class_add2, m3 iteration angle) is an rc=124 at the runner's 300 s ceiling at load average ~72 on 16 cores
+  (its process angle: 85 s wall for 31 s CPU, against 13 s on the landing-4 pass): a timeout firing, not a verdict;
+  re-measure on a quieter box. ⛔ **My b73c4ceb4 left an implicit declaration of `isalnum` in raku.lex.c** (the cfo's
+  review: `test_gate_no_implicit_declarations`, wired in make test, read RED in src/parsers/); cured at `bdc3f7b3b`
+  (`<ctype.h>`). The cause: the tree compiles every unit with `-w`, so no build log can show that warning -- the gate
+  re-compiles with `-Wimplicit-function-declaration` for exactly that, and my landing check did not run it.
+  bdc3f7b3b's own message gives a different, wrong cause (an incremental build); this line is the measured one.
+
 - **2026-09-25 hq_raku — LANDINGS 2 AND 3: THE ROAST WALK WITH rkx, AND EVERY GRADED MASTER REF IS RAKUDO'S (CEO-1271).**
   Landing 2 (SCRIP `6612224cb`, corpus `5a2942937` naming its pre-rebase `9c16bbf14`): `||` had no lowering at all
   (a BOMB in a condition), `&&`/`||` answer an operand, a Range invocant is its elements, the Str sub forms, `e`/`tau`,
