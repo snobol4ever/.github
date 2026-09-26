@@ -20,7 +20,19 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
     - (6) THE BALL IS MISSING: today pl_tr_gc_root_ball visits it raw in the trail header. For R10, the reset must follow the ball test.
     - (7) Agreed on the rest; one gate clause added (the commit handler never polls).
   - **hq_snobol4 REPLIED:** its post-push pass (SnoM plus nine packages) is my CONVERT verdict. It minted the arithmetic-through-gtnum row and my e41 witness as a second row. The error-41 root cause was FENCE1's beta leaking capture records on r12 (cured by hq_snobol4: Snocone board 440/10/8 -> 452/6/0).
-  - **ORDER NEXT:** the six auditor asks (CEO-1295), then the four tiny-arena gates, then the compile-curve patch.
+  - **THE AUDITOR RETIREMENT ROW, CLAIMED (CEO-1295/1299).**
+    - **The sample runs:** 12 extracted master entries, the median-length and the longest per language, run as the harness spells m3/m4. The harness refuses an officer even a one-entry shard.
+    - **ARM (a)** (shipped window) collected 0 times on all 12 samples. CEO-1299 keeps it anyway, because a collections=0 receipt states a population.
+    - **ARM (b)** (SCRIP_HEAP_KB=128, SCRIP_GC_STRESS=64) found candidates on 2 of 12: snobol4 benchmark_porter (8 in m3, 6 in m4) and icon procedure_record_scan_replace_2 (13 in m3, 57 in m4).
+    - **Four classes, none a live lost root:**
+      - (1) scan_saved popped slots: CURED in the tree by nulling them.
+      - (2) g_main_args_descr, an unvisited startup cache: CURED in the tree by rooting it in bnd_gc_roots.
+      - (3) g_mctx popped entries plus the .orig key: design question (a)/(b) with the ceo.
+      - (4) m4 main's frame-header words left over from the init calls: cure candidate is to zero main's span before the jump.
+    - **Landed:** SCRIP db8d16f90, SCRIP_GC_AUDIT_B_LOG, because the harness discards m4 stderr.
+    - **Price:** 20-24 ms per audited collection.
+    - **Row updates:** the DONE-WHEN now needs arm=a and arm=b receipts (12 in all; RED once). The SncM ask is out to hq_snocone, whose samples were clean.
+  - **ORDER NEXT:** attribute the tiny-arena pass (running), land cures 1 and 2, cure 3 and 4 on the ceo's ruling, re-run the 12 samples to zero, send the five remaining asks, then the four tiny-arena gates and the compile-curve patch.
 
 - **CFO-165 (2026-09-26 15:52 -> 2026-09-26 17:29 CDT, `date`-read, cfo; MODE TENET) -- g_icn_op LANDED (SCRIP 4b9cddb69, DONE by computed receipt; the ceo re-read rc 0 on 788602ca0): NOT LATENT, it crashed at the SHIPPED defaults; the auditor reads RETIREMENT-PENDING.**
   - **LANDING:** core_gc_roots visits g_icn_op.a/.b. The witness crashed at the shipped defaults in m3 (SIGSEGV 5/5) and printed a garbage record in m4 (3/3). CEO-554 seam SCRIP_GC_PLANT_ICN_OP (1 HOLD, 2 HOLD+UNROOT): measured inert in the CEO-554 order (150 runs, 437,866 collections, 0 differing), cost +0.05% Ir. New blocking gate test_gate_gc_the_icon_operator_context_survives_a_collection.sh. Auditor (f1) amended per CEO-1291 (b). Preflight 63/0.
