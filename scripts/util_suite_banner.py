@@ -692,7 +692,27 @@ def readme_check(path, pinned_only=False):
         return 1
     print(f"README-CHECK CURRENT OK: every README row matches SUITES.tsv as it stands now")
     return 0
+# ⛔⭐ ONE WRITER AT A TIME ON THE SUITE TABLE (coo 2026-09-25, hq_pascal's report, measured twice in one sitting): a lane running
+# its runners in parallel (fpc, PAT, bench and the master's util_score_row.py) had each one read SCORE.md, re-render its own row and
+# write the whole file back -- the classic lost update: the LAST writer put back a line another runner had just set. SUITES.tsv read
+# fpc 158/181 on 48d98c99c while SCORE.md's FPC line still read 156, twice, the same runner losing both times. Every read-modify-write
+# of SUITES.tsv and SCORE.md now holds an exclusive flock on SUITES.tsv's own inode for its whole span -- no new file, nothing to
+# ignore -- and util_score_row.py holds the same lock across its write and hands S4E_SUITE_TABLE_LOCKED to the --set it runs, so
+# the child does not wait on its own parent. A lock not granted within S4E_SUITE_TABLE_LOCK_S (120 s) refuses rc 2: never a hang.
+def _suite_table_lock():
+    if os.environ.get('S4E_SUITE_TABLE_LOCKED'): return None
+    import fcntl, time
+    fd=os.open(TSV, os.O_RDONLY); limit=time.monotonic()+float(os.environ.get('S4E_SUITE_TABLE_LOCK_S','120'))
+    while True:
+        try: fcntl.flock(fd, fcntl.LOCK_EX|fcntl.LOCK_NB); break
+        except BlockingIOError:
+            if time.monotonic()>limit:
+                sys.stderr.write(f"REFUSE(rc=2): another writer has held the suite-table lock on {TSV} past {os.environ.get('S4E_SUITE_TABLE_LOCK_S','120')} s -- NOTHING WAS WRITTEN; re-run when it finishes.\n"); sys.exit(2)
+            time.sleep(0.05)
+    os.environ['S4E_SUITE_TABLE_LOCKED']=str(os.getpid())
+    return fd
 def main(a):
+    if '--set' in a or '--render' in a: _suite_table_lock()
     if '--readme' in a:
         j=a.index('--readme'); path=a[j+1] if len(a)>j+1 and not a[j+1].startswith('-') else _readme_path()
         sys.exit(readme_write(path))
