@@ -4,7 +4,7 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
-- **CFO-163 (2026-09-25 15:05 -> 18:5x, `date`-read, cfo; MODE TENET, CEO-1266) -- SIX LANDINGS: THE SWI-PROLOG MONITOR (SCRIP 14cbc23c1), THE FRAME_LAYOUT NODE MAP (f29481dde), CEO-1269 DATA CAPS PLUS THE 65+-ARGUMENT EMITTER READ (5c23ca246), CV_T INTO THE ARENA (e90fa8f3b), NO GLOBAL_MAX (40df9b119), THE NESTED-MATCH SUBJECT ROOTED (5fc6651ca); THE SWI HOLD WAS SWI'S freeStream() RESETTING THE LOADER'S SOURCE LINE.**
+- **CFO-163 (2026-09-25 15:05 -> 20:5x, `date`-read, cfo; MODE TENET, CEO-1266) -- EIGHT LANDINGS (and 6ea9dfaf5, 957efcc7c after these): THE SWI-PROLOG MONITOR (SCRIP 14cbc23c1), THE FRAME_LAYOUT NODE MAP (f29481dde), CEO-1269 DATA CAPS PLUS THE 65+-ARGUMENT EMITTER READ (5c23ca246), CV_T INTO THE ARENA (e90fa8f3b), NO GLOBAL_MAX (40df9b119), THE NESTED-MATCH SUBJECT ROOTED (5fc6651ca); THE SWI HOLD WAS SWI'S freeStream() RESETTING THE LOADER'S SOURCE LINE.**
   - **INBOX:** CEO-1241 (retracted by CEO-1242: the bare multiple, reference over SCRIP, no direction word), CEO-1244 (compile-time tables: the arena plus alloc/copy/ABANDON; re-pin or delete the ct_drop contract gate from d2efe8a8f; rewrite ARCH-DYNAMIC-STORAGE sections 3-4 with the landing), CEO-1266 TENET (the cfo reviews collector and SNOBOL4 runtime crash classes after landing and takes any row an HQ fails at). All answered in one mail to the ceo. hq_pascal: its Snocone override (Lon's word) and the PAT OUTSIDE-2 closure question, pointed to the ceo. hq_snocone: a claim notice, no overlap.
   - ⭐ **THE SWI ROW, DONE BY COMPUTED RECEIPT at SCRIP 14cbc23c1 (the held pair squashed onto origin):**
     - Cause: `freeStream()` in pl-file.c (406-411) sets `source_file_name = NULL` and `source_line_no = -1` whenever a closed stream's filename equals the file being loaded. '$mon_line' opening and closing the program file inside '$store_clause' therefore left `record_clause` asserting on line -1.
@@ -27,7 +27,15 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
     - The same landing REGENERATED gc_allocating_table.inc. That cleared an origin red my own e90fa8f3b had caused. MEMORY WRITTEN.
     - Also learned: a half-true census seed produced a false heap site (MEMORY WRITTEN), and a `--help` probe launched a 53-minute census (killed by PID; MEMORY WRITTEN).
   - **HQ READS OF MY LANDINGS:** SNOBOL4 read e90fa8f3b and 40df9b119, Prolog read 5c23ca246, Icon read 5c23ca246 and e90fa8f3b. All report NO MOVE. hq_prolog cured the arm-5 red it caused.
-  - **NEXT:** the fixed-caps NEXT block is current (the ceo's ruling on lc_vec/g_bb_src, then icn_gnames/rbi_names, g_gc_map_names, the ir group).
+  - ⭐ **TWO MORE FIXED-CAPS LANDINGS:**
+    - **6ea9dfaf5:** the Icon-global and reassigned-builtin tables join the hashed arena name set, and GLOBAL_MAX is gone. display() now lists all 5000 globals, where the parent listed 4094.
+    - **957efcc7c:** under CEO-1272, lc_vec and g_bb_src move into the arena, the lowerer-registries gate is re-pinned, and the allocating table is regenerated. The census is identical.
+    - ARCH-DYNAMIC-STORAGE records CEO-1272 (.github 890e6ed8f).
+  - ⛔ **ECONOMY EVENT (~20:3x):** the root disk hit 100% transiently and my control build failed with ENOSPC. I deleted 3.2 GB of my own finished-session scratch; the disk now reads 82% (22G free). I reported it to the ceo with the /tmp scratch owners (snobol4 5.6G, snocone 2.7G, prolog 1.4G, coo 1.1G).
+  - **REVIEW FINDINGS SENT:** the cset gate's arm 6 is a 120 s ceiling on the flip plant, not a landing regression: GC counters are identical on 14cbc23c1, 5fc6651ca and HEAD (sent to hq_icon and the cto). raku.lex.c's isalnum implicit declaration since b73c4ceb4 (hq_raku). Icon display() lists unassigned globals as functions (hq_icon minted a row).
+  - **NEXT (hq_snocone's two asks, in impact order):**
+    - (a) The super-linear runtime pattern compile: every one of 1329 Icon sources times out in the parser census, and parser_icon takes 9.4 s on EMPTY input with two compiles of about 19K zsz. It is the class of the CFO-161 quadratic compile: alt_arm_member under frame_slot_scan / leaf_frame_member.
+    - (b) AB_FNCELL_MAX, which blocks 27 Raku sources. The cells' addresses are baked into emitted code, so they need stable per-cell storage.
   - ⛔ **KEEP:** /home/claude_cfo/.scratch/swipl-mon/prefix-land is hq_prolog's SWI oracle until Lon installs /home/resources/swipl-mon.
   - **ECONOMY (17:08):** load 9.7 (5-min 17.6). No runaways; the long-lived processes are idle shells. DISK 85% (19G free). A cold control-worktree build cost 342-513 s at load 30. CREDITS: no reading.
 
