@@ -1,22 +1,71 @@
-# ARCH-PROLOG-BB-REWRITE — Prolog redesigned from scratch as Byrd boxes (hq_prolog, 2026-09-26)
+# ARCH-PROLOG-BB-REWRITE — Prolog redesigned from scratch as Byrd boxes (hq_prolog; second pass 2026-09-26, Fable 5.1 at MAX on Lon's word)
 
-**Lon, in-chat to hq_prolog, 2026-09-26, verbatim:** *"You are to re-design Prolog from scratch using Byrd Boxes."* · to the ceo 13:5x, verbatim: *"HQ-PROLOG is on a COMPLETE RE-WRITE using Byrd Boxes versus C functions."* · 12:1x: *"The bar is the compiler."* · 10:2x: *"The Prolog unification needs to mirror SNOBOL4's pattern matching, using R13, R14, and R15, and also R12 as a stack."* · 10:5x: *"The R12 push and pop should be inlined, and just a few instructions."*
+**Lon, in-chat to hq_prolog, 2026-09-26, verbatim, in order:** *"You are to re-design Prolog from scratch using Byrd Boxes."* · 16:0x: *"The next task for HQ-PROLOG is to design one-more time using your original ideas and making them even better. This seat is now Fable 5.1 with MAX effort."* · 16:2x: *"So, you are re-designing Prolog to properly use Byrd Boxes. Read all the white papers from Charlie Byrd and associates and Todd's Proebsting's white paper to get their layout of the Byrd Boxes."* · 16:2x: *"You are ignoring the test-suites now."* · to the ceo 13:5x: *"HQ-PROLOG is on a COMPLETE RE-WRITE using Byrd Boxes versus C functions."* · 12:1x: *"The bar is the compiler."* · 10:2x: *"The Prolog unification needs to mirror SNOBOL4's pattern matching, using R13, R14, and R15, and also R12 as a stack."* · 10:5x: *"The R12 push and pop should be inlined, and just a few instructions."* · 2026-09-03: *"Ensure that Prolog development is following the literature regarding the Byrd Box wiring … Ensure we are not sliding back into the WAM mode. Ensure our BB's have the stacks and lists inside the BB boxes, not outside the BB's boxes as globals. The data must be kept in the THREE ZETAS."*
 
-**What this page is.** The design is drawn fresh from three sources: Byrd's four ports, Proebsting's rule that each port is a compile-time chunk that holds its operator's logic, and the SNOBOL4 matcher already emitted by this compiler. The design does not start from `lower_prolog.c`. **The implementation lands in place, one rung at a time.** Each rung replaces one mechanism, deletes the C it replaces in the same landing, and holds every Prolog suite at its floor. Big-bang replacement is refused because a rewrite that is red for a month is unmeasurable for a month.
+**What this page is.** The second design pass. The first pass (this file at `.github 369f362d`) drew the design from Byrd's four ports, Proebsting's rule that each port is a compile-time chunk holding its operator's logic, and the SNOBOL4 matcher this compiler already emits. This pass keeps every one of its ideas and makes each better, after reading the literature Lon named (§ 1): the box is an invocation and its storage is the activation frame; the choice point is a box that still holds clauses; failure goes *directly* to the youngest such box, as Deransart, Ducassé and Ferrand formalize the model "as usually implemented"; the trail is a mark per alternative, as Carlsson's continuation interpreter keeps it; and a deterministic box retains nothing. **The implementation lands in place, one rung at a time** (§ 16): each rung replaces one mechanism, deletes the C it replaces in the same landing, and holds every Prolog suite at its floor in both modes (§ 14, the gate Lon named). A rewrite that is red for a month is unmeasurable for a month, so big-bang replacement is refused.
 
-**Where it sits.** This page supersedes the *mechanism* sections of `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` (§ A.1 frame offsets, § B.11 trail, § B.9 meta-call, § B.15 database) wherever they differ. It keeps that page's port correspondence (§ A), its per-construct wiring (§ B.1–B.8, B.10, B.14, B.17) and its literature (§ G). The census it answers is `findings/FINDING-2026-09-26-ceo-prolog-byrd-box-score-…md` (§ H there). Two numbered counts appear below; each names the instrument and tree it came from, and every other count is left to the instrument.
+**Where it sits.** This page supersedes the *mechanism* sections of `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` (§ A.1 frame offsets, § B.3 the choice, § B.5–B.8 the control boxes, § B.9 meta-call, § B.10 catch, § B.11 trail, § B.14 findall, § B.15 database, § B.18 last call) wherever they differ, and keeps that page's port correspondence (§ A), its per-construct source citations and its literature (§ G). The census it answers is `findings/FINDING-2026-09-26-ceo-prolog-byrd-box-score-…md` (CEO-1280; `…TRANSLATION.md` § H). Counts below name the instrument and the tree they came from; every other count is left to the instrument.
 
 ---
 
-## 0. The one rule
+## 1. The layout of the box, from the literature (read this sitting; the associates' extracts in § 1.5)
+
+**1.1 Byrd 1980, *Prolog Debugging Facilities* (DEBUG.MEM, read whole).** The box is drawn *"around the whole procedure"* — all its clauses — with four arrows: *Call* (*"initial invocation of the procedure … control passes through the call port of the descendant box with the intention of matching a component clause and then satisfying any subgoals in the body of that clause. Notice that this is independent of whether such a match is possible; i.e. the box is called, and then such matters are worried about."*), *Exit* (*"a successful return from the procedure … Control now passes out of the exit port"*), *Redo* (*"a subsequent goal has failed and the system is backtracking … An attempt will now be made to resatisfy one of the component subgoals in the body of the clause that last succeeded; or, if that fails, to completely rematch the original goal with an alternative clause and then try to satisfy any subgoals in the body of this new clause."*), *Fail* (*"a failure of the initial goal, which might occur if no clause is matched, or if subgoals are never satisfied, or if any solution produced is always rejected by later processing."*). **The box is an invocation:** *"the box we have drawn round the procedure should really be seen as an invocation box. That is to say, we will have a different box for each different invocation of the procedure"*, each with *"a unique integer identifier"*. **Inside** the procedure box each body goal is a box of its own, wired in sequence: the second figure draws `offspring(X,Y)` and `descendant(Y,Z)` as nested boxes joined by arrows, and the trace shows the wiring — an Exit enters the next goal's Call, a Fail enters the previous goal's Redo, the procedure's Redo re-enters *"the clause that last succeeded"* at its last exited subgoal and, when that subgoal fails, steps to the next clause. **The invariants:** *"for any invocation there is always only one call and fail, although there may be arbitrarily many redos and corresponding exits (>= 0)"*; at Redo *"we are in exactly the same place as when we left except for the direction of movement"*; a cut removes invocations from the search space (*"barring those that have been cut out of the search space (using !)"*). Byrd's own preference is that backtracking be *shown* retracing every goal (*"every goal you meet can be seen as a redo in the trace"*); the `x` option of his debugger already *"keeps failing until either a call port or an exit port is traversed — this will be just after the choice point"*, printing the retraced path without interacting.
+
+**1.2 Proebsting 1997, *Simple Translation of Goal-Directed Evaluation* (read whole).** *"For each operator in a program's abstract syntax tree (AST), translation produces four labeled chunks of code — one for each of Byrd's ports"*: `.start`, `.resume`, `.fail`, `.succeed`, plus *"a corresponding run-time temporary variable to hold the values it computes"*. *"The start and resume chunks are synthesized attributes. The fail and succeed chunks are inherited attributes"* — the box writes its own α and β; **its γ and ω are decided by its parent**, which is exactly SCRIP's γ/ω landings handed to a box on entry. *"In the Byrd Box, ports are locations, whereas here they are pieces of code."* The templates: `literal` (start produces the value, resume fails), `uminus`, `plus` (`E1.succeed: goto E2.start`, `E2.fail: goto E1.resume`, `E1.fail: goto plus.fail`, `plus.resume: goto E2.resume`), `LessThan` (a leaf that fails *after* its operands succeed: `if (E1.value >= E2.value) goto E2.resume`), `to` (*"an extra code chunk as well as an additional temporary variable"*, `to.resume: to.I ← to.I + 1; goto to.code`), and `ifstmt`, the one construct whose connection is made at run time: *"E1's succeed and fail chunks set gate to the appropriate chunk's — either E1's or E2's — resume label"*, `ifstmt.resume: goto [ifstmt.gate]`. *"Translating a function call that generates a sequence of values requires a mechanism for suspending and resuming a function invocation."* *"The new scheme requires nothing more powerful than conditional, direct, and indirect jumps."* The naive expansion *"suffers from generating many simple copies and many branches to branches. Propagating copies and eliminating branches to branches (by branch chaining and reordering the code) optimizes the code well"* (Fig. 2). On Byrd: *"It appears that Byrd used the boxes to model control flow between calls within a single clause, but not to model the flow of control between clauses within a procedure, nor to model the control-flow in and out of a procedure."*
+
+**1.3 Deransart, Ducassé, Ferrand 2007, *Observational Semantics of the Prolog Resolution Box Model* (read whole).** The formal statement of the model *"as usually implemented"*. A box is a node of the proof tree labelled by *"creation numbers, predications and subsets of clauses of the program"*: `cl(v)` *"is the list of clauses … whose heads use predication pd(v)"*, and *"We will assume that only useful clauses are in cl(v) (clauses whose head is unifiable with pd(v))"*. **A choice point is a box that still holds a clause:** *"hcp(v) is true iff there is a choice point w in the subtree rooted v in T (cl(w) has at least one clause)"*, and `gcp(v)` is *"the greatest choice point in the subtree"* — the youngest by creation order. **The Backtrack rule jumps straight to it and discards everything younger:** `T' ← T − {y | y > v}, u' ← v, cl' ← upcp(cl, v)` — the used clause removed from the box's packet. On Byrd's step-by-step preference: *"Byrd fustigates nevertheless the implementors who, at backtrack … force to return directly to the selected choice point … we will however not follow this point of view, and will currently adopt that of the implementors, more widespread … the access to a choice-point, deeply located in a large box stacking, can be done as clearly by jumping directly to the deepest box rather than by descending carefully the staircase resulting from stacking."* The seven rules — Leaf reached (a fact: the packet shrinks, the node stays a leaf), Leaf reached & go down (a rule: a child box is created for the first body goal, filled with its useful clauses), Tree success (the last body goal exits: step up), Tree success & go right (a body goal exits: create the right sibling box), Tree failed (no choice point below: step up), Backtrack, Backtrack & go down — are the whole execution, and each produces exactly one trace event `< number depth port predication >`.
+
+**1.4 Carlsson 1983, *On Implementing Prolog in Functional Programming* (read whole).** The box as a function with a success continuation: `prove(goals, cont)` calls `cont` for each proof and *"if it fails, it simply returns"*; `resolve(goal, cont)` = `try-assertions(goal, assertions, *trail*, cont)`, which tries each clause and, when the clause's body fails, **resets the trail to the mark taken at entry and tries the next** (`(reset mark) (try-assertions goal (cdr assertions) mark cont)`). Value cells are self-referencing when unbound (`(rplacd w w)`), `unify-variable` pushes the cell on `*trail*`, `dereference` follows the chain. **Cut** is an ancestor depth: the prover returns an integer *"specifying an ancestor depth to return to"*; `try-assertions` compares it with its own depth — greater: reset the trail and try the next clause; equal: failure of this goal, no further clause; less: propagate — and `cut-prover` returns `(1- d)`. **Determinacy:** *"the stack space consumption of the above interpreter can be much reduced if prove can test whether a goal is determinate"* — a determinate goal is proved with the trivial continuation and nothing of it is retained.
+
+**1.5 What the associates add** — read by three readers this sitting against one question each, the layout and mechanics of the box, and reported with section numbers and verbatim quotes; the extracts are condensed here and the design's citations are taken from them.
+
+**1.5a Proebsting & Townsend 1999 (Jcon) and Danvy, Grobauer & Rohde 2001.** Jcon § 8.1.1 restates the four chunks (`.start`, `.resume`, `.fail`, `.succeed`; *"The start and resume chunks are synthesized attributes. The fail and succeed chunks are inherited attributes."*) and prints the templates as IR: `plus` (`E2.fail→E1.resume`, `plus.resume→E2.resume`), `!E` (`ir Resume(bang.val, tmp, ir Label(E.resume))` — a retained result re-entered, its exhaustion sent to the operand's resume), `if` (*"an indirect goto based on a temporary value, 'gate'"*: `ir MoveLabel(if.gate, …)`, `ifstmt.resume: ir Goto(ir TmpLabel(if.gate))`; *"E1.resume is wired to nothing — E1's generators are discarded by never being jumped to"*), `every E do B` (`B.succeed→E.resume`, `B.fail→E.resume`; `break` banks `loop.continue` because *"this resumption address cannot be known statically"*), `suspend E` (`ir Succeed(E.val, ir Label(E.resume))` — *"ir Succeed is given the address at which to resume the expression"*). The IR (Table 11) is `ir Goto` *"direct or indirect"*, `ir TmpLabel`, `ir MoveLabel`, `ir Call/ResumeValue(lhs, …, failLabel)` and `ir Succeed(expr, resumeLabel)`, and *"Jtran creates a single switch construct through which all indirect jumps are directed"*. **The retained closure** (§ 6.1–6.3, § 8.2.2): a suspended procedure returns *"an object of the vClosure class … a retval field holding the suspended result … a Resume method … any data needed by the Resume method"*; its layout is `int PC; vDescriptor[] tmpArray; vDescriptor[] tmpVarArray;` — *"Suspending execution requires storing away the values of temporaries … as well as local variables and parameters … The program location at which the Resume method should begin is kept in the PC field"*, and *"no analysis is done to determine which temporaries actually need to be saved and restored between calls to Resume — the compiler conservatively stores all of them"*. **No runtime structure tracks suspended generators:** the order of resumption *"is fixed by wiring … the most recently started operand is resumed first"*, and across a call *"the youngest generator is the object in the caller's temporary, re-entered by ir ResumeValue"* — Jcon is the β chain with a per-site token, which is what SCRIP's Prolog copied at rung 2. Danvy et al. derive Proebsting's chunks from continuations: *"the first argument is the success continuation and the second argument the failure continuation. Note that the success continuation takes a failure continuation as a second argument. This failure continuation determines the resumption behavior of the Icon term"* (§ 2.5.4); the translation (Fig. 11) maps a call of the success continuation to `goto succ` with the code under `resume`, a call of the failure continuation to `goto fail`, and *"Jumps to resume_n can end up in two different places … We use a boolean variable gate_n"* — Proebsting's gate is derived, not designed; `[[if E0 then E1 else E2]] = λk.λf.[[E0]] (λ_.λ_.[[E1]] k f) (λ().[[E2]] k f)` *discards E0's resumption continuation*, the CPS form of a once-only test; and § 4 leaves *"defunctionalizing the continuations to obtain stack-based specifications and the corresponding run-time architectures"* as future work. Cost: Jcon's suspend saves every temporary; Danvy's flow-chart form is *"36 byte-code instructions"* against *"about 110"* with closures.
+
+**1.5b Kulaš 2000–2005 and Andrews 2002.** Kulaš 2003 (*Pure Prolog Execution in 21 Rules*, Fig. 2) gives the ports as transition axioms over events `port Goal ⟨U|Σ⟩` with an ancestor stack `U` and a bindings stack `Σ`, extended *"from predicates to every goal formula"* (*"the key idea"*): `S:conj:2 exit A → call B`, `S:conj:5 fail B → redo A`, `S:conj:6 redo A,B → redo B` (**a redo of a conjunction re-enters the rightmost conjunct**), `S:disj:2 fail A → call B`, `S:disj:4/5` memo `OR(N)` on exit and `S:disj:6` re-enter the memoed disjunct on redo, `S:atom:1` resolve with a fresh clause and memo `BY(B)`, `S:atom:4 redo GA → redo B`, `S:true:2 redo true → fail true`, `S:unif:2 redo T1=T2 → fail` — a deterministic leaf fails on redo. Clause choice is a disjunction after the program is put in canonical single-clause form, so *"try next clause"* is `S:disj:2`. Kulaš 2005 Thm 6.5: `fail G⟨U|Σ⟩ ⇐ call G⟨U|Σ⟩` — **a Fail returns exactly the bindings the Call had**; ports are typed `push ::= call | redo`, `pop ::= exit | fail`, and the k-th answer of a goal sits at its (2k−1)-th exit. The SP rewriting system (Kulaš & Beierle 2000; Kulaš VCL 2000) is the implementation-shaped statement: the state is a word of substitutions, undo marks `u`, one current goal `D⟦…⟧` and continuations `C_Φ⟦…⟧` indexed by their *remaining clauses* Φ; *"definition of a predicate shall be fixed at the time of its call"* (`Φ = def(X)`, the logical update view); **backtracking activates the youngest continuation:** *"if there is a non-empty continuation immediately to the right of a u, then it shall be activated"*, `u C_Φ⟦X⟧ ⇒ u D_Φ⟦X⟧ if Φ ≠ ∅`, and an exhausted one is skipped by another undo, `u C_∅⟦X⟧ ⇒ u u`; the footnote *"we could have postulated the following rule σuC⟦X⟧ ⇒ D⟦X⟧ … to cancel all the 'fallible' substitutions right away"* is the trail unwound to a mark. **Cut is the suffix criterion:** *"To find the parent of X, look for the leftmost continuation whose argument C does not end in X,Y"*; cut empties every continuation up to and including the parent's, `call/1` bounds it with *"a dummy 'insulating layer', an empty continuation"*, and if-then-else *"is actually a disjunction of the if-then and the else parts"* with the condition under `once`. **Catch is a continuation on the same stack** (`D⟦catch(G,B,R),X⟧ ⇒ ε D⟦G,X⟧ C⟦catch(G,B,R),X⟧`), and throw (`ThrowAnc`) walks the continuations toward the root emitting one undo per skipped continuation until a catch whose ball unifies, resuming its recovery — *"cut and catch/throw for free, i.e. without any additional bookkeeping"*. Ports are an overlay: `CALL(X)` at the goal's sole entry, `Fail(X)`/`Redo(X)` as promise markers parked to the right that an undo mark fires (*"The fail-port is capturing 'no (more)' rather than 'no'"*), a `UNIFY(X,σ)` event per successful head unification, and no ports for system predicates. Andrews 2002 § 2.1: *"Cut therefore cuts away not only the later clauses of the same predicate, but also the alternative clauses for subgoals that appear earlier in the clause"*, and, quoting Billaud: *"when a predicate is called, the current backtrack stack is stored; the execution of a cut corresponds to discarding the current backtrack stack and replacing it with the one stored by the current predicate."* None of these papers mentions the WAM, a trail or an environment; Kulaš 2005 § 9 only notes that *"the stack-of-stacks idea reflects the usual memory management of Prolog implementations"*.
+
+**1.5c Jahier, Ducassé & Ridoux 1999; Ducassé & Noyé 1994; Ducassé 1997/1998.** (The Brayshaw file in the directory is a PPIG teaching-experiment abstract, not the visualisation paper; the three Ducassé text extractions are cipher text from custom font encodings, so the reader rendered the 133 PDF pages and read them visually.) **Jahier's continuation semantics is the only formal definition of the four events in the shelf** (§ 3, eq. 6′): `Byrd_g[P,q(X)] = λκξ.(⟨call,q,X⟩ : (Byrd[P] q [X] (λξ′.(⟨exit,q,X⟩ : (κ (⟨redo,q,X⟩ : ξ′)))) (⟨fail,q,X⟩ : ξ)))` — *"A call event is inserted just before the code that implements its resolution … If the goal succeeds, its success continuation is executed; so the exit event actually models predicate exits. When another solution for a goal is requested on backtracking, the execution search for another matching clause through the failure continuation that is passed as argument of the success continuation; hence the redo event. When the goal fails, its failure continuation is executed; hence the fail event just before it."* What Redo re-enters is therefore the ξ′ the success continuation received at exit — *the innermost pending alternative inside the box*; clause choice is an unevented OR inside the box (eq. 3: the second clause's code is the first's failure continuation); a conjunction has no box of its own (eq. 8: G2's code is G1's success continuation, and G2's failure continuation is the ξ′ G1 handed out at exit); the cut has its own continuation ξ_cut, scoped to the predicate, and *"clearly succeeds exactly once"*. Its Fig. 4 reproduces *"the same trace as in the original article of Byrd"*. **Ducassé & Noyé (RR-2618 § 4.2) name the fifth port this design's ω produces natively:** *"Another model is closer to the operational semantics of Prolog … The only difference with the box model is the backtracking port Next, which has a slightly different semantics than Redo: Next g: the execution backtracks to g"*, against *"Redo g: the execution backtracks to a subgoal of g"*; *"The Next port is more faithful to the operational semantics of Prolog, it tells where backtracking actually occurs. The Redo port is very useful to trace 'breadth-first' … For automated analysis both ports should be extracted and clearly separated."* Their Fig. 3 trace (`q:-s. q:-t. s. ?-q,r.`) prints `7 Redo q, 8 Redo s, 9 Next s, 10 Fail s, 11 Next q, 12 Call t` and notes that without line 11 *"the invocation of t on line 12 seems to arrive by magic"*. Opium (RR-3257 § 3.1–3.2) adds the **unify** event (*"tells when the execution finds a clause that unifies with g … it also gives the unified clause"*) and fixes the grammar of a goal's events: `call (unify* fail | unify+ exit (redo unify* exit)* [redo unify* fail])`; the attributes of an event are *chrono, goal invocation number, depth, port, predicate, argument instantiation* and, for unify, *the clause*; built-ins are plain boxes without unify; ECLiPSe's tracer adds a *cut* port and coroutining ports. **On engines** (RR-2618 § 4.3): a source wrapper *"leaves choice points at each predicate even when it is determinate, impeding last call optimization"*; and *"All reasonable Prolog compilers implement last call optimization via a continuation mechanism; the last subgoal call of a clause does not return to its caller … Hence there is no location in the code where the debugger could be notified when the last subgoal of a clause exits … The tracer uses its own stack of Call and Exit frames to reconstruct the other ports. Compiled code instrumentation has given, so far, the best results."*
+
+**1.6 The layout this design takes, and where it goes beyond the papers.**
+
+| the literature | this design |
+|---|---|
+| the box is an invocation of a procedure (Byrd 1.1) | one activation frame per call of a predicate box; its unique number is its address |
+| the four ports are code, α/β synthesized, γ/ω inherited (Proebsting 1.2) | the callee's α and β are its own code; γ is a landing handed in `rcx` at α; ω is **the universal fail entry** (§ 6), so no ω landing is handed at all |
+| the body's goals are boxes wired in sequence (Byrd 1.1; Proebsting `plus`) | `γ_i → α_{i+1}` by a direct jump; every ω by the universal entry |
+| a choice point is a box that still holds clauses; failure jumps directly to the youngest one and discards everything younger (Deransart 1.3, the Backtrack rule) | **the choice record** (§ 6): a box with alternatives left stores `{RETRY, B0, HB, TRMARK, CP, SP}` in its own frame; `B` names the youngest; failure is `mov rax,[B]; jmp [rax]` and the retry stub resets `rsp`, undoes the trail to the record's mark and steps the clause packet |
+| the packet holds only useful clauses (Deransart 1.3, `cl(v)`) | first-argument indexing (§ 7.2): the SWITCH box picks the packet per call |
+| Redo re-enters the clause that last succeeded at its last exited subgoal, else rematches with the next clause (Byrd 1.1) | the retained frame is re-entered through its record; the record of the *youngest* box inside the clause is what `B` names, so Byrd's "last exited subgoal" is reached by one jump |
+| one Call, one Fail, many (Redo, Exit) pairs per invocation (Byrd 1.1) | γ leaves the frame retained iff its record is live; Fail releases it; `B == F.B0` at γ is the deterministic-exit test |
+| the trail mark per alternative, reset on the way to the next clause (Carlsson 1.4) | `TRMARK` in the record; the clause step pops the r12 trail to it inline (R0, landed) |
+| cut is an ancestor depth (Carlsson 1.4); it removes invocations from the search space (Byrd 1.1) | cut is `B := F.B0` and `HB := [B].HB` — two loads and two stores |
+| a determinate goal retains nothing (Carlsson 1.4) | deterministic release at γ and last call by frame reuse (§ 7.3, 7.4) |
+| the gate: the only run-time-decided connection is an indirect goto through a banked label (Proebsting 1.2) | every ω is that gate, with the label banked in the youngest record; a condition the compiler can prove deterministic and binding-free keeps Proebsting's static wire (§ 9) |
+| suspending and resuming a function invocation needs a mechanism (Proebsting 1.2); Jcon's closure stores `PC` and *every* temporary, conservatively (1.5a) | the retained activation frame, in place, nothing copied; `RETRY` is its `PC`; re-entered through its record, never through the caller's site |
+| the failure continuation travels with the success continuation and *"determines the resumption behavior"* (Danvy 1.5a); defunctionalizing it into a stack is the paper's open future work | the γ landing in `rcx` is the success continuation; `B` is the failure continuation, defunctionalized: the record chain, one record per live choice, linked by `B0` |
+| backtracking activates the youngest non-empty continuation and skips an exhausted one (Kulaš SP, 1.5b); a redo of a conjunction re-enters its rightmost conjunct (Kulaš 2003 `S:conj:6`) | the same: `[B]` is the youngest live record; an exhausted record is unlinked at trust, so nothing is skipped at run time; the rightmost conjunct with a live choice is what `B` names |
+| the definition of a predicate is fixed at the time of its call (Kulaš SP `Φ = def(X)`) | the packet is chosen at α (§ 7.2); a dynamic predicate's generation is read at α (§ 13) |
+| cut empties every continuation up to and including the parent's — the suffix criterion; `call/1` bounds it with an empty continuation (Kulaš 1.5b); *"discarding the current backtrack stack and replacing it with the one stored by the current predicate"* (Billaud, in Andrews 1.5b) | `B := F.B0`; `call/1` runs its goal under a fresh `B0` |
+| a Fail returns exactly the bindings the Call had (Kulaš 2005 Thm 6.5) | the retry stub's undo to `TRMARK` plus the `rsp` reset |
+| catch is a continuation on the same stack; throw walks toward the root undoing as it goes (Kulaš SP 1.5b) | the catch chain `CP` (§ 9.5): one word per record instead of a walk over the records at each throw; the undo is the same unwind to the catch record's mark |
+| Redo re-enters the failure continuation handed out at exit, the innermost pending alternative (Jahier 1.5c); the box that *actually* retries is the **Next** port, *"where backtracking actually occurs"* (Ducassé & Noyé 1.5c) | the retry stub *is* the Next port of its box; the Redo events of the boxes in between are the frames between `rsp` and the record, listable by the port-trace instrument when a Byrd-shaped trace is wanted |
+| a unify event per successful head unification; last-call optimization leaves no code location for the caller's Exit, which the tracer reconstructs from its own Call/Exit stack (Ducassé 1.5c) | the head's γ is the unify port (SWI's *Unify*, `…TRANSLATION.md` § A); the port-trace gate runs with the last-call reuse of § 7.4 switched off, or reconstructs the Exit as ECLiPSe does |
+
+**Beyond the papers, and named as such:** first-argument indexing (a run-time computed packet, Deransart's `cl(v)` made cheap), last-call frame reuse (Carlsson's determinacy applied to the frame), heap-only variable cells (§ 3), the exception chain (§ 9.5), and the frontier reset on backtracking (§ 16, R10). None of them changes a port's meaning; each is a cost decision, and each is a question for Lon in § 16.
+
+**Why this is not the WAM** (Lon 2026-09-03). The WAM keeps argument registers, an environment stack and a separate choice-point stack, and interprets an instruction set. Here there are no argument registers — the arguments live in the box's own frame block; there is no separate choice-point stack — a record lives inside the frame of the box that opened it (ζ-ACTIVATION, § 6); there is no instruction set — every port is emitted code holding its operator's logic (§ 2). What the two share is the mathematics of backtracking that every implementation of Byrd's model needs: a youngest-choice pointer (`B`), a heap watermark for the trail test (`HB`), the trail top (`TR`, r12) — the same three words SNOBOL4's matcher keeps for its conditional-assignment stack — plus the exception chain (`CP`) and the ball. Those five words are the only engine state outside the boxes, and § 17 Q2 asks Lon where they live.
+
+---
+
+## 2. The one rule
 
 **A box's logic is inside its chunk.** A `call` from emitted Prolog code into C or rtx is legal only for a **value service**: a function over finished values that neither binds, trails, derefs, opens or cuts a choice, carves a frame, nor decides a port. The value services are I/O (`write`, `format`, streams), atom and string text operations, `sort`/`msort`/`keysort`, bignum and float arithmetic, `copy_term`, and ISO error-ball construction. Everything else is emitted: unification, dereference, binding, the trail push and unwind, term construction, the frame, choice open and cut, clause selection, small-integer arithmetic and comparison, type tests, meta-call dispatch and the dynamic database.
 
-The instrument is `scripts/bench_prolog_call_census.sh REGEX`. Each rung's DONE-WHEN is its regex reading zero over the 23 kernels. The speed criterion is `scripts/bench_prolog_bar.sh kernel K 1.0 gplc`.
+The instrument is `scripts/bench_prolog_call_census.sh REGEX`. Each rung's DONE-WHEN is its regex reading zero over the 23 kernels. The speed criterion is `scripts/bench_prolog_bar.sh kernel K 1.0 gplc`. **The correctness gate of every rung is § 13.**
 
 ---
 
-## 1. The cell — the term representation, redesigned for inline code
+## 3. The cell — the term representation, redesigned for inline code
 
 A term is a 16-byte `DESCR_t`. The tag byte is the collector's only tag (THE COLLECTOR, CEO-812). Equality and type tests must be one or two instructions, so every atomic kind carries its whole identity in the tag byte plus the value qword.
 
@@ -31,62 +80,56 @@ A term is a 16-byte `DESCR_t`. The tag byte is the collector's only tag (THE COL
 | string | `DT_S` | length | `char *` | value service |
 | compound | `DT_PLREF` | **functor id (32 bits)** | pointer to the argument block | `cmp byte [c],DT_PLREF; jne; cmp dword [c+4],imm32` |
 
-**Atoms stop being `DT_S` strings and stop colliding with `DT_A`.** Today atom literals are lowered to `DT_S` char pointers (`lower_prolog.c` `term_e`), and atom equality is a `strcmp` (`by_name_dispatch.c` `plw_unify_cells`). The builder form `DT_A` also collides with the SNOBOL4/Icon array tag, and survives in the collector only by coincidence (`gc_heap.c` DT_A case). The new tag is free (`src/ir/descr.h` enum).
+**Atoms stop being `DT_S` strings and stop colliding with `DT_A`.** Today atom literals are lowered to `DT_S` char pointers (`lower_prolog.c` `term_e`, `TT_QLIT`), atom equality is a `strcmp` (`by_name_dispatch.c` `plw_unify_cells`), and the builder form `DT_A` collides with the SNOBOL4/Icon array tag. `0xB0` is free (`src/ir/descr.h`: `DT_CPLX = 0xA8` is the last), and it sits above `DT_ORDER`, which by the collector's own rule means *a cell the collector never visits as a value* — right for an id, which points at nothing; `gc_type_says_ref` needs no case for it.
 
-**The compiler interns.** Every atom and functor the compiler sees gets its id at compile time. The ids go into a read-only table in the code slab: id → name, arity, operator class and priority. `module_init` registers the table with the one runtime interner, so an atom made at run time (`atom_codes/2`, `read/1`) resolves to the same id. Nothing is interned by its characters on a hot path. That closes the crypt row (16% in `prolog_atom_intern`), and the table's operator columns close the deriv row: `write/1` reads a functor's operator class from the table in one load, not from the parser's tables per node.
+**The compiler interns.** Every atom and functor the compiler sees gets its id at compile time. The ids go into a read-only table in the code slab: atom id → name, length, operator class and priority; functor id → name-atom id, arity, and (§ 11) the predicate's α when one is compiled. `module_init` registers the table with the one runtime interner, so an atom made at run time (`atom_codes/2`, `read/1`) resolves to the same id and a new one gets the next id. Nothing is interned by its characters on a hot path. That closes the crypt row (16% in `prolog_atom_intern`), and the table's operator columns close the deriv row: `write/1` reads a functor's operator class from the table in one load, not from the parser's tables per node.
 
-**The functor id is 32 bits in `slen`, and the arity comes from the table.** The 16-bit caps on both fields go away.
-
-**The argument block** is one collector block of `arity` DESCRs (`HB_DVEC`). A list cell is `'.'/2`, and `[]` is the atom `'[]'`.
+**The functor id is a 32-bit index and carries no cap.** *Improved from the first pass:* the arity is not packed into `slen` and no table lookup is needed to walk a block, because the block header already carries its size: an argument block is one collector block of `arity` DESCRs (`HB_DVEC`), whose `rt_hblk_t` size word at `block−8` reads `16·arity + 16` (`rtx_alloc.s`). The general-unify leaf and `functor/3` read the arity as `(size >> 4) − 1` from the header — one load from the line it is about to walk — and the collector already visits a DVEC by that size. Two compounds unify only if their `slen` words are equal, one dword compare. A list cell is `'.'/2`, and `[]` is the atom `'[]'`.
 
 **⭐ Every variable cell lives in the heap. A frame slot holds a VALUE and is never bound.** This is the decision the rest of the design stands on.
-- A clause variable's first occurrence either takes the incoming argument's DESCR (head) or allocates a fresh self-referencing cell (body; one 16-byte bump in the emitted allocation sequence, § 7). Every later occurrence reads the frame slot's DESCR, which may be a reference to that heap cell.
-- Consequences:
-  - No pointer anywhere points into an activation frame. Last call and deterministic frame release are always safe without an unsafe-variable analysis.
-  - The trail records heap cells only, and the collector already relocates it (`gc_heap.c` trail root range).
-  - The trail entry shrinks to one word (§ 3).
-- The cost is one bump allocation per body-only variable. It replaces today's two mechanisms that each do the same thing later and in C: `plw_bind`'s boxing of a frame cell, and `plw_mkc_kids`' globalising of an unbound kid.
-- ⚠ This is a heap allocation of *structure* in the sense of the CLAUDE.md digest ("only string values belong on the heap"). It is also exactly the "compound cells" carve-out of `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` § rule 2(e). It is asked as § 13 Q1.
+- A clause variable's first occurrence either takes the incoming argument's DESCR (head) or a fresh self-referencing cell (body). Every later occurrence reads the frame slot's DESCR, which may be a reference to that heap cell.
+- *Improved from the first pass:* **every fresh cell and every static structure of a clause body is carved in one bump at the neck** (§ 10) — one frontier compare per clause instead of one per term — because at the neck every variable is either head-bound or fresh, so the whole body's term structure is known.
+- Consequences: no pointer anywhere points into an activation frame, so last call and deterministic release are always safe with no unsafe-variable analysis; the trail records heap cells only, and the collector already relocates it (`gc_heap.c` trail root range); the trail entry shrinks to one word (§ 5).
+- The cost is one 16-byte bump per body-only variable. It replaces today's two mechanisms that each do the same thing later and in C: `plw_bind`'s boxing of a frame cell into a one-cell heap block (`rt_ws_alloc_descr(1)` is a 32-byte `HB_DVEC` block per boxed cell) and `plw_mkc_kids`' globalising of an unbound kid.
+- ⚠ This is a heap allocation of *structure* in the sense of the CLAUDE.md digest ("only string values belong on the heap"). It is also exactly the "compound cells" carve-out of `ARCH-PROLOG-BYRD-BOX-TRANSLATION.md` § rule 2(e). It stays § 17 Q1.
 
 ---
 
-## 2. The register plane
+## 4. The register plane
 
 | register | during head unification and body construction (the match plane) | between them |
 |---|---|---|
-| `r12` | **TR, the trail top**: the CAS twin (§ 3) | TR (always) |
-| `r13` | **Σ, the base of the cells being walked**: `&F.A[0]` at the head, an argument block inside a structure | free for box scratch |
-| `r14` | **δ, the cursor**: a byte offset, advanced by 16 per cell | free for box scratch |
-| `r15` | **Δ, the end**: `16 × arity` | free for box scratch |
-| `rbx` | the heap frontier (`PIN_FRONTIER_REG`); the emitted allocation sequence bumps it | same |
+| `r12` | **TR, the trail top**: the CAS twin (§ 5) | TR (always) |
+| `r13` | **Σ, the base of the argument block being matched** — `&F.A[0]` at the head, a structure's block inside it | free for box scratch |
+| `r14` | **δ, the cursor** over a block whose length is only known at run time (the general-unify leaf, § 8.2) | free for box scratch |
+| `r15` | **Δ, that block's end** | free for box scratch |
+| `rbx` | the heap frontier (`PIN_FRONTIER_REG`); the emitted carve bumps it | same |
 | `rbp` | the pinned activation frame | same |
 | `r10` / `r11` | statement number / BB node id (Lon 2026-09-02) — untouched | same |
 
-This is exactly the SNOBOL4 plane (`x86_asm.h` `PIN_*` asserts), so r13/r14/r15 carry the same *kind* in every language. The collector's register shield needs no per-language reading, which the 2026-09-20 finding on r15 asked for.
+This is exactly the SNOBOL4 plane (`x86_asm.h` `PIN_*` asserts), so r13/r14/r15 carry the same *kind* in every language and the collector's register shield needs no per-language reading (the 2026-09-20 finding on r15). *Improved from the first pass:* in a clause head the cursor is a compile-time constant, so a head node addresses its cell as `[r13 + 16i]` with no cursor arithmetic — the same folding `bb_match_lit` does for a literal of known length — and r14/r15 are live only where the length is a run-time value: the `rtx_pl_unify` leaf and nothing else.
 
-**B, HB and the ball leave the registers.** They move into the trail arena's own header, which is reached from `r12` (`and rax, -(1<<PL_TR_ARENA_LG2)`), and the header already carries the ball at `+8` (`PL_TR_BALL_SLOT`). The layout becomes `+0` top word · `+8` ball · `+16` B · `+24` HB.
-- They are the trail box's own state, not ζ-STANDING and not a global: the 2026-09-02 sixth ruling forbids engine state in ζ-STANDING, and the arena's only handle is `r12`.
-- Reaching them costs one `mov`/`and` pair per use. The uses are choice open, cut and ω, plus the bind, which reads HB.
-- § 13 Q2 asks whether Lon prefers a pinned VA (the `RT_DCAP_TOP` precedent, one instruction).
+**B, HB, CP and the ball leave the registers.** Today r13 is B and r15 the ball (`rtx_plunify.s` `CTX_B`, `PL_BALL_ARM`). They become the five engine words `{TR=r12, B, HB, CP, BALL}` (§ 1.6), reached either from the trail arena's header through `r12` (`mov rcx,r12; and rcx,-(1<<PL_TR_ARENA_LG2)`, two instructions per use, no global) or as words of the pinned page `pin_va.h` already maps for the CAS's own top (`RT_DCAP_TOP`, one instruction: `cmp rdi,[abs32]`). **The design proceeds on the arena header, which needs no permission, and switches to the page on Lon's word (§ 17 Q2)** — the switch is one helper in the encoder (`x86_pl_word(name)`), nowhere else.
 
-**ROOT** (today `r14`: the dynamic-database cells at `[r14-24-8k]`) becomes the root frame's address, reached the same way at `+32`.
+**ROOT** (today `r14`: the dynamic-database cells at `[r14−24−8k]`) becomes the root frame's address, a sixth word beside the five.
 
 ---
 
-## 3. The trail — the CAS twin, pushed and popped inline
+## 5. The trail — the CAS twin, pushed and popped inline
 
-**Entry.** A binding always overwrites an unbound heap cell, whose old value is reconstructible (a self reference). So a binding's entry is **one word: the cell's address**. A value-trail entry is three words, `{addr|1, old.lo, old.hi}`; it is used by `setarg/3`, `b_setval/2` and anything else that overwrites a bound value backtrackably, and bit 0 tells the two kinds apart.
+**Entry.** A binding always overwrites an unbound heap cell (§ 3), whose old value is reconstructible (a self reference), so a binding's entry is **one word: the cell's address**. A value-trail entry is three words `{addr|1, old.lo, old.hi}` for `setarg/3`, `b_setval/2` and anything that overwrites a bound value backtrackably; bit 0 tells the kinds apart. Until R2 lands the entry stays today's `{cell, pad, old}` (the frame-cell case needs the old value), and the pop loop landed at R0 already reads it.
 
-**Bind** (the WAM condition, the choice's heap mark). Four instructions in the common case: compare with HB, push, store tag, store value.
+**Bind** (the WAM condition, the choice's heap mark), five instructions in the common case with the words in the pinned page, seven from the arena header:
 ```
     ; rdi = unbound heap cell, value in rax:rdx
-    mov  rcx, r12 ; and rcx, -ARENA ; cmp rdi, [rcx+24]  ; HB
-    jae  1f                          ; younger than the youngest choice: no entry
+    cmp  rdi, [HB]                   ; younger than the youngest choice: no entry
+    jae  1f
     mov  [r12], rdi ; add r12, 8     ; THE PUSH
 1:  mov  [rdi], rax ; mov [rdi+8], rdx
 ```
+*Improved from the first pass:* **the push carries no overflow test.** The arena's last page is mapped `PROT_NONE`; the store that crosses into it faults, and the SIGSEGV handler `rt_stack_overflow.c` already installs unconditionally reports *trail overflow* with the named limit at rc=2 — the discipline every stack uses, and the reason Lon's "just a few instructions" needs none for the check. Growing the arena stays a later rung.
 
-**Unwind to a mark** (the pop), inline, a loop of seven instructions:
+**Unwind to a mark** (the pop), inline, seven instructions in the loop — **landed as R0 this sitting** in `x86_asm.h` (`x86_pl_tr_unwind_at`, `x86_pl_tr_pop_entry`, `x86_pl_tr_top_sync`) and its four emitting sites (`emit.cpp` clause step, `bb_bound` UNMARK, `bb_disjunction` branch step, `bb_to`); the one-word form of R2 removes the two value loads:
 ```
 2:  cmp  r12, MARK ; jbe 3f
     sub  r12, 8 ; mov rdi, [r12]
@@ -95,169 +138,215 @@ This is exactly the SNOBOL4 plane (`x86_asm.h` `PIN_*` asserts), so r13/r14/r15 
 3:
 ```
 
-**HB under a moving collector.** A copying collection does not preserve address order. The collector therefore raises HB and every retained frame's saved `F.HB` to the post-collection frontier. Every surviving cell then reads as older than every choice (sound: it only over-trails), and every cell allocated after the collection reads as younger (correct). That is one typed visit per frame header (the frame map already names `F.HB`), and it belongs to the cfo's collector review.
+**Unconditional trailing, considered and not taken.** Trailing every binding removes the `HB` compare (the bind becomes four instructions) but pushes on every deterministic binding and grows the trail with recursion depth; gplc trails conditionally. The compare stays; the measured cost of each is a line in the R4 landing.
 
-**Overflow.** The arena refuses with a named limit (`rt_pl_tr_refuse`, exit 2), as today. Growing it is a later rung.
+**HB under a moving collector.** A copying collection does not preserve address order. At the poll the collector walks the record chain from `B` (§ 6: every live record is reachable through its `B0` link) and raises every record's `HB`, and the global `HB`, to the post-collection frontier. Every surviving cell then reads as older than every choice (sound: it only over-trails), and every cell allocated after the collection reads as younger (correct). It is one typed walk over the records, no map, and it belongs to the cfo's collector review.
 
-**Deleted by this rung:** `plw_bind`, `pl_tr_push`, `pl_tr_needs_log`, `rt_pl_tr_unwind`, `rt_pl_tr_unwind_to` and `rt_pl_tr_unwind_sync`, which is the rank-0 row's DONE-WHEN exactly. `rt_pl_tr_gc_sync` also goes: `r12` is spilled by the one collector entry the poll already reaches.
+**Deleted by R0 (landed):** the emitted calls into `rt_pl_tr_unwind` at 4,154 sites (census `rt_pl_tr_unwind.*` GREEN on SCRIP this sitting), the rtx entry `rt_pl_tr_unwind` and `rt_pl_tr_unwind_sync`. **Deleted by R4:** `plw_bind`, `pl_tr_push`, `pl_tr_needs_log`, `rt_pl_tr_unwind_to` (the C walk's own mid-unify undo goes with the walk) and `rt_pl_tr_gc_sync` (the collector reads r12 from the poll's register shield, which the one collector entry already spills).
 
 ---
 
-## 4. The predicate box
+## 6. The choice record and the universal ω — Deransart's Backtrack rule as code
 
-One predicate `p/n` is one box. Its α is the call port, its β the redo port, and γ/ω are the caller's landings passed in `rcx`/`rdx`, as today.
+*New in this pass; it replaces the first pass's β chain, the banked `F.RES`, and the per-site `F.ACT[s]` tokens.*
 
-### 4.1 The call protocol, and the frame carved inline
-- **Caller.** It builds the n argument DESCRs directly in a block on its spine (`sub rsp,16n`; one or two stores each), loads `rcx=γland` and `rdx=ωland`, then `jmp p.α`. No `g_call_args`, `rt_arg_stage`, `rt_proc_call_open_det` or `rt_icn_zframe_args_install`. A static call knows its callee's label at compile time.
-- **Callee α.** It carves its frame immediately below the argument block (`sub rsp,kt`). The frame reads `F.A[i] = [rbp+kt+16i]`, so the arguments are never copied.
-- **The header** is stored inline: γ, ω, caller rbp, `F.TRMARK=r12`, `F.B0=B`, `F.HB` and `F.CUR`. Only the locals that a γ→β window can observe are zeroed (a `rep stosq` or unrolled stores, sized at compile time). There is no `rt_jmp_frame_lexprep2`.
+**The record.** A box that still holds alternatives stores, in its own frame, the six words
 
-| header word | meaning |
+| word | meaning |
 |---|---|
-| `F.TRMARK` | r12 at α; the clause step unwinds to it |
-| `F.B0` | B at α; the cut barrier |
-| `F.HB` | HB saved while this frame is the youngest choice |
-| `F.CUR` | pointer into the clause chain (§ 4.2); 0 = no alternative left |
-| `F.RES` | banked β of the youngest retained sub-goal; zeroed on read |
-| γ · ω · caller rbp | the wire triple |
+| `RETRY` | the address of the box's β code — the clause step, a disjunction's next branch, a generator's next value, findall's finish, the else arm of an if-then-else, the success arm of `\+` |
+| `B0` | the value of `B` when the record was opened: the youngest older record, and the cut barrier |
+| `HB` | the heap frontier at open — the trail test's watermark while this record is the youngest |
+| `TRMARK` | r12 at open — the mark the β code unwinds to |
+| `CP` | the youngest catch record at open (§ 9.5) |
+| `SP` | rsp at open |
 
-### 4.2 Clause selection: the SWITCH box (first-argument indexing)
-- α derefs `F.A[0]` and branches on the tag byte: unbound → the full chain; atom or integer → a compare chain, or a hashed table above a compile-time threshold; compound → a functor compare.
-- Each branch lands on a **clause chain**: a read-only array of clause-α addresses, terminated by 0.
-- **One candidate:** the box opens no choice. It jumps straight to that clause, and the predicate is deterministic on that call.
-- **More than one:** the choice open is a set of stores: `F.CUR := chain+8`, `B := H`, `HB := rbx`.
-- **The clause step** (β with `F.RES`=0): unwind to `F.TRMARK`, load `rax=[F.CUR]`, test it, jump to ω at 0, otherwise advance `F.CUR`. If the next word is 0, drop the choice (`B:=F.B0`, HB reloaded from B) before `jmp rax`. This is Jcon's `Alt` with its temporary promoted into the frame (`…TRANSLATION.md` § B.3). The chain address replaces today's per-clause `altK` trampolines.
-- Indexing is beyond Byrd and Proebsting. It is added because the bar is `gplc`, and in the papers' own terms it is only a conditional and indirect jump (Proebsting 1997: *"nothing more powerful than conditional, direct, and indirect jumps"*).
+and sets `B := &record`. Opening is six stores and one store of `B`; for a predicate box the record lives in the frame's raw header (§ 7.1) beside the wire words, for an inline construct it is a raw region of the frame layout (`GC_LAY_RAW`, the same class as `to.I`), and the collector skips both by the map.
 
-### 4.3 The exits
-- **Deterministic γ** (B = `F.B0`; nothing younger survived): release the frame and the argument block (`lea rsp,[rbp+kt+16n]`), restore the caller's rbp, then `jmp γ` with `eax=0`.
-- **Nondeterministic γ:** keep the frame and return `rax=rbp`, `rdx=&β` for the caller's `F.ACT[site]`. This is Icon's retained-generator frame, as now, but with no `rt_gen_spine_pass_γ`: the landing is two stores.
-- **ω:** unwind to `F.TRMARK`, set `B := F.B0`, release, `jmp ω`.
-- **Ball (exception):** every β that can re-enter a retained callee opens with the ball test (C9, `…TRANSLATION.md` § A.1), now `mov rcx,r12; and rcx,-ARENA; cmp qword [rcx+8],0`.
+**The universal ω.** *"the access to a choice-point … can be done as clearly by jumping directly to the deepest box"* (Deransart § 4); *"if there is a non-empty continuation immediately to the right of a u, then it shall be activated"* (Kulaš SP § 3.2). Every fail port of every box is the same two instructions, `mov rax,[B] ; jmp [rax+RETRY]`, and no box hands an ω landing to its children: the ω wire (`rdx` at entry, `[H+48]` in the frame) is gone. A retry stub then does, for its own record: `rbp := its frame`, `rsp := [rax+SP]` (discard everything younger — `T' ← T − {y | y > v}`), unwind the trail to `[rax+TRMARK]`, `HB := [rax+HB]`, `CP := [rax+CP]`, and its own step. **Trust:** a stub that offers its last alternative drops the record first — `B := [rax+B0]`, `HB := [B+HB]` — so the last clause runs against the older choice's watermark (fewer entries) and a cut or last call inside it sees `B == F.B0`.
 
-### 4.4 Last call
-The last goal of a clause, reached while `B == F.B0`, copies its n new arguments over `F.A`. The copy is safe because frames hold only values (§ 1). It then resets `rsp` to the frame's base and jumps to the callee's α with the caller's own γ/ω. `rt_pl_tail_args_safe` is deleted, because the property it tested now holds by construction. Calls between different arities adjust the argument block by `16×(n'−n)`.
+**Cut** (Carlsson's depth, Byrd's removal from the search space, Kulaš's suffix criterion, Billaud's *"replacing it with the one stored by the current predicate"*): `B := F.B0 ; HB := [B+HB]`. Nothing else: the records of the cut-away boxes are unreachable, their frames are released by the next `rsp` reset, their trail entries stay in place and are undone by the older choice when it retries (the single-trail rule `…TRANSLATION.md` § B.6 already measured).
+
+**Deterministic exit:** `B == F.B0` at γ — one load and one compare with a header word. It is also the last-call test (§ 7.4) and the determinism `setup_call_cleanup/3` needs (a Logtalk red today).
+
+**Why the β chain goes.** The first pass wired `ω_{i+1} → β_i` inside a clause with a three-instruction trampoline per deterministic goal and banked each retained callee in `F.ACT[s]`; a failure walked the chain to the youngest choice. Deransart's rule reaches it in one jump, and the wiring is observably identical: when goal `i` is the youngest choice, `[B]` *is* `β_i`; when it is deterministic its trampoline did nothing. What is saved per call: the `F.ACT` store, the `F.RES` bank, the ω wire store, and the `rax=rbp, rdx=&β` return protocol; per failure: the walk. The trace Byrd preferred is still printable — the port-trace instrument can list the frames between `rsp` and the record as the Redo/Fail events it retraces — but execution does not pay for it.
+
+**Proebsting's static wire survives where it is cheaper.** A condition the compiler proves deterministic and binding-free — a comparison, a type test, `==`, an arithmetic guard — keeps `goto` to its else arm and opens no record (§ 9). The record is opened only where failure needs an undo or where alternatives can be left behind.
 
 ---
 
-## 5. Head unification IS a SNOBOL4 match
+## 7. The predicate box
 
-The clause head `p(t1,…,tn)` is a **pattern**, and the argument block is the **subject**. At the clause's α: `r13 = &F.A[0]`, `r14 = 0`, `r15 = 16n`. Each head argument is one match node that consumes one cell at `[r13+r14]` and advances `r14` by 16, exactly as `bb_match_lit` consumes bytes at `[r13+rcx]`. The head is deterministic, so every node's β is a trampoline to the preceding node's β, and the first node's β is the clause step. Undo is wholesale, by the clause step's unwind to `F.TRMARK`, just as MATCH_BEGIN's ω resets `r12` from its frame.
+One predicate `p/n` is one box. Its α is the call port, its β the clause step (§ 6), γ the landing handed in `rcx`.
+
+### 7.1 The call protocol, and the frame carved inline
+- **Caller.** It builds the n argument DESCRs directly in a block on its spine (`sub rsp,16n`; one or two stores each), loads `rcx=γland`, then `jmp p.α`. No `g_call_args`, `rt_arg_stage`, `rt_proc_call_open_det` or `rt_icn_zframe_args_install`. A static call knows its callee's label at compile time.
+- **Callee α.** It carves its frame immediately below the argument block (`sub rsp,kt`), so `F.A[i] = [rbp+kt+16i]` and the arguments are never copied. The header is stored inline: the collector's `DT_MAP` cell (`{DT_MAP, slen=kt, p=&map}`, `emit.cpp` `frame_rel` store, unchanged), then the raw words `γ`, `caller rbp`, and — only in a predicate whose packet can hold more than one clause — the record of § 6, with `RETRY := p.step` written once. `header_bytes` in the map grows from 24 to 16 or 64 accordingly, and nothing in the walker moves. Only the locals a γ→β window can observe are zeroed (`rep stosq` or unrolled stores, sized at compile time). There is no `rt_jmp_frame_lexprep2`.
+
+### 7.2 Clause selection: the SWITCH box (first-argument indexing — Deransart's useful clauses)
+- α derefs `F.A[0]` and branches on the tag byte: unbound → the full packet; atom or integer → a compare chain, or a hashed table above a compile-time threshold; compound → a functor-id compare.
+- Each branch lands on a **clause packet**: a read-only array of clause-α addresses terminated by 0, sealed beside the code as the map quads are.
+- **One candidate:** no record is opened. The box jumps straight to that clause, and the predicate is deterministic on that call.
+- **More than one:** `CUR := packet+8`, the record's remaining words are stored, `B := &record`, `jmp packet[0]`.
+- **The clause step** (`p.step`, the record's `RETRY`): after the universal undo of § 6, `rax := [CUR]`, `CUR += 8`; if `[CUR] == 0` trust (drop the record); `r13 := &F.A[0]`; `jmp rax`. About twenty instructions, no call; it replaces today's per-clause `altK` trampolines and `F.CUR`'s label arithmetic.
+- Indexing is beyond Byrd and Proebsting and inside Deransart (§ 1.3): the packet holds only useful clauses. It is added because the bar is `gplc`; without it `app/3` and `nrev` open a record at every call.
+
+### 7.3 The exits
+- **Deterministic γ** (`B == F.B0`): release the frame and the argument block (`lea rsp,[rbp+kt+16n]`), restore the caller's rbp, `jmp [γ]`.
+- **Nondeterministic γ:** `rsp := rbp` (the retained frame is the lowest live thing), restore the caller's rbp, `jmp [γ]`. No `rt_gen_spine_pass_γ`, no return registers: the caller's next carve lands below the retained frame, and a later failure re-enters it through its record.
+- **ω:** the universal entry. A predicate has no Fail code of its own; Byrd's *one Fail per invocation* is the retry stub's `rsp` reset releasing it.
+
+### 7.4 Last call
+The last goal of a clause, reached while `B == F.B0`, reuses the frame: the callee's n' arguments are written over `F.A` (and, when n' > n, over the header — so `γ` and the caller's rbp are loaded into registers first), `rsp := the new block's base`, and control jumps to the callee's α with the caller's own γ. The stores are **scheduled at compile time** as a parallel move: sources are frame locals, constants and `F.A` cells, destinations are `F.A` cells; a dependency cycle (`p(X,Y) :- …, p(Y,X)`) takes one spine temporary; when the schedule cannot be found statically the block is built on the spine and moved up with `rep movsq`. The copy is safe because frames hold only values (§ 3). `rt_pl_tail_args_safe` is deleted: the property it tested holds by construction. When `B ≠ F.B0` the same goal is an ordinary call and the frame is kept — the WAM's environment protection, as a two-instruction test.
+
+### 7.5 The poll
+Collection happens only at the return of an allocating runtime call (THE COLLECTOR). The clause's one allocation is the neck carve (§ 10), so **the poll is the carve's slow arm and nowhere else**: `call rt_gcheap_alloc_slow; poll; rejoin`. A clause that fits the window never polls; a failure-driven loop with no allocation never polls and needs none. At that poll the frame is fully typed (the map cell was stored at α, the locals zeroed), r13/r14/r15 are dead (the head is done), r12 is raw and the trail is a root range, rbx is the frontier the collector resets.
+
+---
+
+## 8. Head unification IS a SNOBOL4 match
+
+The clause head `p(t1,…,tn)` is a **pattern**, and the argument block is the **subject**. At the clause's α: `r13 = &F.A[0]`. Each head argument is one match node that reads its cell at `[r13+16i]`, exactly as `bb_match_lit` reads bytes at `[r13+rcx]` with a length folded into the compare chain. The head is deterministic, and *improved from the first pass:* **no node has a β of its own** — a mismatch is the universal ω. If this predicate opened a record, `[B]` is its own clause step, which undoes the partial bindings to `TRMARK` and tries the next clause; if it did not, `[B]` is an older record whose undo covers the same bindings. There are no per-node trampolines.
 
 | node | α (read mode) | if the subject cell is unbound (write mode) |
 |---|---|---|
-| **`U_CONST k`** (atom, int) | inline deref; `cmp` tag+value; equal → advance, γ; else ω | bind the cell to `k` (§ 3), advance, γ |
-| **`U_FIRST Xj`** (first occurrence) | `F.X[j] := [r13+r14]` (16-byte copy, no deref); advance, γ | same |
-| **`U_VAL Xj`** (later occurrence) | both sides atomic or unbound → inline compare or bind; otherwise the **general-unify leaf** (§ 5.2) | same |
-| **`U_STRUCT f/k … U_POP`** | deref; `DT_PLREF` with functor `f/k` → **push `(r13,r14,r15)` on the spine** (MATCH_BEGIN's outer-Σ/δ/Δ save), `r13 := block`, `r14 := 0`, `r15 := 16k`; the k children run; `U_POP` restores the triple and advances | allocate a k-cell block (§ 7), bind the cell to `{DT_PLREF,f/k,block}`, then run the **write-mode twin** of the children, which fills the block instead of testing it (§ 5.1) |
+| **`U_CONST k`** (atom, int) | inline deref; `cmp` tag+value; equal → next; else ω | bind the cell to `k` (§ 5), next |
+| **`U_FIRST Xj`** (first occurrence) | `F.X[j] := [r13+16i]` (16-byte copy, no deref); next | same |
+| **`U_VAL Xj`** (later occurrence) | both sides atomic or unbound → inline compare or bind; otherwise the **general-unify leaf** (§ 8.2) | same |
+| **`U_STRUCT f/k … U_POP`** | deref; `DT_PLREF` with functor `f/k` → **push `r13` on the spine** (MATCH_BEGIN's outer-Σ save; one word, not three, because the cursor is static), `r13 := block`; the k children read at `[r13+16j]`; `U_POP` restores `r13` | allocate a k-cell block (§ 10), bind the cell to `{DT_PLREF,f/k,block}`, then run the **write-mode twin** of the children, which fills the block instead of testing it (§ 8.1) |
 | **`U_LIST`** | `U_STRUCT '.'/2` with a two-cell block and its tail as the last child; a list spine walks by rebinding r13 in place with no push (the tail-cell case of LCO) | as `U_STRUCT` |
 
-**5.1 Read mode and write mode are two code copies, not a flag.** A pattern node never writes its subject; a unification node must. The WAM uses a mode register tested at every `unify_*` instruction. Here `U_STRUCT`'s α picks, once, between two compile-time copies of the subterm: the read copy (the nodes above) and the write copy, which is § 7's construction sequence aimed at the new block. Both copies rejoin at `U_POP`'s γ. This is Proebsting's run-time-selected gate taken at compile time; it costs code size proportional to head size and removes every per-cell mode test.
+**8.1 Read mode and write mode are two code copies, not a flag.** A pattern node never writes its subject; a unification node must. `U_STRUCT`'s α picks, once, between two compile-time copies of the subterm: the read copy (the nodes above) and the write copy, § 10's construction sequence aimed at the new block. Both rejoin at `U_POP`. This is Proebsting's run-time-selected gate taken at compile time; it costs code size at most twice the head and removes every per-cell mode test the WAM pays.
 
-**5.2 The general-unify leaf.** `U_VAL` of two arbitrary runtime terms needs a walk whose depth is unknown at compile time. It is **one rtx leaf, `rtx_pl_unify`, written in asm on the same plane**. Its stack of `(r13,r14,r15)` triples lives on the spine, it binds through § 3's inline sequence, and it returns `eax` as 0 or 1. It is the SNOBOL4 matcher's ARBNO shape (a node that loops over its own stack), not a C function. `plw_unify_cells`, `plw_cell_deref_slow` and `rt_pl_deref_val` are deleted with the C walk. The leaf is a leaf, not a box graph, because Lon's "no C Byrd-box functions" law is about C; an asm leaf over the match plane is what `rtx_match.s` already is.
+**8.2 The general-unify leaf.** `U_VAL` of two arbitrary run-time terms needs a walk whose depth is unknown at compile time. It is **one rtx leaf, `rtx_pl_unify`, written in asm on the same plane**: `r13` = the left block, `rsi` = the right block, `r14` = the cursor, `r15` = the end read from the block header (§ 3); its stack of `(r13, rsi, r14, r15)` quads lives on the spine, the last child of a block is walked without a push (the list-spine case), it binds through § 5's inline sequence, and it returns `eax` as 0 or 1. It is the SNOBOL4 matcher's ARBNO shape — a node that loops over its own stack — not a C function; `plw_unify_cells`, `plw_cell_deref_slow` and `rt_pl_deref_val` are deleted with the C walk. An asm leaf over the match plane is what `rtx_match.s` already is, so Lon's "no C Byrd-box functions" law is kept to the letter.
 
-**5.3 Collector safety.** No safe point falls inside a head. Write mode's bump never collects (THE COLLECTOR: collection happens only at the return of an allocating runtime call). The raw `(r13,r14,r15)` triples on the spine therefore never meet a poll. The head's γ (the neck) is the clause's first poll, and by then the spine is back to DESCRs only.
-
----
-
-## 6. Body goals — control, in the wiring the translation page already specifies
-
-| construct | box | what changes from today |
-|---|---|---|
-| `A , B` | wiring only (`…TRANSLATION.md` § B.4) | none |
-| `A ; B` | the disjunction box; the choice open is inline stores (`F.HI`/B/HB/r12 mark in the box's own frame words) | `rt_pl_disj_open` deleted |
-| `C -> T ; E`, `\+`, `once`, `forall`, `ignore` | `IR_GATE` + `IR_BOUND` + `IR_UNMARK` (§ B.7); the fence commit is two stores | `rt_pl_fence_commit` deleted |
-| `!` | `F.CUR := 0; F.RES := 0; B := F.B0; HB := [B].F.HB; rsp := pin` | `rt_pl_cut_barrier` deleted |
-| `catch/3`, `throw/1` | as landed at rung 9 (§ B.10); the ball in the arena header | the ball-slot address changes |
-| `findall/bagof/setof` | the drive loop is boxes; collect and group stay **value services** (a copy is a value service) | none |
-| `between/3`, `repeat` | `IR_TO`, `bb_repalt` | the bounds guard inline for small ints |
+**8.3 Collector safety.** No safe point falls inside a head (§ 7.5): write mode's bump never collects, and the raw quads on the spine therefore never meet a poll.
 
 ---
 
-## 7. Body construction — the emitted allocation sequence
+## 9. Body goals — control, as records and static wires
 
-`f(t1,…,tk)` in a body (or a head in write mode) is built by the rtx_alloc inline carve, emitted in the box:
+| construct | box | the record (§ 6) it opens | what changes from today |
+|---|---|---|---|
+| `A , B` | wiring only | none | none (`thread_goals`) |
+| `A ; B ; C` | one record: `RETRY := B.entry`; B's stub re-arms `RETRY := C.entry`; C's stub trusts first | one | `rt_pl_disj_open` deleted; the branch step is the clause step's shape |
+| `C -> T ; E` | record with `RETRY := E.entry`; `C.γ` commits (`B := B0`, i.e. cut back over C's choices and the record) then `T` | one, **or none when C is a proven deterministic binding-free test** (a comparison, a type test, `==`, `\+ var`), which keeps the static `goto E` | `IR_BOUND`/`IR_UNMARK` and `rt_pl_fence_commit` deleted |
+| `\+ G`, `once`, `ignore`, `forall` | `\+`: record with `RETRY := succeed`; `G.γ` commits, undoes to `TRMARK`, then ω | one (or none, as above) | same |
+| `!` | `B := F.B0 ; HB := [B+HB]` | — | `rt_pl_cut_barrier` deleted |
+| `findall/bagof/setof` | record with `RETRY := finish`; `Goal.γ` copies the template (a value service) and takes ω; `finish` unifies the result | one | the drive loop stays boxes; collect and group stay value services |
+| `between/3`, `repeat` | record with `RETRY := next`; the counter in the box's own slots; the last value trusts first | one | `IR_TO`'s pinned arm replaced |
+| `catch/3`, `throw/1` | § 9.5 | a *catch* record on the `CP` chain, not a choice record | the ball test leaves every β |
+
+**9.5 Exceptions — the catch chain.** *New in this pass.* A `catch/3` box stores `{HANDLER, PREV_CP, B0, TRMARK, SP}` in its frame and sets `CP := &record`; at its γ it restores `CP := PREV_CP`, so the catch is transparent once exited (ISO). Every choice record saves `CP` (§ 6) and every retry restores it, so backtracking *into* a caught goal re-activates its catch without a flag. `throw(Ball)`: copy the ball to standing storage, then `mov rax,[CP]; jmp [rax+HANDLER]`; the handler resets `rsp`, `B := B0`, `HB := [B+HB]`, unwinds the trail to `TRMARK`, `CP := PREV_CP`, unifies the catcher with the ball through the leaf of § 8.2 — mismatch: the same jump again (re-throw); match: clear the ball, run Recovery. A value service that raises stores the ball and returns failure; **the ω of a throwing leaf is the only ω that tests the ball** (`cmp qword [BALL],0; jne THROW`), and the compiler knows which leaves can throw. The C9 rule of `…TRANSLATION.md` § A.1 — a ball test at every β that can re-enter a retained callee — is retired with the β chain it guarded: a ball never travels through a β again. **Considered and not taken:** Kulaš's single stack (§ 1.5b), where the catch is a choice record on the `B` chain and a throw walks that chain undoing each record until a catch matches — one word less per record, one walk per throw over every choice opened since the catch; the `CP` word makes the throw a jump and keeps the walk out of the search kernels' hot path (a `catch/3` around a failure-driven loop is the common shape).
+
+---
+
+## 10. Body construction — the emitted carve at the neck
+
+Every static structure a clause body builds, and every fresh cell it needs, is carved once at the neck:
 ```
-    mov rax, rbx ; add rbx, 16+16k ; cmp rbx, [g_hp_fr.line] ; ja slow   ; one header + k cells
-    <write the HB_DVEC block header>                                    ; as rtx_alloc.s does
-    <k stores of 16 bytes: constants, F.X copies, fresh self-refs, nested blocks>
+    mov rax, rbx ; add rbx, TOTAL ; cmp rbx, [g_hp_fr.line] ; ja slow      ; one compare per clause
+    <the block headers, HB_DVEC, as rtx_alloc.s writes them>
+    <the stores: constants, functor cells, F.X copies, fresh self-references, nested block pointers>
 ```
-- Nested subterms are built innermost-first into the same bump, one carve for the whole term when its size is static.
-- `slow` calls the allocator, which grows the window and sets `g_gc_pending` but never collects, then rejoins. The next poll collects.
+- At the neck every variable is head-bound (its DESCR is in `F.X`) or fresh (its cell is in this carve), so the whole term structure is complete before the first body goal runs; later goals bind the *cells* the structure already points at. A term built innermost-first is one carve when its size is static; the write-mode twin of § 8.1 is the same sequence aimed at a block bound during the head.
+- `slow` calls the allocator, which grows the window and sets `g_gc_pending` but never collects; the poll of § 7.5 follows it and rejoins.
 - `rt_pl_dop_mkc`, `rt_pl_dop_mkc_c`, `plw_mkc_build` and `plw_mkc_kids` are deleted, along with the run-time functor intern.
 
 ---
 
-## 8. Arithmetic, comparison, type tests — inline for the small-integer case
+## 11. Arithmetic, comparison, type tests — inline for the small-integer case
 
-`X is A+B*C` compiles to deref, tag test `DT_I`, `imul`/`add` with `jo`, and store or bind. Any other tag or an overflow takes **one cold asm leaf** (floats, bignums, ISO type and evaluation errors), reached only off the hot path. `=:=`, `<` and the rest are a `cmp` and a conditional jump to ω. `var/1`, `atom/1`, `integer/1`, `compound/1` and `atomic/1` are deref plus one tag compare. `functor/3` and `arg/3` with a known argument number are loads from the block. The whole `rt_pl_dop_ax_*`, `rt_pl_dop_cmp_*`, `rt_pl_dop_anum_guard*`, `rt_pl_dop_is_v` and `dop_pl_var` family leaves the hot path.
+`X is A+B*C` compiles to deref, tag test `DT_I`, `imul`/`add` with `jo`, and store or bind. Any other tag or an overflow takes **one cold asm leaf** (floats, bignums, ISO type and evaluation errors), reached only off the hot path. `=:=`, `<` and the rest are a `cmp` and a conditional jump to ω — or, inside an if-then-else, the static `goto` of § 9. `var/1`, `atom/1`, `integer/1`, `compound/1`, `atomic/1` are deref plus one tag compare; `functor/3` and `arg/3` with a known argument number are loads from the block, the arity from its header (§ 3); `succ/2`, `plus/3` and `compare/3` on small integers are inline. The whole `rt_pl_dop_ax_*`, `rt_pl_dop_cmp_*`, `rt_pl_dop_anum_guard*`, `rt_pl_dop_is_v` and `dop_pl_var` family leaves the hot path.
 
 ---
 
-## 9. Meta-call — a compiled goal is jumped to; everything else goes through CODE
+## 12. Meta-call — a compiled goal is jumped to; everything else goes through CODE
 
 `call(G, E1…Em)` derefs G and branches on its tag.
-- **Atom or compound whose functor id names a compiled predicate** (a read-only **predicate table** in the code slab: functor id → α, n, kt, sorted and binary-searched, or perfect-hashed at compile time): copy the goal's k arguments plus E1…Em onto the spine as an argument block, then enter p.α exactly as § 4.1 does. The call site's β resumes through the banked β like any call. This is row `prolog-bb-a-meta-call-whose-goal-resolves-to-a-compiled-predicate-jumps-to-it-…`.
-- **A control construct** (`,`, `;`, `->`, `\+`, `call/N` nesting, a cut inside) **goes through the runtime compiler**. That is THE RUNTIME-GOAL RULING (`ARCH-ENGINE.md`; Lon 2026-09-01: *"re-using EVAL and CODE"*). The goal is compiled once per goal *shape* (the term with variables abstracted to argument positions), and the compiled graph is cached in the standing code slab. Later calls of the same shape jump to it with the goal's variables as arguments.
+- **Atom or compound whose functor id names a compiled predicate:** *improved from the first pass:* the functor table row of § 3 carries the predicate's α directly, so dispatch is `mov rax,[ftab + id*ROW + ALPHA]; test rax,rax; jz unknown` — no search. Copy the goal's k arguments plus E1…Em onto the spine as an argument block, then enter `p.α` exactly as § 7.1 does. The call site is an ordinary box; the callee is re-entered through its record. A dynamic predicate's row holds its box's α, whose packet is mutable (§ 13).
+- **A control construct** (`,`, `;`, `->`, `\+`, `call/N` nesting, a cut inside) **goes through the runtime compiler** — THE RUNTIME-GOAL RULING (`ARCH-ENGINE.md`; Lon 2026-09-01: *"re-using EVAL and CODE"*). The goal is compiled once per goal *shape* (the term with variables abstracted to argument positions), the graph cached in the standing code slab, and later calls of the same shape jump to it with the goal's variables as arguments; a term built at compile time is lowered as an ordinary goal inside a fresh cut barrier, as `…TRANSLATION.md` § B.9 already lands.
 - **Unknown:** ISO `existence_error`, or fail under `unknown=fail`.
 
 `rt_pl_goal_spine_prep`, `rt_pl_goal_gen_h`, `rt_call_value_resume_h` and `rt_gen_spine_resume_enter` are deleted.
 
 ---
 
-## 10. The dynamic database is code (Lon 2026-09-03: *"It is all code not data."*)
+## 13. The dynamic database is code (Lon 2026-09-03: *"It is all code not data."*)
 
-- **The store.** A dynamic predicate is a predicate box whose clause chain (§ 4.2) is mutable. It is one named root cell per predicate (as landed at 10b) holding a heap chain of `{clause α, generation born, generation erased}`.
-- **`assertz(C)`** compiles C through the runtime compiler (CODE) into a clause box and links it. Its α is a head match (§ 5) plus a body, exactly like a static clause.
-- **`retract(C)`** is an ordinary call of that predicate's `clause/2` view followed by marking the entry erased.
-- **The logical update view** is a generation compare in the clause step. A call records the generation at its α in its frame and skips entries born later or erased earlier.
-- **Cost of a fact assert.** A fact's compile is template instantiation: head-match nodes over constants, with no optimizer pass needed. It is measured against gplc's `assertz` before it is called done.
-- **Deleted:** `rt_pl_dop_db_*` (decl, t_guard, at, gen, n, assertz) and the `$db_at` / `IR_TO` enumeration.
+- **The store.** A dynamic predicate is a predicate box whose packet (§ 7.2) is mutable: one named root cell per predicate holding a heap chain of `{clause α, generation born, generation erased, the clause term}` — the term kept for `clause/2` and `retract/1`'s reflective view, the box for execution, one record, no second database.
+- **`assertz(C)`** compiles C through the runtime compiler (CODE) into a clause box and links it. Its α is a head match (§ 8) plus a body, exactly like a static clause. A fact's compile is template instantiation: head-match nodes over constants.
+- **`retract(C)`** is an ordinary call of the predicate's `clause/2` view followed by marking the entry erased.
+- **The logical update view** is a generation compare in the clause step: a call records the generation at its α in its record and skips entries born later or erased earlier — Kulaš's *"definition of a predicate shall be fixed at the time of its call"* as one word. First-argument indexing over a mutable packet is a later rung; the SWITCH's unbound branch serves a dynamic predicate until then.
+- Measured against gplc's `assertz` before it is called done. **Deleted:** `rt_pl_dop_db_*` (decl, t_guard, at, gen, n, assertz) and the `$db_at` / `IR_TO` enumeration.
 
 ---
 
-## 11. What is deleted, and the census regex that proves it
+## 14. ⛔ THE SUITES ARE THE GATE OF EVERY RUNG (Lon 2026-09-26 16:2x, verbatim: *"You are ignoring the test-suites now."*)
+
+A rung lands only when **every** Prolog suite reads at or above its floor **in both modes**, measured on the committed tree and written to `SCORE.md` § THE SUITE TABLE by the suite's own runner in the same landing. A rung that moves any suite below its floor is a red rung, not a partial landing; the monitor bracket (`monitor_run.sh prog.pl --oracle`) names the divergence before the cure. The floors, as they read at R0's landing (SCRIP this sitting, the pop applied, both modes):
+
+| suite | runner | floor at R0 (m3 / m4) |
+|---|---|---|
+| the master (ProM) | `test_gate_pl_master_board_floor.sh` (16 shards, a FLOOR per mode) | 563/563 · 563/563 |
+| INRIA ISO 13211-1 | `test_prolog_inria_suite.sh` | 442/442 · 442/442 |
+| GNU Prolog package | `test_prolog_gnu_suite.sh` | 11/11 (62 shipped, 45 unclassified — the coo's finding, the rank-1 row) |
+| ProBench (the 23 kernels' refs) | `test_prolog_bench_suite.sh` | 23/23 · 23/23 |
+| Logtalk ISO conformance | `test_prolog_logtalk_suite.sh` | 3421/3528, both modes |
+| SWI-Prolog plunit cases | `test_prolog_swi_suite.sh` (agreement with swipl's own verdict, by path) | 1162/2935 · 1130/2935 (2858 graded, 77 ungraded; the row before read 1051) |
+| the rung suite and the construct ladder | `test_prolog_rung_suite.sh`; `test_prolog_ladder.sh --to N` (cumulative) | 10/11 both modes — the one red is `rung66_current_stream`, a rung-7 REFUSED-LADDER builtin, identical on the unchanged tree |
+
+`util_every_suite_of_a_language_at_100.sh prolog` is the lane's done-when and stays it. **The crawl is parked, not abandoned** (Lon 10:5x: *"a re-write only"*): the reds it left — Logtalk's ten fails (`setup_call_cleanup` determinism and cleanup-on-cut, user `meta_predicate`, `predicate_property` modes) and 57 ungraded, SWI's failing cases — are the crawl row's NEXT, and every rung that makes one of them fall out (the record gives `setup_call_cleanup` its determinism test for free, § 6) records it on that row. The measured readings of this sitting's landing are in the row ledger of `prolog-bb-lon-the-r12-push-and-pop-…` and in `GOAL-PROLOG-100.md`'s cursor, never only here.
+
+---
+
+## 15. What is deleted, and the census regex that proves it
 
 | mechanism | deleted | census regex at zero |
 |---|---|---|
-| trail push/test/unwind | `plw_bind` `pl_tr_push` `pl_tr_needs_log` `rt_pl_tr_unwind*` `rt_pl_tr_gc_sync` | `rt_pl_tr_.*` |
-| frame | `rt_jmp_frame_lexprep2` `rt_icn_zframe_args_install` `rt_arg_stage` `rt_proc_call_open_det` `rt_proc_drop_frame_h` `rt_nret_fix_tiny` `rt_pl_tail_args_safe` (Prolog graphs only; Icon keeps what it uses) | `rt_(jmp_frame_lexprep2\|icn_zframe_args_install\|arg_stage\|proc_call_open_det\|proc_drop_frame_h\|nret_fix_tiny\|pl_tail_args_safe)` |
+| trail unwind (R0, landed) · push/test (R4) · collector sync (R4) | `rt_pl_tr_unwind` `rt_pl_tr_unwind_sync` (R0) · `plw_bind` `pl_tr_push` `pl_tr_needs_log` `rt_pl_tr_unwind_to` `rt_pl_tr_gc_sync` (R4) | `rt_pl_tr_.*` |
+| frame | `rt_jmp_frame_lexprep2` `rt_icn_zframe_args_install` `rt_arg_stage` `rt_proc_call_open_det` `rt_proc_drop_frame_h` `rt_nret_fix_tiny` `rt_pl_tail_args_safe` `rt_gen_spine_pass_γ` (Prolog graphs only; Icon keeps what it uses) | `rt_(jmp_frame_lexprep2\|icn_zframe_args_install\|arg_stage\|proc_call_open_det\|proc_drop_frame_h\|nret_fix_tiny\|pl_tail_args_safe\|gen_spine_pass_γ)` |
 | choice/cut | `rt_pl_choice_open` `rt_pl_disj_open` `rt_pl_cut_barrier` `rt_pl_fence_commit` | `rt_pl_(choice_open\|disj_open\|cut_barrier\|fence_commit)` |
 | unify/deref | `rt_pl_dop_unify*` `rt_pl_dop_clause_unify` `plw_unify_cells` `plw_cell_deref_slow` `rt_pl_deref_val` | `rt_pl_dop_(clause_)?unify.*` |
 | construction | `rt_pl_dop_mkc` `plw_mkc_*` | `rt_pl_dop_mkc` |
 | arithmetic | `rt_pl_dop_(ax_\|cmp_\|anum_guard\|is_v)` `dop_pl_var` | `rt_pl_dop_(ax_\|cmp_\|anum_guard\|is_v)\|dop_pl_(var\|integer\|atom)` |
 | meta-call | `rt_pl_goal_spine_prep` `rt_pl_goal_gen_h` `rt_call_value_resume_h` `rt_gen_spine_resume_enter` | those four |
 | database | `rt_pl_dop_db_.*` | `rt_pl_dop_db_.*` |
+| exceptions | the C9 ball test at every β; `rt_pl_catch_handle`'s C body | `rt_pl_catch_handle` |
 
-**The C that stays, as value services:** the writer, `format/2`, streams, atom and string text, `sort`/`msort`/`keysort`/`compare/3` beyond the atomic case, `copy_term`, bignum and float math, the ISO error balls, and findall's collect. **Baseline, measured this sitting:** `bench_prolog_call_census.sh` on SCRIP `bc6481017` (incremental `make`) reads the same per-entry counts as the ceo's grid on `a6d057a31`; nothing has moved since. The entries live in `src/runtime/by_name_dispatch.c`, `unification.c` and `rtx_plunify.s`, and after the rewrite those files keep the value services above and nothing else. ⚠ The census also prints `qword`, `with` and `moved` as though they were entries. Those are indirect `call qword ptr […]` sites and comment text parsed as symbols, so no regex above may match them.
+**The C that stays, as value services:** the writer, `format/2`, streams, atom and string text, `sort`/`msort`/`keysort`/`compare/3` beyond the atomic case, `copy_term`, bignum and float math, the ISO error balls, and findall's collect. **Baseline:** `bench_prolog_call_census.sh` on SCRIP `bc6481017` read the grid's counts (CEO-1280) unchanged; on this sitting's R0 tree `rt_pl_tr_unwind.*` reads zero and every other entry is unchanged. ⚠ The census also prints `qword`, `with` and `moved` as though they were entries — indirect `call qword ptr […]` sites and comment text parsed as symbols — so no regex above may match them.
 
 ---
 
-## 12. The rungs — in place, each deleting what it replaces
+## 16. The rungs — in place, each deleting what it replaces (re-cut in this pass)
 
-Each rung: the census regex reads zero; the named kernels' `bench_prolog_bar.sh … gplc` multiple is recorded before and after (the bar 1.0 is the destination, not each rung's gate); the ladder `test_prolog_ladder.sh --to N` plus the master board and the five package suites hold their floors in **both modes**; the monitor bracket names any red. Each rung maps to rows already on the queue.
+Each rung: the census regex reads zero; the named kernels' `bench_prolog_bar.sh … gplc` multiple is recorded before and after (the bar 1.0 is the destination, not each rung's gate); **every suite of § 14 holds its floor in both modes**; the ladder `--to N` is green; the monitor bracket names any red. Each rung maps to rows already on the queue.
 
 | rung | lands | depends on | row(s) it closes |
 |---|---|---|---|
-| **R0** | § 3 the trail: inline push, inline unwind, entries of one word, B/HB/ball in the arena header, HB raised by the collector | — | rank 0 `prolog-bb-lon-the-r12-push-and-pop-are-inlined-…`; `prolog-speed-the-trail-test-…` |
-| **R1** | § 1 atoms and functors: `DT_PLATOM`, compile-time ids, the read-only table with operator columns, the runtime services moved to ids | — | `prolog-speed-an-atom-the-compiler-saw-…`; `prolog-speed-an-operator-term-…` (deriv, derive, divide10, times10, log10, ops8) |
-| **R2** | § 1 heap-only variable cells: frame slots hold values; `plw_bind` boxing and `plw_mkc_kids` globalising deleted | R0 | (the soundness base for R3–R5) |
-| **R3** | § 7 construction by the emitted carve | R1, R2 | `prolog-bb-a-body-term-is-built-…` |
-| **R4** | § 5 head unification as match nodes on r13/r14/r15, read/write twins, the `rtx_pl_unify` leaf; the C walk deleted | R1–R3 | `prolog-speed-get-put-and-unify-…` (nrev, qsort, mu, zebra, queens_8) |
-| **R5** | § 4.1/4.3/4.4 the frame carved inline, arguments in place, deterministic release, last call by copy | R2 | `prolog-bb-the-activation-frame-is-carved-…`; `prolog-speed-a-retained-choice-point-costs-…` (tak) |
-| **R6** | § 4.2 SWITCH and clause chains; § 6 choice/cut/fence/disjunction as stores | R5 | `prolog-bb-choice-open-cut-fence-…`; `query`; rung-12 indexing |
-| **R7** | § 8 arithmetic and type tests inline | R1 | `prolog-bb-is-2-comparison-and-type-tests-…`; fib, cal, sendmore |
-| **R8** | § 9 meta-call through the predicate table plus CODE | R5 | `prolog-bb-a-meta-call-…`; meta_qsort |
-| **R9** | § 10 the dynamic database as code | R4, R8 | `prolog-bb-the-dynamic-database-is-code-…` |
+| **R0 — landed this sitting** | § 5 the pop: the inline unwind at the clause step, UNMARK, the disjunction step and `IR_TO`; `rt_pl_tr_unwind` and `_sync` gone | — | rank 0 `prolog-bb-lon-the-r12-push-and-pop-are-inlined-…` (closes on the pop, CEO-1291; the push is R4's) |
+| **R1** | § 3 atoms and functors: `DT_PLATOM`, compile-time ids, the read-only table with operator columns and the α column, the runtime services moved to ids | — | `prolog-speed-an-atom-the-compiler-saw-…`; `prolog-speed-an-operator-term-…` (deriv, derive, divide10, times10, log10, ops8) |
+| **R2** | § 3 heap-only variable cells: frame slots hold values; `plw_bind` boxing and `plw_mkc_kids` globalising deleted; one-word trail entries | R0 | (the soundness base for R3–R5) |
+| **R3** | § 10 construction by the neck carve; the poll moves to its slow arm | R1, R2 | `prolog-bb-a-body-term-is-built-…` |
+| **R4** | § 8 head unification as match nodes on r13 with the static cursor, read/write twins, the `rtx_pl_unify` leaf; **the inline push** (§ 5); the C walk, `rt_pl_tr_unwind_to` and `rt_pl_tr_gc_sync` deleted | R1–R3 | `prolog-speed-get-put-and-unify-…` (nrev, qsort, mu, zebra, queens_8), carrying the push half of the rank-0 row |
+| **R5** | § 6 + § 7.1/7.3/7.4 + § 9: the record, the universal ω, the frame carved inline with the arguments in place, deterministic release, last call by the scheduled copy, cut/disjunction/ITE/negation/generators/findall as records, the catch chain; Prolog's own call and choice box kinds, the `x86_fb_pinned()` arms leaving the shared boxes (§ 17 Q6) | R2 | `prolog-bb-the-activation-frame-is-carved-…`; `prolog-bb-choice-open-cut-fence-…`; `prolog-speed-a-retained-choice-point-costs-…` (tak); `prolog-speed-the-trail-test-…`'s prologue half |
+| **R6** | § 7.2 SWITCH and clause packets | R5 | `prolog-rung-12-first-argument-indexing-…`; `query` |
+| **R7** | § 11 arithmetic and type tests inline; the static wire of § 9 for proven tests | none (may land beside any rung) | `prolog-bb-is-2-comparison-and-type-tests-…`; fib, cal, sendmore |
+| **R8** | § 12 meta-call through the functor table's α column plus CODE | R1, R5 | `prolog-bb-a-meta-call-…`; meta_qsort |
+| **R9** | § 13 the dynamic database as code | R6, R8 | `prolog-bb-the-dynamic-database-is-code-…` |
+| **R10** | the frontier reset on backtracking (the WAM's `H := HB`, the WAM-independent half of every Prolog's memory behaviour): a retry sets `rbx := [rax+HB]`, which frees every cell allocated since the choice; findall/bagof/setof accumulators, the ball, `nb_setval` values and `assert`'s clause terms move to standing storage first; the C-side top word is re-synced | R5; the cfo's collector review | (a new row, minted with this page; § 17 Q7) |
 
-**R0 first**, because Lon ranked it 0 and because it is the only rung with no dependency. It does not wait for R2: under today's cells the entry stays `{cell, old}` (the frame-cell case needs the old value), and it shrinks to one word when R2 lands.
+**R0 first** because Lon ranked it 0 and it had no dependency; **R1 and R7 next** because they have none either and each closes speed rows on its own (crypt, the six operator-term kernels; fib, cal, sendmore); **R2→R3→R4** is the unification road Lon's directive names; **R5** is the largest landing and the one the record makes possible.
 
 ---
 
-## 13. Questions for Lon (each has a recommended answer; work proceeds on the recommendation)
+## 17. Questions for Lon (each has a recommended answer; work proceeds on the recommendation)
 
-1. **Heap-only variable cells (§ 1).** Every unbound variable is a 16-byte heap cell, and frames hold only values. This buys last call, frame release and a one-word trail with no unsafe-variable analysis. **Recommended: yes.** It is the same heap use as a compound's argument block, which the carve-out already admits.
-2. **Where B, HB and the ball live (§ 2).** **Recommended: the trail arena's own header, reached from `r12`** (two instructions, and not a global). The alternative is a pinned VA (one instruction), which is a global in effect and needs Lon's banner permission.
-3. **The trail arena (§ 3) against CEO-313's withdrawal (2026-09-06: entries into per-frame logs).** Lon's 10:5x words ("R12 … like the CAS") read as the CAS's own shape, and the CAS is an island addressed by `r12` (`pin_va.h` `RT_DCAP_ISLAND_BYTES`), not the spine. **Recommended: keep the arena; retire row `prolog-trail-entries-live-in-the-activation-frame-…`.**
-4. **First-argument indexing (§ 4.2).** It is beyond Byrd and Proebsting and is WAM-standard. **Recommended: yes**, as a SWITCH box made of conditional and indirect jumps. Without it app/3 and nrev open a choice at every call, and the gplc bar is out of reach.
-5. **Control constructs under `call/1` (§ 9).** They are compiled through CODE per goal shape and cached; they are not interpreted by a Prolog-written meta-interpreter. **Recommended: CODE**, per THE RUNTIME-GOAL RULING.
+1. **Heap-only variable cells (§ 3).** Every unbound variable is a 16-byte heap cell, carved with its clause at the neck, and frames hold only values. This buys last call, frame release and a one-word trail with no unsafe-variable analysis. **Recommended: yes.** It is the same heap use as a compound's argument block, which the carve-out already admits.
+2. **Where the five engine words live (§ 4): `B`, `HB`, `CP`, `BALL` and `ROOT`.** In the trail arena's header, reached from `r12` (two instructions per use, no global, no permission needed) — or as words of the pinned page that already holds the CAS's top (`pin_va.h` `RT_DCAP_TOP`; one instruction per use: the bind is five instructions instead of seven, the universal ω two instead of four). **Recommended: the pinned page**, on the CAS precedent, if Lon grants it as the banner rule requires; the design proceeds on the header until he does.
+3. **The trail arena (§ 5) against CEO-313's withdrawal (2026-09-06: entries into per-frame logs).** Lon's 10:5x words (*"R12 … like the CAS"*) read as the CAS's own shape — an island addressed by `r12`, never the spine — and the guard page makes the push two instructions. **Recommended: keep the arena with the guard page; retire row `prolog-trail-entries-live-in-the-activation-frame-…`.**
+4. **First-argument indexing (§ 7.2).** Beyond Byrd and Proebsting, inside Deransart's model (the packet holds only useful clauses), WAM-standard. **Recommended: yes**, as a SWITCH box made of conditional and indirect jumps.
+5. **Control constructs under `call/1` (§ 12).** Compiled through CODE per goal shape and cached, never interpreted. **Recommended: CODE**, per THE RUNTIME-GOAL RULING.
+6. **The universal ω through the youngest record (§ 6), and Prolog's own call and choice boxes.** Deransart's Backtrack rule as code, replacing the β chain and the banked β; Byrd's own text prefers retracing every Redo, and Deransart adopts the direct jump as the model *"as usually implemented"*. It needs Prolog's call and choice boxes to be their own IR kinds (a branch on IR kind, never on a language name), and the shared `bb_disjunction`/`bb_bound`/`bb_to` lose their `x86_fb_pinned()` arms; Icon keeps its wiring and may take the record later on hq_icon's word. **Recommended: yes, both** — it is the mechanism that makes cut two stores, exit one compare and failure two instructions.
+7. **The frontier reset on backtracking (R10).** The WAM's `H := HB` on retry, which every Prolog on the box does, against the copy-outs it forces (findall, the ball, `nb_setval`, assert's terms). **Recommended: yes, as the last rung, after the cfo's review of the record walk that raises `HB` (§ 5)** — search kernels (queens, zebra, crypt, sendmore, query) then never collect.
+8. **The catch chain (§ 9.5).** Throw jumps to the youngest catch record; no β tests the ball. **Recommended: yes**; it is internal to Prolog and lands inside R5.
