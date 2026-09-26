@@ -9,12 +9,12 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | Gimpel | snobol4 | 131/142 EXCLUDED=6 OUTSIDE=12 | 2026-09-25 | `92ffc0cfd` |  |
 | Budne | snobol4 | 71/73 EXCLUDED=20 OUTSIDE=22 | 2026-09-25 | `92ffc0cfd` |  |
 | Flake | snobol4 | 121/132 EXCLUDED=48 OUTSIDE=56 | 2026-09-26 | `448fd78ce` |  |
-| AIS | snobol4 | 7/8 EXCLUDED=0 OUTSIDE=1 | 2026-09-25 | `92ffc0cfd` |  |
-| Dotnet | snobol4 | 5/12 EXCLUDED=1 OUTSIDE=8 | 2026-09-25 | `92ffc0cfd` |  |
+| AIS | snobol4 | 7/8 EXCLUDED=1 OUTSIDE=1 | 2026-09-25 | `92ffc0cfd` |  |
+| Dotnet | snobol4 | 5/12 EXCLUDED=2 OUTSIDE=8 | 2026-09-25 | `92ffc0cfd` |  |
 | TPgm | snobol4 | 1/8 EXCLUDED=0 OUTSIDE=6 | 2026-09-16 | `61315eaa9` |  |
-| Zona | icon | 113/119 | 2026-09-25 | `afa922883` |  |
-| Jcon | icon | 86/86 | 2026-09-25 | `afa922883` | done |
-| IPL | icon | 194/843 | 2026-09-25 | `afa922883` |  |
+| Zona | icon | 113/119 EXCLUDED=5 | 2026-09-25 | `afa922883` |  |
+| Jcon | icon | 86/86 EXCLUDED=5 | 2026-09-25 | `afa922883` | done |
+| IPL | icon | 194/843 EXCLUDED=8 | 2026-09-25 | `afa922883` |  |
 | INRIA | prolog | 442/442 | 2026-09-25 | `eb5087e10` | done |
 | SWI | prolog | 1051/2935 | 2026-09-23 | `a5240e77a` |  |
 | GNU | prolog | 11/11 | 2026-09-25 | `eb5087e10` | done |
