@@ -34,6 +34,7 @@ bash scripts/test_gate_<name>.sh                      # ONE arm; every arm is a 
 ./scrip prog.sno < /dev/null                          # mode 3 (default)
 bash scripts/audit_bb_fixup_rank.sh                   # whole-set census (your loop's instrument)
 bash scripts/audit_bb_fixup_file.sh src/templates/bb/bb_X.cpp   # one file; rc 0 = conformant
+bash scripts/util_template_ab.sh capture before; ...; bash scripts/util_template_ab.sh capture after; bash scripts/util_template_ab.sh diff $TMPDIR/template_ab/{before,after}.tsv   # whole-corpus A/B, hash-only (never keep the .s: CEO-1332)
 python3 scripts/strip_comments.py --check             # zero comments in C/C++/asm
 ```
 
