@@ -3,3 +3,4 @@
 # util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
 # tree	suite	measurer	verbatim line
 2a6a148fb	raku-master	hq_raku	SUITE_BOARD family=ALL total=947 shipped=947 outside=0 m3_n=947 m3_pass=903 m3_fail=17 m3_crash=0 m3_hang=0 m3_unproven=0 m3_skip=0 m3_xfail=27 m3_xpass=0 m3_xfail_wrong=27 m3_xfail_crash=0 m3_xfail_hang=0 m3_xfail_unproven=0 m3_xfail_skip=0 m4_n=947 m4_pass=901 m4_fail=11 m4_crash=0 m4_hang=0 m4_unproven=0 m4_skip=8 m4_xfail=27 m4_xpass=0 m4_xfail_wrong=27 m4_xfail_crash=0 m4_xfail_hang=0 m4_xfail_unproven=0 m4_xfail_skip=0 all_pass=901 all_n=947 rt_md5=110fed60f0d0 arena_kb=1024 arena_mb=0 m3_fail_oom=0 m4_fail_oom=0
+2e74c736c	raku-bench-ref	hq_raku	SUITE_BOARD family=raku-bench-ref total=84 shipped=84 all_pass=48 all_n=84 m3_pass=48 m4_pass=48 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=168
