@@ -32,7 +32,7 @@ prolog-bench-ref	ProBench	⏱️	prolog	2026-09-23	23	23	2026-09-26	23	23	270d8a
 pascal-bench-ref	PasBench	⏱️	pascal	2026-09-23	11	11	2026-09-26	11	11	51107af4c		
 raku-bench-ref	RakBench	⏱️	raku	2026-09-24	5	17	2026-09-26	48	84	2e74c736c	2026-09-26:the population is every raku-bench and Rakudo benchmark on the box, 17 to 83 kernels -- the 62 microbenchmark bodies, the 7 tools/benchmark.pl snippets and the 4 programs excluded on 08-27, imported on Lons word to get all the Raku benchmarks graded (CEO-1283) | 2026-09-26:DENOMINATOR-83-to-84-rakudo-tools-07-postfix-10-000-times-entered-at-corpus-7a0a310ce-the-seventh-tools-benchmark.pl-snippet-the-importer-missed	
 rebus-bench-ref	RebBench	⏱️	rebus	2026-09-23	3	3	2026-09-27	3	3	5f445d5fd		
-snobol4-demos	SnoDemo	🎬	snobol4	2026-09-27	24	24	2026-09-27	24	24	feeda3ea9		
+snobol4-demos	SnoDemo	🎬	snobol4	2026-09-27	24	24	2026-09-27	24	24	7ccd9712b		
 snocone-demos	SncDemo	🎬	snocone	2026-09-27	15	16	2026-09-27	15	16	2198bfc53		
 icon-demos	IcnDemo	🎬	icon									
 prolog-demos	ProDemo	🎬	prolog									
