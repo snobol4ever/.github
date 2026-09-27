@@ -39,7 +39,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | RakBench | raku | 48/84 | 2026-09-26 | `2e74c736c` |  |
 | RebBench | rebus | 3/3 | 2026-09-27 | `5f445d5fd` | done |
 | SnoDemo | snobol4 | 24/24 | 2026-09-27 | `feeda3ea9` | done |
-| SncDemo | snocone | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| SncDemo | snocone | 15/16 | 2026-09-27 | `2198bfc53` |  |
 | IcnDemo | icon | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | ProDemo | prolog | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | ScrDemo | scrip | 10/10 | 2026-09-27 | `feeda3ea9` | done |
