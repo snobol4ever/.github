@@ -32,7 +32,27 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
     - **Landed:** SCRIP db8d16f90, SCRIP_GC_AUDIT_B_LOG, because the harness discards m4 stderr.
     - **Price:** 20-24 ms per audited collection.
     - **Row updates:** the DONE-WHEN now needs arm=a and arm=b receipts (12 in all; RED once). The SncM ask is out to hq_snocone, whose samples were clean.
-  - **ORDER NEXT:** attribute the tiny-arena pass (running), land cures 1 and 2, cure 3 and 4 on the ceo's ruling, re-run the 12 samples to zero, send the five remaining asks, then the four tiny-arena gates and the compile-curve patch.
+  - **CEO-1300 RULED:**
+    - The principle: the shipped path pays nothing for a temporary instrument.
+    - Class 3 → (b): g_mctx's owner declares its non-reference words to the auditor view.
+    - Class 4 → (ii): the auditor skips the words the frame map declares header or RAW/CODE.
+    - Both are staged as a patch (auditor build only) that applies after the tiny-arena pass.
+  - **ECONOMY:** Lon killed hq_prolog's runaway awk (947872/863212) by hand; ps confirms both gone. Load 21-35.
+  - **THE TINY-ARENA PASS ON CURES 1+2:** 6 reds of 89, each attributed on an origin control at db8d16f90.
+    - Four are my rank-1 row's known reds.
+    - The allocating-set table was STALE on origin, and one of its two missing symbols was MY rt_sno_cnv_num from 87796453d. The cto's 65b0bc779 regenerated it within the hour. Memory note extended: that is the third instance, so this gate is now run by name on every runtime landing.
+    - Flip-plant arm (c) was retired by the cto at 67c8f3692.
+  - **THE FOUR-GATE ROW, CLAIMED AND CLASSIFIED:**
+    - Three of the four are ONE instrument class, and not collector defects. rt_gcheap_init reads SCRIP_HEAP_MB and then SCRIP_HEAP_KB, which overwrites the window, so `export SCRIP_HEAP_MB=512` pins were silently beaten by test-arena's SCRIP_HEAP_KB=128. The affected gates are record_type_table, pacing_bounds, and collector_visits arm 5's m4 run; no_pinned_lifetime_class shares the defect but happens not to red.
+    - The pin fix is staged, scripts only. The tiny-arena gate's new arm 3b refuses a pin that does not hold.
+    - The fourth, a_safe_point_stores, is red at BOTH windows: arm (h) is red by design, and the census refuses. The bisect names CEO-1251's inline-poll speed landing af773a80e as the likely first bad.
+  - **ORDER NEXT:**
+    1. Land cures 1 and 2.
+    2. Apply the CEO-1300 patch and re-run the 12 samples to zero.
+    3. Send the five remaining asks.
+    4. Land the pin fix.
+    5. Row the census class.
+    6. The compile-curve patch.
 
 - **CFO-165 (2026-09-26 15:52 -> 2026-09-26 17:29 CDT, `date`-read, cfo; MODE TENET) -- g_icn_op LANDED (SCRIP 4b9cddb69, DONE by computed receipt; the ceo re-read rc 0 on 788602ca0): NOT LATENT, it crashed at the SHIPPED defaults; the auditor reads RETIREMENT-PENDING.**
   - **LANDING:** core_gc_roots visits g_icn_op.a/.b. The witness crashed at the shipped defaults in m3 (SIGSEGV 5/5) and printed a garbage record in m4 (3/3). CEO-554 seam SCRIP_GC_PLANT_ICN_OP (1 HOLD, 2 HOLD+UNROOT): measured inert in the CEO-554 order (150 runs, 437,866 collections, 0 differing), cost +0.05% Ir. New blocking gate test_gate_gc_the_icon_operator_context_survives_a_collection.sh. Auditor (f1) amended per CEO-1291 (b). Preflight 63/0.
