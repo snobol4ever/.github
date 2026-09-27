@@ -42,7 +42,7 @@ One row per suite — our seven masters and every vendored package suite alike �
 | SncDemo | snocone | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | IcnDemo | icon | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 | ProDemo | prolog | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
-| ScrDemo | scrip | 10/12 | 2026-09-27 | `4ff9addec` |  |
+| ScrDemo | scrip | 10/10 | 2026-09-27 | `feeda3ea9` | done |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
