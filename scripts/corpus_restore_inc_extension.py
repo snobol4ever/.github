@@ -23,7 +23,11 @@ Every rename is a `git mv` so history follows the file, and every `-INCLUDE "X.s
 points at a renamed file is rewritten in the same run -- a rename without the references is a corpus
 that builds nowhere.
 
-Usage:  corpus_restore_inc_extension.py --dry-run | --apply   [--root /home/claude_ceo/corpus]
+Usage:  corpus_restore_inc_extension.py --dry-run | --apply   [--root CORPUS]
+
+--root defaults to the seat's own corpus, $S4E_HOME/corpus (D-17: a tool never names another seat's
+root), else the corpus beside this checkout of .github. The dry run prints its full counts and every
+rename and every rewrite, never a sample (ceo CEO-1315).
 """
 import argparse
 import collections
@@ -34,8 +38,11 @@ import sys
 
 HEADER = re.compile(r'^\*\s*(\S+)\.inc\b', re.I)
 REF = re.compile(r'(-INCLUDE\s+")([^"]+)(")', re.I)
+REF_B = re.compile(rb'(-INCLUDE\s+")([^"]+)(")', re.I)
+RECORD_EXT = (".tsv", ".txt", ".md", ".csv")
 SCOPE = ("packages/", "include/")
 SOURCE_EXT = (".sno", ".sbl")
+INCLUDER_EXT = (".inc", ".INC")   # an include file already so named may itself include a renamed .sno; it is rewritten, never counted as a spelling vote
 
 
 def is_include_file(path):
@@ -47,17 +54,21 @@ def is_include_file(path):
 
 
 def collect(root):
-    includes, sources = [], []
+    includes, sources, includers = [], [], []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d != ".git"]
         rel = os.path.relpath(dirpath, root)
         for fn in filenames:
             p = os.path.join(dirpath, fn)
+            if os.path.islink(p):
+                continue
             if fn.endswith(SOURCE_EXT):
                 sources.append(p)
+            if fn.endswith(INCLUDER_EXT):
+                includers.append(p)
             if fn.endswith(".sno") and (rel + "/").startswith(SCOPE) and is_include_file(p):
                 includes.append(p)
-    return includes, sources
+    return includes, sources, includers
 
 
 def reference_spellings(sources):
@@ -76,9 +87,16 @@ def reference_spellings(sources):
     return spellings
 
 
+def default_root():
+    home = os.environ.get("S4E_HOME")
+    if home:
+        return os.path.join(home, "corpus")
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "corpus")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default="/home/claude_ceo/corpus")
+    ap.add_argument("--root", default=default_root())
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
@@ -87,7 +105,11 @@ def main():
         return 2
 
     root = os.path.abspath(args.root)
-    includes, sources = collect(root)
+    if not os.path.isdir(os.path.join(root, "packages")) or not os.path.isdir(os.path.join(root, "include")):
+        print("REFUSED(2): %s is not a corpus (no packages/ and include/)" % root, file=sys.stderr)
+        return 2
+    print("root: %s" % root)
+    includes, sources, includers = collect(root)
     spellings = reference_spellings(sources)
     print("include-headed files in scope: %d" % len(includes))
 
@@ -102,39 +124,120 @@ def main():
             ext = "inc" if os.path.dirname(p).endswith("/include") else "INC"
         renames[p] = os.path.join(os.path.dirname(p), base + "." + ext)
 
+    # A DESTINATION ALREADY OCCUPIED: a symlink that points at the very file being renamed is an alias of it (gimpel/SNOREAD.INC ->
+    # SNOREAD.sno, corpus ef22d72a2, the name the snoflake program asks for) and collapses into the renamed file; anything else there
+    # refuses the whole run before a byte moves.
+    aliases, occupied = [], []
+    for old, new in sorted(renames.items()):
+        if os.path.islink(new) and os.path.realpath(new) == os.path.realpath(old):
+            aliases.append(new)
+        elif os.path.lexists(new):
+            occupied.append(new)
+    for a in aliases:
+        print("alias collapses into its target: %s" % os.path.relpath(a, root))
+    if occupied:
+        for o in occupied:
+            print("REFUSED(2): the destination %s exists and is not an alias of the file renamed onto it" % os.path.relpath(o, root), file=sys.stderr)
+        return 2
+
     by_ext = collections.Counter(os.path.basename(v).rsplit(".", 1)[1] for v in renames.values())
     print("target extensions: %s" % dict(by_ext))
 
-    old_names = {os.path.basename(k) for k in renames}
+    # A REFERENCE IS REWRITTEN ONLY WHEN IT RESOLVES TO A RENAMED FILE, resolved as the SNOBOL4 lexer resolves it (src/driver/scrip.c):
+    # the including file's own directory first, then SNO_LIB (the harness sets it to corpus/include). A basename match is not a
+    # resolution: the master's `-INCLUDE "OR.sno"` and config/BLANKS.sno's "DIFF.sno" resolve to the copies beside them in
+    # tests/snobol4/config, which keep their names, and include/PUT.sno and gimpel/PUT.sno take different spellings.
+    unresolved = collections.Counter()
+
+    def resolve(src, target):
+        for d in (os.path.dirname(src), os.path.join(root, "include")):
+            c = os.path.normpath(os.path.join(d, target))
+            if os.path.isfile(c):
+                return c
+        return None
+
+    # IN BINARY: a file is read and written as bytes, so its line endings and any byte that is not UTF-8 survive untouched and
+    # `git diff --numstat` reads only the lines meant to change (the baton's own condition). Paths are decoded latin-1 to resolve.
     rewrites = []
-    for p in sources:
+    for p in sources + includers:
         try:
-            text = open(p, encoding="utf-8", errors="replace").read()
+            raw = open(p, "rb").read()
         except OSError:
             continue
-        changed = text
-        for _, target, _ in REF.findall(text):
-            name = target.strip().rsplit("/", 1)[-1]
-            if name in old_names:
-                new = os.path.basename(renames[[k for k in renames if os.path.basename(k) == name][0]])
-                changed = changed.replace('"%s"' % target, '"%s"' % target.replace(name, new))
-        if changed != text:
-            rewrites.append((p, changed))
-    print("files whose -INCLUDE references need rewriting: %d" % len(rewrites))
 
+        def sub(m):
+            target = m.group(2).decode("latin-1").strip()
+            hit = resolve(p, target)
+            if hit is None:
+                if target.lower().endswith(".sno"):
+                    unresolved[os.path.relpath(p, root) + " -> " + target] += 1
+                return m.group(0)
+            if hit not in renames:
+                return m.group(0)
+            name = target.rsplit("/", 1)[-1]
+            new = target[: len(target) - len(name)] + os.path.basename(renames[hit])
+            return m.group(1) + new.encode("latin-1") + m.group(3)
+
+        changed = REF_B.sub(sub, raw)
+        if changed != raw:
+            rewrites.append((p, changed))
+
+    # THE PACKAGE'S OWN RECORDS NAME A RENAMED FILE TOO: gimpel's UNGRADED.tsv, UNGRADABLE.tsv and EXCLUDED.tsv key a library by its
+    # file name, and lib_inventory.sh and the EXCLUDED gate match that key against the shipped file -- a key left at NAME.sno names a
+    # file that is gone. Every whole-token OLD name in a record file (.tsv .txt .md .csv) beside a renamed file is rewritten to its new
+    # name; a token with a path or a word character on either side is left, and program source is never a record.
+    records = []
+    by_dir_map = collections.defaultdict(dict)
+    for old, new in renames.items():
+        by_dir_map[os.path.dirname(old)][os.path.basename(old)] = os.path.basename(new)
+    for d, mp in sorted(by_dir_map.items()):
+        tok = re.compile(rb"(?<![\w./-])(" + b"|".join(re.escape(k.encode()) for k in sorted(mp, key=len, reverse=True)) + rb")(?![\w])")
+        for fn in sorted(os.listdir(d)):
+            f = os.path.join(d, fn)
+            if not fn.endswith(RECORD_EXT) or os.path.islink(f) or not os.path.isfile(f):
+                continue
+            raw = open(f, "rb").read()
+            n = [0]
+
+            def rec(m):
+                n[0] += 1
+                return mp[m.group(1).decode()].encode()
+
+            changed = tok.sub(rec, raw)
+            if changed != raw:
+                records.append((f, changed, n[0]))
+    if unresolved:
+        print("-INCLUDE references to a .sno that resolve nowhere (left as written): %d" % len(unresolved))
+        for k in sorted(unresolved):
+            print("   unresolved %s" % k)
+    print("files whose -INCLUDE references need rewriting: %d" % len(rewrites))
+    print("record files naming a renamed file: %d (%d name(s))" % (len(records), sum(r[2] for r in records)))
+
+    by_dir = collections.Counter(os.path.dirname(os.path.relpath(k, root)) for k in renames)
+    print("renames by directory: %s" % ", ".join("%s=%d" % kv for kv in sorted(by_dir.items())))
     if args.dry_run:
-        for k in sorted(renames)[:8]:
+        for k in sorted(renames):
             print("   would rename %s -> %s" % (os.path.relpath(k, root), os.path.basename(renames[k])))
-        for p, _ in rewrites[:8]:
+        for p, _ in sorted(rewrites):
             print("   would rewrite refs in %s" % os.path.relpath(p, root))
+        for f, _, n in records:
+            print("   would rewrite record %s (%d name(s))" % (os.path.relpath(f, root), n))
+        print("owed: %d rename(s), %d rewrite(s), %d record(s)" % (len(renames), len(rewrites), len(records)))
         return 0
 
+    # the references first, at the paths they were read from, THEN the renames: a renamed library whose own references were rewritten
+    # carries its rewritten text to its new name (renaming first and writing after would recreate every rewritten .sno beside its .INC)
+    for p, data in rewrites:
+        with open(p, "wb") as fh:
+            fh.write(data)
+    for f, data, _ in records:
+        with open(f, "wb") as fh:
+            fh.write(data)
+    for a in aliases:
+        subprocess.run(["git", "-C", root, "rm", "-q", os.path.relpath(a, root)], check=True)
     for old, new in sorted(renames.items()):
         subprocess.run(["git", "-C", root, "mv", os.path.relpath(old, root), os.path.relpath(new, root)], check=True)
-    for p, text in rewrites:
-        with open(p, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(text)
-    print("renamed %d file(s), rewrote references in %d file(s)" % (len(renames), len(rewrites)))
+    print("renamed %d file(s), rewrote references in %d file(s) and names in %d record(s)" % (len(renames), len(rewrites), len(records)))
     return 0
 
 
