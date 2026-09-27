@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ⛔⭐ **THIS ROOT IS `/home/claude_templates` (identity `hq_templates`), THE SEAT HQ-TEMPLATES, opened 2026-09-27 by Lon (in-chat to the ceo, verbatim: *"I think we will need one more HQ to handle keeping C++ templates clean regarding the rules of construction. Let's call it HQ-TEMPLATES"*; GOAL-CEO CEO-1321). Your officer is the cto (your postoffice `HQ` file reads `cto`: asks route there, the cto reviews your landings). The mode stays TENET with you as its eleventh working seat.**
 
-⛔ **`.github/RULES.md` is the only law; anything here that contradicts it is void.** This file is a digest of MECHANICS and POINTERS, written by the ceo from `.github/HQ-TEMPLATES-CLAUDE.md` (edit that source, not this copy). Numbers below were measured 2026-09-27 at SCRIP `6c8992978`; re-measure before quoting.
+⛔ **`.github/RULES.md` is the only law; anything here that contradicts it is void.** This file is a digest of MECHANICS and POINTERS, written by the ceo from `.github/HQ-TEMPLATES-CLAUDE.md` (edit that source, not this copy). Numbers below were measured 2026-09-27 at SCRIP `6c8992978` (re-measured unchanged at `7cafd69c0` the same day: 135 files, 61 clean, 74 dirty, GRAND 1517); re-measure before quoting.
 
 ## ⛔⭐⭐⭐ YOUR ONE THING — THE WATCH LOOP (read `.github/GOAL-HQ-TEMPLATES.md` first, every sitting)
 
@@ -28,6 +28,8 @@ cd SCRIP
 make                 # ./scrip + out/libscrip_rt.so; objdir /tmp/si_objs<tree-path>
 make preflight       # the cheap hermetic arms -- part of EVERY landing verdict
 make test            # THE blocking set (hundreds of arms, tens of minutes) -- HEAVY: once per batch of 3-4 landings (CEO-1316)
+make test-sequential # the same arms, stopping at the FIRST red -- for bisecting a batch, never a verdict
+bash scripts/test_gate_<name>.sh                      # ONE arm; every arm is a standalone script; grep <name> Makefile finds its line
 ./scrip --compile -o out.s prog.sno < /dev/null      # mode 4 text: the A/B witness of a template edit
 ./scrip prog.sno < /dev/null                          # mode 3 (default)
 bash scripts/audit_bb_fixup_rank.sh                   # whole-set census (your loop's instrument)
@@ -36,6 +38,7 @@ python3 scripts/strip_comments.py --check             # zero comments in C/C++/a
 ```
 
 - ⛔⭐ **HEAVY VERIFICATION RUNS ONCE PER BATCH OF THREE TO FOUR CHANGES** (Lon 2026-09-27, CEO-1316): per landing = the file's audit rc 0 + the gates it touched + `make preflight`; a batch red is bisected within the batch. You run NO language board — the language HQs' next batch passes read your landings on their suites (CEO-1232); an HQ that bisects a red to your commit asks you to cure or revert within the tick.
+- ⛔ **THE TWO AUDITS COUNT DIFFERENT CLASSES.** The census (`audit_bb_fixup_rank.sh`) omits `cv9_param_str` and `cv10_graph`, which the per-file audit counts: at `7cafd69c0`, `bb_match_abort.cpp` prints CLEAN in the census and is rc 1 per file (`cv10_graph` 2). A census GRAND of 0 is therefore not "the whole set at rc 0" — this is the still-binding sweep finding "rank TOTAL ≠ per-file TOTAL". The census's column abbreviations (`eb nw bs rb mt ef lc bl pe lv rp hc sd cl ml xc bp lb`) are spelled out in the header and print lines of `audit_bb_fixup_file.sh`.
 - ⛔ **A grammar edit is invisible until bison/flex are re-run** (`scripts/regenerate_parser_and_lexer_from_sources.sh`) — you should rarely touch parsers.
 - ⛔ **NO `-O2` BUILDS.** `RT_OPT` is `-O0`.
 - ⛔ **Codegen touched** (`emit*.cpp`, `src/templates/`, `x86_asm.h`, `lower_snobol4.c`) ⇒ regenerate artifacts in order: `util_regen_benchmark_s_artifacts.sh "<rung>"` → `util_regen_demo_s_artifacts.sh` → `util_regen_prolog_bench_s_artifacts.sh`; Icon emitter/lowerer ⇒ also `update_icon_bench_asm.sh`. `util_verify_s_artifacts_owed.sh` is BLOCKING in `handoff_status.sh`.
@@ -43,6 +46,8 @@ python3 scripts/strip_comments.py --check             # zero comments in C/C++/a
 ## Architecture you work in
 
 `src/templates/bb/` (the `bb_*.cpp` boxes), `src/templates/xa/` (emission helpers), `src/templates/x86/x86_asm.h` (the encoder). Every x86 instruction, TEXT and BINARY alike, is produced only inside `x86(...)`; templates speak only `x86(...)` and emit zero binary; raw-byte producers are private to `x86_asm.h`. Byrd-box ports are always α (proceed) β (recede) γ (succeed) ω (concede). THE THREE ZETAS: ζ-SPINE on RSP, ζ-ACTIVATION-FRAME on RBP, ζ-STANDING/root. Language identity stops at lower: no `LANG_*`, no language discriminator in a template or the runtime. The collector design is FROZEN (`ARCH-GC-COMPILE-TIME-FRAME-MAPS.md` § 7): everything on the emitted stack is a DESCR; never add a conservative visit or a pinned block.
+
+**The path from an IR node to a box** (read it before a form census): `src/lower/lower_<lang>.c` chooses the IR kind (`src/ir/IR.h`) → `src/emitter/emit.cpp` `walk_bb_node_inner` is ONE `switch (nd->op)` whose `bb_emit_x86(bb_*())` sites (128 at `7cafd69c0`) bind each IR kind to a template. The form census starts there, counting the kinds bound to each box and the branches inside it → `bb_prepare`/`bb_classify_node` and the case arms fill `g_emit` (`sm_emit_t`), the only thing a template may read (CV10) → the template returns `x86(...)` output, which `x86_asm.h` renders per `g_medium` (`MEDIUM_BINARY`, `src/emitter/emit.h`): binary into the mode-3 slab, text into the mode-4 `.s`. `./scrip --dump-ir` and `--dump-bb` show a program's kinds and boxes without reading the emitter.
 
 ## Debugging order
 
