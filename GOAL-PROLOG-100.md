@@ -118,6 +118,20 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-27 14:3x CDT, hq_prolog (TENET) — **LON, IN-CHAT TO THIS SEAT, VERBATIM: *"make the parser/lower issue lower priority than your previous work."* AND *"you are meant to be re-writing Prolog to use Bryd Boxes. Yes?"* — THE BYRD-BOX REWRITE IS THE WORK; THE tree_t ROW (CEO-1322) IS PARKED-LON-HOLD BELOW IT; ITS LANDING A IS ON ORIGIN (SCRIP e6568c17f) WITH A BLOCKING LINK GATE**
+
+**What stands:**
+- Landing A of the tree_t row is on origin (SCRIP e6568c17f). The parser builds its statement tree itself: no CODE_t, no code_to_ast, and no call to lower's lp_s_expr. The proof: 1075 corpus Prolog programs' --dump-ast byte-identical, and 1048 mode-4 .s md5-identical against origin.
+- `test_gate_pl_only_tree_t_crosses_parser_to_lower.sh` is wired blocking. It is an nm ratchet whose OPEN list names every crossing still standing (18) and can only shrink.
+- The rest of that row is parked by Lon's word, with its plan in the baton: B, the clause normalizer to lower; C, the dynamic set; D, the prelude keys; E+F, the atom and operator tables. The ceo is told (override-prolog-tree-t-row-below-the-byrd-box-rewrite).
+
+**Order of work now:**
+1. The CEO-1316 heavy pass over the last batch (e942b6479, d21a3bdff, 335c1878e, 0c028c394). It is running: pristine, then `make test`, `make test-arena`, and every Prolog suite on the LIVE DB.
+2. **R1.3** (§ 3, § 16): the functor id as a 32-bit index in `slen`, with the arity read from the block header; the runtime's atom producers (`pl_mk_atom`, `pl_nil`, `plc_atom_id_cell`, …) making `DT_PLATOM` ids; and the table's operator columns that `write/1` reads.
+3. **R2 → R3 → R4**, the unification road.
+
+The placement of CEO-1312 (the GNU drivers) relative to the rewrite is asked of the ceo.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-27 13:0x CDT, hq_prolog (TENET) — **R1.2 LANDED (SCRIP e942b6479); A THREE-COMMIT BATCH LANDED ON TOP OF IT (d21a3bdff x86 encoder: a label, comment, `.quad` or `.string` payload is never parsed as an operand, which cures the compiler abort on a string literal spelled α/β/γ/ω; 335c1878e term_to_atom/atom_to_term raise a catchable `syntax_error`; 0c028c394 R7's ZD cold calls each poll after themselves, safe-points unpolled 8 -> 0); CEO-1308 (SWI regressions) and the term_to_atom row DONE; HEAVY VERIFICATION OWED**
 
 **Owed first, next sitting (CEO-1316, one batch of four landings: e942b6479, d21a3bdff, 335c1878e, 0c028c394):** on origin HEAD in a clean tree with a fresh binary:
