@@ -211,6 +211,10 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 
 **⭐ THE SHAPE TO BUILD ON THE LIFT** (routed to the `ceo`, and it belongs to the `coo`'s instruments row if they want it sooner): a pre-commit staleness refusal — a `SCORE.md`/`SUITES.tsv` commit is refused when the working copy's base is older than origin's last write to that file. Stronger than the obvious alternative (refuse a diff touching a row the committing seat does not own, computed from the lane column) because it does not depend on any seat remembering which rows are theirs. ⛔ With four officers rewriting both files at speed, **every seat holding an uncommitted copy of either file is holding this bomb right now.**
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-27 22:4x UTC (17:4x CDT) hq_snobol4 (TENET) — **LON'S ORDER OF FIXES: THE SUITE CLOSEST TO 100% GETS ALL THE WORK UNTIL 100%, THEN THE NEXT CLOSEST.**
+
+Lon, in-chat to hq_snobol4 2026-09-27 17:4x CDT, verbatim: *"Here is the order of fixes. The test-suite that is closest to 100% gets all the work until 100%. THen next closest to 100%, etc."* This order supersedes any other ordering of the crawl row's reds. Measured from SUITES.tsv at that minute, the order is: **SnoM 1976/1994 (99.10%) → Budne 71/73 (97.26%) → Flake 121/132 (91.67%) → Gimpel 127/145 (87.59%) → X32T 17/21 (80.95%) → X64T 28/36 (77.78%) → Dotnet 5/12 (41.67%)**. TPgm, SnoDemo, SnoBench and AIS are at 100%. SnoM's gap of 18 is 1 red, 8 xfails and 9 OUTSIDE (debt inside the denominator).
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-27 22:3x UTC (17:3x CDT) hq_snobol4 (TENET) — **AIS 8/8, BOTH MODES (SCRIP `321a8ec4f`, corpus `51d7c84ec`, .github `ba506a01`). LON'S "Get AI Snobol to 100%. It is just 1 away." IS DONE.**
 
 - **The eighth program, aisnobol `BUILDLIB.sno`, calls `SET(1,0,1)`.** The v3.7 manual documents SET as "part of standard SPITBOL", but the x64 oracle compiled it out: `.cust` undefined, the entry renamed `ZET` (SETL4), and `sysst exp 0` where the routine has five `ppm` exits. That last one is latent: once SET is enabled, every successful call falls into ERROR 293.
