@@ -17,7 +17,7 @@ One row per suite ‚Äî our seven masters and every vendored package suite alike ‚
 | IPL | icon | 550/843 EXCLUDED=8 | 2026-09-27 | `dc1428da1` |  |
 | INRIA | prolog | 442/442 | 2026-09-26 | `270d8a11b` | done |
 | SWI | prolog | 1205/2935 | 2026-09-27 | `f7684222e` |  |
-| GNU | prolog | 11/11 | 2026-09-27 | `6f141f52d` | done |
+| GNU source | prolog | 11/11 | 2026-09-27 | `6f141f52d` | done |
 | FPC | pascal | 161/181 OUTSIDE=0 | 2026-09-26 | `e7d074251` |  |
 | PAT | pascal | 395/427 OUTSIDE=0 | 2026-09-26 | `e7d074251` |  |
 | Roast | raku | 21/1464 | 2026-09-25 | `33af62106` |  |
@@ -31,13 +31,13 @@ One row per suite ‚Äî our seven masters and every vendored package suite alike ‚
 | RebM | rebus | 43/43 | 2026-09-27 | `964982d54` | done |
 | Logtalk | prolog | 3421/3528 | 2026-09-26 | `270d8a11b` |  |
 | X64T | snobol4 | 28/36 EXCLUDED=0 OUTSIDE=0 | 2026-09-26 | `652e0672b` |  |
+| X32T | snobol4 | 17/21 EXCLUDED=0 OUTSIDE=0 | 2026-09-26 | `652e0672b` |  |
 | SnoBench | snobol4 | 23/23 | 2026-09-25 | `be0e10b9a` | done |
 | IcnBench | icon | 26/26 | 2026-09-25 | `afa922883` | done |
 | ProBench | prolog | 23/23 | 2026-09-26 | `270d8a11b` | done |
 | PasBench | pascal | 11/11 | 2026-09-26 | `51107af4c` | done |
 | RakBench | raku | 48/84 | 2026-09-26 | `2e74c736c` |  |
 | RebBench | rebus | 3/3 | 2026-09-27 | `964982d54` | done |
-| X32T | snobol4 | 17/21 EXCLUDED=0 OUTSIDE=0 | 2026-09-26 | `652e0672b` |  |
 
 
 ## ‚≠ê THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)

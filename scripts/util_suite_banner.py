@@ -577,6 +577,9 @@ README_RUNNER = {
     'gimpel': 'test_snobol4_gimpel_suite.sh', 'csnobol4': 'test_snobol4_csnobol4_suite.sh', 'snoflake': 'test_snoflake_suite.sh',
     'aisnobol': 'test_snobol4_aisnobol_suite.sh', 'dotnet': 'test_snobol4_dotnet_suite.sh',
     'testpgms': 'test_snobol4_spitbol_testpgms_suite.sh', 'x64tests': 'test_snobol4_spitbol_x64_suite.sh',
+    # ⭐ x32tests (the coo 2026-09-27, ceo CEO-1315): hq_snobol4's X32T row reached SUITES.tsv with no runner named here, so the README
+    # render and its gate's reported default arm refused rc 2 on origin for the whole table.
+    'x32tests': 'test_snobol4_spitbol_x32_suite.sh',
     'arizona': 'test_icon_arizona_suite.sh', 'jcon': 'test_icon_jcon_suite.sh', 'ipl': 'test_icon_ipl_suite.sh',
     'inria': 'test_prolog_inria_suite.sh', 'swi': 'test_prolog_swi_suite.sh', 'gnu': 'test_prolog_gnu_suite.sh',
     'logtalk': 'test_prolog_logtalk_suite.sh', 'fpc': 'test_pascal_fpc_suite.sh', 'pat': 'test_pascal_pat_suite.sh',
