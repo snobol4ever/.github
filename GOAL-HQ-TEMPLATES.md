@@ -1,0 +1,44 @@
+# ⛔⭐⭐⭐⭐ GOAL-HQ-TEMPLATES — hq_templates, THE SEAT THAT KEEPS THE C++ TEMPLATES CLEAN UNDER THE RULES OF CONSTRUCTION
+
+**OPENED 2026-09-27 by Lon, in-chat to the ceo, verbatim:** *"I think we will need one more HQ to handle keeping C++ templates clean regarding the rules of construction. Let's call it HQ-TEMPLATES"* · *"I have created /home/claude_templates."* · on the method, verbatim: *"So the HQ-TEMPLATES will probably not work from A-Z if it can detect from the whole set the violations. But it will just run in a loop always looking for seats creating bad code so it can scoop it up and fix it."* · on the mode (answering the ceo): keep **TENET** (the eleventh working seat joins it) · the officer: **the cto** (asks route there; the cto reviews its landings). Ruled and routed at GOAL-CEO **CEO-1321**.
+
+**IDENTITY:** postoffice `hq_templates`, root `/home/claude_templates`, `HQ` file → `cto`. **MODEL:** whatever Lon seats it as — never assume.
+
+## ⛔⭐⭐⭐ THE ONE THING — THE WATCH LOOP OVER THE WHOLE SET
+
+Not an alphabetical sweep (the A→Z and Z→A sessions of June–July, `GOAL-BB-FIXUP-A-to-Z.md` / `GOAL-BB-FIXUP-Z-to-A.md`, folded into `GOAL-SNOBOL4-100.md` § BB-FIXUP SWEEP on 2026-08-27, `git show 94dde5eb^:GOAL-BB-FIXUP-A-to-Z.md`). The loop, every tick:
+
+1. `git fetch` + `merge --ff-only` all three repos; incremental `make`.
+2. **CENSUS THE WHOLE SET:** `bash scripts/audit_bb_fixup_rank.sh` over every `src/templates/bb/bb_*.cpp` and `src/templates/xa/xa_*.cpp` (the population it prints; 135 on 2026-09-27) plus the construction gates below.
+3. **ATTRIBUTE WHAT MOVED:** compare each file's TOTAL with the last tick's; for every file whose count ROSE, or that went from clean to dirty, name the landing(s) in the range (`git log <last>..HEAD -- <file>`) and the seat that landed it.
+4. **SCOOP IT UP AND FIX IT:** cure the new violations yourself, behavior-neutral (below), and telegram the lander one line naming the rule its landing broke, so the fleet learns; a violation you cannot cure behavior-neutrally is a row to the owner of the construct, with the file, the rule and the failing audit line.
+5. **BETWEEN ARRIVALS, DRIVE THE STANDING DEBT DOWN, WORST FIRST** by the whole-set census (not by name order): on 2026-09-27 at SCRIP `6c8992978`, **135 files, 74 dirty, GRAND 1517** — the worst `bb_call_proc_staged` 242, `xa_flat` 189, `bb_call` 155, `bb_call_pl_leaf` 154, `bb_define` 126, `bb_match_arbno` 78, `bb_binop_arith` 76, `bb_call_fn` 70. The 07-21 reading was 153 files, 38 dirty, GRAND 1051: the set was dirtied by a month of landings, which is exactly what the loop exists to catch.
+6. Write the tick's census (files, dirty, GRAND, what moved, by whom, what you cured) into this file's LIVE CURSOR; rows through the bus.
+
+## ⛔⭐⭐⭐ AND BEYOND THE RULE COUNT — EVERY IR AND BOX BROKEN OUT BY FORM AND PATTERN
+
+Lon, same sitting, verbatim: *"This template code health reaches beyond fixing any BB for the many IR's it handles, but to consider having other IR/BB broken out properly by form/pattern."* A file at audit rc 0 is not yet healthy if ONE box serves MANY IR shapes (a template that branches on a sub-kind, an operand shape or a neighbour to decide what code to emit). The health target is ONE FORM PER BOX: the lowering chooses the form (a distinct IR kind, or a distinct box selected at lower), and each template emits one pattern straight through — the sweep's ONE-IR-ONE-LOGIC and TIER S (`GOAL-BB-FIXUP.md`: read the dispatch → name the split → add the IR kinds → split the lowering → one template per form → retire the multi-logic template, one split per commit chain, the gates of every frontend the node reaches). The loop therefore censuses TWO things each tick: the rule violations (`audit_bb_fixup_rank.sh`) and the FORM census — for every box, how many IR kinds and shapes the emitter dispatches to it and how many form branches it carries — and a box whose form count rises is scooped up the same way a violation is. The worst multi-form boxes by the 2026-09-27 rule census are also the call family (`bb_call`, `bb_call_fn`, `bb_call_proc_staged`, `bb_call_pl_leaf`, `bb_call_value`) and `bb_define`, `bb_binop_arith`, `xa_flat` — the still-binding sweep finding says the bb_call family's full conformance gates on the FIX-3 marshal-channel redesign, which is exactly a break-out by form.
+
+## THE RULES OF CONSTRUCTION — where the law lives (read before touching a template)
+
+- **`GOAL-BB-FIXUP.md`** — LIVE: TEMPLATE SPEC v2 (no locals · ONE return per PLATFORM · one source line == one asm line · real Greek α β γ ω · no MEDIUM_* at template top level · zero emit_fmt · zero raw bytes · zero comments and blank lines · ONE-IR-ONE-LOGIC · EMIT-BLIND), the FACT RULES, and **THE CONVERSIONS CV1–CV10** (CV9 no parameters/no `_str`; CV10 no IR-graph access from templates — `bb_prepare` delivers every value through `g_emit`), the two tiers (H mechanical, S structural), the laws of the loop.
+- **`GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`** — R1–R13 and the three gated FACT RULES (a template reads only `g_emit`; `bb_bin_t` abolished; ONE MEDIUM, INVISIBLE).
+- **`ARCH-X86-ASM-ENCODER.md`** — every instruction through `x86(...)`; a missing instruction is a new encoder, never hand-encoded bytes; BOTH-MEDIUM MANDATORY; a jump to a bare label refuses in the binary medium.
+- **`RULES.md`** — § ERADICATE C→BB→C→BB and § LOGIC LIVES IN EMITTED BOXES, NOT IN C (the leaf is asm, the dispatch is a box), § MODES MAY DIVERGE (divergence in an upper helper layer, one sanctioned greppable spelling), "language identity stops at lower" (no `LANG_*` past lower), ZERO COMMENTS, NO NEW GLOBALS without Lon's grant, NO `-O2`.
+- **`GOAL-SNOBOL4-100.md` § BB-FIXUP SWEEP** — the still-binding findings (bb_match_arbno/alternate need a shared-TU relocation; the bb_call family gates on the FIX-3 marshal-channel redesign; rank TOTAL ≠ per-file TOTAL — reconcile or declare one canonical). `BB-REVAMP-TRACKER.md` is the old per-file ledger (history, not the work order).
+
+## THE INSTRUMENTS
+
+`scripts/audit_bb_fixup_rank.sh` (whole-set census, prints the population, rc 1 while any file is dirty) · `scripts/audit_bb_fixup_file.sh src/templates/bb/<file>` (one file's violations by class; rc 0 = conformant) · `test_gate_template_medium_invisible.sh` · `test_gate_emit_no_lang.sh` · `test_gate_em_template_byte_identity.sh` · `test_gate_emit_guard_sink_names_its_guard.sh` · `test_gate_emit_fields_read_by_a_template_have_a_writer.sh` · `util_template_purity_audit.sh` · `python3 scripts/strip_comments.py --check`.
+
+## THE LAWS OF THE LOOP (from the sweep, still binding)
+
+1. **BEHAVIOR-NEUTRAL ALWAYS.** Capture the freshly built binary's `--compile` output for probes that fire the box BEFORE editing; after, the `.s` diff is EMPTY (or only a named, sanctioned transform). A behavior-changing split (TIER S) proves by the gates it touches plus the language HQs' next batch passes (CEO-1232).
+2. **ONE FILE PER COMMIT**, message `TEMPLATES <file>: <rules cleared> (<violations before> -> <after>)`, pull --rebase before push, re-A/B if the rebase touched `emit_*`/`x86_asm.h`/`lower_*`.
+3. **THE LANDING VERDICT IS CHEAP** (CEO-1316): the file's audit rc 0, the gates it touched, `make preflight`; heavy runs once per batch of three to four.
+4. **Codegen touched ⇒ the `.s` artifacts are regenerated** in the owed order (the digest's Commits and handoff section).
+5. You own the RULES, not the languages: a functional bug found while conforming a template is cured in place when the conformance needs it (the sweep's law 5), else rowed to the language's HQ; never widen into parser or runtime internals.
+
+## LIVE CURSOR
+
+- **2026-09-27 (ceo, CEO-1321): SEAT OPENED.** First rows (assigned): rank 0 `templates-the-watch-loop-a-census-diff-names-every-template-violation-a-landing-adds-by-file-commit-and-seat` (the loop's instrument); rank 1 `templates-the-whole-set-reaches-audit-rc-0-worst-first-grand-1517-on-2026-09-27` (the standing debt; supersedes the parked `bb-fixup-az-cleanup`); rank 1 `templates-a-form-census-names-every-box-that-serves-more-than-one-ir-form-and-the-split-each-needs` (Lon's break-out-by-form word).
