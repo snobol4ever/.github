@@ -118,6 +118,31 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-27 13:0x CDT, hq_prolog (TENET) — **R1.2 LANDED (SCRIP e942b6479); A THREE-COMMIT BATCH LANDED ON TOP OF IT (d21a3bdff x86 encoder: a label, comment, `.quad` or `.string` payload is never parsed as an operand, which cures the compiler abort on a string literal spelled α/β/γ/ω; 335c1878e term_to_atom/atom_to_term raise a catchable `syntax_error`; 0c028c394 R7's ZD cold calls each poll after themselves, safe-points unpolled 8 -> 0); CEO-1308 (SWI regressions) and the term_to_atom row DONE; HEAVY VERIFICATION OWED**
+
+**Owed first, next sitting (CEO-1316, one batch of four landings: e942b6479, d21a3bdff, 335c1878e, 0c028c394):** on origin HEAD in a clean tree with a fresh binary:
+- a pristine build, `make test`, and `make test-arena`;
+- every Prolog suite (master board, inria, swi, gnu, logtalk, bench, rung, ladder `--to 18`), writing the LIVE progress DB and this seat's SCORE and SUITES.tsv rows;
+- the `.s` artifact regeneration of RULES § handoff, because this batch touched codegen.
+Only the cheap verdict ran per landing: every gate touched plus the rows' DONE-WHENs, re-proved after each rebase. Quad read 420 of 420 witnesses.
+
+**Red on origin, and not this seat's (owners told):**
+- the census ratchet `safe-points.unresolved 0 -> 1` at `bb_rev_assign_global.cpp:43` (hq_icon's 2b53fd54d; hq_icon is curing it);
+- `test_gate_dyn_caps_ratchet` arm 5, 459 vs 451 (the cto's 2eacdefb9, measured by hq_pascal);
+- a census hole: a computed call target resolves to the string operands of later `x86()` calls on its line (told to the cfo).
+
+**Rulings folded this sitting (ARCH-PROLOG-BB-REWRITE, .github 1fb98f14):**
+- § 9.5 and R5: every β that can answer again tests the ball (the cto's widening after the `IR_TO` redo);
+- § 16: a rung may be read by the instruction count of the bar's own loop (Lon's word to hq_prolog; CEO-1315);
+- § 13: assertz's code, record and frame-layout entries are reclaimed once no live call can reach the clause (Lon's word to the cto, who owns the row);
+- R4 binds the younger unbound cell to the older (the cto cures it in the C unifier now).
+
+**New rows:**
+- rank 1 `prolog-only-tree-t-crosses-parser-to-lower-and-every-runtime-structure-is-built-in-lower-lon-2026-09-27`. It is Lon's word via hq_snocone, and its DONE-WHEN is red on three measured crossings: the dynamic set, the prelude re-parse, and the atom table in `src/parsers/prolog`. R1.3's functor ids and operator columns build on the lower-stage table.
+- rank 2 `prolog-swi-a-case-whose-oracle-lacks-the-predicate-under-test-is-graded-against-the-tests-stated-expectation-ceo-1315`. The class is 68 cases (measured by a swipl crawl, recorded on the CEO-1308 baton), and 15 of them read oracle-FAIL/scrip-pass.
+
+**Next after the heavy pass:** CEO-1312, the GNU source drivers (rank 1, design in its baton), and the tree_t row. Then R1.3, and R2 -> R3 -> R4.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-27 10:1x CDT, hq_prolog (TENET, Fable 5.1 at MAX) — **R1.1 LANDED (SCRIP 6f141f52d): A PROLOG ATOM WEARS ITS OWN TAG, `DT_PLATOM` 0xB0; THE FIVE BLOCKING GATES OF CEO-1274 READ GREEN (SCRIP b5a2baa3a); 32 OF CEO-1308's 33 SWI REGRESSIONS CURED WITH ZERO NEWLY RED (SCRIP f7684222e + corpus 84c02dc36), SWI 1130 -> 1205; R1.2 (ATOM LITERALS AS COMPILE-TIME IDS) BUILT AND MONITOR-AGREED, LANDING NEXT**
 
 **R1.1 (row `prolog-an-atom-wears-the-array-tag-…` DONE).** `DT_PLATOM = 0xB0` in `descr.h` (asserted above `DT_CPLX`, below 0x100, neither numeric nor string) and `descr_tags.inc`; `pl_make_atom` builds `{DT_PLATOM, slen 0, i = id}`; the 21 `DT_A` atom tests of `unification.c` and the fifteen Prolog-atom lines of `by_name_dispatch.c` retagged (its 21 array lines untouched); `gc_tag_known` admits the tag and a warmup plant under `SCRIP_DIAG` aborts if the collector ever reads an atom as a reference; `c_VARVAL_fn`, the trace speller and the monitor wire spell an atom by name; `pl_atoms_ready` re-ran `prolog_atom_init` on every call (`.` is id 0 and the guard read `<= 0`). Floors held on four successive merged trees (the last full proof on 134f9cdb7, the fast suites on the pushed tree): master 563/563 · INRIA 442/442 · GNU 11/11 · ProBench 23/23 · Logtalk 3421/3528 · SWI 1162/1130 · rung 10/11 · ladder 568/568. Two collector gates read red on origin WITHOUT R1.1 too, identically (bare-poll unwitnessed 70 over its ceiling 57; four Icon co-expression K2 pairs in the contract gate) -- pre-existing, not Prolog's.
