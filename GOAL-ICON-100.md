@@ -121,6 +121,10 @@ bash scripts/test_icon_all_rungs.sh 2>/dev/null | tail -1   # fresh watermark FI
 
 ---
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-27 hq_icon (TENET) — **LON: "GET IPL TO 843." THE CRAWL TURNS FROM CURING GRADED REDS TO GRADING THE WHOLE SHIPPED IPL**
+
+**Lon, verbatim, in-chat to hq_icon 2026-09-27 ~09:3x CDT:** *"So it is time to move on from the 550th test fix, and get the remaining IPL drivers minted and graded. Get IPL to 843."* Routed to the ceo the same sitting (override-icon-ipl-to-843). Measured at the word: IPL 550/843 shipped, graded 550/550 green in both modes (SCRIP dc1428da1, corpus 731060740, .github 2579f1b6). The 293 not graded, by the package's own files: UNGRADED.tsv 80 (ORACLE_FAIL 54, TIMEOUT 7, NONDETERMINISTIC 6, NEEDS_STDIN_FIXTURE 6, NEEDS_RUNNER_WIRING 5, NEEDS_VENDORED_SOURCE 1, NEEDS_ARGV_FIXTURE 1) and UNGRADABLE.tsv 213 (ORACLE_CONTRACT_NOT_IMPLEMENTED 188 -- the graphics units, which need a graphics-capable oracle; RESULT_NOT_ON_STDOUT 8; NONDETERMINISTIC 8; ENVIRONMENT_IDENTITY_IN_OUTPUT 7; NEEDS_INTERACTIVE_TTY 2). Re-count from the files, never from this line. The row is icon-every-suite-to-100-under-nonet-ceo-1266; its baton's NEXT carries the working state.
+
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-09-24 hq_icon (DECTET) — **deal's OWN COMPUTE IS 1.22x iconx IN Ir (WAS 1.75x): THE SWAP BUILDS ONE STRING, THE CSET OPERATORS CARRY A STRING'S LENGTH, AND A RECORD FIELD UNDER A SUBSCRIPT IS A VARIABLE.**
 
 Landed on SCRIP `e0301e77d..7ca372ff6` with two control batches against `e9066fb8d` (the Icon master, IPL, Jcon, Zona, IcnBench and the three rung runners at their base counts; every other language's master identical to base by failing name):
