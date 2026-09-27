@@ -25,7 +25,7 @@ One row per suite ‚Äî our seven masters and every vendored package suite alike ‚
 | IcnM | icon | 899/899 | 2026-09-27 | `a6747c757` | done |
 | ProM | prolog | 563/563 | 2026-09-26 | `270d8a11b` | done |
 | PasM | pascal | 252/252 | 2026-09-26 | `e7d074251` | done |
-| RakM | raku | 906/948 | 2026-09-27 | `caece363a` | 27 xfail counted as FAIL of a 42-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| RakM | raku | 906/948 | 2026-09-27 | `caece363a` | 26 xfail counted as FAIL of a 42-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | SncM | snocone | 338/338 | 2026-09-27 | `cc0e5a2a6` | done |
 | SncBench | snocone | 16/16 | 2026-09-25 | `6a38a1189` | done |
 | RebM | rebus | 43/43 | 2026-09-27 | `5f445d5fd` | done |
@@ -38,6 +38,11 @@ One row per suite ‚Äî our seven masters and every vendored package suite alike ‚
 | PasBench | pascal | 11/11 | 2026-09-26 | `51107af4c` | done |
 | RakBench | raku | 48/84 | 2026-09-26 | `2e74c736c` |  |
 | RebBench | rebus | 3/3 | 2026-09-27 | `5f445d5fd` | done |
+| SnoDemo | snobol4 | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| SncDemo | snocone | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| IcnDemo | icon | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| ProDemo | prolog | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
+| ScrDemo | scrip | - (no reading yet) | never graded | - | NO READING YET: its lane's runner has not written it - a population with no grader is a debt on the board, never an absence from it |
 
 
 ## ‚≠ê THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)

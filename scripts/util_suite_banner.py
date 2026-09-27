@@ -570,7 +570,9 @@ README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), 
 # ⛔ THE README SHOWS FIVE LANGUAGES' NUMBERS (Lon 2026-09-26 13:5x CDT, in-chat to the ceo, verbatim: "Do not show Rebus or Snocone test-suite
 #   or benchmark numbers in the README."; ceo CEO-1284): the Snocone and Rebus rows stay in SUITES.tsv and SCORE.md (the leaderboard grades them
 #   like every other suite) and are HIDDEN from the README block -- placed, never refused, never rendered.
-README_HIDDEN_LANGS = {'snocone', 'rebus'}
+# ⭐ AND THE POLYGLOT DEMO SET (coo 2026-09-27, COO-206): 'scrip' is no language of the five, so its demo row is placed and hidden like Snocone's
+#   and Rebus's -- graded on the leaderboard, never rendered in the README (the ceo to confirm).
+README_HIDDEN_LANGS = {'snocone', 'rebus', 'scrip'}
 README_IN_DEVELOPMENT = {'raku'}
 README_HEAD_N = 8   # the BEGIN line, four prose lines, a blank, the table header and its rule -- rows start here
 README_RUNNER = {
@@ -591,7 +593,11 @@ README_RUNNER = {
     # progress table's suite name, so no key-to-DB map anywhere needs an entry. None = the lane has not landed its runner yet: a row
     # with no reading renders `—` there, and a MEASURED row whose runner is None REFUSES the render -- a README row says what produced it.
     'snobol4-bench-ref': 'test_snobol4_bench_suite.sh', 'icon-bench-ref': 'test_icon_bench_suite.sh', 'prolog-bench-ref': 'test_prolog_bench_suite.sh', 'pascal-bench-ref': 'test_pascal_bench_suite.sh',
-    'raku-bench-ref': 'test_raku_bench_suite.sh', 'snocone-bench-ref': 'test_snocone_bench_suite.sh', 'rebus-bench-ref': 'test_rebus_bench_suite.sh'}
+    'raku-bench-ref': 'test_raku_bench_suite.sh', 'snocone-bench-ref': 'test_snocone_bench_suite.sh', 'rebus-bench-ref': 'test_rebus_bench_suite.sh',
+    # ⭐ THE DEMO ROWS (Lon 2026-09-27: "all demos are also benchmarks. They are work-horse benchmarks."; ceo CEO-1312/1313; coo COO-206):
+    # one runner for every language, graded in both modes against each demo's oracle ref on its sample input.
+    'snobol4-demos': 'test_demos_suite.sh snobol4', 'snocone-demos': 'test_demos_suite.sh snocone', 'icon-demos': 'test_demos_suite.sh icon',
+    'prolog-demos': 'test_demos_suite.sh prolog', 'scrip-demos': 'test_demos_suite.sh scrip'}
 BENCH_SUFFIX = '-bench-ref'
 def _readme_path():
     root = os.environ.get('S4E_HOME') or os.path.join(HERE, '..', '..')
