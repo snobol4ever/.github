@@ -566,13 +566,15 @@ def grid(plain=False):
 # Raku is labelled IN DEVELOPMENT on Lon's word (CEO-1219) and no other language carries a label.
 README_BEGIN = '<!-- SUITE-TABLE:BEGIN'
 README_END = '<!-- SUITE-TABLE:END -->'
-README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), ('pascal', 'Pascal'), ('raku', 'Raku')]
+README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), ('pascal', 'Pascal'), ('raku', 'Raku'), ('scrip', 'SCRIP (hybrid)')]
 # ⛔ THE README SHOWS FIVE LANGUAGES' NUMBERS (Lon 2026-09-26 13:5x CDT, in-chat to the ceo, verbatim: "Do not show Rebus or Snocone test-suite
 #   or benchmark numbers in the README."; ceo CEO-1284): the Snocone and Rebus rows stay in SUITES.tsv and SCORE.md (the leaderboard grades them
 #   like every other suite) and are HIDDEN from the README block -- placed, never refused, never rendered.
-# ⭐ AND THE POLYGLOT DEMO SET (coo 2026-09-27, COO-206): 'scrip' is no language of the five, so its demo row is placed and hidden like Snocone's
-#   and Rebus's -- graded on the leaderboard, never rendered in the README (the ceo to confirm).
-README_HIDDEN_LANGS = {'snocone', 'rebus', 'scrip'}
+# ⭐ AND SCRIP, THE EIGHTH, HYBRID LANGUAGE, IS SHOWN (Lon 2026-09-27, in-chat to the ceo, verbatim: "You can add SCRIP to the README. Not sure what
+#   my 5-language word was. But there are 7 languages and then *.scrip (markdown files) makes a eigth \"hybrid\" language."; ceo CEO-1324): the polyglot
+#   .scrip document -- one markdown file, one fenced section per language, compiled and run together -- is rendered after the five as SCRIP (hybrid);
+#   Snocone and Rebus stay hidden on the 09-26 word, which this does not touch.
+README_HIDDEN_LANGS = {'snocone', 'rebus'}
 README_IN_DEVELOPMENT = {'raku'}
 README_HEAD_N = 8   # the BEGIN line, four prose lines, a blank, the table header and its rule -- rows start here
 README_RUNNER = {
