@@ -305,6 +305,16 @@ The `.dummy` / `nreturn` shape on the worker is required because
 `*func()` in pattern context needs the function to return a name (not a
 value), and `nreturn` does that — see RULES.md "NRETURN functions".
 
+⛔ **A plain call inside a pattern expression runs at BUILD time, once.** `parser_icon.sc` wrote
+`$' ' '&' id_pat . kwname assign(.t_imm, '&' kwname) shift(t_imm, 'TT_VAR')` and meant "capture the
+keyword, then shift it". What happened (measured 2026-09-27, hq_snocone): `assign(...)` ran while the
+pattern was being built, when `kwname` was empty, so `t_imm` became `'&'`; `shift(t_imm, ...)` then
+took that VALUE as the text to match, and every `&keyword` demanded a second `&`. The same idiom made
+every real literal demand the text `0.` and every string leaf print `""`. The fix is the idiom every
+other leaf already used: `shift(<token pattern>, 'TT_X')` captures the matched text itself at match
+time. A helper that must run at match time is written `*helper()` behind `epsilon .`, never as a bare
+call.
+
 ### Set-membership via space-separated word list (beauty.sno idiom)
 
 When you need to classify a token as one of a small fixed set
@@ -439,6 +449,33 @@ Expr6cont = FENCE($'+' *Expr7 foldop('E_ADD') *Expr6cont | $'-' *Expr7 foldop('E
 ```
 
 `foldop` collapses same-tag chains into n-ary trees: see `ShiftReduce.sc`.
+
+### Two repetition traps measured 2026-09-27 — whitespace and statement sequences want the tail form
+
+SPITBOL's `ARBNO` matches SHORTEST FIRST and only grows on backtracking. A repetition whose growth is
+needed AFTER a `FENCE` has committed can never grow, and one that sits before a long tail of
+alternatives grows exponentially on failure.
+
+1. **`White = white ARBNO(white)` is shortest-first, so a `$' '` before a FENCE'd continuation takes ONE
+   blank.** `parser_pascal.sc`: `var a: integer; { c } b: integer;` refused at `b`. The Gray after the
+   first `;` took the space and stopped; `VarGroups = *VarGroup FENCE(*VarGroups | epsilon)` tried
+   the next group at `{`, failed, committed to epsilon, and nothing could re-enter the Gray to take
+   the comment. Statements never showed it because `ARBNO(*StmtRest)` was not fenced. The cure, a few
+   characters: `White = white FENCE(*White | epsilon)` — blanks are always taken whole. Applied to
+   Pascal and Icon; the other parsers carry the ARBNO form and the same latent trap.
+2. **A statement sequence written `ARBNO(*StmtRest)` backtracks through every earlier statement
+   when a later one refuses** — each `StmtRest` has two alternatives, so a refusal costs 2^n:
+   a 46-line Pascal program with one unsupported token took over 60 s to say Parse Error, and the
+   TIMEOUT class of the Icon board was mostly this. The cure is the tail form Lon approved for the
+   operator levels: `StmtStar = FENCE(*StmtRest *StmtStar | epsilon)` (Pascal), `Procbody =
+   FENCE(ProcbodyEnd | StmtBody *Procbody)` and `CompoundStar` (Icon). A refusal then fails in linear
+   time and a legal program parses identically, because statements are self-delimited.
+
+The furthest-cursor localizer that found both: in the transpiled `.sno`, `Gray = ((White | epsilon)
+@FARC *FarSet())` with `FarSet` keeping the maximum, and the driver printing `Parse Error at FAR`; a
+Python step maps FAR to line:col after trimming each line's trailing blanks (SPITBOL's INPUT trims
+them). Script: `scratchpad/loc/tp.sh` and `loc1.sh` in hq_snocone's 2026-09-27 sitting; worth a
+`scripts/util_` home.
 
 ---
 
