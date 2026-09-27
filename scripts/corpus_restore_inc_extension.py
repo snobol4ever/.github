@@ -37,8 +37,10 @@ import subprocess
 import sys
 
 HEADER = re.compile(r'^\*\s*(\S+)\.inc\b', re.I)
-REF = re.compile(r'(-INCLUDE\s+")([^"]+)(")', re.I)
-REF_B = re.compile(rb'(-INCLUDE\s+")([^"]+)(")', re.I)
+# EITHER QUOTE (coo COO-203): the SNOBOL4 master's `-INCLUDE 'FORTPUT.sno'` is single-quoted and resolves to include/FORTPUT.sno; a
+# double-quote-only pattern left it naming a file this tool renames, which reds that master entry.
+REF = re.compile(r'''(-INCLUDE\s+(["']))(.+?)(\2)''', re.I)
+REF_B = re.compile(rb'''(-INCLUDE\s+(["']))(.+?)(\2)''', re.I)
 RECORD_EXT = (".tsv", ".txt", ".md", ".csv")
 SCOPE = ("packages/", "include/")
 SOURCE_EXT = (".sno", ".sbl")
@@ -78,7 +80,7 @@ def reference_spellings(sources):
             text = open(p, encoding="utf-8", errors="replace").read()
         except OSError:
             continue
-        for _, target, _ in REF.findall(text):
+        for _, _, target, _ in REF.findall(text):
             name = target.strip().rsplit("/", 1)[-1]
             if "." not in name:
                 continue
@@ -118,8 +120,10 @@ def main():
         base = os.path.basename(p)[:-4]
         counts = spellings.get(base, collections.Counter())
         inc_cases = {e: n for e, n in counts.items() if e.lower() == "inc"}
-        if inc_cases:
-            ext = max(inc_cases, key=inc_cases.get)
+        # One spelling in the references wins; both, or none, take the directory's case, as the docstring says (coo COO-203: the code took
+        # the majority, so RANDOM's 6 "RANDOM.INC" against programs/'s 6 'RANDOM.inc' was decided by dict order once single quotes counted).
+        if len(inc_cases) == 1:
+            ext = next(iter(inc_cases))
         else:
             ext = "inc" if os.path.dirname(p).endswith("/include") else "INC"
         renames[p] = os.path.join(os.path.dirname(p), base + "." + ext)
@@ -166,7 +170,7 @@ def main():
             continue
 
         def sub(m):
-            target = m.group(2).decode("latin-1").strip()
+            target = m.group(3).decode("latin-1").strip()
             hit = resolve(p, target)
             if hit is None:
                 if target.lower().endswith(".sno"):
@@ -176,7 +180,7 @@ def main():
                 return m.group(0)
             name = target.rsplit("/", 1)[-1]
             new = target[: len(target) - len(name)] + os.path.basename(renames[hit])
-            return m.group(1) + new.encode("latin-1") + m.group(3)
+            return m.group(1) + new.encode("latin-1") + m.group(4)
 
         changed = REF_B.sub(sub, raw)
         if changed != raw:
