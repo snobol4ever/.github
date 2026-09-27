@@ -1,5 +1,7 @@
 # FINDING 2026-09-27 hq_snocone -- two FENCE lowering defects in lower_snobol4.c, cured and parked with their gate
 
+**⭐ LANDED 2026-09-27 at SCRIP `cc0e5a2a6`** (hq_snocone; folded into GOAL-SNOCONE-100.md's cursor SC-PARSERS-TENET-2026-09-27c and the baton): the patch below applied byte-for-byte after the cfo's match-frame cell (6760234e8), the gate grew to 11 witnesses (witness 11 = the 09-16 runtime-built FENCE under nested ARBNO, whose row is now DONE by its DONE-WHEN), FAIL-ONCE on the unpatched a418edc3e and PASS-ONCE cured, wired and adopted; per CEO-1316 the per-landing verdict was the touched gates and preflight 63/0; the four arms this file listed as unattributed all read the same on the unpatched tree (A/B). No bare-poll re-cut was owed: origin's df02f017e carried it. What remains open in this file: the fenced body held in a VARIABLE (with the cto, trace sent) and the switch row (the delta-debug tool below is its instrument).
+
 **Tree:** SCRIP `18084049f` + the patch below (uncommitted, reverted at handoff) · corpus `ae37b27ae` · RT_OPT=-O0 · incremental `make`.
 **Why parked, not landed:** the shared-node control arm (`make test`, 582 arms) was stopped part-way at the handoff Lon asked for; a
 cure to `lower_snobol4.c` does not land on a partial blocking set. **Row:** `snocone-a-switch-case-arm-holding-any-statement-refuses-under-parser-snocone-on-scrip-and-parses-on-spitbol-ctl-switch-and-ctl-switch-default`
