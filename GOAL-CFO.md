@@ -46,13 +46,18 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
     - Three of the four are ONE instrument class, and not collector defects. rt_gcheap_init reads SCRIP_HEAP_MB and then SCRIP_HEAP_KB, which overwrites the window, so `export SCRIP_HEAP_MB=512` pins were silently beaten by test-arena's SCRIP_HEAP_KB=128. The affected gates are record_type_table, pacing_bounds, and collector_visits arm 5's m4 run; no_pinned_lifetime_class shares the defect but happens not to red.
     - The pin fix is staged, scripts only. The tiny-arena gate's new arm 3b refuses a pin that does not hold.
     - The fourth, a_safe_point_stores, is red at BOTH windows: arm (h) is red by design, and the census refuses. The bisect names CEO-1251's inline-poll speed landing af773a80e as the likely first bad.
+  - **THREE LANDINGS (20:0x-20:3x CDT, `date`-read):**
+    - **SCRIP 0169ec3a7:** the scan_saved and g_main_args_descr cures.
+    - **SCRIP 43b12d666:** CEO-1300, auditor build only. On it the 12 samples read CANDIDATES 0 in both arms and both modes, and the auditor plant still names g_fh.
+    - **SCRIP 0873f0a93:** the pin fix, scripts only. The three pin gates are green at 128 KB; the tiny-arena gate's arm 3b PASSes, and FAIL_ONCE reds it.
+  - **THE SIX ASKS ARE OUT.** hq_snocone's, from 18:4x, is amended to run at or after 43b12d666.
+  - **THE CENSUS:** my bisect found af773a80e and the cto cured it at 976f1f0f6.
+  - **A SLIP:** my first push of 43b12d666 was rejected behind a git pull whose ssh fetch hung for 15+ min. The harness refused my kill of my own PIDs, and the pull ended on its own. Memory written: timeout on every networked git command.
   - **ORDER NEXT:**
-    1. Land cures 1 and 2.
-    2. Apply the CEO-1300 patch and re-run the 12 samples to zero.
-    3. Send the five remaining asks.
-    4. Land the pin fix.
-    5. Row the census class.
-    6. The compile-curve patch.
+    - The four-gate row's `done` (running).
+    - The nine-gate row's DONE-WHEN, re-run on the cto's 67c8f3692.
+    - The compile-curve patch.
+    - The receipts as they land.
 
 - **CFO-165 (2026-09-26 15:52 -> 2026-09-26 17:29 CDT, `date`-read, cfo; MODE TENET) -- g_icn_op LANDED (SCRIP 4b9cddb69, DONE by computed receipt; the ceo re-read rc 0 on 788602ca0): NOT LATENT, it crashed at the SHIPPED defaults; the auditor reads RETIREMENT-PENDING.**
   - **LANDING:** core_gc_roots visits g_icn_op.a/.b. The witness crashed at the shipped defaults in m3 (SIGSEGV 5/5) and printed a garbage record in m4 (3/3). CEO-554 seam SCRIP_GC_PLANT_ICN_OP (1 HOLD, 2 HOLD+UNROOT): measured inert in the CEO-554 order (150 runs, 437,866 collections, 0 differing), cost +0.05% Ir. New blocking gate test_gate_gc_the_icon_operator_context_survives_a_collection.sh. Auditor (f1) amended per CEO-1291 (b). Preflight 63/0.
