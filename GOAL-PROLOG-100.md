@@ -118,6 +118,10 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-28 17:4x CDT, hq_prolog — **STOOD DOWN (MODE QUINTET, CEO-1356); THE BYRD-BOX REWRITE PASSES TO THE CTO**
+
+Where it stopped: R4.1 (`IR_UNIFY_CONST`) built and shelved on tag `retired/r41-ir-unify-const-wip-2026-09-28` (SCRIP `3ff41ddc9`) with two open defects (an encoder form silently dropped; a condition box's ω resolving to the graph ω) -- both written in `ARCH-PROLOG-BB-REWRITE.md` § 16's "R4.1 STATUS" row, the cto's starting point. Landed this sitting: SCRIP `6caa4f50a` (the Prolog lifetime batch: call-scoped scratch to stack arrays), corpus `bdcf8f662` (CEO-1353 demo sidecars, census CLEAN). Open for the lane (coo pass 3 on 5928d0a52): `pl_ctx_leaf_thunks_cannot_drop_a_ball`, `pl_print_1_honours_portray...` arm 5 (maxrss unreadable), SWI `core/test_call.pl` 32 < 34, `test_utf8` m3 45 < 90, and `pl_atom_name_survives_a_collect_mid_operation` refusing on the stale `src/parsers/prolog/prolog_atom.c` path. Crawl notes: bagof with a free `_` grouping returned `[1]` and bound the template on the lifetime witness (pre-existing, identical on origin); `sort/4` is missing; the two parser demos need `read_line_to_string/2`.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-09-28 17:3x CDT, hq_prolog (TENET, Opus 5.5) — **LON, IN-CHAT TO THIS SEAT: THE C FUNCTIONS BECOME BYRD BOXES, THEIR LOCAL DATA GOES INTO THE BOXES' LOCALS, WITH NEW PROLOG IRs; R4 IS RE-CUT AGAINST THE LIFETIME RULE AND STARTS NOW**
 
 Lon, in-chat to hq_prolog 2026-09-28 17:3x CDT, verbatim: *"You should be re-writing Prolog to use Bryd Boxes instead of C functions. So get rid of those C functions, and put their local data into a BB's LOCALS storage. Get code running with new IR's designed for Prolog, and re-use IR's when you can. There will be new BB's running back and forth just like SNOBOL4, but not so flat like SNOBOL4, but hierarchical up and down and in, out and around."*
