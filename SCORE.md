@@ -7,7 +7,7 @@ One row per suite â€” our seven masters and every vendored package suite alike â
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 127/145 EXCLUDED=0 OUTSIDE=12 | 2026-09-27 | `162bb56ea` |  |
-| Budne | snobol4 | 1/2 EXCLUDED=0 OUTSIDE=0 | 2026-09-28 | `547e46e90` |  |
+| Budne | snobol4 | 71/73 EXCLUDED=0 OUTSIDE=0 | 2026-09-27 | `7ccd9712b` |  |
 | Flake | snobol4 | 121/132 EXCLUDED=48 OUTSIDE=56 | 2026-09-27 | `162bb56ea` |  |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 | 2026-09-27 | `321a8ec4f` | done |
 | Dotnet | snobol4 | 5/12 EXCLUDED=2 OUTSIDE=8 | 2026-09-27 | `162bb56ea` |  |
