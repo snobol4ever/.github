@@ -1,0 +1,67 @@
+diff --git a/src/optimizer/const_fold.c b/src/optimizer/const_fold.c
+index c9b58cb8a..76992b3db 100644
+--- a/src/optimizer/const_fold.c
++++ b/src/optimizer/const_fold.c
+@@ -1,6 +1,7 @@
+ #include "const_fold.h"
+ #include "ct_arena.h"
+ #include "gen.h"
++#include "ast.h"
+ #include <string.h>
+ #include <stdlib.h>
+ #include <setjmp.h>
+@@ -9,6 +10,10 @@ extern DESCR_t rt_num_arith(DESCR_t a, DESCR_t b, int op);
+ extern DESCR_t str_concat_d(DESCR_t a, DESCR_t b);
+ extern DESCR_t str_concat_fracdigit_d(DESCR_t a, DESCR_t b);
+ extern int core_icn_str_ok(DESCR_t d);
++extern DESCR_t rt_num_neg(DESCR_t a);
++extern DESCR_t rt_num_neg_strict(DESCR_t a);
++extern DESCR_t rt_num_neg_sno(DESCR_t a);
++extern DESCR_t rt_num_pos(DESCR_t a);
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static int cf_lit_descr(const IR_t * nd, DESCR_t * out) {
+     if (!nd) return 0;
+@@ -27,14 +32,14 @@ static int cf_store_descr(IR_graph_t * g, IR_t * nd, DESCR_t r) {
+     return 0;
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+-static int cf_eval(DESCR_t da, DESCR_t db, int code, DESCR_t * out) {
++static int cf_eval(DESCR_t da, DESCR_t db, int code, DESCR_t * out, DESCR_t (*un)(DESCR_t)) {
+     extern jmp_buf g_core_errjmp_stk[64]; extern int g_core_errjmp_n; extern long g_error;
+     extern long g_icn_errnumber; extern const char * g_icn_errtext; extern DESCR_t g_icn_errvalue; extern int g_icn_err_valid; extern void core_icn_op_ctx_clear(void); extern void core_unwind_pending(void);
+     long snum = g_icn_errnumber; const char * stxt = g_icn_errtext; DESCR_t sval = g_icn_errvalue; int svalid = g_icn_err_valid;
+     long esv = g_error; int my = g_core_errjmp_n; int folded = 0;
+     if (my >= 64) return 0;
+     g_error = -2;
+-    if (setjmp(g_core_errjmp_stk[my]) == 0) { g_core_errjmp_n = my + 1; *out = rt_num_arith(da, db, code); folded = (out->v != DT_FAIL); }
++    if (setjmp(g_core_errjmp_stk[my]) == 0) { g_core_errjmp_n = my + 1; *out = un ? un(da) : rt_num_arith(da, db, code); folded = (out->v != DT_FAIL); }
+     g_core_errjmp_n = my; g_error = esv; core_icn_op_ctx_clear();
+     g_icn_errnumber = snum; g_icn_errtext = stxt; g_icn_errvalue = sval; g_icn_err_valid = svalid;
+     core_unwind_pending();
+@@ -47,10 +52,17 @@ static int cf_binop(IR_graph_t * g, IR_t * nd, long code, DESCR_t da, DESCR_t db
+     if (code == BINOP_LCONCAT) return 0;
+     if (code == BINOP_CONCAT_FRACDIGIT && !(core_icn_str_ok(da) && core_icn_str_ok(db))) return 0;
+     if (binop_is_concat(code)) return cf_store_descr(g, nd, code == BINOP_CONCAT_FRACDIGIT ? str_concat_fracdigit_d(da, db) : str_concat_d(da, db));
+-    if (code == BINOP_ADD || code == BINOP_SUB || code == BINOP_MUL || code == BINOP_DIV || code == BINOP_MOD) { DESCR_t r; if (cf_subnormal(da) || cf_subnormal(db)) return 0; if (!cf_eval(da, db, (int)code, &r) || cf_subnormal(r)) return 0; return cf_store_descr(g, nd, r); }
++    if (code == BINOP_ADD || code == BINOP_SUB || code == BINOP_MUL || code == BINOP_DIV || code == BINOP_MOD || code == BINOP_POW || code == BINOP_POW_PROMOTE) { DESCR_t r; if (cf_subnormal(da) || cf_subnormal(db)) return 0; if (!cf_eval(da, db, (int)code, &r, NULL) || cf_subnormal(r)) return 0; return cf_store_descr(g, nd, r); }
+     return 0;
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static int cf_unop(IR_graph_t * g, IR_t * nd, DESCR_t da) {
++    long k = (long) IR_LIT(nd).ival; DESCR_t r;
++    DESCR_t (*un)(DESCR_t) = (k == TT_PLS) ? rt_num_pos : (k != TT_MNS) ? NULL : (nd->strict == 2) ? rt_num_neg_sno : (nd->strict == 1) ? rt_num_neg_strict : rt_num_neg;
++    if (!un || cf_subnormal(da) || !cf_eval(da, da, 0, &r, un) || cf_subnormal(r) || (r.v != DT_I && r.v != DT_R)) return 0;
++    return cf_store_descr(g, nd, r);
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static int cf_valued_operand_op(IR_e op) { return op == IR_BINOP || op == IR_BINOP_TEST || op == IR_BINOP_RELOP_VAL || op == IR_UNOP || op == IR_UNOP_TEST; }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static int cf_fail_operand(IR_graph_t * g, IR_t * nd) {
+@@ -69,6 +81,7 @@ int cf_run(IR_graph_t * g) {
+             IR_t * nd = g->all[i];
+             if (!nd) continue;
+             if (cf_valued_operand_op(nd->op) && cf_fail_operand(g, nd)) { changed++; total++; continue; }
++            if (nd->op == IR_UNOP && nd->n_operands == 1 && nd->operands[0]) { DESCR_t da; if (cf_lit_descr(nd->operands[0], &da) && cf_unop(g, nd, da)) { changed++; total++; } continue; }
+             if (nd->op == IR_BINOP && nd->n_operands == 2 && nd->operands[0] && nd->operands[1]) {
+                 DESCR_t da, db;
+                 if (cf_lit_descr(nd->operands[0], &da) && cf_lit_descr(nd->operands[1], &db) && cf_binop(g, nd, (long)IR_LIT(nd).ival, da, db)) { changed++; total++; }
