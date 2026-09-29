@@ -1,0 +1,123 @@
+diff --git a/src/lower/lower_snobol4.c b/src/lower/lower_snobol4.c
+index ad96b64d7..4599c2fe6 100644
+--- a/src/lower/lower_snobol4.c
++++ b/src/lower/lower_snobol4.c
+@@ -9,6 +9,7 @@
+ #include "bb_program.h"
+ #include "parsers/icon/icon_lex.h"
+ #include "snobol4_system_fns.h"
++static void patdiag_set_line(const tree_t * s);
+ int rt_kw_index(const char * kw);
+ static int sno_sub_val_on(void) { static int v = -1; if (v < 0) { const char * e = getenv("SCRIP_SUB_VAL"); v = (e && *e == '0') ? 0 : 1; } return v; }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+@@ -111,7 +112,7 @@ static IR_t * sco_branch(scx_t * cx, const tree_t * pg, IR_t * γ, IR_t * ω) {
+     if (pg->t != TT_PROGRAM) { IR_t * r = NULL; return sx_lower(cx, pg, γ, ω, &r); }
+     IR_t * entry = γ;
+     for (int i = pg->n - 1; i >= 0; i--) {
+-        const tree_t * s = pg->c[i];
++        const tree_t * s = pg->c[i]; patdiag_set_line(s);
+         if (!s || s->t != TT_STMT) continue;
+         const tree_t * subj = lc_stmt_subj(s);
+         if (!subj) continue;
+@@ -349,7 +350,38 @@ static IR_t * sx_idx_container(scx_t * cx, const tree_t * t, IR_t * ω, IR_t **
+     if (res) *res = cur; return entry;
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static long g_patdiag_line; static int g_patdiag_depth;
++static int patdiag_on(void) { static int v = -1; if (v < 0) { const char * e = getenv("SCRIP_PATDIAG"); v = (e && *e == '1') ? 1 : 0; } return v; }
++static void patdiag_set_line(const tree_t * s) { long l = s ? (long) lp_s_int(s, ":line") : 0; if (!l && s) l = (long) lp_s_int(s, ":lline"); if (l) g_patdiag_line = l; }
++extern void ir_dump_tree(const tree_t * e, FILE * f);
++static void patdiag_squash(const tree_t * t, char * one, int cap) {
++    char * buf = 0; size_t sz = 0; FILE * m = open_memstream(&buf, &sz); one[0] = 0; if (!m) return; ir_dump_tree(t, m); fclose(m);
++    int o = 0; int sp = 0;
++    for (size_t k = 0; buf && k < sz && o < cap - 2; k++) { char c = buf[k]; if (c == '\n' || c == ' ' || c == '\t') { if (!sp && o) { one[o++] = ' '; sp = 1; } continue; } one[o++] = c; sp = 0; }
++    one[o] = 0; free(buf);
++}
++static int patdiag_scan(const tree_t * t, char * out, size_t cap);
++static void patdiag_emit(const char * route, const char * why, const tree_t * t) {
++    char * buf = 0; size_t sz = 0; FILE * m = open_memstream(&buf, &sz); if (!m) return; ir_dump_tree(t, m); fclose(m);
++    char one[200]; int o = 0; int sp = 0;
++    for (size_t k = 0; buf && k < sz && o < 180; k++) { char c = buf[k]; if (c == '\n' || c == ' ' || c == '\t') { if (!sp && o) { one[o++] = ' '; sp = 1; } continue; } one[o++] = c; sp = 0; }
++    one[o] = 0; free(buf);
++    char parts[1200]; parts[0] = 0; int np = 0; if (strcmp(why, "PRE")) np = patdiag_scan(t, parts, sizeof parts);
++    fprintf(stderr, "[PATDIAG] line=%ld route=%s depth=%d decision=%s nparts=%d parts=[%s] tree=%s\n", g_patdiag_line, route, g_patdiag_depth, why, np, parts, one);
++}
++static IR_t * sx_lower_body(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t ** res);
++static int sno_null_lit(const tree_t * t);
++static int sno_is_pattern_rhs(const tree_t * t);
+ static IR_t * sx_lower(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t ** res) {
++    if (patdiag_on() && t && t->t != TT_VAR && t->t != TT_KEYWORD && t->t != TT_INDIRECT && t->t != TT_DEFER && sno_is_pattern_rhs(t)) {
++        int pre = sno_mkpat_here(t);
++        const char * why = pre ? "PRE" : !sno_pat_supported(t) ? "UNSUPPORTED" : ((t->t == TT_SEQ || t->t == TT_CAT) && t->n > 1 && (sno_null_lit(t->c[0]) || sno_null_lit(t->c[1]))) ? "NULLCAT" : "VARIANT";
++        patdiag_emit("value", why, t);
++        if (!pre) { g_patdiag_depth++; IR_t * r = sx_lower_body(cx, t, γ, ω, res); g_patdiag_depth--; return r; }
++    }
++    return sx_lower_body(cx, t, γ, ω, res);
++}
++static IR_t * sx_lower_body(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t ** res) {
+     if (!t) { IR_t * nd = lc_build(cx->g, IR_LIT_STRING, γ, ω); IR_LIT(nd).sval = (char *) ""; if (res) *res = nd; return nd; }
+     if (sno_mkpat_here(t)) return sno_mkpat_emit(cx, t, γ, ω, res);
+     switch (t->t) {
+@@ -1360,7 +1392,7 @@ static const char * sno_t4_target(const char * op, int nops) {
+ static void sno_prog_scan(const tree_t ** st, int nst) {
+     g_sno_pro.len = 0; g_sno_t4.len = 0; g_sno_t4_unsafe = 0;
+     for (int i = 0; i < nst; i++) {
+-        const tree_t * s = st[i]; if (!s) continue;
++        const tree_t * s = st[i]; if (!s) continue; patdiag_set_line(s);
+         sno_t4_scan(s);
+         const tree_t * subj = lc_stmt_subj(s); const tree_t * repl = sfind_expr(s, ":repl"); int has_eq = sfind(s, ":eq") != NULL;
+         if (!has_eq || !subj || subj->t != TT_KEYWORD || !subj->v.sval) continue;
+@@ -2022,6 +2054,26 @@ static int sno_mkpat_here(const tree_t * t) {
+     sno_pat_node(&tx, t, tok, tno);
+     return tx.npre == 0;
+ }
++static void patdiag_parts_of(const scx_t * x, char * out, size_t cap) {
++    size_t o = 0; out[0] = 0;
++    for (int i = 0; i < x->npre && o + 1 < cap; i++) {
++        const tree_t * a = x->pre[i].arg; char one[300];
++        if (x->pre[i].snapg) { const char * kind = !a ? "?" : a->t == TT_VAR ? "var" : a->t == TT_KEYWORD ? "kw" : "call"; snprintf(one, sizeof one, "%s:%s", kind, x->pre[i].snapg); }
++        else if (a && a->t == TT_VAR && a->v.sval) snprintf(one, sizeof one, "primarg:%s", a->v.sval);
++        else { char sq[260]; patdiag_squash(a, sq, sizeof sq); snprintf(one, sizeof one, "primarg:%s", sq); }
++        int w = snprintf(out + o, cap - o, "%s%s", i ? " ; " : "", one); if (w < 0) break; o += (size_t) w; if (o >= cap) { out[cap - 1] = 0; break; }
++    }
++}
++static int patdiag_scan(const tree_t * t, char * out, size_t cap) {
++    out[0] = 0; if (!t) return 0;
++    IR_graph_t * tg = IR_alloc(256);
++    scx_t tx; tx.g = tg; tx.loop_exit = NULL; tx.loop_next = NULL; tx.result_name = NULL; tx.pat_fail = NULL; tx.pat_seal = NULL; tx.npre = 0; tx.prog_nstmt = 0; tx.stno_base = 0;
++    IR_t * tok = lc_build(tg, IR_SUCCEED, NULL, NULL); IR_t * tno = lc_build(tg, IR_FAIL, NULL, NULL);
++    tx.pat_fail = tno; tx.pat_seal = sno_thunk_abort_exit(tg, tno);
++    sno_pat_node(&tx, t, tok, tno);
++    patdiag_parts_of(&tx, out, cap);
++    return tx.npre;
++}
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static int sno_pat_right_sealed(const tree_t * t) {
+     if (!t) return 0;
+@@ -2141,6 +2193,8 @@ static IR_t * sno_lower_match(scx_t * cx, const tree_t * subj, const tree_t * re
+     int before_pat = g->n;
+     sno_cap_defer_reset();
+     IR_t * pat_entry; { int _mcsv = g_sno_pat_match_ctx; g_sno_pat_match_ctx = 1; pat_entry = sno_pat_node(cx, ptt, release, head); g_sno_pat_match_ctx = _mcsv; }
++    if (patdiag_on() && ptt) { char parts[1200]; patdiag_parts_of(cx, parts, sizeof parts); char one[200]; patdiag_squash(ptt, one, sizeof one); char sb[200]; if (svt) patdiag_squash(svt, sb, sizeof sb); else sb[0] = 0;
++        fprintf(stderr, "[PATDIAG] line=%ld route=match subj=%s decision=%s nparts=%d parts=[%s] tree=%s\n", g_patdiag_line, sb, cx->npre ? "VARIANT" : "PRE", cx->npre, parts, one); }
+     lc_γ_to(head, pat_entry);
+     {
+         int fp_stmt = 0; int fc_lin = (sno_in_arbno == 0) && fc_walk_range(g, before_pat, g->n, 1, &fp_stmt);
+@@ -2312,7 +2366,7 @@ static IR_graph_t * sno_build_graph(const tree_t ** st, int nst, int entry_idx,
+     g->entry = (nst > 0) ? anchor[entry_idx] : exitnd;
+     int _pro_open = 0, _pro_close = 0;
+     for (int i = 0; i < nst; i++) {
+-        const tree_t * s = st[i];
++        const tree_t * s = st[i]; patdiag_set_line(s);
+         if (i == entry_idx) _pro_open = 1;
+         if (_pro_close) _pro_open = 0;
+         { extern void zls_group_mark_anchor(const IR_graph_t *, const char *, const IR_t *); const char * mlbl = sfind_str(s, ":lbl"); if (mlbl && mlbl[0]) zls_group_mark_anchor(g, lp_strdup(mlbl), anchor[i]); }
+@@ -2389,6 +2443,8 @@ static IR_graph_t * sno_build_graph(const tree_t ** st, int nst, int entry_idx,
+             continue;
+         }
+         tree_t * repl = sfind_expr(s, ":repl");
++        if (patdiag_on() && subj->t == TT_VAR && sno_is_pattern_rhs(repl)) { char parts[1200]; int np = 0; int sup = sno_pat_supported(repl); if (sup) np = patdiag_scan(repl, parts, sizeof parts); else parts[0] = 0; char one[200]; patdiag_squash(repl, one, sizeof one);
++            fprintf(stderr, "[PATDIAG] line=%ld route=stmt name=%s decision=%s nparts=%d parts=[%s] tree=%s\n", g_patdiag_line, subj->v.sval, !sup ? "UNSUPPORTED" : np ? "VARIANT" : "PRE", np, parts, one); }
+         if (subj->t == TT_VAR && sno_is_pattern_rhs(repl) && sno_pat_supported(repl)) {
+             sno_reg_var(subj->v.sval);
+             if (_pro_open && !result_name) sno_prologue_add(subj->v.sval);
