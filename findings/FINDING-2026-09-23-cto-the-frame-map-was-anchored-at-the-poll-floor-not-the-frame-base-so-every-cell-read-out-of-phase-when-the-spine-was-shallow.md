@@ -37,7 +37,7 @@ Gate: scripts/test_gate_gc_the_frame_map_anchor_is_the_frame_base_even_when_the_
 
 ## WHAT ELSE THE SAME DEFECT WAS
 
-hq_icon's two telegrams of this morning: Arizona mindfa (also jcon mindfa and IcnM procedure_record_every_replace_3 -- one bug, three suite entries) with "agree=0 for pop=cstack at every collection, frames=5", and Arizona ilib (SIGSEGV in rt_list_view under a subscript through a chain the unwinder could not read). Both at SCRIP_HEAP_KB=128, mode 4: control 90392846a rc=139 and rc=139 with 319 lines differing; the cured tree rc=0, byte-identical to mindfa.std (21 collections) and ilib.std (616 collections). Mode 3 passes on both trees for both, because the mode-3 spine at those polls happened to sit at the declared base.
+hq_icon's two telegrams of this morning: Arizona mindfa (also jcon mindfa and IcnRungs procedure_record_every_replace_3 -- one bug, three suite entries) with "agree=0 for pop=cstack at every collection, frames=5", and Arizona ilib (SIGSEGV in rt_list_view under a subscript through a chain the unwinder could not read). Both at SCRIP_HEAP_KB=128, mode 4: control 90392846a rc=139 and rc=139 with 319 lines differing; the cured tree rc=0, byte-identical to mindfa.std (21 collections) and ilib.std (616 collections). Mode 3 passes on both trees for both, because the mode-3 spine at those polls happened to sit at the declared base.
 
 ## THE POLL AT bb_binop_concat_slot.cpp:69 STAYS OUT, AND THE NEXT HOLDER IS NAMED
 

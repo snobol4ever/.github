@@ -7,7 +7,7 @@
 
 ## 1. THE ROW'S PREMISE IS STALE, AND THE DEFECT IS REAL — THESE ARE TWO SEPARATE FACTS
 
-The row says `user_function_eval_arbno_replace_branch_2` is "red in every SnoM run" and is "the last SNOBOL4 class the tiny arena names". Measured on this tree:
+The row says `user_function_eval_arbno_replace_branch_2` is "red in every SnoRungs run" and is "the last SNOBOL4 class the tiny arena names". Measured on this tree:
 
 | entry | arena-sensitive | stress-sensitive | on the board |
 |---|---|---|---|
@@ -15,7 +15,7 @@ The row says `user_function_eval_arbno_replace_branch_2` is "red in every SnoM r
 | `dupl_size_replace_branch_1` | no | no | RED |
 | `size_keyword_replace_branch_1` | no | no | RED |
 
-SnoM master at `SCRIP_HEAP_MB=1`: **1963/1974, FAIL=2, xfail=9** — the `ceo`'s numbers reconcile exactly. The two reds are `dupl_size_replace_branch_1` and `size_keyword_replace_branch_1`, and **the assigned entry is not one of them.** The same two, and only those two, are red at the DEFAULT arena, so they are **not tiny-arena reds and not GC reds** — they are static reds that happen to share the generated `*_replace_branch_*` family name with the assigned entry.
+SnoRungs at `SCRIP_HEAP_MB=1`: **1963/1974, FAIL=2, xfail=9** — the `ceo`'s numbers reconcile exactly. The two reds are `dupl_size_replace_branch_1` and `size_keyword_replace_branch_1`, and **the assigned entry is not one of them.** The same two, and only those two, are red at the DEFAULT arena, so they are **not tiny-arena reds and not GC reds** — they are static reds that happen to share the generated `*_replace_branch_*` family name with the assigned entry.
 
 ⛔ **`3b192bd3` IS THE `.ref`'s OWN FINGERPRINT.** The harness's fingerprint is `md5(stdout)[:8]` (`corpus_suite_harness.py:2972`); `md5sum < w.ref` is `3b192bd3d045…`. CFO-107 recorded `3b192bd3` as "the same patch at the default arena with no stress" alongside two wrong answers — **that reading was the entry PASSING.** A fingerprint diffed against other fingerprints instead of against the ref cannot tell a cure from a corruption.
 
@@ -70,7 +70,7 @@ The consequence is silent by construction: `rt_defer_resolve` (`pattern_match.c:
 
 ## 5. TWO INSTRUMENT DEFECTS PAID FOR ON THE WAY
 
-- ⛔ **The row's own DONE-WHEN cannot go green and does not grade the program.** It sources `lib_master_extract.sh` with no `MASTER_LANG`, which refuses `rc=2` ("a missing language is a refusal, never a quiet snobol4"); and once that is fixed it still runs `./scrip "$W/w.sno"` from `SCRIP/` with none of the entry's **16 `-INCLUDE` companions** copied, while the real harness runs with `cwd` = the source's own directory and the companions beside it. As written it grades 17 lines of `cannot open include` (fp `154bff0f`) as the program's answer. A corrected materializer is in this finding's scratch and the DONE-WHEN needs replacing.
+- ⛔ **The row's own DONE-WHEN cannot go green and does not grade the program.** It sources `lib_rungs_extract.sh` with no `RUNGS_LANG`, which refuses `rc=2` ("a missing language is a refusal, never a quiet snobol4"); and once that is fixed it still runs `./scrip "$W/w.sno"` from `SCRIP/` with none of the entry's **16 `-INCLUDE` companions** copied, while the real harness runs with `cwd` = the source's own directory and the companions beside it. As written it grades 17 lines of `cannot open include` (fp `154bff0f`) as the program's answer. A corrected materializer is in this finding's scratch and the DONE-WHEN needs replacing.
 - ⛔ **Do not drop this witness into `scripts/gc_witnesses/`.** `test_gate_orphaned_witnesses_do_not_grow.sh` fails on witnesses no gate references, so an unwired witness file trips a gate that has nothing to do with this defect. The witness is inline above; wiring it belongs with the cure.
 
 ## 6. WHAT I AM ASKING FOR

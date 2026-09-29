@@ -7,7 +7,7 @@ deleted periodically and a measurement living only here has a deletion date).
 
 ## 1. THE TRIGGER WAS ANOTHER SEAT'S NUMBER CONTRADICTING MINE
 
-hq_raku reported their master losing **65 gradings over 36 programs at `SCRIP_HEAP_MB=1 SCRIP_GC_STRESS=16`, all rc=0,
+hq_raku reported their rungs losing **65 gradings over 36 programs at `SCRIP_HEAP_MB=1 SCRIP_GC_STRESS=16`, all rc=0,
 no diagnostic**. My census had published raku as **`0 members, 0 undecidable`** and I had written, in CTO-100 and again
 in CTO-102, that *Raku is the ONE language this census decides completely and clean*. Both cannot be true.
 

@@ -68,7 +68,7 @@ The census baseline records unpolled 4 in the same landing (the CEO-1119 shape: 
 - **`test_gate_rtx_entries_keep_the_rtcc_four.sh`** (preflight, hermetic, ~3 s): 272 of 272 proven. The walker checks the four registers and the stack slot by slot along every path, and call alignment. Its self-test proves 9 truthful forms and catches 10 planted lies by name.
 - **`test_gate_rtx_calls_carry_no_veneer.sh`** (blocking, ~1.7 s): 0 veneered and 0 PLT calls into an entry, 1634 GOT calls, 2602 veneered C calls as the control, and the veneer plant is seen.
 - **`test_gate_diag_regs_survive.sh`:** r10 = 2 bare, −1 under the clobber plant.
-- **Population machine, pass 1** (control 8a2e9bdff against the cure; all seven masters; both modes; arms `nogc` and `s0` at the shipped arena): **19,704 cells, every one the same kind on both trees, 0 PASS cells with different stdout.**
+- **Population machine, pass 1** (control 8a2e9bdff against the cure; all seven rung suites; both modes; arms `nogc` and `s0` at the shipped arena): **19,704 cells, every one the same kind on both trees, 0 PASS cells with different stdout.**
 
   | language | cells |
   |---|---|
@@ -80,7 +80,7 @@ The census baseline records unpolled 4 in the same landing (the CEO-1119 shape: 
   | Pascal | 984 |
   | Rebus | 172 |
 
-- **Pass 2** (control 527120834 against the rebased cure), which adds every RTX gate off (all stubs into C twins) at `nogc`, and stress 1: **Pass 2, gates off** (every `RTX_GATE` family off, so every stub into a C twin is exercised; all seven masters; `nogc`; both modes): **9,852 cells identical** (SNOBOL4 3964, Icon 1652, Prolog 1126, Raku 1858, Snocone 674, Pascal 492, Rebus 86).
+- **Pass 2** (control 527120834 against the rebased cure), which adds every RTX gate off (all stubs into C twins) at `nogc`, and stress 1: **Pass 2, gates off** (every `RTX_GATE` family off, so every stub into a C twin is exercised; all seven rung suites; `nogc`; both modes): **9,852 cells identical** (SNOBOL4 3964, Icon 1652, Prolog 1126, Raku 1858, Snocone 674, Pascal 492, Rebus 86).
 
   **Pass 2, stress 1** (SNOBOL4, Icon, Prolog; `nogc` and `s1`; both modes): 13,484 cells, **13,480 identical**. The four that differ sit at the harness's 120-second budget and are not a difference between the trees:
 

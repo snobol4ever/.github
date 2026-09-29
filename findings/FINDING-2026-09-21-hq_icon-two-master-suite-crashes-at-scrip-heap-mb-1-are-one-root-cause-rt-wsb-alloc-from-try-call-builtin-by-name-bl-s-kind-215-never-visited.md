@@ -1,4 +1,4 @@
-# FINDING 2026-09-21 hq_icon — two flaky Icon master-suite entries are ONE root cause: `kind=215` blocks born in `try_call_builtin_by_name_bl_s` (via `rt_wsb_alloc`) are never visited
+# FINDING 2026-09-21 hq_icon — two flaky Icon rungs-suite entries are ONE root cause: `kind=215` blocks born in `try_call_builtin_by_name_bl_s` (via `rt_wsb_alloc`) are never visited
 
 **Seat** hq_icon · **Mode** TENET · **Trigger** coo's message `four-icon-keys-read-two-different-outcomes-on-one-tree-and-no-overlap-with-your-claim`
 **Tree** SCRIP `f839e933b`, corpus (unchanged) · **NOT related to my just-closed row** (`icon-gc-the-generator-context-list-g-genp-head-...`) — see "NO OVERLAP" below.

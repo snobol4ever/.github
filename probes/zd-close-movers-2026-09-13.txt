@@ -1,4 +1,4 @@
-# THE 98 SNOBOL4 MASTER ENTRIES WHOSE EMISSION MOVES UNDER SCRIP_ZD_CLOSE (hq_U, 2026-09-13)
+# THE 98 SNOBOL4 RUNGS ENTRIES WHOSE EMISSION MOVES UNDER SCRIP_ZD_CLOSE (hq_U, 2026-09-13)
 # Tree: SCRIP branch hq_U-zd-close-on-aa4a139f4 at 75d145755 (base aa4a139f4), corpus 6536ffb30.
 # Method: ALL.sno split to 1939 entries of ALL.csv's 1970 rows; each compiled --compile twice, SCRIP_ZD_CLOSE=0
 # and =1, the emitted .s compared byte for byte. 1126 of 1939 PLAN a match region and so reach the changed

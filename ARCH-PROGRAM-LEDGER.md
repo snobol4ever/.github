@@ -1,6 +1,6 @@
 # ⛔⭐⭐⭐ ARCH-PROGRAM-LEDGER — THE ACCOUNTING FOR EVERY SOURCE PROGRAM
 
-**Opened 2026-09-11 16:2x CDT by the ceo on Lon's direct in-chat order, verbatim: *"Fix the accounting of every single source program we are measuring for completeness, correctness, and for speed."*** (CEO-566). It follows the same sitting's exchange in which Lon asked *"Do you have an accounting for every single Icon, SNOBOL4, and Prolog program with their feature sets? We did that for some. Check to see if for all."* — and the measured answer was **no**: the accounting covers the master suites and stops at the package boundary, which is where most programs live.
+**Opened 2026-09-11 16:2x CDT by the ceo on Lon's direct in-chat order, verbatim: *"Fix the accounting of every single source program we are measuring for completeness, correctness, and for speed."*** (CEO-566). It follows the same sitting's exchange in which Lon asked *"Do you have an accounting for every single Icon, SNOBOL4, and Prolog program with their feature sets? We did that for some. Check to see if for all."* — and the measured answer was **no**: the accounting covers the rungs suites and stops at the package boundary, which is where most programs live.
 
 ⛔ This page is SOVEREIGN for the ledger's shape. `RULES.md` carries the one-line FACT RULE; `SCORE.md` carries the numbers; this page says what a row means and what it may not say.
 
@@ -35,9 +35,9 @@
 A program is one of exactly two things, and the ledger holds both without merging them:
 
 1. **A FILE** — `corpus/<tree>/<lang>/…/<name>.<ext>`, identified by repo-relative path.
-2. **A MASTER ENTRY** — a named entry inside a `tests/<lang>/ALL.<ext>` container, identified by its `entry` name in `ALL.csv`. ⛔ A master file is a CONTAINER, never a program; its entries are the programs.
+2. **A RUNGS ENTRY** — a named entry inside a `tests/<lang>/ALL.<ext>` container, identified by its `entry` name in `ALL.csv`. ⛔ A rung suite file is a CONTAINER, never a program; its entries are the programs.
 
-A file absorbed into a master keeps BOTH rows while the file survives on disk, and the ledger states the absorption, because the two are graded by different runners and drift apart in exactly the way the Icon rung board did (CEO-552).
+A file absorbed into a rung suite keeps BOTH rows while the file survives on disk, and the ledger states the absorption, because the two are graded by different runners and drift apart in exactly the way the Icon rung board did (CEO-552).
 
 ## THE INSTRUMENT — derived live, never hand-maintained
 
@@ -49,15 +49,15 @@ A file absorbed into a master keeps BOTH rows while the file survives on disk, a
 
 ## THE MEASURED STATE AT OPENING (ceo, 2026-09-11 16:1x CDT, SCRIP `aaae4f979` · corpus `e662a8b56`)
 
-**THE POPULATION — 2,801 source files + 3,580 master entries across the three live languages:**
+**THE POPULATION — 2,801 source files + 3,580 rungs entries across the three live languages:**
 
-| language | tests | packages | benchmarks | demos | programs | include | files | master entries |
+| language | tests | packages | benchmarks | demos | programs | include | files | rungs entries |
 |---|---|---|---|---|---|---|---|---|
 | Icon | 199 | 1090 | 37 | 9 | 1 | — | **1336** | 957 |
 | SNOBOL4 | 153 | 630 | 38 | 26 | 99 | 4 | **950** | 1930 |
 | Prolog | 54 | 315 | 141 | 4 | 1 | — | **515** | 693 |
 
-**AXIS 1 — COMPLETENESS.** Feature vectors exist for the 3,580 master entries and for NOTHING ELSE. Within them: Icon 957 rows over 61 features, **0 blank**; SNOBOL4 1930 over 39, **264 blank (14%)**; Prolog 693 over 39, **94 blank (14%)** plus a dead `assert` column no row ever sets. **The 1,735 package programs carry no feature vector at all.** ⛔ A feature vector is today a property of the MASTER SUITE, not of the language: *"which programs exercise `OPSYN`"* is unanswerable outside `tests/`, and the 100%-of-the-industry-standard-language claim is asserted against the curated entries rather than the real-world corpus.
+**AXIS 1 — COMPLETENESS.** Feature vectors exist for the 3,580 rungs entries and for NOTHING ELSE. Within them: Icon 957 rows over 61 features, **0 blank**; SNOBOL4 1930 over 39, **264 blank (14%)**; Prolog 693 over 39, **94 blank (14%)** plus a dead `assert` column no row ever sets. **The 1,735 package programs carry no feature vector at all.** ⛔ A feature vector is today a property of the RUNGS SUITE, not of the language: *"which programs exercise `OPSYN`"* is unanswerable outside `tests/`, and the 100%-of-the-industry-standard-language claim is asserted against the curated entries rather than the real-world corpus.
 
 **AXIS 2 — CORRECTNESS.** Nine of fourteen package directories carry inventories. **Four carry none:** `swi_tests` (251 programs, against a board reading 11/118 — 133 programs outside even the failing denominator), `inriasuite`, `jcon-compiler` (20), `jcon-ref` (1).
 

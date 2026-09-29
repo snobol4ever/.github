@@ -99,11 +99,11 @@ split) rather than guessed at further blind — reinforcing, not superseding, th
 
 None of these three are ROOTING bugs — no ZGC-STALE trap, no stale pointer. They are what the cap's own abort
 message calls "a live set that genuinely does not fit the window this run named," and `gc2` is a keyword
-whose value is definitionally a function of collection cadence. Neither `board_icon_master.sh` nor either
+whose value is definitionally a function of collection cadence. Neither `board_icon_rungs.sh` nor either
 package-suite runner (`test_icon_jcon_suite.sh`, `test_icon_arizona_suite.sh`) sets `SCRIP_HEAP_MB` — all
 grade at the bare 4 MB shipped cap. Raised as an ASK to ceo, not attempted as a fix: does 100% on these three
 package-suite entries require a larger DECLARED arena for package-suite grading (the same kind of explicit
-choice board_icon_master's own SCORE.md row appears to name as `arena_mb=512`, though neither runner script
+choice board_icon_rungs' own SCORE.md row appears to name as `arena_mb=512`, though neither runner script
 actually sets that env var — worth checking where that number comes from), or are these three expected to
 stay ungradable/excluded under the hard-cap policy? This is Lon's tradeoff to make, not mine.
 

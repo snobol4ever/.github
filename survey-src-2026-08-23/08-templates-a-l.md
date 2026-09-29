@@ -35,7 +35,7 @@
 - Deviants: bb_call/bb_call_fn/bb_call_proc_staged/bb_define — internal enum/role dispatch to several box bodies. bb_call_fn has ~12 sink_* fns (Prolog $unify/$trail fast paths, bare-integer label IDs 40-120) — a distinct micro-DSL.
 - **bb_define.cpp is two files concatenated** (duplicate include preamble + extern-C block at 361-379); strongest split candidate (activate/bind vs sr).
 - Reorg: subdirs by family (call/, binop/, coerce/, keyword/, coexpr/, grammar/, control/) work cleanly; call/ = 38% of range LOC.
-- Headers: bb_templates.h = master prototype list (~160 signatures, the de facto contract). bb_template_common.h = shared macros (`_` = g_emit, GZ_CELL_OFF) + dormant JVM/NET/JS hook prototypes (permanently unused). **bb_common.h despite generic name is ~40 extern-C Prolog-runtime prototypes (rt_is, rt_functor, rt_univ…) — rename candidate bb_prolog_rt.h.**
+- Headers: bb_templates.h = rungs prototype list (~160 signatures, the de facto contract). bb_template_common.h = shared macros (`_` = g_emit, GZ_CELL_OFF) + dormant JVM/NET/JS hook prototypes (permanently unused). **bb_common.h despite generic name is ~40 extern-C Prolog-runtime prototypes (rt_is, rt_functor, rt_univ…) — rename candidate bb_prolog_rt.h.**
 
 ## 5. DEPENDENCIES
 - Beyond mandated: descr.h (36), SM.h+ast.h paired (7-8), runtime/builtins/gen.h (9), runtime/rt/rt_coexpr.h (4, Icon), builtin_ids.h/ab_abi.h/pin_va.h/rt.h (call/define family).

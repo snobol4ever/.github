@@ -1,6 +1,6 @@
 # FINDING 2026-09-19 (cfo) -- CLOSED, AND THE CONCLUSION IT CARRIED FOR A DAY WAS WRONG: THE DEFER ROAD'S FIVE POLLS ARE IN AT SCRIP c2e82f161, AND WHAT BLOCKED THEM WAS A MISALIGNED RSP AT THE POLL, NOT A MISSING ROOT
 
-⭐ **RESOLUTION (2026-09-19 21:3x CDT).** Everything below was measured correctly and read wrongly. The crash was `SIGSEGV` with `si_addr=(nil)` inside libc's `__vfscanf_internal`, reached from `gc_stack_region`'s sscanf under `gc_collect_ex` -- the signature of a MISALIGNED RSP AT A CALL, not of a lost pointer. The `push rdx` that saved the packed spine word across the poll flips rsp's parity at the poll's own call; the word now rides the shield record's own spare quad at `[rsp+24]` and the crash is gone, the master board is identical to its control, and the same `push rdx` in the primitive road was cured with it. THE LESSON WORTH KEEPING: three polls giving ONE identical crash fingerprint reads like one missing root and is equally consistent with one broken calling convention -- and gdb told both seats which in its first line, a day before either asked it.
+⭐ **RESOLUTION (2026-09-19 21:3x CDT).** Everything below was measured correctly and read wrongly. The crash was `SIGSEGV` with `si_addr=(nil)` inside libc's `__vfscanf_internal`, reached from `gc_stack_region`'s sscanf under `gc_collect_ex` -- the signature of a MISALIGNED RSP AT A CALL, not of a lost pointer. The `push rdx` that saved the packed spine word across the poll flips rsp's parity at the poll's own call; the word now rides the shield record's own spare quad at `[rsp+24]` and the crash is gone, the rungs board is identical to its control, and the same `push rdx` in the primitive road was cured with it. THE LESSON WORTH KEEPING: three polls giving ONE identical crash fingerprint reads like one missing root and is equally consistent with one broken calling convention -- and gdb told both seats which in its first line, a day before either asked it.
 
 ---
 
@@ -14,7 +14,7 @@
 
 ## WHY IT IS HELD -- MEASURED, NOT FEARED
 
-With the polls in, the SNOBOL4 master entry `user_function_eval_arbno_replace_branch_2` turns from FAIL into a DETERMINISTIC SIGSEGV, 5 of 5 runs, under `SCRIP_HEAP_MB=1 SCRIP_HEAP_MAX_MB=512`; without them it is FAIL with fingerprint `33183291`, 5 of 5 (the entry is ALREADY red on origin -- this is a failure mode getting worse, not a new red). At the DEFAULT arena the polls change its wrong output too: origin `33183291`, polled `3b192bd3`, polled under `SCRIP_GC_STRESS=1` `a84e1945`. Board counts do not move either way (m3 1959 pass, m4 1960 pass).
+With the polls in, the SNOBOL4 rungs entry `user_function_eval_arbno_replace_branch_2` turns from FAIL into a DETERMINISTIC SIGSEGV, 5 of 5 runs, under `SCRIP_HEAP_MB=1 SCRIP_HEAP_MAX_MB=512`; without them it is FAIL with fingerprint `33183291`, 5 of 5 (the entry is ALREADY red on origin -- this is a failure mode getting worse, not a new red). At the DEFAULT arena the polls change its wrong output too: origin `33183291`, polled `3b192bd3`, polled under `SCRIP_GC_STRESS=1` `a84e1945`. Board counts do not move either way (m3 1959 pass, m4 1960 pass).
 
 BISECT, one poll at a time, same witness, same arena: the probe_run poll ALONE, the open-join poll ALONE and the land_γ poll ALONE each produce the identical crash fingerprint `b3decc10`; the land_ω poll alone is harmless (unreached by this program). So it is not one site's register discipline -- **A COLLECTION ANYWHERE ON THE DEFER ROAD LOSES SOMETHING THE MATCH STILL NEEDS.**
 
@@ -71,7 +71,7 @@ THAT IS THE DEFECT ALREADY REPORTED WITH LANDING 2 (CFO-103, rowed to the ceo): 
 
 ## WHAT TO RE-RUN WHEN IT LANDS
 
-`SCRIP_GC_CENSUS_LIST_ALL=1 python3 scripts/util_gc_census.py safe-points` (expect unpolled 126, and lower `scripts/gc_census_baseline.tsv` in the SAME commit); the witness matrix in the landing-4 ledger; the SNOBOL4 master at the small arena, where `user_function_eval_arbno_replace_branch_2` must read FAIL `33183291` and not CRASH. STILL UNPOLLED IN THAT FILE AND DELIBERATELY NOT TAKEN: `bb_match_defer.cpp:94` `rt_patv_defer_get_pat_dtp` and `:114` `dtp_fn_of` hold a pattern DTP pointer across the return; the shield record carries ONE cell tagged DT_S and `keep_rax` parks a raw word BELOW the poll's floor where nothing relocates it, so those two need a typed cell for the pattern kind, not this spelling.
+`SCRIP_GC_CENSUS_LIST_ALL=1 python3 scripts/util_gc_census.py safe-points` (expect unpolled 126, and lower `scripts/gc_census_baseline.tsv` in the SAME commit); the witness matrix in the landing-4 ledger; the SNOBOL4 rungs at the small arena, where `user_function_eval_arbno_replace_branch_2` must read FAIL `33183291` and not CRASH. STILL UNPOLLED IN THAT FILE AND DELIBERATELY NOT TAKEN: `bb_match_defer.cpp:94` `rt_patv_defer_get_pat_dtp` and `:114` `dtp_fn_of` hold a pattern DTP pointer across the return; the shield record carries ONE cell tagged DT_S and `keep_rax` parks a raw word BELOW the poll's floor where nothing relocates it, so those two need a typed cell for the pattern kind, not this spelling.
 
 ## RE-MEASURED 2026-09-19 19:5x CDT, AND STILL HELD
 

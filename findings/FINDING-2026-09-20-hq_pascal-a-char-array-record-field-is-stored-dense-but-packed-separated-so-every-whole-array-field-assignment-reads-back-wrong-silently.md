@@ -57,7 +57,7 @@ So the per-element writer stores `bcdefghi` densely and the reader indexes dense
 
 ## Why no instrument caught it
 
-- The Pascal master is **246/246** and does not contain this construct, so the denominator never covered it.
+- The Pascal rungs is **246/246** and does not contain this construct, so the denominator never covered it.
 - It **exits 0** and prints a plausible string, so every rc-shaped check reads green — CEO-556's class, and the same quiet-wrong-answer shape the GC road has been chasing all week.
 - `__pas_ca_unpack` exists and is emitted only at `pascal.y:1121` for a whole-field READ, so the pack/unpack pair is self-consistent **with each other** and inconsistent with the dense per-element writer. A round-trip test of pack→unpack alone would pass.
 

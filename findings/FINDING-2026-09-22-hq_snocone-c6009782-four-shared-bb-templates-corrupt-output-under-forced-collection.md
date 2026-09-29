@@ -1,6 +1,6 @@
 # FINDING 2026-09-22 hq_snocone — commit `c6009782862886bd35d89b71648b4460f96e03cb` corrupts output under forced collection, bisected to four shared templates
 
-**Context:** ceo-1129/1130 DECTET ask, component 4 of the GC acceptance bar (WORKING — does the collector produce right answers, not merely avoid crashing). Rebuilt incrementally at SCRIP `156ef964d`, re-ran the Snocone master (clean: `SUITE_BOARD family=ALL total=336 shipped=336 m3_pass=336 m4_pass=336`, unforced) and this lane's own forced-collection gate (`test_gate_snocone_gc_share_named_and_master_clean_under_forced_collection.sh`, band `1 3 5 8 16` × arena `{1MB,shipped}` × m3/m4). That gate read fully clean (zero divergent pairs) at SCRIP `77922bcf8` two sittings ago — full receipt in `tasks/snocone-gc-zero-gradings-lost-to-the-collector-across-the-arena-and-stress-axes-named-not-counted.task.md`. On `156ef964d` it is RED.
+**Context:** ceo-1129/1130 DECTET ask, component 4 of the GC acceptance bar (WORKING — does the collector produce right answers, not merely avoid crashing). Rebuilt incrementally at SCRIP `156ef964d`, re-ran the Snocone rungs (clean: `SUITE_BOARD family=ALL total=336 shipped=336 m3_pass=336 m4_pass=336`, unforced) and this lane's own forced-collection gate (`test_gate_snocone_gc_share_named_and_rungs_clean_under_forced_collection.sh`, band `1 3 5 8 16` × arena `{1MB,shipped}` × m3/m4). That gate read fully clean (zero divergent pairs) at SCRIP `77922bcf8` two sittings ago — full receipt in `tasks/snocone-gc-zero-gradings-lost-to-the-collector-across-the-arena-and-stress-axes-named-not-counted.task.md`. On `156ef964d` it is RED.
 
 ## The symptom
 
@@ -43,4 +43,4 @@ The commit's own message states: *"bb_deref, bb_unop and bb_var_ref are SHARED n
 
 ## Raw evidence
 
-Witness `.sc`/`.ref`, full bisect transcript, and both the unforced-master and forced-collection-gate raw logs are session-scratchpad artifacts (not committed — copy before any sweep, per this project's own standing warning about session-local logs).
+Witness `.sc`/`.ref`, full bisect transcript, and both the unforced-rungs and forced-collection-gate raw logs are session-scratchpad artifacts (not committed — copy before any sweep, per this project's own standing warning about session-local logs).

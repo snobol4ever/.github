@@ -60,7 +60,7 @@ feeding one BINOP_TEST, no intervening variable)
   strategy -- the outer `main:` label's own `sub rsp, 65544` may already cover
   the whole procedure's needs statically -- or the actual fault, was NOT
   resolved before this session's budget on it ran out; flagging the asymmetry
-  rather than asserting it is the cause, since Pascal's 246-entry master suite
+  rather than asserting it is the cause, since Pascal's 246-entry rungs suite
   clearly gets frame layout right for the overwhelming majority of programs.
 - The INTEGER sibling (`1210 = 1210`) gets an inline fast-path
   (`cmp rax,rcx; je ...`) before ever reaching `call rt_jct_relop`

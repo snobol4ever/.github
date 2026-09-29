@@ -9,14 +9,14 @@ faster progress."*), and it re-cut the lanes BY CONCERN rather than only by lang
 - **hq_I is SNOCONE, a per-language ladder seat** (Lon, same day: *"For some newbie languages, having a
   per-language seat to walk the ladders seems also a good idea."*). The duty is: walk
   `corpus/tests/snocone/config/LADDER.tsv` rung by rung, **rung N+1 opening only when rung N is green in BOTH
-  modes**; then the SncM gap and its xfails, each deleted as a faulty test with its reason or rowed as a defect
+  modes**; then the SncRungs gap and its xfails, each deleted as a faulty test with its reason or rowed as a defect
   on its rung. THERE IS NO XFAIL.
 - **The ICON SUITES lane described below is NOT hq_I's any more** — Icon breadth returned to the ceo, whose
-  master reads full. Everything under "THE LANE" and every arizona/jcon/ipl cursor entry below is history.
+  rungs reads full. Everything under "THE LANE" and every arizona/jcon/ipl cursor entry below is history.
 - **This seat has no seats.** The "assign each of your seats its first row" step in SESSION SETUP is dead;
   so is "an HQ never runs a suite by hand" — a ladder runner and the per-group development aids are exactly
-  what this seat now runs. What did NOT change: **a master or package board is the coo's alone** (ONE RUNNER,
-  ONE BOARD, CEO-523) — `corpus_suite_harness.py` on a master refuses rc=2 to this seat, correctly.
+  what this seat now runs. What did NOT change: **a rung suite or package board is the coo's alone** (ONE RUNNER,
+  ONE BOARD, CEO-523) — `corpus_suite_harness.py` on a rung suite refuses rc=2 to this seat, correctly.
 - Landing verdict = **the row's DONE-WHEN + the gates you touched + `make preflight`**. FLIPS to `coo/inbox`,
   ASKS to `ceo/inbox`.
 
@@ -28,7 +28,7 @@ faster progress."*), and it re-cut the lanes BY CONCERN rather than only by lang
 Lon 2026-09-05, in-chat to ceo, verbatim: *"So how many HQ's and how many Fleet workers should we have? 8 HQ's?"* · *"I just created S, I, and R root folders."* — the ceo's recommendation that day (GOAL-CEO CEO-293): eight Opus HQs, each owning ONE cure surface small enough to drain between landings, over twelve Sonnet walkers, because the measured shortage was cure capacity, not witness supply (one cure per HQ-hour against a walker output several times that, and five engine classes queued on one HQ that had not read its mail in ninety minutes).
 
 ## THE LANE (MASTER-PLAN § THE LANES, eight HQs)
-hq_I owns the ICON SUITES: arizona (43/89), jcon_tests (44/81), ipl (851, run-graded), co-expressions (rung 38) and the Icon runtime files `rtx_icn*.s` — every Icon class a vendored suite exposes; the Icon frontend, generators and the Icon master stay hq_B's. Its seats under THE 12-SEAT CUT: 07.
+hq_I owns the ICON SUITES: arizona (43/89), jcon_tests (44/81), ipl (851, run-graded), co-expressions (rung 38) and the Icon runtime files `rtx_icn*.s` — every Icon class a vendored suite exposes; the Icon frontend, generators and the Icon rungs stay hq_B's. Its seats under THE 12-SEAT CUT: 07.
 
 ## LAWS THAT BIND EVERY hq_I LANDING (compact; RULES.md is the parent)
 - An HQ CURES; a seat measures. You never run a suite, a board or `make test` by hand — a seat runs it and files the class row with a minimal witness cut from the oracle; you cure it in rung order on that witness (Lon 2026-09-05 to hq_T, MASTER-PLAN § WHO FIXES WHAT).
@@ -48,7 +48,7 @@ ROW HAD REFUSED TO GUESS AT — PLUS ONE PROBE ERROR I CAUGHT ONLY BY ISOLATING 
 **LANDED — corpus `d44a95ca0`, gate re-proven after the rebase on the tree that actually landed.**
 `test_snocone_ladder.sh --to 21` reads **246/246 PASS FAIL=0** (witnesses=123) · forms check **110/110**
 (was 106) · `make preflight` **42 arms, 0 red**. SCORE.md grid L rewrote itself on the clean tree. No board;
-ONE RUNNER, ONE BOARD — the SncM row stays the coo's.
+ONE RUNNER, ONE BOARD — the SncRungs row stays the coo's.
 
 **THE ROW'S OWN FIRST WORK WAS A READING, AND IT IS NOW MEASURED RATHER THAN ARGUED.** rung21 was declared
 UNCLEAR, listing two old probes under one grammar node with an explicit *do not split or merge them by
@@ -105,7 +105,7 @@ than in a reader's surprise.
 (`DATATYPE` on the result of `.`, `report.md:547-548`), whose old NATIVE_STATUS is PASS. ⛔ Given that two of
 this rung's two inherited claims and two of rung19's three were false, **grade that PASS against the oracle
 before believing it** — the cheap test is whether the probe's arms are reachable at all. The declared ladder
-runs to rung26; the SncM gap (196 of 235) and its 16 xfails are still untouched by this seat.
+runs to rung26; the SncRungs gap (196 of 235) and its 16 xfails are still untouched by this seat.
 
 **2026-09-13 ~23:5x CDT hq_I — THIRD SITTING UNDER NONET; rung20 LANDED, AND THE SITTING'S REAL WORK WAS A BREAK
 I DID NOT CAUSE AND ALMOST FILED AGAINST MYSELF.**
@@ -125,17 +125,17 @@ art bundles all five into ONE chained probe, so its PASS graded the chain and no
 is now discharged.
 
 ⛔⭐⭐ **THE BREAK: `util_add_ladder_witness.py`, THE SANCTIONED ADD-A-WITNESS PATH, WAS REFUSING rc=2 FOR THIS
-LANGUAGE AND NOTHING WAS GOING RED.** `a6646f04c` removed the modes=ast entries from all seven masters on Lon's
+LANGUAGE AND NOTHING WAS GOING RED.** `a6646f04c` removed the modes=ast entries from all seven rung suites on Lon's
 word (snocone 387 → 320) but left the banner sequence numbers and the CSV `rank` column at their OLD values —
-first entry banner 32, ranks 32..387 over 320 rows. The tool re-serializes the existing master through the
+first entry banner 32, ranks 32..387 over 320 rows. The tool re-serializes the existing rungs through the
 harness's own reader/writer and refuses if it cannot reproduce it byte-for-byte; the writer numbers from 1, disk
 said 32. Repaired with that same reader/writer plus `--reindex` (corpus `15367bdf5`), verified content-invariant
 keyed by entry name: **320 of 320 source blocks and 320 of 320 ref blocks byte-identical, order unchanged**.
-⭐ **It was invisible to every gate I own** — ladder green, forms green, preflight green, master-order gate
+⭐ **It was invisible to every gate I own** — ladder green, forms green, preflight green, rungs-order gate
 reads snocone *ok* — and I found it only by reaching for a tool I had never used. **A property with no gate is
 not a property anybody is holding.** Measured and *not* claimed: ranks are non-contiguous in **all seven**
-masters now, but icon, raku and snobol4 still pass the same round-trip, so I repaired snocone alone and told the
-coo rather than sweeping six masters I do not own.
+rung_suites now, but icon, raku and snobol4 still pass the same round-trip, so I repaired snocone alone and told the
+coo rather than sweeping six rung suites I do not own.
 
 ⛔⭐ **I ALMOST FILED IT AGAINST MYSELF, AND THE REASON IS THE KEEPER.** My first bisect checked the commit
 *before* my rung19 work and the commit *after* it, saw the refusal appear across that span, and pointed at my own
@@ -180,12 +180,12 @@ different if my stated reason were false? If "nothing", I am holding a habit, no
 **NEXT ROW FOR THIS SEAT** (named, not started): **rung21 `expression_list_vlist`** — and its declared row warns
 it is UNCLEAR, listing two old-ladder entries under one grammar node without explaining their relationship, so
 the first work is deciding whether it is one rung or two. After this sitting I will grade that row's claims
-against the oracle before believing any of them. The declared ladder runs to rung26; the SncM gap and its xfails
+against the oracle before believing any of them. The declared ladder runs to rung26; the SncRungs gap and its xfails
 are still untouched by this seat.
 
 **2026-09-13 ~22:4x CDT hq_I — SECOND SITTING UNDER NONET; SNOCONE LADDER WALKED TO rung19, THE LARGEST RUNG SO FAR.**
 Pulled all three repos first. Inbox carried one message from the cfo offering `simple_output_64` as the name of
-the SNOBOL4 master red this seat refused to quote last sitting; read, replied, cleared. ⛔ **THAT NAME IS
+the SNOBOL4 rungs red this seat refused to quote last sitting; read, replied, cleared. ⛔ **THAT NAME IS
 RETRACTED — the cfo unwound it the same hour and this line is the unwinding, applied within minutes of the
 push that carried the wrong version.** `simple_output_64` is already row 1 of
 `corpus/tests/snobol4/ALL.outside.tsv` (ceo CEO-428(a), measured by hq_P 2026-09-08), the harness strips every
@@ -220,7 +220,7 @@ across the rebase.)
 | `test_snocone_ladder.sh --to 19` | **228/228 PASS FAIL=0** (witnesses=114, m3+m4) |
 | `util_ladder_forms_check.py --lang snocone` | **101/101 declared forms witnessed, PASS** |
 | `make preflight` | **40 arms, 0 red** |
-| `test_gate_master_order_is_the_builders_order.sh` | snocone **ok, 387 entries** — was **FAIL, 344 of 379 out of order** |
+| `test_gate_rungs_order_is_the_builders_order.sh` | snocone **ok, 387 entries** — was **FAIL, 344 of 379 out of order** |
 
 **rung19 `procedure_definition`, eight forms** — define_call_return · recursion · freturn · nreturn ·
 folded_local_variables · too_few_args_padded_null · too_many_args_ignored · procedure_keyword_spelling. Refs
@@ -259,8 +259,8 @@ than it looks like it answers, the family this root's digest already names:
    not report a smaller population; it reports a wrong answer at full confidence.** Fixed, then re-run: 379 of
    379 source and ref blocks byte-identical across the permutation.
 
-⭐ **THE RE-SORT LANDED ALONE, ON THE BUILDER'S OWN INSTRUCTION.** The snocone master was 344-of-379 out of the
-builder's order before this sitting — a standing red on `test_gate_master_order_is_the_builders_order.sh` that
+⭐ **THE RE-SORT LANDED ALONE, ON THE BUILDER'S OWN INSTRUCTION.** The snocone rungs was 344-of-379 out of the
+builder's order before this sitting — a standing red on `test_gate_rungs_order_is_the_builders_order.sh` that
 predates the rung. Absorbing rung19 re-sorted it in the same pass, and `--resort` REFUSES to do both at once,
 in its own words: *"absorbing and re-sorting in one step would make an ordering change indistinguishable from an
 absorption in the diff."* That is right, so it is two commits: a pure permutation (`1b3d70799`) and then the
@@ -304,12 +304,12 @@ is that it is somebody else's code. I stopped at the parse boundary and claim no
 
 **NEXT ROW FOR THIS SEAT** (named, not started): **rung20 `augmented_assignment`** (`+=` `-=` `*=` `/=`, a SCRIP
 dialect extension with no Koenig spelling — TT_AUGOP; old ladder marks PASS, which after this sitting is a claim
-to grade against the oracle and not a status to trust). Then the declared ladder runs to rung26, and the SncM
+to grade against the oracle and not a status to trust). Then the declared ladder runs to rung26, and the SncRungs
 gap (196 of 235) with its 16 xfails is still untouched by this seat.
 
 **2026-09-13 ~20:30 CDT hq_I — FIRST SITTING UNDER NONET; SNOCONE LADDER WALKED FROM rung16 TO rung18.**
 Inbox empty at start, so the standing ladder duty was the brief. Pulled all three repos first
-(`.github` would not ff-merge — two stale SnoM SCORE/SUITES edits from the prior sitting, discarded rather
+(`.github` would not ff-merge — two stale SnoRungs SCORE/SUITES edits from the prior sitting, discarded rather
 than pushed: under ONE RUNNER a leaderboard row is the coo's).
 
 WHAT LANDED, both rungs green in BOTH modes with refs ORACLE-CUT from hand-written SPITBOL twins:
@@ -335,12 +335,12 @@ once against a corrupted ref before being trusted. SCORE grid L rewritten by the
    time. Full write-up:
    `FINDING-2026-09-13-hq_I-a-twin-equivalence-comment-is-absorbed-into-the-graded-block-so-prose-that-spells-an-operator-sets-a-census-flag.md`.
 
-⛔ **REPORTED, NOT MINE TO CURE — a SNOBOL4 master red is blocking two of this seat's gate arms.**
+⛔ **REPORTED, NOT MINE TO CURE — a SNOBOL4 rungs red is blocking two of this seat's gate arms.**
 `test_gate_snocone_returns_codegen` and `test_gate_nreturn_by_name_value_broken` both moved rc=2 → rc=1 today:
 the rc=2 was the link defect this seat cured at SCRIP `44b1c6ea9`, so the Snocone half is fixed. What remains is
 their shared SNOBOL4 corpus arm, reading **mode-4 FAIL=1 · mode-3 FAIL=1** on clean tree `ddfe8159e`, measured
-twice (20:57Z, 21:00Z). That contradicts the digests' CONTROL-ARM BAR line asserting no standing SNOBOL4 master
-red. The failing program is UNNAMED here on purpose: the harness refuses a master run to this seat (correct),
+twice (20:57Z, 21:00Z). That contradicts the digests' CONTROL-ARM BAR line asserting no standing SNOBOL4 rungs
+red. The failing program is UNNAMED here on purpose: the harness refuses a rung suite run to this seat (correct),
 and this seat's own override run refused *THE TREE MOVED UNDER THIS BOARD* — self-inflicted, corpus was being
 edited while it ran, so no number from it is quoted. Sent to `ceo/inbox` as
 `blocker-snobol4-master-red-blocks-two-snocone-gate-arms`. ⭐ Lesson kept: **do not edit the tree while your own
@@ -380,13 +380,13 @@ not a witness-writing detail — expect it to be the rung's substance.
 
 **FOUR SEATS CONVERGED ON ONE LAW-SLOT LINE IN ONE HOUR**, which is the argument for it landing once rather than as four FINDINGs. hq_U's wording is the sharpest and hq_I signed it: **a predicate over source text sees SPELLING, not EFFECT, so any gate that greps for a dangerous call shape will reliably flag the tests written to prove its own rule.** hq_I declined hq_U's proposed extension (pre-exempt `--check` and other rehearsal forms) using that same rule — a pre-emptive exemption list is a hand-typed population — and measured before deciding: exactly one non-conforming call site exists and `check` accepts no `--measurer` at all, so it would have pre-authorised a category that cannot occur. **HELD, NOT SETTLED** (hq_U routed it to the ceo verbatim): the four roots where derivation was broken are exactly the roots where a session would hardcode its name to get a row out, and ARM 5 forbids precisely that — so the workaround that saved hq_U's two rows is the thing another gate exists to reject.
 
-**NEXT, unstarted:** Icon rungs 38–42 wait on hq_B declaring them. ⚠ Not mine, flagged twice: the icon **M** column disagrees across the tables (display board 607/609 vs grid M 599/601) — hq_B's master lane; and `test_gate_score_tables_agree.sh` stays RED on pascal (100/181 vs 128/181), PARKED-LON-HOLD.
+**NEXT, unstarted:** Icon rungs 38–42 wait on hq_B declaring them. ⚠ Not mine, flagged twice: the icon **M** column disagrees across the tables (display board 607/609 vs grid M 599/601) — hq_B's rungs lane; and `test_gate_score_tables_agree.sh` stays RED on pascal (100/181 vs 128/181), PARKED-LON-HOLD.
 
 **2026-09-05 17:5x–18:2x CDT hq_I — IPL LINK RESOLUTION CURED: the biggest single class in the lane, landed with hq_B's go-ahead.**
 
 `linkgap` was **354 of 415** IPL compile failures (85% of them, 41% of the 852-file package) and it was ONE cause: `icn_resolve_links` built a single candidate — the linking file's own directory — and `exit(1)`'d on a miss, with **zero** `IPATH`/`ICONPATH` hits anywhere in `src/`. IPL's `progs/procs/gprocs/incl/gincl` split makes a cross-directory link the library's NORMAL shape. ⭐ The harness had been exporting `ICONPATH` for the RUN tier all along; the COMPILE tier never did, so the two halves (resolver, runner) do nothing apart and landed together. SCRIP `55fae9091`.
 
-**DONE THE RIGHT WAY ROUND, unlike this morning's three cross-lane cures:** diagnosis + minimal witness routed to hq_B FIRST, hq_B verified all three claims on their own tree, then gave an explicit go-ahead with four conditions — each **proven, not asserted**: linking dir still wins (`LOCAL` not `PATHDIR`); IPATH then ICONPATH; the failure names EVERY candidate tried (the old `cannot open ./adlutils.icn` actively misled, since `./` is the one place it was never going to be); and **CONTROL ARM HELD** at `board_icon_master.sh` m3 607/609 m4 607/609, watermarks intact. ⭐ hq_S independently reported hq_U's co-sign of a *different* branch reading the same 607/609 with the same rung26 pow reds — two lanes, two trees, one watermark.
+**DONE THE RIGHT WAY ROUND, unlike this morning's three cross-lane cures:** diagnosis + minimal witness routed to hq_B FIRST, hq_B verified all three claims on their own tree, then gave an explicit go-ahead with four conditions — each **proven, not asserted**: linking dir still wins (`LOCAL` not `PATHDIR`); IPATH then ICONPATH; the failure names EVERY candidate tried (the old `cannot open ./adlutils.icn` actively misled, since `./` is the one place it was never going to be); and **CONTROL ARM HELD** at `board_icon_rungs.sh` m3 607/609 m4 607/609, watermarks intact. ⭐ hq_S independently reported hq_U's co-sign of a *different* branch reading the same 607/609 with the same rung26 pow reds — two lanes, two trees, one watermark.
 
 | | before | after |
 |---|---|---|
@@ -515,7 +515,7 @@ hq_T landed the suite format's argv sidecar (SCRIP `44f9e17ce`) and returned the
 
 ⛔⭐ **BUT THE 42 IPL ENTRIES ARE NOT GRADABLE BY ANY SIDECAR, BECAUSE NOTHING GRADES THAT SUITE.** `packages/icon/ipl/ALL.icn`/`ALL.ref`/`ALL.csv` are consumed by no runner: `test_icon_ipl_suite.sh` opens `ALL.csv`+`ALL.excluded.txt` **only** for the container identity check I added on 09-05 and never reads `ALL.icn`/`ALL.ref` (it grades by per-program `.std` and explicitly excludes `ALL.icn` from its population); `board_packages.sh`'s `runner_for()` has no `icon/ipl` case; nothing else references `ipl/ALL`. ⭐ **The clincher is the one I trust more than a grep: `packages/icon/ipl/ALL.ref` has exactly ONE commit in its entire history** (`3b3b5b874`, the day it was generated) where `tests/icon/ALL.ref` has many — **a ref that is never regenerated is a ref nothing grades.** So declaring `ipl/ALL.argv` would be a criterion nothing executes, the exact shape `read_argv_sidecar` refuses for ast-only families one level up; and hq_T's own load-bearing arm (**the ref MUST CHANGE**) is *unrunnable* there, because no runner cuts or checks that ref.
 
-⛔ **AND THE SIX ARE hq_B's.** `tests/icon/ALL.icn` is the Icon MASTER; my lane is arizona, jcon_tests, ipl, co-expressions and `rtx_icn*.s`. Not touched, routed with the measurement done so they need not repeat it — they are **two shapes, not one**: four are pure numeric defaults where a declaration moves the ref, and two (`procedure_every_scan_replace_6`, `procedure_record_scan_replace_2`) open `args[1]` as a **file** and need a shipped fixture, not a declaration. ⭐ Carried hq_T's arm forward with the trap named: for the four numeric ones, **declaring the default value would pass every check and prove nothing**.
+⛔ **AND THE SIX ARE hq_B's.** `tests/icon/ALL.icn` is the Icon RUNGS; my lane is arizona, jcon_tests, ipl, co-expressions and `rtx_icn*.s`. Not touched, routed with the measurement done so they need not repeat it — they are **two shapes, not one**: four are pure numeric defaults where a declaration moves the ref, and two (`procedure_every_scan_replace_6`, `procedure_record_scan_replace_2`) open `args[1]` as a **file** and need a shipped fixture, not a declaration. ⭐ Carried hq_T's arm forward with the trap named: for the four numeric ones, **declaring the default value would pass every check and prove nothing**.
 
 ⚠ **COULD NOT REPRODUCE 42, and said so rather than adopting it.** Over `ipl/ALL.icn`'s 78 entries I count **19** argv-touching by a strict pattern and **30** by one that first reads the actual `main()` parameter name (it is `arg`, `param`, `cmd`, `f`, `Args` as often as `args`) — and `progs/queens`, which hq_T's FINDING names, is an entry the strict pattern does **not** flag. The predicate is doing real work, so whichever number stands should travel with the predicate that produced it.
 
@@ -572,7 +572,7 @@ CEO-326 asked for "the 212 ORACLE_FAIL argv sidecars". ⛔ **They are not 212 ar
 
 **hq_T's RULING TAKEN — the class split moved into `lib_inventory.sh` as `inventory_split_line`,** its own function so `inventory_line` stays exactly one byte-identical line (their gate pins it by exact string equality and its ARM 1 says *exactly one line*, so even printing a second line from inside would have red seat12's rank-0 row). **The invariant travelled with it** and reads the same rows `_inv_names` already validated, so parts and whole are one population by construction. New ARM 1b grades both. Also cured: their gate had been naming **my** jcon runner for SWALLOWING the inventory refusal — rc=2 became a ⚠ nobody reads. A refusal is not a warning.
 
-⛔⭐⭐ **THE BAL CLASS — TWO INDEPENDENT DEFECTS, AND EACH ONE HID THE OTHER** (`icon-bal-generator-yields-one-result-not-a-backtracking-sequence`, root-caused by seat07 past a 300-line Lisp interpreter; hq_B gave the go-ahead to land in their lane). **(1)** `lower_icon.c` admitted `bal` to its generator-builtin test only at `nargs==1`, so the **zero-argument** form — how every IPL scanner writes it, `s ? tab(bal())` — built a plain `IR_CALL`: one result, no β port. **(2)** the box's β arm re-entered the scan loop **past** the character it had just succeeded on, without running it through the `(`/`)` depth accounting, because the success path exits through γ before reaching the classifier — so the opening bracket was never counted and every position looked balanced (`1,2,3,4` where iconx yields `1,5`). ⭐⭐ **THE GENERAL FORM: the success arm and the classify arm are two exits from ONE loop iteration, and a generator's resume must re-enter the iteration it LEFT, never the next one.** ⛔ **Curing the lowering ALONE turns one result into `1,2,3,4` — more results, still wrong, and it reads as progress.** Six-subject battery byte-identical to iconx in **both** modes; gate **proven RED 3 of 3** pre-cure (and the *value* arms were live pre-cure, not just the structural one). ⭐ hq_B's own note on the third arm: it tests **that the right MACHINE is used**, not only that the right answer appears — once the box is fixed the lowering defect is invisible to any witness that never writes `bal` bare. **CONTROL ARM:** `board_icon_master.sh` entries=837, m3 PASS=676 · m4 PASS=676/684, **watermarks HELD**, with the cure in the tree. ⛔ **`lisp.icn` IS STILL RED** (`> NIL` / `> ill-formed expression` vs iconx's `> A`) — bal was necessary and not sufficient, and that row stays open.
+⛔⭐⭐ **THE BAL CLASS — TWO INDEPENDENT DEFECTS, AND EACH ONE HID THE OTHER** (`icon-bal-generator-yields-one-result-not-a-backtracking-sequence`, root-caused by seat07 past a 300-line Lisp interpreter; hq_B gave the go-ahead to land in their lane). **(1)** `lower_icon.c` admitted `bal` to its generator-builtin test only at `nargs==1`, so the **zero-argument** form — how every IPL scanner writes it, `s ? tab(bal())` — built a plain `IR_CALL`: one result, no β port. **(2)** the box's β arm re-entered the scan loop **past** the character it had just succeeded on, without running it through the `(`/`)` depth accounting, because the success path exits through γ before reaching the classifier — so the opening bracket was never counted and every position looked balanced (`1,2,3,4` where iconx yields `1,5`). ⭐⭐ **THE GENERAL FORM: the success arm and the classify arm are two exits from ONE loop iteration, and a generator's resume must re-enter the iteration it LEFT, never the next one.** ⛔ **Curing the lowering ALONE turns one result into `1,2,3,4` — more results, still wrong, and it reads as progress.** Six-subject battery byte-identical to iconx in **both** modes; gate **proven RED 3 of 3** pre-cure (and the *value* arms were live pre-cure, not just the structural one). ⭐ hq_B's own note on the third arm: it tests **that the right MACHINE is used**, not only that the right answer appears — once the box is fixed the lowering defect is invisible to any witness that never writes `bal` bare. **CONTROL ARM:** `board_icon_rungs.sh` entries=837, m3 PASS=676 · m4 PASS=676/684, **watermarks HELD**, with the cure in the tree. ⛔ **`lisp.icn` IS STILL RED** (`> NIL` / `> ill-formed expression` vs iconx's `> A`) — bal was necessary and not sufficient, and that row stays open.
 
 ⛔⭐ **I REBUILT `./scrip` WHILE A SUITE RUN WAS GRADING WITH IT.** A jcon run launched on a clean tree read m4 41, then 38 on the next — the difference is `make` replacing the binary underneath the second one. ⭐ **A long run holds no lock on the thing it tests**, the same shape as editing a shell script mid-run (which cost this lane a ten-minute census the same morning), one layer up. The guards worked: the SCORE row was SKIPPED for a dirty tree and the progress rows carry `-dirty`. ⚠ But that stamp means *the tree was not committed*, **never** *the binary changed under this run* — two different failures, one of them unrecorded.
 
@@ -584,7 +584,7 @@ CEO-326 asked for "the 212 ORACLE_FAIL argv sidecars". ⛔ **They are not 212 ar
 
 **2026-09-06 ~14:0x CDT hq_I — LANDED. SCRIP `9ec5e830a` · corpus `62b1a1883` · .github this push. Incremental `make`, RT_OPT=-O0.**
 
-**THE BAL CURE IS IN**, hq_B's lane with their go-ahead, gate **proven RED 3 of 3** pre-cure and green after. ⛔⭐ **THE SNOBOL4 CONTROL ARM IS AN `.s` DIFF, NOT A BOARD, AND THAT IS THE REUSABLE PART.** `corpus/tests/snobol4/ALL.sno` plus two of the demos failing on the broad board (`json`, `calculator-2-match`) emit **byte-identical** assembly across the cure, while the Icon witness moves **198 lines** as a positive control. ⭐ **An `.s` diff PROVES a frontend is untouched where a board only observes it — and here it cost two minutes against sixteen, on a box where three seats were running boards concurrently and the SNOBOL4 board TIMEOUT-KILLED a program at 120s and correctly refused to publish a smaller denominator.** For a change provably confined to one frontend it is both the stronger arm and the cheaper one. (The SNOBOL4 master is separately RED on origin since `d067ceae4`, CEO-333, hq_U's lane, nobody else bisects.)
+**THE BAL CURE IS IN**, hq_B's lane with their go-ahead, gate **proven RED 3 of 3** pre-cure and green after. ⛔⭐ **THE SNOBOL4 CONTROL ARM IS AN `.s` DIFF, NOT A BOARD, AND THAT IS THE REUSABLE PART.** `corpus/tests/snobol4/ALL.sno` plus two of the demos failing on the broad board (`json`, `calculator-2-match`) emit **byte-identical** assembly across the cure, while the Icon witness moves **198 lines** as a positive control. ⭐ **An `.s` diff PROVES a frontend is untouched where a board only observes it — and here it cost two minutes against sixteen, on a box where three seats were running boards concurrently and the SNOBOL4 board TIMEOUT-KILLED a program at 120s and correctly refused to publish a smaller denominator.** For a change provably confined to one frontend it is both the stronger arm and the cheaper one. (The SNOBOL4 rungs is separately RED on origin since `d067ceae4`, CEO-333, hq_U's lane, nobody else bisects.)
 
 ✅ **IPL's FLIP COUNT IS FOUR, AND THE FOURTH IS hq_B's.** Re-graded on origin: `cstrings`, `lam`, `rcat` **and `icvt`** all PASS m3 and m4. icvt was the one of my four that failed both modes; I ablated it to eight lines and filed it as a class, and hq_B cured it — `lower_icon` sent every non-local plain identifier down the by-NAME call path, right for a procedure name and wrong for a global holding one. ⭐ **A flip that comes off a CLASS covers every program nobody has authored a fixture for yet**; a flip that comes off a fixture covers one.
 
@@ -630,7 +630,7 @@ CEO-326 asked for "the 212 ORACLE_FAIL argv sidecars". ⛔ **They are not 212 ar
 
 ⛔ **I ALSO FALSIFIED ONE OF MY OWN ROWS WITH ITS OWN CRITERION.** I filed `diffu`/`diffn`/`iiencode` as one class, "produce zero output at rc=0". The criterion printed `iiencode: got 4 lines, want 4` — and a line-count identity is not what zero output predicts. Measured split: **`diffu` (0 of 8) and `diffn` (3 header lines of 10) ARE one class, `dif()` yielding nothing; `iiencode` prints the correct STRUCTURE with WRONG ENCODED BYTES**, a bit-packing defect with no relation to `dif()`. ⭐ **A compound claim cannot be falsified by any single observation** — the exact defect this lane filed against 212 ipl rows this morning, and I wrote one within six hours of filing it. The baton carries the correction and the split.
 
-⛔⭐ **A RED I REPORTED WAS A FINDING ABOUT MY CLONE, NOT THE TREE.** I ran the blocking set **before** pulling and reported `master_order_is_the_builders_order` RED (snobol4, 463 of 1882) to hq_P and the ceo. After `pull --rebase` it reads **1889 entries in the builder's order, GATE PASS**. Withdrawn within the hour, including my speculation about a promotion path — which was unfounded reasoning about a cure that already existed. hq_B says it stopped them writing the same red into their own landing receipt. ⭐⭐ **hq_P's second clause is sharper than my rule and I am keeping it in their words: a cross-confirmation only rules out a tree-specific artifact if the trees DIFFER IN THE DIMENSION THAT MATTERS.** They and hq_U had agreed to the digit on an 1845-entry board and read it as strength; it was one tree measured twice. **Agreement is the evidence nobody re-examines.** Operational form: before citing a cross-confirmation, state what is DIFFERENT about the other measurement — tree hash, box, binary. If nothing, it is a repetition, not a confirmation.
+⛔⭐ **A RED I REPORTED WAS A FINDING ABOUT MY CLONE, NOT THE TREE.** I ran the blocking set **before** pulling and reported `rungs_order_is_the_builders_order` RED (snobol4, 463 of 1882) to hq_P and the ceo. After `pull --rebase` it reads **1889 entries in the builder's order, GATE PASS**. Withdrawn within the hour, including my speculation about a promotion path — which was unfounded reasoning about a cure that already existed. hq_B says it stopped them writing the same red into their own landing receipt. ⭐⭐ **hq_P's second clause is sharper than my rule and I am keeping it in their words: a cross-confirmation only rules out a tree-specific artifact if the trees DIFFER IN THE DIMENSION THAT MATTERS.** They and hq_U had agreed to the digit on an 1845-entry board and read it as strength; it was one tree measured twice. **Agreement is the evidence nobody re-examines.** Operational form: before citing a cross-confirmation, state what is DIFFERENT about the other measurement — tree hash, box, binary. If nothing, it is a repetition, not a confirmation.
 
 ⛔ **NO LANDING VERDICT IS CLAIMED FOR THIS PUSH, AND THAT IS DELIBERATE.** My `make test` was invalidated mid-flight by my own two rebases — scripts swapped between its early and late arms, the same class as rebuilding a binary under a running suite, one layer up. It reached **893 lines with zero blocking failures** and only the two known REPORTED arms red (`umbrella-done-whens`, `score_tables_agree`, both on the ramp) — **recorded, not reported as a verdict, because a run whose inputs moved is not one.** What IS graded cleanly, post-rebase: the cutter's rc=2 refusal, and the isolation verifier across **seven** arms both directions. CEO-341 gave the settled-tree run to seat07, where it belongs (a seat measures), and it doubles as their way to close or park ipl-851.
 
@@ -724,7 +724,7 @@ Row `flip-ipl-declchck`, rank 0, minted with a DONE-WHEN **proven RED (rc=1) bef
 
 **WITNESS `test_gate_icn_function_builtin_names_dispatchable.sh`, proven RED (rc=1, arms 3, 4b and 4c) without the cure and GREEN (rc=0) with it, rebuilt both directions.** It grades the table against the live oracle **in both directions** — every name yielded is dispatchable, every builtin SCRIP dispatches is yielded — plus m3 == m4 byte-identical, sortedness and `type` string asserted **directly in both modes** (hq_B's condition: the right set in the wrong order passes declchck by luck), and the user-defined-procedure guard. REFUSES rc=2 with no oracle, no arity list, or zero names graded.
 
-**CONTROL ARM HELD:** `board_icon_master.sh` entries=855 at/above floor 534, run-graded **m3 PASS=697 m4 PASS=697 / 702**, watermarks intact. `strip_comments --check`, `emit_no_lang`, `icn_no_stack`, `icn_one_reg_frame` all rc=0.
+**CONTROL ARM HELD:** `board_icon_rungs.sh` entries=855 at/above floor 534, run-graded **m3 PASS=697 m4 PASS=697 / 702**, watermarks intact. `strip_comments --check`, `emit_no_lang`, `icn_no_stack`, `icn_one_reg_frame` all rc=0.
 
 ⭐ **THREE DEFECTS FOUND, NONE TAKEN — one bug at a time.** All rank-filed to hq_B with DONE-WHENs proven red once. (1) `proc()`/`args()` above. (2) **`lower_seq` shadows a user-defined `procedure seq()`** — SCRIP prints `1` where icont prints `MINE`, found by asking my own guard's question of its neighbours; `lower_key` is green on the same probe **because its hook additionally requires nargs==1**, measured not assumed. **The shape: a lowering hook keyed on a NAME is an unconditional claim on that name, while the resolve phase's identical-looking `icn_callable_proc_index` check is conditional on there being no user procedure — two mechanisms that read the same and rank differently.** (3) **The limitation operator `\ N` yields N+1 results** — `every write(1 to 100) \ 3` prints four values against the oracle's three, both modes, silent, rc=0; general, not a `seq()` defect.
 
@@ -740,7 +740,7 @@ Row `flip-ipl-declchck`, rank 0, minted with a DONE-WHEN **proven RED (rc=1) bef
 
 ⛔ **jcon WAS WORSE THAN STALE: THE DISPLAY CELL HAD LOST ITS FRACTION ENTIRELY**, leaving a dangling runner name with no numbers, while the grid still carried a denominator my own 09-05 POPULATION LAW ruling had superseded. **Re-run rather than transcribed** (rc=0): **m3 44/91 · m4 42/91**, shipped=91 graded=81 gap=10. ⭐ **Two things moved and only one is a score** — the denominator 81→91 is a population correction; **m3 45→44 is one real program** on a tree carrying several lanes' landings, named rather than smoothed, and **not attributed**. And `util_score_row` refused the IPL cell for stating it twice: both archived copies are now spelled out in words per this file's own convention, and **the grid cell the helper warned would go stale by the write was hand-corrected** — the adrift-cell class, caught by the instrument's own warning rather than by the next reader.
 
-⭐ **MEASURED BEFORE AND AFTER, because a gate others act on must not be reported as broken by whoever touched it last:** `test_gate_score_tables_agree.sh` was **already RED on icon before any edit here** (5 warnings). It is now **3, all M-cell, all hq_B's master lane**; the vendor side is consistent. Neither remaining red is mine and neither was made worse.
+⭐ **MEASURED BEFORE AND AFTER, because a gate others act on must not be reported as broken by whoever touched it last:** `test_gate_score_tables_agree.sh` was **already RED on icon before any edit here** (5 warnings). It is now **3, all M-cell, all hq_B's rungs lane**; the vendor side is consistent. Neither remaining red is mine and neither was made worse.
 
 ⛔⭐⭐ **FOUR ROWS I MINTED TODAY COULD NEVER HAVE CLOSED, INCLUDING MY OWN.** `mint` writes `DONE-WHEN: ⛔ MUST BE MADE RUNNABLE…` **silently**, so a row looks filed and is uncloseable; I wrote my acceptance test as *prose inside the GOAL* and never noticed. Found only when `done` refused my own flip row. All four now carry **runnable self-contained commands, each proven RED (rc=1) once** — `ifncsgen`, the `seq` shadowing witness, the limitation witness, and declchck's own. ⭐ **This is the placeholder class this cursor already recorded at eighteen rows, recurring — and it recurred in the hands of the person who closed it last time.** A row's DONE-WHEN is the only part a future seat executes; everything else is commentary.
 
@@ -760,9 +760,9 @@ Row `flip-ipl-declchck`, rank 0, minted with a DONE-WHEN **proven RED (rc=1) bef
 
 **ARM, and it is the runner's own and not my grader's:** all ten unmarked entries read `PASS` in `test_icon_all_rungs.sh` **and** `test_icon_x64_all_rungs.sh` — XFAIL 20 → 10, ten converted to real passes, zero new FAILs. Refs re-cut from the vendored source for `nargs`, `fncs`, `struct`, `errors`; `io`/`others`/`recent` refs deliberately NOT re-cut, because a `.dat`-fed ref is one the runner cannot currently match.
 
-⚠️ **STILL RED in my lane (J–Z and neighbours), for the next sitting:** `misc`, `recent`, `sorting`, `struct`, `evalx`, `fncs`, `gener`, `io` (m4 only). `errors` additionally aborts the m4 compiler (`IR op=16 has no template`) and is hq_U's rank-0 row, not counted here. **The 20 markers are DISJOINT from `ALL.csv`** (confirmed, hq_T's finding) so none of this moves the master denominator — the honesty gap hq_T minted is the real exposure, not the markers.
+⚠️ **STILL RED in my lane (J–Z and neighbours), for the next sitting:** `misc`, `recent`, `sorting`, `struct`, `evalx`, `fncs`, `gener`, `io` (m4 only). `errors` additionally aborts the m4 compiler (`IR op=16 has no template`) and is hq_U's rank-0 row, not counted here. **The 20 markers are DISJOINT from `ALL.csv`** (confirmed, hq_T's finding) so none of this moves the rungs denominator — the honesty gap hq_T minted is the real exposure, not the markers.
 
-⛔ **A PROCESS MISS, RECORDED BECAUSE IT NEARLY SHIPPED UNPROVEN:** I chained `pull --rebase`, gate and `push` in one command; the gate returned **rc=2** (the stale-binary refusal firing correctly after the rebase pulled a `Makefile` change) and the push went out anyway. Rebuilt and re-proved green afterwards. **A refusal in the middle of a chain reads exactly like a pass to the `&&` after it.** ⭐ Also: `pgrep -f board_icon_master` matched my own shell command line and reported the board "still running" for several minutes after it had finished — the broad-pattern hazard this cursor already records, this time costing a wait rather than a kill.
+⛔ **A PROCESS MISS, RECORDED BECAUSE IT NEARLY SHIPPED UNPROVEN:** I chained `pull --rebase`, gate and `push` in one command; the gate returned **rc=2** (the stale-binary refusal firing correctly after the rebase pulled a `Makefile` change) and the push went out anyway. Rebuilt and re-proved green afterwards. **A refusal in the middle of a chain reads exactly like a pass to the `&&` after it.** ⭐ Also: `pgrep -f board_icon_rungs` matched my own shell command line and reported the board "still running" for several minutes after it had finished — the broad-pattern hazard this cursor already records, this time costing a wait rather than a kill.
 
 **2026-09-09 hq_I — SECOND ICON CURE THE SAME SITTING: `seq()`'s null arguments (SCRIP `66f50d93c`), plus hq_U's GATE-WIRING blocker cleared.**
 

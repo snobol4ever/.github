@@ -24,12 +24,12 @@ plus one phantom defect caught before it was reported.
 
 **7. `rebus-renumber-stale-banner-seqs` — LANDED, corpus `47fb19a4c`.** hq_T's row, their tool: 33 of 43 banner seq
 numbers in both `ALL.reb` and `ALL.ref` no longer equalled their entry positions (corpus `a6646f04c` removed the 620
-`modes=ast` entries from all seven masters without renumbering; readers re-derive seq positionally while writers print
-it back, so every master silently lost the invariant). 4/4 proof arms, and I verified the diff shape independently: 66
+`modes=ast` entries from all seven rung suites without renumbering; readers re-derive seq positionally while writers print
+it back, so every rung suite silently lost the invariant). 4/4 proof arms, and I verified the diff shape independently: 66
 changed lines per file, **zero** non-banner. ⭐ My earlier XFAIL promotion and this renumber **compose only because the
 promotion was complete in both files** — `make_banner` re-prints the XFAIL suffix from the entry's flag and the flag is
 read from the banner. Checked, not assumed: 0 XFAIL residual, every banner still 80 columns. ⛔ **CORRECTION TO THE ROW
-AS RECEIVED:** hq_T said the stale banners made `util_add_ladder_witness.py` refuse on my master. **It has no Rebus arm
+AS RECEIVED:** hq_T said the stale banners made `util_add_ladder_witness.py` refuse on my rungs. **It has no Rebus arm
 at all** — `--lang` choices come from `sorted(ORACLE)` and ORACLE holds exactly `icon, snobol4, snocone, raku`, so
 `--lang rebus` dies in argparse before a byte is read. **A restored invariant is not a restored capability.** ⭐ Why
 there is no arm is structural and the cure exists: ORACLE maps a language to an oracle BINARY and **Rebus has none**
@@ -87,7 +87,7 @@ everywhere. **What moved is legitimate**: the `SNO$STMT`/`stmt_mark` statement-c
 (`lower_snobol4.c:927`, `bb_stmt_mark.cpp:15`) that made `g_stno`/`g_line`/`g_stcount` correct for the termination
 report; Rebus lowers through `lower_snobol4.c`. ⛔⭐ **I DID NOT RE-PIN, AND THAT IS THE FINDING:** the preamble's
 third port carries the **SOURCE FILE NAME**, and the shared `norm()` does not strip it — **the same program under two
-filenames yields two different NORMALISED traces**, measured. Since `master_extract_origin` materialises every witness
+filenames yields two different NORMALISED traces**, measured. Since `rungs_extract_origin` materialises every witness
 under its 40–60-char ORIGIN name, `--cut` today would pin three refs to the harness's extraction basename. ⭐ The
 identical hazard is already written down in `lib_ladder.sh` for Icon's stderr trace — *"a self-pin on a harness temp
 filename … would rot the first time an origin is renamed"* — so the warning existed, in a file nobody reads while
@@ -107,9 +107,9 @@ exposed" because I hand-wrote both witnesses, both were parse errors, and **two 
 comparison arrives wearing the exact shape of a passing one. Printing the `trace_lines=` denominator beside each
 verdict flipped Snocone to exposed.
 `FINDING-2026-09-13-hq_S-the-port-trace-self-pins-cannot-be-re-cut-without-baking-the-witness-filename-into-the-ref-and-all-nine-gates-are-unwired.md`.
-⛔ **`test_rebus_parser_fixtures` REFUSES rc=2** — the Rebus master carries no `parser` family at all (all 43 entries
+⛔ **`test_rebus_parser_fixtures` REFUSES rc=2** — the Rebus rungs carries no `parser` family at all (all 43 entries
 are `family=ladder`), so **item 4 of the seven-point standard is NOT BUILT for Rebus.** So "Rebus is closed" is true of
-the master and the ladder and **false of the seven-point standard**; told the coo so rather than let a closed flag
+the rungs and the ladder and **false of the seven-point standard**; told the coo so rather than let a closed flag
 stand that item 4 contradicts. Mine, not claimed yet.
 
 **2026-09-13 ~23:xx CDT hq_S — SITTING LEDGER PART 5 (NONET, REBUS LADDER + SNOBOL4 RUNTIME).** Tree SCRIP `0f0ccd138`,
@@ -117,7 +117,7 @@ corpus `ef6aff5b6`, incremental `make`, `RT_OPT=-O0`. Four things closed and one
 
 **1. THE REBUS LADDER IS GREEN AT ITS DECLARED TOP.** `test_rebus_ladder.sh` reads **rungs 0..11, PASS=86 FAIL=0** over
 43 witnesses x 2 modes. All 12 rungs declared in `corpus/tests/rebus/config/LADDER.tsv` are BUILT; `ALL.csv` carries 43
-entries and the xfail column is **0 for all 43**. ⛔ **The MODE line's "the RebM gap (38 of 43) and its 4 xfails" is
+entries and the xfail column is **0 for all 43**. ⛔ **The MODE line's "the RebRungs gap (38 of 43) and its 4 xfails" is
 STALE — there is no `corpus/tests/rebus/ALL.xfail` file at all** (`ls corpus/tests/*/ALL.xfail` finds snocone's, not
 Rebus's). ⛔ **SCORE.md's rebus grid cell L is worse than stale, it is FALSE**: it says *"6 of 12 rungs built — `--to 11`
 REFUSES rc=2"*, and `--to 11` grades clean. `util_score_row.py` REFUSES to rewrite that cell because a person wrote six
@@ -148,8 +148,8 @@ landing**, so this is an ask with the measurement. Gate written and **deliberate
 `test_gate_sno_subscripted_replacement_does_not_leak_the_spine.sh`, 11 witness-modes, 5s, PASS=8 FAIL=3, arm 2 asserting
 the **leak** rather than the crash. `FINDING-2026-09-13-hq_S-a-subscripted-replacement-leaks-64-bytes-of-spine-per-execution-so-the-function-return-pops-data-instead-of-its-continuation.md`.
 ⭐ **COVERAGE GAP IN MY OWN LANE, NAMED:** `corpus/tests/snobol4/ALL.sno` has **zero** entries with a subscripted
-replacement subject — which is exactly why the master reads clean while `PERMS_driver` dies. The master witness waits on
-the cure; a red entry in the master is not a cure. **ATTRIBUTED: `PERMS_driver` only.** `ARC_driver` (dies on its first
+replacement subject — which is exactly why the rungs reads clean while `PERMS_driver` dies. The rungs witness waits on
+the cure; a red entry in the rungs is not a cure. **ATTRIBUTED: `PERMS_driver` only.** `ARC_driver` (dies on its first
 `ASIN`, defined by `DEXP` — the CODE family), `IMAGE_driver` and `PEEL_driver` (zero output, dying during `-INCLUDE`
 load) are **three separate rows, not claimed**.
 
@@ -344,7 +344,7 @@ dies loudly; a silent wrong answer there would be worse than the error. Recorded
 **ROW 2 — `rebus-master-four-stale-xfail-markers-are-xpass-and-there-is-no-xfail`.** `simple_output_25`,
 `alt_replace_3`, `len_capture_1`, `len_1` carried `xfail=1` and all four PASS. Each is a REFUSE witness whose
 rc=1 is **already declared in `ALL.wantrc`** with a written reason, so the marker graded nothing and only made
-RebM read XPASS=4 — which is how RebM read 38/43 while holding exactly ONE real failure. ⛔ **I did not claim the
+RebRungs read XPASS=4 — which is how RebRungs read 38/43 while holding exactly ONE real failure. ⛔ **I did not claim the
 XPASS flip: the ladder does not read the xfail column, so my gate cannot witness it.** What is proven is that the
 cells are clear and the four entries pass in both modes; the 4→0 flip is the coo's next board read (ONE RUNNER).
 
@@ -355,7 +355,7 @@ unworked). Same shape as the MODE-file trap in the digest — **the ruling is cu
 dispatches on it is days behind**, so a seat obeying the tool and a seat obeying the telegram land in different
 worlds. Not cured by me: `s4e_msg.sh` is hq_B's instrument lane. (2) This baton's DONE-WHEN was the unrunnable
 placeholder; I **wrote a real one rather than overriding**, and made it grade the SEMANTICS on a FRESH program in
-both modes before the ladder's 38/38, so it is not circular on the master entry.
+both modes before the ladder's 38/38, so it is not circular on the rungs entry.
 
 ⛔ **AND ONE AGAINST MYSELF, MEASURED:** I hit the backtick trap in a postoffice message — the third recorded
 occurrence in the digest is *also* a postoffice message — and shipped an ask to the ceo with a word eaten. I had
@@ -451,7 +451,7 @@ m4_FAIL=18 m4_REJECT=30 m4_CRASH=0` against the previous row's **71/120** — **
 regression and the check that proves it is the name list, not the counts:** the RED-M3 name lists are
 byte-identical pre- and post-rebase, so one program was reclassified crash→fail by origin's new commits.
 Counts moved, membership did not — and a count comparison alone would have read as a new red.
-SNOBOL4 master control arm, runner's own line on `e8a6d2a65`: `mode-3 (--run): PASS=1857 FAIL=1` /
+SNOBOL4 rungs control arm, runner's own line on `e8a6d2a65`: `mode-3 (--run): PASS=1857 FAIL=1` /
 `mode-4 (--compile): PASS=1857 FAIL=1 SKIP=0 (1858 total)`, the single red NAMED by targeted rerun as
 `user_function_keyword_branch_3` — hq_P's rank-0 standing red, so no worse than a clean tree (CEO-365).
 ⛔ **TWO DENOMINATORS, TWO POPULATIONS, NOT A DISAGREEMENT** (coo hit this within the hour): the runner
@@ -464,7 +464,7 @@ rebase: the identical m3 and m4 pipelines run against `label.sno` reported RED e
 CURSOR.** (1) `pkill -f corpus_suite_harness` **matched its own command line** and killed the shell running
 it (rc=144), so a rebase I believed had run silently had not. This trap is recorded two paragraphs down
 from a previous sitting — filing a lesson is not the same as holding it. The guard is a bracket:
-`pgrep -f 'corpus_suite[_]harness'`. (2) Naming the master red by `grep -iE 'FAIL'` over the harness output
+`pgrep -f 'corpus_suite[_]harness'`. (2) Naming the rungs red by `grep -iE 'FAIL'` over the harness output
 returned EMPTY, which reads as "no failures"; the harness had in fact **REFUSED with rc=2** for want of
 `--by-modes-column` (without it, 28 `modes=ast` entries are executed and diffed against AST dumps,
 manufacturing meaningless reds). **Capture-then-test — `out=$(cmd 2>&1); rc=$?` — is what surfaced it.**

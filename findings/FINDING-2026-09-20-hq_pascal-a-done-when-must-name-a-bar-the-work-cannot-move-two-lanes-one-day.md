@@ -15,14 +15,14 @@ Two rank-0 rows were **auto-closed by the picker at dispatch** on 2026-09-20, in
 
 ## THE PASCAL MEASUREMENT
 
-All 246 Pascal master entries extracted **by name** and run **alone**, m3, `SCRIP_HEAP_MB=1`, `SCRIP_ZETA_TELEM=1`, per-entry `regeneration #` lines counted:
+All 246 Pascal rungs entries extracted **by name** and run **alone**, m3, `SCRIP_HEAP_MB=1`, `SCRIP_ZETA_TELEM=1`, per-entry `regeneration #` lines counted:
 
 ```
 stress 0: entries=246 collectors=0   non_collectors=246 could_not_measure=0 regenerations=0   ; PASS=246 FAIL=0
 stress 3: entries=246 collectors=246 non_collectors=0   could_not_measure=0 regenerations=799 ; PASS=246 FAIL=0
 ```
 
-⛔ **A perfect `PASS=246 FAIL=0` board over a population that never ran a collector once.** Pascal's master **is** clean at the tiny arena — but **only the stress-3 arm proves it**, and the closed row's criterion is the stress-0 one. `SCRIP_GC_STRESS` **unset is zero forced collections**, and no `rc`, no denominator and no `FAIL=0` anywhere in a pass/fail instrument can say so.
+⛔ **A perfect `PASS=246 FAIL=0` board over a population that never ran a collector once.** Pascal's rungs **is** clean at the tiny arena — but **only the stress-3 arm proves it**, and the closed row's criterion is the stress-0 one. `SCRIP_GC_STRESS` **unset is zero forced collections**, and no `rc`, no denominator and no `FAIL=0` anywhere in a pass/fail instrument can say so.
 
 ⭐ **Why a higher band point does not rescue it:** a *higher* plant collects *less* often, so a high point can go inert for exactly the same reason the tiny arena did. The liveness question must be asked **separately, first, and at every band point**, refusing rc=2 over an inert one.
 

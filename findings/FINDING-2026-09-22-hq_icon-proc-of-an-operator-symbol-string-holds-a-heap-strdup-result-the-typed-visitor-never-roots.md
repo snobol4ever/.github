@@ -1,7 +1,7 @@
 # FINDING 2026-09-22 hq_icon — `proc("<op>", n)` procedure values hold a heap string the collector never visits
 
 **Seat** hq_icon · **Mode** DECTET · **Trigger** ceo's CEO-1151 ask (re-run Jcon, name the still-red class) plus
-the Icon master's `SCRIP_GC_STRESS=5` row (task `icon-master-under-scrip-gc-stress-5-...`, step (4)/write_253).
+the Icon rungs' `SCRIP_GC_STRESS=5` row (task `icon-master-under-scrip-gc-stress-5-...`, step (4)/write_253).
 
 ## THE DEFECT, TWO INDEPENDENT WITNESSES
 
@@ -14,7 +14,7 @@ garbage, and the runtime reports it as `error 106: procedure or integer expected
 rendered as literal garbage bytes (`in {P<48 raw bytes>&null} from line N`) — the garbage IS the corrupted
 `.s` pointer being printed, not a second bug.
 
-- **corpus/tests/icon/ALL.icn `procedure_write_253`** (Icon master, `SCRIP_GC_STRESS=5`): `f := proc("~===",2);
+- **corpus/tests/icon/ALL.icn `procedure_write_253`** (Icon rungs, `SCRIP_GC_STRESS=5`): `f := proc("~===",2);
   write("A:", image(f(1)))` — PASSES with plain `./scrip` (no output diff from `icont`), FAILS under
   `SCRIP_GC_STRESS=5` with the exact `error 106`/garbage-image shape above, zero stdout (icont: `A:&null B:2
   C:&null D:&null E:7`, all five lines).

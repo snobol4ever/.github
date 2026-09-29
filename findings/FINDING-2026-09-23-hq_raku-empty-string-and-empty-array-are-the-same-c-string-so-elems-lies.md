@@ -11,7 +11,7 @@ say(@vals.elems);   # real Raku: 1   -- SCRIP: 0
 say(@vals);         # both:      []  -- an array holding one EMPTY STRING prints identically to an empty array
 ```
 
-`corpus/tests/scrip_test/raku/rk_given18.raku` (master entry `scrip_test_rk_given18`, rank 881) hits this for
+`corpus/tests/scrip_test/raku/rk_given18.raku` (rungs entry `scrip_test_rk_given18`, rank 881) hits this for
 real: `my @vals = ''; push(@vals,1..4);` should be a 5-element array (`'', 1, 2, 3, 4`) and print 5 `got-*`
 lines under the `given`/`for` loop; SCRIP's `@vals` starts at 0 elements (the leading `''` is invisible) and
 prints only 4. `--trace` confirms SCRIP's own event stream sees ONE `VALUE @vals = ''` store, so the value

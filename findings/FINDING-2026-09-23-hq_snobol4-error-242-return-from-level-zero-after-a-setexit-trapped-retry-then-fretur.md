@@ -1,8 +1,8 @@
-# FINDING — ERROR 242 "function return from level zero" fires after a SETEXIT-trapped retry then FRETURN; both standing SnoM master reds are this one bug (hq_snobol4, 2026-09-23)
+# FINDING — ERROR 242 "function return from level zero" fires after a SETEXIT-trapped retry then FRETURN; both standing SnoRungs reds are this one bug (hq_snobol4, 2026-09-23)
 
 ## Symptom
 
-Both of the SnoM master's two standing (pre-existing, non-xfail) reds — `dupl_size_replace_branch_1`
+Both of the SnoRungs' two standing (pre-existing, non-xfail) reds — `dupl_size_replace_branch_1`
 and `size_keyword_replace_branch_1` (both in the `beauty_suite_ReadWrite_driver` / `ReadWrite.inc`
 family, `corpus/include/ReadWrite.inc`) — fail identically:
 
@@ -75,8 +75,8 @@ signal this machinery is not SNOBOL4-exclusive. This matches this row's own **pr
 (2026-09-22, topic `snobol4-c2bb-regression-58-code-eval-indirect-entries-broken-since-your-14-commit-landing`):
 ERROR 242 in this exact shape (`by_name_dispatch.c`/`runtime_eval.c`/`rt.c`) was already named there as
 a shared-node regression, not landable directly. That regression has since been LARGELY cured by the
-officers (SnoM m3 FAIL dropped 58 → 2, m4 44 → 7 across intervening landings) — these two entries are
-the last SnoM-master remnant of it, now localized to the specific SETEXIT-trap-resume-then-FRETURN
+officers (SnoRungs m3 FAIL dropped 58 → 2, m4 44 → 7 across intervening landings) — these two entries are
+the last SnoRungs-rungs remnant of it, now localized to the specific SETEXIT-trap-resume-then-FRETURN
 shape above, which is more specific than the original report.
 
 ## Ask

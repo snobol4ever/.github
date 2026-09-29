@@ -5,7 +5,7 @@ flipped green per hour?" · "Are you tracking every single package test suite an
 
 The table: /home/resources/progress/results.tsv (writer: SCRIP/scripts/util_progress_append.py; contract in its docstring).
 
-  util_progress_flips.py [--since 3d|12h] [--per hour|day|10m] [--mode m3|m4|ast|any] [--class master|package|benchmark]
+  util_progress_flips.py [--since 3d|12h] [--per hour|day|10m] [--mode m3|m4|ast|any] [--class rungs|package|benchmark]
                          [--suite KEY] [--live-only] [--names]
         the flip histogram: per bucket, programs that went not-PASS -> PASS (+) and PASS -> not-PASS (-), from
         consecutive readings of the same (suite, program, mode). Zero rows in a window prints "no rows recorded", never 0 flips.
@@ -28,7 +28,7 @@ SUITES_TSV = os.path.join(HERE, "..", "SUITES.tsv")
 PO = "/home/resources/postoffice"
 # ⛔ THE SUITES.tsv KEY -> PROGRESS SUITE MAP IS READ FROM ITS ONE AUTHORITY, NEVER COPIED HERE (coo 2026-09-24, on the ceo's CEO-1230
 # tick: "X64T MISSING by KEY MISMATCH (SUITES.tsv x64tests, the runner appends spitbol_x64, 1656 rows; util_suite_rows_vs_progress.py
-# maps it, util_progress_flips.py --coverage does not"). This file carried its own copy, MASTER_KEYS, which knew the seven masters and
+# maps it, util_progress_flips.py --coverage does not"). This file carried its own copy, RUNGS_KEYS, which knew the seven rung suites and
 # not x64tests, so --coverage printed X64T MISSING beside 1656 live rows under "(not in SUITES.tsv)" -- two instruments, two answers,
 # one table. It now imports DBNAME from SCRIP/scripts/util_suite_rows_vs_progress.py, the map that audit already used.
 def suite_db_names():
@@ -160,25 +160,25 @@ def cmd_flips(a, rows):
             ups[(b, r["class"])].append(f'{r["suite"]}:{r["program"]}:{r["mode"]}' + ('' if r["config"] == "undeclared" else f' @{r["config"]}'))
         if prev["outcome"] == "PASS" and r["outcome"] != "PASS":
             downs[(b, r["class"])].append(f'{r["suite"]}:{r["program"]}:{r["mode"]}' + ('' if r["config"] == "undeclared" else f' @{r["config"]}'))
-    print(f"bucket({a.per}, UTC)   master +/-   package +/-   bench +/-   (mode {a.mode}; class {a.klass}; rows {len(sel)}; since {since}{'; live only' if a.live_only else ''})")
+    print(f"bucket({a.per}, UTC)   rungs +/-   package +/-   bench +/-   (mode {a.mode}; class {a.klass}; rows {len(sel)}; since {since}{'; live only' if a.live_only else ''})")
     if in_window == 0:
         newest = sel[-1]["ts_utc"] if sel else "none"
         print(f"  NO ROWS RECORDED in the window -- the newest matching row is {newest} ({age_str(newest) if sel else '-'} old). This is a recording gap, not zero flips.")
     buckets = sorted({b for b, _ in list(ups) + list(downs)})
     tm = tp = tb = 0
     for b in buckets:
-        mu, md = len(ups[(b, "master")]), len(downs[(b, "master")])
+        mu, md = len(ups[(b, "rungs")]), len(downs[(b, "rungs")])
         pu, pd = len(ups[(b, "package")]), len(downs[(b, "package")])
         bu, bd = len(ups[(b, "benchmark")]), len(downs[(b, "benchmark")])
         tm += mu; tp += pu; tb += bu
         print(f"{b:20s} {mu:5d}/{md:<4d}   {pu:5d}/{pd:<4d}   {bu:4d}/{bd:<4d}  " + ("#" * min(mu + pu + bu, 60)))
         if a.names:
-            for k in ((b, "master"), (b, "package"), (b, "benchmark")):
+            for k in ((b, "rungs"), (b, "package"), (b, "benchmark")):
                 for x in ups[k]:
                     print("    +", x)
                 for x in downs[k]:
                     print("    -", x)
-    print(f"TOTAL newly-passing in window: master {tm}, package {tp}, benchmark {tb}  (rows in window: {in_window})")
+    print(f"TOTAL newly-passing in window: rungs {tm}, package {tp}, benchmark {tb}  (rows in window: {in_window})")
     # ⛔⭐ A ZERO MUST SAY WHICH ZERO IT IS (coo 2026-09-21, ceo rank 0 at CEO-1047/CEO-1050). The old code said
     # "this is a recording gap, not zero flips" ONLY when the window held no rows at all -- so the far more
     # common shape printed a confident 0 with nothing beside it: rows arriving all afternoon, every one of them
@@ -223,14 +223,14 @@ def cmd_flips(a, rows):
     # ⛔⭐ A STOPPED UNDECLARED SERIES IS SUPERSEDED, NEVER A VERDICT OF ITS OWN (coo 2026-09-23, row instruments-progress-flips-counts-a-
     # program-lost-when-its-runner-began-declaring-a-config-and-the-undeclared-series-stopped; the ceo's 17:0x measurement). Keying on the
     # config is right (a shipped PASS must never hide an arena FAIL), but the day a runner began DECLARING its config, the program's
-    # undeclared series stopped, and its last reading stayed its verdict forever: 37 master programs read LOST over 09-20..09-23 while every
+    # undeclared series stopped, and its last reading stayed its verdict forever: 37 rungs programs read LOST over 09-20..09-23 while every
     # one PASSED on its latest published clean reading. ONE RULE: an undeclared series is SUPERSEDED when the declared series that
     # CONTINUES it -- the same (suite, program, mode) at a configuration in CONTINUES_UNDECLARED -- has a clean reading after its last one.
     # It stops being a position, and the continuing series, when it was BORN INSIDE THE WINDOW after the undeclared base, INHERITS that
     # base, so the program is compared base -> now ACROSS the switch: a regression across the change stays LOST, a red-to-green across it
     # is a GAIN (the mirror the old rule missed), a green-then-red across it is no longer a gain (the mirror false gain). ⛔ ONLY THE
     # CONTINUING SERIES INHERITS. The first cut handed the base to EVERY declared series born in the window, and on the frozen 4.18M-row
-    # snapshot master LOST went 37 -> 83: sixty stress and arena series (SCRIP_HEAP_MB=1, SCRIP_GC_STRESS=N, born inside the window, most
+    # snapshot rungs LOST went 37 -> 83: sixty stress and arena series (SCRIP_HEAP_MB=1, SCRIP_GC_STRESS=N, born inside the window, most
     # of them STOPPED) read as losses against an undeclared PASS they never continued. Across configurations a change is a differential,
     # not a flip (this function's own rule, and --contradictions says the same), so an arena series keeps its own base exactly as before.
     # A declared series is NEVER superseded: one whose own base was green and whose last reading is red stays LOST even beside a later
@@ -282,15 +282,15 @@ def cmd_flips(a, rows):
             if k in inherited:
                 gained_across.add((suite, prog))
         if base.get(k) == "PASS" and latest.get(k) != "PASS":
-            # ⛔ A PASS THAT BECAME OUTSIDE IS A RECLASSIFICATION, NOT A LOSS (ceo CEO-806, 2026-09-16: seven of nine 'master losses' were the
-            # SnoM ALL.outside.tsv entries appended as OUTSIDE by hq_snobol4's runner, whose 'last PASS' was the false green CEO-749 named).
+            # ⛔ A PASS THAT BECAME OUTSIDE IS A RECLASSIFICATION, NOT A LOSS (ceo CEO-806, 2026-09-16: seven of nine 'rungs losses' were the
+            # SnoRungs ALL.outside.tsv entries appended as OUTSIDE by hq_snobol4's runner, whose 'last PASS' was the false green CEO-749 named).
             # 'lost' keeps PASS -> FAIL/CRASH/HANG (and the rest of the red family); the reclassified are printed on their own line, named.
             (reclass if latest.get(k) in RECLASS else dark if latest.get(k) in DARK else lost)[cls].add((suite, prog))
     print(f"NET distinct programs green now, not green at the window base (dirty rows skipped: {dirty_skipped}): "
-          f"master {len(net['master'])}, package {len(net['package'])}, benchmark {len(net['benchmark'])}; "
-          f"lost since the base: master {len(lost['master'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}; "
-          f"went DARK (PASS -> DEFERRED/UNGRADABLE: a program that passed and is no longer graded -- not red, and never no loss): master {len(dark['master'])}, package {len(dark['package'])}, benchmark {len(dark['benchmark'])}; "
-          f"reclassified (PASS -> OUTSIDE, CEO-806, not a loss): master {len(reclass['master'])}, package {len(reclass['package'])}, benchmark {len(reclass['benchmark'])}; "
+          f"rungs {len(net['rungs'])}, package {len(net['package'])}, benchmark {len(net['benchmark'])}; "
+          f"lost since the base: rungs {len(lost['rungs'])}, package {len(lost['package'])}, benchmark {len(lost['benchmark'])}; "
+          f"went DARK (PASS -> DEFERRED/UNGRADABLE: a program that passed and is no longer graded -- not red, and never no loss): rungs {len(dark['rungs'])}, package {len(dark['package'])}, benchmark {len(dark['benchmark'])}; "
+          f"reclassified (PASS -> OUTSIDE, CEO-806, not a loss): rungs {len(reclass['rungs'])}, package {len(reclass['package'])}, benchmark {len(reclass['benchmark'])}; "
           f"superseded undeclared series (a declared series of the same program and mode read after their last reading, so they are not positions): {len(superseded)}")
     if a.names:
         # ⭐ WHAT THE OLD RULE MADE OF EACH SUPERSEDED SERIES IS PRINTED BESIDE IT, and every gain is named, because the ceo's 17:0x
@@ -302,14 +302,14 @@ def cmd_flips(a, rows):
             was = (" -- the old rule read this series a LOSS" if base[u] == "PASS" and latest[u] != "PASS" and latest[u] not in RECLASS and latest[u] not in DARK
                    else " -- the old rule read this series a GAIN" if base[u] != "PASS" and latest[u] == "PASS" else "")
             print(f"    superseded {u[0]}:{u[1]} {u[2]}: undeclared last {ur['outcome']} {ur['scrip']} {ur['ts_utc'][:16]} -> @{d[3]} {dr['outcome']} {dr['scrip']} {dr['ts_utc'][:16]}{was}")
-        for cls in ("master", "package", "benchmark"):
+        for cls in ("rungs", "package", "benchmark"):
             for suite, prog in sorted(net[cls]):
                 print(f"    gained {suite}:{prog}" + (" (across the config switch: red on the undeclared base, green on a declared series now)" if (suite, prog) in gained_across else ""))
-        for cls in ("master", "package", "benchmark"):
+        for cls in ("rungs", "package", "benchmark"):
             for suite, prog in sorted(dark[cls]):
                 _to = sorted({f"{m_} {v}" for (s_, p_, m_, c_), v in latest.items() if (s_, p_) == (suite, prog) and v in DARK})
                 print(f"    went dark {suite}:{prog} -> {', '.join(_to)} (it passed at the base; no graded reading since)")
-        for cls in ("master", "package", "benchmark"):
+        for cls in ("rungs", "package", "benchmark"):
             for suite, prog in sorted(reclass[cls]):
                 _to = sorted({v for (s_, p_, m_, c_), v in latest.items() if (s_, p_) == (suite, prog) and v in RECLASS})
                 print(f"    reclassified {suite}:{prog} -> {'/'.join(_to)}")
@@ -317,7 +317,7 @@ def cmd_flips(a, rows):
         # ⛔ A LOST COUNT WITHOUT NAMES CANNOT BE TRIAGED (ceo CEO-778(4)/CEO-779(5); coo 2026-09-16, row util-progress-flips-names-
         # every-lost-since-base-program): one `lost` line per program with the modes it lost, the last tree and time it read PASS,
         # and the tree, time and outcome it reads now -- the same shape as the +/- flip lines, and a row for its HQ by name.
-        for cls in ("master", "package", "benchmark"):
+        for cls in ("rungs", "package", "benchmark"):
             for suite, prog in sorted(lost[cls]):
                 parts = []
                 for k in sorted(k for k in latest if k[0] == suite and k[1] == prog and k not in superseded):
@@ -343,7 +343,7 @@ def cmd_contradictions(a, rows):
     anything was overwritten. That is the shape this command refuses to leave silent.
 
     Measured on the live table when this was written (2026-09-21, before the `config` column existed): 139 such
-    keys since 09-20, e.g. raku-master token_say_4 m3 reading both PASS and FAIL at the CLEAN tree 5418432bb.
+    keys since 09-20, e.g. raku-rungs token_say_4 m3 reading both PASS and FAIL at the CLEAN tree 5418432bb.
     Those historical rows all read config=undeclared and CANNOT be disambiguated after the fact -- naming them is
     the honest thing available. A contradiction between two DECLARED configurations is not listed here: that is a
     differential finding, and it is what the new key preserves instead of destroying.
@@ -693,9 +693,9 @@ def cmd_register(a, rows):
         modes = e["modes"]
         graded = {m: d["outcome"] for m, d in modes.items()}
         # ⛔ THE STATUS IS READ OVER THE GRADED MODES, m3 AND m4, WHEREVER THE PROGRAM HAS ONE (coo 2026-09-25, ceo CEO-1269).
-        # The harness's dead "ast" default graded --dump-ast against run refs and wrote rebus-master ast FAIL rows three
+        # The harness's dead "ast" default graded --dump-ast against run refs and wrote rebus-rungs ast FAIL rows three
         # times (coo 09-21, ceo 09-24 and 09-25), so arith_divide at the shipped config read PARTIAL(m3,m4) with m3 and m4
-        # both PASS -- 75 rebus-master register rows carried ast=FAIL. ast still decides an entry that was only ever
+        # both PASS -- 75 rebus-rungs register rows carried ast=FAIL. ast still decides an entry that was only ever
         # graded in ast (the parser-ladder entries before corpus a6646f04c), and its column is still printed.
         basis = {m: o for m, o in graded.items() if m in ("m3", "m4")} or graded
         passing = [m for m, o in basis.items() if o == "PASS"]

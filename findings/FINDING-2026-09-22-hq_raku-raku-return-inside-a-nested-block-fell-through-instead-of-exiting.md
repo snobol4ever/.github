@@ -45,8 +45,8 @@ the existing `loop_exit`/`loop_next` pair used for `break`/`next`). `TT_RETURN` 
 
 **Verified:** four hand-written witnesses (bare early-return, early-return feeding a further recursive
 call, a traced version, and the original stack-overflow repro) all correct in both m3 and m4 after the fix.
-`test_smoke_raku.sh` 10/10 both modes unchanged. `test_raku_ladder.sh --to 20` 218/218 unchanged. RakM
-master suite: 865/929 -> 866/929 both modes (`scrip_test_rk_subs` flips PASS; it was the one master-suite
+`test_smoke_raku.sh` 10/10 both modes unchanged. `test_raku_ladder.sh --to 20` 218/218 unchanged. RakRungs
+rungs suite: 865/929 -> 866/929 both modes (`scrip_test_rk_subs` flips PASS; it was the one rung suite-suite
 entry whose early-return sat inside a *further-mismatched* fallthrough rather than a merely-redundant one,
 which is why only one entry in this particular suite moved even though the defect is general).
 
@@ -67,6 +67,6 @@ sub A($k) {
 }
 A(5);
 ```
-Also separate and unresolved: the `benchmark_rc-*`/`point_class_add2` cluster in RakM all share the
+Also separate and unresolved: the `benchmark_rc-*`/`point_class_add2` cluster in RakRungs all share the
 "empty stdout, rc=1" fingerprint (md5 `d41d8cd9`) — that fingerprint is just "zero bytes on stdout" and is
 NOT evidence of one shared cause; each needs its own root-cause pass.

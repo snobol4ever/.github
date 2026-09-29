@@ -27,7 +27,7 @@ dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>
 
 # ⛔ STALE, NOT VERIFIED (seat16, citation sweep, 2026-08-29): both paths below are gone. Includes
 # now live at $S4E_HOME/corpus/include/ (confirmed present, 16 modules); beauty_suite/ as a loose-file
-# directory is confirmed gone (consumed into the master-suite consolidation). This symlink step likely
+# directory is confirmed gone (consumed into the rungs-suite consolidation). This symlink step likely
 # doesn't apply to whatever the current extraction recipe is — re-derive before running.
 # One-time (ORIGINAL, now unusable as literally written): symlink demo/inc into beauty/ so drivers find include files
 ln -sf /home/claude/corpus/programs/snobol4/demo/inc/* \
@@ -49,7 +49,7 @@ dotnet test TestSnobol4/TestSnobol4.csproj -c Release -p:EnableWindowsTargeting=
 
 **Beauty suite (19 drivers):** ⛔ **STALE, NOT VERIFIED (seat16, citation sweep, 2026-08-29) — see the
 same flag in `GOAL-NET-BEAUTY-19.md`: this directory of loose drivers is confirmed gone, consumed into
-the master-suite consolidation. Re-derive against the current master format before running.**
+the rungs-suite consolidation. Re-derive against the current rungs format before running.**
 ```bash
 export PATH=/usr/local/dotnet10:$PATH
 SNO4=/home/claude/snobol4dotnet/Snobol4/bin/Release/net10.0/Snobol4.dll

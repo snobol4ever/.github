@@ -4,7 +4,7 @@
 
 > ⛔⛔⭐⭐ **SUPERSEDED IN PART, BY ME, 40 MINUTES AFTER IT WAS WRITTEN — AND THE SUPERSESSION IS WORTH MORE THAN
 > THE ORIGINAL.** Everything measured below is TRUE and was GREEN OVER A LIVE DEFECT. The same tree, the same
-> binary, one knob added (`SCRIP_GC_STRESS=16`): **raku master m3 853 → 817, m4 853 → 824, 65 gradings lost, zero
+> binary, one knob added (`SCRIP_GC_STRESS=16`): **raku rungs m3 853 → 817, m4 853 → 824, 65 gradings lost, zero
 > gained, 36 distinct programs, every one exit 0 with a plausible wrong answer.** ⛔ **RAKU IS NOT CLEAN AT THE
 > TINY ARENA AND TENET CONDITION 1 IS NOT MET IN THIS LANE.** Rowed rank 0 as
 > `raku-gc-thirty-six-programs-return-a-silently-wrong-answer-under-forced-collection-and-the-arena-ab-reads-green-over-all-of-them`.
@@ -41,8 +41,8 @@ correct, and it clears no other lane. Four arms, each with its own denominator:
 
 | arm | population | result |
 |---|---|---|
-| master, arena A/B | 1858 (program,mode) gradings | **0 verdict divergences** |
-| master, output fingerprints | 40 printed non-passing gradings | **0 divergences in `fp=` or `rc`** |
+| rungs, arena A/B | 1858 (program,mode) gradings | **0 verdict divergences** |
+| rungs, output fingerprints | 40 printed non-passing gradings | **0 divergences in `fp=` or `rc`** |
 | benchmarks+demos, arena A/B | 17 programs, oracle-correct refs | **17 of 17 identical** (verdict, `fp`, rc) |
 | GC witnesses under stress | 3 witnesses × 8 stress points × 2 modes | **48 gradings, 0 mismatches** |
 
@@ -71,7 +71,7 @@ right answer into a right answer.**
 
 ## ⭐ THE SELF-PIN OBJECTION IS ANSWERED, NOT WAIVED
 
-`SCORE.md` has warned since 09-03 that the raku master's refs are a SELF-PIN, not an oracle — they were written by us,
+`SCORE.md` has warned since 09-03 that the raku rungs' refs are a SELF-PIN, not an oracle — they were written by us,
 rung by rung. Under CEO-391/395 rule 3 that caps what a green cell proves. **It does not cap this one**, and the reason
 is structural rather than a plea: this is an A/B between two arms on ONE tree, so both arms are graded against the same
 ref and the ref subtracts out; and arm 2 compares raw output bytes to each other, not to any ref at all. **A self-pinned
@@ -116,10 +116,10 @@ cwd, or discover its boards refusing later and not know why.
 
 `util_gc_census.py maps --zls-langs raku`: **graded=922 no_layout=7 (declared=2, defect=5), unkinded=0 holes=0, GREEN**
 (was no_layout=9 graded=918 at `621c08866`; `benchmark_rc-man-or-boy-test` and `benchmark_point_class_add2` gained
-layouts on the `:=` bind landing). The two DECLARED are role-composition diagnostics the master's own `ALL.wantrc`
+layouts on the `:=` bind landing). The two DECLARED are role-composition diagnostics the rungs' own `ALL.wantrc`
 declares must not compile — correct and permanent, not defects. **The five defects are front-end parse refusals and
-not collector holes, and that is measured rather than assumed: every no_layout entry is ALSO red on the master board,
-so the set is a SUBSET of the master's own reds.** They are rowed elsewhere
+not collector holes, and that is measured rather than assumed: every no_layout entry is ALSO red on the rungs board,
+so the set is a SUBSET of the rungs' own reds.** They are rowed elsewhere
 (`raku-the-sequence-operator-is-a-real-list-headed-operator-never-a-range-alias`,
 `raku-the-six-benchmark-graphs-with-no-frame-layout-are-cured-one-construct-family-at-a-time`).
 

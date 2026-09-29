@@ -73,14 +73,14 @@ This is the finding that changes work in flight, it sits in **`src/lower`, which
 
 ## §3 THE GC COVERAGE BLIND SPOT, AND THE CORRECTION THAT SAVES IT
 
-From `FINDING-2026-09-13-hq_V-the-master-corpus-does-not-exercise-the-collector-at-all-…` (deleted). Measured over every master entry with `SCRIP_ZETA_TELEM=1`, counting `[ZGC] regeneration` lines, at default settings:
+From `FINDING-2026-09-13-hq_V-the-master-corpus-does-not-exercise-the-collector-at-all-…` (deleted). Measured over every rung suite entry with `SCRIP_ZETA_TELEM=1`, counting `[ZGC] regeneration` lines, at default settings:
 
 ```
 icon ran=80  raku ran=80  snobol4 ran=80  prolog ran=80
 entries_that_collect = 0 (0.0%) in all four
 ```
 
-**320 entries, four frontends, zero collections.** Not a pacing artefact: forcing `LINE_MB=1` and `STRESS=100` on individual entries still yields 0; only `SCRIP_GC_STRESS=1` (collect on every allocation) makes one collect. The default GC line is 128 MB and master entries never approach 1 MB.
+**320 entries, four frontends, zero collections.** Not a pacing artefact: forcing `LINE_MB=1` and `STRESS=100` on individual entries still yields 0; only `SCRIP_GC_STRESS=1` (collect on every allocation) makes one collect. The default GC line is 128 MB and rungs entries never approach 1 MB.
 
 ⛔ **The seat's own conclusion — "no board CAN red a collector defect" — is FALSE, and the file carries its own correction, which is the more useful half.** `corpus/packages/snobol4/csnobol4_suite/intval.sno` **calls `COLLECT` explicitly, twice**, and already reds on the coo's board. A program whose source says `COLLECT` drives the collector by hand: no pacing change, no environment variable, no 128 MB budget. ⭐ **`COLLECT` in the source is the cheapest collector-witness form there is** — one statement — and it is a better answer than the "add witnesses large enough to cross the GC line" the seat first proposed.
 

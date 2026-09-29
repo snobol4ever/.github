@@ -4,7 +4,7 @@
 
 ## What the 31 no_layout entries actually are
 
-`util_gc_census.py maps --zls-langs raku` read `graded=896 no_layout=31` — 31 master entries the compiler refused a frame layout for, NAMED AND UNCOUNTED. Measured, not assumed:
+`util_gc_census.py maps --zls-langs raku` read `graded=896 no_layout=31` — 31 rungs entries the compiler refused a frame layout for, NAMED AND UNCOUNTED. Measured, not assumed:
 
 | class | n | the compiler's own reason | disposition |
 |---|---|---|---|
@@ -15,7 +15,7 @@
 | advanced benchmarks | 6 | same | one row each, below |
 | role-composition diagnostics | 2 | `Method 'x' must be implemented by class C ...` | DECLARE — these legitimately have no frame |
 
-**All 31 are also RED in RakM** (`util_raku_entry_grade.sh`, 31 graded, 0 green). So the no_layout set is a SUBSET of the master's own reds and never a hidden collector hole. It is still DARK by CEO-993's line, for a reason one level up: a graph with no frame layout has no frame map, so every leaf boundary inside it stores into an unmapped slot BY CONSTRUCTION — the cfo's CFO-129 sharp form ("only the leaf boundaries need rooting, AND the slot the boundary stores into has to be inside the frame map") generalized from one slot to a whole graph, 31 graphs of it in Raku alone.
+**All 31 are also RED in RakRungs** (`util_raku_entry_grade.sh`, 31 graded, 0 green). So the no_layout set is a SUBSET of the rungs' own reds and never a hidden collector hole. It is still DARK by CEO-993's line, for a reason one level up: a graph with no frame layout has no frame map, so every leaf boundary inside it stores into an unmapped slot BY CONSTRUCTION — the cfo's CFO-129 sharp form ("only the leaf boundaries need rooting, AND the slot the boundary stores into has to be inside the frame map") generalized from one slot to a whole graph, 31 graphs of it in Raku alone.
 
 ## The construct: a phaser is a position, not a keyword
 
@@ -47,7 +47,7 @@ rakudo runs the phasers after the body and before the value reaches the caller (
 
 ## The two entries that are DECLARED rather than cured — and the instrument that now says so
 
-✅ **LANDED, SCRIP `621c08866`**, granted by the ceo (CEO-1003) and by the cto with three conditions, after an ASK rather than a unilateral landing because `util_zls_frame_map_census.py` is a shared instrument whose `ZLS-MAP` token is frozen under CEO-821. A no-layout entry whose name carries a **non-zero `wantrc` in the master's own `ALL.wantrc`** is DECLARED: the suite itself says it must not compile, so having no frame is the correct and permanent answer. The field `no_layout_declared=N` is **appended** to the frozen line, printed for every language including zero, and `no_layout` keeps its meaning as the TOTAL. raku now reads `graded=918 no_layout=9 (declared=2 defect=7)`.
+✅ **LANDED, SCRIP `621c08866`**, granted by the ceo (CEO-1003) and by the cto with three conditions, after an ASK rather than a unilateral landing because `util_zls_frame_map_census.py` is a shared instrument whose `ZLS-MAP` token is frozen under CEO-821. A no-layout entry whose name carries a **non-zero `wantrc` in the rungs' own `ALL.wantrc`** is DECLARED: the suite itself says it must not compile, so having no frame is the correct and permanent answer. The field `no_layout_declared=N` is **appended** to the frozen line, printed for every language including zero, and `no_layout` keeps its meaning as the TOTAL. raku now reads `graded=918 no_layout=9 (declared=2 defect=7)`.
 
 **Why `ALL.wantrc` and not a new file:** the declaration is already in the data — it is the same sidecar `util_raku_entry_grade.sh` grades rc against — so it cannot go stale the way a hand-kept outside list can. 16 raku entries carry a non-zero wantrc and exactly 2 are in the no_layout set; the blast radius was measured before the ask. The other six languages' ratios are **not** measured and nothing is claimed about them: the field is sound for all seven because it is derived per entry, not because raku's ratio generalises.
 

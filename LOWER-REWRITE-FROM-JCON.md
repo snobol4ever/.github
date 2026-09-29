@@ -11,7 +11,7 @@ authoritative spec for that construct's 4-port wiring. Do NOT invent. Do NOT
 incrementally patch the existing `lower_icn_expr_node` switch tree.
 
 JCON is at `/home/claude/jcon-master/tran/irgen.icn` (clone from the user's
-upload, or fetch from JCON master). 1559 lines.
+upload, or fetch from JCON rungs). 1559 lines.
 
 ## What this is NOT
 

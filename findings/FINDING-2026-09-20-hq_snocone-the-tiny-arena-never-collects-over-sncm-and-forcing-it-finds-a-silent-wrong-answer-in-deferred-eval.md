@@ -1,4 +1,4 @@
-# FINDING — THE TINY ARENA NEVER COLLECTS OVER SncM, AND FORCING IT FINDS A SILENT WRONG ANSWER IN DEFERRED EVAL
+# FINDING — THE TINY ARENA NEVER COLLECTS OVER SncRungs, AND FORCING IT FINDS A SILENT WRONG ANSWER IN DEFERRED EVAL
 
 **hq_snocone, 2026-09-20, SCRIP `5418432bb` corpus `8486bb1e2` RT_OPT=-O0, incremental `make`.** This lane's FIRST row
 under MODE TENET (MODE line 2 / CEO-1011: *completeness does not open in a language until that language's GC share is
@@ -9,11 +9,11 @@ measured clean by oracle diff at the tiny arena*). Row
 
 | reading | board | what it actually measured |
 |---|---|---|
-| SncM at the shipped arena | `total=336 shipped=336 m3_pass=336 m3_fail=0 m4_pass=336 m4_fail=0 arena_mb=512` | the compiler |
-| SncM at `SCRIP_HEAP_MB=1` | `total=336 shipped=336 m3_pass=336 m3_fail=0 m4_pass=336 m4_fail=0 arena_mb=1` | **nothing about the collector** |
+| SncRungs at the shipped arena | `total=336 shipped=336 m3_pass=336 m3_fail=0 m4_pass=336 m4_fail=0 arena_mb=512` | the compiler |
+| SncRungs at `SCRIP_HEAP_MB=1` | `total=336 shipped=336 m3_pass=336 m3_fail=0 m4_pass=336 m4_fail=0 arena_mb=1` | **nothing about the collector** |
 | the same 336 entries, `[ZGC] regeneration` counted | `collectors=0 non_collectors=336 regenerations=0` | why |
 
-**Not one SncM entry allocates a megabyte, so at a 1 MB window not one of them collects even once.** The tiny-arena
+**Not one SncRungs entry allocates a megabyte, so at a 1 MB window not one of them collects even once.** The tiny-arena
 board is a statement about this corpus, and it carries `arena_mb=1` in its own line while meaning nothing by it. Had
 this lane reported that green as *snocone's GC share is clean*, CONDITION 1 would have opened completeness in snocone
 on a measurement that never ran. ⭐ **No rc, no denominator, no FAIL=0 anywhere in that board can say this** — the
@@ -21,13 +21,13 @@ decidability question is not asked by any instrument that grades pass/fail, and 
 
 **The arm that fixes it, and it is three lines of shell:** count `[ZGC] regeneration` (`SCRIP_ZETA_TELEM=1`) over the
 graded population, and REFUSE rc=2 — never report green — when the count is zero. It is ARM 1 of
-`test_gate_snocone_gc_share_named_and_master_clean_under_forced_collection.sh`, and it is the only reason arms 2 and 3
+`test_gate_snocone_gc_share_named_and_rungs_clean_under_forced_collection.sh`, and it is the only reason arms 2 and 3
 mean anything. Made able to fail (`SCRIP_GC_STRESS=1`) the same population reads `collectors=336 non_collectors=0
 regenerations=1268`, and the board is no longer flat.
 
 ## 2. THE CENSUS THAT NAMES — SNOCONE'S CLASS-2 SHARE IS EMPTY
 
-`util_gc_unmapped_store_census.py` over all 336 entries materialized out of the master **by ORIGIN** (never by a
+`util_gc_unmapped_store_census.py` over all 336 entries materialized out of the rungs **by ORIGIN** (never by a
 filename glob):
 
 ```
@@ -48,12 +48,12 @@ never the discriminator (CFO-114 and CFO-136 refuted the sign rule twice). By si
 named, never folded into a green count.
 
 ⭐ **One instrument caveat worth a line:** that verdict prints `graphs=1` over 336 witnesses. `graphs_seen` is a set
-union of graph NAMES and every SncM entry's graph is called `main`, so the 1 is a name collision, not a count. It is
+union of graph NAMES and every SncRungs entry's graph is called `main`, so the 1 is a name collision, not a count. It is
 not this row's number and nothing here rests on it — recorded so the next reader does not take it for a population.
 
 ## 3. ⛔⭐⭐ THE DEFECT: `EVAL` OF A DEFERRED EXPRESSION RETURNS THE NULL STRING UNDER COLLECTION
 
-With the population able to fail, SncM at `SCRIP_GC_STRESS=1 SCRIP_HEAP_MB=1` reads **`m3_fail=1 m4_fail=1` over
+With the population able to fail, SncRungs at `SCRIP_GC_STRESS=1 SCRIP_HEAP_MB=1` reads **`m3_fail=1 m4_fail=1` over
 `total=336`**, one entry: `eval_datatype_defer_1` (origin `ladder__rung11_unary_operators_deferred_asterisk`), same
 fingerprint `fp=5e2133a7` in both modes.
 
@@ -104,7 +104,7 @@ has a witness **red at 25 while green at 10, 12, 16, 20, 35 and 50** — the div
 the plant**. *"If your lane is clean at 1, 3 and 5 you have not measured it — you have measured the band."* This
 lane's first sweep was 1, 2, 3, 4, 5, 8: inside the weak band. So it was re-run.
 
-**SncM at `SCRIP_HEAP_MB=1` across 1 · 2 · 3 · 4 · 5 · 8 · 10 · 12 · 16 · 20 · 25 · 32 · 35 · 50 · 64 · 100:
+**SncRungs at `SCRIP_HEAP_MB=1` across 1 · 2 · 3 · 4 · 5 · 8 · 10 · 12 · 16 · 20 · 25 · 32 · 35 · 50 · 64 · 100:
 RED at `stress=1` ALONE** — one entry, `eval_datatype_defer_1`, both modes, the same NAME SET at that point and an
 empty name set at every other. No new program appears anywhere above 5.
 
@@ -147,7 +147,7 @@ partly a function of the runner's temp-path length. **Tested here, both levels:*
 | test | result |
 |---|---|
 | the two-line witness run from names 1, 4, 8, 16, 24, 32 and 40 characters long | **identical at every length** — correct at stress 0, wrong at 1, correct at 2, 3, 5, 8, 16 |
-| the whole master re-run with `TMPDIR` 60 characters longer, at stress 1, 5, 8 and 16 | **identical board and identical NAME SET** — one entry at stress 1, empty everywhere else |
+| the whole rung suite re-run with `TMPDIR` 60 characters longer, at stress 1, 5, 8 and 16 | **identical board and identical NAME SET** — one entry at stress 1, empty everywhere else |
 
 So hq_raku's class does not move this lane's reading at the points tested. ⛔ **The reading is still published as a
 LOWER BOUND and not a population**, which is how hq_raku is relabelling their own 36: "tested at seven path lengths
@@ -181,7 +181,7 @@ second row for a cause the first row's cure will settle is the duplication the c
 - **Not** that the 1176 BELOW-REGION members are defects. They are a named residual on the cto's classes 1 and 4.
 - **Not** that the cure is this lane's. It reproduces from the SNOBOL4 frontend, so it is a shared node: handed to the
   **cfo** (collector / safe-point road) under Lon's escalation order, with the witness, the ablation and the cost.
-- **Not** a re-reading of the shipped-arena board. SncM remains 336/336 both modes at `arena_mb=512`, unmoved.
+- **Not** a re-reading of the shipped-arena board. SncRungs remains 336/336 both modes at `arena_mb=512`, unmoved.
 
 ## 6. THE INSTRUMENTS THIS LANDED
 
@@ -190,9 +190,9 @@ second row for a cause the first row's cure will settle is the duplication the c
   which is where that recipe says a collector finding belongs. It discriminates in both directions by construction:
   it first requires the witness to be CORRECT without a collection, so "wrong always" fails differently from
   "wrong only under collection".
-- `SCRIP/scripts/test_gate_snocone_gc_share_named_and_master_clean_under_forced_collection.sh` — the row's DONE-WHEN.
+- `SCRIP/scripts/test_gate_snocone_gc_share_named_and_rungs_clean_under_forced_collection.sh` — the row's DONE-WHEN.
   ARM 1 decidability (refuses rc=2 on a population that did not collect) · ARM 2 the census, read by its **printed
-  verdict and not its rc** (it exits 1 whenever it names any member) · ARM 3 the master graded by oracle-cut refs over
+  verdict and not its rc** (it exits 1 whenever it names any member) · ARM 3 the rungs graded by oracle-cut refs over
   its **printed** denominator. ~5 min; deliberately NOT in `make test` — the blocking set is the shared resource that
   does not scale with seats (CONDITION 2), and wiring a five-minute arm into it is the coo's call, not this lane's.
 

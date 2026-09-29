@@ -39,9 +39,9 @@ Inventory of what dies: zeta_choices.h menu (21 ZC_* macros, 3 #error-dead arms)
 
 ## 3. ENV-VAR CENSUS (351 vars by family)
 EXPERIMENT-RESIDUE (winner decided, scripts never set): SCRIP_ARBNO_* (17) · SCRIP_DEFER_* (16, incl. SCRIP_DEFER_BETA_GUARD re-derived inline at 4+ sites) · SCRIP_CAP_* (14) · SCRIP_NO_* kill-switches (27, except NO_IX/NOHUGE/NOFC script-referenced) · SCRIP_ICN_*/SCRIP_PL_* (22) · fence/B1C/M3/M4 A/B (~20) · SCRIP_ZETA_* (12) · ~150 singleton session-named flags.
-DIAGNOSTIC: SCRIP_ZD* (36 — fold under one master) · MONITOR* (~10, RULES.md-demoted but script-used).
+DIAGNOSTIC: SCRIP_ZD* (36 — fold under one rung suite) · MONITOR* (~10, RULES.md-demoted but script-used).
 LOAD-BEARING (scripts actually set): SCRIP_ZSM family (gate-used) · SCRIP_GC_STRESS/COVERAGE/UNROOT (test_gc_stress_suite.sh) · MONITOR_BIN/READY_PIPE · SCRIP_BETA_ELIDE_OFF, SCRIP_DWARF_LOC, SCRIP_KW_DIRECT, SCRIP_STMT_FRAME, SCRIP_TRACE.
-Target state: ~292 never-set vars → delete toward one SCRIP_DEBUG-style master diag flag, per-family spot-verify first.
+Target state: ~292 never-set vars → delete toward one SCRIP_DEBUG-style rungs diag flag, per-family spot-verify first.
 
 ## 4. PLATFORM GATING
 g_platform set at exactly emit.cpp:195,204 (always X86); 193 foldable sites/145 files; four dead enum values + macros have zero external call sites.

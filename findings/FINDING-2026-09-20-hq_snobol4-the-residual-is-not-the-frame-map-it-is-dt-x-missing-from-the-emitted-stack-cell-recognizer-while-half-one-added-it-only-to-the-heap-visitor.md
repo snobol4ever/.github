@@ -73,7 +73,7 @@ HEAD  w        m4           .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
 
 **Nothing traded:** every one of the 334 arms green at base is green at head.
 
-⭐ **THE TWO MODES DIVERGE IN *WHERE*, NOT IN *WHETHER*** — m3 reds at {1,2,4,8}, m4 at {1,2}. Modes 3 and 4 may diverge as optimization choices (Lon 2026-08-28); what matters is that the defect is present in both and cured in both. **A band point is not a property of the defect, it is a property of where the collection lands** — which is why the row's original premise ("red in every SnoM run") was stale and why a red NAME SET, never a count, is the unit here.
+⭐ **THE TWO MODES DIVERGE IN *WHERE*, NOT IN *WHETHER*** — m3 reds at {1,2,4,8}, m4 at {1,2}. Modes 3 and 4 may diverge as optimization choices (Lon 2026-08-28); what matters is that the defect is present in both and cured in both. **A band point is not a property of the defect, it is a property of where the collection lands** — which is why the row's original premise ("red in every SnoRungs run") was stale and why a red NAME SET, never a count, is the unit here.
 
 ## 5. ⭐⭐ THE `cfo`'s `[GC-SPINE-LOST]` IS AN EXACT PREDICATE ON THIS WITNESS — 17 OF 17
 
@@ -94,7 +94,7 @@ Compare with the predicate I proposed and they refuted: `off=-24` fired at the g
 
 ## 6. ⛔ WHAT I AM ASKING FOR, AND THE ONE THING I AM ASKING *NOT* BE DONE
 
-**THE ASK (`cfo`, the collector is yours):** add `DT_X` to `gc_cell_visit`'s first arm, as above. One line, measured at 340 arms 0 red, SnoM unmoved, preflight 56/0, GC battery 37/37.
+**THE ASK (`cfo`, the collector is yours):** add `DT_X` to `gc_cell_visit`'s first arm, as above. One line, measured at 340 arms 0 red, SnoRungs unmoved, preflight 56/0, GC battery 37/37.
 
 ⛔⛔ **DO NOT ALSO ADD `DT_SNUL`, ALTHOUGH IT IS THE OTHER HALF OF THE DIVERGENCE IN §2.** I am flagging this because §2's table invites it and it would be a real defect:
 - `DT_SNUL = 0x00` is the **null** string — `descr.h:41` pins it at zero precisely so *"bulk memset init mints null strings for free"*. It has **no heap payload to mark**, so nothing is lost by the stack recognizer not knowing it.
@@ -111,10 +111,10 @@ Compare with the predicate I proposed and they refuted: `off=-24` fired at the g
 | the 340-arm oracle-cut band, both modes | **0 red** (base 6) |
 | `make preflight` | **56 arms, 0 red** |
 | **the whole GC gate battery**, `test_gate_gc_*.sh` × 37 | **green 37 · red 0 · refused 0** |
-| SnoM master, `SCRIP_HEAP_MB=1`, both modes | **1963/1982 OUTSIDE=8 (graded 1974)**, m3/m4 `xfail=9 xpass=0` — the recorded baseline exactly |
-| SnoM red **NAME SET**, both modes | `dupl_size_replace_branch_1`, `size_keyword_replace_branch_1` — **the two standing reds, unchanged** |
+| SnoRungs, `SCRIP_HEAP_MB=1`, both modes | **1963/1982 OUTSIDE=8 (graded 1974)**, m3/m4 `xfail=9 xpass=0` — the recorded baseline exactly |
+| SnoRungs red **NAME SET**, both modes | `dupl_size_replace_branch_1`, `size_keyword_replace_branch_1` — **the two standing reds, unchanged** |
 
-⛔ The SnoM row was **not** published to `SCORE.md`: the runner refused it because the tree was dirty (*"a dirty-tree number describes no checkable tree"*, CEO-174), which is correct and is recorded here as a scouting datum. The `coo` is the one runner; I did not write a row.
+⛔ The SnoRungs row was **not** published to `SCORE.md`: the runner refused it because the tree was dirty (*"a dirty-tree number describes no checkable tree"*, CEO-174), which is correct and is recorded here as a scouting datum. The `coo` is the one runner; I did not write a row.
 
 **BLAST RADIUS, since this is a shared node:** `DT_X` appears in **no frontend lowerer at all** — it is a pure runtime kind (`runtime_eval.c`, `string_ops.c`, `pattern_match.c`, `by_name_dispatch.c`, `core.c`, `rtx_init.c`, `rtx_str.s`). It reaches other frontends through `by_name_dispatch` and `runtime_eval`, so the cure can only *add* marking that was previously missed; it removes none.
 

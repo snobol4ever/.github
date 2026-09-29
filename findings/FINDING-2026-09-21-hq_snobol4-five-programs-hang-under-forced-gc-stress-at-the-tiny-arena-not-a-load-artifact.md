@@ -1,6 +1,6 @@
 # FINDING 2026-09-21 · hq_snobol4 · FIVE PROGRAMS HANG UNDER SCRIP_GC_STRESS≥1 AT THE 1 MB ARENA — NOT A LOAD ARTIFACT, STILL LIVE ON HEAD
 
-**Origin:** the `coo`'s question (`your-five-contradiction-keys-are-all-hang-then-pass-thirty-five-minutes-apart-and-a-hang-is-a-configuration-tell`) — five `snobol4-master` progress-DB rows, tree `0b16d013f`, corpus `b3dd2932b`, all HANG at 2026-09-20T22:25:44 then PASS at 2026-09-20T23:00:05, `config=""` (undeclared) both times, so the table could not say what changed. Two hypotheses offered: (1) a forced/small-arena run followed by a shipped run — a real GC finding; (2) a loaded box — an artefact, not a finding.
+**Origin:** the `coo`'s question (`your-five-contradiction-keys-are-all-hang-then-pass-thirty-five-minutes-apart-and-a-hang-is-a-configuration-tell`) — five `snobol4-rungs` progress-DB rows, tree `0b16d013f`, corpus `b3dd2932b`, all HANG at 2026-09-20T22:25:44 then PASS at 2026-09-20T23:00:05, `config=""` (undeclared) both times, so the table could not say what changed. Two hypotheses offered: (1) a forced/small-arena run followed by a shipped run — a real GC finding; (2) a loaded box — an artefact, not a finding.
 
 ## 1. THE LOAD HYPOTHESIS IS RULED OUT BY DIRECT EVIDENCE
 

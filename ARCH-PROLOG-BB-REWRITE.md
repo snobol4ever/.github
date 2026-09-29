@@ -287,7 +287,7 @@ A rung lands only when **every** Prolog suite reads at or above its floor **in b
 
 | suite | runner | floor at R0 (m3 / m4) |
 |---|---|---|
-| the master (ProM) | `test_gate_pl_master_board_floor.sh` (16 shards, a FLOOR per mode) | 563/563 · 563/563 |
+| the rungs (ProRungs) | `test_gate_pl_rungs_board_floor.sh` (16 shards, a FLOOR per mode) | 563/563 · 563/563 |
 | INRIA ISO 13211-1 | `test_prolog_inria_suite.sh` | 442/442 · 442/442 |
 | GNU Prolog package | `test_prolog_gnu_suite.sh` | 11/11 (62 shipped, 45 unclassified — the coo's finding, the rank-1 row) |
 | ProBench (the 23 kernels' refs) | `test_prolog_bench_suite.sh` | 23/23 · 23/23 |

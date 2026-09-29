@@ -45,7 +45,7 @@ t = re.sub(r"\b" + re.escape(old) + r"\b", new, t)
 t = t.replace(oldroot + "/", newroot + "/").replace(oldroot + "`", newroot + "`").replace(oldroot + " ", newroot + " ").replace(oldroot + ")", newroot + ")")
 banner = ("\n⛔⭐⭐⭐ **RENAMED BY LANGUAGE 2026-09-16 (Lon, in-chat to ceo; ceo CEO-767): THIS ROOT IS `%s`, IDENTITY `%s` (was `%s` at `%s`). "
           "MODE line 1 reads `DECTET`: six language HQs (Claude Opus 5) and four officers (Claude Fable 5.1). YOUR LANE IS %s, ALL THREE AXES -- completeness "
-          "(the master and every package suite to FAIL=0 over the printed denominator, the ladder walked, each red ablated to a witness on its rung), then SPEED on the "
+          "(the rungs and every package suite to FAIL=0 over the printed denominator, the ladder walked, each red ablated to a witness on its rung), then SPEED on the "
           "kernel convention and the two-number three-angle basis. Your cursor is `.github/GOAL-%s-100.md`; your officer is `%s` (postoffice `HQ` file) -- a change to any "
           "node another language lowers to (the spine, a shared box, the collector, the three zetas) is an ASK to your officer with the measurement, base-vs-head gate by "
           "gate, never a landing. Read MODE line 2 whole every sitting; every `%s` and `%s` below is history. `SCRIP/refs/` is deleted (read `/home/resources/` directly); "

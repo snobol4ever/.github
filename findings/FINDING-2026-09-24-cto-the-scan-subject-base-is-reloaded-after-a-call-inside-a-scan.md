@@ -31,7 +31,7 @@ The plant `SCRIP_GC_PLANT_STALE_SIGMA=1` leaves the reload out at emit time and 
 
 Gate: `test_gate_gc_the_scan_subject_base_is_reloaded_after_a_call_inside_a_scan.sh` (blocking, Makefile), arms (a) property both modes plus flip, (b) planted, (c) source; FAIL_ONCE=1 runs (a) under the plant.
 
-The population machine (Icon master by name, control 8b6cb3607 vs the cure, arms nogc,r0,r1,s1,f1, both modes) is recorded in the row's ledger and in GOAL-CTO.md CTO-165 with the non-green name sets both directions.
+The population machine (Icon rungs by name, control 8b6cb3607 vs the cure, arms nogc,r0,r1,s1,f1, both modes) is recorded in the row's ledger and in GOAL-CTO.md CTO-165 with the non-green name sets both directions.
 
 ## Found on the way, not this landing
 

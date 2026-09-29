@@ -2,7 +2,7 @@
 
 ## WHAT WAS WRONG
 
-`scripts/test_gate_pl_master_is_clean_at_the_tiny_arena.sh` (mine, row
+`scripts/test_gate_pl_rungs_is_clean_at_the_tiny_arena.sh` (mine, row
 `prolog-gc-the-prolog-share-of-the-unmapped-slot-population-censused-by-name-and-the-master-clean-at-one-megabyte`)
 pinned its "arena" and "stress:N" arms at `SCRIP_HEAP_MB=1` (1024 KB), written 2026-09-20 when that value
 genuinely was the exasperating/tiny setting relative to the then-shipped default.
@@ -23,7 +23,7 @@ UNPINNED default is not immune to drifting out from under a script that assumed 
 
 ## THE FIX (landed, same session, this row)
 
-`test_gate_pl_master_is_clean_at_the_tiny_arena.sh` now:
+`test_gate_pl_rungs_is_clean_at_the_tiny_arena.sh` now:
 - **"control"** is an EXPLICIT loose pin, `SCRIP_HEAP_MB=512` (renamed `CONTROL_MB`, matching the value the
   gate's own DECIDABILITY probe loop already assumed for it, which was itself inconsistent with the old
   `unset` control before this fix — a latent bug this correction also resolves).
@@ -54,7 +54,7 @@ a now-loose window, not the collector at the mandated tiny one.
 
 ## STATUS
 
-Fix landed in `scripts/test_gate_pl_master_is_clean_at_the_tiny_arena.sh` on tree SCRIP `56504708a` (pre-fix)
+Fix landed in `scripts/test_gate_pl_rungs_is_clean_at_the_tiny_arena.sh` on tree SCRIP `56504708a` (pre-fix)
 / rebuilt post-fix, this session. Full 6-arm re-measurement (control, arena, stress:{2,5,16,25}) launched in
 background to confirm Prolog's GC share is clean at the NOW-correct tiny arena definition; result to be
 folded into the row's baton `## LEDGER` and `## NEXT` in the same landing per findings/README.md.

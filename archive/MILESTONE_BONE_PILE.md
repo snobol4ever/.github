@@ -2486,7 +2486,7 @@ Lines 7160–10211 of v311.sil: BLAND, BOX, BOXIN, AFRAME, etc.
 
 ---
 
-## The Two-Axis Master Table — SM Instructions
+## The Two-Axis Rungs Table — SM Instructions
 
 These are the SM_Program instructions that exist or are added.
 
@@ -2543,7 +2543,7 @@ These are the SM_Program instructions that exist or are added.
 
 ---
 
-## The Two-Axis Master Table — RT Functions (sil_macros.h + RT files)
+## The Two-Axis Rungs Table — RT Functions (sil_macros.h + RT files)
 
 Functions that exist only in C, called from scrip-interp and SM dispatch — not SM instructions.
 
@@ -2713,7 +2713,7 @@ Each RT-N reads the corresponding SIL proc from `v311.sil`, implements in C
 using `sil_macros.h` type tests and field accessors, registers in INVOKE table.
 
 ### RUNTIME-9 — sm_interp.c (The Architecture Target)
-When `sm_interp.c` is written, every SM instruction in the master table above
+When `sm_interp.c` is written, every SM instruction in the rungs table above
 gets a dispatch case. The 12 new SM ops each call the corresponding RT function
 defined in `sil_macros.h`. The emitter maps each SM op to native code.
 

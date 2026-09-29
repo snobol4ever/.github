@@ -7,7 +7,7 @@ reading and un-refreshed since the collector's frame-map/safe-point work moved).
 
 ## Measured, not assumed
 
-`test_gate_raku_master_is_clean_at_the_tiny_arena.sh` (`SCRIP_HEAP_MB=1`, band `1 3 5 8 16`), tree
+`test_gate_raku_rungs_is_clean_at_the_tiny_arena.sh` (`SCRIP_HEAP_MB=1`, band `1 3 5 8 16`), tree
 SCRIP `4336cb8ee` / corpus `b3dd2932b` / binary `84d80bfb4f63`: three (entry, mode) pairs diverged
 PASS(control) -> CRASH(stress N) against the control arm, both modes, at stress 1/3/5/8 (not 16 -- a
 band, never a point):
@@ -53,14 +53,14 @@ change to the collector's root-scan or the shared spine — a LOCAL, one-builtin
 ## Verification
 
 - All three witnesses PASS, both modes, across control/arena/stress 1/3/5/8/16.
-- Raku master board unchanged: `853/929` m3, `853/929` m4 of 929, `arena_mb=1` — identical to the
+- Raku rungs board unchanged: `853/929` m3, `853/929` m4 of 929, `arena_mb=1` — identical to the
   pre-fix reading, confirming the control arm (and the block-less sort path) was never in question.
 - `test_smoke_raku.sh` 10/10 both modes; `test_smoke_snobol4.sh` 7/7; `test_smoke_icon.sh` 15/15 both
   modes (checked since `by_name_dispatch.c` is shared across languages).
-- Full `test_gate_raku_master_is_clean_at_the_tiny_arena.sh` re-run post-fix, tree `d9c66f2c6`: all six
+- Full `test_gate_raku_rungs_is_clean_at_the_tiny_arena.sh` re-run post-fix, tree `d9c66f2c6`: all six
   axes (arena, stress 1/3/5/8/16) vs control, 1858 pairs each — `divergent=0 inconclusive=0 vanished=0`
-  on every one. "Raku's master does not change its answer under collection." `.github/SCORE.md`'s
-  `raku-master` row rewritten from this reading (`.github` `feee008d`).
+  on every one. "Raku's rungs does not change its answer under collection." `.github/SCORE.md`'s
+  `raku-rungs` row rewritten from this reading (`.github` `feee008d`).
 
 ## Not attempted / named as unmeasured
 

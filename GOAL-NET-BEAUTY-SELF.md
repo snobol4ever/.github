@@ -34,12 +34,12 @@ problems, confirmed against the live tree, not fixed with one substitution:
 1. **The hardcoded `/home/claude/` seat-root prefix** is a fossil path on this D-17 PORTABLE-HOME
    project regardless of anything else — use `$S4E_HOME` (or the seat's own root) instead, always.
 2. **`corpus/programs/snobol4/beauty_suite/` and `corpus/programs/snobol4/demo/beauty/` are BOTH
-   confirmed gone** — not renamed, consumed: `beauty_suite/` into the master-suite consolidation
+   confirmed gone** — not renamed, consumed: `beauty_suite/` into the rungs-suite consolidation
    (loose `beauty_*_driver.sno` files no longer exist as files; only `beauty_suite_*`-prefixed
    tracepoint configs survive, under `corpus/tests/snobol4/config/`), and the demo beauty source now
    lives at `corpus/demos/snobol4/beauty/beauty.sno` (plural `demos`, no `programs/` segment).
    **No verified single-command replacement recipe exists for the beauty_suite driver loop** — extracting
-   those entries from the master format now likely needs `lib_master_extract.sh` against `ALL.csv`
+   those entries from the rungs format now likely needs `lib_rungs_extract.sh` against `ALL.csv`
    (per `corpus-suites-consolidation.task.md`), not a directory glob. Re-derive before running any
    `cd .../beauty_suite` command in this file; do not assume the surrounding shell logic still works
    once the path is merely substituted.

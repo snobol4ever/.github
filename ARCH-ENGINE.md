@@ -700,7 +700,7 @@ Verified, essentially unchanged — this doc describes a measurement methodology
 
 ## RETIRED NAMES
 
-Master path index for everything the nine source docs (`ARCH-IR.md`, `ARCH-x86.md`, `ARCH-EMITTER.md`, `ARCH-ZETA-LOCAL-STORAGE.md`, `ARCH-PATTERN-CHOICE-CARRIER.md`, `ARCH-PASSTHRU.md`, `ARCH-SCRIP.md`, `ARCH-SILLY.md`, `ARCH-PROFILE-BOX-HISTOGRAM.md`) cited that has since moved, renamed, or been deleted — for `grep`-ability from a stale reference anywhere else in the tree. Symbol-level renames not listed here (there are many more) live in each section's own "Retired names" subsection above; this table is the directory/file layer, the one most likely to break an external cross-reference.
+Rungs path index for everything the nine source docs (`ARCH-IR.md`, `ARCH-x86.md`, `ARCH-EMITTER.md`, `ARCH-ZETA-LOCAL-STORAGE.md`, `ARCH-PATTERN-CHOICE-CARRIER.md`, `ARCH-PASSTHRU.md`, `ARCH-SCRIP.md`, `ARCH-SILLY.md`, `ARCH-PROFILE-BOX-HISTOGRAM.md`) cited that has since moved, renamed, or been deleted — for `grep`-ability from a stale reference anywhere else in the tree. Symbol-level renames not listed here (there are many more) live in each section's own "Retired names" subsection above; this table is the directory/file layer, the one most likely to break an external cross-reference.
 
 **This file itself.** All nine docs above → `ARCH-ENGINE.md` (this file). They are deleted, not archived — their content moved here per-section (see each section's own attribution note); nothing in them was true-and-uncaptured.
 

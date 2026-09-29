@@ -49,7 +49,7 @@ cure to `lower_snobol4.c` does not land on a partial blocking set. **Row:** `sno
 1. Pull, rebuild, `git -C SCRIP apply <the patch below>`, save the gate below as
    `SCRIP/scripts/test_gate_sno_a_fence_before_a_run_or_inside_an_arbno_body_retries_what_follows_it.sh` (chmod +x), `make`.
 2. FAIL-ONCE / PASS-ONCE: the gate FAILS on the unpatched build (witnesses 1, 2, 3, 4, 5, 6, 7 read NO) and PASSES on the patched one.
-3. `make test` to completion; each red arm A/B'd on the unpatched build (the four above first). SnoM is hq_snobol4's to grade.
+3. `make test` to completion; each red arm A/B'd on the unpatched build (the four above first). SnoRungs is hq_snobol4's to grade.
 4. The cfo's order (2026-09-27 08:17 CDT): if the cfo's match-frame cell (grows every match frame by 32 bytes) lands first, run
    `test_gate_gc_a_nested_match_restores_a_moved_outer_subject.sh` on the combined tree before landing this.
 5. The cto's bare-poll re-cut, in the same landing (the patch moves credited `lower_snobol4.c` sites by line): on the freshly built,

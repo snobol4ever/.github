@@ -35,8 +35,8 @@ p = os.path.join(po, "MODE")
 b = open(p, "rb").read()
 subs = [
     (b" Rebus moves to hq_S.",
-     b" REBUS IS CLOSED (RebM 43/43 both modes with zero xpass, coo 2026-09-13; second reader hq_S on"
-     b" SCRIP 5bfbd5d57, 43 master entries all carrying a ladder__rungNN origin and zero xfail rows) AND"
+     b" REBUS IS CLOSED (RebRungs 43/43 both modes with zero xpass, coo 2026-09-13; second reader hq_S on"
+     b" SCRIP 5bfbd5d57, 43 rungs entries all carrying a ladder__rungNN origin and zero xfail rows) AND"
      b" HAS NO LANE OWNER."),
     (b"REBUS -- hq_S;", b"REBUS -- CLOSED, NO OWNER;"),
     (b"RAKU -- hq_T (red from rung 2 today);", b"RAKU -- hq_T;"),

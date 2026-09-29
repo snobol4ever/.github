@@ -9,7 +9,7 @@ import glob, shutil, sys, datetime
 OV = ("⛔⭐⭐⭐⭐ **HEAVY VERIFICATION RUNS ONCE PER BATCH OF THREE TO FOUR CHANGES, NEVER PER CHANGE (Lon 2026-09-27 10:4x CDT, in-chat to the cfo, "
       "verbatim: *\"I suspect you should batch up at least 3-4 changes before requiring a test run. You'll know that one of the four is the culprit.\"*; "
       "ruled fleet-wide at CEO-1316; RULES.md section HEAVY VERIFICATION RUNS ONCE PER BATCH, at the head of the SHARED-NODE VERDICT SCOPE block):** the full "
-      "blocking set, a pristine rebuild, the tiny-arena pass and stress plant, a master/package/bench suite pass and a cross-language sweep run ONCE PER BATCH "
+      "blocking set, a pristine rebuild, the tiny-arena pass and stress plant, a rung suite/package/bench suite pass and a cross-language sweep run ONCE PER BATCH "
       "of three to four landings (an HQ's pass on origin: per three to four origin landings reaching its language, stamping the range); a batch red is bisected "
       "within the batch; PER LANDING stays the row's DONE-WHEN + the gates it touched + make preflight; SNOBOL4 boards one pass per day; never two heavy runs "
       "in flight. Every \"once per landing\" and \"per collector landing\" below reads \"once per batch of three to four\".\n\n")

@@ -38,7 +38,7 @@ END
 
 Mode 3 and mode 4 MAY diverge as an optimization choice and never as a semantic one. A correct answer in one
 medium and a SIGSEGV in the other, on two deferred patterns in one program, is a semantic divergence. The SNOBOL4
-master runs m4 on this class, so it is plausibly behind a standing m4-only red there.
+rungs runs m4 on this class, so it is plausibly behind a standing m4-only red there.
 
 ⛔ **NOT CURED IN THIS SITTING.** It is outside the spill-record row and curing it inside that row would have
 traded one measurement for two. It is written down with its minimal witness so the next seat starts from a

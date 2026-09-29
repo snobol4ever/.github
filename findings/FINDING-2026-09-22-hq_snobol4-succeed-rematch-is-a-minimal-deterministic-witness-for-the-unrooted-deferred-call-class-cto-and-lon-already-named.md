@@ -69,7 +69,7 @@ I have **not** proven which of these (or something in between) is the one that f
 - Not the IC/site-cache: `SCRIP_DEFER_IC=0` and `SCRIP_DEFER_MERGE=0` both leave the defect unchanged.
 - Not the `rtx_gate_match`-gated hand-ASM fast path in `rt_defer_close` (`nm`/`objdump` on `libscrip_rt.so` show TWO distinct symbols, `rt_defer_close` at a separate address from `c_rt_defer_close`, the former a `SCRIP_RTX_MATCH`-gated inline reimplementation that falls through to the latter when off): `SCRIP_RTX_MATCH=0` leaves the defect unchanged, so the slow/C path (`c_rt_defer_close`) carries the same bug the fast path does — this is in logic both paths share, or in a caller common to both, not in the fast-path optimization itself.
 - Not a mode-3-only interpreter artifact: mode 4 (`--compile`), disassembled and traced independently, shows byte-identical symptoms and the identical `n52_match_defer_α`-fires-once shape.
-- Not `dupl_size_replace_branch_1`/`size_keyword_replace_branch_1` (the two long-standing SnoM reds) — unrelated file set, unmoved by any of this session's landings.
+- Not `dupl_size_replace_branch_1`/`size_keyword_replace_branch_1` (the two long-standing SnoRungs reds) — unrelated file set, unmoved by any of this session's landings.
 
 ## BREAKTHROUGH — the sync-step monitor names the exact divergence, and it is not GC rooting at all
 

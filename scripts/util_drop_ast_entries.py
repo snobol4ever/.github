@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""⛔⭐ REMOVE THE `modes=ast` ENTRIES FROM A MASTER (Lon 2026-09-13: "Remove those bogus AST
+"""⛔⭐ REMOVE THE `modes=ast` ENTRIES FROM A RUNGS (Lon 2026-09-13: "Remove those bogus AST
 tests."; CEO-702/703).
 
 WHY THEY GO: `run_ast` runs `scrip --dump-ast` and diffs the dump as text. It NEVER EXECUTES
@@ -40,7 +40,7 @@ def split_blocks(text, names):
             cur.append(ln)
     blocks.append((cur_name, cur))
     # ⛔ THE FIRST BLOCK IS THE PREAMBLE AND IS EMPTY WHEN THE FILE OPENS ON A BANNER. Keeping
-    # it emits a spurious leading newline -- ONE CHARACTER, which shifted seven masters and
+    # it emits a spurious leading newline -- ONE CHARACTER, which shifted seven rung suites and
     # killed extraction in all of them (CEO-703, reverted). Dropped here, and the round-trip
     # assertion below is what makes that provable instead of hoped.
     if blocks and blocks[0][0] is None and blocks[0][1] == []:

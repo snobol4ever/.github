@@ -20,7 +20,7 @@ CEO-993 put **the 72 `no_layout` graphs** on the acceptance test as a DENOMINATO
 
 ## 2. What the bucket actually holds
 
-`util_zls_frame_map_census.py` materialized each master entry's text into **ONE FLAT temp dir** and ran `scrip --dump-zeta` there with **no companion copy and no `SNO_LIB`**. The grader — `corpus_suite_harness.run_suite_entry` — does **both**: it copies `-INCLUDE`/`open()`/`INPUT()` companions to transitive closure via `_copy_companions`, and it sets `SNO_LIB=<corpus>/include` on every m3 run and m4 compile. So every master entry naming a companion failed to **PARSE** inside the census and fell into `no_layout`.
+`util_zls_frame_map_census.py` materialized each rung suite entry's text into **ONE FLAT temp dir** and ran `scrip --dump-zeta` there with **no companion copy and no `SNO_LIB`**. The grader — `corpus_suite_harness.run_suite_entry` — does **both**: it copies `-INCLUDE`/`open()`/`INPUT()` companions to transitive closure via `_copy_companions`, and it sets `SNO_LIB=<corpus>/include` on every m3 run and m4 compile. So every rung suite entry naming a companion failed to **PARSE** inside the census and fell into `no_layout`.
 
 ⛔ **And `util_gc_census.py` prints that bucket as `no_layout=N NAMED AND UNCOUNTED (the compiler refused those entries; they are not a pass)`** — a **CAUSE THE TOOL NEVER MEASURED**, false for 30 of my 31. This is the `coo`'s own new bar failing in the field: *every bucket a fleet instrument prints should be answerable to "name one member of this count."*
 
@@ -43,7 +43,7 @@ HEAD  ZLS-MAP lang=snobol4 graphs=4506 words=314812 unkinded=0 holes=0 graded=19
 ```
 
 - ⭐ **`holes=0` and `unkinded=0` THROUGHOUT.** The 30 recovered entries add **498 graph instances / 231 distinct `(graph-name, region_end)` shapes / 144,234 words** and bring **no hole**. This is completeness evidence, not a new defect — the frame maps were already clean over a population nobody had censused.
-- ⛔ **THE HONEST SIZE, AND ENTRY COUNT RADICALLY UNDERSTATES IT:** the bucket was **1.6% of entries (31/1982) but 45.8% of the censused words (144,234/314,812)**. These are the big multi-include programs — 290 words/graph against the rest of the master's 42.6.
+- ⛔ **THE HONEST SIZE, AND ENTRY COUNT RADICALLY UNDERSTATES IT:** the bucket was **1.6% of entries (31/1982) but 45.8% of the censused words (144,234/314,812)**. These are the big multi-include programs — 290 words/graph against the rest of the rungs' 42.6.
 - **Other six languages:** rebus, snocone, pascal byte-identical. **icon words 164,348 → 164,358** (+10; one graph grew — the census now materializes what the grader materializes). **raku 31 and prolog 10 DO NOT MOVE.**
 - **Cost:** full seven-language sweep **34.7s → 37.4s**, same box, back to back.
 
@@ -61,7 +61,7 @@ Because the patch also prints `rc` **with its first line**, every `NO-LAYOUT` ro
 
 I had this as an ASK, not a landing — `util_zls_frame_map_census.py` is the `ceo`'s tool (CEO-820; `ZLS-MAP` token frozen CEO-821) and MODE line 2 gives the instruments to the `coo`. ⛔ **Lon overrode that in chat — *"put your work on the main branch"* — so it is on main, and this section is the override routed the same sitting** per THE MAIL LOOP clause 5. The `ZLS-MAP` token is untouched; only the `NO-LAYOUT` prose moved.
 
-⛔ **A HAZARD I SUSPECTED IN THE LANDED CURE AND REFUTED RATHER THAN REPORTED:** both versions copy companions into **one flat temp dir shared by all 1982 entries**, so two entries naming the same basename with different content would collide and one would be censused against the wrong include. **MEASURED: 51 companion basenames referenced across the snobol4 master, ZERO with same-name-different-content across the two copied dirs.** The hazard is **latent, not live**, and it is recorded here as latent. My own branch used per-entry subdirs, which is immune — but immune to something that does not happen today is not a reason to land a bigger diff.
+⛔ **A HAZARD I SUSPECTED IN THE LANDED CURE AND REFUTED RATHER THAN REPORTED:** both versions copy companions into **one flat temp dir shared by all 1982 entries**, so two entries naming the same basename with different content would collide and one would be censused against the wrong include. **MEASURED: 51 companion basenames referenced across the snobol4 rungs, ZERO with same-name-different-content across the two copied dirs.** The hazard is **latent, not live**, and it is recorded here as latent. My own branch used per-entry subdirs, which is immune — but immune to something that does not happen today is not a reason to land a bigger diff.
 
 **GREEN ON THE BRANCH:** `test_gate_gc_raku_every_frame_slot_has_a_kind` PASS(0) · `test_gate_gc_pas_every_frame_slot_has_a_kind` PASS(0) · `test_gate_gc_instrument_censuses_are_wired_and_trip` PASS, 7 of 7 arms · the `SCRIP_TEST_PLANT_ZLS_HOLE` detector arm **still RED as it must be** (`holes=2`, rc=1) · `--files` path unchanged · `make preflight` 56 arms 0 red.
 

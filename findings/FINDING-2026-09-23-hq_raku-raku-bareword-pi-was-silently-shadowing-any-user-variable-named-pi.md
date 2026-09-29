@@ -48,7 +48,7 @@ diagnosed further this sitting** — it is a numeric-precision question, not a R
 deserves its own ASM-DIFF-style investigation (isolate the loop, compare SCRIP's `$sum`/`$pi` bit pattern
 directly against a minimal Rakudo run of the same loop, before touching either the summation or the
 formatter) rather than a guess under time pressure. Left as `benchmark_pi-sequential-iteration`'s current
-FAIL reason in the RakM board.
+FAIL reason in the RakRungs board.
 
 ## Also newly visible in this sitting's board: `benchmark_merge-sort` moved from FAIL to CRASH
 

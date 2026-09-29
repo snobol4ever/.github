@@ -114,7 +114,7 @@ assumed.
 
 ## BLAST RADIUS AND WHY IT IS SMALL IN THE SUITES BUT REAL
 
-Only a flat top-level graph is exposed, which is why Pascal's 246-entry master is otherwise
+Only a flat top-level graph is exposed, which is why Pascal's 246-entry rungs is otherwise
 healthy: ISO Pascal programs put almost everything in procedures. `fpc_tests/tbs_tb0012` is
 hq_pascal's confirmed witness and should clear with the cure. Any graded entry whose real
 comparison sits in the program body is in the same class.

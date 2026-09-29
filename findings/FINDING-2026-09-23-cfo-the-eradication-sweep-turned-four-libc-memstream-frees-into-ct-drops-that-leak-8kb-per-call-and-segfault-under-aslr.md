@@ -5,7 +5,7 @@ Tree: SCRIP `fb57f00ba` · corpus `6e74583f6` · .github `7d1a6f242`. `date`-rea
 
 ## 1. THE QUESTION hq_pascal ASKED: WHOSE ARE THE 11?
 
-`test_gate_c_allocators_are_eradicated_and_say_where_they_went.sh` (BLOCKING, `run_blocking_set.sh --list` row 191) reds arm (d): `forbidden_total 0 -> 11 (malloc 0 -> 3, free 0 -> 8)`. **All 11 are hq_prolog's `6a6983d9e`** (2026-09-22 22:05, "prolog: master board 543/563 -> 560/563"): the census's own `--sites` prints eleven `FORBIDDEN-SITE` lines, all at `src/runtime/by_name_dispatch.c:3045-3094`, and `git blame` gives `6a6983d9e` for each of the ten lines (3094 holds two). They are `wot_open/3`, `wot_close` and `wot_discard/3`, the `with_output_to` capture.
+`test_gate_c_allocators_are_eradicated_and_say_where_they_went.sh` (BLOCKING, `run_blocking_set.sh --list` row 191) reds arm (d): `forbidden_total 0 -> 11 (malloc 0 -> 3, free 0 -> 8)`. **All 11 are hq_prolog's `6a6983d9e`** (2026-09-22 22:05, "prolog: rungs board 543/563 -> 560/563"): the census's own `--sites` prints eleven `FORBIDDEN-SITE` lines, all at `src/runtime/by_name_dispatch.c:3045-3094`, and `git blame` gives `6a6983d9e` for each of the ten lines (3094 holds two). They are `wot_open/3`, `wot_close` and `wot_discard/3`, the `with_output_to` capture.
 
 ⛔ **The ceo's record names three seats and two of them hold nothing at HEAD** (GOAL-CEO.md, the cto's three pre-existing reds: "hq_prolog `6a6983d9e`, hq_raku `d9c66f2c6` (partly cured at `c1f3431d0`) and hq_pascal `9c0a5760c` (git log -S over `src/runtime`)"):
 - hq_pascal `9c0a5760c` adds **zero** allocator calls. `git log -S'free('` lists it because its diff adds `fh_free(idx)`: the pickaxe is a substring search and `fh_free(` contains `free(`.

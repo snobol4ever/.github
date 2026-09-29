@@ -67,9 +67,9 @@ The same board run through `test_corpus_snobol4.sh` at the default `TIMEOUT=120`
    "FOUR HANGS PER MODE": a bound firing cannot distinguish "needs 130 seconds" from "never finishes", and I
    never measured termination.** CLAUDE.md's own rule — any `timeout N` within ~2× of the real duration fails
    *intermittently*, on a green board, and prints as a hang — with the box's load as the hidden variable.
-2. **`SUITE_LIST_ALL=1` DOES NOT REACH THE MASTER'S ENTRIES THROUGH THE OUTER RUNNER.** It collapses the whole
-   suite to one line — `FAIL-M3 suite:master (rerun: …)` — and the per-entry listing lives in the
-   sub-invocation. **The name set in this finding exists only because the master was re-run directly.**
+2. **`SUITE_LIST_ALL=1` DOES NOT REACH THE RUNGS'S ENTRIES THROUGH THE OUTER RUNNER.** It collapses the whole
+   suite to one line — `FAIL-M3 suite:rungs (rerun: …)` — and the per-entry listing lives in the
+   sub-invocation. **The name set in this finding exists only because the rungs was re-run directly.**
 3. **THE REFUSAL UNDER-NAMES ITSELF:** it says 12 killed and then prints **5**. A refusal that cannot enumerate
    what it refused over is handing the reader a count and calling it a name set — the same defect one level
    down from the ordering bug the `coo` is already carrying.

@@ -8,7 +8,7 @@ enough evidence that the next seat starts from a witness, not from zero.
 
 Tree at time of writing: SCRIP `a22f9c6ed`, corpus `00de9e950`.
 
-## 1. ARBNO-in-alternation backtracking search terminates one level too early (SNOBOL4 master)
+## 1. ARBNO-in-alternation backtracking search terminates one level too early (SNOBOL4 rungs)
 
 Witnesses: `arbno_span_any_branch_2`, `arbno_span_break_replace_branch_2` (tests/snobol4/ALL.csv); also
 explains `ATN`'s FAIL in packages/snobol4/aisnobol (confirmed same shape: `ARBNO` nested inside a multi-arm
@@ -63,7 +63,7 @@ after switching both allocations to `ct_strdup` (the established compile-time-ar
 pervasively across the codebase for exactly this purpose — grep confirms), it correctly reads `"ARB$0"` and
 resolves the right function pointer.
 
-**Do not land this fix as-is.** Applying it alone flips master-board xfail entry `user_function_arbno_rpos_1`
+**Do not land this fix as-is.** Applying it alone flips rungs-board xfail entry `user_function_arbno_rpos_1`
 from a terminating wrong-answer (already red, harmless) into an infinite HANG — confirmed via
 stash/rebuild/rebuild-back A/B to prove causation. Root cause of the regression not found: a second DEFER call
 site (site index 4 in `rt_defer_probe_run` order) also reads empty with `{fn=NULL, aux=3}` (a "simple literal

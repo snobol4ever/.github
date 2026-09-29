@@ -100,7 +100,7 @@ def box_clock_day():
 
     ⛔ WHY NOT dt.date.today() (coo 2026-09-23, CEO-1229, row instruments-suite-banner-set-refuses-a-date-later-than-the-box-clock-
     day): SUITES.tsv's dates are box-clock CDT days, and a writer running under another zone labels an evening reading TOMORROW --
-    measured: .github 4f4ca80f, committed 19:59 CDT on 2026-09-23, wrote pat and pas-master dated 2026-09-24 while fpc and
+    measured: .github 4f4ca80f, committed 19:59 CDT on 2026-09-23, wrote pat and pas-rungs dated 2026-09-24 while fpc and
     pascal-bench-ref in the same commit read 2026-09-23. A guard computed in the caller's zone would inherit the caller's error."""
     tz = ""
     try:
@@ -149,9 +149,9 @@ def recriterioned(r):
     return mark
 PROGRESS=os.environ.get('S4E_PROGRESS') or '/home/resources/progress/results.tsv'
 # SUITES.tsv key -> the name the progress table records this suite under.
-DBNAME={'sno-master':'snobol4-master','icn-master':'icon-master','pl-master':'prolog-master',
-        'pas-master':'pascal-master','raku-master':'raku-master','snc-master':'snocone-master',
-        'reb-master':'rebus-master','testpgms':'spitbol_testpgms'}
+DBNAME={'sno-rungs':'snobol4-rungs','icn-rungs':'icon-rungs','pl-rungs':'prolog-rungs',
+        'pas-rungs':'pascal-rungs','raku-rungs':'raku-rungs','snc-rungs':'snocone-rungs',
+        'reb-rungs':'rebus-rungs','testpgms':'spitbol_testpgms'}
 _LFL_CACHE=None
 def _progress_by_suite():
     """One lean pass over the progress table -> {suite: [(ts, program, mode, outcome)]}.
@@ -250,7 +250,7 @@ def lfl_why(r):
     return 'oneday'
 # ⛔⭐ AN XFAIL COUNTS AS A FAIL, SO A SUITE CARRYING ONE IS NOT DONE (ceo CEO-416, 2026-09-08,
 # on Lon's own FACT RULE of 2026-09-03: "there is no such thing now as XFAIL. We are shooting for 100%").
-# THE DEFECT THIS CLOSES, and the coo walked into it before the ruling: the SNOBOL4 master row read
+# THE DEFECT THIS CLOSES, and the coo walked into it before the ruling: the SNOBOL4 rungs row read
 # 1894/1894 FAIL=0 and this banner printed it "done", while 27 known-red entries sat OUTSIDE BOTH SIDES
 # of that fraction. Dropping a red from the numerator AND the denominator renders it as if it did not
 # exist -- wrong in the flattering direction, on the row Lon's 100% question gets answered from.
@@ -258,7 +258,7 @@ def lfl_why(r):
 # ⛔ THE COUNT IS A UNION OF THREE SPELLINGS, NEVER A SUM. An xfail is spelled three ways -- ALL.csv's
 # `xfail` column, banner lines in ALL.xfail, and per-entry *.xfail marker files -- and adding them
 # double-counts: snobol4's ALL.xfail holds 54 LINES for 27 ENTRIES (a banner line plus a prose line
-# each), naming the same 27 the CSV column names. MEASURED by the coo across all seven masters
+# each), naming the same 27 the CSV column names. MEASURED by the coo across all seven rung_suites
 # 2026-09-08: snobol4 csv 27 and ALL.xfail 27 overlapping 27 of 27; icon 20 markers only; raku 156,
 # snocone 16, rebus 4, all csv-only; prolog and pascal 0. Six of the seven use a SINGLE spelling, so
 # no overlap is possible there -- which is why the union is safe to take and the sum is not.
@@ -266,7 +266,7 @@ def lfl_why(r):
 # population must never print the success shape. That is the whole instrument law in one return value.
 _XF_CACHE = {}
 def xfail_by_lang(lang):
-    """Distinct xfail ENTRIES for a master language: union of the three spellings, or None if unreadable."""
+    """Distinct xfail ENTRIES for a rung suite language: union of the three spellings, or None if unreadable."""
     if lang in _XF_CACHE: return _XF_CACHE[lang]
     import csv as _csv, glob as _glob
     d = os.path.join(os.path.dirname(os.path.abspath(TSV)), '..', 'corpus', 'tests', lang)
@@ -307,8 +307,8 @@ def eta(r,today):
     fp,ft,tp,tt=int(r['first_pass']),int(r['first_total']),int(r['today_pass']),int(r['today_total'])
     rem=tt-tp
     if rem<=0:
-        # CEO-416: a master carrying xfails is NOT done however the fraction reads (see xfail_by_lang).
-        if 'master' in r['key']:
+        # CEO-416: a rung suite carrying xfails is NOT done however the fraction reads (see xfail_by_lang).
+        if 'rungs' in r['key']:
             xf = xfail_by_lang(r['lang'])
             if xf is None: return 'XFUNKNOWN', None
             if xf > 0:     return 'XFAIL', xf
@@ -323,9 +323,9 @@ def eta(r,today):
     if days<=0: return 'NEW',None
     return 'MOVE', (tp-fp, r['first_date'])
 def xfail_annotation(r, k):
-    """The one sentence a master row carrying xfails must show when eta() is NOT already saying it.
-    Returns '' for a non-master, an unreadable census, a zero count, or k=='XFAIL' (which says it itself)."""
-    if k in ('XFAIL', 'XFUNKNOWN') or 'master' not in r['key']: return ''
+    """The one sentence a rung suite row carrying xfails must show when eta() is NOT already saying it.
+    Returns '' for a non-rungs, an unreadable census, a zero count, or k=='XFAIL' (which says it itself)."""
+    if k in ('XFAIL', 'XFUNKNOWN') or 'rungs' not in r['key']: return ''
     xf = xfail_by_lang(r['lang'])
     if not xf: return ''
     gap = int(r['today_total']) - int(r['today_pass'])
@@ -380,10 +380,10 @@ def md():
         named={'DONE':'done','XFAIL':f'{e} xfail=fail','XFUNKNOWN':'xfail unreadable'}
         tail=named[k] if k in named else ''
         # ⭐ AND THE CONVENTION IS STATED WHEREVER THE ROW IS READ, not only when the fraction closes.
-        # eta() can only return 'XFAIL' when pass==total, so the moment a master row is corrected to the
+        # eta() can only return 'XFAIL' when pass==total, so the moment a rung suite row is corrected to the
         # honest 1871/1898 the xfail count VANISHES from the cell -- the reader then sees a 27-wide gap with
-        # no way to know it IS the known-red set rather than 27 unmeasured entries. Four masters were in
-        # exactly that state and said nothing (SnoM 27, RakM 156, SncM 16, RebM 4).
+        # no way to know it IS the known-red set rather than 27 unmeasured entries. Four rung suites were in
+        # exactly that state and said nothing (SnoRungs 27, RakRungs 156, SncRungs 16, RebRungs 4).
         # (ceo ruling to the coo, 2026-09-08: "Set it, state the convention in the cell.")
         xa = xfail_annotation(r, k)
         if xa: tail = (tail + ' · ' if tail else '') + xa
@@ -396,7 +396,7 @@ def md():
         # file can. The age is the reader's subtraction, or --check's (which now compares a render that no longer moves with the calendar).
         # the CEO-749 shape: OUTSIDE named in the same row -- the last OUTSIDE=N token of the row's own criterion stamp (coo 2026-09-16,
         # row util-suite-banner-render-rewrites-rows-a-seat-did-not-measure-and-there-is-no-check-mode-that-writes-nothing: a render
-        # used to drop a hand-written OUTSIDE clause, hq_raku measured SnoM 1961/1980 OUTSIDE=8 rendered to a plain 1961/1980)
+        # used to drop a hand-written OUTSIDE clause, hq_raku measured SnoRungs 1961/1980 OUTSIDE=8 rendered to a plain 1961/1980)
         _ot=re.findall(r'OUTSIDE=(\d+)', r.get('criterion_changed') or '')
         # the CEO-1286 shape (Lon 2026-09-26): EXCLUDED=k, the programs NOT IN THE SPITBOL DIALECT the denominator leaves out, from the
         # row's own today_excluded column (set by --set ... --excluded k), shown whenever the column carries a count, zero included.
@@ -423,7 +423,7 @@ def check_table():
     """--check: every suite-table row where SCORE.md and a fresh render from SUITES.tsv DISAGREE, printed side by side, WRITING
     NOTHING. rc 1 on a disagreement, 0 when the table agrees (population printed), 2 when the table cannot be found. The batch
     audit runs this every tick; a seat verifying after a rebase runs this, never --render (hq_raku 2026-09-16: --render as a
-    verification step rewrote Zona, Jcon and SnoM rows it never measured, twice, and the only way to ask whether the files agreed
+    verification step rewrote Zona, Jcon and SnoRungs rows it never measured, twice, and the only way to ask whether the files agreed
     was the command that made them agree)."""
     if not os.path.exists(SCORE):
         print(f"REFUSE(rc=2): {SCORE} missing beside the TSV"); return 2
@@ -526,7 +526,7 @@ def grid(plain=False):
             if tp<tt and pv>=100: pv=99
             pct=f"{pv}%"
         # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
-        # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the masters).
+        # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the rung suites).
         data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, "DONE" if tt and tp>=tt else ""])
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
@@ -587,10 +587,10 @@ README_RUNNER = {
     'arizona': 'test_icon_arizona_suite.sh', 'jcon': 'test_icon_jcon_suite.sh', 'ipl': 'test_icon_ipl_suite.sh',
     'inria': 'test_prolog_inria_suite.sh', 'swi': 'test_prolog_swi_suite.sh', 'gnu': 'test_prolog_gnu_suite.sh',
     'logtalk': 'test_prolog_logtalk_suite.sh', 'fpc': 'test_pascal_fpc_suite.sh', 'pat': 'test_pascal_pat_suite.sh',
-    'roast': 'raku_roast_scoreboard.sh --run', 'sno-master': 'test_corpus_snobol4.sh', 'icn-master': 'board_icon_master.sh',
-    'pl-master': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-master': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
-    'raku-master': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-master': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
-    'reb-master': 'corpus_suite_harness.py run tests/rebus/ALL.reb',
+    'roast': 'raku_roast_scoreboard.sh --run', 'sno-rungs': 'test_corpus_snobol4.sh', 'icn-rungs': 'board_icon_rungs.sh',
+    'pl-rungs': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-rungs': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
+    'raku-rungs': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-rungs': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
+    'reb-rungs': 'corpus_suite_harness.py run tests/rebus/ALL.reb',
     # ⭐ THE BENCHMARK ROWS (Lon 2026-09-23 17:2x, CEO-1221; row instruments-benchmarks-enter-the-suite-grid-..., the coo): KEY = the
     # progress table's suite name, so no key-to-DB map anywhere needs an entry. None = the lane has not landed its runner yet: a row
     # with no reading renders `—` there, and a MEASURED row whose runner is None REFUSES the render -- a README row says what produced it.
@@ -630,7 +630,7 @@ def readme_block(rows, pin):
            "Every row is generated from the leaderboard's machine record, `.github/SUITES.tsv` (the SUITE TABLE of `.github/SCORE.md`),",
            "never typed by hand: the suite's latest reading, written by that suite's own runner in the landing that measured it, with the",
            "day it was measured (the SCRIP tree and the runner of every reading are in that record). Passing / graded counts a program",
-           "only when it passes in BOTH modes. The seven masters are our own flat",
+           "only when it passes in BOTH modes. The seven rung suites are our own flat",
            ("suites with refs cut from each oracle; each Bench row is that language's benchmark programs graded as tests, a program passing "
             "when it prints its ref under all three angles (wrapper process, fixed iterations, fixed time limit); the others are vendored "
             "third-party suites. Raku is IN DEVELOPMENT: its rows stand as measured.") if bench else
@@ -640,11 +640,11 @@ def readme_block(rows, pin):
            "|:---|:---|---:|:---|"]
     for lang, name in README_LANGS:
         mine = [r for r in rows if r.get('lang') == lang]
-        mine = ([r for r in mine if not r['key'].endswith('-master') and not r['key'].endswith(BENCH_SUFFIX)]
-                + [r for r in mine if r['key'].endswith('-master')] + [r for r in mine if r['key'].endswith(BENCH_SUFFIX)])
+        mine = ([r for r in mine if not r['key'].endswith('-rungs') and not r['key'].endswith(BENCH_SUFFIX)]
+                + [r for r in mine if r['key'].endswith('-rungs')] + [r for r in mine if r['key'].endswith(BENCH_SUFFIX)])
         label = name + (' — IN DEVELOPMENT' if lang in README_IN_DEVELOPMENT else '')
         for r in mine:
-            suite = r['nick'] + (' (master)' if r['key'].endswith('-master') else '')
+            suite = r['nick'] + (' (rungs)' if r['key'].endswith('-rungs') else '')
             p_, t_ = (r.get('today_pass') or '').strip(), (r.get('today_total') or '').strip()
             cell = f"**{p_}/{t_}**" if p_ and t_ else "not graded"
             day = (r.get('today_date') or '').strip()
@@ -714,7 +714,7 @@ def readme_check(path, pinned_only=False):
     print(f"README-CHECK CURRENT OK: every README row matches SUITES.tsv as it stands now")
     return 0
 # ⛔⭐ ONE WRITER AT A TIME ON THE SUITE TABLE (coo 2026-09-25, hq_pascal's report, measured twice in one sitting): a lane running
-# its runners in parallel (fpc, PAT, bench and the master's util_score_row.py) had each one read SCORE.md, re-render its own row and
+# its runners in parallel (fpc, PAT, bench and the rungs' util_score_row.py) had each one read SCORE.md, re-render its own row and
 # write the whole file back -- the classic lost update: the LAST writer put back a line another runner had just set. SUITES.tsv read
 # fpc 158/181 on 48d98c99c while SCORE.md's FPC line still read 156, twice, the same runner losing both times. Every read-modify-write
 # of SUITES.tsv and SCORE.md now holds an exclusive flock on SUITES.tsv's own inode for its whole span -- no new file, nothing to

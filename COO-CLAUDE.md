@@ -55,7 +55,7 @@ Another coo session may have ended in this root minutes before yours. Read the t
 ## The workspace (three repos, one shared resource tree, one postoffice)
 - `SCRIP/` — the compiler: C/C++ in `src/`, ~1500 scripts in `scripts/`, and a ~550 KB `Makefile` (counts from 2026-09-26). Origin `git@github.com:snobol4ever/SCRIP.git`.
 - `corpus/` — the oracle-graded program universe that SCRIP's scripts expect as a sibling:
-  - `tests/<lang>/ALL.*`: the seven master suites.
+  - `tests/<lang>/ALL.*`: the seven rungs suites.
   - `packages/<lang>/<pkg>/`: the vendored third-party suites (`ls corpus/packages/*/`).
   - `benchmarks/`, `demos/`, and `include/` + `library/` (the shared `-INCLUDE` library).
   - `corpus/programs/` is NOT a runtime test suite (RULES.md § ABSOLUTE RULES).
@@ -134,7 +134,7 @@ bash scripts/test_gate_digest_matches_rules.sh    # polices every root's CLAUDE.
 ```
 - `scripts/` is navigable by prefix:
   - `test_gate_*`: invariants that must never regress.
-  - `test_<lang>_<pkg>_suite.sh`: package runners. `test_corpus_*` and `board_*`: masters.
+  - `test_<lang>_<pkg>_suite.sh`: package runners. `test_corpus_*` and `board_*`: rung suites.
   - `monitor_run.sh` + `monitor/`: the monitor.
   - `bench_*` and `util_*`: instruments.
   - `lib_*`: sourced authorities. Source them, never copy them.
@@ -157,7 +157,7 @@ bash SCRIP/scripts/handoff_status.sh                                            
   - A `-dirty` stamp is cited for its number, never for its position in a series (MASTER-PLAN rule 5).
   - State zero as ZERO.
   - Report beside it the bug-classes per hour across the working seats (Lon's measure: ten an hour across the fleet, two per seat per hour under THE PACE, CEO-525).
-  - `--class` is an EXCLUSIVE filter: `--class package` prints master as 0, and that zero is the filter, not a loss (COO-56).
+  - `--class` is an EXCLUSIVE filter: `--class package` prints rungs as 0, and that zero is the filter, not a loss (COO-56).
 - **The rows.**
   - A flip line is `suite pass/total tree runner` (PROTOCOL.md § TELEGRAMS).
   - A lane's runner writes its own row through `util_score_row.py`, with the per-program progress appends (CEO-775).
@@ -220,7 +220,7 @@ Lon 2026-09-24, to hq_prolog: *"Just have each seat run only their own test suit
 - **The lander's verdict.** A shared-node landing is graded by the LANDER on its own language's suites, the gates it touched and `make preflight`. Its commit names the shared node and every frontend that reaches it. `grep -c IR_<NODE> src/lower/lower_*.c` is only a floor: state carried in globals or registers widens the owed set (CEO-405).
 - **Other languages' verdicts.** Every OTHER language's verdict comes from that language's HQ's next per-landing pass on origin, which stamps the range it covers. If that pass reds a program that was green at the previous pass, the HQ bisects it and the lander cures or reverts within the tick.
 - **The bar is unchanged.** Each arm reads no worse than a clean tree without the change, on the same corpus. The comparison tree is named by a clean stamp; a `-dirty` board is cited for its number, never its position (MASTER-PLAN rule 5). Every tolerated red is named with its row.
-- **Standing reds.** The SNOBOL4 standing reds are whatever `SUITES.tsv` `sno-master` reads short of its total, each named in `corpus/tests/snobol4/ALL.xfail`. There is no XFAIL verdict (CEO-753): a witness that exposes a defect enters the master red and gets a row.
+- **Standing reds.** The SNOBOL4 standing reds are whatever `SUITES.tsv` `sno-rungs` reads short of its total, each named in `corpus/tests/snobol4/ALL.xfail`. There is no XFAIL verdict (CEO-753): a witness that exposes a defect enters the rungs red and gets a row.
 - **Officers run no board.** A cross-language regression you suspect is a telegram asking that HQ for its pass.
 - **Retired, quoted here so a reader who remembers them knows:**
   - CEO-523's *"the control arms are the coo's next board pass"*, dead with the central runner (CEO-775).

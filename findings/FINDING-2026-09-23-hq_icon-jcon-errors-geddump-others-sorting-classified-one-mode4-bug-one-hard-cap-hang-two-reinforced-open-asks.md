@@ -39,7 +39,7 @@ RULES.md's own debugging order (ASM-DIFF-FIRST) prescribes and this seat has not
 ## `geddump.icn` — reinforces the not-yet-routed hard-cap+collector hang class
 
 HANGS (rc=124, 20s timeout) at the shipped default arena feeding its real `.dat` input; clean (rc=0, matches
-`.std`) at `SCRIP_HEAP_MB=64`/`collections=0`. Same shape as `every_suspend_replace_10` from the icon-master row
+`.std`) at `SCRIP_HEAP_MB=64`/`collections=0`. Same shape as `every_suspend_replace_10` from the icon-rungs row
 (SIGABRT-clean-exhaustion at default settings, HANG instead of abort under added pressure) -- a second witness for
 a class that row already named as "not yet routed to anyone." Folding both into that row's ledger; still nobody's
 open ask.
@@ -49,7 +49,7 @@ open ask.
 `others`/`sorting`: no action, already asked (cfo kind-215, cto kind-213). `errors`: NEW, needs ASM-diff between
 m3 and m4 emission for a procedure-return-through-alternation before anyone should touch it — flagged to cto
 (frame/spine) rather than attempted blind. `geddump`: reinforces an unrouted hard-cap/collector-hang class from
-the icon-master row; still needs a home, tentatively cfo (collector/allocator) given the shape (a real capacity
+the icon-rungs row; still needs a home, tentatively cfo (collector/allocator) given the shape (a real capacity
 case that should abort cleanly and instead spins).
 
 ## REPRO

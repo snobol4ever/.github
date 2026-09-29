@@ -16,7 +16,7 @@ the rule is: use the spelling an actual reference uses; where a file has referen
 none, fall back to the directory's prevailing case.
 
 ⛔ SCOPE IS PACKAGES AND include/ ONLY. tests/snobol4 has six include-headed files that belong to the
-master suite's own fixtures; renaming those would move a denominator, which is a different decision
+rungs suite's own fixtures; renaming those would move a denominator, which is a different decision
 from restoring vendored upstream names, and it is not what Lon asked for.
 
 Every rename is a `git mv` so history follows the file, and every `-INCLUDE "X.sno"` reference that
@@ -37,8 +37,8 @@ import subprocess
 import sys
 
 HEADER = re.compile(r'^\*\s*(\S+)\.inc\b', re.I)
-# EITHER QUOTE (coo COO-203): the SNOBOL4 master's `-INCLUDE 'FORTPUT.sno'` is single-quoted and resolves to include/FORTPUT.sno; a
-# double-quote-only pattern left it naming a file this tool renames, which reds that master entry.
+# EITHER QUOTE (coo COO-203): the SNOBOL4 rungs' `-INCLUDE 'FORTPUT.sno'` is single-quoted and resolves to include/FORTPUT.sno; a
+# double-quote-only pattern left it naming a file this tool renames, which reds that rung suite entry.
 REF = re.compile(r'''(-INCLUDE\s+(["']))(.+?)(\2)''', re.I)
 REF_B = re.compile(rb'''(-INCLUDE\s+(["']))(.+?)(\2)''', re.I)
 RECORD_EXT = (".tsv", ".txt", ".md", ".csv")
@@ -149,7 +149,7 @@ def main():
 
     # A REFERENCE IS REWRITTEN ONLY WHEN IT RESOLVES TO A RENAMED FILE, resolved as the SNOBOL4 lexer resolves it (src/driver/scrip.c):
     # the including file's own directory first, then SNO_LIB (the harness sets it to corpus/include). A basename match is not a
-    # resolution: the master's `-INCLUDE "OR.sno"` and config/BLANKS.sno's "DIFF.sno" resolve to the copies beside them in
+    # resolution: the rungs' `-INCLUDE "OR.sno"` and config/BLANKS.sno's "DIFF.sno" resolve to the copies beside them in
     # tests/snobol4/config, which keep their names, and include/PUT.sno and gimpel/PUT.sno take different spellings.
     unresolved = collections.Counter()
 

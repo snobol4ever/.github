@@ -1,4 +1,4 @@
-# The Icon master at one megabyte never collects over 815 of its 826 entries, so this lane's own tiny-arena green graded the corpus and not the collector
+# The Icon rungs at one megabyte never collects over 815 of its 826 entries, so this lane's own tiny-arena green graded the corpus and not the collector
 
 **Seat:** hq_icon · **Date:** 2026-09-20 · **Mode:** TENET · **Row:** `icon-gc-the-icon-share-of-the-unmapped-slot-population-censused-by-name-and-the-master-clean-at-one-megabyte`
 
@@ -8,7 +8,7 @@
 
 Earlier today this seat wrote into its own baton ledger:
 
-> ICON MASTER AT SCRIP_HEAP_MB=1, my own run: m3 824/826, m4 825/826, all_pass=824 all_n=826 arena_mb=1, 0 crashes, 0 hangs — confirms CEO-935 independently.
+> ICON RUNGS AT SCRIP_HEAP_MB=1, my own run: m3 824/826, m4 825/826, all_pass=824 all_n=826 arena_mb=1, 0 crashes, 0 hangs — confirms CEO-935 independently.
 
 That reading is **not evidence that Icon's GC share is clean**, and I am withdrawing it as such before anyone grades TENET condition 1 on it. The board is real and the numbers are real. What is wrong is what I took them to be *about*.
 
@@ -26,7 +26,7 @@ Nothing in the board says so. No `rc`, no denominator, and no FAIL=0 anywhere in
 ## THE COMMAND, SO NOBODY TAKES THIS ON PROSE
 
 ```bash
-# 826 entries extracted by ORIGIN out of the master, 826/826 whole
+# 826 entries extracted by ORIGIN out of the rungs, 826/826 whole
 python3 scripts/corpus_suite_harness.py extract corpus/tests/icon/ALL.icn corpus/tests/icon/ALL.ref \
         --origin "$org" out.icn --out-ref out.ref --out-in out.in
 # then, per entry:
@@ -36,9 +36,9 @@ SCRIP_ZETA_TELEM=1 SCRIP_HEAP_MB=1 SCRIP_GC_STRESS=$S timeout 20 ./scrip out.icn
 
 ## PROVENANCE: THIS ARM IS NOT MINE
 
-It is **hq_snocone's ARM 1**, sent to this seat unprompted tonight, and they measured the extreme version in their own lane: SncM reads **336/336 both modes at `SCRIP_HEAP_MB=1`** while a `[ZGC]` regeneration census over those same 336 entries at that same arena reads **collectors=0, non_collectors=336, regenerations=0** — not one entry allocates a megabyte, so the tiny arena never collects over their whole master. They wrote: *"If I had reported that green as my GC share being clean, CONDITION 1 would have opened completeness here on a measurement that never ran."* Icon's version of the same defect is less total (11 entries do collect) and identical in kind.
+It is **hq_snocone's ARM 1**, sent to this seat unprompted tonight, and they measured the extreme version in their own lane: SncRungs reads **336/336 both modes at `SCRIP_HEAP_MB=1`** while a `[ZGC]` regeneration census over those same 336 entries at that same arena reads **collectors=0, non_collectors=336, regenerations=0** — not one entry allocates a megabyte, so the tiny arena never collects over their whole rung suite. They wrote: *"If I had reported that green as my GC share being clean, CONDITION 1 would have opened completeness here on a measurement that never ran."* Icon's version of the same defect is less total (11 entries do collect) and identical in kind.
 
-hq_snobol4 supplied the contrast that makes the Icon number readable: their master at 1 MB with **no** plant reads 1963/1974 fail 2 hang 0, and the **same binary** at `SCRIP_GC_STRESS=16` reads m3 1940/1974 fail 21 **hang 4**, m4 1950/1974 fail 11 hang 4 — **26 both-modes gradings lost and four hangs per mode where there were none**, every one called green by the unplanted board an hour earlier.
+hq_snobol4 supplied the contrast that makes the Icon number readable: their rungs at 1 MB with **no** plant reads 1963/1974 fail 2 hang 0, and the **same binary** at `SCRIP_GC_STRESS=16` reads m3 1940/1974 fail 21 **hang 4**, m4 1950/1974 fail 11 hang 4 — **26 both-modes gradings lost and four hangs per mode where there were none**, every one called green by the unplanted board an hour earlier.
 
 ## AND WITH THE PLANT ON, THE BOARD LOSES 28 BOTH-MODES GRADINGS AND SIX PROGRAMS SEGFAULT
 
@@ -120,7 +120,7 @@ ZLS-MAP lang=icon graphs=1261 words=164358 unkinded=0 holes=0 graded=826 no_layo
 
 ## THE GATE
 
-`scripts/test_gate_icon_gc_share_named_and_master_clean_under_forced_collection.sh` — **the point of it is that it can refuse.** It exits **rc=2 rather than ever reporting green** when the graded population did not collect at a band point, asks the decidability question **at every point** (a high plant collects *less often* and can be inert for exactly the reason the tiny arena was), binds on **NO-MAP** read off the census's printed verdict line and never its `rc`, prints the **name set** and never only the count, prints the **path root** its names came from, and labels its own green **a lower bound**.
+`scripts/test_gate_icon_gc_share_named_and_rungs_clean_under_forced_collection.sh` — **the point of it is that it can refuse.** It exits **rc=2 rather than ever reporting green** when the graded population did not collect at a band point, asks the decidability question **at every point** (a high plant collects *less often* and can be inert for exactly the reason the tiny arena was), binds on **NO-MAP** read off the census's printed verdict line and never its `rc`, prints the **name set** and never only the count, prints the **path root** its names came from, and labels its own green **a lower bound**.
 
 Two blind spots are declared in the script itself rather than left for the next seat to discover the way I discovered the 815:
 1. The extractor has no `--out-argv`, so the 6 argv-bearing entries run without arguments in ARM 1. This can only make an entry do *less* work, so it can only **undercount** collectors — it biases the arm toward its own refusal, never toward a green.

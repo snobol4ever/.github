@@ -50,7 +50,7 @@ Test baselines, conformance, known gaps, and performance benchmarks across all i
 
 | Branch | Tests |
 |--------|------:|
-| `master` (Roslyn) | 1,271 |
+| `rungs` (Roslyn) | 1,271 |
 | threaded execution | 1,386 |
 | post-threaded-dev | 1,413 |
 | msil-emitter | 1,484 |

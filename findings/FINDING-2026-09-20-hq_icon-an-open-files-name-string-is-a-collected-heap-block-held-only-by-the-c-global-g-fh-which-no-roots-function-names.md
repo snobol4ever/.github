@@ -120,7 +120,7 @@ Icon reads `members=0` **with 10 sites unmeasured**, which the census itself ref
 the undecidable population is exactly the co-expression family, which is where Icon's own regime enters a box
 through an indirect jump.
 
-## THE ICON MASTER AT THE TINY ARENA
+## THE ICON RUNGS AT THE TINY ARENA
 
 `SCRIP_HEAP_MB=1`, harness, both modes, my own run on a clean tree:
 

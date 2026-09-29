@@ -1,10 +1,10 @@
 # FINDING 2026-09-22 hq_raku — `my @arr = <scalar>` never gets list-context wrapping (elems falls back to a stringify+strlen guess)
 
 **Not fixed this sitting — named rather than patched, because the correct fix touches array-assignment
-lowering used everywhere, and the risk of regressing some of the 866 currently-passing RakM entries under
+lowering used everywhere, and the risk of regressing some of the 866 currently-passing RakRungs entries under
 session time pressure outweighs landing it without full exploration.**
 
-**Symptom, measured (drives the `scrip_test_rk_given18` RakM master FAIL):**
+**Symptom, measured (drives the `scrip_test_rk_given18` RakRungs FAIL):**
 
 ```raku
 my @vals = '';        # should seed a 1-element array: ('',)
@@ -47,11 +47,11 @@ at the `TT_ASSIGN` site (`src/lower/lower_raku.c:356`, the `t->c[0]->t == TT_VAR
 `TT_DECL` site (`:374`) if `my @x = ...;` ever routes through that arm instead (this sitting only confirmed
 the `TT_ASSIGN` arm is what a bare `my @c = "";` actually uses). Getting the RHS-shape test right (literal /
 scalar var / call-returning-list / already-array) without breaking `my @b = @a;`, `my @c = some_list_sub();`,
-`my @d = %h.values;`, etc. is real design work, not a mechanical patch -- and RakM has 929 entries covering
+`my @d = %h.values;`, etc. is real design work, not a mechanical patch -- and RakRungs has 929 entries covering
 many of those shapes already passing, so a wrong cut here risks a wide regression that would not show up
 until the full board re-runs.
 
-**Suggested approach for whoever picks this up:** find every currently-passing RakM/ladder/smoke entry of
+**Suggested approach for whoever picks this up:** find every currently-passing RakRungs/ladder/smoke entry of
 the shape `my @X = <non-paren-RHS>;` first (a grep over `ALL.raku` for `my @\w+ = ` excluding lines whose
 RHS starts with `(`), read what each RHS actually is (var/call/literal), and use that as the test matrix
 *before* changing `TT_ASSIGN`'s lowering -- exactly the ASM-DIFF-FIRST discipline the repo already mandates,

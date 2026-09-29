@@ -13,7 +13,7 @@ Fifteen characters versus seventeen. Nothing else differs.
 
 ## THE MEASUREMENT
 
-Program (`ladder__rung19_block_methcall`, in the raku master): `say ("a","b").map({ $^a.uc });` · ref `(A B)`.
+Program (`ladder__rung19_block_methcall`, in the raku rungs): `say ("a","b").map({ $^a.uc });` · ref `(A B)`.
 Deterministic over five repeats at every point.
 
 | total path length | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 |
@@ -27,7 +27,7 @@ allocation history, and the allocation history includes things that are not the 
 
 ## ⛔ WHAT THIS DOES TO A STRESS "NAME SET"
 
-CEO-1024 asked every lane to re-run its master above stress 5 and report the **name set** rather than a count —
+CEO-1024 asked every lane to re-run its rungs above stress 5 and report the **name set** rather than a count —
 and was right that a count hides a moved divergence point. **But a name set is contingent on the runner's
 paths.** Boards extract entries into `mkdtemp` directories, so the names a board reports are partly a function
 of its temp path length. The measured consequence, which cost this seat an hour:

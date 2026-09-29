@@ -5,7 +5,7 @@ Every number below was produced by the runner or by gdb in this sitting; none is
 
 ## The two families were two defects, as the baton predicted, and NEITHER is a frame-map hole
 
-The raku master loses 65 gradings between a stress-unset control and `SCRIP_HEAP_MB=1 SCRIP_GC_STRESS=16`,
+The raku rungs loses 65 gradings between a stress-unset control and `SCRIP_HEAP_MB=1 SCRIP_GC_STRESS=16`,
 across 36 distinct programs, every one at rc=0 with no diagnostic. Both causes are the SAME CLASS wearing two
 costumes: **a holder of collected-heap pointers that the collector has no way to reach**, one on a C stack
 frame and one in a C static table. Neither is an unmapped *slot*; both are outside the frame-map vocabulary
@@ -79,8 +79,8 @@ PASS raku: entries=929 graded=922 no_layout=7 (declared=2 defect=5) graphs=1293 
 
 **The gate is not lying** and that belongs on the record: its own population line reads *the zls region only;
 the wire header past region_end and the spine are not censused here*. It answers a narrower question than its
-headline, and the headline is what gets quoted. Censused by extraction of all 879 master entries and a frame-map
-dump per entry: **33 zero-entry layouts in the raku master, every one a grammar TOP graph**, nothing else.
+headline, and the headline is what gets quoted. Censused by extraction of all 879 rungs entries and a frame-map
+dump per entry: **33 zero-entry layouts in the raku rungs, every one a grammar TOP graph**, nothing else.
 
 ⭐ This is CEO-1025's own clause arriving one level deeper. That ruling split `no_layout` into NEVER-EMITTED and
 EMITTED-WITHOUT-A-LAYOUT because a bucket that conflates them cannot answer NAME ONE MEMBER. A third shape sits
