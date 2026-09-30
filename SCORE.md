@@ -39,7 +39,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RakBench | raku | 62/84 | 2026-09-28 | `04b933b81` |  |
 | RebBench | rebus | 3/3 | 2026-09-28 | `04b933b81` | done |
 | SnoDemo | snobol4 | 24/24 | 2026-09-28 | `04b933b81` | done |
-| SncDemo | snocone | 15/16 | 2026-09-28 | `04b933b81` |  |
+| SncDemo | snocone | 22/23 | 2026-09-30 | `fef61c805` |  |
 | IcnDemo | icon | 6/6 | 2026-09-28 | `04b933b81` | done |
 | ProDemo | prolog | 0/2 | 2026-09-28 | `04b933b81` |  |
 | ScrDemo | scrip | 10/10 | 2026-09-28 | `04b933b81` | done |

@@ -33,7 +33,7 @@ pascal-bench-ref	PasBench	⏱️	pascal	2026-09-23	11	11	2026-09-28	11	11	04b933
 raku-bench-ref	RakBench	⏱️	raku	2026-09-24	5	17	2026-09-28	62	84	04b933b81	2026-09-26:the population is every raku-bench and Rakudo benchmark on the box, 17 to 83 kernels -- the 62 microbenchmark bodies, the 7 tools/benchmark.pl snippets and the 4 programs excluded on 08-27, imported on Lons word to get all the Raku benchmarks graded (CEO-1283) | 2026-09-26:DENOMINATOR-83-to-84-rakudo-tools-07-postfix-10-000-times-entered-at-corpus-7a0a310ce-the-seventh-tools-benchmark.pl-snippet-the-importer-missed	
 rebus-bench-ref	RebBench	⏱️	rebus	2026-09-23	3	3	2026-09-28	3	3	04b933b81		
 snobol4-demos	SnoDemo	🎬	snobol4	2026-09-27	24	24	2026-09-28	24	24	04b933b81		
-snocone-demos	SncDemo	🎬	snocone	2026-09-27	15	16	2026-09-28	15	16	04b933b81		
+snocone-demos	SncDemo	🎬	snocone	2026-09-27	15	16	2026-09-30	22	23	fef61c805	2026-09-30:the seven bootstrap parsers join the Snocone demos as parser_LANG (Lon 2026-09-30 the seven parser_lang.sc as demos and benchmarks for Snocone, ceo CEO-1379), denominator 16 to 23	
 icon-demos	IcnDemo	🎬	icon	2026-09-27	6	6	2026-09-28	6	6	04b933b81		
 prolog-demos	ProDemo	🎬	prolog	2026-09-28	0	2	2026-09-28	0	2	04b933b81		
 scrip-demos	ScrDemo	🎬	scrip	2026-09-27	10	12	2026-09-28	10	10	04b933b81	2026-09-27:the two family_snobol4.sno LIBRARY blocks are containers named in demos/scrip/CONTAINERS.tsv (corpus 305265258, CEO-1325 ask 2) -- shipped 12, graded 10	
