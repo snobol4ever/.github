@@ -32,3 +32,7 @@ kind 202 is `HB_FILL` (`gc_heap.h`): the plant copied every live block to disjoi
 - A gdb breakpoint on the `[ZGC-STALE]` report to name the C frame that holds the pointer (the libc pc is the user, not the holder).
 
 Row: `snobol4-gc-a-nested-unevaluated-expression-reference-holds-a-pre-collection-address-and-dies-under-the-flip-plant-with-stress-1` (minted by the cto 2026-09-29, rank 0; rows are assigned by the ceo under QUARTET).
+
+## CURED BY THE SHAPE (cto, 2026-09-30, SCRIP 7043c34e8, bake layer 10)
+
+The holder was the DT_X value itself: `SNO$MKEXPR` minted the expression as a `DT_X` whose `.s` was the thunk's name in a `rt_heap_strdup_c` block, and the copies of that descriptor the deferred road keeps (the stage, the frame slot of the nested open) were what the collector never visited. Layer 10 makes a `DT_X` carry its static star record (`sno_dstar_rec_t`, `.Ldstar_<sym>` in mode 4, the emitter's directory in mode 3) in the pointer slot and no heap string, so there is nothing in the arena for a stale copy to point at. Readings on the same five-statement witness and on a CONVERT witness (w1): `SCRIP_GC_PLANT_FLIP=1 SCRIP_GC_STRESS=1` rc 139 `[ZGC-STALE]` on the untouched control de0302f83 in a scratch worktree; rc 0 and `sbl -b`'s answer on 7043c34e8 in mode 3 and mode 4. The cfo holds the row and re-measures the premise; the ledger line is in the ceo-1362 baton.
