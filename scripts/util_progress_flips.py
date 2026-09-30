@@ -745,6 +745,19 @@ def main():
     a = ap.parse_args()
     if a.ratchet:
         return cmd_ratchet(a)   # streams the table itself -- never load() (ratchet_scan)
+    # THE CURRENT TABLE (Lon 2026-09-29, in-chat to the cto, verbatim: "delete th entire file and just keep an CURRENT TABLE. We are
+    # close enough to 100% now to do that."; the swap ran 18:57 CDT, SCRIP 52b2a0ffd's upsert): results.tsv.current beside the table
+    # means a board REPLACES the row of each key it re-measures, so no earlier reading survives. A flip is two readings of one key and
+    # a contradiction is two outcomes on one key; neither can exist here, so those arms REFUSE rc=2 rather than print a zero that
+    # reads like a measurement (INSTRUMENT LAWS). --coverage reads the current rows unchanged; --register's first-PASS column becomes
+    # the earliest reading still in the table and says so.
+    current = os.path.exists(a.db + ".current")
+    if current and not (a.coverage or a.register or a.program):
+        print("⛔ REFUSED (rc=2): %s is a CURRENT TABLE (%s.current): one row per (class, suite, lang, program, mode), each re-measure "
+              "REPLACES its row, so no key keeps two readings and %s cannot be measured here -- a zero would describe the table, not the "
+              "fleet. The transition a board makes is visible only to the writer, at the moment it replaces a row." % (
+                  a.db, a.db, "a contradiction" if a.contradictions else "a flip (not-PASS -> PASS across two readings)"))
+        return 2
     rows = load(a.db)
     if a.coverage:
         return cmd_coverage(a, rows)
@@ -752,6 +765,10 @@ def main():
         return cmd_contradictions(a, rows)
     if a.register or a.program:
         a.register = True
+        if current:
+            print("⛔ %s is a CURRENT TABLE: the register's first-PASS column is the earliest reading STILL IN THE TABLE (the latest PASS "
+                  "of each key re-measured since the swap), not when the program began working; REGISTER.tsv as built before the swap "
+                  "keeps the history." % a.db, file=sys.stderr)
         return cmd_register(a, rows)
     return cmd_flips(a, rows)
 
