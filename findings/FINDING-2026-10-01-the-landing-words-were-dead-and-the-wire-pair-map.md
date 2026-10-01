@@ -134,3 +134,45 @@ The grep for `kt - 16` missed the want-name restore, because it reads `[rsp + kt
 - Re-proved after rebasing onto hq_prolog's R4.2: 628 of 628 Prolog programs.
 
 **The next unit:** `{kt-32 frame-top address, kt-24 γ copy}`. Its first word is a stack address, the bulk of crypt's remaining 92,986 stack-valued units. `kt-32` is the fifth word of the Prolog choice quad (`kt-64` r12, `kt-56` alternative, `kt-48` 0, `kt-40` r13, `kt-32` top) that `rt_pl_choice_open` and `rt_pl_quad_seed` receive.
+
+## 7. The frame bound at `[B+32]` is packed too (SCRIP `648e2364e`)
+
+The Prolog choice quad's fifth word is the frame bound: the zframe prologue seeds it with the frame top, and `rt_pl_disj_open` lowers it to the frame base. It is now stored as `(bound << 8) | DT_RAW`.
+
+There are two readers, and both now go through `pl_tr_frame_hi` / `pl_tr_frame_hi_set` in `rt_pl_trail.h`:
+- the emitted trail test `pl_trail_rdi`, which unpacks with one `shr`;
+- its C twin `pl_tr_needs_log`.
+
+**Negative control:** with the emitted reader's unpack removed, 123 of 627 Prolog programs answered differently, so the differential population does see this slot. `test_gate_pl_trail_mechanism` went red on the first cut because its fixture wrote a raw pointer; the fixture now writes through the setter.
+
+**Measured on the same tree, `ba10ba29f` against this change:** crypt.pl in m3 went from 48,144 raw units to 19,701 (stack-valued 40,449 → 12,015).
+
+## 8. A zframe root records its ceiling (SCRIP `d77359003`)
+
+`rt_outer_call` records the emitted-stack ceiling. The zframe root's two entries did not: `icn_zf_main_call` in mode 3 and the emitted main's zframe arm in mode 4, which is the road of every Prolog and Raku main. Their walks stopped only through the "no map above the last frame" fallback, and L3 deletes that fallback.
+
+The census over-counted for the same reason: it sweeps the whole segment it is handed. It read the C driver's frames, the environment strings and auxv as raw units. For crypt that was 179 units over 8 collections, 38 of them ASCII.
+
+**The cure:** `rt_gc_emit_ceiling_adopt_top(top)`. A zframe root's frame top is its entry rsp, and the existing resolve verifies it at every collection.
+
+**Verification against `648e2364e`:**
+- 100 of 100 gc_witnesses ran identically at 64 KB under stress.
+- 1,587 programs changed asm and all ran identically, except four Raku timing-only kernels.
+- crypt now reads the same in m3 and m4.
+
+## 9. No env chooses a frame placement (SCRIP `8b8ff531e`)
+
+`test_gate_no_zeta_frame_switches`, a blocking gate, read my two road switches red: `SCRIP_LEAF_FRAME` and `SCRIP_BLOB_SPINE`. Both are deleted.
+- The leaf road stays the spine.
+- The frameless stored-pattern thunk (`a4a9efcce`) becomes the one road.
+
+**Verification against `d77359003`:**
+- 243 of 5,246 programs changed asm: 241 SNOBOL4 and 2 Snocone.
+- 242 of them ran identically. The 243rd, `arb_pos_len_replace_1`, has a pre-existing nondeterministic diagnostic: an uninitialized `saved_delta` in `rt_dcap_pump`, routed to hq_snobol4.
+- The 42 SNOBOL4-family gc_witnesses ran identically under stress.
+
+In the same landing, the coo's other three standing blocking reds and frame_reuse rungs 2 and 3(e) had two causes:
+- **Semicolons:** inline Icon witnesses without the semicolons CEO-1392 requires.
+- **One fewer det leaf:** `r/1` now seals three det leaves. R4.1 (`734797863`) made the `r(0)` head constant an `IR_UNIFY_CONST` box; measured on that commit and its parent.
+
+**Open, and red in rung 3(d):** the beta-capable `IR_UNIFY_CONST` writes `r/1`'s shared dead-result scratch. So the scratch no longer overlays the pooled slot at +32, and r/1's frame grows by 16 bytes.
