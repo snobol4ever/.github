@@ -1,5 +1,14 @@
 # FINDING-2026-10-01-hq_snocone-beauty-sigsegv-break-12char-threshold
 
+⛔ SUPERSEDED same day by FINDING-2026-10-01-hq_snocone-beauty-sigsegv-zd-plan-assign-cond-depth-mismatch.md. The
+localization below (the `String = *SQ | *DQ` alternation in `Expr17`) is WRONG -- it was a plausible but unproven
+read of the 12-char threshold alone. The real root cause, proven at the instruction level with real ELF symbols and
+measured RSP deltas, is a stack-depth miscalculation in `GenTab()` (`corpus/library/Gen.sc`), a function with no
+pattern alternation in it at all; `String`/`Expr17`/DEFER are not involved. The 12-char threshold is real but is a
+side effect of flipping which branch of a DIFFERENT construct (`GenTab`'s `if (~(DUPL-based assign)) alt;`) runs.
+The reproduction steps and the 11-vs-12 threshold measurement below are still accurate as *observations*; only the
+"suspect construct" conclusion is retracted. Read the superseding finding first.
+
 ## Context
 Task `snocone-every-suite-to-100-under-tenet-ceo-1383`. SncRungs 338/338, SncBench 16/16, SncDemo 22/23 — the one red is the Snocone self-host beauty demo (`corpus/demos/snocone/beauty/beauty.sc` + the 16-file `corpus/library/*.sc` chain declared in its `.chain` sidecar), SIGSEGV rc=139 in mode 3, confirmed also in mode 4 is implied by the task NOTE ("crashes in both modes"); this sitting measured mode 3 directly.
 
