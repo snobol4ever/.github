@@ -111,3 +111,26 @@ On a pinned zframe (`x86_fb_pinned`, the `bcps_wire_cross_gen` road) and at a Pr
 **Measured:** crypt.pl in m3 went from 130,164 code-valued raw units to 69,522, and total raw from 239,588 to 178,946.
 
 **What remains per Prolog call:** only the callee frame's top 32 bytes, `{stack word, γ copy}` and `{ω copy, caller rbp}`. The 32 bytes of `{DT_RAW, 0}` filler under the call (the landing cell and the pair cell) keep the old depth. They can go once the `add rsp,32` landings and the LCO's `lea r10,[rsp+16]; cmp r10,rbp` adjacency test are re-based.
+
+## 6. The zframe's ω copy is a packed cell head (SCRIP `ba10ba29f`)
+
+The unit `{kt-16 ω copy, kt-8 caller rbp}` now begins with `(ω << 8) | DT_RAW`. That is a non-pointer cell: the tag is the low byte, the payload is the rest, and a user-space address shifted by 8 still fits. The caller's rbp stays in the value half.
+
+| Role | Sites |
+|---|---|
+| **Writers** (pack) | ICN-FR-2 zframe prologue; class-C chain prologue; the PL-DC arm's local ω shim; the class-C want-name park, which keeps its request in the same slot |
+| **Readers** (unpack) | pinned ω exit; unpinned ω exit; the Prolog LCO's reload into rdx; the want-name restore |
+
+The grep for `kt - 16` missed the want-name restore, because it reads `[rsp + kt-16+8]` after its own push.
+
+**Encoders added, both media.** `x86_or_imm` and `x86_shift_imm` (shl/shr by imm8) are wired into `x86()`. Before this, `or reg, imm` returned an empty string: the silent-drop class. The helpers `x86_raw_pack`/`x86_raw_unpack` now exist.
+
+**Measured:** crypt.pl in m3 went from 69,522 code-valued raw units to 2,806, and total raw from 178,946 to 112,231.
+
+**Verification against `c8dc0d182`:**
+- 1,735 of 5,246 programs changed asm: Prolog 627, Raku 960, Pascal 111, Snocone 37. Icon and SNOBOL4 are byte-identical.
+- All 1,735 ran identically in both modes, except four Raku benchmark kernels that print their own timing; the control differs from itself on those too.
+- The 18 changed gc_witnesses ran identically at 64 KB under `SCRIP_GC_STRESS=1`.
+- Re-proved after rebasing onto hq_prolog's R4.2: 628 of 628 Prolog programs.
+
+**The next unit:** `{kt-32 frame-top address, kt-24 γ copy}`. Its first word is a stack address, the bulk of crypt's remaining 92,986 stack-valued units. `kt-32` is the fifth word of the Prolog choice quad (`kt-64` r12, `kt-56` alternative, `kt-48` 0, `kt-40` r13, `kt-32` top) that `rt_pl_choice_open` and `rt_pl_quad_seed` receive.
