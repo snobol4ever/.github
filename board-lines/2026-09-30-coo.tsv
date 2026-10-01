@@ -79,3 +79,15 @@ fab17860c	raku-rungs	coo	SUITE_BOARD family=ALL total=955 shipped=955 outside=0 
 fab17860c	arizona	coo	ARIZONA_SUITE_BOARD shipped=119 graded=118 gap=1 m3_pass=118 m3_reject=0 m3_fail=0 m3_crash=0 m3_hang=0 m4_pass=118 m4_reject=0 m4_fail=0 m4_crash=0 m4_hang=0
 fab17860c	jcon	coo	JCON_SUITE_BOARD shipped=86 graded=86 gap=0 total=86 m3_pass=86 m4_pass=86
 fab17860c	ipl	coo	IPL_SUITE_BOARD total=851 compile_graded=851 compile_pass=846 compile_fail=5 run_graded=599 nomain_total=391 hasmain_total=460 nomain_ok=0 linkgap=3 parseerr=2 timeout=0 other=0
+fab17860c	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+fab17860c	snocone-bench-ref	coo	SUITE_BOARD family=snocone-bench-ref total=16 shipped=16 all_pass=16 all_n=16 m3_pass=16 m4_pass=16 angles=process,iter,time refless=0 unwrappable=0 heap_declared=16
+fab17860c	rebus-bench-ref	coo	SUITE_BOARD family=rebus-bench-ref total=3 shipped=3 all_pass=3 all_n=3 m3_pass=3 m4_pass=3 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=6
+fab17860c	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=26 all_n=26 m3_pass=26 m4_pass=26 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=26
+fab17860c	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+fab17860c	pascal-bench-ref	coo	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
+fab17860c	raku-bench-ref	coo	SUITE_BOARD family=raku-bench-ref total=84 shipped=84 all_pass=62 all_n=84 m3_pass=62 m4_pass=62 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=168
+fab17860c	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0
+fab17860c	snocone-demos	coo	DEMOS_SUITE_BOARD lang=snocone total=23 shipped=23 all_pass=22 all_n=23 m3_pass=22 m4_pass=22 containers=0 workhorse_declared=23 chained=1 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0
+fab17860c	icon-demos	coo	DEMOS_SUITE_BOARD lang=icon total=6 shipped=9 all_pass=6 all_n=6 m3_pass=6 m4_pass=6 containers=3 workhorse_declared=6 chained=0 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0
+fab17860c	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=2 shipped=4 all_pass=0 all_n=2 m3_pass=0 m4_pass=0 containers=2 workhorse_declared=2 chained=0 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0
+fab17860c	scrip-demos	coo	DEMOS_SUITE_BOARD lang=scrip total=10 shipped=12 all_pass=10 all_n=10 m3_pass=10 m4_pass=10 containers=2 workhorse_declared=10 chained=0 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0

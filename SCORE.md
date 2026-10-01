@@ -27,22 +27,22 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasRungs | pascal | 252/252 | 2026-09-30 | `fab17860c` | done |
 | RakRungs | raku | 914/955 | 2026-09-30 | `fab17860c` | 26 xfail counted as FAIL of a 41-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | SncRungs | snocone | 338/338 | 2026-09-30 | `fab17860c` | done |
-| SncBench | snocone | 16/16 | 2026-09-28 | `04b933b81` | done |
+| SncBench | snocone | 16/16 | 2026-09-30 | `fab17860c` | done |
 | RebRungs | rebus | 43/43 | 2026-09-30 | `fab17860c` | done |
 | Logtalk | prolog | 3405/3528 | 2026-09-30 | `0cf3584ac` |  |
 | X64T | snobol4 | 32/33 EXCLUDED=3 OUTSIDE=0 | 2026-09-30 | `fab17860c` |  |
 | X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 | 2026-09-30 | `fab17860c` | done |
-| SnoBench | snobol4 | 23/23 | 2026-09-28 | `04b933b81` | done |
-| IcnBench | icon | 26/26 | 2026-09-28 | `04b933b81` | done |
-| ProBench | prolog | 23/23 | 2026-09-28 | `04b933b81` | done |
-| PasBench | pascal | 11/11 | 2026-09-28 | `04b933b81` | done |
-| RakBench | raku | 62/84 | 2026-09-28 | `04b933b81` |  |
-| RebBench | rebus | 3/3 | 2026-09-28 | `04b933b81` | done |
-| SnoDemo | snobol4 | 24/24 | 2026-09-28 | `04b933b81` | done |
-| SncDemo | snocone | 22/23 | 2026-09-30 | `fef61c805` |  |
-| IcnDemo | icon | 6/6 | 2026-09-28 | `04b933b81` | done |
-| ProDemo | prolog | 0/2 | 2026-09-28 | `04b933b81` |  |
-| ScrDemo | scrip | 10/10 | 2026-09-28 | `04b933b81` | done |
+| SnoBench | snobol4 | 23/23 | 2026-09-30 | `fab17860c` | done |
+| IcnBench | icon | 26/26 | 2026-09-30 | `fab17860c` | done |
+| ProBench | prolog | 23/23 | 2026-09-30 | `fab17860c` | done |
+| PasBench | pascal | 11/11 | 2026-09-30 | `fab17860c` | done |
+| RakBench | raku | 62/84 | 2026-09-30 | `fab17860c` |  |
+| RebBench | rebus | 3/3 | 2026-09-30 | `fab17860c` | done |
+| SnoDemo | snobol4 | 24/24 | 2026-09-30 | `fab17860c` | done |
+| SncDemo | snocone | 22/23 | 2026-09-30 | `fab17860c` |  |
+| IcnDemo | icon | 6/6 | 2026-09-30 | `fab17860c` | done |
+| ProDemo | prolog | 0/2 | 2026-09-30 | `fab17860c` |  |
+| ScrDemo | scrip | 10/10 | 2026-09-30 | `fab17860c` | done |
 
 
 ## ⭐ THE STANDARDIZED DISPLAY (Lon 2026-08-29: one grid, all seven languages; detail tables below)
