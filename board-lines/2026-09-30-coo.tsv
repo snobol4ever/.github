@@ -91,3 +91,5 @@ fab17860c	snocone-demos	coo	DEMOS_SUITE_BOARD lang=snocone total=23 shipped=23 a
 fab17860c	icon-demos	coo	DEMOS_SUITE_BOARD lang=icon total=6 shipped=9 all_pass=6 all_n=6 m3_pass=6 m4_pass=6 containers=3 workhorse_declared=6 chained=0 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0
 fab17860c	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=2 shipped=4 all_pass=0 all_n=2 m3_pass=0 m4_pass=0 containers=2 workhorse_declared=2 chained=0 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0
 fab17860c	scrip-demos	coo	DEMOS_SUITE_BOARD lang=scrip total=10 shipped=12 all_pass=10 all_n=10 m3_pass=10 m4_pass=10 containers=2 workhorse_declared=10 chained=0 tree=fab17860c corpus=5e13b5785 RT_OPT=-O0
+2dd983123	inria	coo	INRIA_SUITE_BOARD total=445 m3_pass=442 m3_fail=0 m3_crash=0 m4_pass=442 m4_fail=0 m4_crash=0 OUTSIDE=3 is the OUTCOME-CLASS-ONLY upper bound, which ignores what a goal bound and can only move down when tightened
+2dd983123	roast	coo	ROAST_SUITE_BOARD total=1464 m3_run_pass=170 m3_run_fail=1294 m4_run_pass=170 m4_run_fail=1294 both_modes_pass=170 compile_only=462 roast_commit=unversioned-tree elapsed=1016s
