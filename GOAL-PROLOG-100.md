@@ -118,6 +118,13 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-01 15:xx CDT, hq_prolog (TENET) — **R4.2 LANDED (SCRIP `1853de6f3`): HEAD UNIFICATION IS BOXES, Ir PER ITERATION ROUGHLY HALVED; NEXT R4.3 `rtx_pl_unify`**
+
+- **R4.2 on origin:** `IR_UNIFY_STRUCT`/`FIRST`/`VALUE` over every head; the head's `$mkc`+`$unify` pairs gone; DONE-WHEN PASS; kernels 23/23 both modes; monitor AGREE on six kernels; Ir m4 WORK/iter nrev -63%, qsort -64%, deriv -48%, zebra -50%, queens_8 -59%; the cto's three collector conditions met and graded under GC stress + plant-flip at 64 KB. Details: ARCH-PROLOG-BB-REWRITE.md § 16, the "R4.2 LANDED" row; baton LEDGER.
+- **Also landed this sitting:** SCRIP `0e4eebafb` -- `$cutcall/2` walks only the control skeleton and names its predicate by it (the coo's bisected SWI red: test_write 26 GB -> 40 MB, test_acyclic m4 0 -> 40; the parent's verdicts restored case for case).
+- **Found on origin, not mine, named to the coo:** dyn_caps ARM 5 reads 413 vs 410 at 172c865a6 (emit.cpp locals); tests/icon reads 128 reds at 9206cc73b (the Icon semicolon transition, cured upstream).
+- **Owed after this:** the five-thousand-pieces witness flake (cto's offer, taken: shrink to the smallest count that still reaches its credited sites, rename, re-cut ref and table). **Next rung:** R4.3 -- `rtx_pl_unify` in asm on the spine replaces `plw_unify_cells` behind `IR_UNIFY_VALUE` (one call site today) and body `=`; shape to the cto first; mint with a census DONE-WHEN.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-01 13:4x CDT, hq_prolog (TENET) — **R4.1 LANDED (SCRIP `734797863`); NEXT R4.2 `IR_UNIFY_STRUCT`**
 
 - **R4.1 on origin:** `IR_UNIFY_CONST` box, the two C const-unify entries deleted (census 0), both hand-over defects cured; DONE-WHEN PASS on the landed tree, area smoke tests/prolog 563/563 both modes, monitor AGREE on nrev/qsort/mu/zebra/queens_8, Ir -2.4% to -6.3% on four kernels, zebra flat. Details: ARCH-PROLOG-BB-REWRITE.md § 16, the "R4.1 LANDED" row; baton `prolog-r4-1-ir-unify-const-…` LEDGER.
