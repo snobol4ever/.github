@@ -28,10 +28,11 @@ criteria ran (a claim, a done) is left as the fleet left it. Backups are written
 postoffice/salvage/zero-base-<stamp>.tsv (topic, owner, old state, class, rc, new place). Without --apply the classes and counts are
 printed and nothing is written; --no-run skips the execution and reports the static classes only.
 """
-import json, os, re, shutil, subprocess, sys, time
+import json, os, re, shutil, signal, subprocess, sys, time
 PO = os.environ.get("S4E_POSTOFFICE", "/home/resources/postoffice")
 Q, QD, QR, TASKS = PO + "/QUEUE.tsv", PO + "/QUEUE.done.tsv", PO + "/QUEUE.retired.tsv", PO + "/tasks"
 S4E = os.environ.get("S4E_HOME", "/home/claude_ceo")
+if "--help" in sys.argv or "-h" in sys.argv: print(__doc__); sys.exit(0)
 apply = "--apply" in sys.argv; norun = "--no-run" in sys.argv
 tmo = int(sys.argv[sys.argv.index("--timeout") + 1]) if "--timeout" in sys.argv else 240
 stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -56,13 +57,46 @@ def board_topics():
     except Exception as e:
         print("WARNING: the exemption census could not be read (%s); no BOARD class" % e); return set()
 
+def descendants(pid):
+    kids = {}
+    for d in os.listdir("/proc"):
+        if not d.isdigit(): continue
+        try: st = open("/proc/%s/stat" % d).read()
+        except Exception: continue
+        try: pp = int(st[st.rindex(")") + 2:].split()[1])
+        except Exception: continue
+        kids.setdefault(pp, []).append(int(d))
+    out, todo = [], [pid]
+    while todo:
+        x = todo.pop(); ch = kids.get(x, []); out.extend(ch); todo.extend(ch)
+    return out
+
+def kill_tree(p):
+    # GNU timeout(1) puts its child in a process group of its own, so killpg alone leaks a runner (measured 2026-10-01: a
+    # ladder run outlived its 45 s criterion by minutes); every descendant is killed by pid, deepest first, then the group.
+    for d in reversed(descendants(p.pid)):
+        try: os.kill(d, signal.SIGKILL)
+        except Exception: pass
+    try: os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+    except Exception: pass
+    try: p.kill()
+    except Exception: pass
+    p.wait()
+
 def run_dw(dw):
     env = dict(os.environ, S4E_HOME=S4E, S4E_PROGRESS_OFF="1", S4E_SCORE_NO_WRITE="1", S4E_DONE_WHEN_RUN="1")
+    p = subprocess.Popen(["bash", "-c", dw], cwd=S4E, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     try:
-        p = subprocess.run(["bash", "-c", dw], cwd=S4E, env=env, capture_output=True, text=True, timeout=tmo)
-        return p.returncode
+        return p.wait(timeout=tmo)
     except subprocess.TimeoutExpired:
+        kill_tree(p)
         return "timeout"
+
+def baton_age_days(topic):
+    f = os.path.join(TASKS, topic + ".task.md")
+    try: return (time.time() - os.path.getmtime(f)) / 86400.0
+    except Exception: return None
+EXPIRE_FREE_DAYS, EXPIRE_PARKED_DAYS = 7, 30
 
 live = [ln for ln in rows_of(Q)]
 boards = board_topics()
@@ -83,6 +117,9 @@ for f in parsed:
     if s.startswith("SUPERSEDED") or s.startswith("RETIRED"): decisions[topic] = ("RETIRE-ALREADY", "", "RETIRED"); continue
     if s == "PARKED-LON-HOLD" or s == "PARKED-UMBRELLA": decisions[topic] = ("KEEP-" + s, "", "KEEP"); continue
     if s in ("PARKED-EXECUTIVE-NO-SEAT", "PARKED-REBUS-CLOSED", "PARKED"): decisions[topic] = ("RETIRE-" + s.lower(), "", "RETIRED"); continue
+    if s == "PARKED-EXPIRED":
+        a = baton_age_days(topic)
+        decisions[topic] = ("RETIRE-expired-%dd-parked" % EXPIRE_PARKED_DAYS, "", "RETIRED") if a is not None and a > EXPIRE_PARKED_DAYS else ("KEEP-PARKED-EXPIRED", "", "KEEP"); continue
     if s.startswith("PARKED-AWAITING") or s.startswith("BLOCKED-ON"): decisions[topic] = ("BLOCKER?", "", None); continue
     if s == "FREE":
         dw = donewhen(topic)
@@ -98,10 +135,13 @@ print("criteria to run:", len(todo), "(timeout %ss each)" % tmo, flush=True)
 if not norun:
     t0 = time.time(); tally = {"GREEN": 0, "RED": 0, "CANNOT": 0, "TIMEOUT": 0}
     for i, t in enumerate(todo, 1):
+        print("RUNNING %s" % t, flush=True)
         rc = run_dw(decisions[t][1])
         if rc == 0: decisions[t] = ("GREEN-now", 0, "DONE"); tally["GREEN"] += 1; v = "GREEN"
         elif rc == 1: decisions[t] = ("RED-now", 1, "KEEP"); tally["RED"] += 1; v = "RED"
-        elif rc == "timeout": decisions[t] = ("TIMEOUT-kept", "timeout", "KEEP"); tally["TIMEOUT"] += 1; v = "TIMEOUT"
+        elif rc == "timeout":
+            a = baton_age_days(t); exp = a is not None and a > EXPIRE_FREE_DAYS
+            decisions[t] = ("TIMEOUT-expired-parked" if exp else "TIMEOUT-kept", "timeout", "KEEP"); tally["TIMEOUT"] += 1; v = "TIMEOUT" + ("-EXPIRED" if exp else "")
         else: decisions[t] = ("RETIRE-cannot-measure-rc%s" % rc, rc, "RETIRED"); tally["CANNOT"] += 1; v = "CANNOT-MEASURE"
         el = time.time() - t0; eta = el / i * (len(todo) - i)
         print("COUNTDOWN %d left of %d | %d done | %dm%02ds elapsed, ~%dm%02ds to go | GREEN %d RED %d CANNOT %d TIMEOUT %d | last: %s -> %s" % (len(todo) - i, len(todo), i, el // 60, el % 60, eta // 60, eta % 60, tally["GREEN"], tally["RED"], tally["CANNOT"], tally["TIMEOUT"], t[:70], v), flush=True)
@@ -120,7 +160,7 @@ greens = [t for t, d in decisions.items() if d[0] == "GREEN-now"]
 if greens: print("GREEN now (archived as done):"); [print("   " + t) for t in greens]
 if not apply: print("DRY RUN: nothing written"); sys.exit(0)
 # write against a fresh read
-fresh = rows_of(Q); out, done_add, ret_add, log = [], [], [], []
+fresh = rows_of(Q); out, done_add, ret_add, log, ledger_add = [], [], [], [], []
 old_state = {f[1]: f[3] for f in parsed}
 for ln in fresh:
     f = ln.split("\t")
@@ -130,6 +170,8 @@ for ln in fresh:
     cls, rc, place = d
     if place == "KEEP":
         if cls == "RED-now" and "-every-suite-to-100-" not in topic and f[0] in ("0", "1"): f[0] = "2"
+        if cls == "TIMEOUT-expired-parked": f[3] = "PARKED-EXPIRED"
+        if cls == "RED-now": ledger_add.append((topic, f[0]))
         out.append("\t".join(f))
     elif place == "DONE":
         f[3] = f[3] if cls == "ARCHIVE-DONE" else "DONE:zero-base-green-ceo-1386"; done_add.append("\t".join(f))
@@ -143,6 +185,13 @@ def append(p, rows):
     if not rows: return
     cur = rows_of(p); txt = "\n".join([r for r in cur if r != ""] + rows) + "\n"; open(p, "w", encoding="utf-8", newline="\n").write(txt)
 append(QD, done_add); append(QR, ret_add)
+when = time.strftime("%Y-%m-%d %H:%M %Z")
+for topic, rank in ledger_add:
+    f = os.path.join(TASKS, topic + ".task.md")
+    try:
+        with open(f, "a", encoding="utf-8", newline="\n") as fh:
+            fh.write("\n- %s zero-base (ceo, CEO-1386): the DONE-WHEN ran RED (rc=1) in %s under a %ss limit; the row stays live at rank %s. A measured red is the only reason this row exists; the clock for PARKED-EXPIRED restarts here.\n" % (when, S4E, tmo, rank))
+    except Exception as e: print("WARNING: ledger line not written for %s: %s" % (topic, e))
 os.makedirs(PO + "/salvage", exist_ok=True)
 with open(PO + "/salvage/zero-base-%s-ceo-1386.tsv" % stamp, "w", encoding="utf-8", newline="\n") as fh:
     fh.write("topic\towner\told_state\tclass\trc\tplace\n")
