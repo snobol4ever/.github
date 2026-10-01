@@ -94,3 +94,20 @@ The resume record a blob's γ exit pushes is `{res, γ, ω, rbp}`.
 - **Not part:** `rt_defer_land_γ/ω`, `rt_gen_spine_pass_γ/ω`, every `src/runtime/rtx/*.s` leaf, and the co-expression switch.
 - **Dead:** `x86_call_frame_enter`, `x86_srf_floater`, `x86_return_floater`/`x86_freturn_floater`, and `g_emit.flat_res_p`.
 - **Unverified:** the non-pattern `lbl_res` block, the runtime-built pattern blobs `bb_build_len_blob`/`bb_build_break_blob`, the exits of non-cells local-variable procedures, and the non-zframe PL-DC arm.
+
+## 5. The Prolog call's stacked wire pair was dead too (SCRIP `c8dc0d182`)
+
+On a pinned zframe (`x86_fb_pinned`, the `bcps_wire_cross_gen` road) and at a Prolog goal call (`cv_pl_proto` in `bb_call_value.cpp`), the caller passed the pair in two places: pushed on the stack (S) and in `rcx/rdx` (R). The callee copies R into its own frame.
+
+**The poison plant.** The pushed words held `0x5EED0001..`; the registers were left correct. The emitted plant counts were 36 sites in crypt.pl and 48 in plunit.pl. Over 628 Prolog programs (563 master entries, 23 benchmarks, the gc_witnesses and the standalone tests), output and exit code matched a clean control in both modes, with both roads planted.
+
+**The cure.** The pair now travels in `rcx/rdx` only. Its 16 bytes stay at the same depth as a `{DT_RAW, 0}` cell, carved by the new encoder helper `x86_rsp_raw_cell` (beside `x86_rsp_store64_imm`).
+
+**The other frontends are untouched.**
+- By construction: `x86_fb_pinned` is derived language-blind, but no other frontend's call reaches these two roads.
+- By measurement: 4,565 non-Prolog programs (every other master's entries extracted, the gc_witnesses and the standalone tests) emit byte-identical asm against `2fdfa42e8`.
+- The edit keeps every template line number. A first cut that added one line moved the `# gc_poll <file>:<line>` annotation of 279 programs, and the bare-poll witness table keys sites by that line.
+
+**Measured:** crypt.pl in m3 went from 130,164 code-valued raw units to 69,522, and total raw from 239,588 to 178,946.
+
+**What remains per Prolog call:** only the callee frame's top 32 bytes, `{stack word, γ copy}` and `{ω copy, caller rbp}`. The 32 bytes of `{DT_RAW, 0}` filler under the call (the landing cell and the pair cell) keep the old depth. They can go once the `add rsp,32` landings and the LCO's `lea r10,[rsp+16]; cmp r10,rbp` adjacency test are re-based.
