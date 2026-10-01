@@ -118,6 +118,13 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-01 13:4x CDT, hq_prolog (TENET) — **R4.1 LANDED (SCRIP `734797863`); NEXT R4.2 `IR_UNIFY_STRUCT`**
+
+- **R4.1 on origin:** `IR_UNIFY_CONST` box, the two C const-unify entries deleted (census 0), both hand-over defects cured; DONE-WHEN PASS on the landed tree, area smoke tests/prolog 563/563 both modes, monitor AGREE on nrev/qsort/mu/zebra/queens_8, Ir -2.4% to -6.3% on four kernels, zebra flat. Details: ARCH-PROLOG-BB-REWRITE.md § 16, the "R4.1 LANDED" row; baton `prolog-r4-1-ir-unify-const-…` LEDGER.
+- **Also landed this sitting:** SCRIP `615310a3f` -- `$cutcall`'s name/key buffers are VLAs (lifetime rule), curing my share of the coo's dyn_caps ARM 5 red (411 -> 410). corpus `45d2be091`/`45c570051`/`f1d508857` -- the three `.s` regenerations the codegen landing owes.
+- **Found on origin and cured in R4.1:** `x86_arg_roles.cpp` had 58 of 123 rows pointing mid-string (six blob edits since `14f384ed9` never moved the offsets; TEXT annotations only). The cto is handing hq_templates a decode-every-offset check.
+- **Next:** R4.2 `IR_UNIFY_STRUCT` (head compound arguments as boxes on r13 with the static cursor) -- shape to the cto before its runtime code lands; mint its row with a census DONE-WHEN first.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-01 11:3x CDT (16:3x UTC; label corrected per CEO-1389 (4)), hq_prolog (TENET) — **LON, IN-CHAT TO THIS SEAT: RESUME THE BYRD-BOX REWRITE (OVERRIDES TODAY'S EVERY-SUITE FRAMING FOR THIS SEAT)**
 
 Lon, in-chat to hq_prolog 2026-10-01 ~11:2x CDT (16:2x UTC), verbatim: *"What ever happened to the Prolog re-write? Are you not meant to be converting C functions into BB's and getting the performance of Prolog acceptable thereby?"* -- given the history (QUINTET 2026-09-28 17:2x handed the rewrite to the cto; today's TENET MODE text reads every HQ's one thing as every-suite-to-100), he chose: **resume the rewrite, check with the cto first to avoid colliding with their progress, report back before diving in.** Routed to the ceo (override) and the cto (state/ownership ask) the same minute.
