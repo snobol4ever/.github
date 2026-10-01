@@ -234,3 +234,29 @@ After §§ 1–11, crypt.pl reads 7,551 raw units. 6,354 of them are the "other"
 **Ruled out.** A `DT_SNUL` store at α changed nothing, because the slot is written at γ, not left unwritten; it was reverted. The cure is a definite γ result, or no store for a goal. That choice is hq_prolog's.
 
 **Remaining:** 1,197 code-valued units.
+
+## 13. An Icon cells frame's header was never written (SCRIP `d29e9e859`)
+
+**The class.** On the Icon witnesses the biggest "stack" class sat at the top of every cells frame: ROOT `off=2096, 2128, 2176` in hb_coexpr_create.icn, ROOT `off=20672..20752` and FRAME `VInit off=2016` in vscroll_driver.icn. The words were saved-rbp / return-address pairs into `libscrip_rt.so` and the `scrip` binary.
+
+**Why.** The `flat_lcl_proc` prologue (`emit.cpp`, both media) carves `frame_total` bytes, stores the map cell at `[rsp+rg]` and the saved rbp at `[rsp+frame_total-8]`, and its LCL-SEED `rep stosb` cleared `[0, rg)` only. The header `[rg+16, frame_total-8)` (184 bytes in main and in every procedure of these witnesses) is referenced by no emitted code. So it held whatever the stack held. In mode 4 that is the frames `core_lib_init`, `module_init` and `rtcc_load_all` left below the reserve. In a procedure it is the previous activation's words.
+
+**The cure.** The seed runs `[0, frame_total-8)` before the map cell and the saved rbp are stored, so every unwritten header word is a DT_SNUL cell. Under `SCRIP_ICN_WIRE_STACK=0` the seed stops at `frame_total-24`, because rcx/rdx are stored at -24/-16 first.
+
+**Measured.** Control `5a8f0cede` against the same tree plus the change (row gate, 64 KB, stress 1):
+
+| Witness | Mode | Raw before | Raw after |
+|---|---|---|---|
+| vscroll_driver.icn | m3 | 65,898 | 39,264 (stack 19,065 → 635) |
+| vscroll_driver.icn | m4 | 65,517 | 39,266 |
+| hb_coexpr_create.icn | m3 | 3,050 | 2,116 |
+| hb_coexpr_create.icn | m4 | 3,107 | 2,168 |
+
+- **Emission:** changed in 949 of 5,246 programs, all of them `.icn`. All 949 run identically in both modes against the control; the one m4 difference is `&progname` echoing the binary's own name.
+- **Stress:** 160 programs are identical at 64 KB, stress 1 (the 40 changed gc_witnesses plus 120 sampled).
+- **Gate:** `test_gate_gc_a_frame_never_inherits_a_dead_siblings_map_cell` arm (c) had matched the old shape (`mov ecx, R` exactly). It now requires a clear from rsp of at least R bytes, issued before the cell store, and it still reds under its FAIL_ONCE plant.
+- **hq_prolog's γ result:** the cure (`862de8852`, § 12) took crypt.pl from 7,551 to 1,715 raw units on the same pass (code 1,197, other 518).
+
+**What the Icon witnesses still carry (first 64 collections, level 3):**
+- Written raw values inside value regions: hb_coexpr ROOT `off=1312/1376/1616/1680`, vscroll VInsert's eight `other` offsets. These are not header words. Next: symbolize which box stores them.
+- SPINE code pairs: vscroll `off=20544` {γ, γ} and Varrow `off=2048/2064`. These are the S pair (§ 4) and the generator records.
