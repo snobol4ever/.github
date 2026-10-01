@@ -205,3 +205,20 @@ Readings with `SCRIP_GC_SWEEP16=1`, counting `pop=gva` raw units:
 | `bf3b1b98b` | 0 |
 | `99d429d4c` | 1,191 |
 | every later tree | 1,191 |
+
+## 11. The call-through-value's `hslot` is packed (SCRIP `99cd42492`)
+
+`bb_call_value.cpp`'s `H` record is the twin of `callgen.act`. Word 0 can hold:
+- a state (0, 1 or 2);
+- the spine prep's second register;
+- an `rt_genp_s` coroutine frame;
+- a ct-allocated `ICN_OPGEN_t`.
+
+Both emitted code and runtime C write and read it, the C side through `void **hslot`. Word 0 is now `(v << 8) | DT_RAW`:
+- **C side:** `rt_hslot_get` / `rt_hslot_set` in `rt.h`, and every C site goes through them: 12 in `rt.c`, 5 in `by_name_dispatch.c`. `unification.c`'s portray probe keeps its C-stack slot in the same encoding and tests it through the getter.
+- **Template side:** every template line number is kept.
+
+**Verification against `16c530808`:**
+- 693 programs changed asm (Prolog 627, Icon 66) and all ran identically in both modes.
+- 13 changed gc_witnesses ran identically under stress.
+- **Two negative controls:** with the template's Prolog β unpack removed, 4 Prolog programs answered differently; with the C getter's shift removed, 18 of the 66 Icon programs did.
