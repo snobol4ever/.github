@@ -176,3 +176,32 @@ In the same landing, the coo's other three standing blocking reds and frame_reus
 - **One fewer det leaf:** `r/1` now seals three det leaves. R4.1 (`734797863`) made the `r(0)` head constant an `IR_UNIFY_CONST` box; measured on that commit and its parent.
 
 **Open, and red in rung 3(d):** the beta-capable `IR_UNIFY_CONST` writes `r/1`'s shared dead-result scratch. So the scratch no longer overlays the pooled slot at +32, and r/1's frame grows by 16 bytes.
+
+## 10. The staged call's activation word is packed (SCRIP `16c530808`); and a GVA slot that is not a DESCR since `99d429d4c`
+
+**The activation word.** After the zframe header, crypt.pl's remaining stack-valued units were all one record: `callgen.act` in `top/16`'s frame. `act+0` holds a state (0/1/2) or, on the Prolog arm, the callee frame; `act+8` holds the callee β or a saved rsp.
+
+`act+0` is now `(v << 8) | DT_RAW`:
+- the immediate states become `DT_RAW` and `0x100 | DT_RAW`;
+- the Prolog γ landing packs a copy of rax in rcx, because rax is tested right after;
+- the three readers unpack before they test.
+
+**Measured:** crypt.pl now reads the same in both modes, raw 19,523 → 7,551, stack-valued 11,972 → 0.
+
+**Verification against `8b8ff531e`:**
+- 689 programs changed asm (Prolog 627, Icon 62) and all ran identically in both modes.
+- 14 changed gc_witnesses ran identically under stress.
+- **Negative control:** with one reader left packed, 123 programs answered differently.
+
+**Open, the next landing:** `call_value`'s twin `H` record. Its word 0 (the `hslot`) is read and written by runtime C: 13 sites in `by_name_dispatch.c`, 6 in `rt.c` and 2 in `unification.c`. It can hold a ct-allocated `ICN_OPGEN_t*`.
+
+**The GVA anomaly, bisected, sent to the cfo.** Since the cfo's `99d429d4c`, vscroll_driver.icn's GVA island carries one non-DESCR unit at about 1,191 of its 1,833 collections: word 0 is `0x70001070`, an r12-shaped value inside the DCAP island, and word 1 is a stack address. That reds arm (b) of this row's gate.
+
+Readings with `SCRIP_GC_SWEEP16=1`, counting `pop=gva` raw units:
+
+| Tree | GVA raw units |
+|---|---|
+| `2fdfa42e8` | 0 |
+| `bf3b1b98b` | 0 |
+| `99d429d4c` | 1,191 |
+| every later tree | 1,191 |
