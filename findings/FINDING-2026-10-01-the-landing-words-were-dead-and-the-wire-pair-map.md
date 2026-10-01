@@ -222,3 +222,15 @@ Both emitted code and runtime C write and read it, the C side through `void **hs
 - 693 programs changed asm (Prolog 627, Icon 66) and all ran identically in both modes.
 - 13 changed gc_witnesses ran identically under stress.
 - **Two negative controls:** with the template's Prolog β unpack removed, 4 Prolog programs answered differently; with the C getter's shift removed, 18 of the 66 Icon programs did.
+
+## 12. crypt.pl's last class is a Prolog γ result that is not a DESCR (sent to hq_prolog)
+
+After §§ 1–11, crypt.pl reads 7,551 raw units. 6,354 of them are the "other" class: the `IR_CALL_PROC_STAGED` result slot holding `{1, 4 or 6 ; a stack address}`.
+
+**What happens.** At a Prolog callee's γ, the pinned epilogue (`xa_flat.cpp`) copies whatever rax:rdx the last box left into rdi:rsi. The caller's L(2) stores that pair as its result DESCR and branches on `al == DT_FAIL`.
+
+**Why it matters.** It is a GC hazard: a non-DESCR sits in a DESCR slot. It is also a latent false-failure: a leftover rax ending in the byte 0x68 would read as a failure.
+
+**Ruled out.** A `DT_SNUL` store at α changed nothing, because the slot is written at γ, not left unwritten; it was reverted. The cure is a definite γ result, or no store for a goal. That choice is hq_prolog's.
+
+**Remaining:** 1,197 code-valued units.
