@@ -1,0 +1,92 @@
+diff --git a/src/runtime/builtins/gen_runtime.c b/src/runtime/builtins/gen_runtime.c
+index 65b9ff4c0..ef7204e9a 100644
+--- a/src/runtime/builtins/gen_runtime.c
++++ b/src/runtime/builtins/gen_runtime.c
+@@ -192,11 +192,11 @@ void c_rt_match_replace(const char *name, uint64_t sub_lo, uint64_t sub_hi, int6
+     uint64_t w[2]; w[0] = sub_lo; w[1] = sub_hi; DESCR_t sv; memcpy(&sv, w, sizeof sv);
+     if (IS_INT_fn(sv) || IS_REAL_fn(sv)) sv = descr_to_str(sv);
+     const char *s = IS_NULL_fn(sv) ? "" : VARVAL_fn(sv); if (!s) s = "";
+-    int64_t slen = (sv.v == DT_S && sv.slen && s == sv.s) ? (int64_t)sv.slen : (int64_t)strlen(s);
++    int64_t slen = (sv.v == DT_S && s == sv.s && sv.slen != 0xFFFFFFFFu) ? (int64_t)sv.slen : (int64_t)strlen(s);
+     DESCR_t rv = replp ? *replp : sv;
+     if (IS_INT_fn(rv) || IS_REAL_fn(rv)) rv = descr_to_str(rv);
+     const char *rs = (!replp || IS_NULL_fn(rv)) ? "" : VARVAL_fn(rv); if (!rs) rs = "";
+-    int64_t rlen = (rv.v == DT_S && rv.slen && rs == rv.s) ? (int64_t)rv.slen : (int64_t)strlen(rs);
++    int64_t rlen = (rv.v == DT_S && rs == rv.s && rv.slen != 0xFFFFFFFFu) ? (int64_t)rv.slen : (int64_t)strlen(rs);
+ #if RT_DIAG
+     int64_t raw_start = start, raw_end = end;
+ #endif
+diff --git a/src/runtime/by_name_dispatch.c b/src/runtime/by_name_dispatch.c
+index bb9686de5..56445d24f 100644
+--- a/src/runtime/by_name_dispatch.c
++++ b/src/runtime/by_name_dispatch.c
+@@ -7042,6 +7042,26 @@ static int dtax_off(void) { static int p = -1; if (p < 0) { const char *e = gete
+ static void dtx4(dtax_ent_t *e, unsigned char l, const char *nm, void *h) { if (!e || !l) return; e->gen = rt_dtax_gen; e->len = l; e->kind = 4; e->nf = 0; memcpy(e->nm, nm, l); e->ctor = h; e->syn = 0; }
+ static void dtx5(dtax_ent_t *e, unsigned char l, const char *nm, void *h, short x) { if (!e || !l) return; e->gen = rt_dtax_gen; e->len = l; e->kind = 5; e->nf = x; memcpy(e->nm, nm, l); e->ctor = h; e->syn = 0; }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++static const char *bn_datatype_upper(const char *t)
++{
++    switch (t[0]) {
++    case 's': return !strcmp(t, "string") ? "STRING" : !strcmp(t, "set") ? "SET" : (const char *)0;
++    case 'i': return !strcmp(t, "integer") ? "INTEGER" : (const char *)0;
++    case 'r': return !strcmp(t, "real") ? "REAL" : !strcmp(t, "record") ? "RECORD" : (const char *)0;
++    case 't': return !strcmp(t, "table") ? "TABLE" : (const char *)0;
++    case 'a': return !strcmp(t, "array") ? "ARRAY" : (const char *)0;
++    case 'l': return !strcmp(t, "list") ? "LIST" : (const char *)0;
++    case 'c': return !strcmp(t, "cset") ? "CSET" : !strcmp(t, "co-expression") ? "CO-EXPRESSION" : (const char *)0;
++    case 'f': return !strcmp(t, "file") ? "FILE" : !strcmp(t, "function") ? "FUNCTION" : (const char *)0;
++    case 'p': return !strcmp(t, "procedure") ? "PROCEDURE" : (const char *)0;
++    case 'n': return !strcmp(t, "name") ? "NAME" : !strcmp(t, "null") ? "NULL" : (const char *)0;
++    case 'E': return !strcmp(t, "EXPRESSION") ? "EXPRESSION" : (const char *)0;
++    case 'P': return !strcmp(t, "PATTERN") ? "PATTERN" : (const char *)0;
++    case 'C': return !strcmp(t, "CODE") ? "CODE" : (const char *)0;
++    default: return (const char *)0;
++    }
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static int bn_type_datatype(const char *fn, DESCR_t *args, int nargs, DESCR_t *out)
+ {
+     DESCR_t av = args[0];
+@@ -7078,6 +7098,7 @@ static int bn_type_datatype(const char *fn, DESCR_t *args, int nargs, DESCR_t *o
+     else if (av.v==DT_SNUL)  t=(!strcmp(fn,"DATATYPE")) ? "string" : "null";
+     else t="string";
+     if (!strcmp(fn,"DATATYPE") && declared) { *out = STRVAL(rt_heap_strdup_c(t)); return 1; }
++    if (!strcmp(fn,"DATATYPE")) { const char *uc = bn_datatype_upper(t); if (uc) { *out = STRVAL(uc); return 1; } }
+     if (!strcmp(fn,"DATATYPE")) { char ub[32]; int ui=0;
+         for (; t[ui] && ui<31; ui++) ub[ui]=(char)((t[ui]>='a'&&t[ui]<='z')?t[ui]-32:t[ui]); ub[ui]=0; *out = STRVAL(rt_heap_strdup_c(ub)); return 1; }
+     *out = STRVAL(t); return 1;
+diff --git a/src/runtime/pattern_match.c b/src/runtime/pattern_match.c
+index 46e5f31f2..93a7d1285 100644
+--- a/src/runtime/pattern_match.c
++++ b/src/runtime/pattern_match.c
+@@ -831,7 +831,7 @@ static long rt_dcap_star_finish(rt_dcf_t *c, DESCR_t nm)
+     extern int rt_g_ret_by_name;
+     extern int rt_g_want_name;
+     const int strict = rt_cap_name_strict();
+-    const int nmyield = !strncmp(c->star + 1, "EXPRNM$", 7);
++    const int nmyield = c->star[1] == 'E' && !strncmp(c->star + 1, "EXPRNM$", 7);
+     g_cap_abort_gen = c->asv;
+     rt_g_want_name = c->wsv;
+     const int by_name = rt_g_ret_by_name || nmyield; rt_g_ret_by_name = 0;
+@@ -1021,7 +1021,7 @@ rt_dcap_next_t c_rt_cap_open(const char *varname, int saved_delta, int cur_delta
+       { DESCR_t matched = { .v = DT_S, .slen = (uint32_t)len, .s = copy ? copy : "" };
+         if (g_cap_abort_gen && g_cap_abort_gen == g_cap_gen) return (rt_dcap_next_t){ 0, 0 };
+         if (varname[0] != '*') { rt_bomb("c_rt_cap_open: plain-name arm DELETED (s196 Lon one-to-maintain) — rt_cap_open in rtx_match.s is the sole spelling; this entry serves computed-name '*' targets only"); return (rt_dcap_next_t){ 0, 0 }; }
+-        { const char *tn = varname + 1; const int nmyield = !strncmp(tn, "EXPRNM$", 7); int wsv = rt_g_want_name;
++        { const char *tn = varname + 1; const int nmyield = tn[0] == 'E' && !strncmp(tn, "EXPRNM$", 7); int wsv = rt_g_want_name;
+           if (!rt_proc_is_registered(tn)) { rt_g_want_name = 1; DESCR_t nm = NV_GET_fn(tn); rt_g_want_name = wsv; { int by_name = rt_g_ret_by_name || nmyield; rt_g_ret_by_name = 0; return (rt_dcap_next_t){ rt_cap_target_finish(nm, matched, by_name), 0 }; } }
+           gv_reserve(&g_capo, (uint16_t)HB_DVEC, (uint32_t)sizeof(DESCR_t), (uint64_t)(g_capo_top + 1) * 4, "g_capo");
+           CAPO_AT(g_capo_top, 0) = matched; CAPO_AT(g_capo_top, 1) = INTVAL((long long)wsv); CAPO_AT(g_capo_top, 2) = INTVAL((long long)g_cap_abort_gen);
+diff --git a/src/runtime/rt/rt.c b/src/runtime/rt/rt.c
+index 7e42f8cc1..a366be1c1 100644
+--- a/src/runtime/rt/rt.c
++++ b/src/runtime/rt/rt.c
+@@ -1178,7 +1178,7 @@ DESCR_t rt_call_land_ω(long word)
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ rt_call_next_t rt_call_open_by_name(const char *name, int nargs) { return rt_call_open_by_name_p(rt_proc_find(name), name, nargs); }
+ rt_call_next_t rt_call_open_found(const char *name, int nargs, int *registered) { rt_proc_t *p = rt_proc_find(name); *registered = p ? 1 : 0; return p ? rt_call_open_by_name_p(p, name, nargs) : (rt_call_next_t){ 0, 0 }; }
+-static int rt_eval_stage_is_var(const char *name) { return name && !strncmp(name, "EXPR$", 5) && strchr(name + 5, '$'); }
++static int rt_eval_stage_is_var(const char *name) { return name && name[0] == 'E' && !strncmp(name, "EXPR$", 5) && strchr(name + 5, '$'); }
+ void rt_eval_stage_enter(const char *name) { if (g_error == 0 && !rt_eval_stage_is_var(name)) g_error = G_ERROR_EVAL_STAGE; }
+ void rt_eval_stage_leave(const char *name) { if (g_error == G_ERROR_EVAL_STAGE && !rt_eval_stage_is_var(name)) g_error = 0; }
+ void rt_eval_stage_leave_word(long word) { long idx = word >> 40; if (g_error == G_ERROR_EVAL_STAGE && !((idx >= 0 && idx < g_rt_gen_proc_count) ? g_rt_gen_procs[idx].stage_var : 0)) g_error = 0; }

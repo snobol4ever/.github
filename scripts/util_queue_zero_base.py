@@ -117,6 +117,7 @@ for f in parsed:
     if s.startswith("SUPERSEDED") or s.startswith("RETIRED"): decisions[topic] = ("RETIRE-ALREADY", "", "RETIRED"); continue
     if s == "PARKED-LON-HOLD" or s == "PARKED-UMBRELLA": decisions[topic] = ("KEEP-" + s, "", "KEEP"); continue
     if s in ("PARKED-EXECUTIVE-NO-SEAT", "PARKED-REBUS-CLOSED", "PARKED"): decisions[topic] = ("RETIRE-" + s.lower(), "", "RETIRED"); continue
+    if s in ("PARKED-SUPERSEDED-BY", "PARKED-DUPLICATE-OF"): decisions[topic] = ("RETIRE-" + s.lower(), "", "RETIRED"); continue
     if s == "PARKED-EXPIRED":
         a = baton_age_days(topic)
         decisions[topic] = ("RETIRE-expired-%dd-parked" % EXPIRE_PARKED_DAYS, "", "RETIRED") if a is not None and a > EXPIRE_PARKED_DAYS else ("KEEP-PARKED-EXPIRED", "", "KEEP"); continue

@@ -1,0 +1,251 @@
+diff --git a/Makefile b/Makefile
+index 3e3bff11d..cece0456b 100644
+--- a/Makefile
++++ b/Makefile
+@@ -577,6 +577,7 @@ test-sequential: scrip  # ⛔⭐ THE DECLARATION OF THE BLOCKING SET, AND THE LE
+ 	bash scripts/test_gate_gc_scan_subject_saves_are_rooted.sh   # ~1s MEASURED (cfo 2026-09-18): every heap-pointing SAVED scan subject (scan_saved[] and every coexpression ScanState) is registered for forwarding, asked of the collector's own slot set in both media; fail-once measured at unrooted=1 x 41 collections with the two cure lines deleted; REFUSES rc=2 if heap=0, which is the arm that forbids curing it by moving subjects off the collected heap
+ 	bash scripts/test_gate_gc_a_nested_match_restores_a_moved_outer_subject.sh   # ~5s MEASURED (cfo 2026-09-25, load ~12): a collection INSIDE a nested pattern match leaves the outer match on its moved subject's NEW address -- hq_snocone's 17-line witness (322 of 944 SNOBOL4 sources crashed parser_snobol4 with [ZGC-STALE]) = sbl -bf in mode 3 and mode 4 at SCRIP_GC_STRESS 1 2 5 20 100, and the stress-5 run collects; RED on the parent 40df9b119 at m3@5/20/100 and m4@5
+ 	bash scripts/test_gate_a_program_with_more_functions_than_the_old_cell_table_held_compiles_and_runs.sh   # ~30s MEASURED (cfo 2026-09-25, load ~8): 1100 DEFINEs print what sbl -bf prints in mode 3 and mode 4 and under SCRIP_AB_HASH=0 -- the call-cell store grows in arena chunks, no AB_FNCELL_MAX (RED on the parent 2c9e07a9d: cell table full at entry$F512)
++	bash scripts/test_gate_sc_a_condition_with_a_called_arm_keeps_the_callers_locals.sh   # ~2s MEASURED (2026-09-29, load ~6): a Snocone function gives its caller back every variable it saved on both exits of a condition whose arm calls a function, in mode 3 and mode 4, the refs cut by sbl -bf from the witnesses' transpiles -- red on 2536a296c (i=0 i=0, and SIGSEGV on the return arm): the class-C save area sat below the frame, and a succeeding condition's carve outlived it into a return
+ 	bash scripts/test_gate_gc_table_insertion_order_array_is_rooted_not_pinned_alive.sh   # ~1s MEASURED (cfo 2026-09-16, load ~8; 24s when red, two 10s hangs): a table's tbl->ord insertion-order array was an rt_pinned_alloc'd HB_WS block gc_visit_tbblk never visited -- reclaimed under a live table, the next insert wrote a key descriptor into whatever slid into its bytes (the Arizona gc2 m4 SIGSEGV on rung 2's sliding probe; a hang or corrupt-title abort under SCRIP_GC_STRESS on origin). Structural arm + witness both modes at stress 20 and 200 against the oracle.
+ 	bash scripts/test_gate_gc_the_name_save_stack_and_the_eval_tables_are_rooted_not_moved_off_the_heap.sh   # ~1s MEASURED (cfo 2026-09-17, load ~1; the red run costs the same): THREE holders of the unrooted-static-holder class -- g_name_save (the name-save stack array block, .name and .cell, where only .old was ever visited), g_lbl_tab and g_eval_cache with their keys. Four arms: two structural, one FACT-RULE arm that refuses the other cure (moving a holder off the collected heap to malloc is the same evasion as pinning it), and a 16-run BAND across SCRIP_GC_STRESS 0..200 in both modes, because origin is green at 30 and 200 and red at 5 and 10 so two sampled points are a lottery. FAIL-ONCE MEASURED on origin bdc486824: all four arms red, 6 of 16 band runs red.
+ 	bash scripts/test_gate_gc_the_lowerer_registries_are_rooted_not_malloced.sh   # ~2s MEASURED (cfo 2026-09-18, load ~1): the lowerers run at RUN TIME under CODE/EVAL, so every lowerer file-scope static is a holder -- g_bb_labels (the lc_vec label registry, the holder that made the class visible) and g_bb_src (three parallel arrays, never named before). Four arms: two structural, one FACT-RULE arm requiring both to still allocate from the COLLECTED heap so the gate cannot be made green by moving them to malloc again, and the DEXP witness at stress 5/30/200 with a zero-collections run counted RED as vacuous. FAIL-ONCE MEASURED on b21de13c4: arms 1, 2 and 3 red, arm 4 green, so the two halves do not ride each other's green.
+diff --git a/scripts/gate_wiring.tsv b/scripts/gate_wiring.tsv
+index ddbf62a19..f264512b7 100644
+--- a/scripts/gate_wiring.tsv
++++ b/scripts/gate_wiring.tsv
+@@ -614,6 +614,7 @@ test_gate_s4e_picker_v2.sh	WIRED	-	-	-
+ test_gate_s4e_unclaim_keeps_park.sh	WIRED	-	-	-
+ test_gate_s_artifact_drift_ignores_the_build_path.sh	WIRED	-	-	-
+ test_gate_same_suite_ref_agreement.sh	WIRED	-	-	-
++test_gate_sc_a_condition_with_a_called_arm_keeps_the_callers_locals.sh	WIRED	-	-	-
+ test_gate_sc_port_trace.sh	WIRED	-	-	-
+ test_gate_score_column_semantics.sh	WIRED	-	-	-
+ test_gate_score_inventory_clauses_never_vanish.sh	WIRED	-	-	-
+diff --git a/scripts/test_gate_sc_a_condition_with_a_called_arm_keeps_the_callers_locals.sh b/scripts/test_gate_sc_a_condition_with_a_called_arm_keeps_the_callers_locals.sh
+new file mode 100755
+index 000000000..e280775c7
+--- /dev/null
++++ b/scripts/test_gate_sc_a_condition_with_a_called_arm_keeps_the_callers_locals.sh
+@@ -0,0 +1,78 @@
++#!/usr/bin/env bash
++# test_gate_sc_a_condition_with_a_called_arm_keeps_the_callers_locals.sh -- A SNOCONE FUNCTION GIVES ITS CALLER BACK EVERY
++# VARIABLE IT SAVED, ON THE FAILING AND ON THE SUCCEEDING EXIT OF A CONDITION, AS ITS OWN TRANSPILE DOES (the ceo's order of
++# 2026-09-29 to cure the Snocone-frontend hang found by the parser_raku.sc rewrite: the chain compiled directly as .sc spun on
++# any second statement, while scrip --transpile of the same chain ran on SCRIP and on SPITBOL).
++#
++# THE BRACKET: scrip --trace dies at the first return of any Snocone function (the traced call site enters the proc without the
++# signature blob its epilogue reads -- a separate defect), so the bracket came from instrumenting the chain on "1;2;": in
++# RkBuildStmtsBk the loop index i read 2 before RkbStatement(...) and 1 after it, and cutting RkbStatement short moved the
++# change to its line "if ((EQ(ls_nitem(L), 0), EQ(ls_n(L), 0))) { return; }" -- a failing two-arm condition whose first arm
++# calls a function. The loop never reached its end.
++# DEFECT 1, THE FRAME (src/templates/xa/xa_flat.cpp): a Snocone function's prologue carved its frame (kt bytes) and THEN the
++# save area for its formals, locals and name (16 bytes each), so rsp sat 16n bytes below the frame the body addresses from rsp:
++# every frame cell of the body landed 16n bytes low, the first arm's cells on the saved words, and the return put an arm's
++# value (the 0 of EQ(G(a), 0)) back into the caller's variable. CURE: the save area is carved ABOVE the frame, at [kt, kt+16n),
++# so rsp is the frame base the body was laid out for; the epilogue restores from there and releases kt+16n.
++# DEFECT 2, THE LOWERING (src/lower/lower_snobol4.c): a condition of if/while/until/do/for that succeeds leaves its value on the
++# stack (the disjunction's 32-byte carve) and its branch ran on top of it; a return in the branch left with the stack 32 bytes
++# off and the epilogue restored and jumped through the wrong words (SIGSEGV). The transpile ends the condition as a statement of
++# its own ("C :F(Lelse)"). CURE: the condition's success continuation, and every return, freturn and nreturn, passes through a
++# STATEMENT_END, as the transpiled statement does.
++#
++# ARM 1 (defect 1): F(a, i) with "if ((EQ(G(a), 0), EQ(a, 0))) { return; }", the condition failing, called with the caller's
++# i = 1 then 2, prints the caller's i unchanged. ARM 2 (defect 2): F with "if ((EQ(G(a), 0), EQ(a, 1))) { return; }" called
++# with a = 0 (the first arm succeeds and returns), a = 1 (the second arm), a = 5 (neither). Each arm's ref is cut at run time by
++# sbl -bf from scrip --transpile of the witness, and each arm runs in mode 3 and in mode 4 (compile, link, run).
++# FAIL-ONCE (SCRIP_BIN=<another tree's scrip>, with LD_LIBRARY_PATH at its out/): on origin 2536a296c arm 1 prints i=0 i=0 and
++# arm 2 dies SIGSEGV, in both modes.
++# rc 0 GREEN · 1 RED (named) · 2 REFUSE (cannot measure).
++"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/util_require_fresh.sh" --gate "$(basename "${BASH_SOURCE[0]}" .sh)" || exit $?
++set -uo pipefail
++G="$(basename "${BASH_SOURCE[0]}" .sh)"
++HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; ROOT="$(cd "$HERE/.." && pwd)"
++SCRIP="${SCRIP_BIN:-$ROOT/scrip}"; [ -x "$SCRIP" ] || { echo "⛔ GATE REFUSE(2) [$G]: no scrip at $SCRIP"; exit 2; }
++TREE="$(cd "$(dirname "$SCRIP")" && pwd)"; LIBDIR="$TREE/out"; [ -f "$LIBDIR/libscrip_rt.so" ] || { echo "⛔ GATE REFUSE(2) [$G]: no libscrip_rt.so in $LIBDIR"; exit 2; }
++. "$HERE/lib_oracle_flags.sh"
++SBL="$(sbl_correctness_bin)"; [ -x "$SBL" ] || { echo "⛔ GATE REFUSE(2) [$G]: no correctness oracle ($SBL) -- the refs are cut from the oracle at run time, never typed"; exit 2; }
++T=$(mktemp -d) || exit 2; trap 'rm -rf "$T"' EXIT
++ulimit -c 0
++cat > "$T/fails.sc" <<'SC'
++function G(x) { G = x; return; }
++function F(a, i) {
++    if ((EQ(G(a), 0), EQ(a, 0))) { return; }
++    F = ; return;
++}
++i = 1; F(5); OUTPUT = 'i=' i;
++i = 2; F(5); OUTPUT = 'i=' i;
++SC
++cat > "$T/returns.sc" <<'SC'
++function G(x) { G = x; return; }
++function F(a, i) {
++    if ((EQ(G(a), 0), EQ(a, 1))) { return; }
++    F = ; return;
++}
++i = 1; F(0); OUTPUT = 'i=' i;
++i = 2; F(1); OUTPUT = 'i=' i;
++i = 3; F(5); OUTPUT = 'i=' i;
++SC
++RC=0
++for w in fails returns; do
++    ( cd "$T" && timeout 30 "$SCRIP" --transpile "$w.sc" > "$w.sno" 2> "$w.tr.err" ) && [ -s "$T/$w.sno" ] || { echo "⛔ GATE REFUSE(2) [$G]: scrip --transpile of the $w witness failed"; exit 2; }
++    ( cd "$T" && timeout 30 "$SBL" $(sbl_lang_flags) "$w.sno" < /dev/null > "$w.ref" 2> /dev/null )
++    [ -s "$T/$w.ref" ] || { echo "⛔ GATE REFUSE(2) [$G]: the oracle printed nothing for the $w witness's transpile"; exit 2; }
++    red=""
++    ( cd "$T" && timeout 30 "$SCRIP" "$w.sc" < /dev/null > "$w.m3" 2> "$w.m3.err" ); r3=$?
++    cmp -s "$T/$w.m3" "$T/$w.ref" && [ "$r3" = 0 ] || red="$red m3(rc=$r3: $(head -c 60 "$T/$w.m3" | tr '\n' ' ')$(head -c 60 "$T/$w.m3.err" | tr '\n' ' '))"
++    ( cd "$T" && timeout 60 "$SCRIP" --compile -o "$w.s" "$w.sc" < /dev/null > /dev/null 2> "$w.c4.err" ); rc4=$?
++    if [ "$rc4" = 0 ] && ( cd "$T" && gcc "$w.s" -o "$w.bin" -L"$LIBDIR" -lscrip_rt -lm -lpthread -Wl,-rpath,"$LIBDIR" 2> /dev/null ); then
++        ( cd "$T" && timeout 30 "./$w.bin" < /dev/null > "$w.m4" 2> "$w.m4.err" ); r4=$?
++        cmp -s "$T/$w.m4" "$T/$w.ref" && [ "$r4" = 0 ] || red="$red m4(rc=$r4: $(head -c 60 "$T/$w.m4" | tr '\n' ' ')$(head -c 60 "$T/$w.m4.err" | tr '\n' ' '))"
++    else red="$red m4-compile(rc=$rc4 $(head -c 90 "$T/$w.c4.err" | tr '\n' ' '))"; fi
++    if [ -z "$red" ]; then echo "  arm $w PASS: prints '$(tr '\n' ' ' < "$T/$w.ref")' like sbl -bf on its transpile, in mode 3 and mode 4"
++    else echo "  arm $w RED:$red -- the oracle prints '$(tr '\n' ' ' < "$T/$w.ref")'"; RC=1; fi
++done
++if [ "$RC" = 0 ]; then echo "GATE PASS(0) [$G]: a Snocone function gives its caller back every saved variable on both exits of a condition with a called arm (2 arms x 2 modes)"
++else echo "GATE FAIL(1) [$G]: a Snocone function hands its caller a wrong variable or a broken stack after a condition with a called arm (2 arms x 2 modes)"; fi
++echo "    tree: SCRIP=$(git -C "$TREE" rev-parse --short HEAD 2>/dev/null)$(git -C "$TREE" diff --quiet 2>/dev/null || echo -DIRTY)  measured $(date -u +%Y-%m-%dT%H:%MZ)"
++exit $RC
+diff --git a/src/lower/lower_snobol4.c b/src/lower/lower_snobol4.c
+index 88f9d06f8..57ada6711 100644
+--- a/src/lower/lower_snobol4.c
++++ b/src/lower/lower_snobol4.c
+@@ -106,6 +106,7 @@ static int sno_mkpat_here(const tree_t * t);
+ static IR_t * sx_idx_container(scx_t * cx, const tree_t * t, IR_t * ω, IR_t ** res);
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static IR_t * sco_stmt_hook(scx_t * cx, const tree_t * s, IR_t * body);
++static IR_t * sco_stmt_end(scx_t * cx, IR_t * γ, IR_t * ω) { return zw5_on() ? lc_build(cx->g, IR_STATEMENT_END, γ, ω) : γ; }
+ static IR_t * sco_branch(scx_t * cx, const tree_t * pg, IR_t * γ, IR_t * ω) {
+     if (!pg) return γ;
+     if (pg->t != TT_PROGRAM) { IR_t * r = NULL; return sx_lower(cx, pg, γ, ω, &r); }
+@@ -558,7 +559,7 @@ static IR_t * sx_lower(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t
+         int is_until = (t->t == TT_UNTIL);
+         IR_t * gate = lc_build(cx->g, IR_GOTO, NULL, NULL);
+         IR_t * cr = NULL;
+-        IR_t * ce = is_until ? sx_lower(cx, C, γ, gate, &cr) : sx_lower(cx, C, gate, γ, &cr);
++        IR_t * ce = is_until ? sx_lower(cx, C, sco_stmt_end(cx, γ, gate), gate, &cr) : sx_lower(cx, C, sco_stmt_end(cx, gate, γ), γ, &cr);
+         IR_t * sv_exit = cx->loop_exit; IR_t * sv_next = cx->loop_next;
+         cx->loop_exit = γ; cx->loop_next = ce;
+         IR_t * be = B ? sco_branch(cx, B, ce, ω) : ce;
+@@ -572,7 +573,7 @@ static IR_t * sx_lower(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t
+         if (!C) sno_fatal("do-while without condition outside the landed subset", NULL);
+         IR_t * gate = lc_build(cx->g, IR_GOTO, NULL, NULL);
+         IR_t * cr = NULL;
+-        IR_t * ce = sx_lower(cx, C, gate, γ, &cr);
++        IR_t * ce = sx_lower(cx, C, sco_stmt_end(cx, gate, γ), γ, &cr);
+         IR_t * sv_exit = cx->loop_exit; IR_t * sv_next = cx->loop_next;
+         cx->loop_exit = γ; cx->loop_next = ce;
+         IR_t * be = B ? sco_branch(cx, B, ce, ω) : ce;
+@@ -587,7 +588,7 @@ static IR_t * sx_lower(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t
+         if (!C) sno_fatal("for-loop without condition outside the landed subset", NULL);
+         IR_t * gate = lc_build(cx->g, IR_GOTO, NULL, NULL);
+         IR_t * cr = NULL;
+-        IR_t * ce = sx_lower(cx, C, gate, γ, &cr);
++        IR_t * ce = sx_lower(cx, C, sco_stmt_end(cx, gate, γ), γ, &cr);
+         IR_t * se = STEP ? sx_lower(cx, STEP, ce, ω, NULL) : ce;
+         IR_t * sv_exit = cx->loop_exit; IR_t * sv_next = cx->loop_next;
+         cx->loop_exit = γ; cx->loop_next = se;
+@@ -782,7 +783,7 @@ static IR_t * sx_lower(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t
+         if (!C) sno_fatal("TT_IF with no condition", NULL);
+         IR_t * th_entry = TH ? sco_branch(cx, TH, γ, ω) : γ;
+         IR_t * el_entry = EL ? sco_branch(cx, EL, γ, ω) : γ;
+-        IR_t * cr = NULL; IR_t * ce = sx_lower(cx, C, th_entry, el_entry, &cr);
++        IR_t * cr = NULL; IR_t * ce = sx_lower(cx, C, sco_stmt_end(cx, th_entry, el_entry), el_entry, &cr);
+         if (res) *res = NULL;
+         return ce;
+     }
+@@ -842,15 +843,16 @@ static IR_t * sx_lower(scx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t
+     case TT_RETURN: case TT_NRETURN: case TT_PROC_FAIL: {
+         const char * rl = (t->t == TT_PROC_FAIL) ? "FRETURN" : (t->t == TT_NRETURN) ? "NRETURN" : "RETURN";
+         IR_t * j = lc_build(cx->g, IR_GOTO, bb_label_landing(rl), NULL);
++        IR_t * je = sco_stmt_end(cx, j, j);
+         if (res) *res = NULL;
+         if (t->t == TT_RETURN && t->n > 0 && t->c[0] && cx->result_name) {
+             sno_reg_var(cx->result_name);
+-            IR_t * asn = lc_build(cx->g, IR_ASSIGN, j, j); IR_LIT(asn).sval = (char *) cx->result_name;
+-            IR_t * vr = NULL; IR_t * e = sx_lower(cx, t->c[0], asn, j, &vr);
++            IR_t * asn = lc_build(cx->g, IR_ASSIGN, je, je); IR_LIT(asn).sval = (char *) cx->result_name;
++            IR_t * vr = NULL; IR_t * e = sx_lower(cx, t->c[0], asn, je, &vr);
+             ir_operand_push(asn, vr);
+             return e;
+         }
+-        return j;
++        return je;
+     }
+     case TT_GOTO_U: case TT_GOTO_S: case TT_GOTO_F: {
+         const char * nm = (t->n > 0 && t->c[0] && t->c[0]->v.sval) ? t->c[0]->v.sval : t->v.sval;
+diff --git a/src/templates/xa/xa_flat.cpp b/src/templates/xa/xa_flat.cpp
+index 34ffe1236..71fc4d079 100644
+--- a/src/templates/xa/xa_flat.cpp
++++ b/src/templates/xa/xa_flat.cpp
+@@ -377,24 +377,24 @@ static std::string xa_flat_chain_prologue_str(const char * fname) {
+                                                 bb_emit_pos, g_emit.flat_frame_bytes, g_is_text ? 1 : 0, g_emit.flat_jmp_entry, g_emit.flat_pat); } }
+     int kt = g_emit.flat_frame_bytes;
+     if (kt & 15) { fprintf(stderr, "FATAL xa_flat_chain_prologue: kt=%d (must be a 16-multiple >= 48)\n", kt); abort(); }
+-    std::string s = x86("comment", "CLASS-C chain prologue (s114): carve kt + park {γ,ω} at [kt-24]/[kt-16] + save caller ___ at [kt-8]; ___ NOT pinned")
+-         + x86("sub", "rsp", (long)kt)
++    int nf = 0, nsave = 0; int gk[29];
++    int argkt = xa_flat_sig_names(fname, &nf, &nsave, gk) ? 16 * nsave : 0;
++    std::string s = x86("comment", "CLASS-C chain prologue (s114): carve kt with the formals' save area ABOVE it at [kt, kt+16n) -- the body addresses its frame from rsp, so "
++                                   "rsp is the frame base -- + park {γ,ω} at [kt-24]/[kt-16] + save caller ___ at [kt-8]; ___ NOT pinned")
++         + x86("sub", "rsp", (long)(kt + argkt))
+          + x86("mov", "[rsp + " + std::to_string(kt - 24) + "]", "rcx")
+          + x86("mov", "[rsp + " + std::to_string(kt - 16) + "]", "rdx")
+          + x86("mov", "[rsp + " + std::to_string(kt - 8) + "]", "rbp")
+          + xa_flat_wn_park_str(kt, fname);
+-    int nf = 0, nsave = 0; int gk[29];
+-    if (xa_flat_sig_names(fname, &nf, &nsave, gk)) {
+-        int argkt = 16 * nsave;
+-        s +=  x86("sub", "rsp", (long)argkt)
+-             + x86("mov", "rdx", "[rcx + 0]")
++    if (argkt > 0) {
++        s +=  x86("mov", "rdx", "[rcx + 0]")
+              + x86("lea", "r8", "[rsp + " + std::to_string(kt + argkt) + "]")
+              + FOR(0, nsave, [&](int i) {
+                    std::string sv = x86("note", gva_name(gk[i]))
+                         + x86("mov", "r10", xa_flat_sig_gq(gk[i], 0))
+-                        + x86("mov", "[rsp + " + std::to_string(16 * i) + "]", "r10")
++                        + x86("mov", "[rsp + " + std::to_string(kt + 16 * i) + "]", "r10")
+                         + x86("mov", "r10", xa_flat_sig_gq(gk[i], 8))
+-                        + x86("mov", "[rsp + " + std::to_string(16 * i + 8) + "]", "r10");
++                        + x86("mov", "[rsp + " + std::to_string(kt + 16 * i + 8) + "]", "r10");
+                    if (i >= nf) return sv + x86("mov", xa_flat_sig_gq(gk[i], 0), (long)DT_SNUL)
+                                           + x86("mov", xa_flat_sig_gq(gk[i], 8), (long)0);
+                    return sv + x86("cmp", "rdx", (long)i) + x86_jcc_id("jbe", 1 + i)
+@@ -422,10 +422,10 @@ static std::string xa_flat_chain_epilogue_str(void) {
+ static std::string xa_flat_chain_epilogue_sig_str(int is_gamma, const char * fname) {
+     if (!xa_flat_class_c()) return std::string();
+     int kt = g_emit.flat_frame_bytes;
+-    std::string pre;
++    std::string pre; int argkt = 0;
+     { int nf = 0, nsave = 0, res_gk = -1; int gk[29];
+       if (xa_flat_sig_names(fname, &nf, &nsave, gk, &res_gk)) {
+-          int argkt = 16 * nsave;
++          argkt = 16 * nsave;
+           std::string reload = (is_gamma && res_gk >= 0)
+               ? ( x86("note", gva_name(res_gk))
+                 + x86("mov", "rax", xa_flat_sig_gq(res_gk, 0))
+@@ -434,11 +434,10 @@ static std::string xa_flat_chain_epilogue_sig_str(int is_gamma, const char * fna
+           pre = reload
+          + FOR(0, nsave, [&](int i) {
+                     return x86("note", gva_name(gk[i]))
+-                         + x86("mov", "r10", "[rsp + " + std::to_string(16 * i) + "]")
++                         + x86("mov", "r10", "[rsp + " + std::to_string(kt + 16 * i) + "]")
+                          + x86("mov", xa_flat_sig_gq(gk[i], 0), "r10")
+-                         + x86("mov", "r10", "[rsp + " + std::to_string(16 * i + 8) + "]")
+-                         + x86("mov", xa_flat_sig_gq(gk[i], 8), "r10"); })
+-              + x86("add", "rsp", (long)argkt);
++                         + x86("mov", "r10", "[rsp + " + std::to_string(kt + 16 * i + 8) + "]")
++                         + x86("mov", xa_flat_sig_gq(gk[i], 8), "r10"); });
+           (void)nf;
+       }
+     }
+@@ -462,7 +461,7 @@ static std::string xa_flat_chain_epilogue_sig_str(int is_gamma, const char * fna
+          + x86("mov", "rcx", RDQ("rcx", is_gamma ? 8 : 16))
+          + (is_gamma ? std::string() : (x86("mov32", "eax", (long)DT_FAIL)
+                                       + x86("xor", "edx", "edx")))
+-         + x86("add", "rsp", (long)kt)
++         + x86("add", "rsp", (long)(kt + argkt))
+          + x86_jmp_reg("rcx");
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
