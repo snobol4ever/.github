@@ -86,3 +86,9 @@ b724a0384	snocone-demos	coo	DEMOS_SUITE_BOARD lang=snocone total=23 shipped=23 a
 8b8ff531e	arizona	coo	ARIZONA_SUITE_BOARD shipped=119 graded=119 gap=0 m3_pass=119 m3_reject=0 m3_fail=0 m3_crash=0 m3_hang=0 m4_pass=119 m4_reject=0 m4_fail=0 m4_crash=0 m4_hang=0
 8b8ff531e	jcon	coo	JCON_SUITE_BOARD shipped=86 graded=86 gap=0 total=86 m3_pass=86 m4_pass=86
 8b8ff531e	ipl	coo	IPL_SUITE_BOARD total=851 compile_graded=851 compile_pass=846 compile_fail=5 run_graded=613 nomain_total=391 hasmain_total=460 nomain_ok=0 linkgap=3 parseerr=2 timeout=0 other=0
+c1c899df3	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+c1c899df3	snocone-bench-ref	coo	SUITE_BOARD family=snocone-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time refless=0 unwrappable=0 heap_declared=23
+c1c899df3	rebus-bench-ref	coo	SUITE_BOARD family=rebus-bench-ref total=3 shipped=3 all_pass=3 all_n=3 m3_pass=3 m4_pass=3 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=6
+c1c899df3	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=0 all_n=26 m3_pass=0 m4_pass=0 angles=process,iter,time loop_in=0 loop_proc=0 refless=0 ref_drift=26 wrapper_sensitive=0 heap_declared=26
+c1c899df3	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+c1c899df3	pascal-bench-ref	coo	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time

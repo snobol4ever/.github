@@ -27,17 +27,17 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasRungs | pascal | 252/252 | 2026-10-01 | `8b8ff531e` | done |
 | RakRungs | raku | 918/960 | 2026-10-01 | `8b8ff531e` | 26 xfail counted as FAIL of a 42-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | SncRungs | snocone | 338/338 | 2026-10-01 | `b724a0384` | done |
-| SncBench | snocone | 23/23 | 2026-10-01 | `734797863` | done |
+| SncBench | snocone | 23/23 | 2026-10-01 | `c1c899df3` | done |
 | RebRungs | rebus | 43/43 | 2026-10-01 | `b724a0384` | done |
 | Logtalk | prolog | 3419/3528 | 2026-10-01 | `8b8ff531e` |  |
 | X64T | snobol4 | 32/33 EXCLUDED=3 OUTSIDE=0 | 2026-10-01 | `b724a0384` |  |
 | X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 | 2026-10-01 | `b724a0384` | done |
-| SnoBench | snobol4 | 23/23 | 2026-10-01 | `734797863` | done |
+| SnoBench | snobol4 | 23/23 | 2026-10-01 | `c1c899df3` | done |
 | IcnBench | icon | 26/26 | 2026-10-01 | `734797863` | done |
-| ProBench | prolog | 23/23 | 2026-10-01 | `734797863` | done |
-| PasBench | pascal | 11/11 | 2026-10-01 | `734797863` | done |
+| ProBench | prolog | 23/23 | 2026-10-01 | `c1c899df3` | done |
+| PasBench | pascal | 11/11 | 2026-10-01 | `c1c899df3` | done |
 | RakBench | raku | 62/84 | 2026-10-01 | `734797863` |  |
-| RebBench | rebus | 3/3 | 2026-10-01 | `734797863` | done |
+| RebBench | rebus | 3/3 | 2026-10-01 | `c1c899df3` | done |
 | SnoDemo | snobol4 | 24/24 | 2026-10-01 | `734797863` | done |
 | SncDemo | snocone | 23/23 | 2026-10-01 | `b724a0384` | done |
 | IcnDemo | icon | 7/7 | 2026-10-01 | `734797863` | done |
