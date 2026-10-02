@@ -566,7 +566,7 @@ def grid(plain=False):
 # Raku is labelled IN DEVELOPMENT on Lon's word (CEO-1219) and no other language carries a label.
 README_BEGIN = '<!-- SUITE-TABLE:BEGIN'
 README_END = '<!-- SUITE-TABLE:END -->'
-README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), ('pascal', 'Pascal'), ('raku', 'Raku'), ('scrip', 'SCRIP (hybrid)')]
+README_LANGS = [('snobol4', 'SNOBOL4'), ('icon', 'Icon'), ('prolog', 'Prolog'), ('pascal', 'Pascal'), ('raku', 'Raku'), ('scriptix', 'SCRIPtix (hybrid)')]
 # ⛔ THE README SHOWS FIVE LANGUAGES' NUMBERS (Lon 2026-09-26 13:5x CDT, in-chat to the ceo, verbatim: "Do not show Rebus or Snocone test-suite
 #   or benchmark numbers in the README."; ceo CEO-1284): the Snocone and Rebus rows stay in SUITES.tsv and SCORE.md (the leaderboard grades them
 #   like every other suite) and are HIDDEN from the README block -- placed, never refused, never rendered.
