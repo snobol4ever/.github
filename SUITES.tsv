@@ -36,4 +36,4 @@ snobol4-demos	SnoDemo	🎬	snobol4	2026-09-27	24	24	2026-10-02	24	24	8090d51d4
 snocone-demos	SncDemo	🎬	snocone	2026-09-27	15	16	2026-10-01	23	23	b724a0384	2026-09-30:the seven bootstrap parsers join the Snocone demos as parser_LANG (Lon 2026-09-30 the seven parser_lang.sc as demos and benchmarks for Snocone, ceo CEO-1379), denominator 16 to 23	
 icon-demos	IcnDemo	🎬	icon	2026-09-27	6	6	2026-10-01	7	7	734797863	2026-10-01:Lon-added-the-Icon-demo-Expressions.icn-the-grammar-based-random-calculator-expression-generator-corpus-57ab513d5-to-b15d3d991-denominator-6-to-7	
 prolog-demos	ProDemo	🎬	prolog	2026-09-28	0	2	2026-10-01	0	2	734797863		
-scrip-demos	ScrDemo	🎬	scrip	2026-09-27	10	12	2026-10-01	10	10	734797863	2026-09-27:the two family_snobol4.sno LIBRARY blocks are containers named in demos/scrip/CONTAINERS.tsv (corpus 305265258, CEO-1325 ask 2) -- shipped 12, graded 10	
+scriptix-demos	TixDemo	🎬	scriptix	2026-09-27	10	12	2026-10-01	10	10	734797863	2026-09-27:the two family_snobol4.sno LIBRARY blocks are containers named in demos/scriptix/CONTAINERS.tsv (corpus 305265258, CEO-1325 ask 2; demos/scrip and .scrip until 2026-10-02, CEO-1421) -- shipped 12, graded 10	

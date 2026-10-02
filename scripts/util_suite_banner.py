@@ -599,7 +599,7 @@ README_RUNNER = {
     # ⭐ THE DEMO ROWS (Lon 2026-09-27: "all demos are also benchmarks. They are work-horse benchmarks."; ceo CEO-1312/1313; coo COO-206):
     # one runner for every language, graded in both modes against each demo's oracle ref on its sample input.
     'snobol4-demos': 'test_demos_suite.sh snobol4', 'snocone-demos': 'test_demos_suite.sh snocone', 'icon-demos': 'test_demos_suite.sh icon',
-    'prolog-demos': 'test_demos_suite.sh prolog', 'scrip-demos': 'test_demos_suite.sh scrip'}
+    'prolog-demos': 'test_demos_suite.sh prolog', 'scriptix-demos': 'test_demos_suite.sh scriptix'}
 BENCH_SUFFIX = '-bench-ref'
 def _readme_path():
     root = os.environ.get('S4E_HOME') or os.path.join(HERE, '..', '..')
