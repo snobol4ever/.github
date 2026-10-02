@@ -20,3 +20,5 @@
 688098382	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=688098382 corpus=ffe8cc0d0 RT_OPT=-O0
 d52c7fe57	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
 d52c7fe57	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=d52c7fe57 corpus=f2ae706da RT_OPT=-O0
+6ae7760f8	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+6ae7760f8	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=6ae7760f8 corpus=f2ae706da RT_OPT=-O0
