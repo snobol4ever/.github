@@ -1,0 +1,8 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+067bbc40b	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=26 all_n=26 m3_pass=26 m4_pass=26 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=26
+067bbc40b	sno-rungs	coo	SUITE_BOARD family=ALL total=1991 shipped=2000 outside=9 m3_n=1991 m3_pass=1986 m3_fail=0 m3_crash=0 m3_hang=0 m3_unproven=0 m3_skip=0 m3_xfail=4 m3_xpass=1 m3_xfail_wrong=4 m3_xfail_crash=0 m3_xfail_hang=0 m3_xfail_unproven=0 m3_xfail_skip=0 m4_n=1991 m4_pass=1986 m4_fail=0 m4_crash=0 m4_hang=0 m4_unproven=0 m4_skip=0 m4_xfail=4 m4_xpass=1 m4_xfail_wrong=3 m4_xfail_crash=0 m4_xfail_hang=0 m4_xfail_unproven=0 m4_xfail_skip=1 all_pass=1986 all_n=1991 rt_md5=1ffa89a697a7 arena_kb=1024 arena_mb=0 m3_fail_oom=0 m4_fail_oom=0
+067bbc40b	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+067bbc40b	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=067bbc40b corpus=8f402289f RT_OPT=-O0
