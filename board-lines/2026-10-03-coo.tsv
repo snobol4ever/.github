@@ -58,3 +58,8 @@ a87e4fd35	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=
 a87e4fd35	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
 a87e4fd35	pascal-bench-ref	coo	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
 a87e4fd35	raku-bench-ref	coo	SUITE_BOARD family=raku-bench-ref total=84 shipped=84 all_pass=62 all_n=84 m3_pass=62 m4_pass=62 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=168
+a87e4fd35	arizona	coo	ARIZONA_SUITE_BOARD shipped=119 graded=119 gap=0 m3_pass=119 m3_reject=0 m3_fail=0 m3_crash=0 m3_hang=0 m4_pass=119 m4_reject=0 m4_fail=0 m4_crash=0 m4_hang=0
+a87e4fd35	jcon	coo	JCON_SUITE_BOARD shipped=86 graded=86 gap=0 total=86 m3_pass=86 m4_pass=86
+a87e4fd35	ipl	coo	IPL_SUITE_BOARD total=851 compile_graded=851 compile_pass=846 compile_fail=5 run_graded=634 nomain_total=391 hasmain_total=460 nomain_ok=0 linkgap=3 parseerr=2 timeout=0 other=0
+a87e4fd35	inria	coo	INRIA_SUITE_BOARD total=445 m3_pass=442 m3_fail=0 m3_crash=0 m4_pass=442 m4_fail=0 m4_crash=0 OUTSIDE=3 is the OUTCOME-CLASS-ONLY upper bound, which ignores what a goal bound and can only move down when tightened
+a87e4fd35	roast	coo	ROAST_SUITE_BOARD total=1464 m3_run_pass=182 m3_run_fail=1282 m4_run_pass=182 m4_run_fail=1282 both_modes_pass=182 compile_only=450 roast_commit=unversioned-tree elapsed=2840s
