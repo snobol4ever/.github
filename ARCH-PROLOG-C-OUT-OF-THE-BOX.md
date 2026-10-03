@@ -1,0 +1,174 @@
+# ARCH-PROLOG-C-OUT-OF-THE-BOX — the five rows that take the C out of the Prolog box, one section per helper
+
+**Owner:** hq_prolog (Lon 2026-10-03, verbatim: *"So then get HQ-PROLOG on the re-write."* · *"Regarding development, have ONLY HQ-PROLOG do all this work."*; CEO-1476..1481). **Reviewer:** the cto (the frame section before the first batch, each later section before its row lands). **Design of record:** `ARCH-PROLOG-BB-REWRITE.md` (§ 4 the register plane, § 5 the trail, § 6 the wiring, § 7 the predicate box, § 10 body construction, § 12 meta-call, § 13 the dynamic database); this page is that design made concrete against the tree as it is, helper by helper, with the file and line of every C function a Prolog call reaches today and the emitted sequence that replaces it. **Law this page obeys:** the port wiring is Proebsting's and THE LOGIC IS INSIDE THE CHUNK (Byrd 1980, Proebsting 1997; CEO-1280); the leaf is asm and the dispatch is a box (RULES.md ERADICATE C-to-BB-to-C); Prolog structure rides DESCR and the three zetas; everything on the emitted stack is a DESCR (ARCH-GC-COMPILE-TIME-FRAME-MAPS.md § 7 F1, FROZEN); THE LIFETIME RULE (CEO-1354); LARGE CHUNKS (CEO-1479/1481: a scheme change deploys to its population in large sets, never site by site); no new global without Lon's grant.
+
+**Sections fill as each row lands** (CEO-1477/1478: the frame section is written as the frame row lands, not before). Today § 1 is complete, § 2–§ 5 carry their measurement and first step.
+
+---
+
+## 0. The measurement — what a Prolog call costs today, in C crossings
+
+`scripts/bench_prolog_call_census.sh` (no argument) compiles the 23 kernels under `corpus/benchmarks/prolog/bench` to mode-4 asm and counts emitted call sites into each runtime entry. **At SCRIP `71e513d2c`** (this seat, 2026-10-03 13:4x CDT):
+
+| entry | sites | what it is | row |
+|---|---:|---|---|
+| `rt_gc_poll_asm` | 11,949 | the safe-point leaf after every allocating call (stays; its SITES fall as the C calls fall) | — |
+| `rt_proc_register_rec` | 4,069 | the mode-4 startup bake, ONE per procedure (same count as the prologue helper below): never on a call path | — |
+| `rt_jmp_frame_lexprep2` | 4,069 | zero-fill of the frame's value region, one per procedure prologue | **§ 1** |
+| `rt_icn_zframe_args_install` | 3,802 | copy of `g_call_args[i]` into the frame's parameter slots, one per prologue with parameters | **§ 1** |
+| `rt_pl_tr_refuse` | 1,523 | the trail arena's refusal arm | trail (§ 5 of the design; a later row) |
+| `rt_gen_spine_resume_enter` | 1,078 | `inc rt_k_level` at every β resume (asm leaf, 3 instructions) | **§ 1** (inlined with the landing) |
+| `rt_arg_stage` | 1,045 | stage one argument into `g_call_args` (the slow arm of the inline sink) | **§ 1** |
+| `rt_pl_unify_const_cold` | 922 | the cold arm of IR_UNIFY_CONST | unify (R4.3) |
+| `rt_proc_drop_frame_h` | 621 | at a meta-call's α: destroy the previous activation's retained generator record | **§ 1** / § 4 |
+| `rt_pl_goal_spine_prep` · `rt_pl_goal_gen_h` · `rt_call_value_resume_h` | 621 each | the meta-call's by-name resolution, fallback and resume | **§ 4** |
+| `rt_pl_dop_pl_ioarg` | 621 | the I/O argument leaf | — |
+| `rt_pl_dop_mkc` | 550 | build a compound on the heap from staged kids | **§ 3** |
+| `rt_pl_cut_barrier` · `rt_pl_disj_open` · `rt_pl_choice_open` · `rt_pl_fence_commit` | 468 · 197 · 179 · 174 | the choice words | **§ 2** |
+| `rt_pl_unify_struct_fresh` · `rt_pl_dop_unify` · `rt_pl_unify_value` | 466 · 254 · 135 | the unifier's cold arms | unify (R4.3) |
+| `rt_proc_call_open_det` | 457 | the fused det open: registry lookup + `rt_proc_call_prologue_lex` | **§ 1** |
+| `rt_nret_fix_tiny` | 457 | SNOBOL4's NRETURN by-name consult at the γ landing | **§ 1** |
+| `rt_pl_exist_key_raise` · `rt_pl_anum_cold` · `rt_pl_type_cold` · `rt_pl_atop_cold` | 315 · 299 · 264 · 161 | error and cold arms | — |
+| `rt_pl_dop_db_t_guard` · `rt_pl_dop_db_decl` · `rt_pl_dop_cutcall` | 161 · 157 · 92 | the dynamic database | **§ 5** |
+| `rt_pl_tail_args_safe` | 152 | the last-call safety test over `g_call_args` | **§ 1** |
+
+**The frame row's six** read `4069 + 3802 + 1045 + 621 + 457 + 457 = 10,451` sites (the row's title says 9,881 at `a6d057a31`; the population grew with the kernels' prelude). The coo's Ir instrument (CEO-1475/1480, callgrind at `c0fbd4343`, mode 4, marginal between N=1 and N=6): the helpers the five rows delete are 0.11 (deriv) to 0.39 (crypt) of each kernel's Ir, median 0.34 — an Amdahl ceiling of 1.13x to 1.65x for the five rows together. **The other two thirds** is the emitted code and the unifier (`rt_pl_unify_*`, the `rt_gc_poll_asm` sites, the trail's `rt_pl_tr_refuse`); § 1.7 says where it goes, because the frame carve is what makes the register-resident unifier possible.
+
+---
+
+## 1. THE ACTIVATION FRAME — carved and released by the emitted prologue and epilogue, not six C helpers per call
+
+Row `prolog-bb-the-activation-frame-is-carved-and-released-by-the-emitted-prologue-not-six-c-helpers-per-call-9881-call-sites` (rank 0, assigned, CEO-1477). DONE-WHEN: `bench_prolog_call_census.sh 'rt_jmp_frame_lexprep2|rt_icn_zframe_args_install|rt_arg_stage|rt_proc_call_open_det|rt_proc_drop_frame_h|rt_nret_fix_tiny'` reads GREEN (0 sites).
+
+### 1.1 What the C does per call today, with file and line
+
+The witness is `app/3` of `corpus/benchmarks/prolog/bench/nrev.pl` compiled with `./scrip --compile` at `71e513d2c` (`FN__app$2F3`, kt = 352, three parameters), and the call `app(R1, [H], R)` inside `nrev/2`. Every Prolog predicate graph is a **pinned zframe** (`frame_layout.c:1136-1140`: `zframe_pinned_base` set because the graph is `resumable_callable`; `lower_prolog.c:2345` marks every Prolog graph so) and every Prolog call site takes `bcps_spine_gen_arm` (`src/templates/bb/bb_call_proc_staged.cpp:500-650`, the generator-regime arm, because a predicate is resumed through β for its next solution).
+
+**The call site, in order (`bb_call_proc_staged.cpp:520-650`):**
+
+1. `mov [act], DT_RAW` — reset the activation token `F.ACT` (two words: the retained callee's rbp, and its β).
+2. **`stage_arg_inline`** (`:93-110`), one per argument: test `g_gc_pending`, load `g_call_args.p`, test it, store the 16-byte DESCR into `g_call_args[i]` — 9 instructions, with a branch to the slow arm `mov edi,i; mov rsi/rdx,<cell>; call rt_arg_stage; poll` (**`rt_arg_stage`, `src/runtime/rt/rt.c:840-845`**: `rt_call_args_need(idx+1); CALL_ARGS[idx] = v`).
+3. `mov edi,<registry index>; mov esi,<nargs>; call rt_proc_call_open_det` (`:528-530`), the call wrapped in the `rtccb` save/restore of r8/r10/r11 (6 stores and loads). **`rt_proc_call_open_det`, `rt.c:1897-1905`**: bounds-check the index, `p->fn && !p->dyn_scope`, park `rt_g_want_name`, then **`rt_proc_call_prologue_lex`, `rt.c:1825-1847`**: null-pad `g_call_args[nargs, nparams)`, the variadic-tail arm (never for Prolog), `rt_lvl_open(own = !p->is_generator)` (`rt.c:1522-1524`: a Prolog predicate is registered as a generator, so `own = 0` and the leaf does `rt_k_level++; rt_lvl_retire(); rt_k_level_mirror()` — `rt.c:383-385`: `kw_fnclevel = rt_k_level - 1` (Icon's `&level`) and `rt_stno_stack[level].act_rsp = 0`), and under `RT_DIAG` the monitor's `TRK_CALL` event with the staged arguments; returns `p->fn`.
+4. `x86_rt_gc_poll()` after it (the open allocates nothing, but it is a runtime call).
+5. `sub rsp,16; [rsp]=DT_RAW; [rsp+8]=0` — the landing cell (CFO-36 parity), then `test rax,rax; je L1` (L1 = `rt_ab_undef_fn_fail`, the undefined-procedure road).
+6. **The last-call arm** (`pl_lco_armed`: the clause's last goal, not the root graph; `:539-561`): `call rt_pl_tail_args_safe(nargs, rbp, rbp+kt)` (**`rt.c:850-868`**: for each staged argument, follow up to four `DT_N` hops; an integer or real is copied by value; an unbound cell inside `[frame_lo, frame_hi)` or any chain pointer into the frame refuses), `poll`, then if safe AND `r13 == [rbp+kt-40]` (no choice point since this activation entered) AND `rsp+16 == rbp` (the spine is empty but for the landing cell): `rcx=[kt-24]`, `rdx=[kt-16]>>8`, `lea rsp,[rbp+kt]`, `rbp=[kt-8]`, `jmp rax` — the frame released and the callee entered with the caller's own wires.
+7. `bcps_wire_cross_gen(3,4)` (`:71-77`): one more raw landing cell (`x86_rsp_raw_cell`), `lea rcx,L3; lea rdx,L4; jmp rax`.
+8. **L3, the γ landing:** `rcx = rax<<8|DT_RAW; [act]=rcx; [act+8]=rdx` (rax = the callee's rbp when it retained its frame, 0 when it released; rdx = its β), `test rax; jne L21; add rsp,32` (pop the two landing cells only when the callee released), L21: `call rt_gen_spine_pass_γ` (**`src/runtime/rtx/rtx_icngen.s:9-14`**: `dec rt_k_level; rax:rdx = rdi:rsi` = the `{DT_I,1}` the callee loaded), `jmp L2`.
+9. **L4, the ω landing:** `add rsp,32; [act]=DT_RAW; call rt_gen_spine_pass_ω` (`rtx_icngen.s:16-21`: `dec rt_k_level; rax = DT_FAIL`), `jmp L2`.
+10. **L2:** `bcps_nret_consult` (`:152-164`): load `rt_g_ret_by_name` through the GOT, `test`, and on the SNOBOL4 name-return flag `call rt_nret_fix_tiny` (**`rt.c:891`**: `rt_nret_fix(r, rt_g_want_name)`) — the flag is never set by Prolog code, so the branch is always not-taken: a load, a test and a jump per call; then `[off]=rax:rdx; cmp al,DT_FAIL; je ω; γ`.
+11. **β (the redo):** `test r15,r15; jne ω` (a ball in flight), `rax=[act]>>8; test; je ω; rcx=[act+8]; rbp=rax; call rt_gen_spine_resume_enter` (`rtx_icngen.s:4-7`: `inc rt_k_level`), `jmp rcx` — the retained callee resumed at its β with its own frame pinned.
+
+**The callee's prologue (`src/templates/xa/xa_flat.cpp:215-308`, the pinned arm), as emitted for `app/3`:**
+
+```
+FN__app$2F3:      sub rsp,352                       ; kt
+  [kt-24]=rcx (γ)  [kt-16]=rdx<<8|RAW (ω)  [kt-8]=rbp ; the wire header, then rbp=rsp (the pin)
+  [kt-32]=(rsp+kt)<<8|RAW                           ; the frame top, raw
+  [kt-40]=r13   [kt-48]=0   [kt-56]=0   [kt-64]=r12  ; r13 at entry (the choice test's base), βres, F.CUR, F.TRMARK
+  [kt-56]=&app$2F3_alt1 ; lea rdi,[rsp+kt-64] ; call rt_pl_choice_open      ; (the choice row, § 2 — not this row's)
+  mov rdi,rsp ; mov esi,192 ; mov edx,288 ; call rt_jmp_frame_lexprep2      ; § 1.1 helper 1
+  mov rdi,rsp ; mov esi,3   ; mov edx,0   ; call rt_icn_zframe_args_install ; § 1.1 helper 2
+  lea rax,[rip+.Lgcmap_app$2F3] ; [256+8]=rax ; [256]=DT_MAP ; [260]=352   ; the collector's map cell at kt-96
+  mov eax,0
+```
+
+- **`rt_jmp_frame_lexprep2(fb, suffix_off, region_bytes)`, `rt.c:1967-1971`:** `memset(fb, 0, region_bytes)` — zero-fill of `[rsp, rsp+kt-64)`: the return cell, the parameter slots, the locals and temporaries and the map cell's slot; the `suffix_off` argument is unused. A C call (through the PLT) per predicate entry to zero 288 bytes.
+- **`rt_icn_zframe_args_install(base, nparams, nlocals)`, `rt.c:1502-1507`:** `rt_sxt_frames_present()` (`gc_heap.c:117`: `g_sxt_fr.off = 1; g_sxt_owner = 0` — the SNOBOL4 subject-extent cache's invalidation, which no Prolog frame uses), then for each parameter `*(DESCR_t *)(base + 16 + 16i) = g_call_args[i]` (NULVCL when the staged medium is short), then `NULVCL` into each local slot (none: `nlocals` is 0 here; the zero-fill already did it). A C call per entry to copy 3 × 16 bytes from a process-lifetime array.
+
+**The exits (`xa_flat.cpp:551-581`, the pinned arms), as emitted:** γ loads `{DT_I,1}` into edi:esi (CEO ruling of 862de8852: a predicate has no value), `rcx=[kt-24]`, `rax=[kt-40]; cmp r13,rax; je altdet` — nondeterministic: `rdx=&β; rax=rbp; rbp=[kt-8]; jmp rcx` (the frame is RETAINED: rsp stays below it); `altdet: xor eax,eax; lea rsp,[rbp+kt]; rbp=[kt-8]; jmp rcx`. ω: `rcx=[kt-16]>>8; r13=[kt-40]; lea rsp,[rbp+kt]; rbp=[kt-8]; jmp rcx`. The β (`emit.cpp:4119-4130`): `test r15; jne ω; rax=[kt-48]; [kt-48]=0; test rax; jne resume(jmp rax); jmp step`. **These are already inline and this row keeps every one of their words.**
+
+- **`rt_proc_drop_frame_h(hslot)`, `rt.c:1376-1382`**, emitted at the α of every meta-call box (`src/templates/bb/bb_call_value.cpp:56-63`) when `F.ACT` holds a frame: `rt_genp_lookup(frame)` and, if the token names a coroutine-backed generator record (`rt_genp_s`, created only by the by-name road `rt_proc_call_gen_h`, `rt.c:1339-1377`), destroy it; then clear the slot. For a token the spine road wrote (a retained Prolog frame on the stack) the lookup finds nothing and the call is a clear.
+
+**The six, summed per `app/3` call at `71e513d2c`:** three C calls on the call path (open_det, tail_args_safe where armed, and the arg sink's slow arm when a collection is pending), two in the prologue (lexprep2, args_install), one asm leaf per landing and per β (pass_γ/ω, resume_enter), one global load-test-branch per landing (nret consult), plus the `rtccb` save/restore sextet around each C call. `rt_proc_register_rec` (4,069) is one bake call per procedure at mode-4 startup and is not a call-path cost; its share in the coo's Ir table is the mode-3 registration of runtime-compiled graphs and is a separate row.
+
+### 1.2 The emitted sequence that replaces them — the block protocol (design § 7.1, 7.3, 7.4)
+
+**The one scheme change:** the arguments of a call are built by the caller as a block of n DESCR cells on its own spine, immediately above where the callee's frame will be carved, and are never copied: `F.A[i] = [rbp + kt + 16i]` inside the callee. `g_call_args` leaves the Prolog call path entirely; the registry is consulted at emit time, not at run time.
+
+**The call site (every `IR_CALL_PROC_STAGED` whose callee is a pinned zframe graph — `bb_proc_target_zframe_graph(fname)`, `bb_call_proc_staged.cpp:190`, is the emit-time key; a callee the registry does not resolve at emit time keeps the by-name arm, which is the undefined-procedure road):**
+
+```
+  mov [act], DT_RAW                        ; F.ACT reset (as today)
+  sub rsp, 16n                             ; the argument block, n cells
+  mov rax,[src_i] ; mov [rsp+16i],rax      ; per argument, the 16-byte DESCR copied from its slot
+  mov rax,[src_i+8] ; mov [rsp+16i+8],rax  ;   (4 instructions; no g_gc_pending test: no call can intervene)
+  ; --- last-call arm, only where armed (§ 1.4) ---
+  sub rsp,16 ; [rsp]=DT_RAW ; [rsp+8]=0    ; the landing cell (CFO-36 parity, as today)
+  lea rcx, L3 ; lea rdx, L4                ; the γ and ω wires
+  jmp FN__callee                           ; mode 4: the symbol; mode 3: jmp [alpha$callee cell] (x86_jmp_through_fn_cell, both media one instruction more)
+L3:  ; γ landing: rax = callee rbp or 0, rdx = &β, rdi:rsi = {DT_I,1}
+  mov rcx,rax ; shl rcx,8 ; or rcx,DT_RAW ; [act]=rcx ; [act+8]=rdx
+  test rax,rax ; jne L21 ; add rsp,16      ; the callee released frame AND block: pop only our landing cell
+L21: dec dword ptr [rip+rt_k_level]        ; was rt_gen_spine_pass_γ (mode 4: through the GOT, two instructions)
+  mov rax,rdi ; mov rdx,rsi ; jmp L2
+L4:  ; ω landing
+  add rsp,16 ; [act]=DT_RAW ; dec dword ptr [rip+rt_k_level] ; mov eax,DT_FAIL ; xor edx,edx ; jmp L2
+L2:  [off]=rax:rdx ; cmp al,DT_FAIL ; je ω ; γ    ; NO nret consult: a pinned callee has no NRETURN (emit-time fact of the callee)
+β:   test r15,r15 ; jne ω ; rax=[act]>>8 ; test ; je ω ; rcx=[act+8] ; rbp=rax
+  inc dword ptr [rip+rt_k_level] ; jmp rcx  ; was rt_gen_spine_resume_enter
+```
+
+`rt_proc_call_open_det`'s remaining duties, placed: the `p->fn && !dyn_scope` test is an emit-time fact of the callee's record (a file-defined Prolog predicate is registered before emission in both media; `rt_proc_index_of` ≥ 0 today selects this arm); the null-pad of `[nargs, nparams)` cannot arise (a Prolog callee's arity is its parameter count); `rt_g_want_name` is a SNOBOL4 request never raised on a Prolog call path and is not touched; `rt_lvl_open(0)`'s three effects are `rt_k_level++` (kept inline), `kw_fnclevel = level-1` (Icon's `&level` keyword; no Prolog reader — dropped on this path, the mirror is re-synced by the next Icon-regime open), `rt_stno_stack[level].act_rsp = 0` (the SNOBOL4 statement stack; no Prolog reader — dropped); the monitor's `TRK_CALL` event: emitted by the site under the monitor build only (`IF(pl_trace_wanted(), call rt_trace_event_args)`, the one diagnostic arm, off in every benchmark per CEO-1342's `SCRIP_DIAG=0`), so `monitor_run.sh --oracle` keeps its bracket.
+
+**The prologue (`xa_flat_zframe_prologue_str`, pinned arm):**
+
+```
+FN__p$2Fn:  sub rsp,kt
+  [kt-24]=rcx ; [kt-16]=rdx<<8|RAW ; [kt-8]=rbp ; rbp=rsp     ; unchanged
+  [kt-32]=(rsp+kt)<<8|RAW ; [kt-40]=r13 ; [kt-48]=0 ; [kt-56]=0|alt1 ; [kt-64]=r12   ; unchanged (the choice words stay the choice row's)
+  (root graph: rt_pl_quad_seed + the standing cells, unchanged)
+  lea rdi,[rsp] ; xor eax,eax ; mov ecx,(kt-64)/8 ; rep stosq   ; the zero-fill, inline: was rt_jmp_frame_lexprep2
+      ;  (kt-64 <= 128 bytes: unrolled `mov qword ptr [rsp+8k],0`, at most 16 stores; above that rep stosq)
+  lea rax,[rip+map] ; [kt-96+8]=rax ; [kt-96]=DT_MAP ; [kt-92]=kt  ; the map cell, unchanged
+  mov eax,0
+```
+
+No argument copy: **`F.A[i]` is `[rbp+kt+16i]`**, the block the caller built. `rt_icn_zframe_args_install` and its `rt_sxt_frames_present` leave the Prolog prologue; the `g_sxt_fr` invalidation is a SNOBOL4 subject-extent cache the pinned regime never reads (verified: its readers are `rtx_str.s` and the SNOBOL4 scan boxes).
+
+**The exits:** word for word today's, with one change — the deterministic γ (`altdet`) and ω release the block with the frame: `lea rsp,[rbp+kt+16n]` (n = the callee's own parameter count, a compile-time constant of the callee) in place of `lea rsp,[rbp+kt]`. The nondeterministic γ retains frame and block together (the retained activation's arguments stay where its head boxes read them, so a β resume needs nothing moved). The caller's landing pops one cell (its landing cell) instead of two: the second raw cell (`bcps_wire_cross_gen`'s) is not pushed, because the block already keeps the 16-byte parity the CFO-36 note established.
+
+### 1.3 The frame layout, the register plan and the collector's map
+
+**The frame (the pinned regime, unchanged words):** `kt = ((96 | 80 for the root graph) + value_region + 8*standing_cells + 15) & ~15` (`emit.cpp:4358`, `gc_frame_map.h:38-43`); `[kt-80, kt)` the header and choice words (γ, ω, caller rbp, top, r13-at-entry, βres, F.CUR, F.TRMARK); `[kt-96, kt-80)` the `DT_MAP` cell; `[16, kt-96)` locals and box temporaries; `[0,16)` the return cell (zeroed, never written by a predicate). **What moves:** the parameter slots, from `[16+16i]` inside the value region to `[kt+16i]` above it. `frame_layout.c:516-526` assigns the `param` vslots and fields before the locals; the row moves that assignment after the region is final and derives `kt` in ONE function, `zls_g_frame_bytes(g)`, that `emit.cpp:4358` and `:4468` call instead of restating the formula. Every box that reads a parameter reads its vslot offset from the layout (`bcps_arg_slot`, `bb_slot_get`/`zls_off`; the head-unify boxes of R4.1/R4.2 take `[rbp+16]` the same way), so the move is one assignment and no template edits.
+
+**The register plan (design § 4, unchanged by this row and enabled by it):** r12 = TR (the trail top), r14 = ROOT (the standing frame), rbp = the pinned activation frame, rbx = the heap frontier, r10/r11 the diagnostic pair, r13/r15 free between head and body. **The frame carve is what makes the register unifier possible:** with `F.A` a contiguous block at a compile-time offset from rbp, the head's unify boxes address `F.A[i]` as `[rbp+kt+16i]` with no cursor; the general-unify leaf (`rtx_pl_unify`, R4.3) takes `r13 = &F.A[0]` (Σ, the base of the argument block being matched) and `r15 = Δ` (its end) exactly as the SNOBOL4 matcher takes the subject — the same register pair, the same plane, which is why the frame row comes first.
+
+**The collector's map (ARCH-GC § 6, FROZEN; format unchanged):** the map cell stays at `kt-96` with `frame_bytes = kt`, `header_bytes = 80`, flag `GC_FRAME_MAP_LAYOUT`; the layout quads (`zls_g_layout_q`) no longer list the parameters, which are no longer inside `[base, base+kt)`. The argument block is n DESCR cells on the CALLER's spine: the walker (`gc_heap.c:1589-1596` `gc_walk_cell`, `:1602-1617`) reads cells upward from the poll's rsp, visits every cell below a map cell as a DESCR, steps the header (`p = map_cell + 16 + header_bytes`) and continues — the block lies exactly there, between the callee's header and the caller's next cell, and is visited as what it is: n typed DESCRs (a NAMETRAP `{DT_N, &slot}` into a frame is a non-heap pointer the collector ignores, as the same cell was ignored inside the callee's `param` field yesterday). A retained activation (nondeterministic γ) keeps frame and block in the caller's spine, which the walker already walks (ARCH-GC § 6.2i: nothing on the spine is mapped, every cell is typed). No new type code, no new flag, no register fact: the poll's spill record (§ 6.5) is unchanged because the register plane is unchanged.
+
+### 1.4 The last call (design § 7.4, with the safety test inline)
+
+Where today's `pl_lco_armed` holds (the clause's last goal, not the root graph), the site builds the callee's block at rsp as in § 1.2 and then tests, inline, exactly what `rt_pl_tail_args_safe` tests (`rt.c:850-868`): per argument cell, if its tag is `DT_N`, follow the name (at most four hops, as the C does): a target holding `DT_I`/`DT_R` is copied into the block by VALUE; a target holding `DT_SNUL` whose cell lies in `[rbp, rbp+kt+16n_self)` (the frame OR its own block) refuses; any chain pointer into that range refuses. When every argument passes AND `r13 == [kt-40]` AND `rsp + 16n' == rbp` (the block is the only thing on the spine): load `rcx=[kt-24]`, `rdx=[kt-16]>>8`, `r8=[kt-8]` first (the copy may overwrite the header when n' > n), copy the n' cells to `[rbp+kt ..)` (unrolled for n' ≤ 6, `rep movsq` above), `lea rsp,[rbp+kt]`, `mov rbp,r8`, `jmp FN__callee` — the frame released, the callee's block in place, the caller's own wires handed on. When any test refuses, the site falls through to the ordinary call of § 1.2 with the block already built. The run-time refusal exists because frames still hold referenced variable cells (R2 was withdrawn under THE LIFETIME RULE; design § 7.4's "holds by construction" waits on the trail row); `rt_pl_tail_args_safe` leaves the emitted code (152 sites → 0) and stays in the runtime only until no other regime reaches it.
+
+### 1.5 The meta-call and the C-side entries (the part of § 4's mechanism this row must touch)
+
+- **`bb_call_value` (`bb_call_value.cpp:44-177`, `cv_pl_proto`):** the box keeps its by-name resolution (`rt_pl_goal_spine_prep`, § 4's row deletes it) but the C no longer stages into a medium the callee reads: `rt_pl_goal_spine_prep` returns `{fn, nargs}` in rax:rdx (a two-word struct, as `CVSPINE_t` already does) and leaves the goal's kids and the extra arguments in `g_call_args`; the box then `shl rdx,4; sub rsp,rdx; rsi=[g_call_args.p]; rdi=rsp; rcx=nargs*2; rep movsq` — the block built by the box from the staged medium — and jumps with its wires as in § 1.2. `g_call_args` thereby becomes a medium between two C functions and the box, on the meta-call road only; § 4 retires it with the road.
+- **`rt_proc_drop_frame_h` at the meta-call's α:** the token discriminates the road. The spine road writes `[act+8] = &β` (non-zero); the by-name generator road (`rt_pl_goal_gen_h` → `rt_proc_call_gen_h`, `rt.c:1339-1377`, a coroutine-backed `rt_genp_s`) leaves `[act+8] = 0`. The box clears a spine token inline (`[act]=DT_RAW; [act+8]=0`, two stores) and hands a generator token to the C road that owns it: `rt_pl_goal_spine_prep` takes the slot (`lea r8,[act]`) and drops a live generator record at its head, as `rt_pl_goal_gen_h` (`by_name_dispatch.c:2049`) already does. The emitted `call rt_proc_drop_frame_h` goes (621 sites → 0); the C function stays for the two C roads until § 4 deletes them.
+- **The C-side entries into a pinned predicate** (`rt_proc_enter(fn)` after `rt_proc_call_open`, reached by `rt_call_proc_descr`, `APPLY`-class builtins, `rt_proc_call_gen_h`'s `jmp_entry` arm, the coroutine thread entry `rt_genp_thread_entry`, and the runtime-compiled clause roads of § 5): each today expects the callee to copy its arguments from `g_call_args`. One asm shim, `rt_pl_enter(fn, nargs)` (`rtx_plunify.s`, RTX_FUNC), builds the block from `g_call_args` on the stack (`rt_tiny_record_enter`, `rt.c:905-990`, is the precedent: it already copies the staged cells into an on-stack record before the jump), loads its own γ/ω shims as the wires, and jumps; the shims release and return to C as `rt_proc_enter`'s do. The registry record gains one flag bit (`rt_proc_reg_rec_t.flags`, bit 32: the pinned block protocol), set by the emitter where it registers the graph, so `rt_proc_enter` selects the shim by the callee's record — a behavioural property, never a language.
+
+### 1.6 The order, the set, and the gates
+
+**One large set (CEO-1481):** every Prolog graph and every call site whose callee is a pinned graph — the whole population the row's DONE-WHEN measures — in ONE landing: the prologue (xa_flat.cpp), the exits (xa_flat.cpp), the layout (frame_layout.c, emit.cpp's kt), the call site (bb_call_proc_staged.cpp's pinned-callee arm, including the last-call arm), the meta-call box (bb_call_value.cpp), the C-side shim (rtx), the registry flag. The six C entries stay in the runtime for the regimes that still emit them (Icon's region-resident generators and lexical procedures, Raku's and Pascal's `flat_lcl_proc` frames, SNOBOL4's `flat_lex` DEFINE'd functions — `emit.cpp:3635-3712`, `xa_flat.cpp:252-291`): those are the next large sets, each its own row under its own language's seat, and the symbols leave `nm -D` when the last set lands (the plan row's closing gate). The dc road for zframe graphs (`xa_flat_dc_stub_str`, `rt_pl_dc_ok/prep/leave`, `rt.c:1611-1661`) is the same staged mechanism and is deleted with the landing (0 uses in the kernels today: `rt_pl_dc_ok` refuses every Prolog predicate because `nformals` is 0).
+
+**The gates per landing:** (1) the row's DONE-WHEN (the census regex reads 0); (2) a new gate `test_gate_pl_the_activation_frame_is_carved_and_released_by_the_emitted_prologue.sh`, WIRED blocking: compiles `nrev.pl` in mode 4 and asserts zero sites into the six in its text (FAIL-ONCE on `71e513d2c`: 4 of them present), then runs a four-arm witness in m3 and m4 — a deterministic call, a nondeterministic call resumed through β (the retained frame and its block), a last call that takes the inline tail path (deep recursion that would overflow 4 MB without it), a last call the safety test refuses (an unbound frame variable passed down), and a meta-call of a compiled predicate — each against its `.ref`; (3) the collector gates the diff touches (`test_gate_gc_emitted_safe_point_matches_its_contract`, `test_gate_gc_a_safe_point_stores_into_a_mapped_slot`, `test_gate_gc_the_allocating_set_is_a_generated_table_gated_against_the_call_graph`, `dyn_caps_ratchet`); (4) `make preflight`; (5) the area smoke over `prolog:call`. **The net per batch (CEO-1477):** ProRungs 563/563, INRIA 442/442, Logtalk at its floor, the day's SWI reading, in both modes, read by the coo's loop; every language's pass is the control arm (the shared call box must emit byte-identical code for a non-pinned callee — proven by compiling the SNOBOL4, Icon, Raku and Pascal smoke sets before and after and diffing the `.s`). **Speed:** `bench_prolog_ir_bar.sh` before and after on nrev, qsort, deriv, zebra, queens_8, tak; the census reading before and after; the coo's helper-share table re-read.
+
+### 1.7 Where the other two thirds goes
+
+The coo's measurement says the five rows cap at ~1.5x. The rest of each kernel is: the unifier's cold arms (`rt_pl_unify_const_cold` 922, `rt_pl_unify_struct_fresh` 466, `rt_pl_dop_unify` 254, `rt_pl_unify_value` 135 — R4.3's `rtx_pl_unify` in asm behind `IR_UNIFY_VALUE`, then the register-resident general unify on r13/r15 that § 1.3 enables), the trail (`rt_pl_tr_refuse` 1,523 — the trail row of design § 5: the one-word entry, the CAS twin pushed and popped inline), and the poll sites (`rt_gc_poll_asm` 11,949 — design § 7.5: one carve at α sized for the worst case, so the clause polls once in the carve's slow arm and nowhere else; the body-term row (§ 3) is the first step there). Each is a row after the five, measured by the same census and the same Ir bar.
+
+---
+
+## 2. THE CHOICE WORDS — `rt_pl_choice_open` · `rt_pl_disj_open` · `rt_pl_cut_barrier` · `rt_pl_fence_commit` (880 sites)
+
+Row `prolog-bb-choice-open-cut-fence-and-disjunction-open-are-stores-in-the-box-not-c-calls-880-call-sites` (FREE, rank 0, hq_prolog). **Measured today:** `rt_pl_choice_open(&F.TRMARK)` is called by the pinned prologue when the predicate has more than one clause (`xa_flat.cpp:229-235`: four header stores then the call — the C reads `r12`'s trail top into the choice record and links `B`); `rt_pl_disj_open` by `bb_disjunction.cpp` at every `;`; `rt_pl_cut_barrier` by `bb_cut.cpp`; `rt_pl_fence_commit` by the if-then-else and `\+` boxes. Design § 6 and § 7.2: the choice is five words of the frame (`F.TRMARK`, `F.CUR`, `F.RES`, `F.B0`, `F.HB`) stored by the box, `B` and `HB` are slots of the standing frame at fixed offsets from r14 (Lon's Q2), the clause step is twenty instructions. **First step:** read the four C bodies with line numbers into this section, then emit `choice_open` as the stores it does (the trail top from r12, the previous B from `[r14-B]`, `B := rbp+kt-64`) and the cut as `B := F.B0` with the trail unwound to `F.TRMARK` inline, keyed on the same frame words the frame row leaves in place; gate: the census regex for the four reads 0, ProRungs/INRIA/Logtalk at floor.
+
+## 3. BODY TERMS — `rt_pl_dop_mkc` (550 sites)
+
+Row `prolog-bb-a-body-term-is-built-by-the-emitted-allocation-sequence-not-rt-pl-dop-mkc-924-call-sites` (FREE, rank 0). **Measured today:** `rt_pl_dop_mkc` (by_name_dispatch.c, `plw_mkc_build`) builds a compound from a functor id and staged kids on the collected heap, one C call per compound in a clause body; `rt_pl_dop_mkc` leads the helper share in crypt and zebra (the coo's table). Design § 10 and § 7.5: the clause carves ONCE at its α, sized at compile time for every body structure (and every head structure's write-mode block), bumps `rbx` (the frontier), polls only in the carve's slow arm, and the neck stores the cells `{DT_PLREF, functor_id, block}` and the kids by plain `mov`s into the carved blocks. **First step:** list the `$mkc` lowering sites (`lower_prolog.c` mkc_node) and `plw_mkc_build`'s layout with line numbers here; emit the carve at α through the existing allocating sequence of the Icon allocating boxes (the cfo's safe-point shape: `rt_gcheap_alloc_slow` in the slow arm, poll after it), then the stores; gate: `rt_pl_dop_mkc` reads 0 in the census, `test_gate_gc_emitted_safe_point_matches_its_contract` with the Prolog clause witnesses added to its declared set, the suites at floor.
+
+## 4. META-CALL — `rt_pl_goal_spine_prep` · `rt_pl_goal_gen_h` · `rt_call_value_resume_h` (621 sites each)
+
+Row `prolog-bb-a-meta-call-whose-goal-resolves-to-a-compiled-predicate-jumps-to-it-and-resumes-through-its-banked-beta-not-four-c-helpers-per-call` (FREE, rank 1). **Measured today (`bb_call_value.cpp:44-177`, `by_name_dispatch.c:2014-2083`):** `rt_pl_goal_spine_prep(goal, argv, n)` keys the goal (`rt_pl_goal_key`), checks it is a live jmp-entry generator, stages its kids and the extra arguments into `g_call_args` and runs `rt_proc_call_open` (the C prologue of § 1.1), returning `fn`; a refusal falls to `rt_pl_goal_gen_h` (a coroutine per instance, `rt_proc_call_gen_h`) for builtins and generators; `rt_call_value_resume_h` resumes a coroutine-backed record (`ICN_OPGEN` pump or genp). Design § 12: a goal whose functor resolves at run time to a compiled predicate jumps to that predicate's α through its `alpha$` cell with the block built from the goal's kids (the frame row's protocol), and resumes through its banked β exactly as a static call does; only a goal that resolves to a builtin goes through CODE. **First step (after § 1 lands, which already builds the block from the staged kids):** the box resolves the functor to the `alpha$` cell by a hashed lookup leaf that returns the cell address and arity only (`rt_pl_goal_resolve`, a value service: no staging, no prologue), builds the block from the goal's kids inline (`rep movsq` from the compound's cell array), and takes § 1.2's jump; gate: the three read 0 in the census, `prolog:call` area smoke, ProRungs' meta-call entries, the SWI `core/test_call` reading.
+
+## 5. THE DYNAMIC DATABASE — `rt_pl_dop_db_*` (`db_t_guard` 161 · `db_decl` 157 · `cutcall` 92 in the kernels; the suites reach the rest)
+
+Row `prolog-bb-the-dynamic-database-is-code-a-dynamic-clause-is-a-box-added-and-removed-lon-2026-09-03-not-rt-pl-dop-db-data` (FREE, rank 1). **Measured today:** a dynamic predicate's clauses are DESCR terms in a `pl_db_t` slot array under a root cell (`unification.c:2330-2460`, `by_name_dispatch.c:9759-10170`), enumerated by `$db_gen`/`$db_at` leaves and unified by `$clause_unify`; `assertz` stores a term, and `rt_pl_db_recompile` (`unification.c:2360`) compiles the clause set into a graph on demand (`pl_runtime_define_pred`). Lon 2026-09-03: *"It is all code not data."* Design § 13: a dynamic clause is a box compiled at `assertz` (mode 3's runtime compiler) and linked into the predicate's clause packet; `retract` unlinks it; the logical-update view is the packet snapshot the call took. **First step:** census the `rt_pl_dop_db_*` family with file and line here, then make `assertz` compile the clause through `pl_runtime_define_pred` at once (the recompile path already exists) and the predicate call go through the packet, with the term store kept only for `clause/2`'s enumeration until the packet carries the source term; gate: the family's census, `test_gate_pl_clause_2_sees_the_clauses_of_its_call`, `test_gate_pl_clause_2_reads_static_code_on_every_road_and_obeys_the_iso_and_protect_flags`, ProRungs' dynamic-database rungs (rung 10), INRIA's assert/retract families.
