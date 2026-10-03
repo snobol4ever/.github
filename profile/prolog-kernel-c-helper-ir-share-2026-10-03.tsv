@@ -1,0 +1,35 @@
+# prolog-kernel-c-helper-ir-share-2026-10-03.tsv -- the coo, row instruments-prolog-kernel-ir-profile-the-share-of-the-c-call-helpers-per-kernel-bounds-the-bb-rewrite-gain-lon-2026-10-03 (ceo CEO-1475; Lon 2026-10-03 13:4x CDT).
+# MEASURED 2026-10-03 13:37-13:52 CDT on SCRIP c0fbd4343, corpus 9cf56a39c, runtime libscrip_rt-f65f143e2f.so (RT_OPT -O0), valgrind-3.22.0 callgrind --pop-on-jump=* under an RSS watchdog (4096 MB; peak_mb below).
+# Per kernel of corpus/benchmarks/prolog/bench (23): the iterated wrapper (scripts/bench_prolog_wrap.sh --mode=iter) built in mode 4, SCRIP_DIAG=0, the kernel's declared heap (SCRIP_HEAP_CAP_KB) and stack (SCRIP_STACK),
+# run at N1=1 and N2=6; each plain run printed exactly N copies of <kernel>.ref and each callgrind run printed the same bytes as the plain run.
+# THE SHARE IS MARGINAL: (helper(N2) - helper(N1)) / (total(N2) - total(N1)) -- start-up and the wrapper's fixed cost cancel, five iterations of the kernel remain. Ir is load-immune (CEO-743); this is not a
+# benchmark grid and publishes no multiple; the speed-campaign hold stands. ceiling = 1/(1 - share), the Amdahl bound if the helpers' whole inclusive cost went to zero.
+# HELPER Ir = inclusive Ir (self + every call the helper makes) of the helpers the prolog-bb rows delete, a direct listed->listed call subtracted once; nested_indirect counts a listed helper reached from another
+# only through an unlisted function (0 on every kernel, so the bound is not double-counted). Groups: frame = rt_jmp_frame_lexprep2 rt_icn_zframe_args_install rt_arg_stage rt_proc_drop_frame_h
+# rt_proc_call_open_det rt_nret_fix_tiny rt_proc_call_prologue_lex; mkc = rt_pl_dop_mkc; choice = rt_pl_choice_open rt_pl_cut_barrier rt_pl_disj_open rt_pl_fence_commit; meta = rt_pl_goal_spine_prep
+# rt_pl_goal_gen_h rt_call_value_resume_h rt_gen_spine_resume_enter. db = every rt_pl_dop_db_* (the fifth prolog-bb row), reported beside the share, not in it. The parser's self costs sum to callgrind's total
+# exactly and its inclusive cost matches callgrind_annotate --inclusive=yes (nrev: rt_jmp_frame_lexprep2 27,255, rt_pl_dop_mkc 12,463).
+#kernel	total_ir	helper_ir	share	ceiling	frame_ir	mkc_ir	choice_ir	meta_ir	db_ir	nested_indirect	n1	n2	peak_mb
+cal	53053	14668	0.2765	1.382	14593	0	75	0	0	0	1	6	1
+crypt	18767090	7389240	0.3937	1.649	2998410	4356360	18015	16455	0	0	1	6	47
+derive	464535	157140	0.3383	1.511	109125	46690	1325	0	0	0	1	6	47
+deriv	427835	47585	0.1112	1.125	33645	13580	360	0	0	0	1	6	49
+divide10	230780	68580	0.2972	1.423	50470	17460	650	0	0	0	1	6	47
+fib	156338683	43402415	0.2776	1.384	42909845	0	492570	0	0	0	1	6	47
+ham	10638867	3516974	0.3306	1.494	3261089	216900	21150	17835	0	0	1	6	48
+log10	127050	47970	0.3776	1.607	31910	15650	410	0	0	0	1	6	49
+meta_qsort	20642798	7580305	0.3672	1.580	7261395	206000	111080	1830	0	0	1	6	49
+mu	3652292	1234020	0.3379	1.510	1212690	9700	8570	3060	0	0	1	6	46
+nreverse	3219472	1170410	0.3635	1.571	1045655	117300	7455	0	0	0	1	6	48
+nrev	3491887	1173385	0.3360	1.506	1106365	59100	7920	0	0	0	1	6	47
+ops8	146938	50783	0.3456	1.528	36778	13580	425	0	0	0	1	6	1
+qsort	3097113	1055890	0.3409	1.517	851690	197000	7200	0	0	0	1	6	0
+queens_8	13102217	4682315	0.3574	1.556	4177040	467520	26775	10980	0	0	1	6	47
+queensn	12744464790	3800696929	0.2982	1.425	3548140439	201905525	23950605	26700360	0	0	1	6	50
+queens	3142067489	928476422	0.2955	1.419	896924555	21461622	5657715	4432530	0	0	1	6	50
+query	2214125	263975	0.1192	1.135	242245	14990	1880	4860	0	0	1	6	54
+sendmore	115815260	22697050	0.1960	1.244	21821525	15760	617170	242595	0	0	1	6	51
+tak	552042385	146940290	0.2662	1.363	145986140	0	954150	0	0	0	1	6	81
+times10	197870	68580	0.3466	1.530	50470	17460	650	0	0	0	1	6	51
+witness_depth_nrev8	386060	130875	0.3390	1.513	114275	15760	840	0	0	0	1	6	48
+zebra	236974956	63694109	0.2688	1.368	28353773	34994121	217245	128970	0	0	1	6	50
