@@ -1,0 +1,43 @@
+*  inf_eval.sno -- the evaluator of infinite_snobol4: one SNOBOL4 expression per line of standard input, EVALed, one
+*  result line out, so SPITBOL and SCRIP running it on the same lines can be compared line for line. SETEXIT traps
+*  every error, EVAL's compile errors included, and the loop keeps going (Lon 2026-10-02).
+*  THE VARIABLES a..z BELONG TO THE TEST (Lon 2026-10-02, in-chat to the ceo: "So never use variable a..z since they are
+*  used by the test for simplicity."): every name of this program is inf_-prefixed, because SNOBOL4 scope is dynamic and
+*  an EVALed (k = 5) would otherwise stomp the evaluator's own counter. A batch's PRE-SET lines give a..z their values
+*  and the batch code may stomp on them (Lon: "They can be stomped on. That is the fun of the batch."); state lives for
+*  the whole batch, one process per batch. f, g and h are the test's three functions, one per return shape: f(x) is a
+*  value (x + 1), g(x) a pattern built at run time (x | 'c'), h(x) a name (.t[x], by NRETURN, failing when t[x] is null).
+        &TRIM = 1
+        inf_safe = DUPL('.', 32) SUBSTR(&ALPHABET, 33, 95) DUPL('.', 129)
+        DEFINE('inf_render(inf_value)inf_dtype')                :(inf_render_end)
+inf_render
+        inf_dtype = DATATYPE(inf_value)
+        inf_render = inf_dtype
+        IDENT(inf_dtype, 'STRING')                              :S(inf_render_s)
+        IDENT(inf_dtype, 'INTEGER')                             :S(inf_render_n)
+        IDENT(inf_dtype, 'REAL')                                :S(inf_render_n)F(RETURN)
+inf_render_s
+        inf_render = inf_dtype ' ' SIZE(inf_value) ' ' REPLACE(inf_value, &ALPHABET, inf_safe) :(RETURN)
+inf_render_n
+        inf_render = inf_dtype ' ' inf_value                    :(RETURN)
+inf_render_end
+        DEFINE('f(inf_arg)')                                    :(inf_f_end)
+f       f = inf_arg + 1                                         :(RETURN)
+inf_f_end
+        DEFINE('g(inf_arg)')                                    :(inf_g_end)
+g       g = inf_arg | 'c'                                       :(RETURN)
+inf_g_end
+        DEFINE('h(inf_arg)')                                    :(inf_h_end)
+h       DIFFER(t[inf_arg])                                      :F(FRETURN)
+        h = .t[inf_arg]                                         :(NRETURN)
+inf_h_end
+inf_loop
+        inf_line = INPUT                                        :F(END)
+        &ERRLIMIT = 1000
+        SETEXIT('inf_errh')
+        inf_result = EVAL(inf_line)                             :S(inf_ok)
+        OUTPUT = 'FAIL'                                         :(inf_loop)
+inf_ok  OUTPUT = inf_render(inf_result)                         :(inf_loop)
+inf_errh
+        OUTPUT = 'ERROR ' &ERRTYPE                              :(inf_loop)
+END
