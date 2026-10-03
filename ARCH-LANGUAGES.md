@@ -797,6 +797,27 @@ That **is** the original `:S($('pp_' t))` idiom expressed in
 structured Snocone. The compiler then chooses chain or table based
 on the heuristic.
 
+### ON RECORD (Lon 2026-10-02 20:1x CDT): the PREFIXED switch and a separate MATCH statement
+
+**Status:** an idea Lon put on record, in-chat to the ceo, verbatim: *"I want to go on record with an idea for Snocone: Have a
+switch statement with specified prefix generate SNOBOL4 labels and a IN-DIRECT GOTO. And have a seperate "match statement" which
+has the cascading match sequence you see which goes down sequentially doing match/replace. Oh yeah, baby!!!!"* and *"This way
+invalid Snocone identifiers can be really used as real label names."* (ceo CEO-1439). Not designed, not built, no row: it is
+recorded here so the switch-backends idea above and this one are read together.
+
+**1. The prefixed switch -- SNOBOL4's own label table as the dispatch.** The ceo's reading, NOT Lon's text: the switch names a
+prefix; each `case v:` body is emitted under the generated SNOBOL4 label `<prefix>v`, and the dispatch is ONE indirect goto,
+`:($('<prefix>' e))` -- exactly beauty.sno's `:S($('pp_' t))`, which the `table` backend above re-implements as a perfect hash.
+Because the labels are generated, a case value that is not a legal Snocone identifier (`'+'`, `'('`, `'**'`) still
+becomes a real SNOBOL4 label, and the program can also reach it by its name from SNOBOL4 code or a computed
+goto. Open, for Lon: the spelling of the prefix in the source, and the `default:` arm -- a goto to an undefined label is an
+error in SPITBOL, so the dispatch needs a test that `<prefix>e` names a label before it jumps.
+
+**2. The match statement -- the cascade of match/replace, structured.** The ceo's reading, NOT Lon's text: a subject and an
+ordered list of `pattern = replacement` arms, tried top to bottom, the shape a SNOBOL4 program writes as a column of
+`subj ? pat = repl :S(...)` statements. Open, for Lon: whether the cascade stops at the first arm that matches (a case over
+patterns) or runs every arm in turn, each on the subject the previous arm left (a rewrite pipeline).
+
 ---
 
 ## Functions
