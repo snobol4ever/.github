@@ -24,6 +24,7 @@
 # gimpel-random-poem, x64 gcbuster) differ old against old too, or match on a rerun -- timing, the clock, random seeds.
 # Exit: 0 done · 1 a step failed after the install began · 2 REFUSED, nothing installed.
 set -u
+[ "${CEO_1452_ALLOW:-}" = 1 ] || { echo "⛔ REFUSE(rc=2): superseded by install_lower_case_end_and_division_by_minus_one_into_the_spitbol_oracle_ceo_1452.sh, which carries this patch too -- run that one"; exit 2; }
 DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1
 FORK=${FORK:-/home/resources/x64}
 ORACLES=${ORACLES:-/home/resources/ORACLES.md}
