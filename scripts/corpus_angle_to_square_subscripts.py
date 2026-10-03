@@ -35,19 +35,24 @@ def convert_lines(lines, container):
             if (t[:1] == '*' and BANNER_RE.match(t)) or ONE_LINE_TAG_RE.search(t): ended = False
         if ended or not line or line[:1] in (b'*', b'-') or not re.match(rb'[ \t+.A-Za-z0-9]', line):
             out.append(line); continue   # a line no statement can begin (data such as <GOOD>::= in a container) is left alone
-        if line[:1] not in ('+', '.'):
+        if line[:1] not in (b'+', b'.'):
             in_goto = False
         if re.match(rb'END(\s|;|$)', line) and not (container and ONE_LINE_TAG_RE.search(line.decode('latin-1'))):
             ended = True; out.append(line); continue
         b = bytearray(line); q = None; i = 0
+        label_at = 0 if line[:1] not in (b'+', b'.') else -1   # a statement's first column holds its LABEL, which is a name and stays
         while i < len(b):
             c = b[i]
+            if i == label_at:
+                label_at = -1
+                while i < len(b) and b[i] not in (32, 9, 59): i += 1
+                continue
             if q is not None:
                 if c == q: q = None
                 elif c in (60, 62): strings.append(bytes(line).decode('latin-1').strip()[:160])
             elif c in (39, 34): q = c
-            elif c == 59:  # ; a new statement on the same line
-                in_goto = False
+            elif c == 59:  # ; a new statement on the same line, whose first byte, if not a blank, starts its label
+                in_goto = False; label_at = i + 1
                 rest = bytes(b[i + 1:]).lstrip()
                 if not container and re.match(rb'END(\s|;|$)', rest): break
                 if rest[:1] == b'*': break
