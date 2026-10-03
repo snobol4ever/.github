@@ -166,7 +166,7 @@ The coo's measurement says the five rows cap at ~1.5x. The rest of each kernel i
 
 ## 2. THE CHOICE WORDS — `rt_pl_choice_open` · `rt_pl_disj_open` · `rt_pl_cut_barrier` · `rt_pl_fence_commit` (880 sites)
 
-Row `prolog-bb-choice-open-cut-fence-and-disjunction-open-are-stores-in-the-box-not-c-calls-880-call-sites` (CLAIMED hq_prolog 2026-10-03, rank 0).
+Row `prolog-bb-choice-open-cut-fence-and-disjunction-open-are-stores-in-the-box-not-c-calls-880-call-sites` (DONE 2026-10-03 18:4x, hq_prolog). **LANDED SCRIP `35ed4e649`** exactly as § 2.2 below says: the census 1,018 → 0, `nm -D` names none of the four, the rtx clobber table 271 → 267; ladder 484/484, kernels 23/23 both modes, area smoke 572/572 (cut, if_then_else, to_by over tests/icon, tests/prolog, three Icon packages), the control arm 17 byte-identical; Ir/iter nrev 416,699 → 414,424 (−0.5%, as predicted). No header word moved, no stack word the maps do not know was added (the cto's request on the shape). What § 2 leaves for the later rungs is unchanged: B/HB in the standing frame, F.HB, the trust step and the SWITCH packet come with § 3's carve and the trail row.
 
 ### 2.1 What the four do today, with file and line (measured on SCRIP `e95282e39`)
 
