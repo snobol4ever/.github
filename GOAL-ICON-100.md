@@ -129,7 +129,9 @@ bash scripts/test_icon_all_rungs.sh 2>/dev/null | tail -1   # fresh watermark FI
 
 **Left in IPL (9):** `noise` (unbounded, owed) and the eight host-output units with Lon (CEO-1474): `when`, `filexref`, `filenseq`, `ftype`, `hostname`, `version`, `loadmap`, `gcomp`. IcnDemo reads 6/7 at pass 31 because `jtran.ref` was re-cut after it (corpus `b5e0f00b0`); jtran PASSES m3 and m4 on today's tree. Zona 119/119, Jcon 86/86, IcnRungs, IcnBench 26/26 read 100%.
 
-**Next:** Lon's ruling on the host-output class; then audit the remaining FREE Icon rows the same way, program against instrument.
+**Later the same sitting (17:0x):** SCRIP `3e5b3677c` -- `util_icn_class_witness.sh` grades through `util_render_error_voice.py icon` (ONE ERROR VOICE); without it any witness ending in an error read LIVE whatever SCRIP did. SCRIP `49770d9a7` -- `display()` shows an unassigned global as `&null`, not `function <name>`. Five more rows closed (two loose witnesses CEO-541 absorbed, one voice-only red, one witness that wrote `end;` and put `-o` after the source, the display cure): 19 this sitting. Eight rows are measured LIVE in both modes and named in the umbrella baton's NEXT.
+
+**Next:** cure those eight, smallest first; Lon's ruling on the host-output class.
 
 ## ⛔⭐⭐⭐ LIVE CURSOR — 2026-10-03 14:3x CDT hq_icon (TENET) — **LON: "GET IPL TEST SUITE GRADED AND SCRIP TO 100%." IPL READS 634 GRADED OF A 644 DENOMINATOR (843 SHIPPED, 8 CONTAINERS, 199 EXCLUDED); 10 UNITS ARE LEFT**
 
