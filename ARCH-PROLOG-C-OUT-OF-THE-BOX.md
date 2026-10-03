@@ -93,16 +93,15 @@ FN__app$2F3:      sub rsp,352                       ; kt
   mov rax,[src_i] ; mov [rsp+16i],rax      ; per argument, the 16-byte DESCR copied from its slot
   mov rax,[src_i+8] ; mov [rsp+16i+8],rax  ;   (4 instructions; no g_gc_pending test: no call can intervene)
   ; --- last-call arm, only where armed (§ 1.4) ---
-  sub rsp,16 ; [rsp]=DT_RAW ; [rsp+8]=0    ; the landing cell (CFO-36 parity, as today)
   lea rcx, L3 ; lea rdx, L4                ; the γ and ω wires
-  jmp FN__callee                           ; mode 4: the symbol; mode 3: jmp [alpha$callee cell] (x86_jmp_through_fn_cell, both media one instruction more)
-L3:  ; γ landing: rax = callee rbp or 0, rdx = &β, rdi:rsi = {DT_I,1}
+  lea rax,[rip+FN__callee] ; jmp rax       ; mode 4; mode 3: movabs rax,&alpha$callee cell ; mov rax,[rax] ; jmp rax (x86_jmp_via_cell; the cell is sealed by rt_proc_set_fn for a pinned record)
+  ; NO landing cell: the block is the only thing between this spine and the callee's frame, so F.A[0] = [rbp_callee+kt] exactly (the cto's finding 1)
+L3:  ; γ landing: rax = callee rbp (retained) or 0 (released, frame AND block: this spine is back where it was), rdx = &β, rdi:rsi = {DT_I,1}
   mov rcx,rax ; shl rcx,8 ; or rcx,DT_RAW ; [act]=rcx ; [act+8]=rdx
-  test rax,rax ; jne L21 ; add rsp,16      ; the callee released frame AND block: pop only our landing cell
-L21: dec dword ptr [rip+rt_k_level]        ; was rt_gen_spine_pass_γ (mode 4: through the GOT, two instructions)
+  dec dword ptr [rip+rt_k_level]           ; was rt_gen_spine_pass_γ (mode 4: through the GOT, two instructions)
   mov rax,rdi ; mov rdx,rsi ; jmp L2
-L4:  ; ω landing
-  add rsp,16 ; [act]=DT_RAW ; dec dword ptr [rip+rt_k_level] ; mov eax,DT_FAIL ; xor edx,edx ; jmp L2
+L4:  ; ω landing (the callee released frame and block)
+  [act]=DT_RAW ; dec dword ptr [rip+rt_k_level] ; mov eax,DT_FAIL ; xor edx,edx ; jmp L2
 L2:  [off]=rax:rdx ; cmp al,DT_FAIL ; je ω ; γ    ; NO nret consult: a pinned callee has no NRETURN (emit-time fact of the callee)
 β:   test r15,r15 ; jne ω ; rax=[act]>>8 ; test ; je ω ; rcx=[act+8] ; rbp=rax
   inc dword ptr [rip+rt_k_level] ; jmp rcx  ; was rt_gen_spine_resume_enter
@@ -125,7 +124,7 @@ FN__p$2Fn:  sub rsp,kt
 
 No argument copy: **`F.A[i]` is `[rbp+kt+16i]`**, the block the caller built. `rt_icn_zframe_args_install` and its `rt_sxt_frames_present` leave the Prolog prologue; the `g_sxt_fr` invalidation is a SNOBOL4 subject-extent cache the pinned regime never reads (verified: its readers are `rtx_str.s` and the SNOBOL4 scan boxes).
 
-**The exits:** word for word today's, with one change — the deterministic γ (`altdet`) and ω release the block with the frame: `lea rsp,[rbp+kt+16n]` (n = the callee's own parameter count, a compile-time constant of the callee) in place of `lea rsp,[rbp+kt]`. The nondeterministic γ retains frame and block together (the retained activation's arguments stay where its head boxes read them, so a β resume needs nothing moved). The caller's landing pops one cell (its landing cell) instead of two: the second raw cell (`bcps_wire_cross_gen`'s) is not pushed, because the block already keeps the 16-byte parity the CFO-36 note established.
+**The exits:** word for word today's, with one change — the deterministic γ (`altdet`) and ω release the block with the frame: `lea rsp,[rbp+kt+16n]` (n = the callee's own parameter count, a compile-time constant of the callee) in place of `lea rsp,[rbp+kt]`. The nondeterministic γ retains frame and block together (the retained activation's arguments stay where its head boxes read them, so a β resume needs nothing moved). The caller's landing pops nothing: neither of today's two raw landing cells is pushed on this road (the block is 16n bytes, so the 16-byte parity the CFO-36 note established holds by itself).
 
 ### 1.3 The frame layout, the register plan and the collector's frame map
 
@@ -137,7 +136,7 @@ No argument copy: **`F.A[i]` is `[rbp+kt+16i]`**, the block the caller built. `r
 
 ### 1.4 The last call (design § 7.4, with the safety test inline)
 
-Where today's `pl_lco_armed` holds (the clause's last goal, not the root graph), the site builds the callee's block at rsp as in § 1.2 and then tests, inline, exactly what `rt_pl_tail_args_safe` tests (`rt.c:850-868`): per argument cell, if its tag is `DT_N`, follow the name (at most four hops, as the C does): a target holding `DT_I`/`DT_R` is copied into the block by VALUE; a target holding `DT_SNUL` whose cell lies in `[rbp, rbp+kt+16n_self)` (the frame OR its own block) refuses; any chain pointer into that range refuses. When every argument passes AND `r13 == [kt-40]` AND `rsp + 16n' == rbp` (the block is the only thing on the spine): load `rcx=[kt-24]`, `rdx=[kt-16]>>8`, `r8=[kt-8]` first (the copy may overwrite the header when n' > n), copy the n' cells to `[rbp+kt ..)` (unrolled for n' ≤ 6, `rep movsq` above), `lea rsp,[rbp+kt]`, `mov rbp,r8`, `jmp FN__callee` — the frame released, the callee's block in place, the caller's own wires handed on. When any test refuses, the site falls through to the ordinary call of § 1.2 with the block already built. The run-time refusal exists because frames still hold referenced variable cells (R2 was withdrawn under THE LIFETIME RULE; design § 7.4's "holds by construction" waits on the trail row); `rt_pl_tail_args_safe` leaves the emitted code (152 sites → 0) and stays in the runtime only until no other regime reaches it.
+Where today's `pl_lco_armed` holds (the clause's last goal, not the root graph), the site builds the callee's block at rsp as in § 1.2 and then tests, inline, exactly what `rt_pl_tail_args_safe` tests (`rt.c:850-868`): per argument cell, if its tag is `DT_N`, follow the name (at most four hops, as the C does): a target holding `DT_I`/`DT_R` is copied into the block by VALUE; a target holding `DT_SNUL` whose cell lies in `[rbp, rbp+kt+16n_self)` (the frame OR its own block) refuses; any chain pointer into that range refuses. When every argument passes AND `r13 == [kt-40]` AND `rsp + 16n' == rbp` (the block is the only thing on the spine): load `rcx=[kt-24]`, `rdx=[kt-16]>>8`, `r8=[kt-8]` first (the copy overwrites the header when n' > n), then copy the n' cells so that **the new block's TOP is the old block's top**: base `= rbp + kt + 16(n − n')` (a longer block grows DOWN over this frame's dead header, never up into the caller's spine — the cto's finding 1 as it applies to the tail), copied from the highest cell down so a long block never overruns the source it was built from, then `lea rsp,[rbp+kt+16(n−n')]`, `mov rbp,r8`, `jmp FN__callee` — the frame released, the callee entered at its block's base with the caller's own wires. The per-cell test is a LOOP over the block (nine internal labels for any arity: an unrolled form ran out of the encoder's 250 label ids at crypt's 16-argument predicates). When any test refuses, the site falls through to the ordinary call of § 1.2 with the block already built. The run-time refusal exists because frames still hold referenced variable cells (R2 was withdrawn under THE LIFETIME RULE; design § 7.4's "holds by construction" waits on the trail row); `rt_pl_tail_args_safe` leaves the emitted code (152 sites → 0) and stays in the runtime only until no other regime reaches it.
 
 ### 1.5 The meta-call and the C-side entries (the part of § 4's mechanism this row must touch)
 
