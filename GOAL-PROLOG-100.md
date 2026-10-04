@@ -118,6 +118,12 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~14:xx CDT, hq_prolog (TENET) — **THE PORT TRACE IS AN OBSERVER AGAIN (SCRIP `84736fa82`, the CEO-1502 row DONE): `test_gate_pl_port_trace_oracle_diff` GREEN; THE CAUSE WAS MY OWN LABEL COLLISION, NOT A DEAD ROAD; NEXT, MODE-4 STARTUP REGISTRATION (§ 7)**
+
+- **What landed** (§ 2.9): the disjunction opener's internal labels 240/241 collided with the trace road's 240 in the same box — mode 4 would not assemble a traced program (zero trace lines, the gate refused), mode 3 mis-wired the traced run (the canary looped). Labels 226/227 now; new blocking gate `test_gate_pl_a_traced_run_answers_as_the_untraced_run_in_both_modes`.
+- **Today's tally:** the general unifier (`c5e4896b9`), the generator road (`2fa1fcd5c`), the root-cell registry (`351fa1dc9`), the trace labels (`84736fa82`) — four landings, three of them cures of debt the rewrite's own rows left; every wired Prolog gate green except the print/portray gate's maxrss arm (measured next) and the RULING-bucket rung-9 gate.
+- **Next (Prolog only):** the startup-registration row (§ 7, rank 1), then the call box's protocol cost on the kernels.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~13:xx CDT, hq_prolog (TENET) — **A RUN-TIME COMPILE NAMES THE PROGRAM'S ROOT CELLS THROUGH THE ROOT'S REGISTRY (SCRIP `351fa1dc9`, the rank-0 row DONE): `core/test_arith.pl` 0 → 74 OF 220 IN BOTH MODES; THE is/2 COLD ROAD CURED; NEXT THE PORT-TRACE INSTRUMENT (rank 1), THEN STARTUP REGISTRATION**
 
 - **What landed** (`ARCH-PROLOG-C-OUT-OF-THE-BOX.md` § 5.3): every clause compiled at run time (an asserted clause's packet fragment, a seeded directive wrapper) resolves the root cells it names through the root's registry — `rt_pl_db_cell_for` finds the bound cell or allocates the next — never a fresh compile-time `pl_dyn` table (empty in mode 4, stale in mode 3: an asserted clause's `nb_setval` wrote `pj_test/4`'s packet pointer, found by gdb watchpoint); the compile-time clause shortcut and the seed-file tree walk are off inside a run-time compile; the `$db_decls` table is captured at the END of stage-2 lowering so every key marked inside a body is registered; a run-time global-variable key resolves through the same registry. Found on the way and cured: the unifier landing's `is/2` cold road read the bound value through a register the evaluator call clobbered.
