@@ -118,6 +118,12 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~15:xx CDT, hq_prolog (TENET) — **MODE-4 STARTUP REGISTERS A PREDICATE IN ONE LOOKUP (SCRIP `ec631d327`, § 7 DONE): 3,767 → 590 Ir PER RECORD, 1,189 → 2 PER FRAME MAP; FIVE LANDINGS TODAY AFTER THE UNIFIER; NEXT, THE CALL BOX'S PROTOCOL COST ON THE KERNELS (MEASURE FIRST)**
+
+- **What landed** (§ 7.3): one hash, one probe, the fields stored from the compile-time record, the parameter table aliased, no alpha seal on the mode-4 road, the counted frame-map install without the quadratic scan — the emitted text of every language unchanged; the shared road proven by 88 of 89 collector witnesses of every language in mode 4 and the Prolog net. ~940,000 Ir leave every mode-4 process on zebra.
+- **The day:** the general unifier (`c5e4896b9`), the generator road (`2fa1fcd5c`), the root-cell registry (`351fa1dc9`), the trace labels (`84736fa82`), startup registration (`ec631d327`). Every wired Prolog gate green except the print/portray gate's maxrss arm, which is the open row 398 class (the writer's raw cell pointers across the portray call-back under the relocating collector: the slope witness dies after 1,490 portray calls at a quarantined page) and the RULING-bucket rung-9 gate.
+- **Next (Prolog only):** measure the call box's protocol cost on zebra/nrev (the `call_proc_staged` boxes are ~9% of zebra after the unifier; the leaf's call count is the rest) and shape the next speed row to the cto; the cold unify helpers are eradication rows after it; row 398 (the writer across portray) is lane debt to take when the next speed row is shaped.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~14:xx CDT, hq_prolog (TENET) — **THE PORT TRACE IS AN OBSERVER AGAIN (SCRIP `84736fa82`, the CEO-1502 row DONE): `test_gate_pl_port_trace_oracle_diff` GREEN; THE CAUSE WAS MY OWN LABEL COLLISION, NOT A DEAD ROAD; NEXT, MODE-4 STARTUP REGISTRATION (§ 7)**
 
 - **What landed** (§ 2.9): the disjunction opener's internal labels 240/241 collided with the trace road's 240 in the same box — mode 4 would not assemble a traced program (zero trace lines, the gate refused), mode 3 mis-wired the traced run (the canary looped). Labels 226/227 now; new blocking gate `test_gate_pl_a_traced_run_answers_as_the_untraced_run_in_both_modes`.
