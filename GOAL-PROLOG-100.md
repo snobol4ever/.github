@@ -118,6 +118,12 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~21:xx CDT, hq_prolog (TENET) — **LON'S CODE REVIEW OF THE CALL-BOX ROW: ONE REAL DEFECT (A LAST CALL COPIED A VAR-VAR LINK INTO THE RELEASED FRAME), CURED AT SCRIP `520d2794e` (§ 9.4) WITH THE REVIEW'S NINE OTHER FINDINGS FOLDED IN; THE LANE'S OPEN REDS ARE THE PORTRAY WRITER (ROW MINTED, CFO'S SHAPE PENDING) AND RUNG 9'S TAK STACK**
+
+- **What the review found and what landed** (§ 9.4): `A = B, B = 44, last(A, R)` answered nothing in both modes — pre-existing, duplicated by my landing; the check now follows a link into this frame, copies a link elsewhere as a value, declines on exhaustion. The slab's static jump no longer depends on the mode-4 seal knob. The census refuses over zero kernels. Ten gate arms. The price: nrev +1.8%, qsort +1.5%, queens −2.3%.
+- **Lesson for the record:** a review on the day of a large roll-out found what the per-landing net could not: the net runs witnesses I wrote, and I had written the check's description before its proof. Lon's ultracode review is the right net for a day of six landings; run it after every massive roll-out.
+- **Next speed row unchanged:** the unifier leaf's call count (zebra 90,129 calls × 82 Ir), shape to the cto before code.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~18:xx CDT, hq_prolog (TENET) — **A STATIC CALL JUMPS TO ITS CALLEE DIRECTLY (SCRIP `ebbf79a70`, § 9 DONE): 586 → 0 REGISTRY LOADS; THE put_value CLASSES MEASURED AND WITHDRAWN; SIX LANDINGS TODAY AFTER THE UNIFIER; THE NEXT SPEED LEVER IS THE LEAF'S CALL COUNT**
 
 - **What landed** (§ 9.3): the direct jump to a static callee through `x86_jmp_via_cell` (both media), the last-call staging per cell from the variable's own slot; the registry jump stays for dynamic callees. zebra 0.449× → 0.457× of gplc, nrev 0.178× → 0.184×, qsort 0.365× → 0.375×. The 9.2 cell classes and put_value were built, measured (qsort −5%: the callee pays the dereference the call site used to pay once) and withdrawn — recorded so nobody rebuilds them.
