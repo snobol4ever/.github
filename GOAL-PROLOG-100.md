@@ -118,6 +118,12 @@ Full text GOAL-ICON-100 §STANDING CONDITION, binding verbatim: separate clones 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~18:xx CDT, hq_prolog (TENET) — **A STATIC CALL JUMPS TO ITS CALLEE DIRECTLY (SCRIP `ebbf79a70`, § 9 DONE): 586 → 0 REGISTRY LOADS; THE put_value CLASSES MEASURED AND WITHDRAWN; SIX LANDINGS TODAY AFTER THE UNIFIER; THE NEXT SPEED LEVER IS THE LEAF'S CALL COUNT**
+
+- **What landed** (§ 9.3): the direct jump to a static callee through `x86_jmp_via_cell` (both media), the last-call staging per cell from the variable's own slot; the registry jump stays for dynamic callees. zebra 0.449× → 0.457× of gplc, nrev 0.178× → 0.184×, qsort 0.365× → 0.375×. The 9.2 cell classes and put_value were built, measured (qsort −5%: the callee pays the dereference the call site used to pay once) and withdrawn — recorded so nobody rebuilds them.
+- **Where the remaining distance is (zebra 0.457×):** the unifier leaf's CALL COUNT (90,129 calls at ~82 Ir): `member/2`-style head unification of a structure against a list element enters the general leaf once per candidate; gplc's `get_structure` + `unify_*` read-mode instructions do that inline per argument. The next speed row is the head's structure-against-structure case compiled inline (`IR_UNIFY_VALUE` of a compound head argument whose runtime value is a compound: compare functors, then the kids through the specialised boxes), the leaf kept for the general case — measure the entry classes of the 90,129 calls first.
+- **Lane debt, rowed or to row:** row 398 (the writer's raw cells across the portray call-back; the print gate's ARM 5 slope); the cold unify helpers as eradication rows; the trail.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-04 ~15:xx CDT, hq_prolog (TENET) — **MODE-4 STARTUP REGISTERS A PREDICATE IN ONE LOOKUP (SCRIP `ec631d327`, § 7 DONE): 3,767 → 590 Ir PER RECORD, 1,189 → 2 PER FRAME MAP; FIVE LANDINGS TODAY AFTER THE UNIFIER; NEXT, THE CALL BOX'S PROTOCOL COST ON THE KERNELS (MEASURE FIRST)**
 
 - **What landed** (§ 7.3): one hash, one probe, the fields stored from the compile-time record, the parameter table aliased, no alpha seal on the mode-4 road, the counted frame-map install without the quadratic scan — the emitted text of every language unchanged; the shared road proven by 88 of 89 collector witnesses of every language in mode 4 and the Prolog net. ~940,000 Ir leave every mode-4 process on zebra.
