@@ -1,0 +1,55 @@
+# CEO-1507 (the ceo to the coo, 2026-10-04): the 23 Prolog kernels timed before and after hq_prolog's rewrite -- a SCOUTING DATUM, never a README number.
+# BEFORE bc6092368 (2026-10-03 12:56, the tree before the rewrite) · AFTER 74de64bd4 (origin HEAD as built, 2026-10-04) · corpus 29487b519 · RT_OPT -O0 both trees · SCRIP_DIAG=0
+# iter_n=3 bud_ms=1000 reps=3 (best of); start 2026-10-04 18:00:00 CDT load 1.51 2.89 4.45 on 16 cores
+# end 2026-10-04 18:02:36 CDT load 1.87 2.51 4.06
+# ANGLES (the prolog-bench-ref angles, test_prolog_bench_suite.sh): process = the pristine kernel under tools/bench_rusage, best elapsed of 3 (m3 includes its compile); iter = bench_prolog_wrap.sh --mode=iter --n=3, the BENCH work_us, best of 3; time = --mode=time --bud=1000, iterations in the budget, one run. Every run held to <k>.ref (process: stdout == ref; iter: loop_check; time: stdout == ref and mismatched=0); the two trees run interleaved per kernel and mode. Kernel sizes from each kernel's .heap/.stack sidecars.
+# x_* = SPEEDUP of AFTER over BEFORE (>1 = faster after): process and iter = before_us/after_us, time = after_iters/before_iters. Lowest-noise angle: time (a 1 s budget); iter at n=3 is a few ms or less per kernel.
+kernel	mode	before_proc_us	after_proc_us	x_process	before_iter_us	after_iter_us	x_iter	before_time_iters	after_time_iters	x_time
+cal	m3	39133	40288	0.97	56	47	1.19	1452207	3589051	2.47
+cal	m4	3170	3132	1.01	33	31	1.06	1492385	4009636	2.69
+crypt	m3	39666	40767	0.97	1099	372	2.95	3347	12611	3.77
+crypt	m4	3594	3340	1.08	1070	393	2.72	3349	13512	4.03
+deriv	m3	34832	49939	0.70	108	112	0.96	240912	362330	1.50
+deriv	m4	3639	3009	1.21	111	97	1.14	280410	406118	1.45
+derive	m3	40485	42809	0.95	93	73	1.27	145949	247488	1.70
+derive	m4	3538	3354	1.05	76	62	1.23	136870	252136	1.84
+divide10	m3	39626	42033	0.94	86	69	1.25	305425	547893	1.79
+divide10	m4	2992	3282	0.91	53	47	1.13	298226	547278	1.84
+fib	m3	36187	36236	1.00	7028	2133	3.29	419	1523	3.63
+fib	m4	6165	4139	1.49	7262	2063	3.52	424	1587	3.74
+ham	m3	47369	48333	0.98	600	305	1.97	6241	16391	2.63
+ham	m4	3106	3555	0.87	599	307	1.95	6494	18893	2.91
+log10	m3	38342	39759	0.96	69	56	1.23	581360	1188245	2.04
+log10	m4	3283	3355	0.98	46	40	1.15	583989	1270475	2.18
+meta_qsort	m3	49507	50702	0.98	2544	1483	1.72	1846	4120	2.23
+meta_qsort	m4	4150	3751	1.11	1473	659	2.24	1900	4339	2.28
+mu	m3	39567	41585	0.95	259	150	1.73	18701	37915	2.03
+mu	m4	3395	3049	1.11	238	136	1.75	18934	39323	2.08
+nrev	m3	36913	40682	0.91	274	155	1.77	19881	42804	2.15
+nrev	m4	3572	3364	1.06	235	154	1.53	18895	44521	2.36
+nreverse	m3	36130	38389	0.94	248	149	1.66	21662	49783	2.30
+nreverse	m4	3236	3496	0.93	242	153	1.58	20132	48875	2.43
+ops8	m3	40878	41435	0.99	76	57	1.33	418344	749882	1.79
+ops8	m4	2884	3240	0.89	48	44	1.09	458420	891578	1.94
+qsort	m3	36395	40369	0.90	234	149	1.57	21729	49820	2.29
+qsort	m4	3235	2987	1.08	226	133	1.70	22672	54050	2.38
+queens	m3	71496	47453	1.51	113460	37827	3.00	28	67	2.39
+queens	m4	42924	17606	2.44	115200	37996	3.03	26	71	2.73
+queens_8	m3	33716	33964	0.99	564	265	2.13	6296	15442	2.45
+queens_8	m4	3717	3101	1.20	588	257	2.29	6077	13629	2.24
+queensn	m3	216463	116728	1.85	527531	233371	2.26	6	14	2.33
+queensn	m4	172942	71537	2.42	527964	216241	2.44	6	14	2.33
+query	m3	40431	41356	0.98	189	90	2.10	25140	116016	4.61
+query	m4	3781	3060	1.24	192	90	2.13	30814	131427	4.27
+sendmore	m3	39275	39791	0.99	5361	2536	2.11	586	1216	2.08
+sendmore	m4	4918	3989	1.23	5045	2343	2.15	589	1335	2.27
+tak	m3	60914	56601	1.08	44178	29150	1.52	122	199	1.63
+tak	m4	15543	10033	1.55	28677	12445	2.30	120	313	2.61
+times10	m3	35831	38217	0.94	66	54	1.22	406292	755583	1.86
+times10	m4	2887	2727	1.06	46	44	1.05	400530	733201	1.83
+witness_depth_nrev8	m3	35288	36248	0.97	75	55	1.36	188889	437624	2.32
+witness_depth_nrev8	m4	3014	2957	1.02	62	57	1.09	205621	470146	2.29
+zebra	m3	41290	39750	1.04	14023	3259	4.30	220	1083	4.92
+zebra	m4	9567	4303	2.22	15818	4040	3.92	194	1073	5.53
+GEOMEAN	m3			1.003			1.776			2.351
+GEOMEAN	m4			1.207			1.770			2.492
