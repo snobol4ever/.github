@@ -325,6 +325,21 @@ Row `prolog-bb-the-general-unifier-is-one-asm-leaf-on-the-spine-not-rt-pl-unify-
 3. **The cold compare is strict by class** (`rt_pl_unify_atomic_cold`): `DT_I`/`DT_I` by value, `DT_R`/`DT_R` by value (`0.0 = -0.0` succeeds — gprolog's answer and the old road's; swipl says no; ORACLE-DIVERGENT, named in the gate and left out of its witness), `DT_BIG` by `rt_big_eq` (sign + limbs; a big never equals a small int, bigs that fit i64 are normalised to `DT_I`), `DT_S`/`DT_PLATOM` by text whatever the cell; **any other pair fails**. The old road fell through to `rt_descr_equal` → `VARVAL_fn` (a text compare, allocating), which is why `rt_pl_unify_value` was in the allocating set. Measured: the leaf, the cold compare and the twin are ABSENT from `gc_allocating_table.inc`; safe-point census unpolled = 1 (the origin's `bb_match_defer` site); rtx clobber table 259 entries, clobbering 0.
 4. **Body `=`/2 answers `{DT_I, 1}`, not the dereferenced left cell:** all five lowerings of `$unify` (`lower_prolog.c`) chain through γ and no consumer reads the result slot. `is/2`'s fast arm keeps the evaluated value as its result (it was `rt_pl_dop_unify`'s answer).
 
+**`0.0` against `-0.0` — the oracle divergence, with its witness (the cto's review, 2026-10-04: recorded here and in no runtime branch).** Witness: one `p(G) :- (catch(G,E,(write(err(E)),nl,fail)) -> write(yes) ; write(no)), nl.` line per relation, then `compare/3` both ways, `msort([0.0,-0.0,0.0],L)`, `sort([0.0,-0.0],S)` and `X is -0.0`. Measured on SCRIP `520d2794e`, both modes alike, swipl 9.0.4 and gprolog 1.4.5:
+
+| relation | swipl | gprolog | SCRIP m3 = m4 |
+|---|---|---|---|
+| `0.0 = -0.0` | no | yes | **yes** (gprolog) |
+| `0.0 == -0.0` | no | yes | **no** (swipl) |
+| `0.0 \== -0.0` | yes | no | **yes** (swipl) |
+| `-0.0 @< 0.0` | yes | no | **yes** (swipl) |
+| `0.0 =:= -0.0` | yes | yes | yes |
+| `compare(O,0.0,-0.0)` / reversed | `>` / `<` | `=` / `=` | **`>` / `<`** (swipl) |
+| `msort([0.0,-0.0,0.0])` | `[-0.0,0.0,0.0]` | `[0.0,-0.0,0.0]` | swipl's |
+| `sort([0.0,-0.0])` | `[-0.0,0.0]` | `[0.0]` | swipl's |
+
+⛔ **Each oracle is consistent with itself and SCRIP is not:** its unifier answers gprolog's way and its standard order answers swipl's, so `0.0 = -0.0` succeeds binding nothing while `0.0 == -0.0` fails — two ground terms that unify yet are not identical. The split is OLDER than this row (the old `rt_descr_equal` road answered yes too); the cold compare kept the old answer. Which side moves is a semantics ruling for the cto: moving the cold compare to the order's answer (the float pair unifies only when the standard order calls it `=`) is one branch in `rt_pl_unify_atomic_cold` and makes the whole of SCRIP swipl's; moving the order to gprolog's (`-0.0` and `0.0` compare `=`, `sort/2` merges them) touches `compare/3`, `==`, `@<` and both sorts. Until that ruling, the unifier gate keeps the case out of its witness and this table is the record.
+
 **Call sites:** `bb_unify_value.cpp` L(60) `call rtx_pl_unify; test eax; je ω` (the poll is gone); `PLK_UNIFY` leaf-inline arm in `bb_call_pl_leaf.cpp` (`lea rdi, args[0]; lea rsi, args[1]; call; jz fail`); `is/2`'s two roads bind through the leaf. **Deleted:** the `rt_pl_unify_value` and `rt_pl_dop_unify` veneers, `rt_pl_unify_value_c`, the `$unify` dop row and prototype. `rt_pl_dop_unify_c` stays C-only for `test_gate_pl_trail_mechanism`'s harness. The trail test is `bb_pl_cell.h`'s, transcribed into the leaf (`PL_U_TRAIL`); the arena-limit refusal calls `rt_pl_tr_refuse`.
 
 **Proof:** DONE-WHEN GREEN 389 → 0 over the 23 kernels; gate `test_gate_pl_the_general_unifier_is_one_asm_leaf_on_the_spine_not_a_c_road` wired blocking (FAIL-ONCE on `9380158bb`: zebra 11 / qsort 9 `rt_pl_dop_unify` sites, the long-list witness ERROR 246 in both modes); six swipl-cut witnesses m3+m4; ladder 484/484; kernels 23/23 both modes after every rebase; control arm 17 non-Prolog programs byte-identical; the 11 row-family gates, bare-poll, dyn_caps, strip, no_handencoded, emit_no_lang, no_c_to_bb, gate wiring PASS; area smoke tests/prolog 563/563; preflight 71 arms with the two inherited reds.
