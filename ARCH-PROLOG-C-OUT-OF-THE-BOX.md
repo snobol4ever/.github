@@ -327,18 +327,20 @@ Row `prolog-bb-the-general-unifier-is-one-asm-leaf-on-the-spine-not-rt-pl-unify-
 
 **`0.0` against `-0.0` — the oracle divergence, with its witness (the cto's review, 2026-10-04: recorded here and in no runtime branch).** Witness: one `p(G) :- (catch(G,E,(write(err(E)),nl,fail)) -> write(yes) ; write(no)), nl.` line per relation, then `compare/3` both ways, `msort([0.0,-0.0,0.0],L)`, `sort([0.0,-0.0],S)` and `X is -0.0`. Measured on SCRIP `520d2794e`, both modes alike, swipl 9.0.4 and gprolog 1.4.5:
 
-| relation | swipl | gprolog | SCRIP m3 = m4 |
-|---|---|---|---|
-| `0.0 = -0.0` | no | yes | **yes** (gprolog) |
-| `0.0 == -0.0` | no | yes | **no** (swipl) |
-| `0.0 \== -0.0` | yes | no | **yes** (swipl) |
-| `-0.0 @< 0.0` | yes | no | **yes** (swipl) |
-| `0.0 =:= -0.0` | yes | yes | yes |
-| `compare(O,0.0,-0.0)` / reversed | `>` / `<` | `=` / `=` | **`>` / `<`** (swipl) |
-| `msort([0.0,-0.0,0.0])` | `[-0.0,0.0,0.0]` | `[0.0,-0.0,0.0]` | swipl's |
-| `sort([0.0,-0.0])` | `[-0.0,0.0]` | `[0.0]` | swipl's |
+| relation | swipl | gprolog | SCRIP m3 = m4 on `520d2794e` | SCRIP m3 = m4 since `16187d02b` |
+|---|---|---|---|---|
+| `0.0 = -0.0` | no | yes | **yes** (gprolog) | no |
+| `0.0 == -0.0` | no | yes | **no** (swipl) | no |
+| `0.0 \== -0.0` | yes | no | **yes** (swipl) | yes |
+| `-0.0 @< 0.0` | yes | no | **yes** (swipl) | yes |
+| `0.0 =:= -0.0` | yes | yes | yes | yes |
+| `compare(O,0.0,-0.0)` / reversed | `>` / `<` | `=` / `=` | **`>` / `<`** (swipl) | `>` / `<` |
+| `msort([0.0,-0.0,0.0])` | `[-0.0,0.0,0.0]` | `[0.0,-0.0,0.0]` | swipl's | swipl's |
+| `sort([0.0,-0.0])` | `[-0.0,0.0]` | `[0.0]` | swipl's | swipl's |
 
 ⛔ **Each oracle is consistent with itself and SCRIP is not:** its unifier answers gprolog's way and its standard order answers swipl's, so `0.0 = -0.0` succeeds binding nothing while `0.0 == -0.0` fails — two ground terms that unify yet are not identical. The split is OLDER than this row (the old `rt_descr_equal` road answered yes too); the cold compare kept the old answer. Which side moves is a semantics ruling for the cto: moving the cold compare to the order's answer (the float pair unifies only when the standard order calls it `=`) is one branch in `rt_pl_unify_atomic_cold` and makes the whole of SCRIP swipl's; moving the order to gprolog's (`-0.0` and `0.0` compare `=`, `sort/2` merges them) touches `compare/3`, `==`, `@<` and both sorts. Until that ruling, the unifier gate keeps the case out of its witness and this table is the record.
+
+**THE RULING AND THE CURE (the cto, 2026-10-04: (a), "the invariant decides it, not either oracle").** For two ground terms unification succeeds exactly when they are identical, so `=` agrees with `==` and with `compare/3` answering `=`; SCRIP's order already distinguished the sign of zero, so the unifier moved. **LANDED SCRIP `16187d02b`:** every road that unifies two reals compares value AND sign bit — `rt_pl_unify_atomic_cold` (the leaf's cold compare and `rt_pl_unify_deep_c`'s) and the C road's two tails (`plw_unify_cells`, `plw_unify_cells_oc`, before `rt_descr_equal`); a NaN unifies with nothing. SCRIP is now swipl's on all eight relations in both modes (last column), and also on a head constant `0.0` called with `-0.0` (no — it read yes on `405215caf`), `f(0.0) = f(-0.0)` (no) and `unify_with_occurs_check(0.0, -0.0)` (no). **ORACLE-DIVERGENT, recorded so a gprolog-cut entry that meets it is read against this note and not re-litigated:** gprolog 1.4.5 answers the opposite on every relation but `=:=` (the gprolog column). The unifier gate carries the eight-relation witness as its ARM 8 (`w_zero`, the consistency arm, both modes; RED on `405215caf` in both modes) with the same note in its header. Proof: the gate PASS, kernels 23/23 both modes, ladder `--to 99` 568/568, the generated allocating table byte-identical.
 
 **Call sites:** `bb_unify_value.cpp` L(60) `call rtx_pl_unify; test eax; je ω` (the poll is gone); `PLK_UNIFY` leaf-inline arm in `bb_call_pl_leaf.cpp` (`lea rdi, args[0]; lea rsi, args[1]; call; jz fail`); `is/2`'s two roads bind through the leaf. **Deleted:** the `rt_pl_unify_value` and `rt_pl_dop_unify` veneers, `rt_pl_unify_value_c`, the `$unify` dop row and prototype. `rt_pl_dop_unify_c` stays C-only for `test_gate_pl_trail_mechanism`'s harness. The trail test is `bb_pl_cell.h`'s, transcribed into the leaf (`PL_U_TRAIL`); the arena-limit refusal calls `rt_pl_tr_refuse`.
 
