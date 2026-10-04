@@ -1,0 +1,7 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+7ddb489fd	ipl	coo	IPL_SUITE_BOARD total=851 compile_graded=851 compile_pass=846 compile_fail=5 run_graded=635 nomain_total=391 hasmain_total=460 nomain_ok=0 linkgap=3 parseerr=2 timeout=0 other=0
+7ddb489fd	inria	coo	INRIA_SUITE_BOARD total=445 m3_pass=442 m3_fail=0 m3_crash=0 m4_pass=442 m4_fail=0 m4_crash=0 OUTSIDE=3 is the OUTCOME-CLASS-ONLY upper bound, which ignores what a goal bound and can only move down when tightened
+7ddb489fd	roast	coo	ROAST_SUITE_BOARD total=1464 m3_run_pass=73 m3_run_fail=1391 m4_run_pass=73 m4_run_fail=1391 both_modes_pass=73 compile_only=724 roast_commit=unversioned-tree elapsed=1241s
