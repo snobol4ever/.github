@@ -143,7 +143,7 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
 ps -eo pid,etimes,args | grep '[c]laude_coo'       # a pass or blocking set from this root still running? then do NOT merge: it stales the binary and voids the run
 for r in SCRIP corpus .github; do git -C $r fetch -q origin && git -C $r merge --ff-only origin/main; done
 cd SCRIP && bash scripts/s4e_msg.sh check          # read; ACT OR REPLY; then `bash scripts/s4e_msg.sh clear`
-python3 ../.github/scripts/util_suite_banner.py    # the grid for you (never for Lon); --line one line; --plain no colour; --md the SCORE.md table
+python3 ../.github/scripts/util_suite_banner.py    # the grid; --plain no colour is what Lon gets, verbatim, when he asks (CEO-1537); --line one line; --md the SCORE.md table
 head -2 /home/resources/postoffice/MODE            # THE VALUE, then the roster, focus, lanes and shares
 grep -E '^(LANES|ORDER-OF-WORK|REPORT-TO-LON):' /home/resources/postoffice/MODE
 bash scripts/s4e_msg.sh fleet                      # hygiene: claims, lock age, dirty/unpushed trees, unread mail per seat
@@ -294,7 +294,7 @@ bash SCRIP/scripts/handoff_status.sh                                            
   - Sweep a pinned tree, never HEAD (CEO-1040).
 - **A report to Lon** follows MODE's `REPORT-TO-LON:` line (CEO-687, 2026-09-13).
   - No standing status recaps, brief prose, and a grid only for data he asked for.
-  - Never a web page, and never the textual suite banner (CEO-685).
+  - Never a web page. The suite banner, when Lon asks for it, is the TEXTUAL one the script prints (`util_suite_banner.py --plain`), verbatim, never the markdown grid (Lon 2026-10-07 10:3x, in-chat to the coo: *"The textual banner displayed by the shell script is preferable to your grid that scrolls."*; CEO-1537, superseding CEO-685).
   - Report per suite, never per language (RULES.md ONE LEADERBOARD, amended 2026-09-06).
   - Never hand Lon a command to run; run it yourself.
 - **Oracle broken → stop and fix it** is a fixer's duty under the ORACLE-SWAP PROCEDURE. Yours is to notice a swap (ORACLES.md's dated receipts) and refuse to compare boards across it. Re-baseline every row on the swapped oracle in the next pass, as COO-277/279 did.
