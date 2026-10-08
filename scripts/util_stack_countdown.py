@@ -2,7 +2,8 @@
 """util_stack_countdown.py -- THE COUNTDOWN BANNER of the global-stack eradication (Lon 2026-10-07, verbatim: "Give me a countdown
 counter: how many global stack have you eradicated."; CEO-1544). One line, computed from the source tree, never typed:
 every censused second stack (SCRIP/scripts/audit_second_stacks_census.py, the KEPT r12 islands excluded) is GONE when no whole-word
-reference remains under src/, BOMBED when every remaining reference is a bomb string that names its deletion, LIVE otherwise.
+reference remains under src/, BOMBED when every remaining reference is a bomb string that names its deletion, LIVE otherwise; the two
+link chains through C frames (one head cell, nodes on the machine stack) are not second stacks and are not counted.
     python3 .github/scripts/util_stack_countdown.py [--long]
 """
 import os, re, sys, importlib.util
@@ -24,7 +25,8 @@ def main(argv):
         print("STACK COUNTDOWN: REFUSED (rc=2): no source files under SCRIP/src")
         return 2
     gone, bombed, live = [], [], []
-    for name, lane, lang, smoke, place in census.TABLE:
+    rows = [r for r in census.TABLE if not r[4].startswith("already a chain")]
+    for name, lane, lang, smoke, place in rows:
         rx = re.compile(r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])")
         refs = bomb = 0
         for p in files:
@@ -40,7 +42,7 @@ def main(argv):
             except OSError:
                 continue
         (gone if refs == 0 else bombed if refs == bomb else live).append(name)
-    total = len(census.TABLE)
+    total = len(rows)
     print("STACK COUNTDOWN: %d to eradicate | GONE %d | BOMBED %d | LIVE %d  (kept by Lon: the CAS and the Prolog trail, r12 islands)" % (total, len(gone), len(bombed), len(live)))
     if "--long" in argv:
         for label, names in (("GONE", gone), ("BOMBED", bombed), ("LIVE", live)):
