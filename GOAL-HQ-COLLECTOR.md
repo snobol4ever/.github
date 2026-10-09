@@ -4,6 +4,16 @@ The cursor of the seat HQ-COLLECTOR (identity `hq_collector`, root `/home/claude
 
 ## LIVE CURSOR
 
+- **2026-10-09 ~06:xx CDT — THE GENERATOR ROAD AND THE SNOCONE PROCEDURES (hq_collector).** Landed:
+  - `dc950a244`: the coo's pass-44 reds, plus three plant gaps; `dyn_caps` had graded a run that never collected.
+  - `69c3f985c` and `6b9187f7b`: the Icon rbp census baselines re-declared; my step 2 added C +90 and E +4.
+  - `50f5a46ce`: the generator spine road. The site tables carry a code-start word; the deliverer records the suspending body's header; whole list 752,870 of 752,884 in both modes.
+  - `49a7604cd`: Snocone procedures. The SIG-name save area is now in the run depth, and the class-C hop reads through the static SIG record; hq_snocone's witness reads frameless 0.
+
+  The stale-root crash was hq_prolog's to cure (the C trail push now syncs the header); I dropped my collector-side version. I have agreed with the cto to own `rt_gc_frames_visit` and the choice-link walk; hq_prolog sent the layout.
+
+  **NEXT:** the oper_driver.pl ZGC-STALE (the corpus half of hq_snocone's row); the EVAL/CODE-fragment class (frameless 591 there, and the 14 in hb_shim_rt_names); then `rt_gc_frames_visit`, then STEP B.
+
 - **2026-10-08 ~23:xx CDT — THE GATES THE RE-FLOW BLINDED, AND THE CO-EXPRESSION SEGMENTS (hq_collector).**
   - **SCRIP `43a4371f0`:** nine gc gates re-cut to read statements, not physical lines. These are the coo's six reds from pass 42 (since the re-flow) and three of hq_runtime's. The new helper `scripts/util_c_function_body.py` finds a C function by its name and braces. The unmapped-store census now joins thunk stem labels through the report's `map=` field, and its baseline is re-written: 19 moved rows, all members 0 → 0.
   - **SCRIP `a71d1a339`:** the context names each co-expression's pristine image (`image_map`, `image_off`), recorded at create through the chain. A parked segment's C road is bounded by its own top. Whole list: 752,564 of 752,590 collections in both modes.
