@@ -1,0 +1,5 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+cfcfaf46d	ipl	coo	IPL_SUITE_BOARD total=851 compile_graded=851 compile_pass=846 compile_fail=5 run_graded=644 nomain_total=391 hasmain_total=460 nomain_ok=0 linkgap=3 parseerr=2 timeout=0 other=0

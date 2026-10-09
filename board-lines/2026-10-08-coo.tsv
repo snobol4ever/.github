@@ -18,3 +18,8 @@ cfcfaf46d	snocone-bench-ref	coo	SUITE_BOARD family=snocone-bench-ref total=23 sh
 cfcfaf46d	rebus-bench-ref	coo	SUITE_BOARD family=rebus-bench-ref total=3 shipped=3 all_pass=3 all_n=3 m3_pass=3 m4_pass=3 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=6
 cfcfaf46d	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=26 all_n=26 m3_pass=26 m4_pass=26 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=26
 cfcfaf46d	pascal-bench-ref	coo	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
+cfcfaf46d	raku-bench-ref	coo	SUITE_BOARD family=raku-bench-ref total=84 shipped=84 all_pass=64 all_n=84 m3_pass=64 m4_pass=65 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=168
+cfcfaf46d	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+cfcfaf46d	inria	coo	INRIA_SUITE_BOARD total=445 m3_pass=442 m3_fail=0 m3_crash=0 m4_pass=442 m4_fail=0 m4_crash=0 OUTSIDE=3 is the OUTCOME-CLASS-ONLY upper bound, which ignores what a goal bound and can only move down when tightened
+cfcfaf46d	arizona	coo	ARIZONA_SUITE_BOARD shipped=119 graded=119 gap=0 m3_pass=119 m3_reject=0 m3_fail=0 m3_crash=0 m3_hang=0 m4_pass=118 m4_reject=0 m4_fail=1 m4_crash=0 m4_hang=0
+cfcfaf46d	jcon	coo	JCON_SUITE_BOARD shipped=86 graded=86 gap=0 total=86 m3_pass=86 m4_pass=86
