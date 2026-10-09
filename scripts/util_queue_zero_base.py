@@ -22,13 +22,25 @@ re-minted from a current red (mint refuses a placeholder DONE-WHEN since this ru
             and score writes off): rc 0 -> GREEN, the work is done, archived as DONE:zero-base-green; rc 1 -> RED, kept, and
             re-ranked to 2 (urgency is the board's to say; an every-suite-to-100 row keeps its rank); rc 2 -> CANNOT MEASURE,
             retired; a timeout -> kept at rank 2 and named.
+  LOAD GUARD (ceo CEO-1574, 2026-10-08, closing the coo's row instruments-the-sweep-keeps-a-row-whose-finish-line-refused-on-a-
+            load-guard-instead-of-retiring-it-ceo-1562; Lon's two-number law, CEO-743: a multiple is not load-invariant). An rc 2
+            whose output names the load guard -- the words "load-guard" (or "loadavg") on a line, which the four bench bars
+            (bench_{icon,pascal,prolog,snobol4}_bar.sh) print through perf_load_guard on a timing-shaped refusal (angles that
+            DISAGREE, a harness that printed no row or no time twin) when the box reads at or above BENCH_LOAD_GUARD_PER_CORE
+            (default 0.5) per core -- is NOT a measurement of the row: the row is KEPT exactly as a TIMEOUT is kept (never
+            retired; PARKED-EXPIRED only when its baton was unwritten for 7 days), its refusal line and the sweep's own load
+            reading go to the baton as a LEDGER line that does NOT restart the expiry clock (the baton's mtime is put back, so a
+            quiet sweep measures it), and the salvage log names the class LOAD-GUARD-kept. A plain rc 2 (no oracle, no binary,
+            a wrong answer, a refusal on a quiet box) stays CANNOT MEASURE and retires. Before this rule, the sweeps of 10-07
+            20:16 and 10-08 15:18 and 19:17 retired fourteen live performance rows under the fleet's builds, each re-minted by hand.
+            The gate is SCRIP scripts/test_gate_sweep_keeps_a_load_guard_refusal_and_retires_a_cannot_measure_one.sh.
 
 The three files are written ONLY with --apply, against a FRESH read of QUEUE.tsv at write time: a row whose state moved while the
 criteria ran (a claim, a done) is left as the fleet left it. Backups are written beside the files; every decision is written to
 postoffice/salvage/zero-base-<stamp>.tsv (topic, owner, old state, class, rc, new place). Without --apply the classes and counts are
 printed and nothing is written; --no-run skips the execution and reports the static classes only.
 """
-import json, os, re, shutil, signal, subprocess, sys, time
+import json, os, re, shutil, signal, subprocess, sys, tempfile, time
 PO = os.environ.get("S4E_POSTOFFICE", "/home/resources/postoffice")
 Q, QD, QR, TASKS = PO + "/QUEUE.tsv", PO + "/QUEUE.done.tsv", PO + "/QUEUE.retired.tsv", PO + "/tasks"
 S4E = os.environ.get("S4E_HOME", "/home/claude_ceo")
@@ -37,6 +49,7 @@ apply = "--apply" in sys.argv; norun = "--no-run" in sys.argv
 tmo = int(sys.argv[sys.argv.index("--timeout") + 1]) if "--timeout" in sys.argv else 240
 stamp = time.strftime("%Y%m%d-%H%M%S")
 PLACEHOLDER = ("NOT MEASURED", "minted with no acceptance criterion", "NOT EXPRESSED")
+LOAD_GUARD = re.compile(r"load-guard|loadavg|load guard", re.I)
 
 def rows_of(path):
     return open(path, encoding="utf-8").read().split("\n") if os.path.exists(path) else []
@@ -84,13 +97,21 @@ def kill_tree(p):
     p.wait()
 
 def run_dw(dw):
+    # the criterion's output is kept (its last 8 KB) because the LOAD GUARD is read from the criterion's own words: a bar that
+    # refuses under load says so on its refusal line, and nothing else distinguishes that rc 2 from a cannot-measure one.
     env = dict(os.environ, S4E_HOME=S4E, S4E_PROGRESS_OFF="1", S4E_SCORE_NO_WRITE="1", S4E_DONE_WHEN_RUN="1")
-    p = subprocess.Popen(["bash", "-c", dw], cwd=S4E, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    try:
-        return p.wait(timeout=tmo)
-    except subprocess.TimeoutExpired:
-        kill_tree(p)
-        return "timeout"
+    with tempfile.TemporaryFile() as fh:
+        p = subprocess.Popen(["bash", "-c", dw], cwd=S4E, env=env, stdin=subprocess.DEVNULL, stdout=fh, stderr=subprocess.STDOUT, start_new_session=True)
+        try: rc = p.wait(timeout=tmo)
+        except subprocess.TimeoutExpired:
+            kill_tree(p); rc = "timeout"
+        fh.seek(0, 2); n = fh.tell(); fh.seek(max(0, n - 8192)); tail = fh.read().decode("utf-8", "replace")
+    return rc, tail
+
+def load_now():
+    try: la = open("/proc/loadavg").read().split()[0]
+    except Exception: la = "?"
+    return la, str(os.cpu_count() or "?")
 
 def baton_age_days(topic):
     f = os.path.join(TASKS, topic + ".task.md")
@@ -101,6 +122,7 @@ EXPIRE_FREE_DAYS, EXPIRE_PARKED_DAYS = 7, 30
 live = [ln for ln in rows_of(Q)]
 boards = board_topics()
 decisions = {}   # topic -> (class, rc, place) ; place in KEEP/DONE/RETIRED
+guard_lines = {}  # topic -> (the refusal line that named the load guard, load1 as it ran, cores)
 topics_live = set()
 parsed = []
 for ln in live:
@@ -153,18 +175,22 @@ todo = [t for t, d in decisions.items() if d[0] == "RUN"]
 print("static classes:", {k: v for k, v in sorted(__import__("collections").Counter(d[0] for d in decisions.values()).items())})
 print("criteria to run:", len(todo), "(timeout %ss each)" % tmo, flush=True)
 if not norun:
-    t0 = time.time(); tally = {"GREEN": 0, "RED": 0, "CANNOT": 0, "TIMEOUT": 0}
+    t0 = time.time(); tally = {"GREEN": 0, "RED": 0, "CANNOT": 0, "TIMEOUT": 0, "LOADGUARD": 0}
     for i, t in enumerate(todo, 1):
         print("RUNNING %s" % t, flush=True)
-        rc = run_dw(decisions[t][1])
+        rc, tail = run_dw(decisions[t][1])
         if rc == 0: decisions[t] = ("GREEN-now", 0, "DONE"); tally["GREEN"] += 1; v = "GREEN"
         elif rc == 1: decisions[t] = ("RED-now", 1, "KEEP"); tally["RED"] += 1; v = "RED"
         elif rc == "timeout":
             a = baton_age_days(t); exp = a is not None and a > EXPIRE_FREE_DAYS
             decisions[t] = ("TIMEOUT-expired-parked" if exp else "TIMEOUT-kept", "timeout", "KEEP"); tally["TIMEOUT"] += 1; v = "TIMEOUT" + ("-EXPIRED" if exp else "")
+        elif rc == 2 and LOAD_GUARD.search(tail):
+            a = baton_age_days(t); exp = a is not None and a > EXPIRE_FREE_DAYS
+            words = [l.strip() for l in tail.splitlines() if LOAD_GUARD.search(l)]; la, nc = load_now(); guard_lines[t] = (words[-1][:240] if words else "", la, nc)
+            decisions[t] = ("LOAD-GUARD-expired-parked" if exp else "LOAD-GUARD-kept", 2, "KEEP"); tally["LOADGUARD"] += 1; v = "LOAD-GUARD" + ("-EXPIRED" if exp else "")
         else: decisions[t] = ("RETIRE-cannot-measure-rc%s" % rc, rc, "RETIRED"); tally["CANNOT"] += 1; v = "CANNOT-MEASURE"
         el = time.time() - t0; eta = el / i * (len(todo) - i)
-        print("COUNTDOWN %d left of %d | %d done | %dm%02ds elapsed, ~%dm%02ds to go | GREEN %d RED %d CANNOT %d TIMEOUT %d | last: %s -> %s" % (len(todo) - i, len(todo), i, el // 60, el % 60, eta // 60, eta % 60, tally["GREEN"], tally["RED"], tally["CANNOT"], tally["TIMEOUT"], t[:70], v), flush=True)
+        print("COUNTDOWN %d left of %d | %d done | %dm%02ds elapsed, ~%dm%02ds to go | GREEN %d RED %d CANNOT %d TIMEOUT %d LOAD-GUARD %d | last: %s -> %s" % (len(todo) - i, len(todo), i, el // 60, el % 60, eta // 60, eta % 60, tally["GREEN"], tally["RED"], tally["CANNOT"], tally["TIMEOUT"], tally["LOADGUARD"], t[:70], v), flush=True)
 # pass 3: the unblocked rows that were not run (--no-run) stay as they are; nothing here retires a row for its blocker's state
 if unblocked: print("unblocked (blocker closed, retired or absent; their own criterion decides): %d" % len(unblocked)); [print("   " + t) for t in sorted(unblocked)]
 cnt = __import__("collections").Counter(d[0] for d in decisions.values())
@@ -174,7 +200,7 @@ greens = [t for t, d in decisions.items() if d[0] == "GREEN-now"]
 if greens: print("GREEN now (archived as done):"); [print("   " + t) for t in greens]
 if not apply: print("DRY RUN: nothing written"); sys.exit(0)
 # write against a fresh read
-fresh = rows_of(Q); out, done_add, ret_add, log, ledger_add = [], [], [], [], []
+fresh = rows_of(Q); out, done_add, ret_add, log, ledger_add, guard_add = [], [], [], [], [], []
 old_state = {f[1]: f[3] for f in parsed}
 for ln in fresh:
     f = ln.split("\t")
@@ -185,9 +211,10 @@ for ln in fresh:
     if place is None: out.append(ln); log.append((topic, f[2], f[3], cls + "-not-run", "", "KEEP")); continue
     if place == "KEEP":
         if cls == "RED-now" and "-every-suite-to-100-" not in topic and f[0] in ("0", "1"): f[0] = "2"
-        if cls == "TIMEOUT-expired-parked": f[3] = "PARKED-EXPIRED"
-        elif topic in unblocked and cls in ("RED-now", "TIMEOUT-kept"): f[3] = "FREE"
+        if cls in ("TIMEOUT-expired-parked", "LOAD-GUARD-expired-parked"): f[3] = "PARKED-EXPIRED"
+        elif topic in unblocked and cls in ("RED-now", "TIMEOUT-kept", "LOAD-GUARD-kept"): f[3] = "FREE"
         if cls == "RED-now": ledger_add.append((topic, f[0]))
+        if cls.startswith("LOAD-GUARD"): guard_add.append((topic, f[0]))
         out.append("\t".join(f))
     elif place == "DONE":
         f[3] = f[3] if cls == "ARCHIVE-DONE" else "DONE:zero-base-green-ceo-1386"; done_add.append("\t".join(f))
@@ -208,8 +235,16 @@ for topic, rank in ledger_add:
         with open(f, "a", encoding="utf-8", newline="\n") as fh:
             fh.write("\n- %s zero-base (ceo, CEO-1386): the DONE-WHEN ran RED (rc=1) in %s under a %ss limit; the row stays live at rank %s. A measured red is the only reason this row exists; the clock for PARKED-EXPIRED restarts here.\n" % (when, S4E, tmo, rank))
     except Exception as e: print("WARNING: ledger line not written for %s: %s" % (topic, e))
+for topic, rank in guard_add:
+    f = os.path.join(TASKS, topic + ".task.md"); line, la, nc = guard_lines.get(topic, ("", "?", "?"))
+    try:
+        st = os.stat(f)
+        with open(f, "a", encoding="utf-8", newline="\n") as fh:
+            fh.write("\n- %s zero-base (ceo, CEO-1574 under CEO-1386): the DONE-WHEN REFUSED (rc=2) on a LOAD GUARD in %s, the box at load %s on %s cores as it ran: %s. KEPT at rank %s as a TIMEOUT is kept, never retired on a timing refusal (a multiple is not load-invariant, CEO-743); this line does not restart the PARKED-EXPIRED clock -- a quiet sweep measures the row.\n" % (when, S4E, la, nc, line, rank))
+        os.utime(f, (st.st_atime, st.st_mtime))
+    except Exception as e: print("WARNING: load-guard ledger line not written for %s: %s" % (topic, e))
 os.makedirs(PO + "/salvage", exist_ok=True)
 with open(PO + "/salvage/zero-base-%s-ceo-1386.tsv" % stamp, "w", encoding="utf-8", newline="\n") as fh:
     fh.write("topic\towner\told_state\tclass\trc\tplace\n")
     for l in log: fh.write("\t".join(l) + "\n")
-print("WRITTEN: live %d rows, +%d done, +%d retired; log postoffice/salvage/zero-base-%s-ceo-1386.tsv; backups beside the files" % (sum(1 for l in out if l and not l.startswith("#")), len(done_add), len(ret_add), stamp))
+print("WRITTEN: live %d rows, +%d done, +%d retired, %d kept on the load guard; log postoffice/salvage/zero-base-%s-ceo-1386.tsv; backups beside the files" % (sum(1 for l in out if l and not l.startswith("#")), len(done_add), len(ret_add), len(guard_add), stamp))
