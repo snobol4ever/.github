@@ -10,7 +10,7 @@ The table: /home/resources/progress/results.tsv (writer: SCRIP/scripts/util_prog
         the flip histogram: per bucket, programs that went not-PASS -> PASS (+) and PASS -> not-PASS (-), from
         consecutive readings of the same (suite, program, mode). Zero rows in a window prints "no rows recorded", never 0 flips.
   util_progress_flips.py --coverage
-        every suite of .github/SUITES.tsv (and every benchmark suite seen): rows, programs seen / suite total, live vs
+        every suite of /home/resources/progress/SUITES.tsv (and every benchmark suite seen): rows, programs seen / suite total, live vs
         replay rows, last row's age -- the answer to "are we tracking everything?", MISSING named as MISSING.
   util_progress_flips.py --contradictions [--since 3d] [--suite KEY] [--mode any]
   util_progress_flips.py --ratchet [--baseline TS]        # rc 0 clean · 1 named · 2 could not measure
@@ -24,7 +24,7 @@ The table: /home/resources/progress/results.tsv (writer: SCRIP/scripts/util_prog
 import sys, csv, argparse, collections, datetime, os, re, glob, io
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SUITES_TSV = os.path.join(HERE, "..", "SUITES.tsv")
+SUITES_TSV = os.environ.get("S4E_SUITES_TSV") or "/home/resources/progress/SUITES.tsv"
 PO = "/home/resources/postoffice"
 # ⛔ THE SUITES.tsv KEY -> PROGRESS SUITE MAP IS READ FROM ITS ONE AUTHORITY, NEVER COPIED HERE (coo 2026-09-24, on the ceo's CEO-1230
 # tick: "X64T MISSING by KEY MISMATCH (SUITES.tsv x64tests, the runner appends spitbol_x64, 1656 rows; util_suite_rows_vs_progress.py

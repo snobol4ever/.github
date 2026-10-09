@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""THE SUITE BANNER — one compressed line per turn, driven by .github/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
+"""THE SUITE BANNER — one compressed line per turn, driven by /home/resources/progress/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
 usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--check] [--render --only KEY | --render --all-rows] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason'] [--excluded N]]
   (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the suite count and how many are done, then 3 columns x N rows of cells: nick pass/total left state emoji
   --line     the one-line form (cells joined by │)
@@ -13,7 +13,7 @@ STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 1
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
 CRITERION rule (hq_T 2026-09-06, after ceo-372; AMENDED coo 2026-09-08 on Lon's word "Fix it so you CAN do a comparison"). A row may carry criterion_changed = <YYYY-MM-DD>:<slug>. When its first_date PREDATES that day, first_* and today_* answer two different questions and their difference is not a movement -- that much stands, and first_* is still never re-baselined. ⛔ WHAT NO LONGER STANDS is printing n/c and stopping: that is true about those two numbers and useless as an answer to "are we getting better?". Instead likeforlike() holds the POPULATION fixed -- today's graded set -- and asks the progress table what those same programs did then and do now. Same programs, same modes, two dates, so a changed denominator cannot distort it, and nothing is invented: it re-reads per-program evidence already on file. The row then gets a real rate and a real ETA like any other. Programs with no reading at the earlier date are excluded from BOTH sides rather than counted as failures-then-passes-now, which would manufacture progress out of missing data. Only two states remain uncomparable and they are told apart: `no rows` (the table has never seen the suite) and `1 day` (rows exist but all from one day, so there is no earlier reading yet) -- both facts about our instrumentation, never verdicts about the suite.
 """
-import sys, os, re, subprocess, datetime as dt, unicodedata as _ud
+import sys, os, re, subprocess, tempfile, datetime as dt, unicodedata as _ud
 def dw(s):
     """DISPLAY columns, not len(). The grid misaligned because padding counted CHARACTERS (Lon 2026-09-06:
     "get the suites banner to line up vertically; most likely your length counts are off due to unicode").
@@ -52,7 +52,14 @@ HERE=os.path.dirname(os.path.abspath(__file__))
 # so its selftest -- which grades a COPY of SCORE.md -- was writing its fake rebus numbers into the REAL
 # SUITES.tsv, the file the banner and Lon read, while printing that it works on a scratch copy.  A
 # redirect that covers one of two outputs is not a redirect; measured live, it moved a real row.
-TSV=os.environ.get('S4E_SUITES_TSV') or os.path.join(HERE,'..','SUITES.tsv')
+# ⛔⭐⭐ ONE FILE, ONE LOCATION (Lon 2026-10-09 15:2x CDT, in-chat to the coo, verbatim: "You choose to put the one single data location to be
+# spread across all root via GitHub instead of choosing one file in /home/resources. That was stupid."). The record lived in .github, so every
+# root read its own clone of it, as current as that seat's last pull: hq_collector's banner read 27 suites at 100% while the coo's read 31,
+# its clone a pull behind four rows. The record is now ONE file beside the progress database, read and written by every seat in place; the
+# SCORE.md table and SCRIP's README table are renders of it, and every write appends the rows it moved to SUITES.history.tsv beside it.
+SUITES_HOME='/home/resources/progress'
+TSV=os.environ.get('S4E_SUITES_TSV') or os.path.join(SUITES_HOME,'SUITES.tsv')
+HIST=os.path.join(os.path.dirname(os.path.abspath(TSV)),'SUITES.history.tsv')
 R='\033[31m'; G='\033[32m'; Y='\033[33m'; C='\033[36m'; B='\033[1m'; Z='\033[0m'
 # ⛔⭐ DEFERRED IS READ, NEVER INFERRED FROM AN EMPTY READING (hq_T 2026-09-12, ceo CEO-593). A row with no
 # today_pass renders `◻ no runner`, which is the honest word for A POPULATION NOBODY GRADES YET -- and it is
@@ -89,11 +96,31 @@ def load():
         for h in head: r.setdefault(h,'')
         rows.append(r)
     return head,rows
+def write_tsv(text):
+    """Replace the record whole: every seat's banner reads this one file, so a reader sees the old table or the new one, never a torn one."""
+    fd,tmp=tempfile.mkstemp(prefix='.SUITES.', suffix='.tmp', dir=os.path.dirname(os.path.abspath(TSV)))
+    with os.fdopen(fd,'w',encoding='utf-8') as f: f.write(text)
+    os.chmod(tmp,0o664); os.replace(tmp,TSV)
+def history(head,before,rows):
+    """Append every row this write moved to SUITES.history.tsv: the history git kept while the record lived in .github. Each line carries
+    the writer's seat and session id, so a gate proving its fixture left the shared record alone excuses another session's concurrent write."""
+    old={l.split('\t',1)[0]:l for l in before.split('\n') if l and not l.startswith('#')}
+    moved=['\t'.join(r.get(h,'') for h in head) for r in rows]
+    moved=[l for l in moved if old.get(l.split('\t',1)[0])!=l]
+    if not moved: return
+    cols='# columns: at_utc\tseat\tsid\t'+'\t'.join(head)
+    have=open(HIST,encoding='utf-8').read() if os.path.exists(HIST) else ''
+    last=[l for l in have.split('\n') if l.startswith('# columns: ')]
+    at=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    seat=os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..'))))
+    with open(HIST,'a',encoding='utf-8') as f:
+        if not last or last[-1]!=cols: f.write(cols+'\n')
+        for l in moved: f.write(f"{at}\t{seat}\t{os.getsid(0)}\t{l}\n")
 def save(head,rows):
     lines=[l for l in open(TSV,encoding='utf-8') if l.startswith('#')]
     lines.append('\t'.join(head)+'\n')
     for r in rows: lines.append('\t'.join(r.get(h,'') for h in head)+'\n')
-    open(TSV,'w',encoding='utf-8').write(''.join(lines))
+    write_tsv(''.join(lines))
 def d(s): return dt.date.fromisoformat(s)
 def box_clock_day():
     """The BOX-CLOCK day -- the box's own zone (/etc/timezone, else the /etc/localtime link), never the calling process's TZ.
@@ -269,7 +296,9 @@ def xfail_by_lang(lang):
     """Distinct xfail ENTRIES for a rung suite language: union of the three spellings, or None if unreadable."""
     if lang in _XF_CACHE: return _XF_CACHE[lang]
     import csv as _csv, glob as _glob
-    d = os.path.join(os.path.dirname(os.path.abspath(TSV)), '..', 'corpus', 'tests', lang)
+    # a scratch record finds the scratch corpus beside it; the real record (no longer in a root) reads this root's corpus
+    base = os.path.dirname(os.path.abspath(TSV)) if os.environ.get('S4E_SUITES_TSV') else os.path.join(HERE, '..')
+    d = os.path.join(base, '..', 'corpus', 'tests', lang)
     d = os.path.normpath(d)
     if not os.path.isdir(d):
         _XF_CACHE[lang] = None; return None
@@ -403,7 +432,9 @@ def md():
         _ex=(r.get('today_excluded') or '').strip()
         _res=f"{r['today_pass']}/{r['today_total']}" + (f" EXCLUDED={_ex}" if _ex.isdigit() else "") + (f" OUTSIDE={_ot[-1]}" if _ot else "")
         print(f"| {r['nick']} | {r['lang']} | {_res} | {r['today_date']} | `{r['tree']}` | {tail} |")
-SCORE=os.environ.get('S4E_SCORE_MD') or os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md')
+# a scratch TSV keeps its scratch SCORE.md beside it (a fixture that redirects the record redirects the render with it); the real record
+# renders into the .github beside this script
+SCORE=os.environ.get('S4E_SCORE_MD') or (os.path.join(os.path.dirname(os.path.abspath(TSV)),'SCORE.md') if os.environ.get('S4E_SUITES_TSV') else os.path.join(HERE,'..','SCORE.md'))
 def md_lines():
     import io, contextlib
     buf=io.StringIO()
@@ -445,7 +476,7 @@ def check_table():
     bad=len(diff)+len(only_score)+len(only_tsv)
     print(f"population: {n} table row(s) checked against SUITES.tsv; {bad} disagree; nothing written")
     if bad:
-        print("  a display row is rewritten only by the seat that measured it: util_suite_banner.py --render --only <key>  (or the runner's own write); --render --all-rows rewrites every row from the local TSV and is a different act")
+        print("  a display row is rewritten only by the seat that measured it: util_suite_banner.py --render --only <key>  (or the runner's own write); --render --all-rows rewrites every row from SUITES.tsv and is a different act")
         return 1
     print(f"CHECK OK: SCORE.md's suite table agrees with SUITES.tsv on all {n} rows")
     return 0
@@ -626,8 +657,11 @@ def readme_block(rows, pin):
     # ⛔ THE PROSE NAMES THE BENCH ROWS ONLY WHEN THE RECORD CARRIES THEM, so a README rendered at an older pin re-renders byte-identical
     # under this code and the blocking --pinned arm cannot red in the minute between the .github and SCRIP pushes of one landing.
     bench = any(r['key'].endswith(BENCH_SUFFIX) for r in rows)
-    out = [f"{README_BEGIN} generated by .github/scripts/util_suite_banner.py --readme from .github/SUITES.tsv at .github@{pin} -- do not edit by hand; scripts/test_gate_readme_suite_table_matches_suites_tsv.sh holds it -->",
-           "Every row is generated from the leaderboard's machine record, `.github/SUITES.tsv` (the SUITE TABLE of `.github/SCORE.md`),",
+    # a .github@<commit> pin is a block rendered while the record lived in .github, and re-renders byte-identical
+    src, rec = ('.github/SUITES.tsv', "`.github/SUITES.tsv` (the SUITE TABLE of `.github/SCORE.md`),") if pin.startswith('.github@') \
+               else (os.path.join(SUITES_HOME, 'SUITES.tsv'), f"`{os.path.join(SUITES_HOME, 'SUITES.tsv')}` (rendered into `.github/SCORE.md`),")
+    out = [f"{README_BEGIN} generated by .github/scripts/util_suite_banner.py --readme from {src} at {pin} -- do not edit by hand; scripts/test_gate_readme_suite_table_matches_suites_tsv.sh holds it -->",
+           f"Every row is generated from the leaderboard's machine record, {rec}",
            "never typed by hand: the suite's latest reading, written by that suite's own runner in the landing that measured it, with the",
            "day it was measured (the SCRIP tree and the runner of every reading are in that record). Passing / graded counts a program",
            "only when it passes in BOTH modes. The seven rung suites are our own flat",
@@ -658,15 +692,29 @@ def _readme_split(path):
     if len(b) != 1 or len(e) != 1 or e[0] < b[0]:
         return L, None, None
     return L, b[0], e[0]
+# THE PIN IS THE RECORD'S CONTENT HASH (2026-10-09, the record left git): --readme freezes the table it rendered as
+# suites-pins/SUITES.<hash>.tsv beside the record, written once and never changed, so --readme-check --pinned re-reads exactly that state.
+def _pins_dir():
+    return os.path.join(os.path.dirname(os.path.abspath(TSV)), 'suites-pins')
 def _suites_pin():
-    gh = os.path.dirname(os.path.abspath(TSV))
-    dirty = subprocess.run(['git', '-C', gh, 'status', '--porcelain', '--', os.path.basename(TSV)], capture_output=True, text=True)
-    if dirty.returncode != 0:
-        return None, f"cannot read git state of {gh}: {dirty.stderr.strip()}"
-    if dirty.stdout.strip():
-        return None, f"{TSV} has uncommitted changes -- commit the row first; a README must name a state anyone can re-read"
-    h = subprocess.run(['git', '-C', gh, 'log', '-1', '--format=%h', '--', os.path.basename(TSV)], capture_output=True, text=True)
-    return (h.stdout.strip() or None), (None if h.stdout.strip() else "no commit touches SUITES.tsv")
+    import hashlib
+    text = open(TSV, 'rb').read(); h = hashlib.sha1(text).hexdigest()[:12]
+    snap = os.path.join(_pins_dir(), f'SUITES.{h}.tsv')
+    if not os.path.exists(snap):
+        os.makedirs(_pins_dir(), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix='.SUITES.', suffix='.tmp', dir=_pins_dir())
+        with os.fdopen(fd, 'wb') as f: f.write(text)
+        os.chmod(tmp, 0o444); os.replace(tmp, snap)
+    return f'suites@{h}', None
+def _pinned_text(pin):
+    """The record as it stood at PIN, or (None, why)."""
+    kind, h = pin.split('@', 1)
+    if kind == 'suites':
+        snap = os.path.join(_pins_dir(), f'SUITES.{h}.tsv')
+        return (open(snap, encoding='utf-8').read(), None) if os.path.exists(snap) else (None, f"the pin {pin} has no frozen copy at {snap}")
+    gh = os.path.join(HERE, '..')
+    old = subprocess.run(['git', '-C', gh, 'show', f'{h}:SUITES.tsv'], capture_output=True, text=True)
+    return (old.stdout, None) if old.returncode == 0 else (None, f"the pin {pin} is not in {os.path.abspath(gh)}'s history -- pull .github, then re-check")
 def readme_write(path):
     pin, why = _suites_pin()
     if not pin:
@@ -677,10 +725,10 @@ def readme_write(path):
     _h, rows = load()
     new = readme_block(rows, pin)
     if L[b:e + 1] == new:
-        print(f"README suite table: already the render of SUITES.tsv at .github@{pin} (0 lines changed)"); return 0
+        print(f"README suite table: already the render of SUITES.tsv at {pin} (0 lines changed)"); return 0
     L[b:e + 1] = new
     open(path, 'w', encoding='utf-8').write('\n'.join(L))
-    print(f"README suite table: rendered {len(new) - README_HEAD_N - 1} row(s) from SUITES.tsv at .github@{pin} into {path}"); return 0
+    print(f"README suite table: rendered {len(new) - README_HEAD_N - 1} row(s) from SUITES.tsv at {pin} into {path}"); return 0
 def readme_check(path, pinned_only=False):
     """rc 0 the block is exactly its pin's render (and, unless pinned_only, every row matches SUITES.tsv now); 1 a cell differs; 2 unmeasurable."""
     if not os.path.exists(path):
@@ -688,27 +736,27 @@ def readme_check(path, pinned_only=False):
     L, b, e = _readme_split(path)
     if b is None:
         print(f"README-CHECK RED(1): {path} carries no single generated block ({README_BEGIN} ... {README_END}) -- the table is not generated"); return 1
-    m = re.search(r'at \.github@([0-9a-f]{7,40}) ', L[b])
+    m = re.search(r'at ((?:\.github|suites)@[0-9a-f]{7,40}) ', L[b])
     if not m:
-        print(f"README-CHECK RED(1): the block's first line names no .github@<commit> pin -- nobody can re-read what it was rendered from"); return 1
-    pin = m.group(1); gh = os.path.dirname(os.path.abspath(TSV))
-    old = subprocess.run(['git', '-C', gh, 'show', f'{pin}:{os.path.basename(TSV)}'], capture_output=True, text=True)
-    if old.returncode != 0:
-        print(f"README-CHECK REFUSED(2): the pin .github@{pin} is not in {gh}'s history -- pull .github, then re-check"); return 2
+        print(f"README-CHECK RED(1): the block's first line names no suites@<hash> (or older .github@<commit>) pin -- nobody can re-read what it was rendered from"); return 1
+    pin = m.group(1)
+    text, why = _pinned_text(pin)
+    if text is None:
+        print(f"README-CHECK REFUSED(2): {why}"); return 2
     got = L[b:e + 1]
-    want = readme_block(_rows_from_text(old.stdout), pin)
+    want = readme_block(_rows_from_text(text), pin)
     bad = [(i, g, w) for i, (g, w) in enumerate(zip(got, want)) if g != w] + ([(-1, f'{len(got)} lines', f'{len(want)} lines')] if len(got) != len(want) else [])
     if bad:
-        print(f"README-CHECK RED(1): {len(bad)} line(s) of the README block are not the render of SUITES.tsv at its pin .github@{pin} -- a hand edit or a corrupted cell:")
+        print(f"README-CHECK RED(1): {len(bad)} line(s) of the README block are not the render of SUITES.tsv at its pin {pin} -- a hand edit or a corrupted cell:")
         for i, g, w in bad[:10]: print(f"    README:   {g}\n    RENDERED: {w}")
         return 1
-    print(f"README-CHECK PINNED OK: the block is exactly the render of SUITES.tsv at .github@{pin} ({len(got) - README_HEAD_N - 1} rows)")
+    print(f"README-CHECK PINNED OK: the block is exactly the render of SUITES.tsv at {pin} ({len(got) - README_HEAD_N - 1} rows)")
     if pinned_only: return 0
     _h, rows = load()
     cur = readme_block(rows, pin)
     lag = [(g, w) for g, w in zip(got[README_HEAD_N:-1], cur[README_HEAD_N:-1]) if g != w] + ([('(row count)', f'{len(got)} vs {len(cur)} lines')] if len(got) != len(cur) else [])
     if lag:
-        print(f"README-CHECK RED(1): {len(lag)} README row(s) lag SUITES.tsv as it stands now (the block reads .github@{pin}) -- regenerate: python3 .github/scripts/util_suite_banner.py --readme")
+        print(f"README-CHECK RED(1): {len(lag)} README row(s) lag SUITES.tsv as it stands now (the block reads {pin}) -- regenerate: python3 .github/scripts/util_suite_banner.py --readme")
         for g, w in lag[:12]: print(f"    README: {g}\n    NOW:    {w}")
         return 1
     print(f"README-CHECK CURRENT OK: every README row matches SUITES.tsv as it stands now")
@@ -717,18 +765,19 @@ def readme_check(path, pinned_only=False):
 # its runners in parallel (fpc, PAT, bench and the rungs' util_score_row.py) had each one read SCORE.md, re-render its own row and
 # write the whole file back -- the classic lost update: the LAST writer put back a line another runner had just set. SUITES.tsv read
 # fpc 158/181 on 48d98c99c while SCORE.md's FPC line still read 156, twice, the same runner losing both times. Every read-modify-write
-# of SUITES.tsv and SCORE.md now holds an exclusive flock on SUITES.tsv's own inode for its whole span -- no new file, nothing to
-# ignore -- and util_score_row.py holds the same lock across its write and hands S4E_SUITE_TABLE_LOCKED to the --set it runs, so
+# of SUITES.tsv and SCORE.md now holds an exclusive flock on SUITES.tsv.lock beside the record for its whole span (on the record's own
+# inode until 2026-10-09: write_tsv now replaces the record whole, a new inode per write, so the lock moved to a file that stays put) --
+# and util_score_row.py holds the same lock across its write and hands S4E_SUITE_TABLE_LOCKED to the --set it runs, so
 # the child does not wait on its own parent. A lock not granted within S4E_SUITE_TABLE_LOCK_S (120 s) refuses rc 2: never a hang.
 def _suite_table_lock():
     if os.environ.get('S4E_SUITE_TABLE_LOCKED'): return None
     import fcntl, time
-    fd=os.open(TSV, os.O_RDONLY); limit=time.monotonic()+float(os.environ.get('S4E_SUITE_TABLE_LOCK_S','120'))
+    fd=os.open(TSV+'.lock', os.O_RDWR|os.O_CREAT, 0o664); limit=time.monotonic()+float(os.environ.get('S4E_SUITE_TABLE_LOCK_S','120'))
     while True:
         try: fcntl.flock(fd, fcntl.LOCK_EX|fcntl.LOCK_NB); break
         except BlockingIOError:
             if time.monotonic()>limit:
-                sys.stderr.write(f"REFUSE(rc=2): another writer has held the suite-table lock on {TSV} past {os.environ.get('S4E_SUITE_TABLE_LOCK_S','120')} s -- NOTHING WAS WRITTEN; re-run when it finishes.\n"); sys.exit(2)
+                sys.stderr.write(f"REFUSE(rc=2): another writer has held the suite-table lock on {TSV}.lock past {os.environ.get('S4E_SUITE_TABLE_LOCK_S','120')} s -- NOTHING WAS WRITTEN; re-run when it finishes.\n"); sys.exit(2)
             time.sleep(0.05)
     os.environ['S4E_SUITE_TABLE_LOCKED']=str(os.getpid())
     return fd
@@ -804,14 +853,15 @@ def main(a):
         try:
             note=render_table(only_key=key)
         except Exception as ex:
-            open(TSV,'w',encoding='utf-8').write(before)      # ⛔ the two sites move together or not at all
+            write_tsv(before)      # ⛔ the two sites move together or not at all
             sys.stderr.write(f"REFUSE(rc=2): the row was NOT set. Rendering SCORE.md raised {type(ex).__name__}: {ex}. "
                              f"SUITES.tsv has been RESTORED to what it held before this call, because a written TSV "
                              f"beside an unwritten SCORE.md is the split state every board reader then has to guess at.\n"); sys.exit(2)
+        history(head,before,rows)
         print(note)
     if '--check' in a: sys.exit(check_table())
     if '--render' in a:
-        # ⛔ --render REWRITES EVERY ROW FROM THE LOCAL TSV: a different act from verifying, so it is asked for by name -- --all-rows,
+        # ⛔ --render REWRITES EVERY ROW FROM THE TSV: a different act from verifying, so it is asked for by name -- --all-rows,
         # or scoped to the one row the caller measured with --only KEY (coo 2026-09-16, hq_raku's finding).
         if '--only' in a:
             j=a.index('--only'); k=a[j+1] if len(a)>j+1 else ''
@@ -819,7 +869,7 @@ def main(a):
             if k not in {r['key'] for r in rows}: sys.stderr.write(f"REFUSE(rc=2): --only {k!r} is no SUITES.tsv key\n"); sys.exit(2)
             print(render_table(only_key=k)); return
         if '--all-rows' not in a:
-            sys.stderr.write("REFUSE(rc=2): --render rewrites EVERY suite-table row of SCORE.md from the local SUITES.tsv, rows you never measured included. "
+            sys.stderr.write("REFUSE(rc=2): --render rewrites EVERY suite-table row of SCORE.md from SUITES.tsv, rows you never measured included. "
                              "To verify, run --check (writes nothing). To rewrite one row you measured: --render --only <key>. To rewrite them all, say so: --render --all-rows. NOTHING WAS WRITTEN.\n"); sys.exit(2)
         print(render_table()); return
     if '--md' in a: md(); return

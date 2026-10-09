@@ -24,4 +24,4 @@ for r in board_icon_rungs.sh test_icon_arizona_suite.sh test_icon_jcon_suite.sh 
   echo "=== $r rc=$rc $(( $(date +%s) - t0 ))s"
   grep -E 'ICON_RUNGS|BOARD|AND_PER_PROGRAM|PACKAGE_INVENTORY|RUN_FAIL:|RUN_CRASH:|RUN_HANG:|FAIL:|REFUSE|rewrote|NOT UPDATED|OVERRIDE' "$LOG/$r.log" | head -20
 done
-echo "=== SCORE rows changed:"; git -C ../.github diff --stat -- SCORE.md SUITES.tsv; git -C ../.github diff SUITES.tsv | grep '^[-+][^-+]' | cut -c1-160
+echo "=== SCORE rows changed:"; git -C ../.github diff --stat -- SCORE.md; tail -8 /home/resources/progress/SUITES.history.tsv | cut -c1-160

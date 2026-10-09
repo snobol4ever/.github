@@ -27,7 +27,32 @@ import subprocess, csv, collections, datetime as dt, os, sys
 WINDOW = int(os.environ.get("ETA_WINDOW_DAYS", "4"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+HIST = os.path.join(os.path.dirname(os.path.abspath(os.environ.get("S4E_SUITES_TSV") or "/home/resources/progress/SUITES.tsv")), "SUITES.history.tsv")
+
+def sums(rows):
+    p = collections.Counter(); t = collections.Counter()
+    for r in rows:
+        if not r.get("today_pass"): continue
+        try: p[r["lang"]] += int(r["today_pass"]); t[r["lang"]] += int(r["today_total"])
+        except (ValueError, KeyError): pass
+    return p, t
+
 def snapshots():
+    """The table at every .github commit while it lived there, then replayed row by row from SUITES.history.tsv since 2026-10-09."""
+    last = {}
+    for when, txt in git_snapshots():
+        last = {r["key"]: r for r in csv.DictReader((l for l in txt.split("\n") if not l.startswith("#")), delimiter="\t") if r.get("key")}
+        yield (when, *sums(last.values()))
+    if not os.path.exists(HIST): return
+    cols = None
+    for l in open(HIST, encoding="utf-8").read().split("\n"):
+        if l.startswith("# columns: "): cols = l[len("# columns: "):].split("\t"); continue
+        if not l or l.startswith("#") or not cols: continue
+        r = dict(zip(cols, l.split("\t")))
+        last[r.get("key", "")] = r
+        yield (r["at_utc"][:16], *sums(last.values()))
+
+def git_snapshots():
     out = subprocess.run(["git", "-C", HERE + "/..", "log", "--format=%H %ad",
                           "--date=format:%Y-%m-%dT%H:%M", "--reverse", "--", "SUITES.tsv"],
                          capture_output=True, text=True).stdout.strip().split("\n")
@@ -37,12 +62,7 @@ def snapshots():
         txt = subprocess.run(["git", "-C", HERE + "/..", "show", f"{sha}:SUITES.tsv"],
                              capture_output=True, text=True).stdout
         if not txt: continue
-        p = collections.Counter(); t = collections.Counter()
-        for r in csv.DictReader((l for l in txt.split("\n") if not l.startswith("#")), delimiter="\t"):
-            if not r.get("today_pass"): continue
-            try: p[r["lang"]] += int(r["today_pass"]); t[r["lang"]] += int(r["today_total"])
-            except (ValueError, KeyError): pass
-        yield when, p, t
+        yield when, txt
 
 def main():
     snaps = list(snapshots())
