@@ -56,7 +56,7 @@ The repos are `SCRIP/`, `corpus/` and `.github/` beside this file; the oracles a
   - the harness and the machinery every runner shares (`corpus_suite_harness.py`, `lib_one_runner.sh`, the gate libraries);
   - the IPC sync-step monitor's controller and harness (each oracle-side bridge belongs to its language's lane);
   - `util_score_row.py`;
-  - the progress DB, `SUITES.tsv`, SCORE.md § THE SUITE TABLE and SCRIP's README suite table.
+  - the progress DB, `/home/resources/progress/SUITES.tsv`, SCORE.md § THE SUITE TABLE and SCRIP's README suite table.
 
   Your rows are the `coo`-owned rows of `QUEUE.tsv`, worked one at a time through `next`, `claim` and `done`. Asks about instruments, runners, accounting and denominators come to you (CEO-1270).
 - **The row audit.** Every row you write must be on origin and must agree with the progress DB on its stamped tree; a disagreement is a row. A cross-language MEASUREMENT that a standing order names grades through `corpus_suite_harness.run_suite_entry`, and writes no row, no score cell and no progress append. The moment it writes a row, it is no longer a measurement.
@@ -112,7 +112,7 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
   - `benchmarks/`, `demos/`, and `include/` + `library/` (the shared `-INCLUDE` library).
   - `corpus/programs/` is NOT a runtime test suite (RULES.md § ABSOLUTE RULES).
 - `.github/`: the org's record, and YOUR repo.
-  - `RULES.md` (law), `MASTER-PLAN.md`, `SCORE.md` (THE ONE LEADERBOARD) and `SUITES.tsv` (its machine record).
+  - `RULES.md` (law), `MASTER-PLAN.md` and `SCORE.md` (THE ONE LEADERBOARD). Its machine record is NOT here: since 2026-10-09 it is the one file `/home/resources/progress/SUITES.tsv` (Lon in-chat to the coo: *"You choose to put the one single data location to be spread across all root via GitHub instead of choosing one file in /home/resources. That was stupid."*); every seat reads and writes it in place, `SUITES.history.tsv` beside it holds every moved row, and `SCRIP/scripts/lib_suites_tsv.sh` is the one path authority.
   - `GOAL-*.md`: one LIVE CURSOR per seat or campaign.
   - `findings/`, 28 `ARCH-*.md`, `MONITOR-BINARY-DESIGN.md`, and `scripts/` (your instruments, and the ceo's `propagate_*.py`).
   - Only the top-level `.md` files are read. `archive/`, `probes/` and `wip-patches/` are history.
