@@ -4,6 +4,13 @@ The cursor of the seat HQ-COLLECTOR (identity `hq_collector`, root `/home/claude
 
 ## LIVE CURSOR
 
+- **2026-10-08 ~23:xx CDT — THE GATES THE RE-FLOW BLINDED, AND THE CO-EXPRESSION SEGMENTS (hq_collector).**
+  - **SCRIP `43a4371f0`:** nine gc gates re-cut to read statements, not physical lines. These are the coo's six reds from pass 42 (since the re-flow) and three of hq_runtime's. The new helper `scripts/util_c_function_body.py` finds a C function by its name and braces. The unmapped-store census now joins thunk stem labels through the report's `map=` field, and its baseline is re-written: 19 moved rows, all members 0 → 0.
+  - **SCRIP `a71d1a339`:** the context names each co-expression's pristine image (`image_map`, `image_off`), recorded at create through the chain. A parked segment's C road is bounded by its own top. Whole list: 752,564 of 752,590 collections in both modes.
+  - **Rule 9 SHIM-SELF:** specified to the cto and accepted; it lands after the cto's site-table landing.
+  - **Minted:** `gc-a-dead-scratch-register-r8-r10-r11-carries-a-heap-pointer-word-into-the-rtccb-spill-at-every-later-poll` (rank 2).
+  - **NEXT:** the generator spine stub's road (`rt_genp_spine_enter_n2`; the shape goes to hq_icon first), `hb_cv_spine_plain_redo`, the cto's CODE-fragment witness, then STEP B.
+
 - **2026-10-08 ~21:xx CDT — STEP (2) ON ORIGIN: SCRIP `7016f6e25`, corpus `2d1a6f43f`..`dafc965ed` (hq_collector).** The step-2 diff (old local `7458001c2`) was rebased over the 200-column re-flow. Route: resolved on the pre-reflow `d78516b47`; the ceo's Icon LANDING rows and `rt_icn_frames` (`70dbd0bbb`) kept, my copy dropped; merged with the scan-leave bank of `a954b0d8e`; re-flowed with `util_reflow_200.py`, whose output reproduces origin from `d78516b47` byte for byte in 12 of 12 files. It was held by CEO-1570, then rebased onto the cure `829e564ad` and pushed first after the lift (CEO-1571). Before pushing it was rebased over `83f810283` (hq_runtime: rtx CFI, the `_Unwind_Backtrace` entry), `40a9bfc08`, `aca545b49` and `a051c6f74`.
 
   **MEASURED on the pushed tree** (106 gc_witnesses, 64 KB, stress 1):
