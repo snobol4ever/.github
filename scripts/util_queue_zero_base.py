@@ -34,6 +34,14 @@ re-minted from a current red (mint refuses a placeholder DONE-WHEN since this ru
             a wrong answer, a refusal on a quiet box) stays CANNOT MEASURE and retires. Before this rule, the sweeps of 10-07
             20:16 and 10-08 15:18 and 19:17 retired fourteen live performance rows under the fleet's builds, each re-minted by hand.
             The gate is SCRIP scripts/test_gate_sweep_keeps_a_load_guard_refusal_and_retires_a_cannot_measure_one.sh.
+  KNIT      (ceo CEO-1574, 2026-10-08 23:0x, measured on the first sweep under the load guard): every criterion runs in the ceo's
+            root, and a criterion that BUILDS there and is killed at the timeout leaves the tree half-built, so every later
+            criterion that runs the binary refuses rc 2 -- nine rows were retired as cannot-measure after the 88th criterion's make
+            was killed at 240 s, and every one of the three sampled read RED on the re-knit tree. So the tree is KNIT (ZB_KNIT_CMD,
+            default make -s -C $S4E_HOME/SCRIP, 900 s) once before the run phase and again after every kill, each knit printed as a
+            KNIT line with its rc and seconds; a knit that fails HALTS the run phase (the remaining criteria are left as they were,
+            written UNTOUCHED, never retired), because every rc 2 after it would be false. The gate plants a criterion that sleeps
+            past --timeout and reads two KNIT lines.
 
 The three files are written ONLY with --apply, against a FRESH read of QUEUE.tsv at write time: a row whose state moved while the
 criteria ran (a claim, a done) is left as the fleet left it. Backups are written beside the files; every decision is written to
@@ -113,6 +121,17 @@ def load_now():
     except Exception: la = "?"
     return la, str(os.cpu_count() or "?")
 
+KNIT_CMD = os.environ.get("ZB_KNIT_CMD", "make -s -C %s/SCRIP" % S4E)
+def knit(why):
+    # the ceo's root is where every criterion runs; a criterion that builds there and is killed at the timeout leaves it half-built,
+    # and every later criterion that runs the binary refuses rc 2 (2026-10-08 22:07: nine rows retired as cannot-measure after the
+    # 88th criterion's make was killed, each one RED on the re-knit tree). So the tree is knit before the run phase and after a kill.
+    t1 = time.time()
+    try: rc = subprocess.run(["bash", "-c", KNIT_CMD], cwd=S4E, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900).returncode
+    except subprocess.TimeoutExpired: rc = "timeout"
+    print("KNIT %s: %s -> rc %s in %ds" % (why, KNIT_CMD, rc, time.time() - t1), flush=True)
+    return rc == 0
+
 def baton_age_days(topic):
     f = os.path.join(TASKS, topic + ".task.md")
     try: return (time.time() - os.path.getmtime(f)) / 86400.0
@@ -176,7 +195,10 @@ print("static classes:", {k: v for k, v in sorted(__import__("collections").Coun
 print("criteria to run:", len(todo), "(timeout %ss each)" % tmo, flush=True)
 if not norun:
     t0 = time.time(); tally = {"GREEN": 0, "RED": 0, "CANNOT": 0, "TIMEOUT": 0, "LOADGUARD": 0}
+    halt = not knit("before the run phase")
+    if halt: print("HALT: the tree does not build, so no criterion is run -- every rc 2 would be false; the %d criteria are left as they were" % len(todo), flush=True)
     for i, t in enumerate(todo, 1):
+        if halt: break
         print("RUNNING %s" % t, flush=True)
         rc, tail = run_dw(decisions[t][1])
         if rc == 0: decisions[t] = ("GREEN-now", 0, "DONE"); tally["GREEN"] += 1; v = "GREEN"
@@ -184,6 +206,8 @@ if not norun:
         elif rc == "timeout":
             a = baton_age_days(t); exp = a is not None and a > EXPIRE_FREE_DAYS
             decisions[t] = ("TIMEOUT-expired-parked" if exp else "TIMEOUT-kept", "timeout", "KEEP"); tally["TIMEOUT"] += 1; v = "TIMEOUT" + ("-EXPIRED" if exp else "")
+            halt = not knit("after the killed criterion %s" % t[:60])
+            if halt: print("HALT: the tree does not re-knit after the kill; the remaining %d criteria are left as they were" % (len(todo) - i), flush=True)
         elif rc == 2 and LOAD_GUARD.search(tail):
             a = baton_age_days(t); exp = a is not None and a > EXPIRE_FREE_DAYS
             words = [l.strip() for l in tail.splitlines() if LOAD_GUARD.search(l)]; la, nc = load_now(); guard_lines[t] = (words[-1][:240] if words else "", la, nc)
