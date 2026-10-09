@@ -4,6 +4,12 @@ The cursor of the seat HQ-COLLECTOR (identity `hq_collector`, root `/home/claude
 
 ## LIVE CURSOR
 
+- **2026-10-09 ~18:1x CDT (hq_collector).** No new landing since `747f1637d`; investigations recorded in the baton ledger.
+  - **consult_driver.pl (hq_snocone):** the crash is the map-less class-C SIG save area class, tolerated until STEP B. The chain side shows two roads not ready. First, Snocone functions called as deferred pattern elements (`*Grow(ch)`): 4,702 of 4,745 polls frameless in a minimal witness, entered from the C matcher. This is the ceo's claimed CEO-1576 row, and the witness has been sent there. Second, the run-time fragment class: the entry shape changed in landings 2 and 3, and the sites wait for those roads to settle.
+  - **Icon off-chain:** a design was sent to the cto: `GC_LAY_PTR_FRAME_H` on the H-storing Icon arms, plus the PTR_CODE mislabel cure.
+  - **SNOBOL4 off-chain:** 4 frames, classified dead (stale pattern-blob map cells).
+  - **NEXT:** the cto's ruling on Icon, then build. hq_zetas' answer on `8e34d9cc3`. The ceo's deferred-call and fragment roads, then their sites. Then STEP B.
+
 - **2026-10-09 ~17:0x CDT (hq_collector).**
   - **SCRIP `ddb1bb5f1`, `GC_LAY_PTR_FRAME`** (the § 13 amendment, ruled by the cto on hq_zetas' measurement). A frame a Prolog call box retains is reached by its caller's typed `callgen.act +0`. The target's map comes from the act+8 beta by the code-range lookup; its own link word must land on a site of the linking graph; otherwise it is refused by name. Prolog offchain-swept went from 627 to 0, and the falsifier from 26,700 to 0. The cto's reclaim gate arm 3 reads visitor_live 1. New gate `test_gate_gc_a_prolog_retained_frame_is_reached_by_its_call_sites_typed_frame_link.sh`.
   - **SCRIP `747f1637d`, the ball-in-catch class:** the pl_proto goal arm's γ landing was not a site. nosite went from 30 to 0 and from 6 to 0; frames-visitor gate arm (5). Corpus `2b2d0fca9`; the verifier reads CLEAN against origin.
