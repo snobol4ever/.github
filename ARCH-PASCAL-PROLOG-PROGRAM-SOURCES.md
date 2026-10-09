@@ -63,14 +63,14 @@ It is CDC 6000 Pascal: every string and character literal uses `"` (393 sites) w
 
 **Prolog drivers** (CEO-700: a library is graded through a driver written for it): a Rosetta Prolog solution usually defines its predicates and never calls them, so under `swipl -q` it prints nothing (742 of 786 on the first build). The 120 that define a zero-arity entry (`main` 71, `test` 25, `go` 12, `run` 4, `task` 3, `example` 3, `start` 2) and no `initialization` directive carry one appended line, `:- initialization(<entry>).`, named in `DRIVERS.tsv`; the build went from 40 graded to 118. The other 458 printing nothing need a driver written for them (`NEEDS_DRIVER`).
 
-### 4.1 First readings (SCRIP `2e2067ff4` / corpus `7a865a2fe` for Pascal, `48d8bd2ee` / `fc063380e` for Prolog), both modes, the AND per program
+### 4.1 Readings (the coo seat, both modes, the AND per program; the denominator is shipped by CEO-1286)
 
-| row | shipped | graded (in the container) | pass both modes | owed work (`UNGRADED.tsv`) | oracle gives no one truth (`UNGRADABLE.tsv`) |
-|---|---|---|---|---|---|
-| PasRosetta | 664 | 101 | **28** | NEEDS_DRIVER 27, TIMEOUT 22, NEEDS_RUNNER_WIRING 3 | ORACLE_REFUSES 469 (367 fpc refuses, 102 non-ISO `$mode`), NONDETERMINISTIC 42 |
-| ProRosetta | 786 | 118 | **36** | NEEDS_DRIVER 458, TIMEOUT 7 | ORACLE_REFUSES 200 (swipl load error), NONDETERMINISTIC 3 |
+| row | reading | tree | shipped | graded | pass both modes | owed (`UNGRADED.tsv`) | no one ground truth (`UNGRADABLE.tsv`) |
+|---|---|---|---|---|---|---|---|
+| PasRosetta | **30/664** | SCRIP `d4fa381f8` / corpus `bd7d3aea8` | 664 | 319 (fpc modes: iso 203, default 92, objfpc 23, delphi 1 — `ALL.dialect`) | 30 | NEEDS_DRIVER 42, TIMEOUT 34, NEEDS_RUNNER_WIRING 10 | ORACLE_REFUSES 205 (no fpc mode compiles them), NONDETERMINISTIC 54 |
+| ProRosetta | **36/786** | SCRIP `d4fa381f8` / corpus `bd7d3aea8` | 786 | 118 | 36 | NEEDS_DRIVER 458, TIMEOUT 7 | ORACLE_REFUSES 200 (swipl load error), NONDETERMINISTIC 3 |
 
-The rows publish **28/664** and **36/786**: by CEO-1286 a program refused for any cause but a ruled class stays in the denominator as debt, and no EXCLUDED class covers "the oracle cannot grade it". ⛔ OPEN FOR LON (§ 6 a).
+Earlier readings the same evening, superseded: PasRosetta 29/664 (203 graded, `-Miso` only) and 28/664 (101 graded, the withdrawn `$mode` exclusion). `test_gate_score_row_denominator_includes_xfails.sh` reads AGREE on both rows since the runner appends one UNGRADED progress row per mode for every shipped program the container does not grade (SCRIP `df8e75e8f`).
 
 ### 4.2 `fpc -Miso` is not an ISO 7185 checker (the measurement behind rule 3, kept as history; Lon ruled the directives ignored)
 
@@ -124,6 +124,7 @@ Survey scripts and tables: the coo's session scratchpad `survey/` (`pas1.sh`, `p
 | `shl` / `shr` / `xor` | 54 | ✗ parse error | ✗ (✓ under `{$mode}`) | `shl n` → `* 2^n`, `shr n` → `div 2^n` for non-negative operands; `xor` → a prelude function — mechanical with care for signs, or a SCRIP feature |
 | Math unit `Power Floor Ceil Log10 Max Min …` | 52 | ✗ (no unit) | ✗ | prelude |
 | C-style `+= -= *= /=` | 48 | ✗ parse error | ✓ | **trivial**: `x += e` → `x := x + (e)` |
+| form feed (`^L`, a page break) between declarations | (in Basic-S; old sources) | ✗ lexer: "invalid character" | ✓ | **trivial**: a form feed is a separator — or a one-line SCRIP lexer change |
 | open array parameters `array of T` | 35 | ✗ parse error | ✓ | to an ISO conformant array `array[lo..hi: integer] of T` with `high(a)` → `hi` — **but SCRIP has no conformant arrays either** (probed: parse error): a SCRIP feature first |
 | empty-parenthesis call `f()` | 35 | ✗ parse error | ✓ | **trivial**: drop the `()` |
 | `halt` | 35 | ✓ | ✓ | none needed |
@@ -149,3 +150,7 @@ Survey scripts and tables: the coo's session scratchpad `survey/` (`pas1.sh`, `p
 - **The website shows an output block for about a quarter of solutions**: sampled 2026-10-09 through `index.php?title=<task>&action=raw` (a browser user agent), eight tasks (Ackermann, Towers of Hanoi, Hailstone, Sieve, Fibonacci, GCD, Anagrams, 0-1 Knapsack): Pascal sections 16 code blocks with 4 `{{out}}` blocks, Prolog 39 code blocks with 10. None for 100 doors' two Pascal solutions.
 - **Not usable as refs**: produced by an unnamed compiler and version, often abbreviated or trimmed by hand, sometimes a top-level transcript (`?- knapsack` and its answer) rather than the program's stdout; a ref is cut from the ONE oracle (RULES: correctness is an oracle diff).
 - **Usable two ways**: (a) a **sanity check** on our oracle-cut ref where the site shows output (Lon's "give reasonable results"); (b) for Prolog, the **query the output block shows is the driver goal** a `NEEDS_DRIVER` solution lacks (`?- knapsack.`, `?- hanoi(3).`) — a mechanical source of drivers for part of ProRosetta's 458.
+
+## 10. The standardpascaline programs under SCRIP (PasDemo, CEO-1579), first look
+
+All five compile under `fpc -Miso` with no `{$mode}`. **Basic-S** (stdin: a BASIC program, `list`, `run`, `bye`) runs a primes demo under fpc; under SCRIP it stops at a form feed in its source (lexer: "invalid character", line 125), and with the form feeds turned into newlines SCRIP's code generator aborts: `FATAL emit_drive: IR op=4 HAS a template and its own case REFUSED AT A GUARD -- emit.cpp:2016` (rc 134). **Star Trek** seeds its own generator (`rndseq := 1`), so it is deterministic, but the generator divides by `maxint`, which is implementation-defined — fpc and SCRIP may legitimately differ there. **Pascal-S** (`program Pascals(input, output, srcfil)`) and the **prettyprinter** (`PROGRAM PRETTYPRINT(INPUTFILE, OUTPUTFILE)`) read named files bound as program parameters — the binding convention has to be the same under fpc and SCRIP before a ref means anything. **PL/0** reads its source from stdin.
