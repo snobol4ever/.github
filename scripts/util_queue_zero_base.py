@@ -129,7 +129,26 @@ for f in parsed:
         if topic in boards: decisions[topic] = ("RETIRE-board-done-when", "", "RETIRED"); continue
         decisions[topic] = ("RUN", dw, None); continue
     decisions[topic] = ("KEEP-other:" + s, "", "KEEP")
-# pass 2: run the FREE criteria
+# pass 1b: blockers (ceo CEO-1569, 2026-10-08). A row BLOCKED-ON or PARKED-AWAITING a LIVE row is never touched (CEO-755c). A row
+# whose blocker has CLOSED (DONE), was RETIRED, or is absent from the live queue is UNBLOCKED: its own measurement decides it, exactly
+# as a FREE row's does -- GREEN closes it, RED returns it to FREE at its rank. Before this pass existed, pass 3 retired every such row
+# as blocker-not-live: prolog-every-suite-to-100-under-nonet-ceo-1266 died that way on 10-03 when the rewrite-plan row it waited on
+# closed, and the Prolog lane ran five days with no rank-0 row under four red suites.
+def blocker_of(state):
+    m = re.match(r"(?:PARKED-AWAITING|BLOCKED-ON):(.*)", state); return m.group(1) if m else None
+unblocked = set()
+for f in parsed:
+    topic, state = f[1], f[3]
+    if decisions.get(topic, ("",))[0] != "BLOCKER?": continue
+    b = blocker_of(state); db = decisions.get(b)
+    live_b = db is not None and (db[2] == "KEEP" or db[0] in ("RUN", "BLOCKER?"))
+    if live_b: decisions[topic] = ("KEEP-blocked-on-live", "", "KEEP"); continue
+    dw = donewhen(topic)
+    if dw is None: decisions[topic] = ("RETIRE-no-task-file", "", "RETIRED"); continue
+    if not dw or any(k in dw for k in PLACEHOLDER): decisions[topic] = ("RETIRE-placeholder-done-when", "", "RETIRED"); continue
+    if topic in boards: decisions[topic] = ("RETIRE-board-done-when", "", "RETIRED"); continue
+    decisions[topic] = ("RUN", dw, None); unblocked.add(topic)
+# pass 2: run the FREE and the unblocked criteria
 todo = [t for t, d in decisions.items() if d[0] == "RUN"]
 print("static classes:", {k: v for k, v in sorted(__import__("collections").Counter(d[0] for d in decisions.values()).items())})
 print("criteria to run:", len(todo), "(timeout %ss each)" % tmo, flush=True)
@@ -146,14 +165,8 @@ if not norun:
         else: decisions[t] = ("RETIRE-cannot-measure-rc%s" % rc, rc, "RETIRED"); tally["CANNOT"] += 1; v = "CANNOT-MEASURE"
         el = time.time() - t0; eta = el / i * (len(todo) - i)
         print("COUNTDOWN %d left of %d | %d done | %dm%02ds elapsed, ~%dm%02ds to go | GREEN %d RED %d CANNOT %d TIMEOUT %d | last: %s -> %s" % (len(todo) - i, len(todo), i, el // 60, el % 60, eta // 60, eta % 60, tally["GREEN"], tally["RED"], tally["CANNOT"], tally["TIMEOUT"], t[:70], v), flush=True)
-# pass 3: blockers
-def blocker_of(state):
-    m = re.match(r"(?:PARKED-AWAITING|BLOCKED-ON):(.*)", state); return m.group(1) if m else None
-for f in parsed:
-    topic, state = f[1], f[3]
-    if decisions.get(topic, ("",))[0] == "BLOCKER?":
-        b = blocker_of(state); live_b = b in decisions and decisions[b][2] == "KEEP"
-        decisions[topic] = ("KEEP-blocked-on-live", "", "KEEP") if live_b else ("RETIRE-blocker-not-live", "", "RETIRED")
+# pass 3: the unblocked rows that were not run (--no-run) stay as they are; nothing here retires a row for its blocker's state
+if unblocked: print("unblocked (blocker closed, retired or absent; their own criterion decides): %d" % len(unblocked)); [print("   " + t) for t in sorted(unblocked)]
 cnt = __import__("collections").Counter(d[0] for d in decisions.values())
 print("final classes:"); [print("  %-36s %d" % (k, v)) for k, v in sorted(cnt.items())]
 print("live rows after: %d  archived DONE: %d  retired: %d" % (sum(1 for d in decisions.values() if d[2] == "KEEP"), sum(1 for d in decisions.values() if d[2] == "DONE"), sum(1 for d in decisions.values() if d[2] == "RETIRED")))
@@ -169,9 +182,11 @@ for ln in fresh:
     topic = f[1]; d = decisions.get(topic)
     if d is None or f[3] != old_state.get(topic): out.append(ln); log.append((topic, f[2], f[3], "UNTOUCHED-moved-meanwhile", "", "KEEP")); continue
     cls, rc, place = d
+    if place is None: out.append(ln); log.append((topic, f[2], f[3], cls + "-not-run", "", "KEEP")); continue
     if place == "KEEP":
         if cls == "RED-now" and "-every-suite-to-100-" not in topic and f[0] in ("0", "1"): f[0] = "2"
         if cls == "TIMEOUT-expired-parked": f[3] = "PARKED-EXPIRED"
+        elif topic in unblocked and cls in ("RED-now", "TIMEOUT-kept"): f[3] = "FREE"
         if cls == "RED-now": ledger_add.append((topic, f[0]))
         out.append("\t".join(f))
     elif place == "DONE":
