@@ -4,6 +4,32 @@ The cursor of the seat HQ-COLLECTOR (identity `hq_collector`, root `/home/claude
 
 ## LIVE CURSOR
 
+- **2026-10-08 ~21:xx CDT — STEP (2) ON ORIGIN: SCRIP `7016f6e25`, corpus `2d1a6f43f`..`dafc965ed` (hq_collector).** The step-2 diff (old local `7458001c2`) was rebased over the 200-column re-flow. Route: resolved on the pre-reflow `d78516b47`; the ceo's Icon LANDING rows and `rt_icn_frames` (`70dbd0bbb`) kept, my copy dropped; merged with the scan-leave bank of `a954b0d8e`; re-flowed with `util_reflow_200.py`, whose output reproduces origin from `d78516b47` byte for byte in 12 of 12 files. It was held by CEO-1570, then rebased onto the cure `829e564ad` and pushed first after the lift (CEO-1571). Before pushing it was rebased over `83f810283` (hq_runtime: rtx CFI, the `_Unwind_Backtrace` entry), `40a9bfc08`, `aca545b49` and `a051c6f74`.
+
+  **MEASURED on the pushed tree** (106 gc_witnesses, 64 KB, stress 1):
+  - Level-1 counts identical per witness to a `cfcfaf46d` control. The only unclean witnesses are the cto's two shim witnesses (`2356c4868`).
+  - 212 of 212 outputs identical.
+  - Level 3, the whole list: 750,022 of 752,580 collections whole, the same in both modes. The divergences are the Icon co-expression segments (`hb_coexpr_create`/`_parked`/`_refresh`/`_sigma`); walks entered with no return PC (`hb_coexpr_genp_scan` 23, `hb_cv_spine_plain_redo` 1); and the shim witnesses.
+  - Yesterday's "748,968 of 748,968" was read while every Icon program bombed on the `g_icn_act` deletion, so it never covered Icon.
+
+  **In the landing:**
+  - Three gates re-cut to the 13.5 cells (`gc_a_suspended_scan_banks_…`, whose plant now tags the bank DT_I and stays load-bearing; `gc_the_blob_frame_interior_…` arm 5; `gc_maps_reporter_…` arm 5).
+  - `gc_allocating_table.inc` regenerated: `40a9bfc08` left `lower_var_r` and `pas_envcall_wrap` out.
+  - The four gates red on both trees, in identical arms: every_safe_point, one_stack_walker, rbx_frontier, scan_enter_poll.
+  - Corpus artifacts regenerated in a fresh worktree; `util_verify_s_artifacts_owed.sh` reads CLEAN, 0 owed.
+
+  **NEXT, in order** (the row's baton has the detail):
+  1. The co-expression segments.
+  2. The cto's run-time CODE fragment: `/home/claude_cto/.scratch/code6000-statements-chaincheck-witness.sno` at N=300 reads frameless 599 on this tree and on the control, so step 2 does not reach a run-time fragment's frame at its own polls. hq_snocone's G7 rests on this.
+  3. The SIG shim's inner polls: the cto emits the sites, this seat names their shape.
+  4. The coo's nested-match rule-6 witness.
+  5. The gc gates red on origin: hq_icon's `gc_the_scan_subject_base_is_reloaded_…` arm (b), and hq_runtime's five (`gc_the_poll_is_a_register_preserving_asm_leaf` 3 source-grep arms, `gc_a_poll_site_tests_the_pending_flag…`, `gc_a_safe_point_stores_into_a_mapped_slot` refused, `gc_the_caller_saved_spill_block…` 2 of 9, `gc_the_pending_prolog_ball…`).
+  6. Then STEP B.
+
+  The cto holds the site-table page row and builds it on `7016f6e25`.
+
+  **LOCAL:** branch `step2-pre-reflow-7458001c2` in SCRIP keeps the old commit; `/home/claude_collector/corpus` still holds the stale pre-rebase regen, and nothing in it is owed.
+
 - **2026-10-07 ~18:4x CDT — STEP (2) DONE FOR THE MAIN STACK, LOCAL ONLY; SITTING CLOSED BY LON BEFORE PUSH (hq_collector).** SCRIP 7458001c2 is committed in /home/claude_collector/SCRIP, rebased on origin aeb91d0cb, and NOT PUSHED. The chain's whole frame list equals the marker scan's in 748,968 of 748,968 collections over the 104 gc_witnesses, mode 3 and mode 4, at 64 KB and stress 1 (first reading 663,336 of 708,962). The cures: a per-shape link word in the site table, γ/ω landing sites in the Icon, Prolog, staged-wire and pattern-thunk call templates, the X86_SITE_RET_ROAD kind for the direct-call stub, ROOT on the outermost main zframe, the two 13.5 cell conversions (the Icon scan's σ and bank, the blob's DTP as a DT_P cell), park_rbp, and Brent cycle detection in place of the 16-hop bound. OWED BEFORE PUSH: preflight, the touched gates, and the corpus .s regeneration through a fresh corpus worktree. The baton's NEXT has the order. Then STEP B: co-expression segments (three classes named in the baton), the walk replacement, the deletions, the gate re-cuts, coordinated with the ceo's Icon-frame landing (CEO-1544).
 
 - **2026-10-07 ~17:4x CDT — LON OVERRIDE: STEP B NOW (hq_collector).** LON, in-chat to hq_collector, verbatim: *"Remove the marker scan. We want only the new scan. Remove the markers as I directed days ago."* The chain becomes the collector's ONLY walk and the marker machinery goes (ARCH-GC 13.2, 13.9 SIX), now, ahead of further instrument work. MEASURED THE SAME HOUR (SCRIP d9725595b + the local level-3 check, `SCRIP_GC_CHAIN_CHECK=3`: the chain's whole frame list compared with the marker scan's, 104 gc_witnesses, mode 3, 64 KB, stress 1): 663,336 of 708,962 collections whole (93.6 %); 34 witnesses diverge. Causes by class: (a) the γ landing of an Icon block-protocol procedure call (`call_proc_staged` Icon arm: the caller pushes ω, γ, the callee keeps the caller's rbp at [fb-8] and finds γ at [fb]) is not a site, nor is any Prolog or Raku call's γ landing — 13.9 TWO; (b) the frame's link offsets differ by regime (SNOBOL4 zframe [kt-24]/[kt-8]; Icon wire-stack [fb]/[fb-8]; generator [ft+8]/[ft] with R' at [ft+24]; blob [rbp+8]/[rbp]) and must be stated by the emitter per shape (13.3); (c) frames off the chain: Icon suspended generators (extra-gen 272), retained thunks (extra-blob 2), Prolog frames retained for backtracking (extra-plain 185, reached by the choice links). The 16-hop bound is replaced by Brent cycle detection and the C-road unwind requires a rising frame pointer. ORDER OF THE ONE LANDING: register every γ landing and state each shape's link word, walk the choice links, the 13.5 conversions, then delete the marker machinery and re-cut the 17 marker gates — the walker refuses (13.9 ONE), never skips. Routed to the cto as override-gc-step-b-now.
