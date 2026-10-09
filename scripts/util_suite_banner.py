@@ -586,7 +586,7 @@ README_RUNNER = {
     'x32tests': 'test_snobol4_spitbol_x32_suite.sh',
     'arizona': 'test_icon_arizona_suite.sh', 'jcon': 'test_icon_jcon_suite.sh', 'ipl': 'test_icon_ipl_suite.sh',
     'inria': 'test_prolog_inria_suite.sh', 'swi': 'test_prolog_swi_suite.sh', 'gnu': 'test_prolog_gnu_suite.sh',
-    'logtalk': 'test_prolog_logtalk_suite.sh', 'fpc': 'test_pascal_fpc_suite.sh', 'pat': 'test_pascal_pat_suite.sh',
+    'logtalk': 'test_prolog_logtalk_suite.sh', 'fpc': 'test_pascal_fpc_suite.sh', 'pat': 'test_pascal_pat_suite.sh', 'rosetta-pascal': 'test_pascal_rosetta_suite.sh', 'rosetta-prolog': 'test_prolog_rosetta_suite.sh',
     'roast': 'raku_roast_scoreboard.sh --run', 'sno-rungs': 'test_corpus_snobol4.sh', 'icn-rungs': 'board_icon_rungs.sh',
     'pl-rungs': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-rungs': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
     'raku-rungs': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-rungs': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
