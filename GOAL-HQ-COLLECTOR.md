@@ -4,6 +4,13 @@ The cursor of the seat HQ-COLLECTOR (identity `hq_collector`, root `/home/claude
 
 ## LIVE CURSOR
 
+- **2026-10-09 ~17:0x CDT (hq_collector).**
+  - **SCRIP `ddb1bb5f1`, `GC_LAY_PTR_FRAME`** (the § 13 amendment, ruled by the cto on hq_zetas' measurement). A frame a Prolog call box retains is reached by its caller's typed `callgen.act +0`. The target's map comes from the act+8 beta by the code-range lookup; its own link word must land on a site of the linking graph; otherwise it is refused by name. Prolog offchain-swept went from 627 to 0, and the falsifier from 26,700 to 0. The cto's reclaim gate arm 3 reads visitor_live 1. New gate `test_gate_gc_a_prolog_retained_frame_is_reached_by_its_call_sites_typed_frame_link.sh`.
+  - **SCRIP `747f1637d`, the ball-in-catch class:** the pl_proto goal arm's γ landing was not a site. nosite went from 30 to 0 and from 6 to 0; frames-visitor gate arm (5). Corpus `2b2d0fca9`; the verifier reads CLEAN against origin.
+  - **Found and routed:** a level-1 mismatch bisected to `8e34d9cc3` (to hq_zetas). The ceo's landing 3 bombs (`rt_c2bb_bomb`), tolerated. `util_regen_prolog_bench_s_artifacts.sh` ignores `CORPUS` (to the coo). The Icon artifacts owed by a004001a7 were pushed by hq_icon.
+  - **hq_snocone:** Icon 1689 of 1689 and oper_driver.pl 3 of 3 are now green. The Prolog `.sc` crash moved to consult_driver.pl, and it is my NEXT (1).
+  - **NEXT:** the baton's ORDER.
+
 - **2026-10-09 ~15:4x CDT (hq_collector).**
   - **SCRIP `87b5a72cf`, the ceo's order TWO.** A suspended generator body ends its chain at the named coroutine start, through `rt_genp_n2_conts`: a data record, because text labels split the stub and corrupted the regenerated allocating table. nosite went from 24 to 0 over 107 witnesses in both modes. The whole list reads 735,831 of 735,845; only the 14 run-time-fragment collections are left.
   - **The ceo's order ONE:** the EVAL/CODE entries become emitted entries in its landing 3, and I build on that tree. No C-side frame recording.
