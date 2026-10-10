@@ -15,9 +15,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Zona | icon | 119/119 EXCLUDED=5 | 2026-10-09 | `fcff46d90` | done |
 | Jcon | icon | 86/86 EXCLUDED=5 | 2026-10-09 | `fcff46d90` | done |
 | IPL | icon | 644/644 EXCLUDED=207 | 2026-10-09 | `fcff46d90` | done |
-| INRIA | prolog | 442/442 | 2026-10-10 | `8f5f2f7ac` | done |
-| SWI | prolog | 1023/2935 | 2026-10-10 | `8f5f2f7ac` |  |
-| GNU source | prolog | 16/55 EXCLUDED=7 | 2026-10-10 | `8f5f2f7ac` |  |
+| INRIA | prolog | 442/442 | 2026-10-10 | `12ba0444e` | done |
+| SWI | prolog | 1297/2935 | 2026-10-10 | `12ba0444e` |  |
+| GNU source | prolog | 19/55 EXCLUDED=7 | 2026-10-10 | `12ba0444e` |  |
 | FPC | pascal | 181/181 OUTSIDE=0 | 2026-10-09 | `fcff46d90` | done |
 | PAT | pascal | 427/427 OUTSIDE=0 | 2026-10-09 | `d416d8361` | done |
 | Roast | raku | 161/1464 | 2026-10-09 | `cffeedb19` |  |
@@ -29,24 +29,26 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SncRungs | snocone | 338/338 | 2026-10-09 | `fcff46d90` | done |
 | SncBench | snocone | 23/23 | 2026-10-09 | `fcff46d90` | done |
 | RebRungs | rebus | 43/43 | 2026-10-09 | `fcff46d90` | done |
-| Logtalk | prolog | 3509/3576 EXCLUDED=41 | 2026-10-10 | `8f5f2f7ac` |  |
+| Logtalk | prolog | 3514/3576 EXCLUDED=41 | 2026-10-10 | `12ba0444e` |  |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 | 2026-10-09 | `fcff46d90` | done |
 | X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 | 2026-10-09 | `fcff46d90` | done |
 | SnoBench | snobol4 | 23/23 | 2026-10-09 | `fcff46d90` | done |
 | IcnBench | icon | 26/26 | 2026-10-09 | `fcff46d90` | done |
-| ProBench | prolog | 23/23 | 2026-10-10 | `8f5f2f7ac` | done |
+| ProBench | prolog | 23/23 | 2026-10-10 | `12ba0444e` | done |
 | PasBench | pascal | 11/11 | 2026-10-09 | `fcff46d90` | done |
 | RakBench | raku | 70/84 | 2026-10-10 | `8f5f2f7ac` |  |
 | RebBench | rebus | 3/3 | 2026-10-09 | `fcff46d90` | done |
 | SnoDemo | snobol4 | 24/24 | 2026-10-09 | `fcff46d90` | done |
 | SncDemo | snocone | 23/23 | 2026-10-09 | `fcff46d90` | done |
 | IcnDemo | icon | 7/7 | 2026-10-09 | `fcff46d90` | done |
-| ProDemo | prolog | 3/3 | 2026-10-10 | `8f5f2f7ac` | done |
+| ProDemo | prolog | 3/7 | 2026-10-10 | `12ba0444e` |  |
 | TixDemo | scriptix | 12/12 | 2026-10-09 | `fcff46d90` | done |
 | PasRosetta | pascal | 30/664 EXCLUDED=0 | 2026-10-09 | `d4fa381f8` |  |
 | ProRosetta | prolog | 36/786 EXCLUDED=0 | 2026-10-10 | `8f5f2f7ac` |  |
-| ProPuzzles | prolog | 0/10 EXCLUDED=250 | 2026-10-10 | `1cb1b42aa` |  |
-| PasDemo | pascal | 0/4 | 2026-10-10 | `1cb1b42aa` |  |
+| ProPuzzles | prolog | 2/10 EXCLUDED=250 | 2026-10-10 | `12ba0444e` |  |
+| TreallaTests | prolog | - (no reading yet) | never graded | - | NO READING YET: ROW-OPENED-UNGRADED by the coo: hq_pascal's TreallaTests package, corpus b5942d9f3 (CEO-1595), 456 shipped = 329 graded + 125 UNGRADABLE + 2 UNGRADED, refs swipl -q 9.0.4's; the runner test_prolog_trealla_suite.sh; the coo grades it at pass 47 - a population with no grader is a debt on the board, never an absence from it |
+| PasDemo | pascal | 1/4 | 2026-10-10 | `12ba0444e` |  |
+| RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)

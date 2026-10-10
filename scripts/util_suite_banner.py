@@ -621,7 +621,10 @@ README_RUNNER = {
     # ⭐ puzzles and pascal-demos (the ceo 2026-10-10, CEO-1606, Lon: "Ensure that the new rows in the test suite banner for all the new test suites are
     # inserted"): the rows were opened UNGRADED the day their packages reached origin, with their runners named here the same day, so the README render
     # never refuses on them (the X32T lesson of CEO-1315).
-    'puzzles': 'test_prolog_puzzles_suite.sh', 'pascal-demos': 'test_demos_suite.sh pascal', 'fpc': 'test_pascal_fpc_suite.sh', 'wirth76': 'test_pascal_wirth76_suite.sh', 'pat': 'test_pascal_pat_suite.sh', 'rosetta-pascal': 'test_pascal_rosetta_suite.sh', 'rosetta-prolog': 'test_prolog_rosetta_suite.sh',
+    'puzzles': 'test_prolog_puzzles_suite.sh', 'pascal-demos': 'test_demos_suite.sh pascal',
+    'raku-demos': 'test_demos_suite.sh raku',
+    # trealla (the coo opened TreallaTests at SCRIP da42f411d without naming its runner here; the ceo added it 2026-10-10, CEO-1616 -- the X32T lesson a third time: THE RENDERER'S MAP IS PART OF OPENING A ROW).
+    'trealla': 'test_prolog_trealla_suite.sh', 'fpc': 'test_pascal_fpc_suite.sh', 'wirth76': 'test_pascal_wirth76_suite.sh', 'pat': 'test_pascal_pat_suite.sh', 'rosetta-pascal': 'test_pascal_rosetta_suite.sh', 'rosetta-prolog': 'test_prolog_rosetta_suite.sh',
     'roast': 'raku_roast_scoreboard.sh --run', 'sno-rungs': 'test_corpus_snobol4.sh', 'icn-rungs': 'board_icon_rungs.sh',
     'pl-rungs': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-rungs': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
     'raku-rungs': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-rungs': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
