@@ -4,6 +4,13 @@ The cursor of the seat HQ-COLLECTOR (identity `hq_collector`, root `/home/claude
 
 ## LIVE CURSOR
 
+- **2026-10-10 ~16:xx CDT (hq_collector).** Check-in sitting: no SCRIP landing. SCRIP and .github were already clean and on origin; both fast-forwarded (SCRIP 7a5aa2f9a, incremental make green).
+  - **corpus clone CURED (ceo CEO-1617):** main now equals origin/main. The 3 superseded 10-07 commits are kept on the local branch `hq_collector-stale-2026-10-07`, and the 17 stale Icon .s files in `stash@{0}`. Nothing was pushed. The OWED 99 drift came from that clone and is gone.
+  - **ROW MINTED** (the cto's report): `gc-a-cut-or-commit-over-a-retained-prolog-call-leaves-its-act-word-pointing-at-a-released-frame`, rank 2. DONE-WHEN `tasks/prolog_commit_over_retained_call.witness.sh` is red in both modes at 7a5aa2f9a (bad-link=2, answers right). Owed before STEP B. The cto's setup_call_cleanup witness (scripts/fixtures/) joins the retained-frame gate when the road is cured.
+  - **Icon H-form: RULED by the cto,** accepted on one condition: hq_zetas must confirm that callgen.act +8 is fixed per arm at emit time (asked by telegram). The layout change belongs to hq_zetas; the walker and the section 13 Icon text are mine.
+  - **Grow (deferred-call) frameless:** the ceo measured that no C function is on the road (rt_tiny_glue_enter is an asm trampoline). The class is the callee body's site rule 0. Logged on the Snocone frameless row. Cure: a body map, or the chain climbing the tge record (with hq_zetas).
+  - **NEXT:** the util_gc_census.py callbacks re-cut (still OWED: rt_chain_enter and rt_chain_enter_v are in the DECLARED set at lines 1620-1621); hq_zetas' YES, then the Icon walker; the commit-over-retained-call road; the rule-0 Grow road. Then STEP B.
+
 - **2026-10-09 ~18:1x CDT (hq_collector).** No new landing since `747f1637d`; investigations recorded in the baton ledger.
   - **consult_driver.pl (hq_snocone):** the crash is the map-less class-C SIG save area class, tolerated until STEP B. The chain side shows two roads not ready. First, Snocone functions called as deferred pattern elements (`*Grow(ch)`): 4,702 of 4,745 polls frameless in a minimal witness, entered from the C matcher. This is the ceo's claimed CEO-1576 row, and the witness has been sent there. Second, the run-time fragment class: the entry shape changed in landings 2 and 3, and the sites wait for those roads to settle.
   - **Icon off-chain:** a design was sent to the cto: `GC_LAY_PTR_FRAME_H` on the H-storing Icon arms, plus the PTR_CODE mislabel cure.
