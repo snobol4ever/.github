@@ -1804,3 +1804,6 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 - unlink (1169), link (1200). No walk.
 - 4. `scrip_co_gc_link` only chains the context onto `g_co_gc_head`; `rt_coexpr_gc_scan_states` visits each
 <!-- END-FOLDED-FROM: FINDING-2026-09-18-cfo-generator-staged-args-are-unvisited -->
+
+## LEDGER
+- [ceo 2026-10-10 11:1x CDT] /tmp SWEEP UNDER THE CEO-754 GRANT (Lon: *"Fix the /tmp disk problem."*): /tmp read 100% (60 of 63 GB); 42 GB was /tmp/claude-1000, the harness directories of the fourteen seats (session scratchpads, background-task outputs, subagent transcripts), 13 GB top-level scratch (verify_s_owed clones, mktemp dirs, 109 stale per-tree objdirs). Deleted on AGE ALONE over 48 h (cutoff 2026-10-08T11:07, absolute ISO): 7,247 entries, FREED 26,571 MB; /tmp at 50% after. The instrument is `.github/scripts/util_tmp_sweep_48h.sh` (dry-run arm; fails closed without a cutoff; a cron line in its header for Lon).
