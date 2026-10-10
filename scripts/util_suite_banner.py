@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """THE SUITE BANNER — one compressed line per turn, driven by /home/resources/progress/SUITES.tsv (the machine record of SCORE.md § THE SUITE TABLE).
-usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--check] [--render --only KEY | --render --all-rows] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason'] [--excluded N]]
+usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--check] [--render --only KEY | --render --all-rows] [--set KEY PASS TOTAL [DATE] [TREE] [--criterion-changed 'YYYY-MM-DD:reason'] [--secs N] [--excluded N]]
   (no args)  print the banner as an aligned GRID (Lon 2026-09-06): header with the suite count and how many are done, then 3 columns x N rows of cells: nick pass/total left state emoji
   --line     the one-line form (cells joined by │)
   --plain    no ANSI colour
@@ -430,7 +430,8 @@ def md():
         # the CEO-1286 shape (Lon 2026-09-26): EXCLUDED=k, the programs NOT IN THE SPITBOL DIALECT the denominator leaves out, from the
         # row's own today_excluded column (set by --set ... --excluded k), shown whenever the column carries a count, zero included.
         _ex=(r.get('today_excluded') or '').strip()
-        _res=f"{r['today_pass']}/{r['today_total']}" + (f" EXCLUDED={_ex}" if _ex.isdigit() else "") + (f" OUTSIDE={_ot[-1]}" if _ot else "")
+        _ws=(r.get('today_secs') or '').strip()
+        _res=f"{r['today_pass']}/{r['today_total']}" + (f" EXCLUDED={_ex}" if _ex.isdigit() else "") + (f" OUTSIDE={_ot[-1]}" if _ot else "") + (f" WALL={_ws}s" if _ws.isdigit() else "")
         print(f"| {r['nick']} | {r['lang']} | {_res} | {r['today_date']} | `{r['tree']}` | {tail} |")
 # a scratch TSV keeps its scratch SCORE.md beside it (a fixture that redirects the record redirects the render with it); the real record
 # renders into the .github beside this script
@@ -520,6 +521,14 @@ def render_table(only_key=None):
     if changed==0: return "suite table: SCORE.md § THE SUITE TABLE already matches SUITES.tsv (0 rows changed)%s" % scope
     L[st:en]=new; open(SCORE,'w',encoding='utf-8').write('\n'.join(L))
     return f"suite table: SCORE.md § THE SUITE TABLE re-rendered from SUITES.tsv in the same call ({changed} row(s) changed){scope}"
+def wall(r):
+    """The grid's Wall cell: the row's today_secs (CEO-1562) as 95s, 24m36s or 1h08m; blank when the row carries no reading of it."""
+    v=(r.get('today_secs') or '').strip()
+    if not v.isdigit(): return ""
+    n=int(v)
+    if n<60: return f"{n}s"
+    if n<3600: return f"{n//60}m{n%60:02d}s"
+    return f"{n//3600}h{(n%3600)//60:02d}m"
 def grid(plain=False):
     """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "And a grid of the test suite
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
@@ -546,7 +555,7 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError):
             _t=(r.get('today_total') or '').strip()
-            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", (r.get('today_excluded') or '').strip() or "", "-", "NO READING"]); continue
+            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"]); continue
         # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
         # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
         # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
@@ -558,11 +567,11 @@ def grid(plain=False):
             pct=f"{pv}%"
         # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
         # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the rung suites).
-        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, "DONE" if tt and tp>=tt else ""])
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, wall(r), "DONE" if tt and tp>=tt else ""])
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Lang","Suite","Pass","Total","Excl","Pct","State"]
+    hdr=["Lang","Suite","Pass","Total","Excl","Pct","Wall","State"]
     cols=len(hdr)
     # ⭐ ONE EXTRA COLUMN OF ROOM PER CELL (Lon 2026-09-13: "Give one extra space in each column to give room
     # to breath."). Added to the WIDTH, so the rules that span each column widen with it and the box still
@@ -570,7 +579,7 @@ def grid(plain=False):
     # right of a left-justified name -- which is why this is one number here and not a space glued onto a cell.
     w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) + 1 for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
-    NUM={2,3,4,5}   # Pass, Total, Excl, Pct -- the numeric cells, right-justified; Lang/Suite/State stay left.
+    NUM={2,3,4,5,6}   # Pass, Total, Excl, Pct, Wall -- the numeric cells, right-justified; Lang/Suite/State stay left.
     def line(cs, hdr_row=False):
         # ⭐ THE EXTRA COLUMN IS A TRAILING SPACE ON EVERY CELL, not slack handed to the justifier. Give it to
         # rpad() instead and a right-justified number lands FLUSH AGAINST THE RIGHT BORDER with the gap on its
@@ -580,7 +589,7 @@ def grid(plain=False):
             j = rpad if (c in NUM and not hdr_row) else pad
             return j(cs[c], w[c]-1) + " "
         return "\u2502" + "\u2502".join(cell(c) for c in range(cols)) + "\u2502"
-    done=sum(1 for r in data if r[6]=="DONE")
+    done=sum(1 for r in data if r[7]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
     print(line(hdr, hdr_row=True))
     print(rule("\u251c","\u253c","\u2524"))
@@ -818,6 +827,15 @@ def main(a):
             if len(a)<=j+1 or not re.match(r'^\d+$', a[j+1]):
                 sys.stderr.write("REFUSE(rc=2): --excluded takes a count\n"); sys.exit(2)
             excluded=a[j+1]; a=a[:j]+a[j+2:]
+        # ⭐ --secs N (Lon 2026-10-08, in-chat to the ceo: "List in a grid the total time for each test suite to run."; CEO-1562): the run's
+        # wall clock in seconds, from the runner's own start (util_score_row.py reads S4E_RUN_T0, stamped by one_runner_guard) to its row
+        # write, written to the today_secs column (added on first use, as today_excluded was) and shown as WALL= and in the grid's Wall column.
+        secs=None
+        if '--secs' in a:
+            j=a.index('--secs')
+            if len(a)<=j+1 or not re.match(r'^\d+$', a[j+1]):
+                sys.stderr.write("REFUSE(rc=2): --secs takes a whole number of seconds\n"); sys.exit(2)
+            secs=a[j+1]; a=a[:j]+a[j+2:]
         i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else box_clock_day().isoformat(); tree=a[i+5] if len(a)>i+5 and not a[i+5].startswith('-') else None
         # ⛔ A READING CANNOT BE GRADED TOMORROW (CEO-1229): a DATE later than the box-clock day is refused before a byte moves, naming
         # the key, the date and the day, so the writer that computed its day in another zone is found by the refusal on its next run.
@@ -852,6 +870,11 @@ def main(a):
                 head.append('today_excluded')
                 for x in rows: x.setdefault('today_excluded','')
             r['today_excluded']=excluded
+        if secs is not None:
+            if 'today_secs' not in head:
+                head.append('today_secs')
+                for x in rows: x.setdefault('today_secs','')
+            r['today_secs']=secs
         if stamp:
             cur=(r.get('criterion_changed') or '').strip()
             # ⛔ THE SAME STAMP TWICE SAYS NOTHING NEW (the coo 2026-10-10): a runner that names its standing move on every write (INRIA's
