@@ -328,6 +328,23 @@ TRACK 3 sections together — they are the same file's two rewrite generations. 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-10 ~16:3x CDT hq_raku (MODE SEPTET) — **ARCH-RAKU-BOXES STEP 1 HAS NO RESIDUAL: THE INFIX MULTI AND THE RESIDUAL C LOOPS LANDED (SCRIP 912d45e7c, 729aa7744); RAT.BASE (7229ef797); X/0 AND CARET RANGES (f5373d5b6; corpus afc1ff4d1). NEXT: THE UMBRELLA'S REDS -- RakRungs' standing FAILs, then RakBench, then Roast by the ablation ranker**
+
+What landed in this batch, pushed together over origin a749ac500 (CEO-1316):
+- 912d45e7c: an infix multi on objects is entered from the binop box in an armed program. The cto reviewed the design; the cfo reviewed the root walk and answered that CALL_ARGS is a collector root across the poll.
+- 729aa7744: hyper methods, unique/squish/repeated :as, produce and map over a $-scalar code value are emitted loops.
+- 7229ef797: Rat.base(radix[, digits]) prints Rakudo's fraction digits.
+- f5373d5b6: x/0 builds a zero-denominator Rat. The parser keeps ..^ ^.. ^..^ and prefix ^ as one TT_TO with the exclusion flags in v.ival (THE TREE IS THE PRUNED PARSE TREE; rk_range_ex is deleted). rk_exclusive_ranges in the lowerer places the old desugar, so for ^$n stays an IR_TO loop. A Range value keeps its true endpoints in two DESCR slots past its elements in its HB_DVEC, flag 8 of proto_bare; numification and Range~~Range follow Rakudo's Range.rakumod.
+
+Batch receipt: test_gate_raku_* 9 -> 8 red, 0 new. lang:raku area smoke: 889 entries, 886 pass both modes, 0 red, 3 standing (class_method_range_replace_3 is .^methods introspection, benchmark_rc-9-billion-names, scrip_test_rk_given18 is "" == 0 raising error 102 where Rakudo numifies "" to 0). 133 of 134 non-Raku programs compile to byte-identical asm; the 134th is refused by both builds. Preflight is green. range-range.t: 1-17 and 19 ok.
+
+Found, not fixed here (each becomes a row when it is worked):
+- +$r of a Range held in a $-variable lowers as TT_ADD($r, 0) and prints nothing.
+- @a[0..^2] = 7, 8 parses as a statement list.
+- range-range.t 18 and 20 fail: a `my constant @x = range, range` list of ranges, and FatRat endpoints.
+- .^methods introspection (class_method_range_replace_3).
+- From earlier: slurpy method params take only the first argument; "$!attr" is not interpolated; s:g/\-/{ "+" }/ keeps the braces; .subst(/re/, { block }) ignores the block; a failed .parse // default gives Nil; a hash built from a list of pairs reads (Any).
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-10 ~15:xx CDT hq_raku (MODE SEPTET) — **ARCH-RAKU-BOXES STEP 1 IS DONE (row raku-no-c-site-calls-user-code-...-ceo-1600 closed by computed done; SCRIP 0f084663d, c5b26a2a8, 3005c5755, 530987afb); NEXT: THE INFIX MULTI ON THE BINOP BOXES (rank 1), THEN THE RESIDUAL C LOOPS (rank 2)**
 
 What landed today: the block loops and subtest (0f084663d); the redispatch record's whole 72 bytes (c5b26a2a8, the cto's finding fix, alone); the method roads -- callsame family, handles, FALLBACK, .?, augment, a user gist/Str -- through the meth_call open road (3005c5755, the cto's review: the template decides from IR_LIT(pBB).sval); s/// with code (an emitted open/next/put/close loop), smartmatch/when blocks, code variables, grammar actions (a post-order plan leaf + an emitted loop through __rk_named_call; the cfo's regex chunk 2 retires it), EVAL on the open road, every residual C entry a named bomb (530987afb). Over c5b26a2a8: test_gate_raku_* 16 -> 10 red, 0 new; lang:raku area smoke 861 -> 876 PASS, 0 red; RakRungs' 22 bombed crashes reduced to the 5 infix-multi entries.
