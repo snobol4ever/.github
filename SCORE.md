@@ -23,9 +23,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Roast | raku | 161/1464 | 2026-10-09 | `cffeedb19` |  |
 | SnoRungs | snobol4 | 1980/1980 EXCLUDED=0 | 2026-10-09 | `fcff46d90` | done |
 | IcnRungs | icon | 904/904 | 2026-10-09 | `fcff46d90` | done |
-| ProRungs | prolog | 563/563 | 2026-10-10 | `8f5f2f7ac` | done |
+| ProRungs | prolog | 563/563 | 2026-10-10 | `12ba0444e` | done |
 | PasRungs | pascal | 252/252 | 2026-10-09 | `fcff46d90` | done |
-| RakRungs | raku | 947/984 | 2026-10-10 | `8f5f2f7ac` | 26 xfail counted as FAIL of a 37-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| RakRungs | raku | 963/984 | 2026-10-10 | `4efea35d5` | 26 xfail counted as FAIL of a 21-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | SncRungs | snocone | 338/338 | 2026-10-09 | `fcff46d90` | done |
 | SncBench | snocone | 23/23 | 2026-10-09 | `fcff46d90` | done |
 | RebRungs | rebus | 43/43 | 2026-10-09 | `fcff46d90` | done |
@@ -36,7 +36,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | IcnBench | icon | 26/26 | 2026-10-09 | `fcff46d90` | done |
 | ProBench | prolog | 23/23 | 2026-10-10 | `12ba0444e` | done |
 | PasBench | pascal | 11/11 | 2026-10-09 | `fcff46d90` | done |
-| RakBench | raku | 70/84 | 2026-10-10 | `8f5f2f7ac` |  |
+| RakBench | raku | 72/84 | 2026-10-10 | `12ba0444e` |  |
 | RebBench | rebus | 3/3 | 2026-10-09 | `fcff46d90` | done |
 | SnoDemo | snobol4 | 24/24 | 2026-10-09 | `fcff46d90` | done |
 | SncDemo | snocone | 23/23 | 2026-10-09 | `fcff46d90` | done |
@@ -46,7 +46,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasRosetta | pascal | 30/664 EXCLUDED=0 | 2026-10-09 | `d4fa381f8` |  |
 | ProRosetta | prolog | 36/786 EXCLUDED=0 | 2026-10-10 | `8f5f2f7ac` |  |
 | ProPuzzles | prolog | 2/10 EXCLUDED=250 | 2026-10-10 | `12ba0444e` |  |
-| TreallaTests | prolog | - (no reading yet) | never graded | - | NO READING YET: ROW-OPENED-UNGRADED by the coo: hq_pascal's TreallaTests package, corpus b5942d9f3 (CEO-1595), 456 shipped = 329 graded + 125 UNGRADABLE + 2 UNGRADED, refs swipl -q 9.0.4's; the runner test_prolog_trealla_suite.sh; the coo grades it at pass 47 - a population with no grader is a debt on the board, never an absence from it |
+| TreallaTests | prolog | 208/456 EXCLUDED=0 | 2026-10-10 | `7a53b1e1d` |  |
 | PasDemo | pascal | 1/4 | 2026-10-10 | `12ba0444e` |  |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 
