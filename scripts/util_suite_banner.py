@@ -851,7 +851,15 @@ def main(a):
             r['today_excluded']=excluded
         if stamp:
             cur=(r.get('criterion_changed') or '').strip()
-            r['criterion_changed']=(cur+' | '+stamp) if cur else stamp
+            # ⛔ THE SAME STAMP TWICE SAYS NOTHING NEW (the coo 2026-10-10): a runner that names its standing move on every write (INRIA's
+            # 2026-09-23 file_manip stamp, test_prolog_inria_suite.sh) appended it once per pass, and the inria cell carried the one
+            # sentence 28 times. A stamp equal to the one before it is collapsed into it, so the cell keeps one copy and heals on its
+            # next stamped write; the read-back (util_score_row.py: the cell ends with the stamp forwarded) holds, and a different
+            # stamp still appends.
+            parts=[x for x in cur.split(' | ') if x] if cur else []
+            parts=[x for i,x in enumerate(parts) if i==0 or x!=parts[i-1]]
+            if not parts or parts[-1]!=stamp: parts.append(stamp)
+            r['criterion_changed']=' | '.join(parts)
         before=open(TSV,encoding='utf-8').read()
         save(head,rows)
         try:
