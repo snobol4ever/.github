@@ -50,13 +50,15 @@ The law stands as written (RULES.md § LOGIC LIVES IN EMITTED BOXES, NOT IN C; �
 
 LARGE CHUNKS applies to each step: the scheme built whole, rolled out to one construct with its smoke (RakRungs entries of that feature through the area smoke), then everywhere the scheme governs in hq_raku's lane, then Lon's ultracode. The DONE-WHEN of each row is a fixed witness equal to rakudo in both modes plus the census that the retired C road is gone — never a count alone.
 
-## 5. The rows (minted 2026-10-10, CEO-1600, hq_raku's lane)
+## 5. The rows (minted 2026-10-10, CEO-1600; the two rewrites to the officers at CEO-1601, Lon: *"Both CTO and CFO are seated as Fable 5.1 with xhigh effort."* after *"Are they working on the hardest problems?"*)
 
-| row | rank | witness |
-|---|---|---|
-| `raku-no-c-site-calls-user-code-the-21-rt-call-proc-descr-roads-become-open-roads-or-emitted-loops-ceo-1600` | 1 | six programs (sort comparator, reduce, first, s/// with code, grammar actions, smartmatch against a block) equal to rakudo in both modes; the no-`rq` census 0 |
-| `raku-gather-take-and-the-sequence-operator-are-lazy-generator-boxes-with-no-cap-ceo-1600` | 2 | an infinite `gather` under `.head`, `(1 ... *)[5000]`, a lazy `map` over an infinite source — equal to rakudo in both modes |
-| `raku-regex-and-grammars-are-emitted-byrd-boxes-and-the-rx-c-interpreter-retires-ceo-1600` | 2 | regex witnesses equal to rakudo in both modes and no `re_match`/`re_matchx` call in the witness's `.s` |
-| `raku-method-dispatch-is-resolved-or-tabled-never-a-strcmp-chain-ceo-1600` | 3 | a string-method witness's `.s` carries no `rt_str_method` call and answers as rakudo |
+| row | seat | rank | witness |
+|---|---|---|---|
+| `raku-no-c-site-calls-user-code-the-21-rt-call-proc-descr-roads-become-open-roads-or-emitted-loops-ceo-1600` | hq_raku (ASSIGNED) | 1 | six programs (sort comparator, reduce, first, s/// with code, grammar actions, multi methods) equal to rakudo in both modes; the `rt_call_proc_descr` census 0 |
+| `raku-gather-take-and-the-sequence-operator-are-lazy-generator-boxes-with-no-cap-ceo-1600` | the cto, after attributed variables | 2 | `(1 ... *)[5000]`, an infinite `gather` under `.head(3)`, a lazy `map`/`grep` chain and `is-lazy` — equal to rakudo in both modes |
+| `raku-regex-and-grammars-are-emitted-byrd-boxes-and-the-rx-c-interpreter-retires-ceo-1600` | the cfo, after SSU | 2 | regex and grammar witnesses equal to rakudo in both modes and no `re_match`/`re_matchx`/`grammar_parse_core` name in the witnesses' `.s` |
+| `raku-method-dispatch-is-resolved-at-compile-time-or-tabled-never-a-strcmp-chain-ceo-1600` | hq_raku | 3 | untyped sub parameters calling string and list methods answer as rakudo and the `.s` carries no by-name dispatch call (`rt_call_arr_bl`, `rt_call_arr_bl_try`, `rt_str_method`, `rk_list_more_methods`; 16 today) |
+
+Every criterion was run red once at mint (the first three after a re-cut: rakudo refuses a one-line grammar or class, the `s///` closure is `{ }`, and the first dispatch witness typed its receivers so the lowerer already resolved it — a criterion that reads green is a false criterion). The officers tell hq_raku before each Raku landing; the roll-out of each rewrite lands in the Raku lane under LARGE CHUNKS.
 
 Existing hq_raku rows that these umbrellas absorb when they close: `raku-a-tweak-or-build-submethod-is-entered-from-c-by-new-the-non-tail-c-to-bb-road-ceo-1540`, `raku-a-sub-held-in-a-list-answers-dot-parens`, `raku-infinite-and-whatever-ended-ranges-are-lazy`, `raku-the-sequence-operator-with-a-generator-and-an-endpoint`, `raku-the-sequence-and-function-composition-need-closures`, `raku-grammars-proto-token-token-rule-and-from-json-on-them`, `raku-regex-and-type-objects-are-typed-values-not-prefix-byte-strings`, `raku-smartmatch-against-a-junction-collapses-it`, `raku-emitter-smx-coverage`. GOAL-RAKU-100.md's Seq four-port design (lines 104–111, 191–193, 225–238) named files that do not exist (`bb_rk_seq/jct/nfa_*.cpp`, `emit_core.c`); this page is the design of record and that text is history.
