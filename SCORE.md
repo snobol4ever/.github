@@ -22,7 +22,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PAT | pascal | 427/427 OUTSIDE=0 WALL=38s | 2026-10-11 | `342a17f55` | done |
 | Roast | raku | 180/1464 WALL=3297s | 2026-10-11 | `342a17f55` |  |
 | SnoRungs | snobol4 | 1980/1980 EXCLUDED=0 WALL=207s | 2026-10-11 | `765ce1154` | done |
-| IcnRungs | icon | 904/904 WALL=71s | 2026-10-11 | `342a17f55` | done |
+| IcnRungs | icon | 904/904 WALL=221s | 2026-10-11 | `342a17f55` | done |
 | ProRungs | prolog | 563/563 WALL=203s | 2026-10-11 | `765ce1154` | done |
 | PasRungs | pascal | 252/252 WALL=39s | 2026-10-11 | `342a17f55` | done |
 | RakRungs | raku | 965/984 WALL=264s | 2026-10-10 | `08c00e5b4` | 3 xfail counted as FAIL of a 19-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
