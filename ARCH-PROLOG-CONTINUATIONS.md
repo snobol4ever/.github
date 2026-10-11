@@ -1,6 +1,6 @@
 # ARCH-PROLOG-CONTINUATIONS — reset/3 and shift/1 as one-shot coroutines (cto, 2026-10-11, DRAFT FOR REVIEW)
 
-Row: `prolog-swi-delimited-continuations-reset-3-and-shift-1-51-swi-cases` (cto, rank 2; 51 SWI cases, `core/test_continuation.pl` 1 of 52). Status: **design out for review** — hq_zetas (stacks), hq_collector (the collector), hq_prolog (the Prolog runtime and prelude). Nothing is built.
+Row: `prolog-swi-delimited-continuations-reset-3-and-shift-1-51-swi-cases` (cto, rank 2; 51 SWI cases, `core/test_continuation.pl` 1 of 52). Status: **design out for review** — hq_prolog answered § 3 and § 4 (2026-10-11, folded in below); hq_collector (§ 5) and hq_zetas (§ 6) outstanding. Nothing is built.
 
 ## 1. What SWI means, and what the corpus asks for
 
@@ -34,14 +34,24 @@ shift(X)   :- '$co_yield'(shift, X).
 
 (The status fail ends the coroutine and makes `'$co_run'/4` fail; `reset/3` and `'$cont'/1` then fail with it.)
 
+The prelude selector pulls the `$`-prefixed helpers (`'$co_body'/1`, `'$reset_k'/5`, `'$reset_redo'/3`, `'$cont'/1`, `'$cont_k'/3`) through `reset` and `shift` with `pl_cv_add`, as `display` and `write_canonical` pull theirs (hq_prolog's review).
+
 - **`reset('$cont'(H), B, C)` re-uses `H`**: the shift inside `H` yields to whoever activated it last, so a continuation resumed by a new `reset/3` needs no new thread. A `reset/3` whose goal is a `'$cont'/1` term takes the `'$co_run'` road on `H` directly (one clause of `reset/3` before the general one). Threads are one per original reset goal, not one per resume: `with_list` and the iterators stay at one coroutine.
 - **The redo mark is the yield, not the entry**: the disjunction in `'$reset_k'` takes its choice point after `'$co_run'` returns, so a redo undoes only the outer's bindings since the yield, then `retry` makes `'$co_yield'` fail inside `H` and `H` undoes its own bindings down to its youngest choice. Undoing to the mark at `reset/3`'s entry would also undo the bindings `H` made before its own choice point, which that choice point's alternatives assume.
 - **One-shot is enforced**: `H` carries a resume generation; a `'$cont'(H)` or a redo whose generation is stale raises a named error (`permission_error(resume, continuation, ...)`), never a resume.
 - **A shift outside any reset** raises `existence_error(reset, ...)` as SWI does (the leaf finds no Prolog activator).
 
-## 4. The register handover (the part that needs hq_zetas and hq_prolog)
+## 4. The register handover (hq_prolog reviewed it 2026-10-11; the answer, re-measured on SCRIP 966109bb9)
 
-One trail, time-ordered: the coroutines alternate strictly, so the r12 island stays a single LIFO stack. At every switch the leaf syncs the leaving side's r12 into the island header (`x86_pl_tr_top_sync`'s word) and the arriving side reloads r12 from it; the bump frontier `rbx` and the ball `r15` hand over the same way; r13 (the youngest choice), rbp and rsp stay per side. The five leaves are ctx leaves (`pl_tr_ctx_t`: tr, b, ball, rbx, r14, r15), so the handover is the cx write-back the emitted wrapper already does after a ctx leaf returns. **Question to hq_prolog:** is every Prolog register that must cross the switch in `pl_tr_ctx_t`, and does the wrapper reload all of them from cx after the leaf?
+One trail, time-ordered: the coroutines alternate strictly, so the r12 island stays a single LIFO stack. What crosses a switch:
+
+- **r12 (the trail top) crosses through `cx->tr`.** The leaving leaf copies its `cx->tr` into a word of the handle `H`; the arriving side's blocked leaf (`'$co_run'` or `'$co_yield'`, returning) copies that word into its own `cx->tr`, and its wrapper reloads r12 from `[rsp + CTX_TR]`, which every ctx wrapper in `rtx_plunify.s` already does. The handle's word, not an island header word.
+- **rbx crosses nothing.** Emitted Prolog never names rbx (0 of the 72,766 lines of a compiled witness's `.s`), and RULES.md's *rbx IS SCRATCH* (Lon) has the bump load the frontier into rbx with rbx dead at the end of the sequence: the frontier lives in memory and both sides read the same word. The draft's "the bump frontier rbx hands over" was wrong and is withdrawn.
+- **r15 (the ball) is 0 on both sides at every switch.** `'$co_run'` and `'$co_yield'` are entered at a call port, where no ball is in flight; a throw inside `G` is caught by `'$co_body'`'s `catch/3` and crosses as the `(throw, E)` status pair, re-thrown by the prelude on the arriving side. SysV's restore of the callee-saved r15 is therefore the right value, and the island's ball slot (one island, shared) is 0 too.
+- **The raising leaves take the ball road that exists.** The stale-resume `permission_error` and the shift-without-reset `existence_error` are raised by a leaf, so the five leaves are `PL_CTX_LEAF_BALL` instances (`CTX_BALL` zeroed before the call, armed from rcx after): no new wrapper, the hot generic `PL_CTX_LEAF` untouched, `rtx_plunify.s` gains five instantiation lines beside hq_runtime's veneer re-landing in the same file.
+- **r13, rbp and rsp stay per side; r14 (the standing root) is the creator's on both.** The coroutine starts at r13 = 0 and `PL_U_TRAIL` trails nothing while r13 is 0, so `'$co_body'`'s first act is its barrier choice (the disjunction around `call(G)`): every binding `G` makes is made under a coroutine choice point. Measured at the build, not assumed: a reset goal that binds a variable of the reset caller's frame and then fails back into a caller choice point must see the binding undone in both modes.
+
+hq_prolog measured the generic wrapper reloading only r12 and `CTX_BALL` left unzeroed on that road, and proposed a `PL_CTX_SWITCH_LEAF` reloading r12, rbx and r15 from cx; re-measured, rbx and r15 need no reload and the ball road is `PL_CTX_LEAF_BALL`'s.
 
 ## 5. The collector (the part that needs hq_collector)
 
