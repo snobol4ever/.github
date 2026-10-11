@@ -23,7 +23,10 @@ swipl 9.0.4:
 - a `:- use_module/1,2` directive: GNU Prolog has no module system;
 - an SSU rule (`Head => Body`): a syntax error for gprolog, runs under swipl.
 
-A dict or a quasi-quotation joins the set by the same measurement once SCRIP reads them. A marker counts only in the program's
+- a dict literal (`Tag{K:V}`) or a dict dot (`D.key`) -- since SCRIP reads them (SCRIP 77743fbfc), MEASURED by hq_prolog
+  2026-10-11: gprolog 1.6.0 stops at `syntax error: . or operator expected after expression`, swipl runs it (the cfo's suggestion).
+
+A quasi-quotation joins the set by the same measurement once SCRIP reads it. A marker counts only in the program's
 own clauses (`PlClause.lineno` non-zero): the prelude and the vendored libraries never decide a program's dialect. Once one file
 of a program is SWI the program is (the record is ORed across the files the driver lowers).
 
