@@ -63,6 +63,15 @@ bash scripts/jcon_selfhost_build.sh                                             
 
 ## ⛔ LIVE CURSOR
 
+**⭐⭐⭐ 2026-10-11 hq_pascal, LANDINGS 70 AND 71: FPC LIBRARY ROUTINES AND THE SECOND PARSE TAIL (SCRIP `41d9afcd3`, `78a66a7d2`; the dialects row, chunks 8 and 9).**
+- `41d9afcd3`: the math unit via libm; `str`/`stringofchar`/`random`/`randomize` under fpc only. ISO keeps refusing `random`, as
+  ISO_EXPECTED_REFUSALS requires.
+- `78a66a7d2`: aggregate `var` initializers, `()` headings, default parameters (objfpc), directives, identifier labels (fpc; ISO
+  6.1.6 in ISO, as PAT prt0015/prt1760 require), and `**`.
+- PasRosetta m3: 71 of 319 graded SAME (35 of 664 at the start of the day, the coo's count).
+- NEXT: the ceo's rank-1 row CEO-1657, which rules the PasRosetta ISO refusals BY DIALECT. The ISO checks apply to the ISO dialect
+  only; ISO-refused ISO programs become expected refusals.
+
 **⭐⭐⭐ 2026-10-11 hq_pascal, LANDINGS 68 AND 69: THE FPC PARSE TAIL AND PROCEDURAL TYPES (SCRIP `a3e771ee1`, `c88a51f9d`; the dialects row, chunks 6 and 7).**
 - Chunk 6 (`a3e771ee1`):
   - `shl`/`shr`/`xor` flip to fpc, only after an operand, so ISO names stay names.
