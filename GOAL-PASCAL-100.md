@@ -63,6 +63,16 @@ bash scripts/jcon_selfhost_build.sh                                             
 
 ## ⛔ LIVE CURSOR
 
+**⭐⭐⭐ 2026-10-11 hq_pascal, LANDINGS 66 AND 67: PASDEMO'S PRETTYP CURED, AND DYNAMIC AND OPEN ARRAYS, CONST AND OUT PARAMETERS (SCRIP `6eda0b182`, `b2a65df31`; corpus `e6864d1b8`).**
+- `6eda0b182`: a char-array field passed to a `var` parameter is copied in and out; an ISO heading text file carries its heading
+  position through `var` parameters.
+- Corpus `e6864d1b8` repairs prettyp's own 6.6.6.4 PRED error (the fpc output is identical to the ref). prettyp is SAME in both modes
+  and waits on the coo's next PasDemo pass for 8/8.
+- `b2a65df31` (chunk 5): `array of T`, `setlength`, `length/low/high`, open-array formals, `const`, and `out` (flips to objfpc).
+  PasRosetta +4.
+- OPEN, asked of the cfo: PasRosetta's 69 programs refused by 6.2.1 and 28 by 6.1.7 under CEO-1225 can never match their dialect refs.
+- NEXT: the parse-error tail (shr/shl/xor, procedural types, bound expressions, default parameters).
+
 **⭐⭐⭐ 2026-10-11 hq_pascal, LANDINGS 64 AND 65: WHAT fpc -Miso ACCEPTS BEYOND ISO ANSWERS AS fpc, AND AN ARRAY OF ARRAYS HOLDS REAL ROWS (row pascal-dialects-...-ceo-1614; SCRIP `dcfaf67ba`, `515fb5622`).**
 - Chunk 4 (`dcfaf67ba`):
   - The constructs: `+= -= *= /=`, `f()` and `writeln()` with an empty argument list, `break` and `continue`, `ansichar`, constant
