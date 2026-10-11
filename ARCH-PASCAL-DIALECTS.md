@@ -11,7 +11,7 @@
 | **ObjFPC** | `objfpc` | classes with inheritance, virtual and abstract methods, constructors and destructors, `self`, properties, `is`/`as`, exceptions (`try`/`except`/`finally`/`raise`), dynamic and open arrays with `SetLength`/`High`/`Low`, overloading, default parameters, `AnsiString`, `for … in` | `fpc -Mobjfpc` |
 | **Delphi** | `delphi` | ObjFPC's set under Delphi's rules: `string` is `AnsiString`, `Result`, no `@` needed for procedure variables, `Exit(v)`, class helpers, interfaces, generics and anonymous methods as fpc's Delphi mode accepts them | `fpc -Mdelphi` |
 
-A program's dialect DECIDES ITS ORACLE, never the reverse: PasRosetta already cut 203 refs under `iso`, 92 under `fpc`, 23 under `objfpc`, 1 under `delphi` (`ALL.dialect`), and a program compiles under no mode stays debt.
+A program's dialect DECIDES ITS ORACLE, never the reverse: PasRosetta's refs were cut in 101 programs under `iso`, 91 under `fpc`, 66 under `objfpc`, 61 under `delphi` (`ALL.dialect`, corrected 2026-10-11 by hq_pascal: it names the mode fpc compiled in, since a source's own `{$mode X}` overrides `-Miso` -- 102 entries had read `iso` by the rung's name), and a program compiles under no mode stays debt.
 
 ## 2. The switch — one per program, set early, tested everywhere
 
