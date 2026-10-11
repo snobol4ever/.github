@@ -297,7 +297,11 @@ def xfail_by_lang(lang):
     if lang in _XF_CACHE: return _XF_CACHE[lang]
     import csv as _csv, glob as _glob
     # a scratch record finds the scratch corpus beside it; the real record (no longer in a root) reads this root's corpus
-    base = os.path.dirname(os.path.abspath(TSV)) if os.environ.get('S4E_SUITES_TSV') else os.path.join(HERE, '..')
+    # ⛔ THE REAL RECORD NAMED BY PATH IS STILL THE REAL RECORD (the coo 2026-10-11): util_score_row.py passes S4E_SUITES_TSV on every write, the
+    # real one included, and the corpus was then sought beside /home/resources/progress -- every rung row it wrote rendered "xfail unreadable"
+    # (five of pass 48's, the --check disagreement). Only a record somewhere else is a scratch record.
+    _scratch = os.environ.get('S4E_SUITES_TSV') and os.path.abspath(TSV) != os.path.abspath(os.path.join(SUITES_HOME, 'SUITES.tsv'))
+    base = os.path.dirname(os.path.abspath(TSV)) if _scratch else os.path.join(HERE, '..')
     d = os.path.join(base, '..', 'corpus', 'tests', lang)
     d = os.path.normpath(d)
     if not os.path.isdir(d):
