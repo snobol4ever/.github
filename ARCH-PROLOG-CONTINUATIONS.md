@@ -1,6 +1,6 @@
 # ARCH-PROLOG-CONTINUATIONS — reset/3 and shift/1 as one-shot coroutines (cto, 2026-10-11, DRAFT FOR REVIEW)
 
-Row: `prolog-swi-delimited-continuations-reset-3-and-shift-1-51-swi-cases` (cto, rank 2; 51 SWI cases, `core/test_continuation.pl` 1 of 52). Status: **design out for review** — hq_prolog answered § 3 and § 4, hq_collector § 5 (2026-10-11, folded in below); hq_zetas (§ 6) outstanding, queued behind its CEO-1682 class-one measurement and free to veto at review. Nothing is built.
+Row: `prolog-swi-delimited-continuations-reset-3-and-shift-1-51-swi-cases` (cto, rank 2; 51 SWI cases, `core/test_continuation.pl` 1 of 52). Status: **design out for review** — hq_prolog answered § 3 and § 4, hq_collector § 5 (2026-10-11, folded in below); § 6 was answered by construction: no new `scrip_coexpr_create` mode is needed (§ 8). **BUILT and LANDED at SCRIP `1e3b157b5`** (2026-10-11): § 8 records what the build changed against §§ 3–6.
 
 ## 1. What SWI means, and what the corpus asks for
 
@@ -63,10 +63,21 @@ A parked Prolog coroutine's stack holds mapped Prolog frames, parked inside a C 
 - **The handle is not a root and needs none.** Every live context is on `g_co_gc_head` from creation to `scrip_coexpr_destroy`, and each parked context is walked as a segment whatever the heap reaches. `H` in `'$cont'(H)` is a `DT_CO` descriptor whose pointer is the context (ct_alloc'd, outside the heap), which `gc_blk_of` skips: no new visitor.
 - **An abandoned continuation is a leak, not a break**: its context stays on the list and every collection walks its frames (a per-collection cost, a thread and a stack mapping). A leak row once the build is on origin, with a loop-of-abandoned-iterators witness; hq_collector offers an end-of-collection hook over the handles if reclamation is wanted.
 
-## 6. The stacks (the part that needs hq_zetas)
+## 6. The stacks (the part that needed hq_zetas — moot as built, § 8)
 
 `scrip_coexpr_create` snapshots the creator's frame image for Icon. `'$co_new'` must not: the body is a fresh entry of `'$co_body'/1` with `G` as its one argument and no inherited frame. **Question to hq_zetas:** the thread's first entry into emitted code is the sanctioned program-first-style entry the Icon trampoline uses; is a new `scrip_coexpr_create` mode with `frame_bytes = below = 0` and a Prolog entry package (r12 from the header, r13 0, rbx from the frontier) the right road, or is there a better one?
 
 ## 7. Order of build (LARGE CHUNKS)
 
 Whole: the five leaves, the prelude, the one-shot guard, the handover, the registered start stub (the collector's park record is hq_collector's half). Small roll-out: the row's witness and `test_continuation.pl` in both modes, smoked under `SCRIP_GC_STRESS=1 SCRIP_GC_CHAIN_CHECK=3`. Then the other reset/3 users in the SWI suite. Verified per landing by the row's DONE-WHEN and `test_feature_reps.sh prolog` over the features the attribute table names for meta-calls and catch.
+
+## 8. As built (SCRIP `1e3b157b5`, cto 2026-10-11; shelf `retired/cto-continuations-wip-2026-10-11`)
+
+- **The genp road, not a new create mode (§ 6).** `'$co_start'` runs `'$co_body'(G)` through the EXISTING generator-procedure coroutine start (`rt_pl_goal_gen_h_c` → `rt_proc_call_gen_h`): the body is a fresh call of a compiled predicate on a coroutine's own stack, which is what § 6 asked for, and the Icon frame snapshot never enters. hq_zetas's question needs no answer.
+- **Seven leaves, not five.** `$co_start/4`, `$co_resume/5`, `$co_yield/2`, `$co_unwound/2`, `$co_finish/2` switch stacks and run on a FRAMED thunk (`PL_CTX_SWITCH_LEAF` in `rtx_plunify.s`: `push rbp`, so a coroutine parked inside the thunk reads right on the rbp chain); `$co_mark/0` (the body records its trail base) and `$co_inside/0` (is there a reset to shift to) are plain ctx leaves. The C halves are `rt_pl_dop_co_*_c` in `by_name_dispatch.c` over `rt_plco_*` in `rt.c`.
+- **The continuation carries its generation**: `'$cont'(H, N)`, `H` the parked coroutine as a `DT_CO` descriptor, `N` the park generation. A resume whose `N` is stale, or of a coroutine not parked at a shift, raises `permission_error(resume, continuation, H)`.
+- **r12 crosses every switch through `cx->tr`**: one shared time-ordered trail, the parked side's top kept in `pl_tr`. A ball leaving the body takes the genp ω road (`rt_genp_deliver_ω`), which stores its r12 into the activator's `pl_xtr` when the coroutine is a Prolog one (`co.pl_park`), and the activator raises the pending ball.
+- **The state is the coroutine's own**: eight fields of `scrip_coctx_t` (`pl_gen pl_seq pl_park pl_cmd pl_tr pl_floor pl_base pl_xtr`), zeroed by both context initialisers. No global, no second stack.
+- **The collector's park record (§ 5)**: the non-n2 genp stub `rt_genp_spine_enter` carries `rt_genp_conts` (three return PCs, `.data.rel.ro`), on which `gc_heap.c`'s chain walk stops as a coroutine start (stop 7, beside `rt_genp_n2_conts`). Without it every parked segment read nosite (475 on the probe).
+- **The one divergence from SWI**: a continuation that cuts across its shift and then fails raises `permission_error(backtrack, continuation, shift(X))` where swipl backtracks into the goal. It is detected by a trail floor (`pl_floor`) checked at the next switch. No corpus case reaches it.
+- **Measured**: the row's DONE-WHEN 0 of 7 lines missed in m3 and m4; `core/test_continuation.pl` 10/52 in both modes (was 1/52; 9 of the 10 continuation cases; the rest need `garbage_collect_atoms/0`, `get_prolog_backtrace/2`, `1<<200` and the `1r3` literal); identical output under `SCRIP_GC_STRESS=1 SCRIP_GC_CHAIN_CHECK=3` on the rebased tree (mismatch 0, nosite 0, missing 0, coroutine-start 10).
