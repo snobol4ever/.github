@@ -1,6 +1,6 @@
 # ARCH-PROLOG-CONTINUATIONS — reset/3 and shift/1 as one-shot coroutines (cto, 2026-10-11, DRAFT FOR REVIEW)
 
-Row: `prolog-swi-delimited-continuations-reset-3-and-shift-1-51-swi-cases` (cto, rank 2; 51 SWI cases, `core/test_continuation.pl` 1 of 52). Status: **design out for review** — hq_prolog answered § 3 and § 4 (2026-10-11, folded in below); hq_collector (§ 5) and hq_zetas (§ 6) outstanding. Nothing is built.
+Row: `prolog-swi-delimited-continuations-reset-3-and-shift-1-51-swi-cases` (cto, rank 2; 51 SWI cases, `core/test_continuation.pl` 1 of 52). Status: **design out for review** — hq_prolog answered § 3 and § 4, hq_collector § 5 (2026-10-11, folded in below); hq_zetas (§ 6) outstanding, queued behind its CEO-1682 class-one measurement and free to veto at review. Nothing is built.
 
 ## 1. What SWI means, and what the corpus asks for
 
@@ -53,9 +53,15 @@ One trail, time-ordered: the coroutines alternate strictly, so the r12 island st
 
 hq_prolog measured the generic wrapper reloading only r12 and `CTX_BALL` left unzeroed on that road, and proposed a `PL_CTX_SWITCH_LEAF` reloading r12, rbx and r15 from cx; re-measured, rbx and r15 need no reload and the ball road is `PL_CTX_LEAF_BALL`'s.
 
-## 5. The collector (the part that needs hq_collector)
+## 5. The collector (hq_collector answered 2026-10-11, read against gc_heap.c and rt_coexpr.c on origin 0d608e9cf)
 
-A parked Prolog coroutine's stack holds mapped Prolog frames, parked inside a C leaf (`'$co_yield'` → `scrip_coret`/`sem_wait`). The collector walks co-expression stacks as segments today (`hb_coexpr_parked`). **Question to hq_collector:** is the chain entry of a coroutine parked in a C ctx leaf the same as the main stack's entry from C (`gc_chain_entry_from_c`, the emitted frame at the leaf's return PC), recorded at the park; and is a `'$cont'(H)` term's handle a root that keeps the parked stack's frames visited (DT_CO in a Prolog compound)? An abandoned continuation (an iterator dropped before it is exhausted) parks a thread forever: a row, not a blocker, unless you say it breaks a collection.
+A parked Prolog coroutine's stack holds mapped Prolog frames, parked inside a C ctx leaf (`'$co_yield'` → `scrip_coret` → `sem_wait`).
+
+- **The chain entry is recorded at the park, by the unwinder road.** Today a parked segment is `[park_sp, stack end]` entered at (pc 0, `park_sp`, `park_rbp`), and `gc_chain_find` with pc 0 follows the frame-pointer chain from `park_rbp` to the first registered site. That fails silently on one shape: a frameless rtx leaf between the emitted call and the C function, whose return address the rbp chain skips. So the park records `gc_chain_entry_from_c`'s triple (the first registered site found by CFI) in `scrip_coctx_t` as `park_site_pc`, `park_site_sp`, `park_site_rbp`, beside `park_sp`/`park_rbp`, and the parked segment starts from that record. hq_collector lands that half in `rt_coexpr.c` and `gc_heap.c`, not blocked on this build.
+- **The coroutine's first frame returns into a registered start stub** (`rt_plco_start`, with a conts record `rt_plco_start_conts` in the shape of `rt_genp_n2_conts`), so the chain stops there on the sanctioned stop a parked segment may end on; a chain that climbs into the thread-start C frames reads nosite, which the collector refuses once § 13 STEP B lands.
+- **r12 is in place before any poll**: the ctx wrapper reloads it before the leaf returns to emitted code (§ 4), and the chain check at a poll reads the frame, not the registers.
+- **The handle is not a root and needs none.** Every live context is on `g_co_gc_head` from creation to `scrip_coexpr_destroy`, and each parked context is walked as a segment whatever the heap reaches. `H` in `'$cont'(H)` is a `DT_CO` descriptor whose pointer is the context (ct_alloc'd, outside the heap), which `gc_blk_of` skips: no new visitor.
+- **An abandoned continuation is a leak, not a break**: its context stays on the list and every collection walks its frames (a per-collection cost, a thread and a stack mapping). A leak row once the build is on origin, with a loop-of-abandoned-iterators witness; hq_collector offers an end-of-collection hook over the handles if reclamation is wanted.
 
 ## 6. The stacks (the part that needs hq_zetas)
 
@@ -63,4 +69,4 @@ A parked Prolog coroutine's stack holds mapped Prolog frames, parked inside a C 
 
 ## 7. Order of build (LARGE CHUNKS)
 
-Whole: the five leaves, the prelude, the one-shot guard, the handover, the collector entry. Small roll-out: the row's witness and `test_continuation.pl` in both modes, smoked under `SCRIP_GC_STRESS=1 SCRIP_GC_CHAIN_CHECK=3`. Then the other reset/3 users in the SWI suite. Verified per landing by the row's DONE-WHEN and `test_feature_reps.sh prolog` over the features the attribute table names for meta-calls and catch.
+Whole: the five leaves, the prelude, the one-shot guard, the handover, the registered start stub (the collector's park record is hq_collector's half). Small roll-out: the row's witness and `test_continuation.pl` in both modes, smoked under `SCRIP_GC_STRESS=1 SCRIP_GC_CHAIN_CHECK=3`. Then the other reset/3 users in the SWI suite. Verified per landing by the row's DONE-WHEN and `test_feature_reps.sh prolog` over the features the attribute table names for meta-calls and catch.
