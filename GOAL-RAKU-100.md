@@ -328,6 +328,13 @@ TRACK 3 sections together — they are the same file's two rewrite generations. 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 ~12:4x CDT hq_raku (MODE TENET, CEO-1665; ONE TEST PER LANDING, CEO-1671) — **CEO-1641 DONE: RakBench rc-forest-fire RE-CUT AND FIVE LANGUAGE CURES LANDED (SCRIP 61d628dc9; corpus 466d3bd75, c727ad84b); BOOL.PICK/ROLL ROW CLOSED; 701 (sub_say_9) ON BRANCHES FOR THE CTO'S REVIEW. NEXT: MERGE 701 ON THE CTO'S WORD; THEN THE UMBRELLA'S REDS**
+
+- Landed: xx thunks a non-literal left side; [X] spreads one iterable argument; an enum value named like a builtin term (Empty) shadows it; @!attr[i] = v assigns (it lowered to a bare SUCCEED: the write was dropped, the method returned, and a for loop around it never ended); function-form join flattens as a slurpy; Bool.pick / Bool.roll are a coin. Six Rakudo-cut rung witnesses, red on origin c9b94450c.
+- rc-forest-fire: srand/rand/Bool.pick replaced by an in-kernel LCG (CEO-1641); ref from rakudo-local, cut twice. It agrees with Rakudo cell for cell through step 5 and diverges at step 6, because the kernel binds neighbour cells with := and SCRIP has NO CONTAINER BINDING (my $n := @g[0]; @g[0] = 5; say $n prints 1, Rakudo 5). That is a value-model change: build it with a differential battery.
+- 701 held for review: SCRIP raku-701-a-call-that-can-never-succeed (510890dec) + corpus raku-701-sub-say-9-promoted (80477aef7). On the cto's word: merge both, then the branches are retired.
+- Found, not fixed: (1,"a") xx 2 flattens; 7 xx * prints (); say of an enum value prints its Int; a single numeric word <42> is a plain Str in the tree (no IntStr allomorph, so f(<42>) to an Int parameter fails at run time); ALL.ast.exceptions.tsv's rc-forest-fire md5 was stale before the re-cut.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-10 ~16:3x CDT hq_raku (MODE SEPTET) — **ARCH-RAKU-BOXES STEP 1 HAS NO RESIDUAL: THE INFIX MULTI AND THE RESIDUAL C LOOPS LANDED (SCRIP 912d45e7c, 729aa7744); RAT.BASE (7229ef797); X/0 AND CARET RANGES (f5373d5b6; corpus afc1ff4d1). NEXT: THE UMBRELLA'S REDS -- RakRungs' standing FAILs, then RakBench, then Roast by the ablation ranker**
 
 What landed in this batch, pushed together over origin a749ac500 (CEO-1316):
