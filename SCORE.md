@@ -23,12 +23,12 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Roast | raku | 176/1464 WALL=4081s | 2026-10-10 | `08c00e5b4` |  |
 | SnoRungs | snobol4 | 1978/1980 EXCLUDED=0 WALL=243s | 2026-10-10 | `08c00e5b4` |  |
 | IcnRungs | icon | 903/904 WALL=63s | 2026-10-10 | `08c00e5b4` |  |
-| ProRungs | prolog | 563/563 WALL=308s | 2026-10-10 | `08c00e5b4` | xfail unreadable |
-| PasRungs | pascal | 252/252 WALL=38s | 2026-10-10 | `08c00e5b4` | xfail unreadable |
-| RakRungs | raku | 965/984 WALL=264s | 2026-10-10 | `08c00e5b4` |  |
-| SncRungs | snocone | 358/358 WALL=28s | 2026-10-10 | `08c00e5b4` | xfail unreadable |
+| ProRungs | prolog | 563/563 WALL=308s | 2026-10-10 | `08c00e5b4` | done |
+| PasRungs | pascal | 252/252 WALL=38s | 2026-10-10 | `08c00e5b4` | done |
+| RakRungs | raku | 965/984 WALL=264s | 2026-10-10 | `08c00e5b4` | 3 xfail counted as FAIL of a 19-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| SncRungs | snocone | 358/358 WALL=28s | 2026-10-10 | `08c00e5b4` | done |
 | SncBench | snocone | 23/23 WALL=243s | 2026-10-10 | `08c00e5b4` | done |
-| RebRungs | rebus | 43/43 WALL=6s | 2026-10-10 | `08c00e5b4` | xfail unreadable |
+| RebRungs | rebus | 43/43 WALL=6s | 2026-10-10 | `08c00e5b4` | done |
 | Logtalk | prolog | 3514/3576 EXCLUDED=41 WALL=1652s | 2026-10-10 | `08c00e5b4` |  |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=321s | 2026-10-11 | `08c00e5b4` | done |
 | X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 WALL=13s | 2026-10-11 | `08c00e5b4` | done |
@@ -36,7 +36,6 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | IcnBench | icon | 26/26 WALL=213s | 2026-10-10 | `08c00e5b4` | done |
 | ProBench | prolog | 23/23 WALL=51s | 2026-10-10 | `08c00e5b4` | done |
 | PasBench | pascal | 11/11 WALL=100s | 2026-10-10 | `08c00e5b4` | done |
-| RakBench | raku | 72/84 WALL=6986s | 2026-10-10 | `08c00e5b4` |  |
 | RebBench | rebus | 3/3 WALL=7s | 2026-10-10 | `08c00e5b4` | done |
 | SnoDemo | snobol4 | 24/24 WALL=21s | 2026-10-10 | `08c00e5b4` | done |
 | SncDemo | snocone | 23/23 WALL=57s | 2026-10-10 | `08c00e5b4` | done |
@@ -49,6 +48,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TreallaTests | prolog | 208/456 EXCLUDED=0 WALL=274s | 2026-10-11 | `08c00e5b4` |  |
 | PasDemo | pascal | 1/4 WALL=22s | 2026-10-10 | `08c00e5b4` |  |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
+| RakBench | raku | 72/84 WALL=6986s | 2026-10-10 | `08c00e5b4` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
