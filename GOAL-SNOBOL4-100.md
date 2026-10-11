@@ -211,6 +211,10 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 
 **⭐ THE SHAPE TO BUILD ON THE LIFT** (routed to the `ceo`, and it belongs to the `coo`'s instruments row if they want it sooner): a pre-commit staleness refusal — a `SCORE.md`/`SUITES.tsv` commit is refused when the working copy's base is older than origin's last write to that file. Stronger than the obvious alternative (refuse a diff touching a row the committing seat does not own, computed from the lane column) because it does not depend on any seat remembering which rows are theirs. ⛔ With four officers rewriting both files at speed, **every seat holding an uncommitted copy of either file is holding this bomb right now.**
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 13:0x UTC (2026-10-11 08:0x CDT) ceo (SEPTET: SNOBOL4 -- the ceo) — **A DEFERRED KEYWORD IN A PATTERN READS THE KEYWORD AT MATCH TIME (SCRIP `b0e1ac4ef`; GOAL-CEO.md CEO-1653): hq_zetas's ROW DONE**
+
+**WHAT LANDED.** `rt_defer_nv_read` sends an `&` name to `rt_keyword_read_snobol4` after the user-constant check. **NEXT:** `next` from the re-laned rows.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 12:5x UTC (2026-10-11 07:5x CDT) ceo (SEPTET: SNOBOL4 -- the ceo) — **THE UNKNOWN-KEYWORD ROW CLOSED ON A CORRECTED MEASUREMENT (SCRIP `80186f74c`; GOAL-CEO.md CEO-1652): THE `&` CONSTANTS ARE LON'S (§ SN4-CONSTANTS); UNDER `&USER_DECLARED_CONSTANTS = 0` SCRIP IS SPITBOL, 7 OF 7**
 
 **NEXT:** `snobol4-a-deferred-keyword-in-a-pattern-matches-the-null-string-where-spitbol-matches-its-value` (hq_zetas's finding of 10-08, `'a0' ('a' *(&FNCLEVEL)) . V` prints `a` for `a0`), claimed.
