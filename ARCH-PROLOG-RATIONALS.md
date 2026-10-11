@@ -33,6 +33,13 @@ normalized, with a typed visitor -- so Prolog uses it rather than adding a paral
 ⛔ This departs from the ruling's words "a DESCR type of its own" while keeping its substance; the ceo decides before stage 1 lands.
 If a distinct `DT_RAT` is preferred, the same staging applies and hq_collector reviews a new visitor.
 
+**REVIEWED by hq_collector 2026-10-11: the no-new-visitor claim is CONFIRMED** (gc_visit_datinst marks the type pointer and the
+fields vector, then pushes every field cell, each visited by its own tag). Its three conditions, binding on every stage:
+(1) the two fields stay real DESCR cells (DT_I or DT_BIG, never a raw pointer or untagged word) and the record is made through the
+ordinary data-instance allocation as rk_rat.c does; (2) a Prolog structure that stores a rational stores the DT_DATA descriptor
+itself in a term cell, never the record's address in a PTR_GC or raw slot; (3) the lowerer's frame layout types a rational held in a
+clause variable slot as DESCR, as every Prolog term slot is typed. A later DT_RAT would cost one visitor case and one block-type row.
+
 ## 3. Where each part lives
 
 - READER (stage 2): `1r3` is a number token in prolog_lex.c (digits `r` digits, no layout), the tree node a `TT_RLIT` beside
