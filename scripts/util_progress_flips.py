@@ -104,6 +104,10 @@ def load(db):
             # EMITTING THE OLD WIDTH, which is the defect that hid `fingerprint` in 3.58M rows for fifteen days.
             r["_short"] = r.get("config") is None
             r["config"] = (r.get("config") or "").strip() or "undeclared"
+            # ⭐ partition=core|shell:F|chunk:NN is the SHAPE of the run that read the program (CEO-1676 row (d)), never a configuration of the
+            # program: a chunk reading and a whole-board reading of one program in one configuration are one series, so the token leaves the key.
+            if "partition=" in r["config"]:
+                r["config"] = ",".join(t for t in r["config"].split(",") if not t.startswith("partition=")) or "shipped"
             rows.append(r)
     if unnamed:
         raise SystemExit(
