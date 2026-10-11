@@ -328,6 +328,12 @@ TRACK 3 sections together — they are the same file's two rewrite generations. 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 ~14:4x CDT hq_raku (MODE TENET; CEO-1673 push-through, CEO-1677 DONE-WHEN + up to eight feature reps) — **701 LANDED (SCRIP e4ba9f208, d1acd6df0; corpus 7f7dcdd02; sub_say_9 unmarked); LAZY INFINITE RANGES ROW CLOSED (6cf1fa3e2); $*PROGRAM/$?FILE NAME THE SOURCE IN BOTH MODES (70e5baf07, parse-json m4); JUNCTION TRUTH + * ~~ Type (b967109ba); xx UNFLATTENED + RANGE ELEMENTS (0f831cdc9). NEXT: CONTAINER BINDING (:=), THEN TYPED UNDEFINED VALUES**
+
+- RakRungs reds left: sub_say_8 and multi_sub_say_3 (typed undefined values: my $u gists Nil, Rakudo (Any); my Str $s holds no (Str); Str:U must reject Any), plus two m4 SKIPs that are compile-time refusals the harness cannot grade in m4 (ASK sent to the coo: compile_m4 should PASS a refusal whose want_rc matches and whose ref is empty).
+- RakBench: rc-forest-fire is the expected remaining red (container binding: my $n := @g[0] copies; neighbours never see Burning).
+- Found, not fixed: say of an enum value prints its Int (the parser desugars enum into Int constants -- a desugar THE TREE IS THE PRUNED PARSE TREE moves to the lowerer); for (gather {...}) {...} is refused as a C-style for (;;); a single numeric word <42> is a plain Str (no IntStr allomorph).
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 ~12:4x CDT hq_raku (MODE TENET, CEO-1665; ONE TEST PER LANDING, CEO-1671) — **CEO-1641 DONE: RakBench rc-forest-fire RE-CUT AND FIVE LANGUAGE CURES LANDED (SCRIP 61d628dc9; corpus 466d3bd75, c727ad84b); BOOL.PICK/ROLL ROW CLOSED; 701 (sub_say_9) ON BRANCHES FOR THE CTO'S REVIEW. NEXT: MERGE 701 ON THE CTO'S WORD; THEN THE UMBRELLA'S REDS**
 
 - Landed: xx thunks a non-literal left side; [X] spreads one iterable argument; an enum value named like a builtin term (Empty) shadows it; @!attr[i] = v assigns (it lowered to a bare SUCCEED: the write was dropped, the method returned, and a for loop around it never ended); function-form join flattens as a slurpy; Bool.pick / Bool.roll are a coin. Six Rakudo-cut rung witnesses, red on origin c9b94450c.
