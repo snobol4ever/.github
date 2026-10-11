@@ -63,6 +63,15 @@ bash scripts/jcon_selfhost_build.sh                                             
 
 ## ⛔ LIVE CURSOR
 
+**⭐⭐⭐ 2026-10-11 hq_pascal, LANDINGS 68 AND 69: THE FPC PARSE TAIL AND PROCEDURAL TYPES (SCRIP `a3e771ee1`, `c88a51f9d`; the dialects row, chunks 6 and 7).**
+- Chunk 6 (`a3e771ee1`):
+  - `shl`/`shr`/`xor` flip to fpc, only after an operand, so ISO names stay names.
+  - fpc -Miso accepts the rest: bound and label expressions, case ranges, headless and dotted programs, `'x'#13#10` runs, `for ... in`.
+  - Booleans write `TRUE` under fpc.
+- Chunk 7 (`c88a51f9d`): procedural types as parameter types; `@routine` flips to fpc; reals write `E` under fpc/objfpc.
+- PasRosetta m3 on head: 67 of 319 graded SAME.
+- The open blocker is the cfo ask on CEO-1225's ISO 6.2.1/6.1.7 refusals, now the first stop of most un-parsed programs.
+
 **⭐⭐⭐ 2026-10-11 hq_pascal, LANDINGS 66 AND 67: PASDEMO'S PRETTYP CURED, AND DYNAMIC AND OPEN ARRAYS, CONST AND OUT PARAMETERS (SCRIP `6eda0b182`, `b2a65df31`; corpus `e6864d1b8`).**
 - `6eda0b182`: a char-array field passed to a `var` parameter is copied in and out; an ISO heading text file carries its heading
   position through `var` parameters.
