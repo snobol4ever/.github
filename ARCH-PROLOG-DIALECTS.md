@@ -38,6 +38,14 @@ beside `g_stage2.pl_dq_mode` (one struct per stage, never a bare global).
 2. **display/1** (CEO-1605). SWI: library(edinburgh)'s — `write_term(T, [quoted(true), ignore_ops(true)])`, through the prelude's
    `'$display_swi'/1`, to which the lowerer rewrites a static `display/1` call. GNU/ISO: the builtin, operators ignored and atoms
    not quoted.
+3. **print/1 and print/2** (CEO-1663, row prolog-print-quotes-in-the-swi-dialect-...). MEASURED by hq_prolog 2026-10-11: swipl
+   prints `'A b'` and `[a,'B',"s"]` (its print/1 is `write_term(T, [portray(true), numbervars(true), quoted(true)])`), gprolog
+   1.6.0 prints `A b` and `[a,B,[115]]` (portray and numbervars, unquoted). With no `portray/1` defined and no program `print/N`,
+   the lowerer rewrites a static call to `writeq` in SWI and to `write` in GNU/ISO, so the GNU arm costs nothing over write/1
+   (`test_gate_pl_print_1_honours_portray_and_costs_nothing_without_it.sh` arm 1). With a `portray/1` the portray road is
+   unchanged in both. `call(print, X)` and `maplist(print, L)` resolve statically and quote too (measured); format's `~p`
+   still prints unquoted in SWI (swipl quotes), as does a goal whose name is only known at run time: the dialect is a
+   compile-time record, and a run-time `'$dialect'` flag is the cure that would reach those.
 
 A later conflict between the oracles is one more switch on the same record, ruled the same way.
 
