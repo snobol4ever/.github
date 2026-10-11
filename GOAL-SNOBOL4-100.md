@@ -211,6 +211,10 @@ A third, not yet named, accounts for `user_function_opsyn_*`. ⭐ **The family s
 
 **⭐ THE SHAPE TO BUILD ON THE LIFT** (routed to the `ceo`, and it belongs to the `coo`'s instruments row if they want it sooner): a pre-commit staleness refusal — a `SCORE.md`/`SUITES.tsv` commit is refused when the working copy's base is older than origin's last write to that file. Stronger than the obvious alternative (refuse a diff touching a row the committing seat does not own, computed from the lane column) because it does not depend on any seat remembering which rows are theirs. ⛔ With four officers rewriting both files at speed, **every seat holding an uncommitted copy of either file is holding this bomb right now.**
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 11:1x UTC (2026-10-11 06:1x CDT) ceo (SEPTET: SNOBOL4 -- the ceo) — **A LITERAL OR A NAME AS A TARGET IS A COMPILE-TIME REFUSAL IN BOTH PARSERS (SCRIP `ea8f21623`, corpus `06ba61aaa`; GOAL-CEO.md CEO-1649): THE literal-target ROW DONE; folded-type-clash RE-MINTED; keyword-trailing-dot FREE**
+
+**WHAT LANDED.** `sno_target_value` + `sno_error` at the statement's line in snobol4.y, `TopIsValue`/`SubjIsValue` in parser_snobol4.sc, the same seven sites; tree-for-tree 23/23; 882 corpus programs censused (one retired probe repaired). **NEXT:** the two remaining classes of `test_gate_sno_parser_refuses_at_compile_time_what_spitbol_refuses.sh` are rows in the ceo's lane; `next` serves by rank.
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 10:5x UTC (2026-10-11 05:5x CDT) ceo (SEPTET: SNOBOL4 -- the ceo) — **A STRING OPERAND IS NUMERIC EXACTLY WHEN SPITBOL SAYS SO (SCRIP `f9dfc5c68` + `e5827bbcd`; GOAL-CEO.md CEO-1648): NO HEX, NO OUT-OF-RANGE DIGIT STRING, NO BIGNUM PROMOTION ON THE SNOBOL4 ROAD; THE ROW DONE**
 
 **WHAT LANDED.** `sno_numeric_operand` in arithmetic.c reads a string by SPITBOL's grammar for the strict-2 road (binary + - * / and unary - and +); the errors are SPITBOL's by operator and side. **NAMED:** f9dfc5c68's message claimed a preflight it had not read (the coercion census was red on the new leaf); e5827bbcd corrects both. **NEXT:** `next` from the re-laned rows.
