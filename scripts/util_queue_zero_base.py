@@ -223,6 +223,25 @@ print("live rows after: %d  archived DONE: %d  retired: %d" % (sum(1 for d in de
 greens = [t for t, d in decisions.items() if d[0] == "GREEN-now"]
 if greens: print("GREEN now (archived as done):"); [print("   " + t) for t in greens]
 if not apply: print("DRY RUN: nothing written"); sys.exit(0)
+# ⛔ THE BUS'S QUEUE LOCK (ceo CEO-1708, 2026-10-14): every s4e_msg.sh verb that rewrites QUEUE.tsv takes the mkdir lock $PO/.mint.lock
+# (s4e_set_row_state, mint, ...); this sweep wrote QUEUE.tsv, QUEUE.done.tsv and QUEUE.retired.tsv without it, so a bus verb landing
+# between its fresh read and its write was lost. The write phase below holds the SAME lock -- never while a DONE-WHEN runs -- waits up
+# to 10 s for it, and REFUSES rc 2 with nothing written when it cannot take it; atexit releases it if the write phase dies.
+LK = PO + "/.mint.lock"
+for _i in range(100):
+    try:
+        os.mkdir(LK); break
+    except FileExistsError:
+        time.sleep(0.1)
+else:
+    print("REFUSE(2): %s is held by a bus verb for 10 s -- nothing written; re-run --apply" % LK); sys.exit(2)
+import atexit
+def _release_lock():
+    try:
+        os.rmdir(LK)
+    except OSError:
+        pass
+atexit.register(_release_lock)
 # write against a fresh read
 fresh = rows_of(Q); out, done_add, ret_add, log, ledger_add, guard_add = [], [], [], [], [], []
 old_state = {f[1]: f[3] for f in parsed}
@@ -252,6 +271,7 @@ def append(p, rows):
     if not rows: return
     cur = rows_of(p); txt = "\n".join([r for r in cur if r != ""] + rows) + "\n"; open(p, "w", encoding="utf-8", newline="\n").write(txt)
 append(QD, done_add); append(QR, ret_add)
+_release_lock(); atexit.unregister(_release_lock)
 when = time.strftime("%Y-%m-%d %H:%M %Z")
 for topic, rank in ledger_add:
     f = os.path.join(TASKS, topic + ".task.md")
