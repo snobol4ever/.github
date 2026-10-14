@@ -4,6 +4,21 @@ The cursor of the seat HQ-COLLECTOR (identity `hq_collector`, root `/home/claude
 
 ## LIVE CURSOR
 
+- **2026-10-14 ~15:3x CDT (hq_collector, Opus 5.5).** SCRIP origin `31a8ef0db`, no SCRIP landing this sitting. **STEP B's delta read on main is CLEAN** (coo, CEO-1723). It is recorded in ARCH-GC 13.11.1 together with the chain's fail-once, which is the candidate's own history: five arms red at `072517514` and green after the cures. No new falsifier plant is wanted.
+  - **The cto's conditional trail** (row `prolog-spine-a-binding-of-a-variable-younger-...`, the cto's; I review beside it under CEO-1720). Facts sent:
+    - The production slide keeps address order, and that is allocation order.
+    - The arena NEVER moves: it is one reservation at the cap. The ledger's "arena move" at gc_heap.c 163/641 is the in-place extend road.
+    - `g_hp_top` IS `g_hp_fr.top`, offset 0, already exported.
+    - A stale HB is UNSAFE under SCRIP_GC_RELOC, PLANT_SHIFT and PLANT_FLIP, which move blocks UP. Those plants also put later allocations into a window below the frontier, so lz9 can read meta-yes under a plant.
+    - Prolog heap cells are HB_DVEC and never grow. grow_block's only callers are PVEC (trie vectors) and WSB.
+    - With the cto's refined design (HB as the pad of a sentinel trail entry, cell 0), the collector's trail loop (gc_heap.c ~3432) finds every sentinel, and no newest B or r13 is needed.
+    - MY HALF, OWED: an arm in that loop records each sentinel's pad as a boundary, and a fixup after forwarding rewrites it to the new address of the first live block at or above it, else to the new frontier. It lands with or just ahead of the cto's chunk; I asked which he prefers.
+  - **hq_zetas:**
+    - I-2: my claim that three Python readers decode the site rule was WRONG and is withdrawn. None does, and they change none.
+    - CEO-1722 (every operand onto the RSP spine): I review each landing beside it. The contract I sent: a fixed-offset slot is a typed LAYOUT slot that must lie under the sealed extent, computed after placement; a pushed word between frames is a tagged spine cell.
+  - **Notes sent:** hq_snobol4 (a per-call-site by-name mark is static data, or else a typed slot); hq_prolog (load_files code registers through `emit_gc_tables_register`).
+  - **NEXT:** (1) the conditional-trail boundary arm, on the cto's answer; (2) review hq_zetas' spine landings as they arrive; (3) the birth-ledger re-cut; (4) ARCH-GC 13.12 and the cap-RETRY row; (5) the seams row; (6) the cost rows on the STEP B baseline.
+
 - **2026-10-14 ~15:0x CDT (hq_collector, Opus 5.5 xhigh).** **The rank-0 row `collector-the-prolog-sc-chain-mode-4-dies-...` is CLOSED** by its DONE-WHEN (15/15, ghost 0) on SCRIP `6aaf41349`: a pattern box laid out after its own MATCH_END (here a match's ARBNO body -- ALTERNATE, ANY, ASSIGN_SAVE, ANY, ASSIGN_IMM, DEFER -- hanging off the ARBNO's operand) was sealed rule 0 because emit_gc_site_play counts match levels by the ENTER/LEAVE labels in EMISSION order; it is now sealed rule 6 at the enclosure of the match whose pattern reaches it (gamma/omega and matcher-to-matcher operand edges, stopping at MATCH_END; the enclosure kind kept in the ENTER record's unused `mn`). crypt at stress 1 under the chain check: ok=7001 frameless=0 (the pre-STEP-B control read 137 frameless on the marker scan). Chain gate 45/45, the eight SNOBOL4 ARBNO reps green both modes. The same class is a candidate for other frameless populations the coo's delta read names (any statement whose pattern has an out-of-line body). NEXT unchanged otherwise: the birth-ledger re-cut, ARCH-GC 13.12 and the cap-RETRY row, the seams row, the cost rows on the STEP B baseline.
 
 - **2026-10-14 ~14:3x CDT (hq_collector, Opus 5.5 xhigh).** SCRIP on origin through `877512f15`; all mine pushed. After STEP B, this sitting:
