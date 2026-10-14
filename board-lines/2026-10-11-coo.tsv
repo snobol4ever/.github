@@ -35,3 +35,11 @@ aca880bf6	snocone-demos	coo	DEMOS_SUITE_BOARD lang=snocone total=23 shipped=23 a
 59d6aad80	pascal-demos	coo	DEMOS_SUITE_BOARD lang=pascal total=8 shipped=8 all_pass=8 all_n=8 m3_pass=8 m4_pass=8 containers=0 workhorse_declared=0 chained=0 tree=59d6aad80 corpus=88dad6011 RT_OPT=-O0
 59d6aad80	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=42 shipped=42 all_pass=42 all_n=42 m3_pass=42 m4_pass=42 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=84 oracles=gprolog:22,swipl:20
 bde8b684a	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=8 shipped=23 all_pass=8 all_n=8 m3_pass=8 m4_pass=8 containers=15 workhorse_declared=8 chained=0 tree=bde8b684a corpus=8c3969411 RT_OPT=-O0
+2781bf6e4	icon-demos	coo	DEMOS_SUITE_BOARD lang=icon total=7 shipped=10 all_pass=7 all_n=7 m3_pass=7 m4_pass=7 containers=3 workhorse_declared=7 chained=0 tree=2781bf6e4 corpus=0db5d0990 RT_OPT=-O0
+2781bf6e4	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=26 all_n=26 m3_pass=26 m4_pass=26 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=26
+2781bf6e4	arizona	coo	ARIZONA_SUITE_BOARD shipped=119 graded=119 gap=0 m3_pass=119 m3_reject=0 m3_fail=0 m3_crash=0 m3_hang=0 m4_pass=119 m4_reject=0 m4_fail=0 m4_crash=0 m4_hang=0
+2781bf6e4	jcon	coo	JCON_SUITE_BOARD shipped=86 graded=86 gap=0 total=86 m3_pass=86 m4_pass=86
+2781bf6e4	ipl	coo	IPL_SUITE_BOARD total=851 compile_graded=851 compile_pass=846 compile_fail=5 run_graded=644 nomain_total=391 hasmain_total=460 nomain_ok=0 linkgap=3 parseerr=2 timeout=0 other=0
+2781bf6e4	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=2781bf6e4 corpus=0db5d0990 RT_OPT=-O0
+2781bf6e4	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+2781bf6e4	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=42 shipped=42 all_pass=42 all_n=42 m3_pass=42 m4_pass=42 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=84 oracles=gprolog:22,swipl:20
