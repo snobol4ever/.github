@@ -1,0 +1,70 @@
+# ARCH-CALL-FORMS — THE CALL FAMILY ON ONE FORM PER BOX (hq_templates, 2026-10-14, a recommendation for the ceo's ruling)
+
+**ORDER:** Lon 2026-10-14, in-chat to hq_templates, verbatim: *"You are seated as Fable 5.1 with xhigh effort. Go re-think, re-write, and re-factor those remaining problematic cases."* · *"You should also read the best and worse of ALL the existing templates to know how to PROPERLY create the new IR's and BB templates."* · *"It seems you have a mess to clean up. Get with CEO on how to move forward. Give your recommendations and make it happen."* The seat is `hq_templates`; its officer is the cto; this page is the recommendation the ceo rules on. It is a DRAFT until the ceo's CEO-number is written into its header.
+
+## 1. THE FINDING (form census at SCRIP 47b9a08c8; rule census 540 in 9 of 146 files)
+
+- **One IR → many BBs happens in two places, and the rule says it should not.** (a) `emit.cpp`'s `walk_bb_node_inner` switch picks among boxes for 10 kinds: `IR_BINOP` → 4 (relop, concat_slot, xrep_slot, arith), `IR_SUBSCRIPT` → 4, `IR_VAR` → 3, `IR_ASSIGN`, `IR_ASSIGN_VAR`, `IR_BINOP_TEST`, `IR_DISJUNCTION`, `IR_MATCH_FENCE0`, `IR_REV_ASSIGN`, `IR_VAR_REF` → 2 each. (b) `IR_CALL` has ONE dispatch site, `bb_emit_x86(bb_call(nd))`, and `bb_call()` fans out to seven boxes (byname, byname_gen, proc_staged, bool_relop, bool_slot, fn, the dval-2 bomb) by `op_call_route`, which `bb_call_route_classify` computes in the emitter. The form census is blind to (b) because the fan-out sits inside the template file.
+- **One BB ← many IRs happens in 11 boxes and is healthy only at one form.** `bb_statement` serves `IR_STATEMENT_BEGIN / END / STATEMENT` with one pattern (healthy). `bb_lit_scalar` serves 6 kinds and tells them apart inside the template (9 live forms, unhealthy, on the census's break-out list).
+- **The 540 rule violations are 537 in the call family, `bb_define` and `xa_flat`** (`bb_call_proc_staged` 174, `bb_call` 114, `xa_flat` 97, `bb_define` 67, `bb_call_pl_leaf` 48, `bb_call_fn` 37) plus three one-point name hits (`bb_glue_prim_str`, named like a box entry). Their shape: accumulator functions (`std::string s; s += ...; if (...) return s + arm;`), classification inside the template (`strcmp` on the callee name, registry lookups `rt_proc_*` / `sn4_byname_kind` / `bb_callee_baked_kind` / `dop_direct_fp` / `pl_leaf_kind` / `bb_proc_target_*`, `getenv` knobs, graph reads `lf->op` / `IR_LIT(lf)` / `_.node->seal` / `ir_call_arg` / `bb_slot_get` / `zls_off`), twins (ZD vs FLAT written twice; `bb_call_byname_str` and `bb_call_fn_str` ninety percent the same text; `bcps_det_arm`'s two 200-line regime arms), lambdas holding statics and `getenv` inside the return expression, and an `IR_graph_t **` smuggled through the integer field `op_counter`.
+
+## 2. THE RULE (Lon 2026-09-27; GOAL-BB-FIXUP ONE-IR-ONE-LOGIC; the form census's own text)
+
+The FORM is chosen in LOWER: the IR kind is the form. A box emits ONE pattern straight through. A template reads only `g_emit` (CV10), takes no parameters (CV9), declares no locals, has one return per function, one x86 call per line, zero comments. Kind → box is therefore 1:1 (or many kinds → one box when they truly share a pattern). What the best clean templates do (`bb_match_defer` with `defer_prepare`, `bb_call_value`, `bb_cleanup`, `bb_binop_arith`'s table, `bb_fail`): one alpha at the top; the emitter's `*_prepare` computes every value; `IF()` and `FOR()` over `g_emit` scalars; file macros for repeated fragments; a const table where a scalar selects a symbol.
+
+## 3. THE SCHEME — THE CALL PLAN
+
+`call_prepare(nd)` in `emit.cpp` (beside `defer_prepare`), called from the `IR_CALL` case after `bb_call_route_classify`, fills `g_emit` (the sanctioned channel, `sm_emit_t`) with everything the family computes today inside the templates:
+
+| field | meaning |
+|---|---|
+| `op_call_route` (exists) | BYNAME, BYNAME_GEN, PROC_STAGED, RK_BOOL_RELOP, RK_BOOL_SLOT, FN, FATAL, DVAL2_BOMB |
+| `op_call_road` | PAS_BI, BAKED_TRY (callee record), BAKED_DIRECT (field record), BYNAME_TRY (kind 3, or kind 5 that may open), BYNAME_DIRECT, DIRECT_LEAF (`dop_direct_fp`), PL_LEAF (an inline Prolog arm), PL_ZD_COLD, GEN |
+| `op_call_open` | NONE, METHOD (`rk_method_open` / `rk_callsame_open` / `rk_callwith_open`), APPLY (`rt_apply_open`), EVAL (`rt_eval_open`): a prefix that may decline into the road |
+| `op_call_sym`, `op_call_fp` | the road's callee symbol and address |
+| `op_call_open_sym`, `op_call_open_fp` | the open prefix's |
+| `op_call_bid`, `op_call_idx` | `bid_bake_of(fn)`; the Pascal builtin index, or the registry index for a staged procedure |
+| `op_call_argbase`, `op_call_resoff`, `op_call_rec_off`, `op_call_genoff`, `op_call_dsave` | the frame offsets the family computes from `zls_argv_off` / `zoff` / `bcfn_result_slot` |
+| `op_call_flags` | SCANSYNC, CURMOV (tab/move), DET_REFUSED (a det-leaf seal the registry does not know), PAS_ELEM 1/2, ARGC_OVER, NO_SLOT, FNLBL_FRESH |
+| `op_call_fnlbl` | the callee-name rodata label text, with its per-route tag (`_bynamefn`, `_bynamefnzd`, `_rkfn`, `_rkfnzd`, `_bynamegenfn`) and the once-per-node definedness computed in the emitter |
+| `op_call_rec_addr`, `op_call_rec_lbl` | the baked callee record (`bb_callee_rec_addr`) and its label |
+| `op_marg_kind[i]`, `op_marg_src[i]`, `op_marg_imm[i]`, `op_marg_str[i]`, `op_marg_n` | THE MARSHAL PLAN per argument: NONE, DIRECT (the producer owns the argv slot: nothing to copy), SLOT (copy from a frame slot), LIT_I, LIT_F (bits), LIT_ATOM (the interned id), LIT_S (a sealed string), DSTAR (a star record), THUNK (a pattern record), BOMB_TRAMPOLINE, BOMB_GLOBAL, BOMB_VARSLOT — everything `marshal_call_arg` decides today from `lf->op`, `lf->seal`, `bb_slot_get`, `zls_off`, `bb_varslot_peek`, `is_global` |
+| `op_pl_kind`, `op_pl_op`, `op_pl_rules`, `op_pl_fid`, `op_pl_db_words`, `op_pl_db_n` | the Prolog leaf arm's kind (PLK_*), its operator suffix, its argument rules, the functor id, the declaration table |
+
+Per-argument arrays are `cv_t`-backed and grown by `cv_reserve` (the `op_arg_slot` / `op_zread` pattern), never a fixed table. The `IR_graph_t **` is read only in the emitter. Every field a template reads has a writer in `emit.cpp` (the gate `emit_fields_read_by_a_template_have_a_writer` is green by construction).
+
+**A box is:** `x86_alpha()` + `IF(refused, x86_bomb(...))` + `IF(!refused, ARGS_IN + ROAD)`, where ARGS_IN is the ZD copy (`FOR` over `ZOPQ`) or the FLAT marshal (`FOR` over the marshal plan, one fragment per marshal kind) and ROAD is one fragment per road, running from the marshalled arguments to the ports (`cmp al, FAIL; omega je; gamma; beta; omega` or the ZD `beta_trampoline`). Every fragment: zero locals, one return, `x86()` only, `g_emit` only. Operand spellings that differ by regime (`RDQ("rsp", 0)` vs `FRQ(argbase)`; `ZRES` vs `FRQ(resoff)`) are file macros over `_.op_zres`, the shape bb_binop_arith and bcps_icn_block_arm already use. **The hub `bb_call()` takes no parameter (CV9) and is one return of `IF()` terms over route and road, each naming one box** — the shape the fleet accepted at SCRIP 8dc9e6ae3 and in `bb_cleanup`.
+
+The same scheme for the other two: **`define_prepare`** (the role-4 shim's probe results `np / ns / gk[] / rg / nf / xt / T / F`, the entry label and cell, the knobs, computed once in the emitter; one box per role: bind (6), wire-adopt (3), SIG shim (4 under `SCRIP_FN_SIG`), TINY shim (4 legacy), the three floaters (1, 2, −1); the emitter's `IR_DEFINE` case already computes `op_define_role`) and **`xa_flat`**'s prologue / epilogue / chain generators the same way (not boxes but the xa emission layer; the same rules).
+
+## 4. THE DECISION FOR THE ceo: WHERE THE CALL'S FORM IS CHOSEN
+
+The call roads depend on facts LOWER cannot see when it lowers graph A: graph B's frame shape (det block, Icon block, pinned, SIG-eligible), fixed only when every graph is lowered (`g_stage2`, `bb_proc_target_*`). Two ways to keep the rule:
+
+1. **Emitter-time classification for post-lower facts, dispatch in the hub** — `call_prepare` decides the road, `bb_call()` selects one box per road. Fast; the census stays blind to the fan-out; the rule is kept in substance (the template decides nothing) and not in letter (the kind is still `IR_CALL`).
+2. **A FINALIZE pass between lower and emit** that re-kinds the tree once all graphs are known (`IR_CALL` → `IR_CALL_DIRECT`, `IR_CALL_BYNAME`, `IR_CALL_BAKED`, `IR_CALL_TRY`, `IR_CALL_DET_BLOCK`, `IR_CALL_ICN_BLOCK`, `IR_CALL_SIG`, ...), so `walk_bb_node_inner`'s switch is 1:1 and the form census reads 0 for calls. The rule as written.
+
+**RECOMMENDATION:** build the plan and the one-form road boxes now (both options need them, identically), land them under (1) as the SMALL ROLL-OUT with its smoke, then add the finalize pass as (2) in the massive roll-out so the switch ends 1:1. The fragments do not change between the two; only where the key is computed and whether `IR_CALL_<ROAD>` kinds exist. The same question applies to the 10 switch cases of § 1 (a): a finalize pass re-kinds them too (`IR_BINOP` → `IR_BINOP_ARITH` ...), which is the census's own BREAK-OUT list.
+
+## 5. THE LANDINGS (LARGE CHUNKS, CEO-1478..1484)
+
+- **L1, THE SCHEME + THE SMALL ROLL-OUT:** `call_prepare` and the plan fields; `bb_call.cpp` = the hub (no parameter) + the marshal fragments; `bb_call_fn.cpp` = the BYNAME and FN routes on shared road fragments (today's two near-twins become one set); `bb_call_byname_gen` one box; `bb_call_pl_leaf.cpp` on `op_pl_*` (one return per arm; its `IR_t *` parameters gone). `bb_call_proc_staged_str(IR_t *)` becomes `bb_call_proc_staged()` (it already reads `_.node`) and is otherwise untouched. SMOKE: one witness per road × regime in mode-4 text, identical to the parent after `.cpp:N` normalisation (the committed `.s` artifacts name the witnesses: `treebank` for the field record, `indirect_dispatch` / `json-match` for the SNOBOL4 try, `eval_fixed` for EVAL, `mixed_workload` / `roman` for APPLY, `jlink` for det0-4, the Prolog bench set for the leaf arms, the Icon bench set for the strict by-name; the roads with no committed artifact — Pascal builtins, the callee record, the Raku method opens, the non-SNOBOL4 try — take a test entry each from the masters); the handful (CEO-1677) per language touched; the DONE-WHEN census.
+- **L2, THE MASSIVE ROLL-OUT:** `bb_call_proc_staged.cpp` on the plan: `bcps_prepare` fields for sig / tiny / scc / dc / det-fuse / pinned / det-block / icn-block / the knobs; the ZD and FLAT arms unified by operand macros; the `std::vector<long>` signature offsets and the `gk[]` out-arrays as `cv_t` plan arrays (`CLASS_AB.tsv` rows retire in the same landing).
+- **L3, THE FINALIZE PASS** (if ruled): the re-kinding of `IR_CALL` by road and of the 10 switch cases; the switch 1:1; `audit_template_forms.py` reads no emitter choice.
+- **L4, `bb_define`:** `define_prepare` + one box per role.
+- **L5, `xa_flat` + the glue:** the prologue / epilogue / chain generators on prepared values; `bb_glue_prim_str` renamed (a helper named like a box entry; three cv9 name hits).
+
+## 6. THE INSTRUMENTS THE SCHEME TOUCHES
+
+- **The safe-point census** must resolve a call target that is a `g_emit` field: a new rule reads the field's writers in `emit.cpp` (`g_emit.op_call_sym = <rhs>;`) and resolves each right-hand side by the existing rules (literals, choosers, resolvers, the twin wrapper); one selftest arm, proven red on the old reader. Until that lands, every road fragment keeps its callee symbol literal and the census reads it as today.
+- **The bare-poll witnesses table** (`gc_bare_poll_witnesses.tsv`, keyed `<template>:<callees>#<ordinal>`): the keys change where a site's callee set changes; the writer re-cuts it in the same landing; no credited site is lost (the family's sites and their witnesses are enumerated in rows 29–51 today).
+- **`CLASS_AB.tsv`** (dyn-caps): the `gk` / `scc_gk` / `scc_gk_z` / `gk4` fixed out-arrays become `cv_t` plan arrays; their rows retire in the landing that moves them.
+- **The form census** reads one form per box by construction (one alpha at the top of each box); **the rule census** reads 0 for every file the landing touches.
+
+## 7. ASKS OF THE ceo
+
+- **(a)** Rule § 4: option 1 then 2 (recommended), or straight to 2.
+- **(b)** Confirm the LARGE-CHUNKS unit for a template scheme: the small roll-out is ONE BOX FILE (`bb_call_fn`), not one language — the call family serves every language, so a language is not a unit here.
+- **(c)** Record that Lon's order of 2026-10-14 is the pin FIX-3 (iii) waited for since June: the `_str(IR_t * pBB)` route signatures go (CV9), the graph reads move to `call_prepare` (CV10).
+- **(d)** Rows: the whole-set row carries L1, L2, L4, L5 as its LEDGER; if § 4 (2) is ruled, mint a rank-1 row for L3 with DONE-WHEN `python3 scripts/audit_template_forms.py` reading no kind case that picks among boxes.
+- **(e)** Who else is in these files: hq_prolog (`bb_call_pl_leaf`, the Prolog roads of `bb_call_proc_staged`), hq_raku (the method opens), hq_zetas (`xa_flat`), the cto (`bb_cleanup`, the continuations). I read origin before each landing and telegram each lane the file and the hour; a landing of theirs that arrives mid-rewrite is rebased in, never reverted.
