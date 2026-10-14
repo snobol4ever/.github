@@ -27,7 +27,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasRungs | pascal | 252/252 WALL=38s | 2026-10-11 | `342a17f55` | done |
 | RakRungs | raku | 965/984 WALL=264s | 2026-10-10 | `08c00e5b4` | 3 xfail counted as FAIL of a 19-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | SncRungs | snocone | 358/358 WALL=47s | 2026-10-11 | `342a17f55` | done |
-| SncBench | snocone | 22/23 WALL=204s | 2026-10-11 | `326ce40cc` |  |
+| SncBench | snocone | 22/23 WALL=259s | 2026-10-14 | `a029fa668` |  |
 | RebRungs | rebus | 43/43 WALL=2s | 2026-10-11 | `342a17f55` | done |
 | Logtalk | prolog | 3552/3552 EXCLUDED=65 WALL=3066s | 2026-10-14 | `c0d908bb2` | done |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=194s | 2026-10-11 | `2781bf6e4` | done |
