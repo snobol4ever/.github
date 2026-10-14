@@ -49,6 +49,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasDemo | pascal | 8/8 WALL=142s | 2026-10-11 | `59d6aad80` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 77/80 EXCLUDED=4 WALL=70s | 2026-10-11 | `342a17f55` |  |
+| XsbTests | prolog | - (no reading yet) | never graded | - | NO READING YET: ROW-OPENED-UNGRADED by the coo on the ceo's CEO-1718: corpus packages/prolog/xsb_tests (CEO-1595, refs swipl -q's, the SWI dialect prelude of CEO-1712 at corpus 484d47cfa) had no row -- DARK, worse than red; its first reading names its denominator. Its README names the overlap: swi_tests/xsb carries a plunit packaging of part of the same XSB suite (387 files against this package's 908), a different harness and denominator, so a cure is claimed in the row whose reading moved - a population with no grader is a debt on the board, never an absence from it |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
