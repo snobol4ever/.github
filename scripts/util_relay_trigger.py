@@ -13,7 +13,8 @@ THIS INSTRUMENT measures, read-only, the three conditions under which the relay 
              -- ON at VELOCITY_ON or more. Calibration 2026-10-14: about 25 an hour (6 per 15 min) in steady work; 16 in the
              18 minutes after the STEP B hold lifted.
   PRESSURE   rebases against commits in the last 60 minutes, read from every seat root's own reflog -- ON when the fleet ratio
-             reaches RATIO_ON, or when one seat is in a REBASE LOOP: LOOP_REBASES or more rebases and LOOP_RATIO or more
+             reaches RATIO_ON over at least PRESSURE_MIN_COMMITS commits (CEO-1727: at 16:39 a 9-for-6 catch-up after the
+             usage-limit pause read 1.50 at a velocity of 2 -- a ratio over a handful of commits is noise), or when one seat is in a REBASE LOOP: LOOP_REBASES or more rebases and LOOP_RATIO or more
              rebases per commit (Lon 13:4x, verbatim: "Keep an EYE on CPU speed and REBASE-CYCLE loops out of hand.").
              Calibration: 83 rebases for 69 commits (1.2) across the fleet from 11:15 to 13:2x; hq_collector lost two races
              outright landing STEP B.
@@ -27,7 +28,7 @@ REJECTS a seat whose push is rejected runs SCRIP scripts/s4e_push_rejected.sh, o
              core count (calibration: 2295 MHz of 5135 at load 18 on 2026-10-14 13:4x, profile balanced -- the power limit).
 Any one ON prints RELAY: ON with its reasons and the CONTENDING seats (most rebases first), the ceo's candidates for the
 relay order; otherwise RELAY: OFF. Exit 1 ON, 0 OFF, 2 could-not-measure (no origin read, or no seat root readable).
-The thresholds take RELAY_VELOCITY_ON, RELAY_RATIO_ON, RELAY_LOOP_REBASES, RELAY_LOOP_RATIO, RELAY_CPU_SLOW_MHZ, RELAY_REJECT_SEAT_ON, RELAY_REJECT_FLEET_ON, RELAY_LOAD1_ON and RELAY_LOAD5_ON
+The thresholds take RELAY_VELOCITY_ON, RELAY_RATIO_ON, RELAY_PRESSURE_MIN_COMMITS, RELAY_LOOP_REBASES, RELAY_LOOP_RATIO, RELAY_CPU_SLOW_MHZ, RELAY_REJECT_SEAT_ON, RELAY_REJECT_FLEET_ON, RELAY_LOAD1_ON and RELAY_LOAD5_ON
 from the environment -- the instrument's own switch, for proving both arms (CEO-1680). It changes nothing and runs nothing but git reads and /proc/loadavg; the ceo runs it in THE CEO LOOP, starts the relay on ON,
 and ends it after two OFF readings in a row.
 """
@@ -35,6 +36,7 @@ import calendar, os, re, subprocess, sys, time
 
 VELOCITY_ON = int(os.environ.get("RELAY_VELOCITY_ON", "10"))
 RATIO_ON = float(os.environ.get("RELAY_RATIO_ON", "1.5"))
+PRESSURE_MIN_COMMITS = int(os.environ.get("RELAY_PRESSURE_MIN_COMMITS", "15"))
 LOOP_REBASES = int(os.environ.get("RELAY_LOOP_REBASES", "3"))
 LOOP_RATIO = float(os.environ.get("RELAY_LOOP_RATIO", "2.5"))
 CPU_SLOW_MHZ = float(os.environ.get("RELAY_CPU_SLOW_MHZ", "2000"))
@@ -128,7 +130,7 @@ def main():
     reasons = []
     if velocity >= VELOCITY_ON:
         reasons.append("VELOCITY %d SCRIP commits in 15 min >= %d" % (velocity, VELOCITY_ON))
-    if c_all and ratio >= RATIO_ON:
+    if c_all >= PRESSURE_MIN_COMMITS and ratio >= RATIO_ON:
         reasons.append("PRESSURE %d rebases for %d commits in 60 min = %.2f >= %.1f" % (rb_all, c_all, ratio, RATIO_ON))
     if loops:
         reasons.append("REBASE LOOP %s (>= %d rebases and >= %.1f per commit in 60 min)" % (" ".join("%s %d/%d" % (x, per[x][0], per[x][1]) for x in loops), LOOP_REBASES, LOOP_RATIO))
