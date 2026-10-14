@@ -87,9 +87,14 @@ negation-free programs (test_tabling, the moded tables, ProBench).
 - Per derivation: the CURRENT DELAY LIST, a backtrackable cell (`b_setval('$tbl_dl', ...)`) holding the list the present derivation
   has pushed; the rounds' `findall` resets it per clause body and collects `Answer-DelayList`; backtracking restores it. This is
   SWI's own representation (`'$tbl_delay_list'`, boot/tabling.pl `add_delay/1`): one value, replaced on backtracking, never one
-  entry per live call -- the call nesting lives where it always did, on the machine stack. ⛔ **The cto rules this item**: if a
-  backtrackable cell holding a list reads as a second stack under CEO-1542, the alternative is an extra argument threaded through
-  the renamed `'$tbl p'` clauses by lower.
+  entry per live call -- the call nesting lives where it always did, on the machine stack. **RULED by the cto (2026-10-14): the
+  backtrackable cell, under three conditions.** (1) One current value, never a stack in disguise: a nested derivation saves the outer
+  list in a clause variable of its caller (the caller's frame), runs with its own, and restores from that variable -- no list of
+  per-call entries ever accumulates in the cell. (2) Nothing reads the cell across a derivation boundary except through that save and
+  restore, so a `tnot` or a completion never sees another derivation's list. (3) Its `b_setval` stays trailed UNCONDITIONALLY once the
+  cto's conditional trail lands (that landing exempts only variable bindings; the cto names this cell in its proof). The cto also
+  read § 3 against its trail design: the fixpoint inside `findall` never meets its sentinels, no consumer is suspended, no new
+  choice-point kind is added.
 
 ### 3.2 The surface (SWI's names; the ISO superset adds them, no dialect switch)
 
