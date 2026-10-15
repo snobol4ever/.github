@@ -191,7 +191,7 @@ scrip --parser-crosscheck parser_rebus.sc tiny.reb
 |------|------|
 | `src/frontend/rebus/rebus.y` | Bison grammar (native frontend) |
 | `src/frontend/rebus/rebus.l` | Flex lexer, auto-semicolon (native frontend) |
-| `src/frontend/rebus/rebus_lower.c` | IR lowering — main native-frontend work site |
+| `src/lower/lower_rebus.c` | IR lowering — main native-frontend work site |
 | `SCRIP/bootstrap/parser_rebus.sc` | Self-hosted Snocone driver (sidecar-free, see THE MODEL) |
 | `SCRIP/bootstrap/{tree,stack,counter,ShiftReduce,semantic,tdump,global}.sc` | Shared self-hosted runtime, all six languages |
 | `SCRIP/scripts/run_scrip_parser.sh` | Current self-hosted-parser runner (`--lang rebus`) |
@@ -546,7 +546,7 @@ grep -cE 'nPush|nInc|nTop|nPop' parser_*.sc # → ≥ counter-helper hits / pars
 
 ## Divergence-driven rungs — n-ary vs the native frontend's binary
 
-The self-hosted parser produces n-ary trees. The native Rebus frontend (`src/frontend/rebus/rebus_lower.c`) uses `expr_binary(E_ALT, ...)` for `RE_ALT` — that is, every `|` is a binary node. So `a | b | c` in the native frontend is `(E_ALT (E_ALT a b) c)`, while the self-hosted parser produces `(E_ALT a b c)`. Same for `f(a, b, c)` arglist (the native frontend may or may not be n-ary there — re-verify per rung), statement sequences, parameter lists, etc.
+The self-hosted parser produces n-ary trees. The native Rebus frontend (`src/lower/lower_rebus.c`) uses `expr_binary(E_ALT, ...)` for `RE_ALT` — that is, every `|` is a binary node. So `a | b | c` in the native frontend is `(E_ALT (E_ALT a b) c)`, while the self-hosted parser produces `(E_ALT a b c)`. Same for `f(a, b, c)` arglist (the native frontend may or may not be n-ary there — re-verify per rung), statement sequences, parameter lists, etc.
 
 **This is intentional divergence, not a bug in the self-hosted parser.** Per the DEFINITION OF DONE, `tree_equal(t1, t2)` was the original gate (now retired, see GOAL PIVOT); for any rung where the native frontend's tree is binary-folded but the self-hosted parser's is n-ary, that gate would fail. That failure was the rung's *output*: the self-hosted parser discovered that the native frontend should be flattened.
 
