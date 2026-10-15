@@ -4,7 +4,8 @@
 # The coo holds the baton while it runs: it TELLS every working seat (no pushes, no builds, no tests), builds the landing's parent (BEFORE) and the landing (AFTER) in two scratch
 # worktrees, runs bench_triangulate_<lang>.sh on each back to back at the shared machine's quiet, stamps the load, writes one line per tree to
 # /home/resources/progress/bench/<LANG>_SPINE_BEFORE_AFTER.txt, composes the per-kernel multiples for the telegram, removes the worktrees and RELEASES the baton.
-#   USAGE: util_relay_baton_bench.sh icon|prolog [LANDING_HASH] [--dry]      (no hash: the newest origin/main commit whose message carries the chunk's tag)
+#   USAGE: util_relay_baton_bench.sh icon|prolog [LANDING_HASH [BEFORE_HASH]] [--dry]      (no hash: the newest origin/main commit whose message carries the chunk's tag;
+#   no BEFORE: the landing's parent; a BEFORE names the pair the ceo rules when the cure sits past the chunk -- CEO-1756: 7eccc5280 BEFORE, 5e5b77076 AFTER, ceo to the coo 2026-10-15)
 # EXIT 0 both lines written under the baton; 2 REFUSED (no landing yet, the box is busy or over the load guard, a build failed); 3 a tree read over the load guard twice (no reading).
 # NEVER: it writes no progress row (S4E_PROGRESS_OFF=1: the Prolog instrument would append its kernels to the shared database stamped with the tree it measured) and no TSV into corpus/
 # (OUT_TSV is scratch: the Prolog default lands inside the root corpus, where a coverage gate globs it); it sends the telegram text to a file and does not send it.
@@ -102,18 +103,29 @@ relay_write() {  # label hash -> appends the DONE-WHEN line and the grid to the 
 }
 
 relay_main() {
-  local lang="${1:-}" land="${2:-}" dry=0 parent bwt awt rc=0 refusal
-  if [ "$land" = --dry ]; then dry=1; land=""; elif [ "${3:-}" = --dry ]; then dry=1; fi
+  local lang="${1:-}" land="" before="" dry=0 parent bwt awt rc=0 refusal a
+  shift
+  for a in "$@"; do
+    case "$a" in
+      --dry) dry=1;;
+      *) if [ -z "$land" ]; then land="$a"; elif [ -z "$before" ]; then before="$a"; else echo "relay: too many arguments" >&2; return 2; fi;;
+    esac
+  done
   R_LANG="$lang"; relay_conf "$lang" || return 2
   git -C "$RELAY_ROOT/SCRIP" fetch -q origin 2>/dev/null
   [ -n "$land" ] || land=$(git -C "$RELAY_ROOT/SCRIP" log origin/main -1 --format=%H --grep="$R_TAG")
   [ -n "$land" ] || { echo "REFUSED(2): no commit carrying $R_TAG is on origin yet -- hq_zetas has not pushed the chunk"; return 2; }
-  land=$(git -C "$RELAY_ROOT/SCRIP" rev-parse "$land") && parent=$(git -C "$RELAY_ROOT/SCRIP" rev-parse "$land^") || return 2
+  land=$(git -C "$RELAY_ROOT/SCRIP" rev-parse --verify -q "$land^{commit}") && parent=$(git -C "$RELAY_ROOT/SCRIP" rev-parse --verify -q "${before:-$land^}^{commit}") || { echo "REFUSED(2): a hash does not name a commit"; return 2; }
+  git -C "$RELAY_ROOT/SCRIP" merge-base --is-ancestor "$parent" "$land" || { echo "REFUSED(2): BEFORE $parent is not an ancestor of AFTER $land"; return 2; }
   OUTDIR="$RELAY_ROOT/.scratch/relay/$(date +%Y%m%dT%H%M%S)-$lang"; mkdir -p "$OUTDIR" "$RELAY_BENCH_DIR"
   echo "relay $lang: BEFORE=$parent AFTER=$land out=$OUTDIR guard=$(relay_guard)"
   [ "$dry" = 1 ] && { echo "dry run: nothing taken, built or measured"; return 0; }
   relay_tell_all take
-  refusal=$(relay_quiet_refusal); [ -z "$refusal" ] || { echo "REFUSED(2): $refusal"; relay_tell_all release; return 2; }
+  # a seat told to stop may be mid-build when the baton is taken: wait up to RELAY_QUIET_WAIT seconds (default 600) for the box to go quiet, then refuse
+  local waited=0
+  while refusal=$(relay_quiet_refusal); [ -n "$refusal" ] && [ "$waited" -lt "${RELAY_QUIET_WAIT:-600}" ]; do sleep 15; waited=$((waited + 15)); done
+  [ -z "$refusal" ] || { echo "REFUSED(2): still not quiet after ${waited}s: $refusal"; relay_tell_all release; return 2; }
+  echo "quiet after ${waited}s (load1 $(relay_load1), guard $(relay_guard))"
   trap 'git -C "$RELAY_ROOT/SCRIP" worktree remove --force "$RELAY_ROOT/.scratch/wt/relay-before" 2>/dev/null; git -C "$RELAY_ROOT/SCRIP" worktree remove --force "$RELAY_ROOT/.scratch/wt/relay-after" 2>/dev/null' RETURN
   mkdir -p "$RELAY_ROOT/.scratch/relay"
   bwt=$(relay_mkwt relay-before "$parent") || { echo "$bwt"; relay_tell_all release; return 2; }

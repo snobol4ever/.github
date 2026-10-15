@@ -420,6 +420,8 @@ def md():
         # (ceo ruling to the coo, 2026-09-08: "Set it, state the convention in the cell.")
         xa = xfail_annotation(r, k)
         if xa: tail = (tail + ' · ' if tail else '') + xa
+        _vd=(r.get('today_void') or '').strip()
+        if _vd: tail = f"READING VOID, NOT A REGRESSION: {_vd}" + (' · ' + tail if tail else '')
         # ⛔ THE GRADED CELL IS THE DATE OF THE GRADING AND NOTHING RELATIVE TO THE RENDER (coo 2026-09-23, row instruments-score-md-graded-
         # cell-freezes-a-relative-age-so-a-row-not-re-rendered-today-still-reads-today). Lon 2026-09-13: "Add the date of the grading for each
         # test suite. Say when was the last time the test was run which produced the results which are being reported." The cell also
@@ -571,7 +573,7 @@ def grid(plain=False):
             pct=f"{pv}%"
         # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
         # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the rung suites).
-        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, wall(r), "DONE" if tt and tp>=tt else ""])
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")])
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
@@ -840,6 +842,16 @@ def main(a):
             if len(a)<=j+1 or not re.match(r'^\d+$', a[j+1]):
                 sys.stderr.write("REFUSE(rc=2): --secs takes a whole number of seconds\n"); sys.exit(2)
             secs=a[j+1]; a=a[:j]+a[j+2:]
+        # ⛔ --void '<reason>' (ceo to the coo 2026-10-15, on the Logtalk 3190/3552 at 52f822b69: "Mark the SUITES row's 3190 reading as
+        # load-voided wherever the table can say so, so nobody quotes it as a regression."): the reading stands as written, and the today_void
+        # column (added on first use) says why it is no reading -- the grid's State reads VOID and SCORE.md's state cell names the reason. A
+        # --set without --void is a new reading and clears it, so a void never outlives the reading it voids.
+        void=''
+        if '--void' in a:
+            j=a.index('--void')
+            if len(a)<=j+1 or not a[j+1].strip() or a[j+1].startswith('-'):
+                sys.stderr.write("REFUSE(rc=2): --void takes the reason in words\n"); sys.exit(2)
+            void=a[j+1].replace('\t',' ').replace('|','·'); a=a[:j]+a[j+2:]
         i=a.index('--set'); key,p,t=a[i+1],a[i+2],a[i+3]; date=a[i+4] if len(a)>i+4 and not a[i+4].startswith('-') else box_clock_day().isoformat(); tree=a[i+5] if len(a)>i+5 and not a[i+5].startswith('-') else None
         # ⛔ A READING CANNOT BE GRADED TOMORROW (CEO-1229): a DATE later than the box-clock day is refused before a byte moves, naming
         # the key, the date and the day, so the writer that computed its day in another zone is found by the refusal on its next run.
@@ -874,6 +886,11 @@ def main(a):
                 head.append('today_excluded')
                 for x in rows: x.setdefault('today_excluded','')
             r['today_excluded']=excluded
+        if void or (r.get('today_void') or '').strip():
+            if 'today_void' not in head:
+                head.append('today_void')
+                for x in rows: x.setdefault('today_void','')
+            r['today_void']=void
         if secs is not None:
             if 'today_secs' not in head:
                 head.append('today_secs')
