@@ -7,8 +7,8 @@
 #   FOLLOWUP stale=N held=M      (N claimed/assigned rows whose baton is untouched over 24 h; M seats holding more than two claims)
 #   STALE <state> <age>h <topic>  (oldest first, at most 6)
 #   HELD <seat> claims=<n>
-# A seat counts only while it is standing (its transcript written in the last 6 h); a down seat's claims are kept in place by MODE and are
-# summarised on the FOLLOWUP line, never chased.
+# A seat counts only while MODE admits it (the bus's own s4e_mode_stands guard, read live); a stood-down seat's claims are kept in place
+# by MODE and are summarised on the FOLLOWUP line, never chased.
 # rc 0 nothing to chase, rc 1 something to chase, rc 2 the queue is unreadable.
 import os, sys, time, collections
 PO = '/home/resources/postoffice'
@@ -17,11 +17,16 @@ try:
 except Exception as e:
     print('⛔ REFUSED (rc=2): util_ceo_followups: %s' % e); sys.exit(2)
 now = time.time(); stale = []; held = collections.Counter(); down = collections.Counter()
+import subprocess
+try: MODE = open(PO + '/MODE', encoding='utf-8').readline().strip()
+except Exception: MODE = ''
+_GUARD = 'eval "$(sed -n "/^s4e_mode_stands()/,/^}/p" /home/claude_ceo/SCRIP/scripts/s4e_msg.sh)"; _dr(){ return 1; }; s4e_mode_stands "$1" "$2"'
+_stand = {}
 def standing(seat):
-    root = seat[3:] if seat.startswith('hq_') else seat
-    d = '/home/satirical/.claude/projects/-home-claude-%s' % root
-    try: return max(os.stat(os.path.join(d, f)).st_mtime for f in os.listdir(d) if f.endswith('.jsonl')) > now - 6 * 3600
-    except Exception: return False
+    if seat not in _stand:
+        try: _stand[seat] = subprocess.run(['bash', '-c', _GUARD, '_', seat, MODE], capture_output=True, timeout=10).returncode == 0
+        except Exception: _stand[seat] = False
+    return _stand[seat]
 for r in rows:
     if len(r) < 4: continue
     topic, st = r[1], r[3]
