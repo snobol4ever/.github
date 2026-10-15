@@ -20,3 +20,4 @@ bae359133	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 sh
 bae359133	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=42 shipped=42 all_pass=42 all_n=42 m3_pass=42 m4_pass=42 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=84 oracles=gprolog:22,swipl:20
 bae359133	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=8 shipped=23 all_pass=8 all_n=8 m3_pass=8 m4_pass=8 containers=15 workhorse_declared=8 chained=0 tree=bae359133 corpus=9071e4faa RT_OPT=-O0
 bae359133	inria	coo	INRIA_SUITE_BOARD total=445 m3_pass=442 m3_fail=0 m3_crash=0 m4_pass=442 m4_fail=0 m4_crash=0 OUTSIDE=3 is the OUTCOME-CLASS-ONLY upper bound, which ignores what a goal bound and can only move down when tightened
+e623f4ead	scriptix-demos	coo	DEMOS_SUITE_BOARD lang=scriptix total=12 shipped=14 all_pass=12 all_n=12 m3_pass=12 m4_pass=12 containers=2 workhorse_declared=12 chained=0 tree=e623f4ead corpus=20b8fec03 RT_OPT=-O0
