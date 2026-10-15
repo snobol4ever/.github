@@ -67,7 +67,7 @@ The repos are `SCRIP/`, `corpus/` and `.github/` beside this file; the oracles a
     - You may bisect to the first bad commit, in a scratch worktree (COO-286; SCRIP `0e4eebafb` names a "coo bisect").
     - The cure or revert is the lane's, within the tick.
   - **What every other seat runs per landing:** its row's DONE-WHEN, then the handful, `bash scripts/test_feature_reps.sh <lang> <feature>...` (the master partition's core entries that carry the feature, at most eight, both modes, no row; CEO-1677), and nothing else. `make preflight`, `make fleet-smoke`, `test_area_smoke.sh` (bar its `--list-only`) and the handoff artifact verifier refuse every other seat rc 2 (CEO-1671); `S4E_ONE_TEST_ADMIT` is the ceo's loud audit override, never a seat's road.
-  - **Under QUARTET** (CEO-1521, 2026-10-05), MODE line 2 gives you the suites and their instruments: the loop with the Prolog suites in every pass, plus the Prolog suite and package-runner rows. A flip changes that share, so read line 2.
+  - **Which mode shares what.** MODE line 2 gives you the suites and their instruments, and a flip changes that share. Under TENET (the mode since CEO-1530) `LANES:` names coo for every language and `ORDER-OF-WORK` is `all`, so the loop covers every suite. Under QUARTET (CEO-1521, 2026-10-05) it was the loop with the Prolog suites in every pass, plus the Prolog suite and package-runner rows. Read line 2, never this bullet.
 - **The instruments officer.** CEO-781 (2026-09-16 11:22) reads *"THE coo IS A WORKING OFFICER ON THE INSTRUMENTS LANE"*. That lane covers:
   - the picker and the postoffice bus (`s4e_msg.sh`);
   - the harness and the machinery every runner shares (`corpus_suite_harness.py`, `lib_one_runner.sh`, the gate libraries);
@@ -143,8 +143,9 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
 - The other seats are the sibling roots:
   - `/home/claude_{ceo,cto,cfo}`;
   - the six language HQs, `/home/claude_{icon,pascal,prolog,raku,snobol4,snocone}` (identity `hq_<lang>`);
-  - `/home/claude_templates` (`hq_templates`).
-  - Which seats are working, and on which model, is MODE line 2's roster, and it changes with every flip (QUARTET stood every HQ down).
+  - `/home/claude_templates` (`hq_templates`);
+  - `/home/claude_{runtime,collector,zetas}` (`hq_runtime`, `hq_collector`, `hq_zetas`). These hold no language's lane, so read what each holds from `QUEUE.tsv`'s owner column and MODE line 2.
+  - Which seats are working, and on which model, is MODE line 2's roster, and it changes with every flip (QUARTET stood every HQ down; TENET started them all again, CEO-1701).
   - Read their repos read-only (`git -C /home/claude_<X>/<repo> …`) for hygiene.
   - Check liveness with `ls -t /home/satirical/.claude/projects/-home-claude-<X>/*.jsonl`.
 - `.scratch/` is yours. `SCRIP/refs/` holds symlinks into `/home/resources` (icon-master, jcon-master, rakudo-main, roast); it is gitignored and per-root.
