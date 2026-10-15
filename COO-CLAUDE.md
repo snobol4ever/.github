@@ -69,9 +69,10 @@ The repos are `SCRIP/`, `corpus/` and `.github/` beside this file; the oracles a
     - Tier 2, per landing: the feature subset the diff marks, `core` plus `shell:<feature>` looked up in `PARTITION.tsv`, selected from the diff through `scripts/area_map.tsv` and capped (a whole-language carrier or over 400 entries means that language's rungs row; a shared node means the seven rungs rows).
     - Tier 3, in idle time: the SUITE TABLE cycle as each suite's PARTITION chunks, one at a time and pre-empted at chunk boundaries; `make preflight`, the blocking set and the `.s` artifact regeneration once per batch, at most once per three hours or per lap.
   - **The loop's script.** It is a detached script under `.scratch/verifier/` (untracked, yours): `loop3.sh` is the file that runs, and the other `loop*.sh`, `swap*.sh` and `.bak` files beside it are earlier or staged versions. GOAL-COO.md's LIVE CURSOR names the version and the pid. A loop from the previous session may still be running when yours starts, so the session-start `ps` comes first.
-    - Its process reads `bash loop3.sh`, which no `claude_coo` pattern matches, so `ps` must name `loop3.sh`.
-    - It is started `setsid nohup` (the last line of each `swap<N>.sh`), so it outlives a session but not a reboot. The 10-15 10:15 reboot killed v7 mid blocking set: its last `summary.txt` line was `END blocking-set rc=2` with no arms.
-    - When `uptime -s` is later than `summary.txt`'s last line, restart it: `cd .scratch/verifier && setsid nohup bash loop3.sh > loop3.nohup 2>&1 < /dev/null &`, then put the new pid in the LIVE CURSOR.
+    - Tier 1 is a SECOND detached process beside it: `tier1.sh` in the same directory, which grades in the `tier1` worktree and writes `TIER1` lines into the same `summary.txt` and a line per run into `SMOKE.tsv`.
+    - Their processes read `bash loop3.sh` and `bash tier1.sh`, which no `claude_coo` pattern matches, so `ps` must name both.
+    - Both are started `setsid nohup` (the last line of each `swap<N>.sh`), so they outlive a session but not a reboot. The 10-15 10:15 reboot killed both: v7 died mid blocking set (its last `summary.txt` line was `END blocking-set rc=2` with no arms), and COO-349 restarted only `loop3.sh`, so no landing was smoked for 70 minutes until COO-350.
+    - When `uptime -s` is later than `summary.txt`'s last line, restart BOTH: `cd .scratch/verifier && setsid nohup bash loop3.sh > loop3.nohup 2>&1 < /dev/null &` and `setsid nohup bash tier1.sh > tier1.nohup 2>&1 < /dev/null &`, then put the new pids in the LIVE CURSOR. A restarted tier 1 logs `TIER1 START` and smokes the range since its `tier1.state` within seconds.
   - **Why no one else can.** MODE's `LANES:` line names coo for every language. So `lib_one_runner.sh`, the harness guard and `util_score_row.py` admit you, and refuse every other seat rc=2.
   - **The runners.** The guarded runners are listed in `SCRIP/scripts/one_runner_boards.txt` (42 on 2026-10-15; `test_gate_one_runner_one_board.sh` keeps that list and the guards in step). Beside them sit the bench runners (`test_<lang>_bench_suite.sh`), the demo runner (`test_demos_suite.sh`) and `make test-boards` (`board_packages.sh` plus its two slow gates).
   - **The rows.** Each runner writes its own row through `util_score_row.py`, with per-program progress appends. SCORE.md § THE SUITE TABLE and `SUITES.tsv` are yours alone, and SCRIP's README renders from them. Publish every pass in the sitting it ends.
@@ -173,8 +174,8 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
 
 ## Session start (THE COO LOOP step 1)
 ```bash
-ps -eo pid,etimes,args | grep -E '[c]laude_coo|[l]oop3\.sh'   # a pass, blocking set or the verifier loop still running? then do NOT merge: it stales the binary and voids the run
-uptime -s; tail -2 .scratch/verifier/summary.txt   # no loop pid and a boot after its last line: it died with the machine, restart it (Who you are, the loop's script)
+ps -eo pid,etimes,args | grep -E '[c]laude_coo|[l]oop3\.sh|[t]ier1\.sh'   # a pass, blocking set or the verifier loop still running? then do NOT merge: it stales the binary and voids the run
+uptime -s; tail -2 .scratch/verifier/summary.txt; tail -1 /home/resources/progress/SMOKE.tsv | cut -f1-2   # no loop3 or tier1 pid and a boot after the last line: restart whichever died (Who you are, the loop's script)
 for r in SCRIP corpus .github; do git -C $r fetch -q origin && git -C $r merge --ff-only origin/main; done
 cd SCRIP && bash scripts/s4e_msg.sh check          # read; ACT OR REPLY; then `bash scripts/s4e_msg.sh clear`
 python3 ../.github/scripts/util_suite_banner.py    # the grid; --plain no colour is what Lon gets, verbatim, when he asks (CEO-1537); --line one line; --md the SCORE.md table
