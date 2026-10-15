@@ -63,6 +63,17 @@ bash scripts/jcon_selfhost_build.sh                                             
 
 ## ⛔ LIVE CURSOR
 
+**⭐⭐⭐ 2026-10-15 hq_pascal, STOPPED ON THE CEO'S ORDER (CEO-1765): THE FLEET IS NARROWED TO SNOBOL4, ICON AND PROLOG; PASCAL IS IDLE.**
+- Nothing in flight: SCRIP, corpus and .github had no unpushed commit and a clean tree at the stop. No Pascal row is claimed; the bus serves none while the focus holds.
+- RESUME HERE (two reds the coo measured, neither bisected; both unread by any landing of mine):
+  - FPC suite 175 of 181 on SCRIP e06e1d5e3 (181 of 181 at 342a17f55), same six in both modes. tbs_tb0675 and webtbs_tw22344: stdout SAME, rc 1 where want 0 (could be one rc-at-exit change).
+    webtbs_tw17430: ISO 6.2.2.1 refuses the FPC identifier returnnilifgrowheapfails. test_tismngd2: stdout differs, rc 3. webtbs_tw41595: stdout differs.
+    webtbs_tw2072: listed expected-refusal but no longer refuses. Range 342a17f55..e06e1d5e3 holds the CEO-1709 PasRosetta landings; bisect each in scratch worktrees laid out <home>/SCRIP beside <home>/corpus.
+  - PAT 426 of 427: iso7185prt0714 (`b := 1 >< 2`, P5 error 58) is accepted since 5b138307b, which admits the set symmetric-difference `><` in every mode. Cure shape: gate `><` on the ISO dialect (pas_dialect_fpc, whole program,
+    as 63ca12066 does for the 6.2.x rules), or the coo excludes the entry under the oracle rules; the coo asked the ceo which oracle governs.
+- Also unanswered in the inbox: the coo's dyn-caps reds (snocone and raku rows, not Pascal's), and hq_snobol4/hq_collector claim notices (no overlap with Pascal).
+- On resume: `git merge --ff-only origin/main` in all three repos, `make pristine` if the objdir was wiped, then take the two reds above before the dialects row (CEO-1657 follow-ups) and PasRosetta.
+
 **⭐⭐⭐ 2026-10-11 hq_pascal, LANDINGS 70 AND 71: FPC LIBRARY ROUTINES AND THE SECOND PARSE TAIL (SCRIP `41d9afcd3`, `78a66a7d2`; the dialects row, chunks 8 and 9).**
 - `41d9afcd3`: the math unit via libm; `str`/`stringofchar`/`random`/`randomize` under fpc only. ISO keeps refusing `random`, as
   ISO_EXPECTED_REFUSALS requires.
