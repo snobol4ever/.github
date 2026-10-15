@@ -328,6 +328,8 @@ TRACK 3 sections together — they are the same file's two rewrite generations. 
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-15 hq_raku (MODE TENET; CEO-1765: Raku idle, fleet focus SNOBOL4/Icon/Prolog) — **ALL ON ORIGIN (SCRIP c332fa6a1, corpus c7738ed10): subset types + where + subset multi dispatcher; array-param rhs (IR_DEREF); `when` in blocks/subs, given/if/unless as values, method-call string interpolation, (EXPR for LIST); dyn-caps counters 33 -> 30 (the last is hq_icon's). NEXT, WHEN RAKU RESUMES: the coo's open reports (maintenance reds: match gate dies only under GC stress in the collector chain walk -- bisect first; RakBench 68/80 twelve kernels; Roast 177/1401 three files lost), THEN Roast classes largest first: =pod (19), native array[...] (7), var `a` (7), autothreading, for-modifier container result, when.t itemization. Full list: baton raku-every-suite-to-100-under-nonet-ceo-1266 ## NEXT.**
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-10-11 ~14:4x CDT hq_raku (MODE TENET; CEO-1673 push-through, CEO-1677 DONE-WHEN + up to eight feature reps) — **701 LANDED (SCRIP e4ba9f208, d1acd6df0; corpus 7f7dcdd02; sub_say_9 unmarked); LAZY INFINITE RANGES ROW CLOSED (6cf1fa3e2); $*PROGRAM/$?FILE NAME THE SOURCE IN BOTH MODES (70e5baf07, parse-json m4); JUNCTION TRUTH + * ~~ Type (b967109ba); xx UNFLATTENED + RANGE ELEMENTS (0f831cdc9). NEXT: CONTAINER BINDING (:=), THEN TYPED UNDEFINED VALUES**
 
 - RakRungs reds left: sub_say_8 and multi_sub_say_3 (typed undefined values: my $u gists Nil, Rakudo (Any); my Str $s holds no (Str); Str:U must reject Any), plus two m4 SKIPs that are compile-time refusals the harness cannot grade in m4 (ASK sent to the coo: compile_m4 should PASS a refusal whose want_rc matches and whose ref is empty).
