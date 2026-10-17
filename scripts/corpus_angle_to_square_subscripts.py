@@ -66,15 +66,19 @@ def convert_lines(lines, container):
     return out, n, strings
 CODE_LINE = re.compile(rb"\b(SEQ|CODE|EVAL|S1)\(\s*'|^\s*S\s+=\s+'\s+AOPA<|^\s*X\s+=\s+F\s+'\(A<")
 AOPA_PIECE = re.compile(rb"^\S*\s+S[12]\s+=\s.*'<I>'")
+TSORT_PIECE = re.compile(rb"'A<I,'(\s+F\s+)'>,A<J,'(\s+F\s+)'>'")
 def code_strings(lines):
     # the second pass: a string that IS SNOBOL4 code -- Gimpel's SEQ(' ... ') and CODE(' ... ') arguments, and the two strings aopa.inc and
     # tsort.inc assemble and compile -- has its subscript brackets converted too; every other string (output text, HTML, macro data) stays.
     # AOPA's S1/S2 are the subscript '<I>' alone, spliced into the statement SEQ compiles (missed until hq_snobol4 2026-10-17: SCRIP's CODE
-    # refuses the angle form since 1a36cb772, so gimpel's aopa_driver and snoflake's gimpel-array-functions died at :F(ERROR)).
+    # refuses the angle form since 1a36cb772, so gimpel's aopa_driver and snoflake's gimpel-array-functions died at :F(ERROR)); and TSORT's
+    # two-dimensional compare 'A<I,' F '>,A<J,' F '>', split across literals on a continuation line and CONVERTed to an EXPRESSION (the coo
+    # found tsort_driver sorting nothing, 2026-10-17).
     out, n = [], 0
     for line in lines:
         if AOPA_PIECE.search(line):
             k = line.count(b"'<I>'"); line = line.replace(b"'<I>'", b"'[I]'"); n += k
+        line, k = TSORT_PIECE.subn(rb"'A[I,'\1'],A[J,'\2']'", line); n += 4 * k
         if line[:1] in (b'*', b'-') or not CODE_LINE.search(line):
             out.append(line); continue
         b = bytearray(line); q = None; depth = 0
