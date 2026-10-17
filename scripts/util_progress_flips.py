@@ -3,7 +3,7 @@
 flipped green per hour?" · "Are you tracking every single package test suite and benchmark program individually?" ·
 "You should have a list of every program and when it began working and its current status as to known problems.").
 
-The table: /home/resources/progress/results.tsv (writer: SCRIP/scripts/util_progress_append.py; contract in its docstring).
+The table: /home/resources/progress/results.tsv (writer: harness/scripts/util_progress_append.py; contract in its docstring).
 
   util_progress_flips.py [--since 3d|12h] [--per hour|day|10m] [--mode m3|m4|ast|any] [--class rungs|package|benchmark]
                          [--suite KEY] [--live-only] [--names]
@@ -30,7 +30,7 @@ PO = "/home/resources/postoffice"
 # tick: "X64T MISSING by KEY MISMATCH (SUITES.tsv x64tests, the runner appends spitbol_x64, 1656 rows; util_suite_rows_vs_progress.py
 # maps it, util_progress_flips.py --coverage does not"). This file carried its own copy, RUNGS_KEYS, which knew the seven rung suites and
 # not x64tests, so --coverage printed X64T MISSING beside 1656 live rows under "(not in SUITES.tsv)" -- two instruments, two answers,
-# one table. It now imports DBNAME from SCRIP/scripts/util_suite_rows_vs_progress.py, the map that audit already used.
+# one table. It now imports DBNAME from harness/scripts/util_suite_rows_vs_progress.py, the map that audit already used.
 def suite_db_names():
     """SUITES.tsv key -> the progress table's suite name (a key it does not name is its own name), or None when the one map cannot be
     read -- a caller REFUSES then, because guessing the names is exactly how a suite with 1656 rows read MISSING."""
@@ -114,7 +114,7 @@ def load(db):
             f"REFUSE(2): {db} writes {len(hdr) + unnamed} columns but its header names only {len(hdr)} "
             f"({', '.join(hdr)}). The last {unnamed} column(s) of every row land in csv's UNNAMED restkey and no "
             f"reader can reach them by name. This is not a reading. Run any append through "
-            f"SCRIP/scripts/util_progress_append.py, which migrates the header under the table's own lock.")
+            f"harness/scripts/util_progress_append.py, which migrates the header under the table's own lock.")
     rows.sort(key=lambda r: r["ts_utc"])
     return rows
 
@@ -448,7 +448,7 @@ def ratchet_scan(db, base):
             f"REFUSE(2): {db} writes {len(hdr) + unnamed} columns but its header names only {len(hdr)} "
             f"({', '.join(hdr)}). The last {unnamed} column(s) of every row land in csv's UNNAMED restkey and no "
             f"reader can reach them by name. This is not a reading. Run any append through "
-            f"SCRIP/scripts/util_progress_append.py, which migrates the header under the table's own lock.")
+            f"harness/scripts/util_progress_append.py, which migrates the header under the table's own lock.")
     later_n, later_first = {}, {}
     if first_decl:
         it = rows_of(); next(it)
@@ -539,7 +539,7 @@ def cmd_ratchet(a, _rows=None):
             print(f"     {m or '<no measurer>':12s} {s:20s} {n:6d} row(s), first {first}")
         if len(short) > 12:
             print(f"     ... and {len(short) - 12} more (measurer, suite) pair(s)")
-        print("     FIX: append through SCRIP/scripts/util_progress_append.py, which writes every column the "
+        print("     FIX: append through harness/scripts/util_progress_append.py, which writes every column the "
               "header names and migrates the header under the table's own lock.")
     else:
         print(f"  ok   ARM A: 0 short rows of {sc['n_sel']} -- every row at or after the baseline carries the full "
@@ -606,7 +606,7 @@ def cmd_coverage(a, rows):
     suites = read_suites_tsv()
     names = suite_db_names()
     if names is None:
-        print("REFUSE(rc=2): --coverage cannot read the SUITES.tsv-key -> progress-suite map from SCRIP/scripts/util_suite_rows_vs_progress.py "
+        print("REFUSE(rc=2): --coverage cannot read the SUITES.tsv-key -> progress-suite map from harness/scripts/util_suite_rows_vs_progress.py "
               "(DBNAME) beside this .github -- without it a suite whose runner appends under another name reads MISSING", file=sys.stderr)
         return 2
     print(f"{'suite (SUITES.tsv key)':24s} {'nick':8s} {'db suite':16s} {'rows':>6s} {'live':>6s} {'programs':>12s} {'modes':8s} {'last row (UTC)':20s} age")

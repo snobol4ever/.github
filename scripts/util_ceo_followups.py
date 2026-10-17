@@ -20,7 +20,7 @@ now = time.time(); stale = []; held = collections.Counter(); down = collections.
 import subprocess
 try: MODE = open(PO + '/MODE', encoding='utf-8').readline().strip()
 except Exception: MODE = ''
-_GUARD = 'PO="%s"; eval "$(sed -n "/^s4e_mode_stands()/,/^}/p" /home/claude_ceo/SCRIP/scripts/s4e_msg.sh)"; _dr(){ return 1; }; s4e_mode_stands "$1" "$2"' % PO
+_GUARD = 'PO="%s"; eval "$(sed -n "/^s4e_mode_stands()/,/^}/p" /home/claude_ceo/harness/scripts/s4e_msg.sh)"; _dr(){ return 1; }; s4e_mode_stands "$1" "$2"' % PO
 _stand = {}
 def standing(seat):
     if seat not in _stand:

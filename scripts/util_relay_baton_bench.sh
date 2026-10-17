@@ -12,7 +12,7 @@
 # SOURCED, IT ONLY DEFINES ITS FUNCTIONS (the coo's 10-14 18:45 incident: a sourced loop script ran three accidental loops).
 RELAY_ROOT="${RELAY_ROOT:-/home/claude_coo}"
 RELAY_SEATS="${RELAY_SEATS:-ceo cto cfo hq_snobol4 hq_icon hq_prolog hq_pascal hq_snocone hq_raku hq_templates hq_runtime hq_collector hq_zetas}"
-RELAY_MSG="${RELAY_MSG:-$RELAY_ROOT/SCRIP/scripts/s4e_msg.sh}"
+RELAY_MSG="${RELAY_MSG:-$RELAY_ROOT/harness/scripts/s4e_msg.sh}"
 RELAY_BENCH_DIR="${RELAY_BENCH_DIR:-/home/resources/progress/bench}"
 
 relay_load1() { echo "${RELAY_LOAD1:-$(cut -d' ' -f1 /proc/loadavg)}"; }

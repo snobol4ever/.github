@@ -30,7 +30,7 @@ d = json.load(open(p))
 perm = d.setdefault('permissions', {})
 allow = perm.setdefault('allow', [])
 want = ["Bash(rsync:*)", "Bash(cp:*)", "Bash(mkdir:*)", "Bash(patch:*)", "Bash(make:*)", "Bash(cd /home/resources/:*)",
-        "Bash(bash scripts/monitor/oracles/build_:*)", "Bash(bash SCRIP/scripts/monitor/oracles/build_:*)"]
+        "Bash(bash ../harness/scripts/monitor/oracles/build_:*)", "Bash(bash harness/scripts/monitor/oracles/build_:*)"]
 added = [w for w in want if w not in allow]
 allow.extend(added)
 json.dump(d, open(p, 'w'), indent=2)
@@ -40,7 +40,7 @@ PY
     python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$F" && echo "OK $R (backup $F.bak-unblock-$STAMP)" || { echo "FAIL $R: $F is not valid JSON after the edit -- restoring the backup"; cp "$F.bak-unblock-$STAMP" "$F"; }
 done
 if [ "$INSTALL" = 1 ]; then
-    B=/home/claude_ceo/SCRIP/scripts/monitor/oracles/build_icon_mon.sh
+    B=/home/claude_ceo/harness/scripts/monitor/oracles/build_icon_mon.sh
     [ -f "$B" ] || { echo "SKIP install: $B missing (pull SCRIP)"; exit 0; }
     echo "--- installing the instrumented Icon oracle at /home/resources/icon-mon"
     ICON_PRISTINE=/home/resources/icon-master bash "$B" /home/resources/icon-mon; rc=$?

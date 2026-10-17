@@ -108,9 +108,9 @@ echo "--- verification (from the ceo clone, which carries the new map) ---"
 cd "$CEO/SCRIP" || refuse "ceo SCRIP missing"
 rc=0
 for g in test_gate_seat_identity_one_map.sh test_gate_picker_lane_table_agrees_with_mode.sh test_gate_mode_line2_is_self_consistent.sh; do
-  printf '%-52s ' "$g"; if timeout 180s bash "scripts/$g" >/dev/null 2>&1; then echo OK; else echo "RED rc=$?"; rc=2; fi
+  printf '%-52s ' "$g"; if timeout 180s bash "../harness/scripts/$g" >/dev/null 2>&1; then echo OK; else echo "RED rc=$?"; rc=2; fi
 done
 for lang in icon prolog raku pascal snocone snobol4; do
-  ( cd "/home/claude_$lang/SCRIP" && printf '%-8s bus says: ' "$lang" && bash scripts/s4e_msg.sh check 2>/dev/null | head -1 )
+  ( cd "/home/claude_$lang/SCRIP" && printf '%-8s bus says: ' "$lang" && bash ../harness/scripts/s4e_msg.sh check 2>/dev/null | head -1 )
 done
 exit $rc

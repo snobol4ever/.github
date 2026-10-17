@@ -24,7 +24,7 @@ for r in SCRIP corpus .github; do
   git -C "$R/$r" merge -q --ff-only origin/main || { echo "REFUSED rc=2: $r did not fast-forward to origin/main"; exit 2; }
   printf '%-8s %s origin=%s user=%s\n' "$r" "$(git -C "$R/$r" rev-parse --short HEAD)" "$(git -C "$R/$r" remote get-url origin)" "$(git -C "$R/$r" config user.name)"
 done
-bash "$R/SCRIP/scripts/install_commit_msg_hook.sh" && echo "hooks: $(ls "$R"/SCRIP/.git/hooks | grep -v sample | tr '\n' ' ')"
+bash "$R/harness/scripts/install_commit_msg_hook.sh" && echo "hooks: $(ls "$R"/SCRIP/.git/hooks | grep -v sample | tr '\n' ' ')"
 mkdir -p "$R/.scratch" "$R/.claude"
 if [ ! -f "$R/.claude/settings.json" ]; then
   python3 - "$R" <<'PY' || { echo "REFUSED rc=2: settings.json could not be derived from the cto's"; exit 2; }
@@ -43,5 +43,5 @@ head -3 "$R/CLAUDE.md" | tail -1 | cut -c1-120
 for d in inbox archive; do mkdir -p "$PO/hq_templates/$d"; done
 [ -s "$PO/hq_templates/HQ" ] || echo cto > "$PO/hq_templates/HQ"
 echo "postoffice hq_templates: HQ=$(cat "$PO/hq_templates/HQ") inbox=$(ls "$PO/hq_templates/inbox" | wc -l) msgs"
-( cd "$R/SCRIP" && bash scripts/s4e_msg.sh check 2>&1 | head -1 )
+( cd "$R/SCRIP" && bash ../harness/scripts/s4e_msg.sh check 2>&1 | head -1 )
 echo "STOCKED $R -- next: start a Claude session in $R (its model is Lon's to seat); its first step is make -C $R/SCRIP; the digest gate reads $R/CLAUDE.md from here on"

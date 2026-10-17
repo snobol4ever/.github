@@ -11,7 +11,7 @@ BLOCK = (BLOCK_KEY + " (Lon 2026-10-11 13:0x CDT, in-chat to the ceo, verbatim: 
          "independent of a query against the attribute file for the long running test suites. So to partition them as major cores, and shells around that core with each major feature "
          "broken out. Or some kind of clustered partitioning.\"* · *\"One reason for the subsets on large suites is so they can be run in chunks even when the full regressions are being "
          "run in its \"spare\" time.\"*; ruled CEO-1676; RULES.md § ONE TESTING OFFICER clause (9); ARCH-SUITE-PARTITIONS.md; SCRIP a70e8e7e5, corpus 501ad6e77):** `PARTITION.tsv` sits "
-         "beside every suite table (the seven masters' and every package's `ALL.csv`, 31 in all), built by `SCRIP/scripts/util_suite_partition.py build <ALL.csv>` and gated current by "
+         "beside every suite table (the seven masters' and every package's `ALL.csv`, 31 in all), built by `harness/scripts/util_suite_partition.py build <ALL.csv>` and gated current by "
          "`test_gate_suite_partitions_are_current.sh` (blocking): the CORE covers every distinctive feature three times (2-11% of a suite; a feature marked by over half the entries is "
          "ubiquitous and the core's by definition), a SHELL is every entry marking a feature, every other entry is in one CLUSTER (its rarest distinctive feature, else its family or "
          "directory), and the clusters pack into CHUNKS of at most 100 entries, sized by seconds once the runners record them. The coo's loop runs tier 2 as `core` plus `shell:<feature>` "

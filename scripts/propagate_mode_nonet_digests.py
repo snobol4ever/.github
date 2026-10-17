@@ -100,5 +100,5 @@ for r in ROOTS:
     open(path, 'w', encoding='utf-8').write('\n'.join(lines))
     print('ok  hq_%-3s census sentence corrected on line %d  1 1' % (r, i + 1))
 
-print('\nRun the digest gate next: bash scripts/test_gate_digest_matches_rules.sh')
+print('\nRun the digest gate next: bash ../harness/scripts/test_gate_digest_matches_rules.sh')
 sys.exit(rc)

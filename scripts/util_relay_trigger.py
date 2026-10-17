@@ -20,7 +20,7 @@ THIS INSTRUMENT measures, read-only, the three conditions under which the relay 
              outright landing STEP B.
   LOAD       load1 and load5 against the core count -- ON at LOAD1_ON x cores with load5 at LOAD5_ON x cores (a sustained
              rebuild herd, not a spike). Calibration: 45 -> 56 on 16 cores when twelve seats rebuilt at once.
-REJECTS a seat whose push is rejected runs SCRIP scripts/s4e_push_rejected.sh, one line into $PO/PUSH_REJECTED.tsv (Lon
+REJECTS a seat whose push is rejected runs SCRIP ../harness/scripts/s4e_push_rejected.sh, one line into $PO/PUSH_REJECTED.tsv (Lon
              13:4x, verbatim: "So maybe seats just report REJECTED pushes?") -- ON at REJECT_SEAT_ON lost races for one seat
              or REJECT_FLEET_ON for the fleet in 60 minutes: a lost race is the one thing a reflog cannot show.
   CPU     every reading prints the MEASURED clock (cpuinfo_avg_freq, the hardware's own average) against its maximum, the

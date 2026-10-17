@@ -15,7 +15,7 @@ byte changed. Prints one line per changed file (subscripts converted) and the st
 compile, which the converter does not touch and a human reads).
 """
 import os, re, sys
-sys.path.insert(0, '/home/claude_ceo/SCRIP/scripts')
+sys.path.insert(0, '/home/claude_ceo/harness/scripts')
 from corpus_suite_harness import BANNER_RE, ONE_LINE_TAG_RE
 APPLY = '--apply' in sys.argv
 ROOT = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/home/claude_ceo/corpus'

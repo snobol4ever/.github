@@ -20,7 +20,7 @@ export S4E_SCORE_WRITE="Lon for the ceo: CEO-621 one read of the Icon suites pub
 LOG="${TMPDIR:-/tmp}/icon_boards_one_read.$(date +%Y%m%dT%H%M%S)"; mkdir -p "$LOG"
 echo "tree SCRIP=$(git rev-parse --short HEAD) corpus=$(git -C ../corpus rev-parse --short HEAD) start=$(date '+%H:%M:%S %Z') logs=$LOG"
 for r in board_icon_rungs.sh test_icon_arizona_suite.sh test_icon_jcon_suite.sh test_icon_ipl_suite.sh; do
-  t0=$(date +%s); timeout 1800s bash "scripts/$r" $(case $r in test_icon_arizona_suite.sh|test_icon_ipl_suite.sh) echo -v;; esac) > "$LOG/$r.log" 2>&1; rc=$?
+  t0=$(date +%s); timeout 1800s bash "../harness/scripts/$r" $(case $r in test_icon_arizona_suite.sh|test_icon_ipl_suite.sh) echo -v;; esac) > "$LOG/$r.log" 2>&1; rc=$?
   echo "=== $r rc=$rc $(( $(date +%s) - t0 ))s"
   grep -E 'ICON_RUNGS|BOARD|AND_PER_PROGRAM|PACKAGE_INVENTORY|RUN_FAIL:|RUN_CRASH:|RUN_HANG:|FAIL:|REFUSE|rewrote|NOT UPDATED|OVERRIDE' "$LOG/$r.log" | head -20
 done

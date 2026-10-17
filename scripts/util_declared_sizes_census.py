@@ -15,7 +15,7 @@ THE POPULATIONS:
     declaration nobody measured (clause (g));
   * the standalone test units: every program under benchmarks/<lang>/ and demos/<lang>/ that carries a .ref beside it
     (RULES.md: a ref for every benchmark and test) -- each needs <stem>.heap and <stem>.stack sidecars, one line
-    NAME<TAB>KB, read by SCRIP/scripts/lib_declared_arena.sh.
+    NAME<TAB>KB, read by harness/scripts/lib_declared_arena.sh.
 
 rc 0: every unit of the languages asked declares both, every value numeric and at or above its floor.
 rc 1: a gap, NAMED (up to --names per population).

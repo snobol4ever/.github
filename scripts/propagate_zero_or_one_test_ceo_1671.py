@@ -16,7 +16,7 @@ BLOCK = (BLOCK_KEY + " (Lon 2026-10-11 11:5x CDT, in-chat to the ceo, verbatim: 
          "through the Stop hook's banner. THE RULE: a seat's verification of a landing is ITS ROW'S DONE-WHEN -- one measurement -- and NOTHING ELSE: no `make preflight`, no gate "
          "sweep over the diff, no area smoke, no artifact regeneration, no census or instrument that compiles or runs more than one program (such a run is a BOARD and only the coo's "
          "loop runs it, on a row asking it; a seat that needs one reads the coo's row through `util_suite_row_at_or_after.sh`). THE coo IS THE VERIFIER: its loop runs one run at a "
-         "time and, for each origin landing, runs FIRST the feature that landing's diff marks (`test_area_smoke.sh`'s selection through `scripts/area_map.tsv` and the attribute rows' "
+         "time and, for each origin landing, runs FIRST the feature that landing's diff marks (`test_area_smoke.sh`'s selection through `../harness/scripts/area_map.tsv` and the attribute rows' "
          "feature columns -- change SPAN, run the SPAN programs first), then `make preflight` and the blocking set once per batch of landings, the artifact regeneration once per batch, "
          "and cycles the whole SUITE TABLE eventually; a red reaches the lane by telegram with the range. THE HARNESS ENFORCES IT: `make preflight`, `test_area_smoke.sh` (its "
          "`--list-only` stays open to every seat) and the handoff artifact verifier REFUSE rc 2 for every seat but the coo, and a seat's handoff is not blocked by the drift it no "

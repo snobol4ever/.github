@@ -4,7 +4,7 @@
 Lon 2026-09-27, in-chat to the ceo, verbatim: "Use the *.inc names exclusively. Ensure we have the SPITBOL dialect from the Mark
 Emmer's distribution, and not the SNOBOL4 dialect." (CEO-1319) -- and, refined: "So we should vendor all SPITBOL-form files
 verbatum, with only uppercase keywords/reserved-words for SCRIP acceptance." and "And any other edit required to get running under
-Linux." (CEO-1320). The checker is SCRIP scripts/util_gimpel_is_the_catspaw_spitbol_form.py; this tool builds what it checks.
+Linux." (CEO-1320). The checker is SCRIP ../harness/scripts/util_gimpel_is_the_catspaw_spitbol_form.py; this tool builds what it checks.
 
 WHAT IT DOES, in one --apply (the dry run prints every step and an `owed:` line):
   FORM     every file of /home/resources/gimpel/SPITBOL (README* aside) is git-mv'd from its vendored counterpart to its own name
@@ -267,7 +267,7 @@ def main():
     with open(os.path.join(P, "EDITS.tsv"), "w", encoding="utf-8") as fh:
         fh.write("# EDITS.tsv -- every line of the vendored gimpel package that differs from Catspaw's SPITBOL form (/home/resources/gimpel/SPITBOL),\n"
                  "# CR and ^Z aside. Lon 2026-09-27 (CEO-1320): verbatim, with only upper-case reserved words for SCRIP acceptance, and any other\n"
-                 "# edit Linux requires. Checked mechanically by SCRIP scripts/util_gimpel_is_the_catspaw_spitbol_form.py.\n"
+                 "# edit Linux requires. Checked mechanically by SCRIP ../harness/scripts/util_gimpel_is_the_catspaw_spitbol_form.py.\n"
                  "# file<TAB>class<TAB>lines<TAB>reason\n")
         for f, k, ls, why in edits:
             fh.write("%s\t%s\t%s\t%s\n" % (f, k, ",".join(map(str, ls)), why))

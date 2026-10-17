@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """util_stack_countdown.py -- THE COUNTDOWN BANNER of the global-stack eradication (Lon 2026-10-07, verbatim: "Give me a countdown
 counter: how many global stack have you eradicated."; CEO-1544). One line, computed from the source tree, never typed:
-every censused second stack (SCRIP/scripts/audit_second_stacks_census.py, the KEPT r12 islands excluded) is GONE when no whole-word
+every censused second stack (harness/scripts/audit_second_stacks_census.py, the KEPT r12 islands excluded) is GONE when no whole-word
 reference remains under src/, BOMBED when every remaining reference is a bomb string that names its deletion, LIVE otherwise; the two
 link chains through C frames (one head cell, nodes on the machine stack) are not second stacks and are not counted.
     python3 .github/scripts/util_stack_countdown.py [--long]

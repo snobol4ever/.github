@@ -21,10 +21,10 @@ import json, collections, os, shutil, sys, datetime as dt
 def hooks_for(root):
     return collections.OrderedDict([
       ("Stop",[{"hooks":[{"type":"command",
-        "command":f"cd {root}/SCRIP && bash scripts/s4e_msg.sh banner 2>&1 | tail -40",
+        "command":f"cd {root}/SCRIP && bash ../harness/scripts/s4e_msg.sh banner 2>&1 | tail -40",
         "timeout":120}]}]),
       ("UserPromptSubmit",[{"hooks":[{"type":"command",
-        "command":f"cd {root}/SCRIP && bash scripts/s4e_msg.sh check 2>/dev/null | head -24",
+        "command":f"cd {root}/SCRIP && bash ../harness/scripts/s4e_msg.sh check 2>/dev/null | head -24",
         "timeout":30}]}]),
     ])
 

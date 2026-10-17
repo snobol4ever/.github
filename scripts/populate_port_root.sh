@@ -19,13 +19,13 @@ case "${1:-}" in
   jvm)    PORT=snobol4jvm;    DIGEST=HQ-JVM-CLAUDE.md;;
   *) echo "REFUSED rc=2: usage: populate_port_root.sh dotnet|jvm"; exit 2;;
 esac
-SEAT="hq_$1"; R="/home/claude_$1"; SRC=/home/claude_ceo; ORG=git@github.com:snobol4ever; PO=/home/resources/postoffice; BUS="$SRC/SCRIP/scripts"
-HOOK="$SRC/SCRIP/scripts/lib_commit_msg_hook.txt"
+SEAT="hq_$1"; R="/home/claude_$1"; SRC=/home/claude_ceo; ORG=git@github.com:snobol4ever; PO=/home/resources/postoffice; BUS="$R/harness/scripts"
+HOOK="$SRC/harness/scripts/lib_commit_msg_hook.txt"
 [ -d "$R" ] || { echo "REFUSED rc=2: $R does not exist -- Lon creates the root"; exit 2; }
 [ -f "$SRC/.github/$DIGEST" ] || { echo "REFUSED rc=2: $SRC/.github/$DIGEST is missing -- pull .github first"; exit 2; }
 [ -f "$HOOK" ] || { echo "REFUSED rc=2: the org commit-msg hook text $HOOK is missing"; exit 2; }
-/usr/bin/grep -q "ME=$SEAT;;" "$BUS/s4e_msg.sh" || { echo "REFUSED rc=2: the bus at $BUS does not know $SEAT yet -- pull SCRIP in $SRC first"; exit 2; }
-for r in "$PORT" corpus .github; do
+/usr/bin/grep -q "ME=$SEAT;;" "$SRC/harness/scripts/s4e_msg.sh" || { echo "REFUSED rc=2: the bus does not know $SEAT yet -- pull harness in $SRC first"; exit 2; }
+for r in "$PORT" corpus harness .github; do
   if [ ! -d "$R/$r/.git" ]; then
     git clone -q "$SRC/$r" "$R/$r" || { echo "REFUSED rc=2: clone of $r failed"; exit 2; }
   fi
@@ -45,9 +45,9 @@ if [ ! -f "$R/.claude/settings.json" ]; then
 import json, sys
 r, seat, bus = sys.argv[1], sys.argv[2], sys.argv[3]
 s = open('/home/claude_cto/.claude/settings.json', encoding='utf-8').read()
-s = s.replace('d=/home/claude_cto; out=$(timeout 100 bash \\"$d/SCRIP/scripts/s4e_msg.sh\\" banner',
+s = s.replace('d=/home/claude_cto; out=$(timeout 100 bash \\"$d/harness/scripts/s4e_msg.sh\\" banner',
               'd=%s; out=$(S4E_HOME=$d timeout 100 bash \\"%s/s4e_msg.sh\\" banner' % (r, bus))
-s = s.replace('out=$(timeout 20 bash /home/claude_cto/SCRIP/scripts/s4e_inbox_hook.sh',
+s = s.replace('out=$(timeout 20 bash /home/claude_cto/harness/scripts/s4e_inbox_hook.sh',
               'out=$(S4E_HOME=%s timeout 20 bash %s/s4e_inbox_hook.sh' % (r, bus))
 s = s.replace('Firing cto banner', 'Firing %s banner' % seat).replace('Checking cto inbox', 'Checking %s inbox' % seat)
 json.loads(s)

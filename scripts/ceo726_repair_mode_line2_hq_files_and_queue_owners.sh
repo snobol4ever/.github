@@ -125,5 +125,5 @@ for s in hq_C hq_R; do printf "%s/HQ = %s\n" "$s" "$(cat $s/HQ)"; done
 awk -F'\t' '$2 ~ /^snocone-/ {print $3" "$4}' QUEUE.tsv | sort | uniq -c
 awk -F'\t' '$2 ~ /^pascal-/  {print $3" "$4}' QUEUE.tsv | sort | uniq -c
 echo "--- the gate that holds the two copies against each other ---"
-bash /home/claude_ceo/SCRIP/scripts/test_gate_picker_lane_table_agrees_with_mode.sh 2>&1 | tail -3
+bash /home/claude_ceo/harness/scripts/test_gate_picker_lane_table_agrees_with_mode.sh 2>&1 | tail -3
 exit $PYRC

@@ -12,7 +12,7 @@ set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 S4E="${S4E_HOME:-$(cd "$SELF_DIR/../.." && pwd)}"
 LOG="${CEO_NUMBERS_LOG:-$S4E/.github/ceo-numbers.tsv}"
-OUT="$(cd "$S4E/SCRIP" && timeout 600 python3 scripts/util_gc_acceptance.py 2>&1)" || true
+OUT="$(cd "$S4E/SCRIP" && timeout 600 python3 ../harness/scripts/util_gc_acceptance.py 2>&1)" || true
 g() { printf '%s\n' "$OUT" | grep -oE "$1" | head -1 | grep -oE '[0-9]+ / [0-9]+' | tr -d ' ' ; }
 SP="$(g 'safe-point polls at allocating call returns +[0-9]+ / [0-9]+')"
 CB="$(g 'callback wraps \(RT_GC_CALLBACK\) +[0-9]+ / [0-9]+')"

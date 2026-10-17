@@ -39,7 +39,7 @@ if command grep -q 'X = 1' "$W/t.out"; then echo "PASS: TRACE(X,'VALUE') traces"
 else
     e=$(command grep -m1 'ERROR [0-9]*' "$W/t.out" | tr -d '\n')
     echo "RED: $O does not trace TRACE(X,'VALUE'): ${e:-no diagnostic, output was empty}"
-    case "$e" in *"ERROR 199"*) echo "     ^ the TRACE second-argument dispatch still compares against the lowercase ch_l* constants after folding to upper case; apply the eleven ch_u* (see scripts/fix_sbl_trace_dispatch.sh)";; esac
+    case "$e" in *"ERROR 199"*) echo "     ^ the TRACE second-argument dispatch still compares against the lowercase ch_l* constants after folding to upper case; apply the eleven ch_u* (see ../harness/scripts/fix_sbl_trace_dispatch.sh)";; esac
     rc=1
 fi
 if command grep -q 'Y = 2' "$W/t.out"; then echo "PASS: TRACE(Y,'value') traces"

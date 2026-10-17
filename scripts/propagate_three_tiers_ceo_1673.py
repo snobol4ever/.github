@@ -11,7 +11,7 @@ BLOCK = (BLOCK_KEY + " (Lon 2026-10-11 12:4x CDT, in-chat to the ceo, verbatim: 
          "then having the COO catch soon after problems after the fact. The COO should run a set of super-fast test, a so-called smoke test, often. Then full regressions much less often. And in "
          "general run test subsets as features are changed.\"*; ruled CEO-1673, RULES.md § ONE TESTING OFFICER clause (8), SCRIP 6d639c986, .github 05d2d4ab):** TIER 0, THE SEAT: fix the bug, "
          "prove the row's ONE DONE-WHEN (CEO-1671), push, `done`, `next` -- wait for no verdict; a red the loop finds later reaches you by telegram with the range of landings since the last "
-         "green reading, and you cure or revert within the tick (a one-landing range needs no bisect). TIER 1, THE FLEET SMOKE: `make fleet-smoke` (`scripts/test_fleet_smoke.sh`, the eight "
+         "green reading, and you cure or revert within the tick (a one-landing range needs no bisect). TIER 1, THE FLEET SMOKE: `make fleet-smoke` (`../harness/scripts/test_fleet_smoke.sh`, the eight "
          "per-language smokes, measured 8-20 s, 121 checks) -- the coo runs it after EVERY origin landing, before anything else; it refuses every other seat; its record is "
          "`/home/resources/progress/SMOKE.tsv`. TIER 2, THE FEATURE SUBSET: per landing, the area smoke's selection through `area_map.tsv` and the attribute rows, CAPPED -- over 400 entries or "
          "a whole-language carrier means that language's rungs row (1-5 min), a shared node means the seven rungs rows (about 15 min) -- run ahead of any full-regression unit. TIER 3, THE FULL "

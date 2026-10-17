@@ -54,6 +54,6 @@ PYEOF
 echo "--- VERIFY, measured not assumed ---"
 awk -F'\t' '$2 ~ /^rebus/ {print $3" "$4}' QUEUE.tsv | sort | uniq -c
 echo "--- the gate ---"
-bash /home/claude_ceo/SCRIP/scripts/test_gate_picker_lane_table_agrees_with_mode.sh >/tmp/ceo742_gate.txt 2>&1
+bash /home/claude_ceo/harness/scripts/test_gate_picker_lane_table_agrees_with_mode.sh >/tmp/ceo742_gate.txt 2>&1
 echo "picker gate rc=$? (0 = agrees)"
 tail -2 /tmp/ceo742_gate.txt

@@ -9,7 +9,7 @@ ROOTS = ["ceo", "cto", "coo", "cfo", "icon", "prolog", "pascal", "snocone", "sno
 BLOCK_KEY = "⛔⭐⭐⭐⭐ **THE HANDFUL: A SEAT'S VERIFICATION OF A LANDING IS ITS DONE-WHEN PLUS A SMALL HANDFUL OF REPRESENTATIVE PROGRAMS DIRECTLY RELATED TO THE FIX"
 BLOCK = (BLOCK_KEY + " (Lon 2026-10-11 13:4x CDT, in-chat to the ceo, verbatim: *\"I suspect the ONE TEST per change is too restrictive. It should be a small handful of representative "
          "programs directly related to the fix.\"*; ruled CEO-1677, amending CEO-1671's \"and nothing else\"; RULES.md § ONE TESTING OFFICER clause (7a); SCRIP 53a2be475):** per landing a seat "
-         "runs its row's DONE-WHEN, then `bash scripts/test_feature_reps.sh <lang> <feature>...` -- the master partition's CORE entries whose shells carry the feature the fix touches "
+         "runs its row's DONE-WHEN, then `bash ../harness/scripts/test_feature_reps.sh <lang> <feature>...` -- the master partition's CORE entries whose shells carry the feature the fix touches "
          "(CEO-1676: 3-26 core entries carry a feature), in core order, capped at eight (`REPS_CAP`), graded by the harness's smoke engine in both modes with no progress row and no "
          "score row (measured: FENCE 8 of 15, 3.7 s); `--list` names them and runs nothing; the feature is named as the attribute table spells it (`test_area_smoke.sh --list-only` maps a "
          "diff to its features; a feature no shell carries refuses rc 2 and prints the vocabulary). THE BOUND STANDS: at most eight programs of the seat's own master -- never a package, "

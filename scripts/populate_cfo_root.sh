@@ -21,7 +21,7 @@ for r in SCRIP corpus .github; do
   git -C "$CFO/$r" merge -q --ff-only origin/main || { echo "REFUSED rc=2: $r did not fast-forward to origin/main"; exit 2; }
   printf '%-8s %s origin=%s user=%s\n' "$r" "$(git -C "$CFO/$r" rev-parse --short HEAD)" "$(git -C "$CFO/$r" remote get-url origin)" "$(git -C "$CFO/$r" config user.name)"
 done
-bash "$CFO/SCRIP/scripts/install_commit_msg_hook.sh" && echo "hooks: $(ls "$CFO"/SCRIP/.git/hooks | grep -v sample | tr '\n' ' ')"
+bash "$CFO/harness/scripts/install_commit_msg_hook.sh" && echo "hooks: $(ls "$CFO"/SCRIP/.git/hooks | grep -v sample | tr '\n' ' ')"
 mkdir -p "$CFO/SCRIP/refs" "$CFO/.scratch" "$CFO/.claude"
 for l in icon-master jcon-master rakudo-main; do ln -sfn "/home/resources/$l" "$CFO/SCRIP/refs/$l"; done
 ln -sfn /home/resources/roast-master "$CFO/SCRIP/refs/roast"
@@ -35,7 +35,7 @@ cat > "$CFO/.claude/settings.json" <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "d=/home/claude_cfo; out=$(timeout 100 bash \"$d/SCRIP/scripts/s4e_msg.sh\" banner 2>&1); printf '%s' \"$out\" | python3 -c 'import json,sys; print(json.dumps(dict(systemMessage=sys.stdin.read())))'",
+            "command": "d=/home/claude_cfo; out=$(timeout 100 bash \"$d/harness/scripts/s4e_msg.sh\" banner 2>&1); printf '%s' \"$out\" | python3 -c 'import json,sys; print(json.dumps(dict(systemMessage=sys.stdin.read())))'",
             "timeout": 120,
             "statusMessage": "Firing cfo banner"
           }
@@ -47,7 +47,7 @@ cat > "$CFO/.claude/settings.json" <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "out=$(timeout 20 bash /home/claude_cfo/SCRIP/scripts/s4e_inbox_hook.sh 2>&1); printf '%s' \"$out\" | python3 -c 'import json,sys; print(json.dumps({\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":sys.stdin.read()}}))'",
+            "command": "out=$(timeout 20 bash /home/claude_cfo/harness/scripts/s4e_inbox_hook.sh 2>&1); printf '%s' \"$out\" | python3 -c 'import json,sys; print(json.dumps({\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":sys.stdin.read()}}))'",
             "timeout": 30,
             "statusMessage": "Checking cfo inbox"
           }
@@ -70,5 +70,5 @@ head -1 "$CFO/CLAUDE.md"
 for d in inbox archive; do mkdir -p "/home/resources/postoffice/cfo/$d"; done
 [ -s /home/resources/postoffice/cfo/HQ ] || echo ceo > /home/resources/postoffice/cfo/HQ
 echo "postoffice cfo: HQ=$(cat /home/resources/postoffice/cfo/HQ) inbox=$(ls /home/resources/postoffice/cfo/inbox | wc -l) msgs"
-( cd "$CFO/SCRIP" && bash scripts/s4e_msg.sh check 2>&1 | head -1 )
+( cd "$CFO/SCRIP" && bash ../harness/scripts/s4e_msg.sh check 2>&1 | head -1 )
 echo "STOCKED $CFO -- next: make -C $CFO/SCRIP (the CFO's first step); the digest gate reads $CFO/CLAUDE.md from here on"
