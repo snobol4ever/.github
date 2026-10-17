@@ -28,7 +28,7 @@ p, r = sys.argv[1], sys.argv[2]
 t = open(p, encoding='utf-8').read(); o = t
 t = t.replace('/home/claude_ceo/SCRIP/scripts/', r + '/harness/scripts/')          # the port roots borrowed the ceo root's bus
 t = re.sub(r'(/home/claude_[a-z0-9]+)/SCRIP/scripts/', r'\1/harness/scripts/', t)   # every other root's own bus
-t = t.replace('"$d/SCRIP/scripts/s4e_msg.sh"', '"$d/harness/scripts/s4e_msg.sh"')
+t = t.replace('$d/SCRIP/scripts/', '$d/harness/scripts/')
 json.loads(t)
 assert '/SCRIP/scripts/' not in t, 'a hook still names SCRIP/scripts'
 if t != o: open(p, 'w', encoding='utf-8', newline='\n').write(t)
