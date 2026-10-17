@@ -1,0 +1,32 @@
+# GOAL-HQ-JVM — finish and polish snobol4ever/snobol4jvm
+
+**Opened 2026-10-17 by Lon, in-chat to the ceo, verbatim:** *"We need to create two new HQ seats and their corresponding root folders (I'll do that part) for finishing and polishing snobol4ever/snobol4dotnet and snobol4ever/snobol4jvm. Call them HQ-DOTNET and HQ-JVM."* · *"These two HQ's will certainly need to be fully apart of our fleet, they just happen not to be SCRIP."* (GOAL-CEO CEO-1817)
+
+- **Seat:** HQ-JVM, identity `hq_jvm`, root `/home/claude_jvm`, officer the cfo.
+- **Repo:** `snobol4ever/snobol4jvm`, a SNOBOL4/SPITBOL implementation for the JVM in Clojure (Leiningen project `SNOBOL4clojure` 0.2.0).
+- **Mechanics:** in the root's `CLAUDE.md` (from `.github/HQ-JVM-CLAUDE.md`).
+
+## LIVE CURSOR
+
+- **2026-10-17 — the seat opened.** The ceo found, at `f35d392`:
+  - OpenJDK 21.0.11 is installed, but there is no `lein`, no `clojure` CLI and no `~/.m2`, so nothing can build yet.
+  - The README claims "tests 1,896 / 0 failures". The last commit adds `test_csnobol4_suite.clj`: 126 tests, 116 Budne and 10 FENCE.
+  - The working tree is clean and current with origin.
+- **First sitting:**
+  1. Install Leiningen for this user, run `lein deps` and `lein test`, and record the measured count here.
+  2. Mint one row per failing test: owner `hq_jvm`, DONE-WHEN the failing test.
+  3. Measure the SPITBOL agreement over `corpus/` and write the table here: the master `tests/snobol4/ALL.sno` entries, the benchmarks, the demos and the SNOBOL4 packages, each run under snobol4jvm against its `.ref`. Choose the oracle switches and record that choice.
+  4. Mint the reds and cure them one per commit, before any polish.
+
+## THE GOAL, IN ORDER
+
+1. **Correct:** every test passes, and every corpus program the oracle answers matches its ref.
+2. **Polished:**
+   - nothing generated tracked (`target/`, class files);
+   - a clean `lein check`;
+   - a README whose badges and numbers match a run you made.
+3. **Measured:** benchmark numbers against official SPITBOL (`/home/resources/spitbol-bench-oracle/sbl`), quoted as the bare multiple `x` (reference time over this port's time), each with its load stamped and the JVM's warm-up stated.
+
+## RULINGS
+
+- The oracle wins over this project's own behaviour unless Lon rules otherwise. Record every such ruling here with its date and words.
