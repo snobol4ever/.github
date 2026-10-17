@@ -36,6 +36,28 @@ printf 'MODE written     : %s\n' "$MODE_WRITTEN"
 printf 'lane table commit: %s\n' "$TBL_COMMIT"
 case "${1:---check}" in
   --check)
+    # ⛔⭐ FIVE MODES AND A ROSTER LINE (Lon 2026-10-17, in-chat to the ceo, verbatim: "You will only have 5 modes, SOLO, DUO, TRIO, QUARTET,
+    # and TENET (full with varying)." then "SOLO will always be CEO only. DUO will be either CEO+CTO or CEO+COO. TRIO will be CEO+COO+(CTO|CFO).
+    # QUARTET is all 4 officers. TENET is the grab bag."; CEO-1818): line 1 is one of the five, the ROSTER: line names the standing seats,
+    # and its set is the shape its name allows; s4e_mode_stands admits exactly the roster.
+    ROSTER="$(grep -m1 '^ROSTER:' "$MODEF" | sed 's/^ROSTER://')"
+    [ -n "$ROSTER" ] || { printf '⛔ MODE carries no ROSTER: line -- the standing seats are unnamed (CEO-1818)\n'; exit 1; }
+    n=$(printf '%s\n' $ROSTER | grep -c .)
+    SET="$(printf '%s\n' $ROSTER | sort -u | tr '\n' ' ' | sed 's/ $//')"
+    case "$MODE_NOW" in
+      SOLO)    ok="ceo";;
+      DUO)     ok="ceo cto|ceo coo";;
+      TRIO)    ok="ceo coo cto|ceo cfo coo";;
+      QUARTET) ok="ceo cfo coo cto";;
+      TENET)   ok="*";;
+      *) printf '⛔ MODE line 1 is %s, not one of the five modes SOLO DUO TRIO QUARTET TENET (CEO-1818)\n' "$MODE_NOW"; exit 1;;
+    esac
+    case " $ROSTER " in *" ceo "*) ;; *) printf '⛔ the ROSTER line does not name the ceo\n'; exit 1;; esac
+    if [ "$ok" != "*" ]; then
+      match=0; IFS='|'; for s in $ok; do [ "$s" = "$SET" ] && match=1; done; unset IFS
+      [ "$match" = 1 ] || { printf '⛔ %s allows the roster %s, and MODE names: %s\n' "$MODE_NOW" "$ok" "$SET"; exit 1; }
+    fi
+    printf 'roster (%s)     :%s\n' "$n" "$ROSTER"
     bash "$GATE" >/dev/null 2>&1; rc=$?
     if [ "$rc" = 0 ]; then printf '✅ table and MODE AGREE (gate rc=0)\n'; exit 0; fi
     printf '⛔ table and MODE DISAGREE (gate rc=%s)\n' "$rc"
