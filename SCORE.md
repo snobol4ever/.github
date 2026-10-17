@@ -34,13 +34,13 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 WALL=7s | 2026-10-17 | `bae359133` | done |
 | SnoBench | snobol4 | 23/23 WALL=21s | 2026-10-17 | `92893767d` | done |
 | IcnBench | icon | 26/26 WALL=109s | 2026-10-17 | `b2f5fda77` | done |
-| ProBench | prolog | 41/42 EXCLUDED=1 WALL=576s | 2026-10-17 | `371ce73cc` |  |
+| ProBench | prolog | 42/42 EXCLUDED=1 WALL=576s | 2026-10-17 | `371ce73cc` | done |
 | PasBench | pascal | 11/11 WALL=79s | 2026-10-15 | `e06e1d5e3` | done |
 | RebBench | rebus | 3/3 WALL=5s | 2026-10-15 | `e06e1d5e3` | done |
 | SnoDemo | snobol4 | 24/24 WALL=11s | 2026-10-17 | `92893767d` | done |
 | SncDemo | snocone | 23/23 WALL=29s | 2026-10-15 | `e06e1d5e3` | done |
 | IcnDemo | icon | 7/7 WALL=12s | 2026-10-17 | `92893767d` | done |
-| ProDemo | prolog | 7/8 WALL=80s | 2026-10-17 | `371ce73cc` |  |
+| ProDemo | prolog | 8/8 WALL=80s | 2026-10-17 | `371ce73cc` | done |
 | TixDemo | scriptix | 11/12 WALL=14s | 2026-10-17 | `371ce73cc` |  |
 | PasRosetta | pascal | 167/405 EXCLUDED=259 WALL=1219s | 2026-10-15 | `e06e1d5e3` |  |
 | ProRosetta | prolog | 399/503 EXCLUDED=283 WALL=2820s | 2026-10-17 | `bae359133` |  |
