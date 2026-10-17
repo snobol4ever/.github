@@ -9,7 +9,8 @@ closing one -- SNOBOL4 has no other use for them -- EXCEPT in the goto field (af
 DIRECT GOTO to a CODE object, which stays. Comment lines (* in column 1), control lines (- in column 1) and everything after a program's
 END statement (its data) are left alone; a continuation line (+ or . in column 1) continues its statement's field state. A master
 container (tests/*/ALL.sno) holds many programs: after an entry's END its data is left alone until the next entry's banner or one-line ;* tag.
-FILES: *.sno, *.inc, *.sbl, and the ```SNOBOL4 fences of *.md, under the corpus. Binary-safe read and write; a file is written only when a
+FILES: *.sno, *.inc, *.sbl, *.spt in either case (snoflake's gimpel/*.INC were missed by a case-sensitive match until
+hq_snobol4 2026-10-17), and the ```SNOBOL4 fences of *.md, under the corpus; an upstream/ provenance drop stays byte-for-byte upstream. Binary-safe read and write; a file is written only when a
 byte changed. Prints one line per changed file (subscripts converted) and the strings that hold a < or > (code that EVAL or CODE may
 compile, which the converter does not touch and a human reads).
 """
@@ -64,11 +65,16 @@ def convert_lines(lines, container):
         out.append(bytes(b))
     return out, n, strings
 CODE_LINE = re.compile(rb"\b(SEQ|CODE|EVAL|S1)\(\s*'|^\s*S\s+=\s+'\s+AOPA<|^\s*X\s+=\s+F\s+'\(A<")
+AOPA_PIECE = re.compile(rb"^\S*\s+S[12]\s+=\s.*'<I>'")
 def code_strings(lines):
     # the second pass: a string that IS SNOBOL4 code -- Gimpel's SEQ(' ... ') and CODE(' ... ') arguments, and the two strings aopa.inc and
-    # tsort.inc assemble and compile -- has its subscript brackets converted too; every other string (output text, HTML, macro data) stays
+    # tsort.inc assemble and compile -- has its subscript brackets converted too; every other string (output text, HTML, macro data) stays.
+    # AOPA's S1/S2 are the subscript '<I>' alone, spliced into the statement SEQ compiles (missed until hq_snobol4 2026-10-17: SCRIP's CODE
+    # refuses the angle form since 1a36cb772, so gimpel's aopa_driver and snoflake's gimpel-array-functions died at :F(ERROR)).
     out, n = [], 0
     for line in lines:
+        if AOPA_PIECE.search(line):
+            k = line.count(b"'<I>'"); line = line.replace(b"'<I>'", b"'[I]'"); n += k
         if line[:1] in (b'*', b'-') or not CODE_LINE.search(line):
             out.append(line); continue
         b = bytearray(line); q = None; depth = 0
@@ -79,7 +85,7 @@ def code_strings(lines):
             elif q == 39 and c == 62 and depth > 0: b[i] = 93; n += 1; depth -= 1
         out.append(bytes(b))
     return out, n
-SKIP = ('/packages/pascal/', '/editor_configs/')
+SKIP = ('/packages/pascal/', '/editor_configs/', '/upstream/')
 def process(path):
     data = open(path, 'rb').read()
     lines = data.split(b'\n')
@@ -105,7 +111,7 @@ total_files = total_n = 0; all_strings = []
 for d, dirs, files in os.walk(ROOT):
     dirs[:] = [x for x in dirs if x != '.git']
     for f in sorted(files):
-        if not f.endswith(('.sno', '.inc', '.sbl', '.md')): continue
+        if not f.lower().endswith(('.sno', '.inc', '.sbl', '.spt', '.md')): continue
         p = os.path.join(d, f)
         if any(x in p for x in SKIP): continue
         data, new, n, strings = process(p)
