@@ -20,8 +20,8 @@ for R in $roots; do
   git -C "$R/harness" fetch -q origin && git -C "$R/harness" merge -q --ff-only origin/main 2>/dev/null
   H="$R/harness/scripts/lib_commit_msg_hook.txt"
   for g in "$R"/*/.git "$R"/.github/.git; do [ -d "$g" ] && [ ! -f "$g/hooks/commit-msg" ] && [ -f "$H" ] && { cp "$H" "$g/hooks/commit-msg"; chmod +x "$g/hooks/commit-msg"; }; done
-  s="$R/.claude/settings.json"
-  if [ -f "$s" ]; then
+  for s in "$R/.claude/settings.json" "$R/.claude/settings.local.json"; do
+  [ -f "$s" ] || continue
     python3 - "$s" "$R" <<'PY' || { echo "⛔ $R: settings.json could not be re-pointed"; rc=2; }
 import json, sys, re
 p, r = sys.argv[1], sys.argv[2]
@@ -33,7 +33,8 @@ json.loads(t)
 assert '/SCRIP/scripts/' not in t, 'a hook still names SCRIP/scripts'
 if t != o: open(p, 'w', encoding='utf-8', newline='\n').write(t)
 PY
-  fi
+  done
+  s="$R/.claude/settings.json"; [ -f "$s" ] || s="$R/.claude/settings.local.json"
   printf '%-24s harness=%s hooks=%s\n' "$R" "$(git -C "$R/harness" rev-parse --short HEAD 2>/dev/null || echo MISSING)" \
     "$([ -f "$s" ] && { grep -q '/harness/scripts/' "$s" && echo harness || echo UNCHANGED; } || echo none)"
 done
