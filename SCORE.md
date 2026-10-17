@@ -58,14 +58,16 @@ Measured 2026-10-07 17:34 CDT by the coo: scripts/util_runtime_leaf_census.sh ov
 This reading has two known gaps, and pass 40's census on the next tree re-measures every program with the fixed instrument (SCRIP 082c2d8c1):
 (1) the census fed stdin /dev/null, so eight Pascal kernels and Icon tgrlink refused, and Icon concord, geddump, ipxref and rsg, SNOBOL4 testpgms and Pascal fbench were measured without their input; (2) Raku stopped at 62 of 84 programs in m4 and 61 in m3, because the pass took the box on Lon's word. Prolog's six benchmark programs are too small to read a runtime share from (other is the loader).
 
+Re-taken in mode 4 on 2026-10-17 16:13 CDT by the coo's loop for hq_runtime (CEO-1682), leafshare.sh over corpus/benchmarks/<lang> one program at a time, SCRIP_DIAG=0, -O0: SNOBOL4 and Icon at SCRIP bf5ecc904, Prolog (the 42 kernels of bench/, not the six preludes) and Pascal at e71e5253b, corpus f85c52031. The m3 lines and the LEAF_C_WORST lines below are still the 10-07 reading; Raku m4 and the Prolog and Pascal re-takes at 110f56eaf or later replace their lines when they land.
+
 ```text
-LEAF_SHARE lang=snobol4 mode=m4 programs=23 refused=0 emitted=48.26 asm_leaf=4.46 c_runtime=19.85 libc=7.41 other=20.02 sha=6a8c31532
+LEAF_SHARE lang=snobol4 mode=m4 programs=23 refused=0 emitted=58.61 asm_leaf=17.49 c_runtime=4.15 libc=3.55 other=16.21 sha=bf5ecc904
 LEAF_SHARE lang=snobol4 mode=m3 programs=23 refused=0 emitted=18.00 asm_leaf=1.64 c_runtime=7.54 libc=18.36 other=54.46 sha=6a8c31532
-LEAF_SHARE lang=icon mode=m4 programs=16 refused=1 emitted=10.60 asm_leaf=27.90 c_runtime=46.56 libc=14.70 other=0.24 sha=6a8c31532
+LEAF_SHARE lang=icon mode=m4 programs=17 refused=0 emitted=22.10 asm_leaf=58.39 c_runtime=16.38 libc=2.32 other=0.81 sha=bf5ecc904
 LEAF_SHARE lang=icon mode=m3 programs=16 refused=1 emitted=10.34 asm_leaf=25.92 c_runtime=43.66 libc=15.19 other=4.89 sha=6a8c31532
-LEAF_SHARE lang=prolog mode=m4 programs=6 refused=0 emitted=0.21 asm_leaf=0.79 c_runtime=24.46 libc=8.67 other=65.87 sha=6a8c31532
+LEAF_SHARE lang=prolog mode=m4 programs=39 refused=3 emitted=6.99 asm_leaf=3.85 c_runtime=84.08 libc=4.43 other=0.66 sha=e71e5253b
 LEAF_SHARE lang=prolog mode=m3 programs=6 refused=0 emitted=0.23 asm_leaf=0.01 c_runtime=1.00 libc=24.79 other=73.97 sha=6a8c31532
-LEAF_SHARE lang=pascal mode=m4 programs=1 refused=10 emitted=4.62 asm_leaf=0.27 c_runtime=51.41 libc=43.45 other=0.25 sha=6a8c31532
+LEAF_SHARE lang=pascal mode=m4 programs=9 refused=2 emitted=78.05 asm_leaf=5.66 c_runtime=10.57 libc=4.87 other=0.85 sha=e71e5253b
 LEAF_SHARE lang=pascal mode=m3 programs=3 refused=8 emitted=77.87 asm_leaf=0.06 c_runtime=11.09 libc=10.65 other=0.32 sha=6a8c31532
 LEAF_SHARE lang=raku mode=m4 programs=62 refused=2 emitted=1.97 asm_leaf=1.58 c_runtime=57.80 libc=37.82 other=0.82 sha=6a8c31532
 LEAF_SHARE lang=raku mode=m3 programs=61 refused=2 emitted=2.08 asm_leaf=1.64 c_runtime=50.84 libc=42.00 other=3.44 sha=6a8c31532
