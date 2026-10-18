@@ -8,6 +8,21 @@
 
 ## LIVE CURSOR
 
+- **2026-10-17, first sitting: snobol4jvm `8923cd8`. The suite reads green, but 285 of its tests are red underneath.**
+  - **Done:**
+    - Row 0 (symlinks), `407cc01`: the 140 lower-case `.inc`/`.in` links in `corpus/gimpel/SNOBOL4` are now byte-identical real copies (cmp: 140 of 140). The symlink gate reads OK.
+    - Row 1 (lein test), closed by its DONE-WHEN: Leiningen 2.13.0 is in `~/.local/bin`, on OpenJDK 21.0.11. `lein test` reads **2,022 tests, 4,246 assertions, 0 failures, 0 errors, in 68 s**; the README claims 1,896 and 4,120.
+  - **The finding: that green is hollow.**
+    - 33 test namespaces refer `SNOBOL4clojure.core :all` with no `:exclude`, so SNOBOL4's IR-building `=` replaces `clojure.core/=`. The run prints 34 `WARNING: … already refers to` lines.
+    - `(is (= a b))` then returns the list `(= a b)`, which is always truthy. `clojure.main -e` shows `(is (= 1 2))` returning `(= 1 2)` with no FAIL.
+    - In a scratch worktree, with the 1,654 such lines in 31 files rewritten to `clojure.core/=`, the suite reads **366 failures in 285 tests, 0 errors**.
+  - **Rows minted:**
+    - Rank 2, one per large namespace, each closed by `lein test <ns>` printing no shadow warning and 0 failures: csnobol4-suite 101, sprint12 40, cooper 28, t_spitbol 28, worm1000 20, t_gimpel 16, t_aisnobol 12.
+    - Rank 3, `jvm-no-test-namespace-shadows-clojure-equality-and-lein-test-reads-zero-failures`: the other 14 files (40 tests) and the whole-suite truth.
+  - **Next:**
+    - Work the rank-2 rows: for each namespace, compare for real, then judge every red against `sbl`.
+    - Choose `sbl`'s case-folding switch and record it under RULINGS.
+    - Then measure the corpus table (item 3 of the sitting plan below).
 - **2026-10-17 — the seat opened.** The ceo found, at `f35d392`:
   - OpenJDK 21.0.11 is installed, but there is no `lein`, no `clojure` CLI and no `~/.m2`, so nothing can build yet.
   - The README claims "tests 1,896 / 0 failures". The last commit adds `test_csnobol4_suite.clj`: 126 tests, 116 Budne and 10 FENCE.
