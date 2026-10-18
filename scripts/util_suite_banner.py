@@ -96,6 +96,15 @@ def load(path=None):
         for h in head: r.setdefault(h,'')
         rows.append(r)
     return head,rows
+# ⛔⭐ A PORT ENGINE'S ROWS ARE KEYED <key>@<engine> IN THIS ONE TABLE (Lon 2026-10-17 to hq_dotnet: "The suite banner should represent the
+# snobol4dotnet executable program, not SCRIP."; ceo CEO-1822): SCRIP's views -- SCORE.md's suite table, the README's, the grid of a seat
+# with no port engine -- read the bare keys only, and a port seat's grid reads its own engine's keys only. load() returns EVERY row,
+# because --set saves back what it loaded; each SCRIP reader narrows with _scrip(). An @-row shares its nick with SCRIP's (SnoRungs), so a
+# reader that maps nick to key over all rows would hand SCRIP's row the port's key.
+def _engine_of(key): return (key or '').partition('@')[2]
+def _scrip(rows): return [r for r in rows if not _engine_of(r.get('key',''))]
+def _dbname(key):
+    base,at,engine=(key or '').partition('@'); return DBNAME.get(base,base)+at+engine
 def write_tsv(text):
     """Replace the record whole: every seat's banner reads this one file, so a reader sees the old table or the new one, never a torn one."""
     fd,tmp=tempfile.mkstemp(prefix='.SUITES.', suffix='.tmp', dir=os.path.dirname(os.path.abspath(TSV)))
@@ -253,7 +262,7 @@ def likeforlike(r):
     Returns None when the table holds nothing for the suite, else a dict; `basis` is the earliest day the
     comparison could actually start from, which may be later than first_date -- the window is stated, never
     implied."""
-    recs=_progress_by_suite().get(DBNAME.get(r['key'],r['key']))
+    recs=_progress_by_suite().get(_dbname(r['key']))
     if not recs: return None
     newest=max(t for t,_,_,_ in recs); latest_day=newest[:10]
     pop={p for ts,p,_,_ in recs if ts[:10]==latest_day}
@@ -272,7 +281,7 @@ def lfl_why(r):
     (it has rows, but all from a single day, so there is no earlier reading to compare today against).
     ⛔ THESE ARE DIFFERENT FACTS AND THE BANNER MUST NOT PRINT ONE FOR THE OTHER: 'no rows' on a suite with
     537 recorded rows sends a reader to instrument the runner when the only thing missing is a second day."""
-    recs=_progress_by_suite().get(DBNAME.get(r['key'],r['key']))
+    recs=_progress_by_suite().get(_dbname(r['key']))
     if not recs: return 'norows'
     return 'oneday'
 # ⛔⭐ AN XFAIL COUNTS AS A FAIL, SO A SUITE CARRYING ONE IS NOT DONE (ceo CEO-416, 2026-09-08,
@@ -375,7 +384,7 @@ def xfail_annotation(r, k):
 # LEADERBOARD Lon ordered kept ("so whenever we want to know the state it is there not an hour away of running
 # tests") -- a file a reader opens on purpose, which is the opposite of text printed at someone every turn.
 def md():
-    head,rows=load(); today=dt.date.today(); DEF=deferred_rows()
+    head,rows=load(); rows=_scrip(rows); today=dt.date.today(); DEF=deferred_rows()
     print('| suite | lang | result | graded | tree | state |'); print('|---|---|---|---|---|---|')
     for r in rows:
         k,e=eta(r,today)
@@ -454,7 +463,7 @@ def _row_key(line):
     None for the header and separator rows, and for any first cell that is not a nickname on file."""
     global _NICK2KEY
     if _NICK2KEY is None:
-        _head,_rows=load(); _NICK2KEY={r['nick']:r['key'] for r in _rows}
+        _head,_rows=load(); _NICK2KEY={r['nick']:r['key'] for r in _scrip(_rows)}
     m = re.match(r'^\|\s*([^|]+?)\s*\|', line)
     return _NICK2KEY.get(m.group(1)) if m else None
 def check_table():
@@ -535,24 +544,25 @@ def wall(r):
     if n<60: return f"{n}s"
     if n<3600: return f"{n//60}m{n%60:02d}s"
     return f"{n//3600}h{(n%3600)//60:02d}m"
-# ⭐ A SEAT'S GRID SHOWS ITS OWN LANGUAGES AND, WHERE ITS ENGINE HAS ONE, ITS OWN ENGINE'S TABLE (Lon 2026-10-17, in-chat to hq_jvm,
-# verbatim: "The test suite banner is wrong for this seat, since JVM is only SNOBOL4 and Snocone and Rebus." · "The test suite banners have
-# the wrong languages." · "The suite banner should represent the snobol4jvm program, not SCRIP."; to hq_dotnet: "The test suite banner is
-# wrong since .NET supports only SNOBOL4, actually SPITBOL."). GRID_LANGS keeps only the rows whose lang the seat lists. GRID_TABLES
-# replaces SUITES.tsv with the seat's engine's own table, whose every reading was measured on that engine, so no SCRIP number reaches the
-# grid; a seat with langs but no table yet still reads SCRIP's rows, and its footer says so. A seat in neither map renders SUITES.tsv
-# exactly as before. A caller that names S4E_SUITES_TSV (a gate's fixture) renders that table, never a seat's engine table. The seat is
-# derived the way the history writer derives it (S4E_SEAT, else the root's own folder name /home/claude_<seat>), so the banner verb passes
-# no new argument.
+# ⭐ A SEAT'S GRID SHOWS ITS OWN LANGUAGES ON ITS OWN ENGINE (Lon 2026-10-17, in-chat to hq_jvm, verbatim: "The test suite banner is wrong
+# for this seat, since JVM is only SNOBOL4 and Snocone and Rebus." · "The test suite banners have the wrong languages." · "The suite banner
+# should represent the snobol4jvm program, not SCRIP."; to hq_dotnet: "The test suite banner is wrong since .NET supports only SNOBOL4,
+# actually SPITBOL." · "The suite banner should represent the snobol4dotnet executable program, not SCRIP."; ceo CEO-1822). GRID_ENGINES
+# names a port seat's engine: its grid reads only the <key>@<engine> rows, every one measured on that engine, so no SCRIP number reaches it,
+# and before its first board it says "no row yet (engine x)" rather than borrowing SCRIP's. GRID_LANGS then keeps only the rows whose lang
+# the seat lists. Every other seat reads the bare keys, SCRIP's, exactly as before. The seat is derived the way the history writer derives
+# it (S4E_SEAT, else the root's own folder name /home/claude_<seat>), so the banner verb passes no new argument.
 GRID_LANGS={'jvm':('snobol4','snocone','rebus'),'dotnet':('snobol4',)}
-GRID_TABLES={'jvm':('snobol4jvm','/home/resources/progress/snobol4jvm/SUITES.tsv')}
+# ⭐ THE ENGINE IS A RUNNER SETTING (CEO-1822): a port seat's grid reads its own engine's <key>@<engine> rows from this one table and no
+# other; the separate snobol4jvm table hq_jvm's 4bf4aa29 pointed at is retired on the ceo's ruling (one results.tsv, one SUITES.tsv).
+GRID_ENGINES={'jvm':'jvm','dotnet':'dotnet'}
+GRID_PROGRAMS={'jvm':'snobol4jvm','dotnet':'snobol4dotnet'}
 def _grid_seat():
     return os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..'))))
 def _grid_langs():
     return GRID_LANGS.get(_grid_seat())
-def _grid_table():
-    if os.environ.get('S4E_SUITES_TSV'): return None
-    return GRID_TABLES.get(_grid_seat())
+def _grid_engine():
+    return GRID_ENGINES.get(_grid_seat())
 def grid(plain=False):
     """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "And a grid of the test suite
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
@@ -569,8 +579,9 @@ def grid(plain=False):
     whitespace and rules rather than by re-laying it out: cells are padded by one column instead of two, and
     the rule between every data row is gone, keeping the outer border and the header rule. 24 suites go from
     51 lines to 28 and the width drops with it. Widths come from dw(), this file's display-width authority."""
-    own=_grid_table(); langs=_grid_langs()
-    head,rows=load(own[1] if own else None)
+    eng=_grid_engine(); langs=_grid_langs()
+    head,rows=load()
+    rows=[r for r in rows if _engine_of(r.get('key',''))==eng] if eng else _scrip(rows)
     if langs: rows=[r for r in rows if (r.get('lang') or '').strip().lower() in langs]
     data=[]
     for r in rows:
@@ -596,6 +607,7 @@ def grid(plain=False):
         data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")])
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
+        if eng: print(f"SUITE GRID: no row yet (engine {eng}) -- no board has graded {GRID_PROGRAMS.get(eng, eng)} into SUITES.tsv"); return
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
     hdr=["Lang","Suite","Pass","Total","Excl","Pct","Wall","State"]
     cols=len(hdr)
@@ -621,8 +633,8 @@ def grid(plain=False):
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
-    if own: print(f"{len(data)} suites, {done} at 100% -- {own[0]}'s own readings ({own[1]})")
-    else: print(f"{len(data)} suites, {done} at 100%" + (f" -- {', '.join(langs)} only; every row is SCRIP's reading until a runner grades this seat's engine" if langs else ""))
+    if eng: print(f"{len(data)} suites, {done} at 100% -- {GRID_PROGRAMS.get(eng, eng)}'s own readings (engine {eng}), {', '.join(langs or ())}")
+    else: print(f"{len(data)} suites, {done} at 100%")
 # ⭐ THE README'S SUITE TABLE IS GENERATED FROM THIS RECORD, NEVER TYPED (Lon 2026-09-23 16:2x, in-chat to the ceo: "We want the
 # test suite numbers and the benchmark numbers in the README."; CEO-1216; row instruments-the-readme-suite-table-is-written-from-the-
 # suite-table-and-a-gate-holds-it-current, the coo). SCRIP/README.md read the leaderboard "on 2026-09-07" sixteen days later -- Gimpel
@@ -688,6 +700,7 @@ def _rows_from_text(text):
     return rows
 def readme_block(rows, pin):
     """The generated block, markers included. Refuses (SystemExit 2) on a suite with no runner named or a language it cannot place."""
+    rows = _scrip(rows)   # SCRIP's README is SCRIP's rows, from today's table and from a pinned one alike (CEO-1822)
     known = dict(README_LANGS)
     def graded(r): return bool((r.get('today_pass') or '').strip() and (r.get('today_total') or '').strip())
     for r in rows:
@@ -931,7 +944,8 @@ def main(a):
         before=open(TSV,encoding='utf-8').read()
         save(head,rows)
         try:
-            note=render_table(only_key=key)
+            note=render_table(only_key=key) if not _engine_of(key) else \
+                f"⭐ {key} is the {_engine_of(key)} engine's row: SUITES.tsv set; SCORE.md's suite table is SCRIP's and carries no port row (CEO-1822)"
         except Exception as ex:
             write_tsv(before)      # ⛔ the two sites move together or not at all
             sys.stderr.write(f"REFUSE(rc=2): the row was NOT set. Rendering SCORE.md raised {type(ex).__name__}: {ex}. "
