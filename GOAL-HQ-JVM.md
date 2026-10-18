@@ -8,6 +8,32 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 evening: all 11 SNOBOL4 suites have `@jvm` rows; fixing the failures. snobol4jvm `a166658`.**
+  - **Lon, in-chat to hq_jvm, verbatim:** *"will you have all the test suites? not just those 5 shown in the test-suite banner."* · *"Get all 11 test suites running."* · *"Once all test suites are in place, begin fixing all the failures."* · *"You are now seated as Opus 5.5 medium. Tell CEO."* Told.
+  - **The 11 rows:**
+    - first graded today on `7114cd0`: Dotnet 3/11, SnoBench 9/23, SnoDemo 5/24, Budne 33/86, Gimpel 21/145;
+    - Flake 31/128 on `82ea4fa`, graded with `ARM_CSN=0`;
+    - not yet re-graded: AIS 0/8, TPgm 0/8, X32T 6/18 and X64T 3/33 (`c9ccfba`), and SnoRungs 994/1994 (`d859a74`). Re-grade all after this batch.
+  - **Flake's rc=139:** the runner died three times with no row.
+    - Two causes were the engine's: `INPUT` at end of file, and undefined functions. Six programs printed 14–76 MB, and bash died holding the stream.
+    - The last was the runner's own CSNOBOL4 triangulation arm, which runs away on `gimpel-asm-machine-m`. That is engine-independent, so it was sent to the coo with a suggested cap on the captured stream.
+  - **The coo landed harness `9ec06c1`:** the dotnet board now takes a HANG's pass back. hq_dotnet found it; I asked the coo.
+  - **Cures, each red then green against `sbl -bf`, one per commit:**
+    - `a3be8ff`: INPUT at end of file fails.
+    - `7efed9f`: an undefined function is ERROR 022. TRACE, STOPTR and COLLECT are wired. CLEAR, DUMP, EJECT, BACKSPACE and SETEXIT stay null stubs, each its own defect.
+    - `82ea4fa`: `-INCLUDE` searches `SNO_LIB`.
+    - `fe523f0`: ATAN, CHOP, COS, EXP, LN, SIN, SQRT and TAN, with SPITBOL's error codes 301–315.
+    - `2476939`: test-sprint12's programs had never run, since `(RUN "<src>")` takes an address. They now run, in upper case, with three expectations set to the oracle.
+    - `d709766`: SORT and RSORT of a table sort on the key or the named column.
+    - `a166658`: PROTOTYPE returns the prototype as written.
+  - **`lein test`: 2,034 tests, 310 failures, 0 errors** (364 at the start of this stretch).
+  - **Open for Lon:** should `CONVERT(3.14E200,'INTEGER')` fail, as the test expects, or wrap to `-9223372036854775808`, as sbl and CSNOBOL4 do?
+  - **Known limit:** the IR spells `F(x)` and `A<x>` alike, so a subscripted non-array reads 022 where sbl says 235.
+  - **Next:**
+    - sprint12's remaining reds: CONVERT to PATTERN, CONVERT of an out-of-range real string, DATA;
+    - then the larger classes (SnoRungs patterns, indirection, keywords);
+    - re-grade all 11.
+
 - **2026-10-18 12:55 CDT: `lein test` leaves the tree clean, and an unopenable file spec is an error as SPITBOL makes it. snobol4jvm `64cf51a`, `7114cd0`.**
   - **Seated:** Lon, in-chat to hq_jvm, verbatim: *"You, HQ-JVM, are now seated as Opsu 5.5 high. Tell CEO that I verified it."* Told the ceo: model `claude-opus-5-5`, effort high, verified by Lon.
   - **`64cf51a`:** a file spec that cannot be opened is ERROR 116 for INPUT and ERROR 160 for OUTPUT. `sbl -b` raises these for a pipe spec (`"|cat >x"`, `"|echo hi"`), a bad path and a missing file. A pipe spec had been opened as a file literally named `|cat >popen2.dat`.
