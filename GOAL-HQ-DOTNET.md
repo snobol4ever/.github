@@ -8,6 +8,14 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 evening — NINE MORE CURES, batched 66 → 61 failed (2,549 tests, 2,486 passed).** Each red then green against `sbl -b`, each row closed by its computed DONE-WHEN.
+  - `25466ee`: `-n` and `-NOEXECUTE` compile without running (nothing read `SuppressExecution` before); noexec.
+  - `86ed09f`: type names are SPITBOL's, upper case; a DATA type keeps its name as DATA folded it (NODE under `-b`, node/Pair under `-bf`). 63 tests asserting lower case corrected, each checked to differ only in case; fun1, lexcmp. `8356448` removed three BOMs this sitting's edits had added.
+  - `0dec9f7`: `&STNO`, `&LINE`, `&LASTNO`, `&LASTLINE`, `&FILE`, `&LASTFILE` read SPITBOL's numbers (blank lines are null statements; `&LASTNO` is taken at statement start and the caller's statement comes back after a call); contin.
+  - `c23d5de`: `-r` gives INPUT the lines after END, then fails.
+  - atn, three defects behind one row: `432d192` (a DATA object kept no identity through copies; IDENT now follows its shared field store), `b7cffc6` (a parameter first named in CODE text got a second variable slot and read null), `3f71d9d` (X = V wrote into the element X had once been read from; an element is the target only when indexed in the same statement). atn's 664 lines now equal sbl's.
+  - **Seen, not yet rowed:** `OUTPUT = TABLE()` raises error 42 (sbl prints TABLE); `&TRIM = -1.5` should be error 210; `DUPL('x', -1.5)` should fail; a `?` match expression's value is the matched substring under sbl; `-HIDE` and other unknown controls print "invalid control statement" where SPITBOL ignores them silently.
+  - **Next:** the probe rows (8-bit OUTPUT, TRACE to stdout, &ERRTEXT, real formats, compile-time refusals, include name blanks, -LINE, -CASE scope), then a fresh `sno-rungs@dotnet` board, since alternation, assignment and DATA identity changed underneath it.
 - **2026-10-18 late afternoon — SEVEN CURES ON THE BUDNE REDS, batched 71 → 66 failed (2,538 tests, 2,470 passed).** Each red then green against `sbl -b`, one per commit, each row closed by its computed DONE-WHEN. Lon re-seated this seat as Opus 5.5 high mid-sitting; the ceo was told.
   - `0200e0d`: an alternative restarts where its alternation began. Every later node of a left arm re-saved the arm's alternative at its own cursor (SPAN, LEN, ARBNO arms; nqueens). Numbers001 had asserted the defect.
   - `d31f3f0`: `&TRIM` trims INPUT (blanks and tabs only); trim1.
