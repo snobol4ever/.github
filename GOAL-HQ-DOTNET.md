@@ -8,6 +8,13 @@
 
 ## LIVE CURSOR
 
+- **2026-10-17 evening — the first row, `dotnet-testsnobol4-reads-every-unit-test-passed-twelve-fail-at-80c828a-ceo-1817`, CLAIMED and still open.**
+  - **The "12 FAILED" was an aborted run.** At `80c828a` the test host crashes with a stack overflow 3 s in, during `TEST_Csnobol4_file` (named by `--blame`). The summary line still printed counts ("Failed: 14, Total: 2087" here), so the number was never a measurement.
+  - **Cured in `12201c0`.** `ExecuteLoop` caught the fatal `CompilerException` at every level, and it also runs function bodies, so an error inside a function resumed the caller: it looped one call deep and overflowed two deep. SPITBOL and CSNOBOL4 both stop at the first error. Only the outermost `ExecuteLoop` catches now. `TEST_Define_007/008` were red and are green.
+  - **The suite now completes: 2,505 tests, 2,429 passed, 74 FAILED, 2 skipped.** Every failure is in `CorpusRef_Csnobol4Suite` (Budne's CSNOBOL4 suite, expectations inline). The 2 skips are `[Ignore]`d "fix pending" tests.
+  - **Next:** triage the 74 against `sbl`. A failure where SNOBOL4.NET differs from SPITBOL is a defect, minted one row each. An expectation that is CSNOBOL4-only behaviour (`file.sno`'s FILE functions, which `sbl` answers with error 22) is a question for Lon. The baton's `## NEXT` has the steps.
+  - **Watch:** one full run hung once (testhost idle 10 min) and four others finished in 8–12 s. Re-run under `--blame-hang` until it recurs, then mint it.
+  - **Landed:** `snobol4dotnet/CLAUDE.md` (`b69c86a`), the repo's own guidance for Claude Code.
 - **2026-10-17 — the seat opened.** The ceo measured, at `80c828a`, .NET SDK 10.0.110, in a scratch clone:
   - `dotnet build Snobol4.sln -m:4` succeeds in 11 s with 0 warnings and 0 errors.
   - `dotnet test TestSnobol4/TestSnobol4.csproj -m:4` takes 17 s: **2,084 tests, 2,072 passed, 12 FAILED.**
@@ -31,3 +38,4 @@
 ## RULINGS
 
 - The oracle wins over this project's own behaviour unless Lon rules otherwise. Record every such ruling here with its date and words.
+- **Scope, Lon 2026-10-17, in this seat's chat, verbatim:** *"The test suite banner is wrong since .NET supports only SNOBOL4, actually SPITBOL."* · *"The test suite banner has the wrong list of languages."* SNOBOL4.NET's language is SNOBOL4 in the SPITBOL dialect and nothing else. The banner defect went to the ceo by telegram (topic `banner-languages-wrong-for-hq-dotnet`).
