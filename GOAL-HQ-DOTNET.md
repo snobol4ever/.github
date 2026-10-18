@@ -8,6 +8,26 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 midday — ONE HARNESS GRADES SCRIP AND snobol4dotnet: all six of hq_dotnet's SNOBOL4 runners take `S4E_ENGINE=dotnet`.** Lon: *"Get a unified test harness that can run SCRIP and snobol4dotnet test suites regarding SNOBOL4."*
+  - **The shape (the split with hq_jvm, on hq_jvm's helper `fd481a4`):** under a port engine, a runner uses the port's face as its SCRIP and `one_runner_port_ready` as its one check. It passes each program's declared heap and stack as `-dNk -sNk` and grades m3 alone, with no m4 row. Its rows are keyed `SUITE@dotnet`, and it writes no SCRIP score row: the row is `from-progress --suite SUITE@dotnet`. Under scrip, every command line reads as before.
+  - **Runners on origin (harness):** dotnet `edf5eb3`, snoflake `21ef10a`, csnobol4 `e678f95`, gimpel `457adb3` (through `scorecard_snobol4.sh` `55ec60f`), demos `60b6796`, SnoBench `a423bab` (with `/usr/bin/time` as the process angle's stopwatch).
+  - **Published `@dotnet` rows, all at snobol4dotnet `9548cd9`:** `dotnet@dotnet` 5 / 11 · `snoflake@dotnet` 82 / 128 · `csnobol4@dotnet` 44 / 86 · `gimpel@dotnet` 77 / 145 · `snobol4-demos@dotnet` 6 / 24 · `snobol4-bench-ref@dotnet` 23 / 23 (process and iteration angles), beside yesterday's `sno-rungs@dotnet` 1,734 / 1,996 and `aisnobol@dotnet` 2 / 8. Every row was graded by a live board and set by `from-progress`; none was typed.
+  - **Shared harness defects found on the way, each cured and proven:**
+    - `08d0827`: the face was tracked 100644, so every runner call read rc 126.
+    - `3ca8e7b`: a bash runner's rows pinned SCRIP as their tree ("unknown" in a port root); they now pin the port's checkout.
+    - `bc2d810`: a timed-out face run was stamped m4.
+    - `65081f0`: the compile_args ratchet went red on the face's `--stlimit` case arm (exempted: the face only drops it).
+    - `a881390`: `gate_tree_watch` read SCRIP's HEAD; under a port it watches the port's checkout.
+    - `395f4cc`: `from-progress` assembles a port's bench and demo rows from their runners' census; those trees carry no ALL.csv.
+  - **Root resolution:** every runner computed ROOT as SCRIP/.., which is empty in a port root, and then recorded no row, silently. ROOT is now the root beside harness.
+  - **SnoBench under a port grades the process and fixed-iteration angles; the time angle is skipped.** The wrapper's budget reads TIME() as nanoseconds. Both SPITBOLs on this box are patched to answer nanoseconds (fork: 90,812,757 for 0.09 s), while snobol4dotnet answers milliseconds, as the SPITBOL manual has it (1,879 for 1.9 s). **For Lon:** which unit does snobol4dotnet owe? The oracle-wins rule says nanoseconds, the manual says milliseconds, and no ref depends on it.
+  - **Rows minted:**
+    - INPUT of a missing file succeeds and creates it;
+    - a relative file name resolves against the program's folder, not the cwd. This defect wrote words.txt and a file named `[-f2 -r1]` into the corpus checkout during the boards; both were removed;
+    - an options-only OUTPUT file argument creates a file named by the brackets, and later output is lost.
+    - Each DONE-WHEN reads red on dotnet and green with sbl in its place.
+  - **Biggest lever on the demos:** 16 of SnoDemo's 18 reds are the open row `dotnet-the-name-of-input-is-rejected-and-a-bracketed-input-with-no-file-reads-nothing` (`INPUT(.INPUT, 9, '[-f0 -r1000000]')` reads error 212).
+  - **Next:** cure the reds in rank order, red-then-green on sbl; each cure is re-graded by its runner and re-published by from-progress.
 - **2026-10-18 — WHERE THIS SITTING STOPPED (for the next one).** Lon: *"Get ALL the test suites graded, not just SnoRungs."* · *"Get all SNOBOL4 package runners working with snobol4dotnet."*
   - **Published `@dotnet` rows:** `sno-rungs@dotnet` 1,734 / 1,996 (87%) and `aisnobol@dotnet` 2 / 8, both at snobol4dotnet `9548cd9`. AIS was graded from its container, which is canonical because its own runner calls the harness on it.
   - **Budne and Gimpel cannot go through their containers.** The harness refuses both on corpus drift: `csnobol4_suite`'s ALL.mask names `diag1`, which ALL.sno no longer holds, and `gimpel`'s PARTITION.tsv is stale (`dextern_driver`). Reported to the ceo; this seat edits no corpus. Their boards are their bespoke runners.
