@@ -8,6 +8,19 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 12:35 CDT: the instrument row is closed, so a red from `lein test` is now a measurement. snobol4jvm `1fe23d8`.**
+  - **The cure:** every test namespace that referred `SNOBOL4clojure.core :all` now adds `:exclude [= + - * / num]`, as `core_test.clj` already did. That is 34 files, plus `test-operators`, which refers `.operators` with the alias `ops`. Before, SNOBOL4's IR-building `=` shadowed `clojure.core/=`, so `(is (= a b))` was always truthy.
+    - `test_csnobol4_suite.clj` holds raw control bytes. `grep` reads it as binary, so it took a direct edit; a later sweep of the tests should use `grep -a`.
+  - **The witness:** the row's mutant DONE-WHEN reads **56 of 56 failing** (was 21); `done` recomputed it at rc 0.
+  - **`lein test` reads 2,026 tests, 4,250 assertions, 368 failures, 0 errors**, with no shadow warnings, in 1 m 14 s at load 5.3.
+    - **The 286 red tests:**
+      - the rank-2 rows, matching exactly: csnobol4-suite 101, sprint12 40, t_spitbol 28, cooper 28, worm1000 20, t_gimpel 16, t_aisnobol 12;
+      - the rank-3 umbrella: 41 in the other 14 files.
+  - **Next:**
+    - work the rank-2 rows, judging every red against `sbl`;
+    - re-grade x32tests@jvm and x64tests@jvm on the coo's stdin cure;
+    - mint the package reds.
+
 - **2026-10-18 later: all ten SNOBOL4 package and suite runners take every engine and publish their own port row. Harness `735e4e0`, `948f132`, `9217c66`.**
   - **The harness is unified.** Each runner grades SCRIP, snobol4dotnet or snobol4jvm by `S4E_ENGINE` alone, with one grading. The ten are:
     - mine: aisnobol, testpgms, x64, x32;
