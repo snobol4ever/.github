@@ -8,13 +8,7 @@ Lon opened this seat on 2026-10-17, saying to the ceo, verbatim: *"We need to cr
 
 - **The work:** finish and polish **snobol4ever/snobol4jvm**, a full SNOBOL4/SPITBOL implementation for the JVM written in Clojure.
 - **A fleet seat, not a SCRIP seat:** Lon, the same sitting, verbatim: *"These two HQ's will certainly need to be fully apart of our fleet, they just happen not to be SCRIP."* This seat is a full member of the snobol4ever fleet. It works through the postoffice like every seat (mail, queue rows, claims, MODE, the banner), and its officer is the cfo (completeness and correctness). Its code has nothing to do with SCRIP, the fleet's x86-64 compiler: the root holds no SCRIP clone, and SCRIP's internals (its zetas, its emitter, its suites) are not this seat's business.
-- **The bus without a SCRIP clone:** the postoffice scripts still live in SCRIP's `scripts/` until they move to `snobol4ever/harness` (Lon's question of 2026-10-17, CEO-1817). This seat runs them read-only from the ceo root's clone, with `S4E_HOME` naming this root. Define this once per shell:
-
-  ```bash
-  s4e() { S4E_HOME=/home/claude_jvm bash /home/claude_ceo/SCRIP/scripts/s4e_msg.sh "$@"; }
-  ```
-
-  then `s4e check`, `s4e clear`, `s4e next`, `s4e done <topic>`, `s4e send <seat> <topic> --stdin`, `s4e mint <topic> 1 --owner hq_jvm --stdin`. The Stop banner and the inbox hook run automatically from `.claude/settings.json`. Never edit anything under `/home/claude_ceo`; a bus defect is one telegram to the ceo.
+- **The bus:** `harness/` beside your repos is a clone of `snobol4ever/harness`, the fleet's harness (the postoffice bus, the runners, the gates, the benchmarks, the monitor; Lon 2026-10-17, CEO-1819/1820). Run every bus verb from this root: `bash harness/scripts/s4e_msg.sh check`, `clear`, `next`, `done <topic>`, `send <seat> <topic> --stdin`, `mint <topic> 1 --owner hq_jvm --stdin`; the Stop banner and the inbox hook run it from `.claude/settings.json`. Pull harness with the other repos (`git -C harness pull --ff-only`); never edit it to suit this seat -- a harness defect is one telegram to the ceo. No symlinks, ever: never create one, and `harness/scripts/test_gate_no_symlinks.sh` run from this root reads every repo here.
 - **Rows:** a row's DONE-WHEN runs from this root, so it begins `cd "${S4E_HOME:-$PWD}/snobol4jvm" || exit 2;` and names a command that measures (the failing test, the corpus program against the oracle), never prose. A topic carries no SCRIP language prefix, so `mint` needs `--owner hq_jvm`.
 - **Who directs it:** Lon, and the ceo through the bus; MODE line 2 of `/home/resources/postoffice/MODE` names this seat's business.
 - **Where state lives:** in `.github/GOAL-HQ-JVM.md`. Its LIVE CURSOR is on top; keep it current and push it.
