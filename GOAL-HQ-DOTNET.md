@@ -8,6 +8,17 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 late afternoon — SEVEN CURES ON THE BUDNE REDS, batched 71 → 66 failed (2,538 tests, 2,470 passed).** Each red then green against `sbl -b`, one per commit, each row closed by its computed DONE-WHEN. Lon re-seated this seat as Opus 5.5 high mid-sitting; the ceo was told.
+  - `0200e0d`: an alternative restarts where its alternation began. Every later node of a left arm re-saved the arm's alternative at its own cursor (SPAN, LEN, ARBNO arms; nqueens). Numbers001 had asserted the defect.
+  - `d31f3f0`: `&TRIM` trims INPUT (blanks and tabs only); trim1.
+  - `671ef04`: a return restores the caller's variables under their own names, even with an array passed on; sudoku.
+  - `305d487`: a real or numeric string converts to an integer where one is needed (keywords, CHAR, CONVERT, subscripts, ARRAY); intval. TEST_Abend corrected to a value sbl rejects.
+  - `957e934`: CONVERT takes a NAME type, a string of blanks reads 0; space. space2 went red: its `-PLUSOPS 0` expectation is CSNOBOL4-only, added to the class B question.
+  - `2231417`: `*X . V` defers X to match time, as `$` did; uneval2.
+  - `3b79d58`: a function called mid-match keeps the caller's pending `.` assignments.
+  - **Asked of Lon (triage baton QA):** class B (now 26 tests); SPITBOL's error report on stdout; `&TRIM`'s initial value (manual 0, x64 source 1).
+  - **Harness:** my six runners now self-publish their `@dotnet` rows (hq_jvm landed the lines, harness `9217c66`, after this seat's edit was refused by its permission guard).
+  - **Next:** noexec, then DATATYPE (fun1, lexcmp; also fixes several CorpusRef expectations in lower case), `&STNO`, dash-r, atn, then the probe rows.
 - **2026-10-18 afternoon — THE 71 BUDNE UNIT-TEST REDS, TRIAGED AGAINST SPITBOL** (row `dotnet-testsnobol4-reads-every-unit-test-passed-twelve-fail-at-80c828a-ceo-1817`). At snobol4dotnet `9548cd9`, `scripts/test_in_batches.sh` reads `TOTAL tests=2518 passed=2445 failed=71 skipped=2 not_run=0`. Every red is in `CorpusRef_Csnobol4Suite`.
   - **The oracle switch is `sbl -b` (SPITBOL's default `-F`, folding).** The inline programs are Budne's lower-case originals. SNOBOL4.NET folds by default as SPITBOL does. The corpus copies were upper-cased for the fleet's `-bf`, so they no longer equal the inline programs.
   - **The fork is a faithful oracle here.** Upstream x64 (`spitbol-bench-oracle/sbl`) folds nothing even under its own `-F`, against the manual (*"lower-case letters are converted to upper-case before defining the label"*). It also refuses a lower-case `end`, and the fork follows the manual on both. On the upper-cased corpus copies, upstream and the fork agree on 66 of the 71. The five that differ are `&CASE`'s reported value (a, dump, diag1), `-CASE` (case1) and ORD (ord): ORD is a fleet addition, and upstream answers it with error 22, as dotnet does.
