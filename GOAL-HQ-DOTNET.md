@@ -8,6 +8,42 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 afternoon — THE 71 BUDNE UNIT-TEST REDS, TRIAGED AGAINST SPITBOL** (row `dotnet-testsnobol4-reads-every-unit-test-passed-twelve-fail-at-80c828a-ceo-1817`). At snobol4dotnet `9548cd9`, `scripts/test_in_batches.sh` reads `TOTAL tests=2518 passed=2445 failed=71 skipped=2 not_run=0`. Every red is in `CorpusRef_Csnobol4Suite`.
+  - **The oracle switch is `sbl -b` (SPITBOL's default `-F`, folding).** The inline programs are Budne's lower-case originals. SNOBOL4.NET folds by default as SPITBOL does. The corpus copies were upper-cased for the fleet's `-bf`, so they no longer equal the inline programs.
+  - **The fork is a faithful oracle here.** Upstream x64 (`spitbol-bench-oracle/sbl`) folds nothing even under its own `-F`, against the manual (*"lower-case letters are converted to upper-case before defining the label"*). It also refuses a lower-case `end`, and the fork follows the manual on both. On the upper-cased corpus copies, upstream and the fork agree on 66 of the 71. The five that differ are `&CASE`'s reported value (a, dump, diag1), `-CASE` (case1) and ORD (ord): ORD is a fleet addition, and upstream answers it with error 22, as dotnet does.
+  - **How the corpus refs were cut:** `sbl -bf prog 2>&1`. SPITBOL writes an error report and its statistics block to both stdout and stderr, so a ref of an erring program holds them twice, with time and memory figures. That is why label, words and digits matched neither engine. The triage compares the output before the error report, plus the error number.
+  - **Triage (inline program; dn = `dotnet Snobol4.dll -b`; want = the test's inline expectation):**
+
+    | class | tests | what |
+    |---|---|---|
+    | A. dotnet ≠ SPITBOL, want = SPITBOL | atn, contin, fun1, intval, lexcmp, noexec, nqueens, space, sudoku, trim1, uneval2 | engine defects; each test is its own DONE-WHEN |
+    | A'. dotnet ≠ SPITBOL, want = CSNOBOL4 | 8bit, alph, a, dump, diag1, diag2, case1, err, float, float2, ftrace, trace1, trace2, trfunc, spit, hide, include, line, keytrace, setexit, setexit4, setexit5, setexit6, scanerr, loaderr, update, t, random, pow | engine defects; DONE-WHEN a probe against `sbl -b` |
+    | B. dotnet = SPITBOL, want = CSNOBOL4 only | 8bit2, alis, digits, file, function, json1, label, labelcode, maxint, openi, openo2, popen, popen2, rewind1, setexit2, setexit7, tab, vdiffer, ord, preload1-4 | the expectation is not SPITBOL's answer; question for Lon in the row's QA |
+    | B'. data after END | len, repl, words, words1 | want = `sbl -b -r`; CSNOBOL4 reads after END by default, SPITBOL needs `-r`, and dotnet's `-r` feeds nothing (row `dotnet-dash-r-...`) |
+    | C. in-process only | base, include2, include3, include4 | CLI dotnet = sbl = want from the suite folder; in-process, `-INCLUDE` resolves against `TestSnobol4/bin/...` and finds no file |
+
+  - **Defect causes (A and A'), each its own row:**
+    - an ARBNO in one alternative continues into a later alternative's successor: `'aab' (ARBNO('a') 'c' | ARBNO('x') 'b')` matches (nqueens). It predates `c91c416`, measured on its parent;
+    - `&TRIM` is not applied to INPUT (trim1; sudoku's blank-line test);
+    - a name keeps its source case: `OUTPUT = .one` prints `one` where SPITBOL prints `ONE`, and `TRACE('foo')` traces nothing (case1, trace1);
+    - DATATYPE in lower case (fun1, lexcmp; existing row);
+    - `&STNO` one low (contin, hide; existing row);
+    - a real where an integer is required raises error 208 (intval: `&TRIM = 1.0`, `CHAR(65.0)`, `DUPL('*', 5.9999)`);
+    - `CONVERT(' ', .INTEGER)` throws an InvalidCastException (space);
+    - `*BREAK(QUOTE)`, with QUOTE set by `$` earlier in the same match, raises error 69 (uneval2);
+    - `-NOEXECUTE`, `-CASE` and `-LINE` are not recognised (noexec, case1, line);
+    - `&ERRTEXT` holds the whole diagnostic, with file, line and source, instead of the message (err);
+    - integer `^` a negative integer answers 1 instead of a real (pow);
+    - reals: `0.001` where SPITBOL prints `0.1e-2` (float); `0.30000000000000004` (float2; existing 17-digit row);
+    - OUTPUT writes characters 128 to 255 as two UTF-8 bytes where SPITBOL writes one byte (8bit, alph). The inline expectations also lost those bytes to U+FFFD in the C# file;
+    - TRACE output goes to stderr with other statement numbers (ftrace, trfunc, spit, trace2);
+    - `&DUMP = 1` omits SPITBOL's keyword dump (a, dump, diag1);
+    - SPITBOL refuses at compile time what dotnet runs: a constant `1 / 0` is error 14 (keytrace, setexit, setexit5, setexit6), `"FOO" @1` is error 212 (scanerr), diag2 line 242 is error 214;
+    - a missing `-INCLUDE` file is reported and the program still runs (random). SPITBOL stops with error 285;
+    - `-INCLUDE "line2.sno "`: SPITBOL drops the trailing blank in the name (include, line);
+    - error numbers: LOAD 142 vs 22 (loaderr), TRACE of a function not yet defined 198 vs none (t), TRACE's fourth argument given as a name 197 (setexit4), `"B,U"` I/O options 289 vs 160 (update), `HOST(HOST_REAL_BITS)` 254 vs none (float2);
+    - atn loops (existing row).
+  - **Not counted as a mismatch:** SPITBOL also writes its error report and statistics to stdout, and dotnet writes them only to stderr. That is a policy question, held for later.
 - **2026-10-18 — LON'S RULING: snobol4dotnet mimics SPITBOL exactly.** Lon, in-chat to hq_dotnet, verbatim: *"The snobol4dotnet is meant to mimic SPITBOL exactly. So make decisions based on that. This however is not true of snobol4jvm."* Every semantic choice for this engine is SPITBOL's: the manual, and Dewar and Emmer's own source where the manual is silent. The fleet's oracle builds carry fleet patches, and where a patch departs from SPITBOL, SPITBOL wins. snobol4jvm is no SPITBOL mimic, so a shared-harness rule for "a port" never assumes SPITBOL for it.
   - **TIME() stays milliseconds**, as SPITBOL answers it. The manual says *"Returns the execution time in milliseconds"*, and upstream's `zystm` (x64 `9e3f042`) says *"in milliseonds"*. The fleet's `sbl` answers nanoseconds only by NS-TIME (x64 `ec80390`, Lon s249). The instrument learns the unit instead (harness `4043267`):
     - `bench_wrap_snobol4.py --time-unit-ns`;
