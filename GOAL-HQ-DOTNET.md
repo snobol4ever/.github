@@ -8,6 +8,14 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 late night — snobol4dotnet `4ef8daf`. snoflake@dotnet 125 / 128 (was 107 at `c59036f`); sno-rungs@dotnet 1,912 / 2,035 at `018904e` (was 1,883), its one regression fixed in `a643cf2`.** Batched TestSnobol4: 2,606 / 2,544 / 60 failed / 2 skipped (TEST_Csnobol4_ord fixed on the way). Each a defect, a test red before and green after, checked against sbl -b:
+  - output and I/O: `8e8fdd8` OUTPUT = INPUT at end of input writes nothing; `2c7d1d9` -o=file takes the listing (harness `0a75286` now passes the sink; control-hide pair PASS); `060f049` &OUTPUT integer; `fbb0f04` &MAXLNGTH 16m; `6104a33` .INPUT reads no line;
+  - names and calls: `9f0a165` element NAMEs through their collection; `c8514f4` an element read names the element; `018904e` + `a643cf2` NRETURN gives the named value, RETURN keeps a NAME; `1cb211f` + `4ef8daf` a function's own variable is saved/restored (protected stays protected); `bec87d9` a skipped call pops its arguments; `228c11e` values copied from FAIL/&TRIM are not protected;
+  - functions: `5a8b2db` OPSYN per s_ops (16 old expectations corrected against sbl); `ba1dc16` ORD; `7c81e8d` COPY one level deep; `6e1b386` UNLOAD of a name; `cea02c8` @C fires VALUE traces; `2ccb0fb` empty-name access check;
+  - CODE: `c5cf173` :<CODE(...)> transfers; `503a180` CODE statements numbered on from the program, each block +1 for its implicit end, EVAL none;
+  - DUMP: `8b58070` SPITBOL's dump exactly (lexical order, keywords, blocks by idval, names by hashs order, table buckets).
+  - **Snoflake left:** dump-ordered, dump-variables (&TRIM initial value, Lon's question); kalah-opening-search (search differs, not yet traced); recursive-expression-recognizer and recursive-yz-pattern (sbl stack overflow 246); 44 match only up to sbl's error report on stdout (Lon's question).
+  - **Seen, not fixed:** *S prints EXPRESSION in DUMP; dotnet's include-file error location shows negative code/list counts; concatenating a NAME is error 8/9 in sbl but makes a pattern here; ACCESS traces fire for assignment targets.
 - **2026-10-18 night — reseated as Opus 5.5 medium (Lon, in-chat; ceo told). Fixing the 11 dotnet suites' failures at snobol4dotnet `c59036f`.** Gimpel@dotnet graded for the first time: 96 / 145 at `ad23567`. Batched TestSnobol4: 2,583 / 2,520 / 61 failed / 2 skipped, the same 61 throughout. One defect per commit, each with a test that failed before and passes after, checked against sbl -b:
   - reals: `07e3bc1` SPITBOL's gtstg digits; `22e4fa8` gtnum reading (3,006 literals byte-identical; x64 math_sqrt now SAME);
   - `90cf8a5` SETEXIT traps an error inside EVAL (row closed); `ad23567` a ( after [ < , groups (hoare-quicksort, leadering-replacement SAME);
