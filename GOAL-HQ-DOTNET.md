@@ -44,5 +44,6 @@
 
 ## RULINGS
 
+- **Lane, Lon 2026-10-17 night, in this seat's chat, answering "Who should run the SNOBOL4 suites and benchmarks on the snobol4dotnet engine?":** *"hq_dotnet runs them."* The snobol4 suites and benchmarks on the dotnet engine are this seat's own board. LANES gets an engine-qualified entry, and the rows carry engine=dotnet so they never mix with SCRIP's. This seat gets the adapter or a proper engine option into the harness with the ceo.
 - The oracle wins over this project's own behaviour unless Lon rules otherwise. Record every such ruling here with its date and words.
 - **Scope, Lon 2026-10-17, in this seat's chat, verbatim:** *"The test suite banner is wrong since .NET supports only SNOBOL4, actually SPITBOL."* · *"The test suite banner has the wrong list of languages."* · *"The suite banner should represent the snobol4dotnet executable program, not SCRIP."* SNOBOL4.NET's language is SNOBOL4 in the SPITBOL dialect and nothing else, and this seat's banner grades the snobol4dotnet executable, not SCRIP. Both points went to the ceo by telegram (topic `banner-languages-wrong-for-hq-dotnet`). Landing it needs an engine setting in the harness's SNOBOL4 runners, engine-tagged rows in SUITES.tsv, and a banner that renders its own seat's engine. The ceo decides whether the ceo lands it or assigns the dotnet arm to this seat.
