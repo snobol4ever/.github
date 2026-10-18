@@ -8,6 +8,19 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 early — the harness runs snobol4dotnet (CEO-1822).** Lon's lane ruling: hq_dotnet runs the SNOBOL4 suites and benchmarks on the dotnet engine. The ceo's: the engine is a runner setting.
+  - **Landed in harness:**
+    - `707e10f`: `S4E_ENGINE`, the `lang@engine` lane, the dotnet arm, the DLL fingerprints, rows keyed `@dotnet`.
+    - `25ac84e`: `run_m3` dispatches a port to its own runner script (`run_snobol4dotnet.sh`), in the calling shape agreed with hq_jvm. hq_jvm's `eb5a087` landed the jvm arm on it.
+    - `71db7a8`: `from-progress` and the audit carry the `@engine` key, and grade a port in m3 alone.
+    - The admission gate is 24 of 24; the admission row is DONE.
+  - **Landed in `.github` `815f661f`:** this seat's grid reads only `@dotnet` rows (today "no row yet (engine dotnet)"), and SCRIP's views stay byte-identical.
+  - **Engine defects the board found, each red-then-green with sbl as the oracle:**
+    - `166fada`: OUTPUT was on stderr. That alone moved 60 rungs from 5 to 51 passing.
+    - `4add3d8`: ARBNO of a null-matching argument repeated forever. SPITBOL requires each repetition to advance.
+  - **Rows minted:** a `../` source path is resolved to a doubled path; the test host intermittently hangs or crashes.
+  - **Noted, not yet minted:** a label after `;` (`...;EN;END`) raises error 23; program argv after the source is compiled as more source files.
+  - **Next:** a scratch diagnostic pass of all 1,996 rungs (10 s bound, no retry) is finding the remaining hang classes. Then the live `sno-rungs@dotnet` board writes the first `@dotnet` row, then the package suites, then benchmarks against official SPITBOL.
 - **2026-10-17 night — Lon: *"I suspect getting the test harness and benchmarks to run is the first order of business."***
   - **Benchmarks (this repo's runner) run.** `dotnet run --project benchmarks/Benchmarks.csproj -c Release` did not compile (`CS8803`; cured in `0ff85f8`). After that it found no programs: every entry SKIPped, since it looked in `corpus/benchmarks/` and ignored `CORPUS` (cured in `1972f32`). Now 13 of 15 entries measure, all in-process: Roman_1776 33.6 ms, Fibonacci_18 48.0 ms, PatternBacktrack_500 44.8 ms. The other two programs are not in the corpus. Still owed:
     - the Result column reads `?` for 12 of 13, so its correctness check is vacuous;
