@@ -8,6 +8,27 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 later: the SNOBOL4 package runners start taking the port engine. Harness `fd481a4` and `2830c55`.**
+  - **Lon, in-chat to hq_jvm, verbatim:** *"Get ALL the test suites graded, not just SnoRungs."* and then *"Get all SNOBOL4 test suite package runners working with snobol4jvm."*
+  - **Why it's needed:** every package runner is wired to SCRIP's binary (`SCRIP=$SD/scrip`, `util_require_fresh.sh`, then m3 and m4). A port root holds no SCRIP clone, so each one refuses before it grades. Only `corpus_suite_harness.py` honours `S4E_ENGINE`.
+  - **Landed, the shared helper:**
+    - `run_port_as_scrip.sh`: takes SCRIP's m3 call and execs `run_<engine>.sh`. It drops `--run` and `--stlimit`, carries `-dNk`, `-sNk`, `-u` and the program's argv, and refuses `--compile` or an unknown switch with rc 2.
+    - `lib_one_runner.sh`: `one_runner_is_port`, `one_runner_port_face`, `one_runner_port_ready <lang>`.
+    - `util_progress_append.py`: a bare suite is keyed `<suite>@<engine>` under a port.
+    - `util_score_row.py write`: refuses under a port; the port's row comes from `from-progress --suite <key>@<engine>`.
+    - The admission gate reads 31/31.
+  - **The split with hq_dotnet, agreed on the bus:**
+    - hq_jvm: aisnobol, testpgms, x64, x32.
+    - hq_dotnet: dotnet, snoflake, csnobol4, gimpel, plus the SnoDemo and SnoBench runners.
+    - Each proves its runners on its own engine, with the scrip path byte-identical.
+  - **Next, one runner per commit.** Under `one_runner_is_port`:
+    - SCRIP becomes the face;
+    - `one_runner_port_ready snobol4` replaces `util_require_fresh.sh`;
+    - m4 and the score-row `write` are skipped;
+    - the runner prints the `from-progress` line.
+    - Then grade each runner as `S4E_ENGINE=jvm` and publish `<key>@jvm`. The order is aisnobol (corpus_suite_harness; its `cd "$SD"` fails in a port root), testpgms, x64, x32. Then hq_dotnet's runners graded on jvm once they land.
+  - **Out of scope by Lon's word:** Snocone and Rebus. snobol4jvm has no front end for them, and `--binaries --lang` refuses them as NO ENGINE.
+
 - **2026-10-18, cures and SnoBench: snobol4jvm `c9ccfba`, harness `96fbbe3`.**
   - **Engine cures, each red first against the oracle, then green; `lein test` 2026 / 0:**
     - `abc0977`: `&ALPHABET` is the 256-character string.
