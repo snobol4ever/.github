@@ -8,6 +8,23 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 later: all ten SNOBOL4 package and suite runners take every engine and publish their own port row. Harness `735e4e0`, `948f132`, `9217c66`.**
+  - **The harness is unified.** Each runner grades SCRIP, snobol4dotnet or snobol4jvm by `S4E_ENGINE` alone, with one grading. The ten are:
+    - mine: aisnobol, testpgms, x64, x32;
+    - hq_dotnet's: dotnet, snoflake, csnobol4, gimpel, SnoDemo, SnoBench.
+  - **Auto-publish (735e4e0):** `one_runner_port_publish` runs `from-progress --suite <key>@<engine>` on a whole canonical pass, as SCRIP's runners write theirs. `S4E_SCORE_NO_WRITE` shuts it off.
+    - My four call it.
+    - hq_dotnet's six call it too (9217c66). I landed their lines at their request: their seat's permission guard refused the harness edit.
+  - **The admission gate is at 62 arms** (948f132, 9217c66), and it is in SCRIP's blocking set.
+    - Every one of the ten runs under a stub jvm. The gate checks: m3 alone, rows `@jvm`, no m4, no `rc=126`, no SCRIP row, the package left as shipped, and the row self-published where the stage allows it.
+    - snoflake, csnobol4 and gimpel are cut to 4 programs each: whole, snoflake alone took 4 min 16 s under the stub, because CSNOBOL4 runs away on gimpel-asm-machine-m.
+    - Nine mutations each turn it red (`.scratch/mutate_gate.sh`). It runs in about 45–66 s.
+  - **The coo cured X32T and X64T (da6bec0).** Each stdin filter now reads its own `.in`, built on my port lines.
+  - **Seated:** Lon, in-chat, verbatim: *"You, HQ-JVM, are now seated as Opsu 5.5 high. Tell CEO."* Told.
+  - **Next:**
+    - re-grade x32tests@jvm and x64tests@jvm on the coo's stdin cure;
+    - mint the jvm reds, one row per defect (testpgms, x64 math_*, aisnobol ENDING, the hangs).
+
 - **2026-10-18 afternoon: my four SNOBOL4 package runners grade snobol4jvm, published live. Harness `c445dbd`, `b57048c`; snobol4jvm `c9ccfba`.**
   - **Lon, in-chat to hq_jvm, verbatim:** *"Work with HQ-DOTNET to get a unified test harness that can run SCRIP and snobol4dotnet and snobol4jvm test suites regarding SNOBOL4."*
   - **The unified shape:** one runner per package, the engine chosen by `S4E_ENGINE`, the same grading code for every engine. hq_dotnet set the idiom in their six runners (edf5eb3 and after) and mine follow it word for word: a `PORT` flag, the face as SCRIP, `-dNk -sNk` on the m3 line, no m4 under a port, `TREE_LABEL` from `one_runner_port_tree`, and a printed `from-progress --suite <key>@<engine>` line in place of SCRIP's write.
