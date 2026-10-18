@@ -8,6 +8,9 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 late evening — `sno-rungs@dotnet` 1,863 / 2,035 (92%) at snobol4dotnet `85dd4c4`, up from 1,734 / 1,996 (87%) at `9548cd9`.** 22 partition parts, 0 hangs; published by from-progress with the denominator stamped (the corpus grew to 2,035, chunk:21 new). TRACE now prints SPITBOL's lines on stdout (`94af378`, `85dd4c4`; four trace rows closed). Batched TestSnobol4: 2,559 / 2,496 / 61 failed.
+  - **Measured and ready to land next** (all checked against sbl, nothing edited yet): one real formatter (15 digits, fixed for 0.1 <= x < 1e15, else 0.ddde+-N; the model matches sbl on 19 edge values; draft in the scratchpad), closing both real-format rows; integer ^ negative integer is a real and a zero base gives 0.; &ERRTEXT is the message only (keep the full diagnostic in its own field); -INCLUDE trims a trailing (not a leading) blank; -LINE n ["file"] renumbers the following lines.
+  - **For Lon (row QAs):** class B CSNOBOL4-only expectations (26 tests); SPITBOL's error report on stdout; &TRIM's initial value; 8-bit OUTPUT versus the README's Unicode support.
 - **2026-10-18 evening — NINE MORE CURES, batched 66 → 61 failed (2,549 tests, 2,486 passed).** Each red then green against `sbl -b`, each row closed by its computed DONE-WHEN.
   - `25466ee`: `-n` and `-NOEXECUTE` compile without running (nothing read `SuppressExecution` before); noexec.
   - `86ed09f`: type names are SPITBOL's, upper case; a DATA type keeps its name as DATA folded it (NODE under `-b`, node/Pair under `-bf`). 63 tests asserting lower case corrected, each checked to differ only in case; fun1, lexcmp. `8356448` removed three BOMs this sitting's edits had added.
