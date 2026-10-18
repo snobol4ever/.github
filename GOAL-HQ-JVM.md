@@ -8,6 +8,17 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18, cures and SnoBench: snobol4jvm `c9ccfba`, harness `96fbbe3`.**
+  - **Engine cures, each red first against the oracle, then green; `lein test` 2026 / 0:**
+    - `abc0977`: `&ALPHABET` is the 256-character string.
+    - `27acf35`: exponentiation as SPITBOL does it. Integer `**` integer stays an integer; `^` and `!` are synonyms; `0 ** 0` is error 018 and overflow is error 017; a negative exponent gives a real.
+    - `c9ccfba`: a real prints as SPITBOL prints it: 15 significant digits, `2.` when integral, `0.<digits>e±N` outside 0.1 ≤ |x| < 10^15. `env/sstr` is the one value-to-text conversion for OUTPUT, TERMINAL, channels, concatenation and `STRING()`.
+  - **SnoRungs chunk 1 re-graded at `c9ccfba`: 76 / 100** (was 67), 1 m 45 s.
+  - **SnoBench under snobol4jvm** (`bench_snobol4jvm.sh`, harness `96fbbe3`, run at `abc0977`, load 8.2 → 3.6):
+    - **12 of 23 kernels print their `.ref`.**
+    - **Warm x is 0.0011 to 0.0082 on the 9 kernels that time:** snobol4jvm's interpreter is 120× to 900× slower per repetition than official SPITBOL. Each engine ran at its own K, with exit code 0 required.
+    - **Cold x is n/a:** sbl finishes inside the 0.01 s clock tick, and snobol4jvm takes 0.7–14 s.
+    - **Corrected:** an earlier run read 300 s / K for ten kernels, because killed runs still printed their ref. The exit-code check closed that.
 - **2026-10-18, the first snobol4jvm reading is in the one record: snobol4jvm `abc0977`, harness `d230a6f`.**
   - **sno-rungs@jvm: 994 / 1994 (50%):** 955 FAIL and 45 HANG, at tree `d859a74`.
     - Published through `util_score_row.py from-progress --suite sno-rungs@jvm`, which opened the row through hq_dotnet's `--open`. The grid shows it.
