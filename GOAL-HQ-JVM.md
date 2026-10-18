@@ -9,7 +9,7 @@
 ## LIVE CURSOR
 
 - **2026-10-18 later: the SNOBOL4 package runners start taking the port engine. Harness `fd481a4` and `2830c55`.**
-  - **Lon, in-chat to hq_jvm, verbatim:** *"Get ALL the test suites graded, not just SnoRungs."* and then *"Get all SNOBOL4 test suite package runners working with snobol4jvm."*
+  - **Lon, in-chat to hq_jvm, verbatim:** *"Get ALL the test suites graded, not just SnoRungs."* and then *"Get all SNOBOL4 test suite package runners working with snobol4jvm."* · *"I told HQ-DOTNET almost this same thing: Get a unified test harness that can run SCRIP and snobol4jvm test suites regarding SNOBOL4."* So the target is one harness: each SNOBOL4 runner grades SCRIP, snobol4dotnet or snobol4jvm by `S4E_ENGINE` alone, with the same grading code. The split with hq_dotnet divides files, not harnesses.
   - **Why it's needed:** every package runner is wired to SCRIP's binary (`SCRIP=$SD/scrip`, `util_require_fresh.sh`, then m3 and m4). A port root holds no SCRIP clone, so each one refuses before it grades. Only `corpus_suite_harness.py` honours `S4E_ENGINE`.
   - **Landed, the shared helper:**
     - `run_port_as_scrip.sh`: takes SCRIP's m3 call and execs `run_<engine>.sh`. It drops `--run` and `--stlimit`, carries `-dNk`, `-sNk`, `-u` and the program's argv, and refuses `--compile` or an unknown switch with rc 2.
