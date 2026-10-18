@@ -86,9 +86,9 @@ def deferred_rows():
         for col in ('ruled_by','waiting_on'):
             if r.get(col): e[col] = (e[col] + '; ' + r[col]) if e[col] else r[col]
     return out
-def load():
+def load(path=None):
     rows=[]; head=None
-    for l in open(TSV,encoding='utf-8'):
+    for l in open(path or TSV,encoding='utf-8'):
         if l.startswith('#') or not l.strip(): continue
         f=l.rstrip('\n').split('\t')
         if head is None: head=f; continue
@@ -535,14 +535,24 @@ def wall(r):
     if n<60: return f"{n}s"
     if n<3600: return f"{n//60}m{n%60:02d}s"
     return f"{n//3600}h{(n%3600)//60:02d}m"
-# ⭐ A SEAT'S GRID SHOWS ITS OWN LANGUAGES (Lon 2026-10-17, in-chat to hq_jvm, verbatim: "The test suite banner is wrong for this seat,
-# since JVM is only SNOBOL4 and Snocone and Rebus." · "The test suite banners have the wrong languages."). A seat named in GRID_LANGS sees
-# only the rows whose lang it lists; a seat not named sees every row, exactly as before. The seat is derived the way the history writer
-# derives it (S4E_SEAT, else the root's own folder name /home/claude_<seat>), so the banner verb passes no new argument.
+# ⭐ A SEAT'S GRID SHOWS ITS OWN LANGUAGES AND, WHERE ITS ENGINE HAS ONE, ITS OWN ENGINE'S TABLE (Lon 2026-10-17, in-chat to hq_jvm,
+# verbatim: "The test suite banner is wrong for this seat, since JVM is only SNOBOL4 and Snocone and Rebus." · "The test suite banners have
+# the wrong languages." · "The suite banner should represent the snobol4jvm program, not SCRIP."; to hq_dotnet: "The test suite banner is
+# wrong since .NET supports only SNOBOL4, actually SPITBOL."). GRID_LANGS keeps only the rows whose lang the seat lists. GRID_TABLES
+# replaces SUITES.tsv with the seat's engine's own table, whose every reading was measured on that engine, so no SCRIP number reaches the
+# grid; a seat with langs but no table yet still reads SCRIP's rows, and its footer says so. A seat in neither map renders SUITES.tsv
+# exactly as before. A caller that names S4E_SUITES_TSV (a gate's fixture) renders that table, never a seat's engine table. The seat is
+# derived the way the history writer derives it (S4E_SEAT, else the root's own folder name /home/claude_<seat>), so the banner verb passes
+# no new argument.
 GRID_LANGS={'jvm':('snobol4','snocone','rebus'),'dotnet':('snobol4',)}
+GRID_TABLES={'jvm':('snobol4jvm','/home/resources/progress/snobol4jvm/SUITES.tsv')}
+def _grid_seat():
+    return os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..'))))
 def _grid_langs():
-    seat=os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..'))))
-    return GRID_LANGS.get(seat)
+    return GRID_LANGS.get(_grid_seat())
+def _grid_table():
+    if os.environ.get('S4E_SUITES_TSV'): return None
+    return GRID_TABLES.get(_grid_seat())
 def grid(plain=False):
     """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "And a grid of the test suite
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
@@ -559,8 +569,8 @@ def grid(plain=False):
     whitespace and rules rather than by re-laying it out: cells are padded by one column instead of two, and
     the rule between every data row is gone, keeping the outer border and the header rule. 24 suites go from
     51 lines to 28 and the width drops with it. Widths come from dw(), this file's display-width authority."""
-    head,rows=load()
-    langs=_grid_langs()
+    own=_grid_table(); langs=_grid_langs()
+    head,rows=load(own[1] if own else None)
     if langs: rows=[r for r in rows if (r.get('lang') or '').strip().lower() in langs]
     data=[]
     for r in rows:
@@ -611,7 +621,8 @@ def grid(plain=False):
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
-    print(f"{len(data)} suites, {done} at 100%" + (f" -- {', '.join(langs)} only; every row is SCRIP's reading until a runner grades this seat's engine" if langs else ""))
+    if own: print(f"{len(data)} suites, {done} at 100% -- {own[0]}'s own readings ({own[1]})")
+    else: print(f"{len(data)} suites, {done} at 100%" + (f" -- {', '.join(langs)} only; every row is SCRIP's reading until a runner grades this seat's engine" if langs else ""))
 # ⭐ THE README'S SUITE TABLE IS GENERATED FROM THIS RECORD, NEVER TYPED (Lon 2026-09-23 16:2x, in-chat to the ceo: "We want the
 # test suite numbers and the benchmark numbers in the README."; CEO-1216; row instruments-the-readme-suite-table-is-written-from-the-
 # suite-table-and-a-gate-holds-it-current, the coo). SCRIP/README.md read the leaderboard "on 2026-09-07" sixteen days later -- Gimpel
