@@ -9,6 +9,8 @@ usage: util_suite_banner.py [--plain] [--line] [--md] [--grid] [--check] [--rend
              -- and RE-RENDER SCORE.md § THE SUITE TABLE from the TSV in the same call (coo 2026-09-06, on hq_R's
              finding that the markdown table was a third home for the number nothing rendered)
   --render   re-render SCORE.md § THE SUITE TABLE rows from SUITES.tsv, in place; print what changed
+  --open KEY@ENGINE FROM_KEY   open a port engine's row (CEO-1822): copy FROM_KEY's nick, emoji and lang, readings empty; run by
+             util_score_row.py from-progress on the engine's FIRST publish, never by hand
 STALE rule (Lon 2026-09-06 'Do not depend on cron', MASTER-PLAN THE PACE RULES 10): a row whose today_date is older than the box-clock day reads U+23F3 in place of its emoji and is counted on the first line; a STALE row is a rank-0 measure pick in its lane.
 ETA rule: rate = (today_pass - first_pass) / max(1, days(first_date..today_date)); eta = remaining / rate; a suite that has not moved reads STUCK; complete reads DONE; a suite with one reading reads NEW.
 CRITERION rule (hq_T 2026-09-06, after ceo-372; AMENDED coo 2026-09-08 on Lon's word "Fix it so you CAN do a comparison"). A row may carry criterion_changed = <YYYY-MM-DD>:<slug>. When its first_date PREDATES that day, first_* and today_* answer two different questions and their difference is not a movement -- that much stands, and first_* is still never re-baselined. ⛔ WHAT NO LONGER STANDS is printing n/c and stopping: that is true about those two numbers and useless as an answer to "are we getting better?". Instead likeforlike() holds the POPULATION fixed -- today's graded set -- and asks the progress table what those same programs did then and do now. Same programs, same modes, two dates, so a changed denominator cannot distort it, and nothing is invented: it re-reads per-program evidence already on file. The row then gets a real rate and a real ETA like any other. Programs with no reading at the earlier date are excluded from BOTH sides rather than counted as failures-then-passes-now, which would manufacture progress out of missing data. Only two states remain uncomparable and they are told apart: `no rows` (the table has never seen the suite) and `1 day` (rows exist but all from one day, so there is no earlier reading yet) -- both facts about our instrumentation, never verdicts about the suite.
@@ -838,7 +840,27 @@ def _suite_table_lock():
     os.environ['S4E_SUITE_TABLE_LOCKED']=str(os.getpid())
     return fd
 def main(a):
-    if '--set' in a or '--render' in a: _suite_table_lock()
+    if '--set' in a or '--render' in a or '--open' in a: _suite_table_lock()
+    if '--open' in a:
+        # ⛔⭐ A PORT ENGINE'S ROW IS OPENED BY ITS FIRST PUBLISH (ceo CEO-1822, to hq_dotnet: "A port engine's SUITES.tsv row is created by
+        # that engine's FIRST PUBLISH through util_score_row.py, the table's one writer, under its lock and history writer, never by hand").
+        # --set refuses a key with no row, so from-progress opens it here first: the identity cells (nick, emoji, lang) are the bare key's,
+        # because the suite is the same population graded on another engine; every reading is left empty for the --set that follows.
+        i=a.index('--open'); key=a[i+1] if len(a)>i+1 else ''; src=a[i+2] if len(a)>i+2 else ''
+        eng=_engine_of(key)
+        if not eng or eng not in GRID_ENGINES.values() or key.partition('@')[0]!=src:
+            sys.stderr.write(f"REFUSE(rc=2): --open {key!r} {src!r}: the key must be <bare key>@<port engine> ({', '.join(sorted(set(GRID_ENGINES.values())))}) and FROM_KEY its bare key. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        head,rows=load()
+        if any(r['key']==key for r in rows):
+            print(f"--open {key}: the row is already open; nothing written"); return
+        base=next((r for r in rows if r['key']==src),None)
+        if base is None:
+            sys.stderr.write(f"REFUSE(rc=2): --open {key}: no bare row {src} in {TSV} to take its nick, emoji and lang from. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        new={h:'' for h in head}; new.update(key=key, nick=base['nick'], emoji=base['emoji'], lang=base['lang'])
+        before=open(TSV,encoding='utf-8').read()
+        rows.append(new); save(head,rows); history(head,before,rows)
+        print(f"⭐ --open {key}: the {eng} engine's row is open in SUITES.tsv ({base['nick']}, {base['lang']}), readings empty until its --set")
+        return
     if '--readme' in a:
         j=a.index('--readme'); path=a[j+1] if len(a)>j+1 and not a[j+1].startswith('-') else _readme_path()
         sys.exit(readme_write(path))
