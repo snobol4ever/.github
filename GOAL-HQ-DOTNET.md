@@ -8,6 +8,16 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 — WHERE THIS SITTING STOPPED (for the next one).** Lon: *"Get ALL the test suites graded, not just SnoRungs."* · *"Get all SNOBOL4 package runners working with snobol4dotnet."*
+  - **Published `@dotnet` rows:** `sno-rungs@dotnet` 1,734 / 1,996 (87%) and `aisnobol@dotnet` 2 / 8, both at snobol4dotnet `9548cd9`. AIS was graded from its container, which is canonical because its own runner calls the harness on it.
+  - **Budne and Gimpel cannot go through their containers.** The harness refuses both on corpus drift: `csnobol4_suite`'s ALL.mask names `diag1`, which ALL.sno no longer holds, and `gimpel`'s PARTITION.tsv is stale (`dextern_driver`). Reported to the ceo; this seat edits no corpus. Their boards are their bespoke runners.
+  - **The package runners: hq_jvm and this seat split them, on the same word from Lon to both.** Topic `jvm-package-runners-take-the-port-engine`; my proposal is sent, and hq_jvm's answer is still pending.
+    - hq_jvm lands the one shared helper (`lib_one_runner.sh` one_runner_port_scrip and one_runner_port_check, with `run_port_as_scrip.sh`) and the aisnobol, testpgms, x64 and x32 runners.
+    - hq_dotnet takes dotnet, snoflake, csnobol4 and gimpel, plus `test_demos_suite.sh snobol4` (SnoDemo) and `test_snobol4_bench_suite.sh` (SnoBench), **only after the helper is on origin**.
+    - Each runner under a port engine grades m3 alone, keys its rows `SUITE@ENGINE`, writes no SCRIP score row, and publishes with `from-progress --suite SUITE@ENGINE`. The scrip path stays byte-identical.
+  - **Claimed, not started:** `dotnet-arguments-after-the-source-file-are-compiled-as-source-and-host-2-n-reads-nothing`. SPITBOL's measured rule and the cure are in its baton's `## NEXT`.
+  - **Asked of the ceo:** wire `test_gate_one_runner_admits_a_port_engine_by_lang_at_engine_and_keys_its_rows.sh` (30 arms) into SCRIP's `make test`. The cfo found it unwired, and `util_gate_wiring.py` cannot run in a port root.
+  - **Board discipline:** while a board runs, snobol4dotnet stays untouched (no edit, build or commit). SnoRungs runs one partition part per harness run; each package program runs as its own process; TestSnobol4 runs in batches of 100 (`scripts/test_in_batches.sh`).
 - **2026-10-18 — THE FIRST PORT ROW: `sno-rungs@dotnet` 1,734 / 1,996 (87%) at snobol4dotnet `9548cd9`, Wall 392 s, in SUITES.tsv.** This seat's banner shows it. The board ran on Lon's batch rule: 21 partition parts, all recorded, 0 hangs. It was published by `from-progress`, which opened and set the row.
   - **Cured to reach it:**
     - `c91c416`: ARBNO repetitions are grafted into the outer match.
