@@ -8,6 +8,30 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 — THE FIRST PORT ROW: `sno-rungs@dotnet` 1,734 / 1,996 (87%) at snobol4dotnet `9548cd9`, Wall 392 s, in SUITES.tsv.** This seat's banner shows it. The board ran on Lon's batch rule: 21 partition parts, all recorded, 0 hangs. It was published by `from-progress`, which opened and set the row.
+  - **Cured to reach it:**
+    - `c91c416`: ARBNO repetitions are grafted into the outer match.
+    - `936401a`: `-INCLUDE` searches `SNOLIB`.
+    - `9548cd9`: `NULL` is no longer predefined as a pattern. That fixed `IDENT(S,NULL)`; FORTPUT's loop had flooded the board.
+    - harness `e37e30c`: `-d` becomes .NET's GC hard cap. porter's runaway had hit the board's 8 GB cgroup kill.
+    - harness `8d0d801`: `SNO_LIB` reaches the engine as `SNOLIB`.
+  - **Rowed, open, for the 262 failing:**
+    - `$` in a later alternative is lost (porter);
+    - `.INPUT`, and bracketed INPUT with no file;
+    - TRACE VALUE;
+    - reals print 15 vs 17 digits;
+    - SETEXIT;
+    - `&STNO`/`&LINE`;
+    - DEFINE error 86;
+    - DATATYPE in lower case;
+    - atn loops after line 438;
+    - `-r`;
+    - program argv;
+    - a `../` path;
+    - allocation speed;
+    - the intermittent test host.
+  - **Reported to the ceo:** the harness captures a program's stdout without a bound, so a runaway printer takes the board's scope into its cgroup kill.
+  - **Next:** the rows in rank order (`$` and `.INPUT` first), each red-then-green on sbl and re-graded by its chunk; then the package suites as `@dotnet` boards.
 - **2026-10-18 night — the first live board (`sno-rungs@dotnet`) is running, one 100-entry chunk per run, on snobol4dotnet `936401a`.**
   - **Scratch diagnostic of all 1,996 rungs** (10 s bound, no retry, scratch table): 1,613 of 1,896 graded passed. Chunk 10 was refused by a build I ran mid-pass.
   - **Cured since, each red-then-green against sbl, the batched suite unchanged at 71:**
