@@ -954,7 +954,11 @@ def main(a):
             if 'today_secs' not in head:
                 head.append('today_secs')
                 for x in rows: x.setdefault('today_secs','')
-            r['today_secs']=secs
+            # ⛔ THE WALL IS THE MINIMUM (Lon 2026-10-18, in-chat to the coo: "That column is meant to represent the MINIMUM amount of time to run the test."): a
+            # runner writes its own run's clock, a loaded pass or a timeout makes it large, so a new value replaces the old only when it is SMALLER, and only
+            # while the denominator is the one the old value timed (a moved total is a new population and starts again)
+            _o=(r.get('today_secs') or '').strip()
+            r['today_secs']=str(min(int(_o),int(secs))) if (_o.isdigit() and int(_o)>0 and str(secs).isdigit() and prev and str(t).strip()==prev) else secs
         if stamp:
             cur=(r.get('criterion_changed') or '').strip()
             # ⛔ THE SAME STAMP TWICE SAYS NOTHING NEW (the coo 2026-10-10): a runner that names its standing move on every write (INRIA's
