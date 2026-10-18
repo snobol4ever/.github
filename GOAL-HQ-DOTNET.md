@@ -8,6 +8,17 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 — LON'S RULING: snobol4dotnet mimics SPITBOL exactly.** Lon, in-chat to hq_dotnet, verbatim: *"The snobol4dotnet is meant to mimic SPITBOL exactly. So make decisions based on that. This however is not true of snobol4jvm."* Every semantic choice for this engine is SPITBOL's: the manual, and Dewar and Emmer's own source where the manual is silent. The fleet's oracle builds carry fleet patches, and where a patch departs from SPITBOL, SPITBOL wins. snobol4jvm is no SPITBOL mimic, so a shared-harness rule for "a port" never assumes SPITBOL for it.
+  - **TIME() stays milliseconds**, as SPITBOL answers it. The manual says *"Returns the execution time in milliseconds"*, and upstream's `zystm` (x64 `9e3f042`) says *"in milliseonds"*. The fleet's `sbl` answers nanoseconds only by NS-TIME (x64 `ec80390`, Lon s249). The instrument learns the unit instead (harness `4043267`):
+    - `bench_wrap_snobol4.py --time-unit-ns`;
+    - `one_runner_port_time_unit_ns` answers 1000000 for dotnet, and nothing for jvm.
+    - SnoBench's time angle runs again: `snobol4-bench-ref@dotnet` 23 / 23 on all three angles, re-published.
+  - **csnobol4's preload pair runs as the oracle ran it**, without CSNOBOL4's `-L`: SPITBOL has no such switch, and the refs are `sbl`'s answer to the bare program (harness `e29b7ef`). `csnobol4@dotnet` 44 → 46 / 86, re-published.
+  - **Audited, already SPITBOL-faithful:**
+    - csnobol4's EXTENSIONS.tsv lists no entries;
+    - gimpel's eight drivers headed "this .ref comes from CSNOBOL4": `sbl` prints six of those refs exactly and answers the other two, and the scorecard passes a match to live `sbl`;
+    - snoflake and dotnet grade against live `sbl`;
+    - the rungs, AIS, demos and bench refs are cut from `sbl -bf`.
 - **2026-10-18 midday — ONE HARNESS GRADES SCRIP AND snobol4dotnet: all six of hq_dotnet's SNOBOL4 runners take `S4E_ENGINE=dotnet`.** Lon: *"Get a unified test harness that can run SCRIP and snobol4dotnet test suites regarding SNOBOL4."*
   - **The shape (the split with hq_jvm, on hq_jvm's helper `fd481a4`):** under a port engine, a runner uses the port's face as its SCRIP and `one_runner_port_ready` as its one check. It passes each program's declared heap and stack as `-dNk -sNk` and grades m3 alone, with no m4 row. Its rows are keyed `SUITE@dotnet`, and it writes no SCRIP score row: the row is `from-progress --suite SUITE@dotnet`. Under scrip, every command line reads as before.
   - **Runners on origin (harness):** dotnet `edf5eb3`, snoflake `21ef10a`, csnobol4 `e678f95`, gimpel `457adb3` (through `scorecard_snobol4.sh` `55ec60f`), demos `60b6796`, SnoBench `a423bab` (with `/usr/bin/time` as the process angle's stopwatch).
@@ -20,7 +31,7 @@
     - `a881390`: `gate_tree_watch` read SCRIP's HEAD; under a port it watches the port's checkout.
     - `395f4cc`: `from-progress` assembles a port's bench and demo rows from their runners' census; those trees carry no ALL.csv.
   - **Root resolution:** every runner computed ROOT as SCRIP/.., which is empty in a port root, and then recorded no row, silently. ROOT is now the root beside harness.
-  - **SnoBench under a port grades the process and fixed-iteration angles; the time angle is skipped.** The wrapper's budget reads TIME() as nanoseconds. Both SPITBOLs on this box are patched to answer nanoseconds (fork: 90,812,757 for 0.09 s), while snobol4dotnet answers milliseconds, as the SPITBOL manual has it (1,879 for 1.9 s). **For Lon:** which unit does snobol4dotnet owe? The oracle-wins rule says nanoseconds, the manual says milliseconds, and no ref depends on it.
+  - **SnoBench under a port grades the process and fixed-iteration angles; the time angle is skipped.** The wrapper's budget reads TIME() as nanoseconds. Both SPITBOLs on this box are patched to answer nanoseconds (fork: 90,812,757 for 0.09 s), while snobol4dotnet answers milliseconds, as the SPITBOL manual has it (1,879 for 1.9 s). **Ruled by Lon the same day:** milliseconds, as SPITBOL answers it (the entry above).
   - **Rows minted:**
     - INPUT of a missing file succeeds and creates it;
     - a relative file name resolves against the program's folder, not the cwd. This defect wrote words.txt and a file named `[-f2 -r1]` into the corpus checkout during the boards; both were removed;
