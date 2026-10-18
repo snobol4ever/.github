@@ -539,7 +539,7 @@ def wall(r):
 # since JVM is only SNOBOL4 and Snocone and Rebus." · "The test suite banners have the wrong languages."). A seat named in GRID_LANGS sees
 # only the rows whose lang it lists; a seat not named sees every row, exactly as before. The seat is derived the way the history writer
 # derives it (S4E_SEAT, else the root's own folder name /home/claude_<seat>), so the banner verb passes no new argument.
-GRID_LANGS={'jvm':('snobol4','snocone','rebus')}
+GRID_LANGS={'jvm':('snobol4','snocone','rebus'),'dotnet':('snobol4',)}
 def _grid_langs():
     seat=os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..'))))
     return GRID_LANGS.get(seat)
@@ -611,7 +611,7 @@ def grid(plain=False):
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
-    print(f"{len(data)} suites, {done} at 100%" + (f" -- {', '.join(langs)} only" if langs else ""))
+    print(f"{len(data)} suites, {done} at 100%" + (f" -- {', '.join(langs)} only; every row is SCRIP's reading until a runner grades this seat's engine" if langs else ""))
 # ⭐ THE README'S SUITE TABLE IS GENERATED FROM THIS RECORD, NEVER TYPED (Lon 2026-09-23 16:2x, in-chat to the ceo: "We want the
 # test suite numbers and the benchmark numbers in the README."; CEO-1216; row instruments-the-readme-suite-table-is-written-from-the-
 # suite-table-and-a-gate-holds-it-current, the coo). SCRIP/README.md read the leaderboard "on 2026-09-07" sixteen days later -- Gimpel
