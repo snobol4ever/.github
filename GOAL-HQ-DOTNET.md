@@ -8,6 +8,13 @@
 
 ## LIVE CURSOR
 
+- **2026-10-17 night — Lon: *"I suspect getting the test harness and benchmarks to run is the first order of business."***
+  - **Benchmarks (this repo's runner) run.** `dotnet run --project benchmarks/Benchmarks.csproj -c Release` did not compile (`CS8803`; cured in `0ff85f8`). After that it found no programs: every entry SKIPped, since it looked in `corpus/benchmarks/` and ignored `CORPUS` (cured in `1972f32`). Now 13 of 15 entries measure, all in-process: Roman_1776 33.6 ms, Fibonacci_18 48.0 ms, PatternBacktrack_500 44.8 ms. The other two programs are not in the corpus. Still owed:
+    - the Result column reads `?` for 12 of 13, so its correctness check is vacuous;
+    - in-process times are not comparable with `sbl` process times; the `x` multiple of THE GOAL item 3 needs a whole-process timing beside the official SPITBOL.
+  - **The fleet harness can grade snobol4dotnet with no harness edit.** `.scratch/dn/bin/scrip_as_dotnet.sh` takes the m3 call (`scrip --run [switches] prog.sno`) and runs `dotnet Snobol4.dll -b -f [-dNk -sNk -u] prog.sno`. Its output on a rungs program is byte-identical to the ref. But `corpus_suite_harness.py` refuses this seat rc 2, ONE SEAT, ONE LANGUAGE, because `LANES: snobol4=coo`. It refuses even over a plain-copy scratch population with a scratch progress table. **Blocked on a lane ruling**: the snobol4 suites on the dotnet engine as hq_dotnet's own board, with rows tagged by engine. Asked of the ceo (topic `banner-scoped-to-snobol4-landed`) and of Lon.
+  - **Banner:** the ceo landed `.github` `5ed9a61d`: this seat's grid is the 11 snobol4 rows, footnoted as SCRIP's readings until a runner grades dotnet.
+  - **Found on the way:** snobol4dotnet treats every argument after the first source file as another file to compile, so a program's own argv (HOST(2,n)) never reaches it. To be minted.
 - **2026-10-17 evening — the first row, `dotnet-testsnobol4-reads-every-unit-test-passed-twelve-fail-at-80c828a-ceo-1817`, CLAIMED and still open.**
   - **The "12 FAILED" was an aborted run.** At `80c828a` the test host crashes with a stack overflow 3 s in, during `TEST_Csnobol4_file` (named by `--blame`). The summary line still printed counts ("Failed: 14, Total: 2087" here), so the number was never a measurement.
   - **Cured in `12201c0`.** `ExecuteLoop` caught the fatal `CompilerException` at every level, and it also runs function bodies, so an error inside a function resumed the caller: it looped one call deep and overflowed two deep. SPITBOL and CSNOBOL4 both stop at the first error. Only the outermost `ExecuteLoop` catches now. `TEST_Define_007/008` were red and are green.
