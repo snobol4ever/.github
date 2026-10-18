@@ -8,6 +8,30 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 afternoon: my four SNOBOL4 package runners grade snobol4jvm, published live. Harness `c445dbd`, `b57048c`; snobol4jvm `c9ccfba`.**
+  - **Lon, in-chat to hq_jvm, verbatim:** *"Work with HQ-DOTNET to get a unified test harness that can run SCRIP and snobol4dotnet and snobol4jvm test suites regarding SNOBOL4."*
+  - **The unified shape:** one runner per package, the engine chosen by `S4E_ENGINE`, the same grading code for every engine. hq_dotnet set the idiom in their six runners (edf5eb3 and after) and mine follow it word for word: a `PORT` flag, the face as SCRIP, `-dNk -sNk` on the m3 line, no m4 under a port, `TREE_LABEL` from `one_runner_port_tree`, and a printed `from-progress --suite <key>@<engine>` line in place of SCRIP's write.
+  - **Landed, one runner per commit, each proven by a live jvm board and a byte-identical scrip path:**
+    - `aisnobol@jvm` **0/8** (4f53f48); `testpgms@jvm` **0/8** (4f05d30); `x32tests@jvm` **6/18** (d5e8b38); `x64tests@jvm` **3/33** (7a37298).
+    - The boards ran at `TIMEOUT=30` with a ×3 retry, as sno-rungs@jvm was graded.
+    - The scrip path was proven in two scratch roots on one copied SCRIP build (coo `bc2d85fda`), origin harness against mine. The progress rows match except ts and secs (aisnobol 16, testpgms 16, x32 42, x64 72). stdout matches except the build-behaviour probe line, which hashes the root's own path.
+  - **The admission gate grows from 31 to 45 arms (c445dbd).** The ceo wired it into SCRIP's blocking set (42e6c84).
+    - The new arms run each of my four runners under a stub java over a copy of its package. They check: m3 alone, rows `@jvm`, no m4 row or count, no `rc=126`, no SCRIP row, and rows that assemble by `from-progress`.
+    - Five mutations each turn the gate red; the control stays green (`.scratch/mutate_gate.sh`).
+  - **snobol4jvm's `TIME()` is milliseconds, measured (b57048c).** It is `System/currentTimeMillis`, counted from the epoch, so SnoBench's TIME()-budgeted angle runs under jvm.
+  - **My errors, both fixed:**
+    - `fd481a4` landed the face at mode 644. My proof called it through `bash`, which hid the defect. hq_dotnet fixed it (08d0827), and gate arm 10a now holds it.
+    - The face's `--stlimit` spelling turned the compile_args ratchet red. hq_dotnet exempted it (65081f0); I reviewed the exemption and agree.
+  - **Finding, sent to the ceo; the coo took the row:** x32/x64 feed stdin filters `/dev/null`. The oracle then prints nothing, and the stream arm passes any engine that prints nothing: a stub reads x32 14/18. Part of `x32tests@jvm` 6/18 is that.
+  - **The jvm reds, for rows later:**
+    - testpgms: test1 stops at ERROR 29 in line 72; test3 formats `7!` wrongly; test4 hangs; test7 prints Clojure forms on stdout.
+    - x64: the `math_*` self-checks fail; arcget, arcput, def and lower hang.
+    - aisnobol: `ENDING` prints nothing.
+  - **Next:**
+    - land `one_runner_port_publish` (hq_dotnet agreed) so a port's whole pass publishes its row as SCRIP's write does; hq_dotnet adds its line to their six;
+    - add hq_dotnet's six runners to the gate loop, with a check that a run leaves its package directory clean (their idea);
+    - then mint the jvm reds, one row per defect.
+
 - **2026-10-18 later: the SNOBOL4 package runners start taking the port engine. Harness `fd481a4` and `2830c55`.**
   - **Lon, in-chat to hq_jvm, verbatim:** *"Get ALL the test suites graded, not just SnoRungs."* and then *"Get all SNOBOL4 test suite package runners working with snobol4jvm."* · *"I told HQ-DOTNET almost this same thing: Get a unified test harness that can run SCRIP and snobol4jvm test suites regarding SNOBOL4."* So the target is one harness: each SNOBOL4 runner grades SCRIP, snobol4dotnet or snobol4jvm by `S4E_ENGINE` alone, with the same grading code. The split with hq_dotnet divides files, not harnesses.
   - **Why it's needed:** every package runner is wired to SCRIP's binary (`SCRIP=$SD/scrip`, `util_require_fresh.sh`, then m3 and m4). A port root holds no SCRIP clone, so each one refuses before it grades. Only `corpus_suite_harness.py` honours `S4E_ENGINE`.
@@ -126,3 +150,6 @@
 - **Oracle switches, hq_jvm's choice (2026-10-17):** correctness `/home/resources/x64/bin/sbl -bf` and timing `/home/resources/spitbol-bench-oracle/sbl -bf`.
   - `-b` suppresses the signon; `-f` does not fold source case. That matches snobol4jvm, which never folds, and the corpus refs, which are cut from `sbl -bf`.
 - **2026-10-17, Lon, in-chat to hq_jvm:** *"The test suite banner is wrong for this seat, since JVM is only SNOBOL4 and Snocone and Rebus."* · *"The suite banner should represent the snobol4jvm program, not SCRIP."*
+- **2026-10-18, Lon, in-chat to hq_dotnet, relayed by hq_dotnet on the bus, verbatim:** *"The snobol4dotnet is meant to mimic SPITBOL exactly. So make decisions based on that. This however is not true of snobol4jvm."*
+  - So a harness choice for jvm is measured on snobol4jvm, never borrowed from SPITBOL. The first such choice is `TIME()`'s unit: milliseconds, harness `b57048c`.
+  - The corpus refs are still `sbl -bf`'s. Whether a jvm divergence from SPITBOL is a defect stays Lon's call, case by case.
