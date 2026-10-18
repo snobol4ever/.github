@@ -901,7 +901,7 @@ def main(a):
         # ⛔ --void '<reason>' (ceo to the coo 2026-10-15, on the Logtalk 3190/3552 at 52f822b69: "Mark the SUITES row's 3190 reading as
         # load-voided wherever the table can say so, so nobody quotes it as a regression."): the reading stands as written, and the today_void
         # column (added on first use) says why it is no reading -- the grid's State reads VOID and SCORE.md's state cell names the reason. A
-        # --set without --void is a new reading and clears it, so a void never outlives the reading it voids.
+        # --set without --void is a new reading and clears it, so a void never outlives the reading it voids; the same pass, total and tree re-set keeps it.
         void=''
         if '--void' in a:
             j=a.index('--void')
@@ -929,6 +929,7 @@ def main(a):
             sys.stderr.write(f"REFUSE(rc=2): {key}'s denominator moves {prev} -> {t} and no --criterion-changed '<YYYY-MM-DD>:<reason>' names why. "
                              f"A denominator move without its stamp is the dishonest-denominator class (CEO-546, CEO-749): pass the stamp, or keep the total. "
                              f"NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        _same_reading=((r.get('today_pass') or '').strip(),(r.get('today_total') or '').strip(),(r.get('tree') or '').strip())==(str(p).strip(),str(t).strip(),(tree or (r.get('tree') or '')).strip())
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
         # ⛔ A ROW'S FIRST READING IS ALSO ITS first_* (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...): a row that
         # entered the table empty had no first_pass, so eta() read int('') and the render inside this call raised -- the lane's FIRST
@@ -946,7 +947,9 @@ def main(a):
             if 'today_void' not in head:
                 head.append('today_void')
                 for x in rows: x.setdefault('today_void','')
-            r['today_void']=void
+            # the SAME reading re-assembled (the pass, the total and the tree unchanged: from-progress over no new readings, 10-17 22:26 cleared
+            # Logtalk's 3190 void this way) is not a new reading, so its void stands; any changed number or tree is a new reading and clears it
+            r['today_void']=void or ((r.get('today_void') or '') if _same_reading else '')
         if secs is not None:
             if 'today_secs' not in head:
                 head.append('today_secs')

@@ -29,7 +29,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SncRungs | snocone | 358/358 WALL=22s | 2026-10-15 | `e06e1d5e3` | done |
 | SncBench | snocone | 23/23 WALL=92s | 2026-10-15 | `e06e1d5e3` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-15 | `e06e1d5e3` | done |
-| Logtalk | prolog | 3190/3552 EXCLUDED=65 WALL=9317s | 2026-10-17 | `52f822b69` |  |
+| Logtalk | prolog | 3190/3552 EXCLUDED=65 WALL=9317s | 2026-10-17 | `52f822b69` | READING VOID, NOT A REGRESSION: load (CEO-1686): the 52f822b69 pass ran 9318 s at load 19-21 on 16 cores and 344 of its 361 m4 FAILs were 10 s timeouts; the 17 real reds went to the cfo and hq_prolog (COO-354); restored at COO-368 after a from-progress re-assembly of the same reading cleared it |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=257s | 2026-10-17 | `bae359133` | done |
 | X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 WALL=7s | 2026-10-17 | `bae359133` | done |
 | SnoBench | snobol4 | 23/23 WALL=21s | 2026-10-17 | `92893767d` | done |
