@@ -8,6 +8,25 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 night — the first live board (`sno-rungs@dotnet`) is running, one 100-entry chunk per run, on snobol4dotnet `936401a`.**
+  - **Scratch diagnostic of all 1,996 rungs** (10 s bound, no retry, scratch table): 1,613 of 1,896 graded passed. Chunk 10 was refused by a build I ran mid-pass.
+  - **Cured since, each red-then-green against sbl, the batched suite unchanged at 71:**
+    - `c91c416`: ARBNO's repetitions are grafted into the outer match, so backtracking reaches the argument's alternatives. Chunk 03 went from 47 to 34 failing.
+    - `936401a`: `-INCLUDE` searches `SNOLIB`, as the SPITBOL manual documents.
+    - harness `8d0d801`: the runner maps the harness's `SNO_LIB` onto `SNOLIB`.
+  - **Harness, for the board itself:**
+    - `69466b8`: fingerprints read the runner's `--paths`, so a source edited mid-board is not a moved binary.
+    - `711c0f8` with `.github` `70b71b92`: the first publish opens the port's `SUITES.tsv` row through the table's writer.
+  - **Board discipline, measured three times tonight:** while a board runs, snobol4dotnet stays untouched. An edit makes the tree `-dirty`, a commit moves its HEAD, and a build moves its DLLs; each refuses the append, correctly. The harness lists only 40 failures per run unless `SUITE_LIST_ALL=1`.
+  - **Classes named by the diagnostic, rowed:**
+    - TRACE VALUE prints twice and unquoted;
+    - allocation-heavy loops run about 73x slower than SPITBOL;
+    - program argv after the source is compiled as source.
+  - **Seen, not yet rowed:**
+    - reals print 17 significant digits where SPITBOL prints 15;
+    - SETEXIT keeps its handler after firing;
+    - `&STNO`, `&LINE`, `&LASTNO` and `&LASTLINE` read wrong;
+    - TRACE of a conditional assignment prints nothing.
 - **2026-10-18 early — the harness runs snobol4dotnet (CEO-1822).** Lon's lane ruling: hq_dotnet runs the SNOBOL4 suites and benchmarks on the dotnet engine. The ceo's: the engine is a runner setting.
   - **Landed in harness:**
     - `707e10f`: `S4E_ENGINE`, the `lang@engine` lane, the dotnet arm, the DLL fingerprints, rows keyed `@dotnet`.
