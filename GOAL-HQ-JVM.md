@@ -8,6 +8,25 @@
 
 ## LIVE CURSOR
 
+- **2026-10-17/18, the harness and benchmarks first: snobol4jvm `d859a74`, harness `4679767` + four unpushed scripts.**
+  - **Lon, in-chat to hq_jvm, verbatim:** *"The suite banner should represent the snobol4jvm program, not SCRIP."* · *"I suspect getting the test harness and benchmarks to run is the first order of business."* That puts the engine arm ahead of the test-equality rows.
+  - **The ceo ruled CEO-1822:**
+    - the engine is a runner setting, `S4E_ENGINE=scrip|dotnet|jvm`;
+    - a port engine's board is its HQ's own;
+    - one `results.tsv` and one `SUITES.tsv`, with rows keyed `suite@jvm`;
+    - LANES carries `snobol4@jvm`, `snocone@jvm` and `rebus@jvm` for hq_jvm.
+  - **Ownership:** hq_dotnet lands the admission row; mine, `jvm-the-runners-take-engine-jvm-...-ceo-1822` (rank 0, claimed), lands the jvm arm on it. My `GRID_TABLES` and `/home/resources/progress/snobol4jvm/SUITES.tsv` are a stopgap second board, replaced when the `@jvm` rows land.
+  - **On origin (snobol4jvm):**
+    - `25e6035`: `-main` runs the interpreter. The command line had run the Stage 3 VM, which drops every statement after a `DEFINE`'s goto; under it, 15 of 15 Gimpel drivers printed nothing.
+    - `d859a74`: the uberjar AOT-compiles `core`. A start takes 1.4 s instead of 4–9 s, at about 300 MB; no class names collide under case folding.
+  - **The jvm arm, measured, in my harness clone, unpushed until the admission lands:**
+    - `build_snobol4jvm.sh`: runs `lein uberjar`, then records an AppCDS archive. A start then takes about 1.0 s at a quiet load.
+    - `run_snobol4jvm.sh`: hq_dotnet's calling shape (`[-dNk] [-sNk] [-u STR] name.sno [-- args]`); `--binaries` refuses rc 2 on a stale jar; the JVM's log stays off stdout.
+    - `board_snobol4jvm.sh`: to be rewritten onto the shared writers.
+    - `bench_snobol4jvm.sh`: grades SnoBench's 23 kernels against `.ref`. It times them against official `sbl -bf`, cold as a process and warm as the (T(K) − T(1))/(K − 1) difference of the generated iter wrapper, and reports the bare `x`.
+    - The draft engine mode for `corpus_suite_harness.py` is set aside at `.scratch/jvm-engine-mode-draft.patch`.
+  - **Scratch readings (not in the record):** AIS **0 of 8** in 13 s. It is a real witness: `ENDING` prints nothing where `sbl` prints `BASH/BASE/BATHE/...` on the same stdin. Gimpel, Budne and SnoRungs are grading.
+  - **Next:** land the jvm arm on hq_dotnet's admission; grade sno-rungs@jvm; run SnoBench; then cure the reds, one defect per commit.
 - **2026-10-17, first sitting, continued: snobol4jvm `05a686d`, .github `fda47100`.**
   - **The banner** (Lon, in-chat to hq_jvm, verbatim: *"The test suite banner is wrong for this seat, since JVM is only SNOBOL4 and Snocone and Rebus."* · *"The test suite banners have the wrong languages."*): `util_suite_banner.py` `grid()` now keeps only the langs `GRID_LANGS` names for the seat. hq_jvm reads 16 suites (snobol4, snocone, rebus); every other seat is unchanged. Those rows are still SCRIP's measurements, not snobol4jvm's. snobol4jvm has no Rebus front end.
   - **The instrument:** row `jvm-every-test-namespace-fails-a-false-equality-written-the-way-the-suite-writes-it`, rank 1. Its mutant DONE-WHEN takes each test file's own `ns` form plus `(is (= 1 2))` and reads **21 of 56 failing**, so 35 are vacuous. Of those, 34 shadow `=` with a warning and `test-operators` does it silently. The earlier "33" was a miscount.
@@ -51,3 +70,6 @@
 ## RULINGS
 
 - The oracle wins over this project's own behaviour unless Lon rules otherwise. Record every such ruling here with its date and words.
+- **Oracle switches, hq_jvm's choice (2026-10-17):** correctness `/home/resources/x64/bin/sbl -bf` and timing `/home/resources/spitbol-bench-oracle/sbl -bf`.
+  - `-b` suppresses the signon; `-f` does not fold source case. That matches snobol4jvm, which never folds, and the corpus refs, which are cut from `sbl -bf`.
+- **2026-10-17, Lon, in-chat to hq_jvm:** *"The test suite banner is wrong for this seat, since JVM is only SNOBOL4 and Snocone and Rebus."* · *"The suite banner should represent the snobol4jvm program, not SCRIP."*
