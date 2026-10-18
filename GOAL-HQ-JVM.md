@@ -8,6 +8,19 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 12:55 CDT: `lein test` leaves the tree clean, and an unopenable file spec is an error as SPITBOL makes it. snobol4jvm `64cf51a`, `7114cd0`.**
+  - **Seated:** Lon, in-chat to hq_jvm, verbatim: *"You, HQ-JVM, are now seated as Opsu 5.5 high. Tell CEO that I verified it."* Told the ceo: model `claude-opus-5-5`, effort high, verified by Lon.
+  - **`64cf51a`:** a file spec that cannot be opened is ERROR 116 for INPUT and ERROR 160 for OUTPUT. `sbl -b` raises these for a pipe spec (`"|cat >x"`, `"|echo hi"`), a bad path and a missing file. A pipe spec had been opened as a file literally named `|cat >popen2.dat`.
+    - **Ruling, by the oracle:** snobol4jvm follows `sbl`, not CSNOBOL4, which opens a real pipe. The popen2 test's CSNOBOL4 expectation is left to the csnobol4-suite row.
+  - **`7114cd0`:** a relative INPUT()/OUTPUT() name resolves against `env/*file-dir*` when it is bound. The CSNOBOL4 suite binds it to a temp directory, so `openo.tst` and `test.bin` no longer land in the tree.
+  - **Row closed:** `jvm-lein-test-leaves-the-snobol4jvm-tree-as-it-found-it` reads 0 paths written, recomputed by `done`.
+  - **`lein test` reads 2,028 tests, 4,257 assertions, 367 failures, 0 errors.** The red set is unchanged.
+  - **The eight equality rows (rank 2 and the rank-3 umbrella):** their premises went red by design at `1fe23d8`, since each one said "this file still shadows `=`". Each baton now carries a premise of the cure holding, a dated GOAL note with today's red count, and a real NEXT.
+  - **Finding:** `csnobol4-match4` is flaky. Its `X` held another test's value through the shared global environment. It is noted in the csnobol4-suite row.
+  - **Next:**
+    - the rank-2 rows, smallest first, judging each red against `sbl`;
+    - re-grade x32tests@jvm and x64tests@jvm on the coo's stdin cure.
+
 - **2026-10-18 12:35 CDT: the instrument row is closed, so a red from `lein test` is now a measurement. snobol4jvm `1fe23d8`.**
   - **The cure:** every test namespace that referred `SNOBOL4clojure.core :all` now adds `:exclude [= + - * / num]`, as `core_test.clj` already did. That is 34 files, plus `test-operators`, which refers `.operators` with the alias `ops`. Before, SNOBOL4's IR-building `=` shadowed `clojure.core/=`, so `(is (= a b))` was always truthy.
     - `test_csnobol4_suite.clj` holds raw control bytes. `grep` reads it as binary, so it took a direct edit; a later sweep of the tests should use `grep -a`.
