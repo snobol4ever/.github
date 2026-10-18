@@ -11,7 +11,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Flake | snobol4 | 128/128 EXCLUDED=52 OUTSIDE=52 WALL=45s | 2026-10-17 | `bae359133` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=12s | 2026-10-17 | `b2f5fda77` | done |
 | Dotnet | snobol4 | 11/11 EXCLUDED=3 OUTSIDE=1 WALL=11s | 2026-10-17 | `bae359133` | done |
-| TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-17 | `bae359133` | done |
+| TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-18 | `461fdb1fb` | done |
 | Zona | icon | 23/119 EXCLUDED=5 WALL=266s | 2026-10-17 | `bae359133` |  |
 | Jcon | icon | 86/86 EXCLUDED=5 WALL=24s | 2026-10-17 | `92893767d` | done |
 | IPL | icon | 644/644 EXCLUDED=207 WALL=360s | 2026-10-17 | `a5e3d2d5a` | done |
@@ -23,7 +23,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Roast | raku | 177/1401 EXCLUDED=63 WALL=2883s | 2026-10-17 | `e06e1d5e3` |  |
 | SnoRungs | snobol4 | 2033/2035 EXCLUDED=0 WALL=242s | 2026-10-18 | `9a649d4f8` | 2 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnRungs | icon | 904/904 WALL=54s | 2026-10-15 | `bae359133` | done |
-| ProRungs | prolog | 563/563 WALL=612s | 2026-10-17 | `22b3e13f7` | done |
+| ProRungs | prolog | 525/563 WALL=669s | 2026-10-18 | `22b3e13f7` |  |
 | PasRungs | pascal | 252/252 WALL=24s | 2026-10-15 | `e06e1d5e3` | done |
 | RakRungs | raku | 1023/1023 WALL=219s | 2026-10-17 | `e06e1d5e3` | done |
 | SncRungs | snocone | 358/358 WALL=22s | 2026-10-15 | `e06e1d5e3` | done |

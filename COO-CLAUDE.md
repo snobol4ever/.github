@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+⛔⭐⭐⭐⭐ **THE HARNESS IS ITS OWN REPO, A SIBLING OF SCRIP, corpus AND .github; SCRIP HAS NO scripts/; NO SYMLINK, EVER (Lon 2026-10-17 17:2x-17:5x CDT, in-chat to the ceo, verbatim: *"Should not all this infrastructure around test harness and benchmarks be outside of SCRIP. Should it not be in snobol4ever/harness repo?"* · *"So if gates are shell scripts, they would go into snobol4ever/harness. The test harness LOGIC goes in HARNESS. The source code that is run by the harness goes in CORPUS."* · *"Do not EVER use symlinks. Remove all symlink everywhere found in anywhere."* · *"Use proper absolute and relative paths for things."* · *"You guarantee the all repos are siblings at the same level in their root folder. done and done."* · *"You also know that /home/resources is a sibling to the seat's roots."*; ruled CEO-1817/1819/1820):** every root holds its repos as siblings at one level -- `<root>/SCRIP` (the compiler: src/, the Makefile, the tools that generate or check its own source), `<root>/corpus` (the programs the harness runs, their refs and inputs), `<root>/harness` (EVERY script of the fleet: the postoffice bus `harness/scripts/s4e_msg.sh`, the suite harness and score rows, the runners, the 1,420 gates, the smokes, the benchmarks, the IPC sync-step monitor, the oracle builds and accessors, the censuses), `<root>/.github` (the law), and a port repo where the seat has one -- and `/home/resources` beside the roots. SCRIP/scripts/ IS GONE: a bus verb is `bash harness/scripts/s4e_msg.sh <verb>` from the root (or `bash ../harness/scripts/s4e_msg.sh` from SCRIP), a gate is `bash ../harness/scripts/test_gate_X.sh` from SCRIP, the Makefile's arms read `../harness/scripts/`, a DONE-WHEN that cds into SCRIP names `../harness/scripts/...`. A moved script reaches its siblings by fixed relative paths from its own folder (`$HERE/../../SCRIP`, `$HERE/../../corpus`), never by a link or an environment override. NO SYMBOLIC LINK is created by any code, build or seat (`test_gate_no_symlinks.sh`, blocking: no repo tracks one, SCRIP's build makes none, the 58 harness sites that still make one may only fall); a gate that stages a scratch tree copies the real shape (`lib_fixture_root.sh`), and a scratch SCRIP or corpus is a git worktree, never a link. The same harness and monitor drive SCRIP, snobol4dotnet and snobol4jvm, each an engine the harness grades against the same corpus and oracles.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ⛔⭐⭐⭐⭐ **A PROGRAM WITH NO ORACLE ANSWER IS EXCLUDED, NEVER DEBT (Lon 2026-10-11 16:0x CDT, in-chat to the ceo, verbatim: *"Exclude any program in which we have no way to get output from an oracle, or in which we do not know the answer."*; ruled CEO-1696; RULES.md § Oracles, the FACT RULE of the same name; amends CEO-749 and CEO-1518 for that class only):** a program the oracle gives NO OUTPUT for (it refuses, crashes, aborts, hangs past its declared time, or cannot run it) or whose ANSWER IS NOT KNOWN (no ref, a ref not the oracle's, an answer no run reproduces) leaves its suite's denominator as an EXCLUDED row of class NO_ORACLE_ANSWER with its measurement, shown in the Excl column; every program the oracle DOES answer stays in the denominator as debt SCRIP owes, including one SCRIP refuses by a dialect rule or lacks a feature for. The runners' UNGRADABLE.tsv lists become those exclusions and the coo re-reads each moved row with criterion_changed naming CEO-1696; a program that becomes answerable returns to the denominator in the landing that gives it its answer.
@@ -48,7 +50,7 @@ THE TRACKED SOURCE IS `.github/COO-CLAUDE.md`. To change it:
 1. Edit the tracked source.
 2. Run `bash .github/scripts/populate_coo_root.sh` to copy it here (a root copy that differs is backed up first).
    ⛔ That script also fast-forwards SCRIP, corpus and .github to origin. While a pass or the verifier loop runs from this root (the session-start `ps`), do only its last step by hand: `cp CLAUDE.md CLAUDE.md.bak-<UTC stamp>`, `cp .github/COO-CLAUDE.md CLAUDE.md`, then `cmp` the two.
-3. Run `bash SCRIP/scripts/test_gate_digest_matches_rules.sh` standalone, because it is not in `make test`.
+3. Run `bash harness/scripts/test_gate_digest_matches_rules.sh` standalone, because it is not in `make test`.
 
 Never edit only this copy. When a ceo `propagate_*.py` writes a block into this root, fold that block into the tracked source in the same sitting (the scripts insert a block right after the `# CLAUDE.md` line, newest first). The two have drifted apart three times:
 - 10-07, in both directions. The root carried nine fleet blocks the source lacked, two of them superseded because the CEO-1371 and CEO-1492 corrections never reached this root. The source carried the cto's master→rungs rename (CTO-200), which the root lacked.
@@ -66,20 +68,20 @@ The repos are `SCRIP/`, `corpus/` and `.github/` beside this file; the oracles a
 - **THE FLEET'S TESTING OFFICER** (CEO-1342, 2026-09-27; RULES.md § ONE TESTING OFFICER, ONE SCORE BOARD, THE AREA SMOKE).
   - **What you run.** You alone run every suite for every language: the blocking set, the seven rung suites, and the packages, benches and demos. One run goes at a time on the whole machine, in a STANDING LOOP over origin HEAD as it stood when each run started. The loop has three tiers (CEO-1673; the measured costs are in the fleet blocks above):
     - Tier 1, after EVERY origin landing and before anything else: `make fleet-smoke` (the eight per-language smokes; its record is `/home/resources/progress/SMOKE.tsv`), then the seven masters' PARTITION cores through `.scratch/verifier/tier1_cores.sh`.
-    - Tier 2, per landing: the feature subset the diff marks, `core` plus `shell:<feature>` looked up in `PARTITION.tsv`, selected from the diff through `scripts/area_map.tsv` and capped (a whole-language carrier or over 400 entries means that language's rungs row; a shared node means the seven rungs rows).
+    - Tier 2, per landing: the feature subset the diff marks, `core` plus `shell:<feature>` looked up in `PARTITION.tsv`, selected from the diff through `harness/scripts/area_map.tsv` and capped (a whole-language carrier or over 400 entries means that language's rungs row; a shared node means the seven rungs rows).
     - Tier 3, in idle time: the SUITE TABLE cycle as each suite's PARTITION chunks, one at a time and pre-empted at chunk boundaries; `make preflight`, the blocking set and the `.s` artifact regeneration once per batch, at most once per three hours or per lap.
-  - **The loop's script.** It is a detached script under `.scratch/verifier/` (untracked, yours): `loop3.sh` is the file that runs, and the other `loop*.sh`, `swap*.sh` and `.bak` files beside it are earlier or staged versions. GOAL-COO.md's LIVE CURSOR names the version and the pid. A loop from the previous session may still be running when yours starts, so the session-start `ps` comes first.
+  - **The loop's script.** It is a detached script under `.scratch/verifier/` (untracked, yours): `loop8.sh` is the file that runs (since 10-17; v7 was `loop3.sh`), and the other `loop*.sh`, `swap*.sh` and `.bak` files beside it are earlier or staged versions. GOAL-COO.md's LIVE CURSOR names the version and the pid. A loop from the previous session may still be running when yours starts, so the session-start `ps` comes first.
     - Tier 1 is a SECOND detached process beside it: `tier1.sh` in the same directory, which grades in the `tier1` worktree and writes `TIER1` lines into the same `summary.txt` and a line per run into `SMOKE.tsv`.
-    - Their processes read `bash loop3.sh` and `bash tier1.sh`, which no `claude_coo` pattern matches, so `ps` must name both.
+    - Their processes read `bash loop8.sh` and `bash tier1.sh`, which no `claude_coo` pattern matches, so `ps` must name both.
     - Both are started `setsid nohup` (the last line of each `swap<N>.sh`), so they outlive a session but not a reboot. The 10-15 10:15 reboot killed both: v7 died mid blocking set (its last `summary.txt` line was `END blocking-set rc=2` with no arms), and COO-349 restarted only `loop3.sh`, so no landing was smoked for 70 minutes until COO-350.
-    - When `uptime -s` is later than `summary.txt`'s last line, restart BOTH: `cd .scratch/verifier && setsid nohup bash loop3.sh > loop3.nohup 2>&1 < /dev/null &` and `setsid nohup bash tier1.sh > tier1.nohup 2>&1 < /dev/null &`, then put the new pids in the LIVE CURSOR. A restarted tier 1 logs `TIER1 START` and smokes the range since its `tier1.state` within seconds.
+    - When `uptime -s` is later than `summary.txt`'s last line, restart BOTH: `cd .scratch/verifier && setsid nohup bash loop8.sh > loop8.nohup 2>&1 < /dev/null &` and `setsid nohup bash tier1.sh > tier1.nohup 2>&1 < /dev/null &`, then put the new pids in the LIVE CURSOR. A restarted tier 1 logs `TIER1 START` and smokes the range since its `tier1.state` within seconds.
   - **Why no one else can.** MODE's `LANES:` line names coo for every language. So `lib_one_runner.sh`, the harness guard and `util_score_row.py` admit you, and refuse every other seat rc=2.
-  - **The runners.** The guarded runners are listed in `SCRIP/scripts/one_runner_boards.txt` (42 on 2026-10-15; `test_gate_one_runner_one_board.sh` keeps that list and the guards in step). Beside them sit the bench runners (`test_<lang>_bench_suite.sh`), the demo runner (`test_demos_suite.sh`) and `make test-boards` (`board_packages.sh` plus its two slow gates).
+  - **The runners.** The guarded runners are listed in `harness/scripts/one_runner_boards.txt` (42 on 2026-10-15; `test_gate_one_runner_one_board.sh` keeps that list and the guards in step). Beside them sit the bench runners (`test_<lang>_bench_suite.sh`), the demo runner (`test_demos_suite.sh`) and `make test-boards` (`board_packages.sh` plus its two slow gates).
   - **The rows.** Each runner writes its own row through `util_score_row.py`, with per-program progress appends. SCORE.md § THE SUITE TABLE and `SUITES.tsv` are yours alone, and SCRIP's README renders from them. Publish every pass in the sitting it ends.
   - **A red the loop finds.** Telegram it to the language's lane (MODE line 2's THE SEATS). Name the row, the entries, the tree graded, and the range of landings since the row's last green reading.
     - You may bisect to the first bad commit, in a scratch worktree (COO-286; SCRIP `0e4eebafb` names a "coo bisect").
     - The cure or revert is the lane's, within the tick.
-  - **What every other seat runs per landing:** its row's DONE-WHEN, then the handful, `bash scripts/test_feature_reps.sh <lang> <feature>...` (the master partition's core entries that carry the feature, at most eight, both modes, no row; CEO-1677), and nothing else. `make preflight`, `make fleet-smoke`, `test_area_smoke.sh` (bar its `--list-only`) and the handoff artifact verifier refuse every other seat rc 2 (CEO-1671); `S4E_ONE_TEST_ADMIT` is the ceo's loud audit override, never a seat's road.
+  - **What every other seat runs per landing:** its row's DONE-WHEN, then the handful, `bash ../harness/scripts/test_feature_reps.sh <lang> <feature>...` (the master partition's core entries that carry the feature, at most eight, both modes, no row; CEO-1677), and nothing else. `make preflight`, `make fleet-smoke`, `test_area_smoke.sh` (bar its `--list-only`) and the handoff artifact verifier refuse every other seat rc 2 (CEO-1671); `S4E_ONE_TEST_ADMIT` is the ceo's loud audit override, never a seat's road.
   - **Which mode shares what.** MODE line 2 gives you the suites and their instruments, and a flip changes that share. `LANES:` has named coo for every language under both TENET and QUARTET. `ORDER-OF-WORK:` is what narrows the loop. When it names languages (on 2026-10-15, `icon prolog snobol4`, CEO-1765/1773), tier 3 skips the other languages' cycle units, listed one per line in `.scratch/verifier/idle_units` (loop v7, COO-347). Tier 1, tier 2 and the maintenance group still cover every language, because shared nodes reach them all. Read line 2, never this bullet.
 - **The instruments officer.** CEO-781 (2026-09-16 11:22) reads *"THE coo IS A WORKING OFFICER ON THE INSTRUMENTS LANE"*. That lane covers:
   - the picker and the postoffice bus (`s4e_msg.sh`);
@@ -91,8 +93,8 @@ The repos are `SCRIP/`, `corpus/` and `.github/` beside this file; the oracles a
   Your rows are the `coo`-owned rows of `QUEUE.tsv`, worked one at a time through `next`, `claim` and `done`. Asks about instruments, runners, accounting and denominators come to you (CEO-1270).
 - **The row audit.** Every row you write must be on origin and must agree with the progress DB on its stamped tree; a disagreement is a row. A cross-language MEASUREMENT that a standing order names grades through `corpus_suite_harness.run_suite_entry`, and writes no row, no score cell and no progress append. The moment it writes a row, it is no longer a measurement.
 - ⛔ **The override and `done`.** These are the only exceptions to the one-runner guard.
-  - `S4E_ONE_RUNNER_OVERRIDE` stands only for the gate fixtures in `scripts/one_runner_gate_arms.txt` and for the ceo's closed-row audits.
-  - The bus's computed `done` runs a DONE-WHEN under `S4E_DONE_WHEN_RUN=1`, and under it a board refuses rc=2 for every seat except the lane owner (CEO-1342 clause 5; `test_gate_done_runs_no_board_for_any_seat.sh`). Your own `done` is admitted. Another seat's DONE-WHEN that needs a suite verdict reads `scripts/util_suite_row_at_or_after.sh <suite-key> <tree>` against your row.
+  - `S4E_ONE_RUNNER_OVERRIDE` stands only for the gate fixtures in `harness/scripts/one_runner_gate_arms.txt` and for the ceo's closed-row audits.
+  - The bus's computed `done` runs a DONE-WHEN under `S4E_DONE_WHEN_RUN=1`, and under it a board refuses rc=2 for every seat except the lane owner (CEO-1342 clause 5; `test_gate_done_runs_no_board_for_any_seat.sh`). Your own `done` is admitted. Another seat's DONE-WHEN that needs a suite verdict reads `harness/scripts/util_suite_row_at_or_after.sh <suite-key> <tree>` against your row.
   - A runner change is proven by its gate's mktemp fixture outside `corpus/` (CEO-547). Your next pass then reads the real board.
 - ⛔ **You cure nothing.** CEO-723 (2026-09-13, Lon: *"It is not possible for COO to do two jobs. He failed at Pascal."*) retired the fixer clause of 2026-09-06 20:3x (COO-17…COO-21, the Pascal cures COO-64…COO-77).
   - Never edit `src/`. Bisecting a red to its first bad commit is yours; the cure is the lane's.
@@ -118,7 +120,7 @@ Another coo session may have ended in this root minutes before yours. Read the t
 
 Read it and never assume it: it has flipped dozens of times since 08-29 (47 flip headers in MODE on 2026-10-07), so a reading goes stale within minutes. Whenever your reasoning depends on the mode, say which mode you believe you are in.
 
-**Mail.** Run `bash SCRIP/scripts/s4e_msg.sh check`, ACT OR REPLY, then `clear`. `clear` deletes exactly what the last `check` displayed, read or not. So never pipe `check` into `head`, or into `/dev/null`: a cut or hidden display archives the rest unread.
+**Mail.** Run `bash harness/scripts/s4e_msg.sh check`, ACT OR REPLY, then `clear`. `clear` deletes exactly what the last `check` displayed, read or not. So never pipe `check` into `head`, or into `/dev/null`: a cut or hidden display archives the rest unread.
 - `check` rewrites `$PO/coo/.last-check` as it prints.
 - This root's `.claude/settings.local.json` runs `check | head -24` on every prompt, so the last `check` is usually a cut one.
 - So `clear` only right after your own full `check` in the same turn.
@@ -137,15 +139,16 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
 - The UserPromptSubmit hook prints MODE line 1 and the unread mail headers, one turn late. The Stop hook fires the banner.
 - Every time label comes from `date` in the same tool call. Lon's in-chat word wins immediately and is routed into GOAL-COO.md in the same session.
 
-## The workspace (three repos, one shared resource tree, one postoffice)
-- `SCRIP/`: the compiler. C/C++ in `src/`, ~2150 scripts in `scripts/`, and a ~765 KB `Makefile` (counts from 2026-10-15). Origin `git@github.com:snobol4ever/SCRIP.git`.
-- `corpus/`: the oracle-graded program universe that SCRIP's scripts expect as a sibling.
+## The workspace (four repos, one shared resource tree, one postoffice)
+- `SCRIP/`: the compiler. C/C++ in `src/` and the Makefile, with no `scripts/` since CEO-1819 (10-17). Origin `git@github.com:snobol4ever/SCRIP.git`.
+- `harness/`: every script of the fleet (2234 in `harness/scripts/` on 2026-10-18): the bus, the runners, the gates, the smokes, the benchmarks, the monitor and the censuses. Run them from SCRIP as `../harness/scripts/<name>`; a script reaches its siblings by `$HERE/../../SCRIP` and `$HERE/../../corpus`. Origin `git@github.com:snobol4ever/harness.git`.
+- `corpus/`: the oracle-graded program universe that the harness expects as a sibling.
   - `tests/<lang>/ALL.*`: the seven rung suites (SUITES.tsv `*-rungs`; called the master suites until CTO-200).
   - `packages/<lang>/<pkg>/`: the vendored third-party suites (`ls corpus/packages/*/`).
   - `benchmarks/`, `demos/`, and `include/` + `library/` (the shared `-INCLUDE` library).
   - `corpus/programs/` is NOT a runtime test suite (RULES.md § ABSOLUTE RULES).
 - `.github/`: the org's record, and YOUR repo.
-  - `RULES.md` (law), `MASTER-PLAN.md` and `SCORE.md` (THE ONE LEADERBOARD). Its machine record is NOT here: since 2026-10-09 it is the one file `/home/resources/progress/SUITES.tsv` (Lon in-chat to the coo: *"You choose to put the one single data location to be spread across all root via GitHub instead of choosing one file in /home/resources. That was stupid."*); every seat reads and writes it in place, `SUITES.history.tsv` beside it holds every moved row, and `SCRIP/scripts/lib_suites_tsv.sh` is the one path authority.
+  - `RULES.md` (law), `MASTER-PLAN.md` and `SCORE.md` (THE ONE LEADERBOARD). Its machine record is NOT here: since 2026-10-09 it is the one file `/home/resources/progress/SUITES.tsv` (Lon in-chat to the coo: *"You choose to put the one single data location to be spread across all root via GitHub instead of choosing one file in /home/resources. That was stupid."*); every seat reads and writes it in place, `SUITES.history.tsv` beside it holds every moved row, and `harness/scripts/lib_suites_tsv.sh` is the one path authority.
   - `GOAL-*.md`: one LIVE CURSOR per seat or campaign.
   - `findings/`, 43 `ARCH-*.md` (2026-10-15), `MONITOR-BINARY-DESIGN.md`, and `scripts/` (your instruments, and the ceo's `propagate_*.py`).
   - Only the top-level `.md` files are read. `archive/`, `probes/` and `wip-patches/` are history.
@@ -164,7 +167,7 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
   - Which seats are working, and on which model, is MODE line 2's roster, and it changes with every flip (QUARTET stands every HQ down: CEO-1521 on 10-05, CEO-1773 on 10-15; TENET started them all, CEO-1701).
   - Read their repos read-only (`git -C /home/claude_<X>/<repo> …`) for hygiene.
   - Check liveness with `ls -t /home/satirical/.claude/projects/-home-claude-<X>/*.jsonl`.
-- `.scratch/` is yours. `SCRIP/refs/` holds symlinks into `/home/resources` (icon-master, jcon-master, rakudo-main, roast); it is gitignored and per-root.
+- `.scratch/` is yours. NO SYMLINK anywhere (CEO-1820): COO-365 removed 555 under this root, `SCRIP/refs/` included, and `test_gate_no_symlinks.sh` is blocking; a scratch tree is a git worktree or a copy.
 - About forty worktrees hang off SCRIP (42 on 2026-10-15; `git -C SCRIP worktree list`):
   - `SCRIP-p4/` at `5bfbd5d57`, the P4 self-host milestone of COO-70;
   - branch trees under `.scratch/wt/` (`coo-map`, `coo-area-smoke`, …), and beside them `tier1`, a detached tree the loop's tier 1 grades in (its corpus is `.scratch/t1home/corpus`), so tier 1 never touches the root `SCRIP/`;
@@ -174,14 +177,14 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
 
 ## Session start (THE COO LOOP step 1)
 ```bash
-ps -eo pid,etimes,args | grep -E '[c]laude_coo|[l]oop3\.sh|[t]ier1\.sh'   # a pass, blocking set or the verifier loop still running? then do NOT merge: it stales the binary and voids the run
-uptime -s; tail -2 .scratch/verifier/summary.txt; tail -1 /home/resources/progress/SMOKE.tsv | cut -f1-2   # no loop3 or tier1 pid and a boot after the last line: restart whichever died (Who you are, the loop's script)
+ps -eo pid,etimes,args | grep -E '[c]laude_coo|[l]oop[0-9]*\.sh|[t]ier1\.sh'   # a pass, blocking set or the verifier loop still running? then do NOT merge: it stales the binary and voids the run
+uptime -s; tail -2 .scratch/verifier/summary.txt; tail -1 /home/resources/progress/SMOKE.tsv | cut -f1-2   # no loop8 or tier1 pid and a boot after the last line: restart whichever died (Who you are, the loop's script)
 for r in SCRIP corpus .github; do git -C $r fetch -q origin && git -C $r merge --ff-only origin/main; done
-cd SCRIP && bash scripts/s4e_msg.sh check          # read; ACT OR REPLY; then `bash scripts/s4e_msg.sh clear`
+cd SCRIP && bash ../harness/scripts/s4e_msg.sh check          # read; ACT OR REPLY; then `bash ../harness/scripts/s4e_msg.sh clear`
 python3 ../.github/scripts/util_suite_banner.py    # the grid; --plain no colour is what Lon gets, verbatim, when he asks (CEO-1537); --line one line; --md the SCORE.md table
 head -2 /home/resources/postoffice/MODE            # THE VALUE, then the roster, focus, lanes and shares
 grep -E '^(LANES|ORDER-OF-WORK|REPORT-TO-LON):' /home/resources/postoffice/MODE
-bash scripts/s4e_msg.sh fleet                      # hygiene: claims, lock age, dirty/unpushed trees, unread mail per seat
+bash ../harness/scripts/s4e_msg.sh fleet                      # hygiene: claims, lock age, dirty/unpushed trees, unread mail per seat
 ```
 ⛔ While a pass or gate runs from this root, leave `SCRIP/` and `corpus/` untouched: no edit, no untracked file, no `git stash`. A dirty tree makes the runners skip rows or grade the wrong scripts. Reproduce in a scratchpad copy or a worktree instead. The verifier loop itself owns the root `SCRIP/` and `corpus/` between its units and merges origin and builds at the start of each, so a loop left running by an earlier session is a run in flight too.
 
@@ -200,17 +203,17 @@ make setup                  # a fresh machine only (already done on this box)
 ./scrip prog.sno                      # mode 3 (--run, default): compile and run in-process
 ./scrip --compile prog.sno > p.s      # mode 4: standalone x86-64 asm; then gcc -c p.s && gcc p.o -Lout -lscrip_rt -lm -Wl,-rpath,out
 ./scrip prog.icn -- arg1 arg2         # program arguments after --
-bash scripts/monitor_run.sh prog.sno --oracle   # the IPC sync-step monitor: SCRIP against the language's instrumented oracle, in lock-step
-bash scripts/monitor_run.sh prog.sno            # mode 3 against mode 4 in lock-step; --trace prints a mode-3 trace; --input FILE feeds stdin
-python3 scripts/corpus_suite_harness.py run <family>.sno <family>.ref --modes m3,m4   # grades a suite the way a board does, AND APPENDS PROGRESS ROWS
-S4E_PROGRESS_OFF=1 python3 scripts/corpus_suite_harness.py run ...                    # a diagnostic re-grade that writes nothing to the progress DB
-python3 scripts/corpus_suite_harness.py smoke FENCE SPAN ...                          # THE AREA SMOKE: every entry whose ALL.csv row marks a feature, both modes; no progress row, no score cell
+bash ../harness/scripts/monitor_run.sh prog.sno --oracle   # the IPC sync-step monitor: SCRIP against the language's instrumented oracle, in lock-step
+bash ../harness/scripts/monitor_run.sh prog.sno            # mode 3 against mode 4 in lock-step; --trace prints a mode-3 trace; --input FILE feeds stdin
+python3 ../harness/scripts/corpus_suite_harness.py run <family>.sno <family>.ref --modes m3,m4   # grades a suite the way a board does, AND APPENDS PROGRESS ROWS
+S4E_PROGRESS_OFF=1 python3 ../harness/scripts/corpus_suite_harness.py run ...                    # a diagnostic re-grade that writes nothing to the progress DB
+python3 ../harness/scripts/corpus_suite_harness.py smoke FENCE SPAN ...                          # THE AREA SMOKE: every entry whose ALL.csv row marks a feature, both modes; no progress row, no score cell
 ```
 - Frontends are chosen by extension: `.sno .spt .sbl` (SNOBOL4), `.sc` (Snocone), `.icn`, `.pl`, `.reb`, `.raku`, `.pas`. `.scrip` and `.md` are the polyglot demos (`src/driver/scrip.c`).
 - Introspection flags: `--dump-ast | --dump-ir | --dump-ir-verbose | --dump-bb | --dump-zeta | --transpile`. `--trace` and `--monitor` are the monitor's hooks. There is no `--help`; bare `./scrip` prints usage.
 - The boards (`test_<lang>_<pkg>_suite.sh`, `test_corpus_*`, `board_*.sh`, the bench and demo runners, `make test-boards`) are your loop's. Every run writes its row and progress appends, so run a board as a pass, never as a diagnostic.
 - ⛔ A suite file is a CONTAINER, never a program. `./scrip family.sno` or `sbl -bf family.sno` produce duplicate-label errors or a one-entry run that look like defects and are not (see the harness docstring). Grade through the harness.
-- Take oracles from the `scripts/lib_oracle_flags.sh` accessors, never a hand-assembled path.
+- Take oracles from the `harness/scripts/lib_oracle_flags.sh` accessors, never a hand-assembled path.
   - `sbl_correctness_bin`: OUR x64 SPITBOL fork (`/home/resources/x64/bin/sbl`, `-bf` mandatory) is the ONE SNOBOL4 oracle, Budne's suite included (Lon 2026-09-07/08, *"just one oracle and one feature set, being SPITBOL"*).
   - `sbl_clean_bin` is for benchmarks only.
   - `csnobol4_bin` is never a grader. It cuts a declared extension's ref only (CEO-1416; `ALL.extensions.tsv`, a package's `EXTENSIONS.tsv`).
@@ -240,16 +243,16 @@ python3 scripts/corpus_suite_harness.py smoke FENCE SPAN ...                    
 ⛔⭐⭐⭐ **THE ATTRIBUTE ROW CARRIES THE TEST UNIT'S COMMAND LINE (Lon 2026-09-26 11:1x–11:2x CDT, in-chat to the ceo, verbatim: *"We are meant to have stack and heap size parameters stored in the per-test attribute file for all the test suites."* · *"Basically the command-line arguments for compile time and run time (if needed) should be stored per-test unit."*; CEO-1281; RULES.md hard-cap rule clause 8 (f); GOAL-TEST-SUITE-CONSISTENCY.md point 8):** every test unit — a master entry, a package program, a benchmark kernel, a demo — stores WITH ITSELF the command-line arguments its compile and its run need, and the runner reads them there and types none of its own. Today: `heap_kb` and `stack_kb` (every master and package row declares both; census 2026-09-26: 0 empty cells), argv (`ALL.argv`, `<stem>.argv`) and stdin (`ALL.in`, `<stem>.in`); the general shape ruled is a `compile_args` and a `run_args` attribute per test unit read by the ONE reader (`corpus_suite_harness.py` for the masters and package tables, `lib_declared_arena.sh` for a standalone program's sidecars) — the coo's rank-1 row. A standalone program (a benchmark kernel, an extracted entry) declares in `<stem>.heap` / `<stem>.stack` sidecars (one line `NAME<TAB>KB`), carried as `-d<kb>k -s<kb>k` switches on its command line (`declared_switches_beside`) — ⛔ NEVER `SCRIP_HEAP_KB`, which `gc_heap.c` reads as the collector's initial WINDOW. The Prolog, Pascal and Rebus benchmark kernels declare since corpus `a91273cef`/`e65e530ed`; snobol4, icon and raku kernels are a rank-2 row per HQ. Found because the Prolog benchmark angles ran tak at the shipped 4 MB stack, where it needs 64 MB (swipl 16 MB), and SKIPped it: a program graded under a default it did not declare is a false reading.
 ```bash
 make test               # THE blocking set, the head of your loop: scripts/run_blocking_set.sh LOOPS every arm (sharded and parallel by default since 2026-09-20; TEST_SHARDS=1 runs serial) and REPORTS green/red/refused with the denominator; non-zero on any red or refusal (CEO-582)
-make test-sequential    # the DECLARATION of the blocking set (1093 arms on 2026-10-15; `bash scripts/run_blocking_set.sh --list` prints them) and its legacy abort-first twin, for bisecting a set gone strange
+make test-sequential    # the DECLARATION of the blocking set (1093 arms on 2026-10-15; `bash ../harness/scripts/run_blocking_set.sh --list` prints them) and its legacy abort-first twin, for bisecting a set gone strange
 make test-boards        # board_packages.sh + the two slow runner gates moved out of make test (icon rungs identity; every runner passes the declared heap and stack, ~22 min)
 make preflight          # the cheap hermetic arms of scripts/preflight_arms.txt (76 on 2026-10-15), no build; yours alone since CEO-1671 (refused rc 2 for every other seat)
 make test-postoffice    # the hermetic s4e_* fleet gates (each builds its own scratch postoffice)
 make fleet-smoke        # TIER 1: the eight per-language smokes (scripts/test_fleet_smoke.sh), seconds; appends a line to /home/resources/progress/SMOKE.tsv; refused rc 2 for every seat but the coo
-bash scripts/test_feature_reps.sh <lang> <feature>... [--list]   # a SEAT'S handful: the master partition's core entries carrying the feature, at most eight (REPS_CAP), both modes, no row; --list names them and runs nothing
-bash scripts/test_area_smoke.sh [--list-only] [FEATURE...]       # TIER 2's selection: the diff through scripts/area_map.tsv to feature columns; --list-only is open to every seat, the run is the coo's
-python3 scripts/util_suite_partition.py build|check|summary <ALL.csv>   # a suite's stored PARTITION.tsv; a landing that changes a suite table rebuilds it in the same landing (test_gate_suite_partitions_are_current.sh, blocking)
-bash scripts/test_gate_<name>.sh                  # ONE invariant gate, standalone -- the only way to read a gate's state
-bash scripts/test_gate_digest_matches_rules.sh    # polices every root's CLAUDE.md for retired law text; NOT in make test -- run it after every edit to this file
+bash ../harness/scripts/test_feature_reps.sh <lang> <feature>... [--list]   # a SEAT'S handful: the master partition's core entries carrying the feature, at most eight (REPS_CAP), both modes, no row; --list names them and runs nothing
+bash ../harness/scripts/test_area_smoke.sh [--list-only] [FEATURE...]       # TIER 2's selection: the diff through scripts/area_map.tsv to feature columns; --list-only is open to every seat, the run is the coo's
+python3 ../harness/scripts/util_suite_partition.py build|check|summary <ALL.csv>   # a suite's stored PARTITION.tsv; a landing that changes a suite table rebuilds it in the same landing (test_gate_suite_partitions_are_current.sh, blocking)
+bash ../harness/scripts/test_gate_<name>.sh                  # ONE invariant gate, standalone -- the only way to read a gate's state
+bash ../harness/scripts/test_gate_digest_matches_rules.sh    # polices every root's CLAUDE.md for retired law text; NOT in make test -- run it after every edit to this file
 ```
 - `scripts/` is navigable by prefix:
   - `test_gate_*`: invariants that must never regress.
@@ -268,8 +271,8 @@ python3 .github/scripts/util_progress_flips.py --register [--problems] [--progra
 python3 .github/scripts/util_suite_banner.py --set <key> PASS TOTAL [DATE] [TREE]              # one SUITES.tsv row (key = column 1), SCORE.md's table re-rendered in the same call -- a cited correction only
 python3 .github/scripts/util_suite_banner.py --readme-check                                   # is SCRIP/README.md's suite table the render of SUITES.tsv? --readme re-renders it (a SCRIP commit)
 python3 .github/scripts/util_declared_sizes_census.py [--lang L]                             # which test units declare heap_kb/stack_kb (CEO-1353), no run
-python3 SCRIP/scripts/util_queue_visibility_census.py                                         # HYGIENE: rowless batons, placeholder DONE-WHENs, orphan claims (rc 1 = findings, 2 = unreadable)
-bash SCRIP/scripts/handoff_status.sh                                                          # the ONLY source of "handoff complete": tree clean + HEAD==origin + zero unpushed, every repo
+python3 harness/scripts/util_queue_visibility_census.py                                         # HYGIENE: rowless batons, placeholder DONE-WHENs, orphan claims (rc 1 = findings, 2 = unreadable)
+bash harness/scripts/handoff_status.sh                                                          # the ONLY source of "handoff complete": tree clean + HEAD==origin + zero unpushed, every repo
 ```
 - **The measure** counts DISTINCT package programs newly green since the window start. The window base is the OCTET switch, 2026-09-06T20:31Z.
   - A program that read +/−/+ across two boards counts once.
