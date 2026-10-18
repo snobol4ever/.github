@@ -535,6 +535,14 @@ def wall(r):
     if n<60: return f"{n}s"
     if n<3600: return f"{n//60}m{n%60:02d}s"
     return f"{n//3600}h{(n%3600)//60:02d}m"
+# ⭐ A SEAT'S GRID SHOWS ITS OWN LANGUAGES (Lon 2026-10-17, in-chat to hq_jvm, verbatim: "The test suite banner is wrong for this seat,
+# since JVM is only SNOBOL4 and Snocone and Rebus." · "The test suite banners have the wrong languages."). A seat named in GRID_LANGS sees
+# only the rows whose lang it lists; a seat not named sees every row, exactly as before. The seat is derived the way the history writer
+# derives it (S4E_SEAT, else the root's own folder name /home/claude_<seat>), so the banner verb passes no new argument.
+GRID_LANGS={'jvm':('snobol4','snocone','rebus')}
+def _grid_langs():
+    seat=os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..'))))
+    return GRID_LANGS.get(seat)
 def grid(plain=False):
     """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "And a grid of the test suite
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
@@ -552,6 +560,8 @@ def grid(plain=False):
     the rule between every data row is gone, keeping the outer border and the header rule. 24 suites go from
     51 lines to 28 and the width drops with it. Widths come from dw(), this file's display-width authority."""
     head,rows=load()
+    langs=_grid_langs()
+    if langs: rows=[r for r in rows if (r.get('lang') or '').strip().lower() in langs]
     data=[]
     for r in rows:
         # ⛔ A ROW WITH NO READING IS PRINTED, NEVER SKIPPED (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...). This
@@ -601,7 +611,7 @@ def grid(plain=False):
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
-    print(f"{len(data)} suites, {done} at 100%")
+    print(f"{len(data)} suites, {done} at 100%" + (f" -- {', '.join(langs)} only" if langs else ""))
 # ⭐ THE README'S SUITE TABLE IS GENERATED FROM THIS RECORD, NEVER TYPED (Lon 2026-09-23 16:2x, in-chat to the ceo: "We want the
 # test suite numbers and the benchmark numbers in the README."; CEO-1216; row instruments-the-readme-suite-table-is-written-from-the-
 # suite-table-and-a-gate-holds-it-current, the coo). SCRIP/README.md read the leaderboard "on 2026-09-07" sixteen days later -- Gimpel
