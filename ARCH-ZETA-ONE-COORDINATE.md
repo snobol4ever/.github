@@ -1,0 +1,82 @@
+# ARCH-ZETA-ONE-COORDINATE -- the RBP/RSP placement of every BB cell, for all seven languages, in one coordinate system
+
+**THE DESIGN IN LON'S WORDS (2026-10-18 11:2x CDT, in-chat to the ceo, verbatim): *"All development is waiting for this to be done as it was originally designed, i.e. FORTH-style stack with variable-length cells and exceptions on the RBP. That is it in a nutshell."*** The RSP spine is a FORTH stack of variable-length cells: each box carves the cell it needs at its α and pops exactly that cell at its ω, locals are carved where first used, and every address is a compile-time constant distance from rsp. The EXCEPTIONS -- the few cells no fixed rsp distance can reach, because a callee's live frame or a non-constant push sits between the cell and its reader -- go to the RBP activation frame, and only those. Everything below is that sentence made checkable.
+
+ceo, 2026-10-18 11:1x CDT, seated Fable 5.1 xhigh on Lon's word, verbatim: *"Go re-design the ZETA RBP/RSP. You know what to do. Help the boys out."* · *"You, CEO, and HQ-PROLOG and HQ-ICON, all three running as Fable 5.1 xhigh should be able to properly drive the emitter regarding the THREE ZETAS for All languages."* This page is the shared-core design the three seats build to (CEO-1830). It changes no law: it is RULES.md § BB FRAME-PLACEMENT CRITERION (Lon's two tests, CEO-1750; the third level, CEO-1751; one mechanism, SNOBOL4's, a retry never restores rsp, CEO-1755/1759) written as equations the planner can check. `ARCH-PROLOG-SPINE-SEGMENTS.md` (hq_prolog, the same morning) is the Prolog instance of § 2 and § 3 and stands; `ARCH-GC-COMPILE-TIME-FRAME-MAPS.md` § 7 and § 13 stand for how the collector finds the cells this page places.
+
+The tree this page reads: SCRIP ad29fe6ad -- e41bf8a6a (hq_zetas, on Lon's *"Check in to main now"*) deleted the RBP-vs-RSP selector; every Icon and Prolog cell is on the RSP spine, rbp carries the frame header only, locals are FORTH-carved at first use (`zst_plan`), Prolog graphs carry absolute claim bases (`zd_pl_bases`, 2dd79e5e9); hq_prolog's ad29fe6ad made hello green again. Measured on it: Prolog hello PASS; `main :- p(X), write(X), nl, fail.` with three facts prints `_G0` and SIGSEGVs (the retaining-call class); findall and between reps 0 of 8; Icon `every s +:= gen(4)` reads gen's parameter as sixteen NUL bytes (error 101); the planner's own `SCRIP_ZD_DEPTH` walls are noise because they compare RELATIVE depths across runs and do not tell an α arrival from a β arrival.
+
+## 1. The one coordinate
+
+Every graph that the depth planner (`zd_plan`, emit.cpp) arms has ONE coordinate: the **absolute depth** below the graph's frame base, in bytes. The frame base is where the prologue leaves rsp; rbp points at the frame header and nothing else (e41bf8a6a). For an armed box `i`:
+
+- `K_i = zd_k(i)` -- the bytes the box carves at its α: its own cell (`zd_k_own`, 16 for a value box, 32 for TO, 16 for ARBNO, 0 for a box that carries nothing) plus the FORTH locals homed on it (`zst_s_of`).
+- `X_i = base[claim_i] + zout_i` -- the box's **exit depth**: rsp after its carve, the depth at which its γ leaves and at which its β is re-entered.
+- `E_i = X_i - K_i` -- the box's **entry depth**: rsp at its α.
+
+A **run** (a claim) is a chain of boxes whose depths are relative to one base; `zd_pl_bases` gives every run of a Prolog or Icon-cells graph an absolute base from the entry in reverse post-order; a run whose base cannot be derived is `known = 0`. § 2 says what that means. THE EXTENSION this page orders: the absolute coordinate is computed for every language's armed graphs (`zd_pl_abs()` returns true for all seven), with SNOBOL4's statement landing kept as the DISCARD edge it already is (§ 1.2); SNOBOL4 reads 100 percent on the relative plan and must read byte-identical asm after the extension, which is the first small roll-out's smoke (CEO-1478).
+
+### 1.1 The three edge laws (SNOBOL4's mechanism, as equations)
+
+For every edge of an armed graph where both ends have a known base:
+
+- **γ into an α** (the ordinary forward edge `i -> j`): `X_i - gpop_i = E_j`. The successor starts at the predecessor's exit depth; nothing is popped on success but what a compile-time-constant `gpop` names (a balanced skip, CEO-1759).
+- **ω into a β** (failure to the immediate predecessor `i -> j`): `X_i - K_i - wpop_i = X_j`. The failing box pops ITS OWN carve and nothing else, and the predecessor is re-entered at its own exit depth with its carve intact -- a retry never restores rsp from anything.
+- **γ into a β** (a backward γ: Prolog's retry of a choice point, a gate arm's redo, an Icon loop resuming its generator): `X_i - gpop_i = X_j`. The twin of the ω law (hq_prolog's e4301adbf rule 1).
+
+An edge that violates its law is a **planner defect**, never an rbp need. Every Prolog and Icon red of 10-17 and 10-18 that was traced box by box in gdb was one of these (the GATE arm landing 16 bytes shallow; the second if-then-else's else run at depth 0 against its BOUND at 80; the FORTH local homed on a BOUND that carves nothing; the UNMARK popping 0 into a TO that exits at 64).
+
+### 1.2 Discard edges
+
+A **discard** resumes nothing and MAY drop rsp to a saved depth (CEO-1759): FENCE's β, Prolog's cut and the UNMARK that commits an if-then-else or finishes a findall, ARBNO's unbounded record, a SNOBOL4 statement's failure landing (`IR_STATEMENT_BEGIN`, the `zd` reset to 0 per statement), a bounded Icon expression's BOUND/UNMARK that frees its generators. A discard edge restores rsp from a RECORD -- a word in the frame written when the record was made -- and its arrival law is `rsp := record`, checked at run time, not at compile time. The planner marks an edge discard by the target kind and the port name; nothing else may pop by a non-constant.
+
+## 2. Definiteness: the one test, for every language
+
+A box is **definite** when `E_i` is a compile-time constant on every path that reaches it. The planner carries it per box as `zd_def[i]` (today `zd_xb[i] != INT_MIN`, the known base; hq_prolog's `op_zdef`). Exactly two things make a box indefinite, and they are the same two for every language:
+
+1. **A retaining edge**: the γ out of a call that can return with its callee's frame still live below the caller, because the callee may be re-entered at its β -- in Prolog a CALL_PROC_STAGED to a predicate that retains (`bb_proc_target_retains`), CALL_VALUE, the db-walk TO, catch/3, the soft cut; in Icon a call to a procedure that suspends (`emit_graph_has_suspend`, `rt_proc_is_generator`) and PROC_GEN, when the caller may resume it; in Raku a gather's take. SNOBOL4, Snocone, Rebus and Pascal have none: a SNOBOL4 pattern call's frame is gone before its γ, so every SNOBOL4 box is definite, which is why SNOBOL4 is the model. After a retaining γ the next box heads a run whose base is unknown; `zd_pl_bases` never propagates a base through it.
+2. **A push of non-constant size** (call/N's argument block, a VLA-style carve). Nothing after it in the run is rsp-addressable until a discard restores a record.
+
+Definiteness is regained at a discard edge whose record is itself definite (an UNMARK whose BOUND is in a definite run gets the BOUND's depth, the existing `ub` rule). A merge point is definite iff every incoming edge is definite and the laws of § 1.1 agree.
+
+THE TABLE OF RETAINING EDGES is ONE function in the shared planner, `zd_edge_retains(i)`, language-blind in form (IR kind plus the callee fact the lowerer recorded), with one arm per language named above. hq_prolog writes the function and the Prolog arms (its segments landing); hq_icon adds the Icon arms; the ceo the others. Nobody reasons about a language outside that table.
+
+## 3. Lon's two tests as planner facts
+
+Every cell starts on the RSP spine. The planner moves a cell off it only on one of these two facts, and names the fact beside the cell in the census:
+
+- **TEST 1, an OPERAND**: a consumer `c` reads producer `p`'s cell by rsp distance `X_c' - X_p` (the staging read at `g_zd_read`). The distance is a compile-time constant iff `p` and `c` are both definite, or are in the same run with no retaining edge between them. Otherwise the cell is **frame-homed**: the producer also writes its value to its frame slot (`xop_frame_slot`, hq_prolog's R-C) and the consumer reads the slot through rbp. Nothing else is frame-homed.
+- **TEST 2, a LOCAL**: a FORTH local is homed on a box `h` (its deepest non-looping common dominator that carves its own cell, `zst_plan`) at absolute depth `L`, read as `[rsp + zabs - L]`. The address is the same at every α and β of the graph iff `h` is definite and every use is definite. Otherwise the local keeps its frame slot and is read through rbp (hq_prolog's R-B). A parameter is a frame slot.
+- **THE FRAME WORDS** (the header, BOUND and choice words, act words): `[rsp + off + zabs]` where the box is definite, `[rbp + off]` where it is not (R-A); the predicate's γ/ω/step and clause-retry code, entered from anywhere, read the header through rbp always (R-E).
+- **THE THIRD LEVEL** (CEO-1751): the root graph's standing frame holds the global-type things, reached by the link chain; no construct-lifetime cell goes there.
+
+Everything SNOBOL4 does today already satisfies this with zero rbp cells; Icon and Prolog get rbp cells exactly where a retaining edge or a non-constant push intervenes, and nowhere else. **The count Lon asked for** is the number of TEST-1 homes plus TEST-2 slots per graph, printed by the census; it falls only by making calls deterministic (first-argument indexing, last-call, a bounded `every` whose generator cannot be resumed), never by moving a cell.
+
+## 4. The verifier: ZD-CHECK
+
+The instrument that turns *"count the remaining failures as bugs"* into a list, at compile time, before any program runs: `SCRIP_ZD_CHECK=1 ./scrip --compile prog.ext` prints, per armed graph,
+
+```
+[ZD-CHECK] graph=<name> boxes=<n> definite=<d> edges=<e> violations=<v> rbp_homes=<h> rbp_locals=<l>
+[ZD-CHECK]   GAMMA-ALPHA i=<p> <op> -> j=<q> <op> arrives=<a> expects=<E_j>
+[ZD-CHECK]   OMEGA-BETA  i=<p> <op> -> j=<q> <op> arrives=<a> expects=<X_j>
+[ZD-CHECK]   GAMMA-BETA  i=<p> <op> -> j=<q> <op> arrives=<a> expects=<X_j>
+[ZD-CHECK]   READ        i=<c> <op> reads p=<k> <op> across an indefinite box (not a constant distance)
+```
+
+in the absolute coordinate of § 1, α and β arrivals told apart, discard edges skipped, indefinite ends skipped. A graph with `violations=0` has a consistent plan; a red program whose graphs all read 0 is a template or runtime defect, not a placement one, and the bracket moves there. The gate `test_gate_zd_check_reads_zero_violations_on_the_cores.sh` (harness, the ceo's) compiles the seven masters' partition cores under the switch and reads `violations=0` on every graph -- the DONE-WHEN of every row of the conversion once it is green, and until then its printed count is the row's ledger line. It replaces the `SCRIP_ZD_DEPTH` wall census, which is retired when the gate lands.
+
+## 5. Who lands what (CEO-1830), and in what order
+
+The three Fable seats drive the emitter's three zetas for all seven languages; hq_zetas checks and cures the four languages the ceo holds (CEO-1825 (2), CEO-1829).
+
+1. **The ceo** -- this page; `ZD-CHECK` and its gate (this sitting); the absolute coordinate for every language with SNOBOL4 byte-identical (the first small roll-out); the SNOBOL4, Pascal, Raku, Snocone and Rebus arms of `zd_edge_retains` (none today, proven by the census); the arbitration of every shared-core recut.
+2. **hq_prolog** -- `zd_def` and the run break at a retaining edge in the shared planner (ARCH-PROLOG-SPINE-SEGMENTS § 2, its next landing), `zd_edge_retains` with the Prolog arms, R-A/R-B/R-C/R-E for Prolog; the findall, between, retaining-call, tabling and Logtalk reds, read against ZD-CHECK first.
+3. **hq_icon** -- the Icon arms of `zd_edge_retains` (a call to a suspending procedure, PROC_GEN, the every/to bodies), the Icon value, scan and null-test boxes against ZD-CHECK's list, the generator parameter class (`gen(n)` reading NUL), with hq_zetas on the generator hangs under it.
+4. **The notice rule stands** (CEO-1826/1828): a change to the shared planner is telegrammed to the other two Fable seats and hq_zetas before it lands, with the ZD-CHECK count per master core before and after; nobody waits on a reply; the ceo recuts a collision the same tick.
+
+The order of landings (LARGE CHUNKS, CEO-1478): ZD-CHECK first, because every later landing is measured by it; then hq_prolog's definiteness in the shared planner (Prolog's smoke the small roll-out, the other six masters' asm byte-identical the proof); then the Icon arms; then the absolute coordinate everywhere. Each landing names its ZD-CHECK count before and after in its commit message.
+
+## 6. What this page forbids
+
+A third stack, a frame marker, a side-car ledger, an mmap frame store, a pre-carved maximum, a per-language branch in the emitter outside `zd_edge_retains`, a retry that loads rsp from a saved word, a cell moved to rbp for any reason but a named TEST-1 or TEST-2 fact, a cure that changes the plan for one language while another's asm moves without a telegram. Each is already law; this page only names the place in the planner where each would have to be written, so the review can read it.
