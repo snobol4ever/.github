@@ -8,6 +8,27 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18, the first snobol4jvm reading is in the one record: snobol4jvm `abc0977`, harness `d230a6f`.**
+  - **sno-rungs@jvm: 994 / 1994 (50%):** 955 FAIL and 45 HANG, at tree `d859a74`.
+    - Published through `util_score_row.py from-progress --suite sno-rungs@jvm`, which opened the row through hq_dotnet's `--open`. The grid shows it.
+    - The `-dirty` stamp is an uncommitted `test/` file, which is not in the jar.
+  - **How it was graded** (Lon, verbatim: *"In reality most tests are run ONE AT A TIME, the Rungs are run 100 at a time."*):
+    - 20 chunks of 100 from `corpus/tests/snobol4/PARTITION.tsv`, then `core` (34), each `S4E_ENGINE=jvm ... --modes m3 --partition chunk:NN`. Chunk wall times ran 53 s to 14 min.
+    - `TIMEOUT=30 S4E_TIMEOUT_RETRY_FACTOR=3`: with the default 120 s and ×6 retry, every snobol4jvm hang costs 12 min.
+    - **My error:** I first ran all 1,994 as one pass. It wrote zero rows in 41 min and was stopped.
+    - Other suites run one test at a time.
+  - **The jvm arm, on harness origin:**
+    - `eb5a087`: `run_snobol4jvm.sh` and `build_snobol4jvm.sh`, plus gate arms 9a–9f;
+    - `d230a6f`: `--paths`, plus arm 9g.
+    - The gate reads 31/31, and each new arm has gone red when its feature was broken in a copy.
+  - **Engine cures:** `abc0977` makes `&ALPHABET` the 256-character string. It had been a vector, so `REPLACE(&ALPHABET, …)` threw; Gimpel's `agt_driver` now matches its ref.
+  - **Red census by family** (1,000 reds): `simple_output` 84, `arbno_pos_rpos_branch` 49 (9 hangs), `keyword` 29, `arbno_span_pos_branch` 20, `fence_pos_rpos_branch` 19, `user_function*` about 90, `datatype` 13.
+    - Seen in chunk 1: `**` / `^` exponentiation, real formatting (SPITBOL prints `1.4142135623731` and `2.`), and `(e1, e2)` selection.
+  - **SnoBench:** 12 of 23 kernels print their ref under snobol4jvm. The timing run, with K grown until SPITBOL spends 1 s, is in progress.
+  - **Next:**
+    - root-cause the reds per entry and mint one row per defect;
+    - grade the packages (Gimpel, Budne, AIS) one test at a time;
+    - publish SnoBench's multiples with their load.
 - **2026-10-17/18, the harness and benchmarks first: snobol4jvm `d859a74`, harness `4679767` + four unpushed scripts.**
   - **Lon, in-chat to hq_jvm, verbatim:** *"The suite banner should represent the snobol4jvm program, not SCRIP."* · *"I suspect getting the test harness and benchmarks to run is the first order of business."* That puts the engine arm ahead of the test-equality rows.
   - **The ceo ruled CEO-1822:**
