@@ -8,6 +8,23 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 ~19:00 CDT: test-cooper reads 0 failures, 0 errors; its row is DONE. snobol4jvm `eb651f6`.**
+  - **Row closed:** `jvm-test-cooper-compares-for-real-and-its-28-hidden-reds-read-zero-failures`, recomputed by `done`. Of its 28 reds, 21 had already gone green under the earlier cures; the last 7 were judged against `sbl -bf` (verdicts in the row's LEDGER).
+  - **Engine cures, each red then green, one per commit:**
+    - `80c7874`: a concatenation assigned to an array or table element is a STRING (the subscript branch stored the raw SEQ, read as PATTERN).
+    - `37bf78d`: an array subscript converts to an integer as SPITBOL converts it; non-numeric text is ERROR 238.
+    - `011a28f`: ABORT ends the whole match; the scan no longer moves on. A bare FENCE() still ends only its own start position, as sbl does.
+    - `eb651f6`: `P $ V` captures the whole span of a sequence.
+  - **Expectations set to the oracle:** `e1f419e` (gimpel-bsort passes the array, as Gimpel's driver does; `.ARR` is sbl ERROR 235), `cf0768c` (BREAK/BREAKX on the null subject fail), `3a9d535` (unanchored `'ABC' FENCE('B')` succeeds; snobol4dotnet made the same correction).
+  - **`lein test`: 2,044 tests, 239 failures, 0 errors** (253 at the start of this stretch).
+  - **Trap found:** this shell's `grep` is a wrapper that adds `-I`, and `lein test` output holds control bytes from the CSNOBOL4 suite, so a plain grep of it reads nothing. Compare red sets with `command grep -a`.
+  - **Seen, not yet a row:** sbl keeps `1 + 1 ''` an INTEGER; snobol4jvm makes it a STRING.
+  - **Harness:** the coo's capture cap landed at harness `6c03d6e`, so Flake re-grades without `ARM_CSN=0`.
+  - **Next:**
+    - the rank-2 row `jvm-catalog-t-spitbol-compares-for-real-and-its-28-hidden-reds-read-zero-failures`;
+    - then sprint12's remaining reds and the other rank-2 rows;
+    - re-grade all 11 boards (Flake without `ARM_CSN=0`).
+
 - **2026-10-18 evening: all 11 SNOBOL4 suites have `@jvm` rows; fixing the failures. snobol4jvm `a166658`.**
   - **Lon, in-chat to hq_jvm, verbatim:** *"will you have all the test suites? not just those 5 shown in the test-suite banner."* · *"Get all 11 test suites running."* · *"Once all test suites are in place, begin fixing all the failures."* · *"You are now seated as Opus 5.5 medium. Tell CEO."* Told.
   - **The 11 rows:**
