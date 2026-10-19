@@ -840,7 +840,7 @@ def _suite_table_lock():
     os.environ['S4E_SUITE_TABLE_LOCKED']=str(os.getpid())
     return fd
 def main(a):
-    if '--set' in a or '--render' in a or '--open' in a: _suite_table_lock()
+    if '--set' in a or '--render' in a or '--open' in a or '--set-wall' in a: _suite_table_lock()
     if '--open' in a:
         # ⛔⭐ A PORT ENGINE'S ROW IS OPENED BY ITS FIRST PUBLISH (ceo CEO-1822, to hq_dotnet: "A port engine's SUITES.tsv row is created by
         # that engine's FIRST PUBLISH through util_score_row.py, the table's one writer, under its lock and history writer, never by hand").
@@ -860,6 +860,34 @@ def main(a):
         before=open(TSV,encoding='utf-8').read()
         rows.append(new); save(head,rows); history(head,before,rows)
         print(f"⭐ --open {key}: the {eng} engine's row is open in SUITES.tsv ({base['nick']}, {base['lang']}), readings empty until its --set")
+        return
+    if '--set-wall' in a:
+        # ⛔⭐ THE WALL IS THE SUM OF EACH MEMBER'S MINIMUM TIME, NEVER THE MAXIMUM AND NEVER THE CURRENT (Lon 2026-10-18, in-chat to the coo, verbatim: "Fix the
+        # test-suite display banner to show the sum of minimum times of eac member. NOT the maximum nor the current."): util_score_row.py from-progress computes the
+        # sum (the suite's programs and modes, each the smallest PASS seconds <db>.min holds) and this verb REPLACES today_secs with it -- a larger sum included (a
+        # member gained its first minimum) and a ZERO as a blank cell (no member has a minimum yet, so the grid shows no number rather than a run's clock). It
+        # touches no other cell; a run's clock (--secs) never reaches the Wall again.
+        i=a.index('--set-wall'); key=a[i+1] if len(a)>i+1 else ''; n=a[i+2] if len(a)>i+2 else ''
+        if not key or not re.match(r'^\d+$', n):
+            sys.stderr.write("REFUSE(rc=2): --set-wall takes a suite key and a whole number of seconds. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        head,rows=load(); r=next((x for x in rows if x['key']==key),None)
+        if r is None: sys.stderr.write(f"REFUSE(rc=2): no suite key {key} in {TSV}. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        if 'today_secs' not in head:
+            head.append('today_secs')
+            for x in rows: x.setdefault('today_secs','')
+        new=n if int(n)>0 else ''
+        if (r.get('today_secs') or '').strip()==new:
+            print(f"--set-wall {key}: the Wall already reads {new or 'blank'}; nothing written"); return
+        before=open(TSV,encoding='utf-8').read()
+        r['today_secs']=new; save(head,rows)
+        try:
+            note=render_table(only_key=key) if not _engine_of(key) else \
+                f"{key} is the {_engine_of(key)} engine's row: SUITES.tsv set; SCORE.md's suite table is SCRIP's and carries no port row (CEO-1822)"
+        except Exception as ex:
+            write_tsv(before)
+            sys.stderr.write(f"REFUSE(rc=2): the Wall was NOT set. Rendering SCORE.md raised {type(ex).__name__}: {ex}. SUITES.tsv has been RESTORED.\n"); sys.exit(2)
+        history(head,before,rows)
+        print(f"--set-wall {key}: the Wall reads {(new + ' s') if new else 'blank'}" + (f"\n{note}" if note else ""))
         return
     if '--readme' in a:
         j=a.index('--readme'); path=a[j+1] if len(a)>j+1 and not a[j+1].startswith('-') else _readme_path()

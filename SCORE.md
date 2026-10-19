@@ -6,49 +6,49 @@ One row per suite — our seven rung suites and every vendored package suite ali
 
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
-| Gimpel | snobol4 | 144/145 EXCLUDED=0 OUTSIDE=0 WALL=53s | 2026-10-18 | `28ed4efae` |  |
-| Budne | snobol4 | 78/78 EXCLUDED=37 OUTSIDE=19 WALL=111s | 2026-10-18 | `892405ae2` | done |
+| Gimpel | snobol4 | 144/145 EXCLUDED=0 OUTSIDE=0 WALL=64s | 2026-10-18 | `28ed4efae` |  |
+| Budne | snobol4 | 78/78 EXCLUDED=37 OUTSIDE=19 WALL=12s | 2026-10-18 | `892405ae2` | done |
 | Flake | snobol4 | 128/128 EXCLUDED=52 OUTSIDE=52 WALL=29s | 2026-10-18 | `0b1eed1c1` | done |
 | AIS | snobol4 | 7/8 EXCLUDED=1 OUTSIDE=0 WALL=17s | 2026-10-18 | `c200347cc` |  |
-| Dotnet | snobol4 | 11/11 EXCLUDED=3 OUTSIDE=1 WALL=11s | 2026-10-18 | `f049ef7a8` | done |
+| Dotnet | snobol4 | 11/11 EXCLUDED=3 OUTSIDE=1 WALL=3s | 2026-10-18 | `f049ef7a8` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-18 | `2ecb5ba22` | done |
 | Zona | icon | 50/119 EXCLUDED=5 WALL=16s | 2026-10-18 | `bae359133` |  |
 | Jcon | icon | 36/86 EXCLUDED=5 WALL=15s | 2026-10-18 | `c200347cc` |  |
 | IPL | icon | 334/644 EXCLUDED=207 WALL=220s | 2026-10-18 | `a5e3d2d5a` |  |
-| INRIA | prolog | 342/442 EXCLUDED=3 WALL=318s | 2026-10-18 | `bae359133` |  |
-| SWI | prolog | 2129/2768 EXCLUDED=167 WALL=695s | 2026-10-15 | `3ff269fa5` |  |
-| GNU source | prolog | 0/45 EXCLUDED=17 WALL=325s | 2026-10-18 | `f1b9710ca` |  |
+| INRIA | prolog | 342/442 EXCLUDED=3 WALL=339s | 2026-10-18 | `bae359133` |  |
+| SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
+| GNU source | prolog | 0/45 EXCLUDED=17 | 2026-10-18 | `f1b9710ca` |  |
 | FPC | pascal | 175/181 EXCLUDED=0 OUTSIDE=0 WALL=214s | 2026-10-18 | `e06e1d5e3` |  |
 | PAT | pascal | 427/427 EXCLUDED=2 OUTSIDE=0 WALL=25s | 2026-10-18 | `e06e1d5e3` | done |
 | Roast | raku | 177/1401 EXCLUDED=63 WALL=661s | 2026-10-18 | `e06e1d5e3` |  |
 | SnoRungs | snobol4 | 2033/2035 EXCLUDED=0 WALL=231s | 2026-10-18 | `9a649d4f8` | 2 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
-| IcnRungs | icon | 904/904 WALL=54s | 2026-10-15 | `bae359133` | done |
-| ProRungs | prolog | 410/563 WALL=416s | 2026-10-18 | `22b3e13f7` |  |
+| IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
+| ProRungs | prolog | 417/563 WALL=425s | 2026-10-18 | `22b3e13f7` |  |
 | PasRungs | pascal | 252/252 WALL=24s | 2026-10-18 | `e06e1d5e3` | done |
 | RakRungs | raku | 1023/1023 WALL=219s | 2026-10-17 | `e06e1d5e3` | done |
 | SncRungs | snocone | 358/358 WALL=22s | 2026-10-18 | `e06e1d5e3` | done |
-| SncBench | snocone | 23/23 WALL=92s | 2026-10-15 | `e06e1d5e3` | done |
+| SncBench | snocone | 23/23 WALL=4s | 2026-10-15 | `e06e1d5e3` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-18 | `e06e1d5e3` | done |
-| Logtalk | prolog | 3190/3552 EXCLUDED=65 WALL=9317s | 2026-10-18 | `52f822b69` | READING VOID, NOT A REGRESSION: load (CEO-1686): the 52f822b69 pass ran 9318 s at load 19-21 on 16 cores and 344 of its 361 m4 FAILs were 10 s timeouts; the 17 real reds went to the cfo and hq_prolog (COO-354); restored at COO-368 after a from-progress re-assembly of the same reading cleared it |
-| X64T | snobol4 | 32/33 EXCLUDED=3 OUTSIDE=0 WALL=227s | 2026-10-18 | `2ecb5ba22` |  |
-| X32T | snobol4 | 17/18 EXCLUDED=3 OUTSIDE=0 WALL=5s | 2026-10-18 | `0a7dab49d` |  |
-| SnoBench | snobol4 | 23/23 WALL=24s | 2026-10-18 | `892405ae2` | done |
-| IcnBench | icon | 0/26 WALL=203s | 2026-10-18 | `c200347cc` |  |
-| ProBench | prolog | 42/42 EXCLUDED=1 WALL=576s | 2026-10-17 | `371ce73cc` | done |
-| PasBench | pascal | 11/11 WALL=79s | 2026-10-15 | `e06e1d5e3` | done |
-| RebBench | rebus | 3/3 WALL=5s | 2026-10-15 | `e06e1d5e3` | done |
-| SnoDemo | snobol4 | 24/24 WALL=15s | 2026-10-18 | `892405ae2` | done |
-| SncDemo | snocone | 23/23 WALL=29s | 2026-10-15 | `e06e1d5e3` | done |
-| IcnDemo | icon | 3/7 WALL=22s | 2026-10-18 | `c200347cc` |  |
-| ProDemo | prolog | 0/8 WALL=2637s | 2026-10-18 | `892405ae2` |  |
-| TixDemo | scriptix | 11/12 WALL=16s | 2026-10-18 | `e2c816a88` |  |
+| Logtalk | prolog | 3190/3552 EXCLUDED=65 WALL=29669s | 2026-10-18 | `52f822b69` | READING VOID, NOT A REGRESSION: load (CEO-1686): the 52f822b69 pass ran 9318 s at load 19-21 on 16 cores and 344 of its 361 m4 FAILs were 10 s timeouts; the 17 real reds went to the cfo and hq_prolog (COO-354); restored at COO-368 after a from-progress re-assembly of the same reading cleared it |
+| X64T | snobol4 | 32/33 EXCLUDED=3 OUTSIDE=0 WALL=1521s | 2026-10-18 | `2ecb5ba22` |  |
+| X32T | snobol4 | 17/18 EXCLUDED=3 OUTSIDE=0 WALL=10s | 2026-10-18 | `0a7dab49d` |  |
+| SnoBench | snobol4 | 23/23 WALL=18s | 2026-10-18 | `892405ae2` | done |
+| IcnBench | icon | 0/26 | 2026-10-18 | `c200347cc` |  |
+| ProBench | prolog | 42/42 EXCLUDED=1 | 2026-10-17 | `371ce73cc` | done |
+| PasBench | pascal | 11/11 WALL=76s | 2026-10-15 | `e06e1d5e3` | done |
+| RebBench | rebus | 3/3 WALL=2s | 2026-10-15 | `e06e1d5e3` | done |
+| SnoDemo | snobol4 | 24/24 WALL=8s | 2026-10-18 | `892405ae2` | done |
+| SncDemo | snocone | 23/23 WALL=23s | 2026-10-15 | `e06e1d5e3` | done |
+| IcnDemo | icon | 3/7 WALL=1s | 2026-10-18 | `c200347cc` |  |
+| ProDemo | prolog | 0/8 | 2026-10-18 | `892405ae2` |  |
+| TixDemo | scriptix | 11/12 WALL=11s | 2026-10-18 | `e2c816a88` |  |
 | PasRosetta | pascal | 167/405 EXCLUDED=259 WALL=237s | 2026-10-18 | `e06e1d5e3` |  |
-| ProRosetta | prolog | 399/503 EXCLUDED=283 WALL=2820s | 2026-10-18 | `bae359133` |  |
+| ProRosetta | prolog | 399/503 EXCLUDED=283 WALL=994s | 2026-10-18 | `bae359133` |  |
 | ProPuzzles | prolog | 9/22 EXCLUDED=393 WALL=2762s | 2026-10-18 | `bae359133` |  |
 | TreallaTests | prolog | 218/331 EXCLUDED=125 WALL=190s | 2026-10-18 | `bae359133` |  |
-| PasDemo | pascal | 8/8 WALL=86s | 2026-10-15 | `e06e1d5e3` | done |
+| PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
-| RakBench | raku | 68/80 EXCLUDED=4 WALL=133s | 2026-10-15 | `e06e1d5e3` |  |
+| RakBench | raku | 68/80 EXCLUDED=4 WALL=109s | 2026-10-15 | `e06e1d5e3` |  |
 | XsbTests | prolog | 111/899 EXCLUDED=8 WALL=324s | 2026-10-18 | `bae359133` |  |
 
 
