@@ -8,6 +8,35 @@
 
 ## LIVE CURSOR
 
+- **2026-10-18 ~20:00 CDT: t_spitbol reads 0 failures, 0 errors; its row is DONE. snobol4jvm `2506665`.**
+  - **Row closed:** `jvm-catalog-t-spitbol-compares-for-real-and-its-28-hidden-reds-read-zero-failures`, recomputed by `done`. Each red's verdict against `sbl -bf` is in the row's LEDGER.
+  - **Engine cures, each red then green, one per commit:**
+    - `541ae17`: `&K = V` sets the keyword (it was lost), with SPITBOL's errors 208, 209 and 251. Each program starts from the keyword defaults. `&FULLLSCAN` is renamed `&FULLSCAN`.
+    - `0207a98`: a pattern match honours `&ANCHOR`.
+    - `c2dc6dd`: the unused unary operators `! % / # = |` are ERROR 029.
+    - `93d525a`: a concatenation of strings is a STRING as a function argument too.
+    - `b58b346`: concatenating the null string leaves a value as it was.
+    - `fd04816`: INTEGER is a predicate (it never failed, and it converted reals).
+    - `3ff2404`: ARG, LOCAL, APPLY and OPSYN take a function name given as a NAME.
+    - `6816d21`: unary `$` reads and assigns the named variable.
+    - `866775e`: the NAME of an array or table element names the element.
+    - `19cb7ce`: OPSYN defines an operator by its spelling and arity.
+    - `a500740`: PROTOTYPE of a counted array is an INTEGER.
+    - `2506665`: unary `?` is interrogation.
+  - **Expectations set to the oracle:**
+    - `164d837`: the 13 t2 groups check their subject.
+    - `5ddf1f7`: the t1 groups write negation as `~`, not the deck's `!`.
+    - `5b6e4ec`: 20 tests that read INTEGER as a conversion.
+    - `47b87d4`: two sprint11 PROTOTYPE expectations.
+  - **`lein test`: 2,056 tests, 207 failures, 0 errors** (239 at the start of this stretch).
+  - **Open for Lon:** sbl's ARG and LOCAL return a NAME. The SPITBOL manual says ARG "Returns a string", and CSNOBOL4 returns a string. snobol4jvm returns the string, so t1_arg_local is green against the manual and CSNOBOL4, not against sbl. Which wins?
+  - **Seen, not yet rows:**
+    - `ARRAY(3.0)` is refused as an invalid prototype; sbl takes it.
+    - the parser accepts `SIZE(S)-1` without blanks; sbl gives ERROR 233.
+    - catalog `t_eval_left_to_right` still reads INTEGER as a conversion, and it was already red for other reasons.
+    - `csnobol4-match4` flips between red and green across full runs, the known shared-state flake.
+  - **Next:** the remaining rank-2 rows (csnobol4-suite, sprint12, worm1000, t_gimpel, t_aisnobol), then re-grade the 11 boards (Flake without `ARM_CSN=0`).
+
 - **2026-10-18 ~19:00 CDT: test-cooper reads 0 failures, 0 errors; its row is DONE. snobol4jvm `eb651f6`.**
   - **Row closed:** `jvm-test-cooper-compares-for-real-and-its-28-hidden-reds-read-zero-failures`, recomputed by `done`. Of its 28 reds, 21 had already gone green under the earlier cures; the last 7 were judged against `sbl -bf` (verdicts in the row's LEDGER).
   - **Engine cures, each red then green, one per commit:**
