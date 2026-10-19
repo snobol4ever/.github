@@ -6,7 +6,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
-| Gimpel | snobol4 | 144/145 EXCLUDED=0 OUTSIDE=0 WALL=64s | 2026-10-18 | `28ed4efae` |  |
+| Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=64s | 2026-10-18 | `28ed4efae` | done |
 | Budne | snobol4 | 78/78 EXCLUDED=37 OUTSIDE=19 WALL=12s | 2026-10-18 | `892405ae2` | done |
 | Flake | snobol4 | 128/128 EXCLUDED=52 OUTSIDE=52 WALL=29s | 2026-10-18 | `0b1eed1c1` | done |
 | AIS | snobol4 | 7/8 EXCLUDED=1 OUTSIDE=0 WALL=17s | 2026-10-18 | `c200347cc` |  |
@@ -49,7 +49,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 68/80 EXCLUDED=4 WALL=109s | 2026-10-15 | `e06e1d5e3` |  |
-| XsbTests | prolog | 111/899 EXCLUDED=8 WALL=324s | 2026-10-18 | `bae359133` |  |
+| XsbTests | prolog | 112/899 EXCLUDED=8 WALL=342s | 2026-10-18 | `3fa508641` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
