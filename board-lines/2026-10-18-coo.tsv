@@ -1,0 +1,18 @@
+# VERBATIM RUNNER BOARD LINES, kept so any two readings of one suite are diffable after the fact (ceo CEO-827).
+# Each line is the runner's OWN board output, unedited. A receipt that paraphrases a board cannot be compared by
+# util_suite_population_diff.py, which is the gap the coo measured on the 2026-09-17 SNOBOL4 pair.
+# tree	suite	measurer	verbatim line
+dda4f93ff	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=0 all_n=26 m3_pass=0 m4_pass=0 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=26
+dda4f93ff	icon-demos	coo	DEMOS_SUITE_BOARD lang=icon total=7 shipped=10 all_pass=1 all_n=7 m3_pass=1 m4_pass=1 containers=3 workhorse_declared=7 chained=0 tree=dda4f93ff corpus=e906bb4a8 RT_OPT=-O0
+dda4f93ff	jcon	coo	JCON_SUITE_BOARD shipped=86 graded=86 gap=0 total=86 m3_pass=20 m4_pass=20
+3f1193d00	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+3f1193d00	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=3f1193d00 corpus=e906bb4a8 RT_OPT=-O0
+3f1193d00	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=8 shipped=23 all_pass=1 all_n=8 m3_pass=1 m4_pass=1 containers=15 workhorse_declared=8 chained=0 tree=3f1193d00 corpus=e906bb4a8 RT_OPT=-O0
+6aecfee36	scriptix-demos	coo	DEMOS_SUITE_BOARD lang=scriptix total=12 shipped=14 all_pass=11 all_n=12 m3_pass=11 m4_pass=11 containers=2 workhorse_declared=12 chained=0 tree=6aecfee36 corpus=e906bb4a8 RT_OPT=-O0
+c200347cc	icon-bench-ref	coo	SUITE_BOARD family=icon-bench-ref total=26 shipped=26 all_pass=0 all_n=26 m3_pass=0 m4_pass=0 angles=process,iter,time loop_in=22 loop_proc=4 refless=0 ref_drift=0 wrapper_sensitive=0 heap_declared=26
+c200347cc	icon-demos	coo	DEMOS_SUITE_BOARD lang=icon total=7 shipped=10 all_pass=3 all_n=7 m3_pass=3 m4_pass=3 containers=3 workhorse_declared=7 chained=0 tree=c200347cc corpus=ee6b59541 RT_OPT=-O0
+c200347cc	jcon	coo	JCON_SUITE_BOARD shipped=86 graded=86 gap=0 total=86 m3_pass=36 m4_pass=36
+892405ae2	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+892405ae2	snobol4-demos	coo	DEMOS_SUITE_BOARD lang=snobol4 total=24 shipped=24 all_pass=24 all_n=24 m3_pass=24 m4_pass=24 containers=0 workhorse_declared=24 chained=0 tree=892405ae2 corpus=ee6b59541 RT_OPT=-O0
+892405ae2	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=8 shipped=23 all_pass=0 all_n=8 m3_pass=0 m4_pass=0 containers=15 workhorse_declared=8 chained=0 tree=892405ae2 corpus=ee6b59541 RT_OPT=-O0
+e2c816a88	scriptix-demos	coo	DEMOS_SUITE_BOARD lang=scriptix total=12 shipped=14 all_pass=11 all_n=12 m3_pass=11 m4_pass=11 containers=2 workhorse_declared=12 chained=0 tree=e2c816a88 corpus=ee6b59541 RT_OPT=-O0
