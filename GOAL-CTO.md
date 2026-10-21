@@ -3,6 +3,15 @@
 Lon, in-chat to ceo, 2026-09-06, verbatim: *"So maybe let's have a CTO to work the hardest problem and you will remain CEO. Then those will both be Fable 5.1. I like that."* · *"I will stop here and rename two folders: /home/claude_ceo and /home/claude_cto."*
 
 ## LIVE CURSOR
+- **CTO-337 -- setup_call_cleanup's OPEN READS ITS TERM FROM THE SPINE (SCRIP 4d24474ac); THE LOGTALK BOARD's m4 COLUMN IS STALE TOO (2026-10-21 17:0x CDT).**
+  - **The defect:** IR_CLEANUP's drive (flat_drive_cleanup) bypasses the generic depth staging, so OPEN copied the cleanup term from FRQ(drive_value_slot) -- an rbp frame slot nothing writes since the flip. The term lives on the spine at [rsp+0]. The record's C was empty, so a cut that dropped a PENDING record ran nothing.
+  - **The cure:** zd_cl_read computes the term's read as the staging does (zd_out[i] - zd_out[k] plus the xb difference) and hands it to bb_cleanup through op_sb; CL_TERM reads [rsp + op_sb], or the frame slot when the term has no spine cell.
+  - **The evidence:**
+    - Logtalk setup_call_cleanup_3 reads 31/31 in m3 and m4 (was 28: swi_02, lgt_20, lgt_21). It was green at 52f822b69, and gdb named the empty term.
+    - The Prolog smoke reads 5/5 in both modes, and the cut+catch handful 8/8.
+    - GC stress with CHAIN_CHECK is clean, the form-choice ratchet holds at its floor, and the two-tree check reads 59/59 identical.
+  - **Board staleness:** re-graded on HEAD, number_chars_2 (44/44), sub_atom_5 (54/54), predicate_property_2 (29/29), meta_predicate_1 and set_stream_position_2 pass in both modes. Those were most of the 10-19 board's m4 reds.
+  - **NEXT:** the pre-allocation ruling; Logtalk's remaining groups (format_3, stream_property_2, get_code_2, keysort_2, subsumes_term_2, functor_3, gcd_2 in m4) by witness; SWI outside tabling.
 - **CTO-336 -- LOGTALK cut_0 (SCRIP 641f4ab7a); bagof's ANONYMOUS VARIABLE (SCRIP 002007e41); THE LOGTALK BOARD IS STALE; TreallaTests' REDS ARE RUNTIME FEATURES (2026-10-21 16:1x CDT).**
   - **641f4ab7a:** zd_plan's zdj_arms walk does not admit a disjunction in a resumable-frame graph when an arm holds a retaining box before the arm's end, so the boxes after the call become their own runs. Witness: c :- ((call(!),fail;true)) under the setup_call_cleanup probe used to SIGSEGV. Logtalk control/cut_0 now reads 21/21 in both modes.
   - **002007e41:** pb_expand_bagof's shortcut to findall now also requires that no _ appears in the goal. bagof(C, foo(_,_,C), Cs) groups by the anonymous arguments, as ISO and swipl do, and Trealla tests_test0027 passes. The lowerer's slot-keyed free-variable walk already counted each _. Verified with the bagof handful 4/4 in both modes, Logtalk bagof_3 33/33 and setof_3 47/47, and the Prolog smoke 5/5 in both modes.
