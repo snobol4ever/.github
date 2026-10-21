@@ -10,7 +10,7 @@ import os, re, sys, importlib.util
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-CENSUS = os.path.join(ROOT, "SCRIP", "scripts", "audit_second_stacks_census.py")
+CENSUS = os.path.join(ROOT, "harness", "scripts", "audit_second_stacks_census.py")
 
 
 def main(argv):
