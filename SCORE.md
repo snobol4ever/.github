@@ -14,7 +14,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-19 | `6ed7514ce` | done |
 | Zona | icon | 101/119 EXCLUDED=5 WALL=29s | 2026-10-21 | `bae359133` |  |
 | Jcon | icon | 86/86 EXCLUDED=5 WALL=23s | 2026-10-21 | `6ed7514ce` | done |
-| IPL | icon | 334/644 EXCLUDED=207 WALL=212s | 2026-10-19 | `a5e3d2d5a` |  |
+| IPL | icon | 633/644 EXCLUDED=207 WALL=335s | 2026-10-21 | `a5e3d2d5a` |  |
 | INRIA | prolog | 442/442 EXCLUDED=3 WALL=410s | 2026-10-21 | `b2f5fda77` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 30/45 EXCLUDED=17 WALL=71s | 2026-10-19 | `6ed7514ce` |  |
@@ -23,7 +23,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Roast | raku | 177/1401 EXCLUDED=63 WALL=661s | 2026-10-18 | `e06e1d5e3` |  |
 | SnoRungs | snobol4 | 2033/2035 EXCLUDED=0 WALL=223s | 2026-10-19 | `9a649d4f8` | 2 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
-| ProRungs | prolog | 421/563 WALL=367s | 2026-10-21 | `821026ee0` |  |
+| ProRungs | prolog | 560/563 WALL=516s | 2026-10-21 | `821026ee0` |  |
 | PasRungs | pascal | 252/252 WALL=24s | 2026-10-18 | `e06e1d5e3` | done |
 | RakRungs | raku | 1023/1023 WALL=219s | 2026-10-17 | `e06e1d5e3` | done |
 | SncRungs | snocone | 358/358 WALL=22s | 2026-10-18 | `e06e1d5e3` | done |
@@ -49,7 +49,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 68/80 EXCLUDED=4 WALL=109s | 2026-10-15 | `e06e1d5e3` |  |
-| XsbTests | prolog | 109/899 EXCLUDED=8 WALL=342s | 2026-10-19 | `dbffe58d7` |  |
+| XsbTests | prolog | 109/899 EXCLUDED=8 WALL=342s | 2026-10-21 | `dbffe58d7` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
