@@ -22,10 +22,7 @@ for r in SCRIP corpus .github; do
   printf '%-8s %s origin=%s user=%s\n' "$r" "$(git -C "$COO/$r" rev-parse --short HEAD)" "$(git -C "$COO/$r" remote get-url origin)" "$(git -C "$COO/$r" config user.name)"
 done
 bash "$COO/harness/scripts/install_commit_msg_hook.sh" && echo "hooks: $(ls "$COO"/SCRIP/.git/hooks | grep -v sample | tr '\n' ' ')"
-mkdir -p "$COO/SCRIP/refs" "$COO/.scratch" "$COO/.claude"
-for l in icon-master jcon-master rakudo-main; do ln -sfn "/home/resources/$l" "$COO/SCRIP/refs/$l"; done
-ln -sfn /home/resources/roast-master "$COO/SCRIP/refs/roast"
-echo "refs: $(ls "$COO/SCRIP/refs" | tr '\n' ' ')"
+mkdir -p "$COO/.scratch" "$COO/.claude"
 if [ ! -f "$COO/.claude/settings.json" ]; then
 cat > "$COO/.claude/settings.json" <<'JSON'
 {

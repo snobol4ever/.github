@@ -25,13 +25,7 @@ export PATH=/usr/local/dotnet10:$PATH
 cd /home/claude/snobol4dotnet
 dotnet build Snobol4/Snobol4.csproj -c Release -p:EnableWindowsTargeting=true 2>&1 | tail -3
 
-# ⛔ STALE, NOT VERIFIED (seat16, citation sweep, 2026-08-29): both paths below are gone. Includes
-# now live at $S4E_HOME/corpus/include/ (confirmed present, 16 modules); beauty_suite/ as a loose-file
-# directory is confirmed gone (consumed into the rungs-suite consolidation). This symlink step likely
-# doesn't apply to whatever the current extraction recipe is — re-derive before running.
-# One-time (ORIGINAL, now unusable as literally written): symlink demo/inc into beauty/ so drivers find include files
-ln -sf /home/claude/corpus/programs/snobol4/demo/inc/* \
-       /home/claude/corpus/programs/snobol4/beauty_suite/ 2>/dev/null || true
+# Includes live at <root>/corpus/include/ (a sibling of SCRIP); a driver names that path directly. No link is ever made (CEO-1820/1853).
 ```
 
 **Always pass `-p:EnableWindowsTargeting=true`.** Required for cross-platform build.
