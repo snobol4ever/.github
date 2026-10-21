@@ -155,7 +155,9 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
   - `tests/<lang>/ALL.*`: the seven rung suites (SUITES.tsv `*-rungs`; called the master suites until CTO-200).
   - `packages/<lang>/<pkg>/`: the vendored third-party suites (`ls corpus/packages/*/`).
   - `benchmarks/`, `demos/`, and `include/` + `library/` (the shared `-INCLUDE` library).
-  - `corpus/programs/` is NOT a runtime test suite (RULES.md § ABSOLUTE RULES).
+  - `corpus/programs/` is NOT a runtime test suite (RULES.md § ABSOLUTE RULES). Programs that lean on `-INCLUDE` live there; a graded rung entry carries none (`corpus/README.md` § The include doctrine).
+  - That README's Layout still names `demo/` and `probe/`; on 2026-10-21 the tree has `demos/` and no `probe/`.
+- `harness/README.md` is the 2026-04 plan for a cross-engine harness, not a map of `harness/scripts/`. Navigate the scripts by prefix (Test, below).
 - `.github/`: the org's record, and YOUR repo.
   - `RULES.md` (law), `MASTER-PLAN.md` and `SCORE.md` (THE ONE LEADERBOARD). Its machine record is NOT here: since 2026-10-09 it is the one file `/home/resources/progress/SUITES.tsv` (Lon in-chat to the coo: *"You choose to put the one single data location to be spread across all root via GitHub instead of choosing one file in /home/resources. That was stupid."*); every seat reads and writes it in place, `SUITES.history.tsv` beside it holds every moved row, and `harness/scripts/lib_suites_tsv.sh` is the one path authority.
   - `GOAL-*.md`: one LIVE CURSOR per seat or campaign.
@@ -177,7 +179,7 @@ Send with `send <identity> <topic> --stdin <<'MSG'` … `MSG`. The bus refuses a
   - `/home/claude_templates` (`hq_templates`);
   - `/home/claude_{runtime,collector,zetas}` (`hq_runtime`, `hq_collector`, `hq_zetas`). These hold no language's lane, so read what each holds from `QUEUE.tsv`'s owner column and MODE line 2.
   - The two port seats, `/home/claude_{dotnet,jvm}` (`hq_dotnet`, `hq_jvm`; CEO-1817/1822). Each holds `harness/`, `corpus/` and its engine's repo (`snobol4dotnet`, `snobol4jvm`), and no SCRIP.
-  - Which seats are working, and on which model, is MODE line 2's roster, and it changes with every flip. QUARTET stands every HQ down (CEO-1521 on 10-05, CEO-1773 on 10-15). TENET started them all (CEO-1701). CEO-1827's reduced fleet of 10-18 keeps seven seats.
+  - Which seats are working, and on which model, is MODE line 2's roster, and it changes with every flip. QUARTET stands every HQ down and seats the four officers (CEO-1521 on 10-05, CEO-1773 on 10-15, CEO-1852 on 10-21). TENET started them all (CEO-1701). CEO-1827's reduced fleet of 10-18 kept seven seats.
   - Read their repos read-only (`git -C /home/claude_<X>/<repo> …`) for hygiene.
   - Check liveness with `ls -t /home/satirical/.claude/projects/-home-claude-<X>/*.jsonl`.
 - `.scratch/` is yours. NO SYMLINK anywhere (CEO-1820): COO-365 removed 555 under this root, `SCRIP/refs/` included, and `test_gate_no_symlinks.sh` is blocking; a scratch tree is a git worktree or a copy.
@@ -274,6 +276,7 @@ bash ../harness/scripts/test_gate_digest_matches_rules.sh    # polices every roo
 ```
 - `harness/scripts/` is navigable by prefix:
   - `test_gate_*`: invariants that must never regress.
+  - `test_smoke_*`: smokes. `make fleet-smoke` runs the eight `test_smoke_<lang>.sh` (`test_fleet_smoke.sh --list` names them).
   - `test_<lang>_<pkg>_suite.sh`: package runners. `test_corpus_*` and `board_*`: the rung suites. `test_<lang>_bench_suite.sh`, `test_demos_suite.sh`: benches and demos.
   - `monitor_run.sh` + `monitor/`: the monitor.
   - `bench_*` and `util_*`: instruments.
