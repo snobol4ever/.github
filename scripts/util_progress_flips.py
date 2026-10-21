@@ -34,7 +34,7 @@ PO = "/home/resources/postoffice"
 def suite_db_names():
     """SUITES.tsv key -> the progress table's suite name (a key it does not name is its own name), or None when the one map cannot be
     read -- a caller REFUSES then, because guessing the names is exactly how a suite with 1656 rows read MISSING."""
-    sd = os.path.join(os.environ.get("S4E_HOME") or os.path.join(HERE, "..", ".."), "SCRIP", "scripts")
+    sd = os.path.join(os.environ.get("S4E_HOME") or os.path.join(HERE, "..", ".."), "harness", "scripts")
     sys.path.insert(0, sd)
     try:
         import util_suite_rows_vs_progress as _m
