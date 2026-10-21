@@ -8,6 +8,19 @@
 
 ## LIVE CURSOR
 
+- **2026-10-21 ~10:35 CDT: seated again under MODE TENET (CEO-1857); worm1000 and sprint12 read 0 failures and both rows are DONE. snobol4jvm `547615d`.**
+  - **Seating:** pulled harness, corpus and .github; `test_gate_no_symlinks.sh` reads GATE OK in this root (CEO-1853). The 11 inbox messages (8 claim notices, the stand-down, the seating) are answered and archived; the ceo has my report.
+  - **Row closed:** `jvm-test-worm1000-compares-for-real-and-its-20-hidden-reds-read-zero-failures`, recomputed by `done`. Measured at `2506665`: 277 tests, 20 failures. Each red's verdict against `sbl -bf` is in the row's LEDGER: **all 20 were defects in the test file and none in the engine**, so there is no engine change. Eight commits, one defect each, pushed `2506665..72da52d`:
+    - `eceda03`: eight DEFINE tests declared SQ, NEG or INC and called the label (sbl: ERROR 022); renamed to one name, as the file's double and triple tests do.
+    - `ea069ff`: six DATATYPE expectations in lower case; sbl prints STRING, INTEGER, REAL, PATTERN, ARRAY, TABLE.
+    - `be087d6`: `2 + 3 * 4` is 14; `6ea6c1d`: the array fill reads "11625"; `c131075`: ARB captures "bb"; `c7f18d0`: the unanchored NOTANY reaches `d`, so "yes"; `a7392da`: BREAK on the null string fails (as `cf0768c`); `72da52d`: a bare `world` is a variable, not the literal.
+  - **Row closed:** `jvm-test-sprint12-compares-for-real-and-its-40-hidden-reds-read-zero-failures`. Its DONE-WHEN already exited 0 (earlier cures had cleared it); `done` recomputed it.
+  - **`547615d`:** `snobol4jvm/CLAUDE.md` re-measured. The `=` trap is cured (1fe23d8), the uberjar AOT-compiles core, errors travel as `{:snobol/error N}`.
+  - **`lein test`: 2,056 tests, 188 failures, 0 errors** (207 before this sitting; 20 cleared, and the known `csnobol4-match4` flake reads one different). Where the 188 are: `test_csnobol4_suite` 98, `catalog/t_aisnobol` 30, `catalog/t_gimpel` 19, `test_bootstrap` 8, `catalog/t_define` 8, `catalog/t_convert` 6, and 19 spread over eleven more files.
+  - **Seen, not yet a row:** the five other `worm_ltr_*` docstrings and the section-5 line of test-worm1000's namespace docstring still say "left-to-right, no precedence"; their answers hold either way. A doc-only commit.
+  - **Open for Lon, unchanged:** does ARG and LOCAL return a NAME (sbl) or a string (the manual, CSNOBOL4)? Should `CONVERT(3.14E200,'INTEGER')` fail, as the test expects, or wrap, as sbl and CSNOBOL4 do?
+  - **Next:** the three FREE rank-2 rows, `jvm-test-csnobol4-suite-…-read-zero-failures` (98 reds now), `jvm-catalog-t-gimpel-…` (19) and `jvm-catalog-t-aisnobol-…` (30), judging each red against `sbl -bf` first, as these 20 showed that many reds are the test's, not the engine's. Their titles carry the old hidden counts (101, 16, 12). The 8 `catalog/t_define`, 8 `test_bootstrap` and 6 `catalog/t_convert` reds have no row yet. Then the rank-3 row `jvm-no-test-namespace-shadows-clojure-equality-and-lein-test-reads-zero-failures`, and re-grade the 11 boards (Flake without `ARM_CSN=0`).
+
 - **2026-10-18 ~20:00 CDT: t_spitbol reads 0 failures, 0 errors; its row is DONE. snobol4jvm `2506665`.**
   - **Row closed:** `jvm-catalog-t-spitbol-compares-for-real-and-its-28-hidden-reds-read-zero-failures`, recomputed by `done`. Each red's verdict against `sbl -bf` is in the row's LEDGER.
   - **Engine cures, each red then green, one per commit:**
