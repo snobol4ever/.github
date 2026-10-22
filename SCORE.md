@@ -8,18 +8,18 @@ One row per suite — our seven rung suites and every vendored package suite ali
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=58s | 2026-10-21 | `7ccf52517` | done |
 | Budne | snobol4 | 78/78 EXCLUDED=37 OUTSIDE=19 WALL=10s | 2026-10-21 | `b0489c0f2` | done |
-| Flake | snobol4 | 128/128 EXCLUDED=52 OUTSIDE=52 WALL=22s | 2026-10-21 | `c8cdf6c4b` | done |
+| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=22s | 2026-10-21 | `75f933a2b` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-21 | `630a49df2` | done |
-| Dotnet | snobol4 | 11/11 EXCLUDED=3 OUTSIDE=1 WALL=2s | 2026-10-21 | `22f78bec7` | done |
+| Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-21 | `de5afa86a` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-21 | `22f78bec7` | done |
-| Zona | icon | 117/119 EXCLUDED=5 WALL=32s | 2026-10-21 | `bae359133` |  |
-| Jcon | icon | 86/86 EXCLUDED=5 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
+| Zona | icon | 118/118 EXCLUDED=6 WALL=34s | 2026-10-21 | `bae359133` | done |
+| Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
 | IPL | icon | 643/644 EXCLUDED=207 WALL=337s | 2026-10-21 | `a5e3d2d5a` |  |
-| INRIA | prolog | 442/442 EXCLUDED=3 WALL=399s | 2026-10-21 | `611dd63f5` | done |
+| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-21 | `611dd63f5` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=175s | 2026-10-21 | `ca2bf4eaf` |  |
-| FPC | pascal | 175/181 EXCLUDED=0 OUTSIDE=0 WALL=214s | 2026-10-18 | `e06e1d5e3` |  |
-| PAT | pascal | 427/427 EXCLUDED=2 OUTSIDE=0 WALL=25s | 2026-10-18 | `e06e1d5e3` | done |
+| FPC | pascal | 92/94 EXCLUDED=87 OUTSIDE=0 WALL=214s | 2026-10-21 | `e06e1d5e3` |  |
+| PAT | pascal | 395/400 EXCLUDED=29 OUTSIDE=0 WALL=25s | 2026-10-21 | `75f933a2b` |  |
 | Roast | raku | 177/1401 EXCLUDED=63 WALL=661s | 2026-10-18 | `e06e1d5e3` |  |
 | SnoRungs | snobol4 | 2033/2035 EXCLUDED=0 WALL=213s | 2026-10-21 | `9a649d4f8` | 2 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
@@ -31,7 +31,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-18 | `e06e1d5e3` | done |
 | Logtalk | prolog | 3541/3552 EXCLUDED=65 WALL=27473s | 2026-10-21 | `52f822b69` |  |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=1114s | 2026-10-21 | `22f78bec7` | done |
-| X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 WALL=6s | 2026-10-21 | `dd80c0079` | done |
+| X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-21 | `630a49df2` | done |
 | SnoBench | snobol4 | 23/23 WALL=16s | 2026-10-21 | `b0489c0f2` | done |
 | IcnBench | icon | 25/26 WALL=4s | 2026-10-21 | `b0489c0f2` |  |
 | ProBench | prolog | 42/42 EXCLUDED=1 WALL=578s | 2026-10-21 | `b0489c0f2` | done |
