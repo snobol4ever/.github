@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-22 ~14:15 CDT: the program listing landed, `13231e4`; `lein test` 2,170 tests, 75 failures, nothing newly failing.** -LIST/-NOLIST/-EJECT/-SPACE/-TITLE/-STITL/-PRINT/-NOPRINT/-SINGLE/-DOUBLE and the compile-error page, as sbl -bf lays them out (manual ch. 14, Listing controls). Locally against sbl, with the identity and clock lines masked: Dotnet SourceLines001-003 and Test SAME, TPgm test2 SAME (rc 231), so Dotnet reads 6/6 and TPgm 8/8 on this seat's grader. Requested 20261022T191204-hq_jvm-dotnet-jvm-428173 and -testpgms-jvm-428201. **The board needs the ceo's mask change first:** the ALL.mask identity rows admit "macro spitbol" and "snobol4dotnet" only, the JVM's head reads "snobol4jvm version 0.2.0" (telegram jvm-listing-identity-mask-and-runner-u).
+
 - **2026-10-22 ~14:00 CDT: working jvm-board-dotnet-at-100-percent-ceo-1903 (CLAIMED). snobol4jvm `61b551f`; `lein test` 2,168 tests, 75 failures, nothing newly failing.**
   - **Landed:** `1870d77` &STLIMIT = 0 is no limit (sbl.min stgcc: the countdown starts at the limit); `86f7383` an execution error that ends the program prints sbl's report (manual ch. 13, Execution errors; sbl.min stopr): stdout block, its share on stderr line by line, 120-column cut, &ERRTYPE/&ERRTEXT set, the &DUMP dump after, exit 0, the statement limit as 244; `61b551f` LEN/POS/RPOS/TAB/RTAB convert and check their argument, 120-186 and the evaluated 47-58 (sbl.min patin, gtsmi).
   - **Dotnet board, locally:** 1brc and asgn1 now equal sbl but for the ALL.mask figures, Test PASS; requested from the coo (20261022T185732-hq_jvm-dotnet-jvm-344626). Left: SourceLines001-003, the -LIST listing.
