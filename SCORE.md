@@ -20,7 +20,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=149s | 2026-10-22 | `338aa2d6f` | done |
 | FPC | pascal | 92/94 EXCLUDED=87 OUTSIDE=0 WALL=214s | 2026-10-21 | `e06e1d5e3` |  |
 | PAT | pascal | 395/400 EXCLUDED=29 OUTSIDE=0 WALL=25s | 2026-10-21 | `75f933a2b` |  |
-| Roast | raku | 180/1401 EXCLUDED=63 WALL=668s | 2026-10-21 | `e06e1d5e3` |  |
+| Roast | raku | 182/1401 EXCLUDED=63 WALL=666s | 2026-10-22 | `e06e1d5e3` |  |
 | SnoRungs | snobol4 | 2033/2035 EXCLUDED=0 WALL=213s | 2026-10-21 | `9a649d4f8` | 2 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
 | ProRungs | prolog | 563/563 WALL=517s | 2026-10-22 | `bc2d85fda` | done |
