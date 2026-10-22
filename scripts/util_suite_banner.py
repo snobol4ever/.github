@@ -645,8 +645,10 @@ def _read_day(r):
     return d[5:] if len(d)==10 else "-"
 # ⭐⭐⭐ THE ENGINE LEADERBOARD (Lon 2026-10-22 12:0x CDT, in-chat to the ceo, verbatim: "Get both HQ-JVM and HQ-DOTNET working with leader boards."; ceo
 # CEO-1903): every suite a port engine has a row for, one line each, SCRIP's reading beside snobol4dotnet's and snobol4jvm's from this one table, each port
-# cell with the day its row was last written, so a stale cell shows its age and the race between the three engines is one glance. The ceo's banner prints it under SCRIP's
-# grid every turn; any seat asks for it with --engines. It reads SUITES.tsv only and runs nothing.
+# cell with the day its row was last written, so a stale cell shows its age and the race between the three engines is one glance. It prints ONLY on request,
+# --engines, never in any seat's default banner, and carries no STANDINGS line (Lon 2026-10-22 12:3x, in-chat to the ceo, verbatim: "Just make sure not to display that STANDINGS banner. What happened to the
+# previous banner?" -- printed under the ceo's grid it pushed the grid's top rows past the Stop hook's tail -40, and the STANDINGS line is gone). It reads
+# SUITES.tsv only and runs nothing.
 def engines(plain=False):
     head,rows=load(); by={r['key']:r for r in rows}
     ports=[e for e in ('dotnet','jvm')]
@@ -658,17 +660,11 @@ def engines(plain=False):
         except (ValueError,KeyError): return ("-", _read_day(r))
         return (f"{tp}/{tt}" + (" ✓" if tt and tp>=tt else ""), _read_day(r))
     hdr=["Lang","Suite","SCRIP",".NET","date","JVM","date"]
-    data=[]; score={e:[0,0,0,0] for e in ['scrip']+ports}
+    data=[]
     for b in bases:
         any_r=by.get(b) or by.get(b+'@jvm') or by.get(b+'@dotnet')
         sc=cell(by.get(b)); dn=cell(by.get(b+'@dotnet')); jv=cell(by.get(b+'@jvm'))
         data.append([any_r.get('lang',''), any_r.get('nick',b), sc[0], dn[0], dn[1], jv[0], jv[1]])
-        for e,k in (('scrip',b),('dotnet',b+'@dotnet'),('jvm',b+'@jvm')):
-            r=by.get(k)
-            if not r: continue
-            try: tp,tt=int(r['today_pass']),int(r['today_total'])
-            except (ValueError,KeyError): continue
-            score[e][0]+=1; score[e][1]+= 1 if tt and tp>=tt else 0; score[e][2]+=tp; score[e][3]+=tt
     cols=len(hdr); w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) + 1 for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
     NUM={2,3,5}
@@ -677,9 +673,6 @@ def engines(plain=False):
     print(rule("\u250c","\u252c","\u2510")); print(line(hdr, True)); print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
-    rank=sorted(score.items(), key=lambda kv: (-kv[1][1], -(kv[1][2]/kv[1][3] if kv[1][3] else 0)))
-    name={'scrip':'SCRIP','dotnet':'.NET','jvm':'JVM'}
-    print("STANDINGS: " + " · ".join(f"{i+1}. {name[e]} {v[1]}/{v[0]} suites at 100%, {v[2]}/{v[3]} programs" for i,(e,v) in enumerate(rank)))
 # ⭐ THE README'S SUITE TABLE IS GENERATED FROM THIS RECORD, NEVER TYPED (Lon 2026-09-23 16:2x, in-chat to the ceo: "We want the
 # test suite numbers and the benchmark numbers in the README."; CEO-1216; row instruments-the-readme-suite-table-is-written-from-the-
 # suite-table-and-a-gate-holds-it-current, the coo). SCRIP/README.md read the leaderboard "on 2026-09-07" sixteen days later -- Gimpel
@@ -1073,7 +1066,6 @@ def main(a):
     if '--md' in a: md(); return
     if '--engines' in a: engines(plain='--plain' in a); return
     grid(plain='--plain' in a)
-    if _grid_seat()=='ceo': print(); engines(plain='--plain' in a)
     return
 # ⛔⭐ AN IMPORT MUST NEVER BE A COMMAND (hq_B 2026-09-13). This module is the tree's ONE display-width
 # authority -- dw() -- so any consumer that wants it must import this file; util_fit_columns.py does exactly
