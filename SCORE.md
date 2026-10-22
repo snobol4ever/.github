@@ -14,13 +14,13 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-21 | `22f78bec7` | done |
 | Zona | icon | 118/118 EXCLUDED=6 WALL=34s | 2026-10-21 | `bae359133` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
-| IPL | icon | 643/644 EXCLUDED=207 WALL=337s | 2026-10-21 | `a5e3d2d5a` |  |
+| IPL | icon | 641/644 EXCLUDED=207 WALL=336s | 2026-10-21 | `a5e3d2d5a` |  |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-21 | `611dd63f5` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=153s | 2026-10-21 | `30b5b230b` | done |
 | FPC | pascal | 92/94 EXCLUDED=87 OUTSIDE=0 WALL=214s | 2026-10-21 | `e06e1d5e3` |  |
 | PAT | pascal | 395/400 EXCLUDED=29 OUTSIDE=0 WALL=25s | 2026-10-21 | `75f933a2b` |  |
-| Roast | raku | 177/1401 EXCLUDED=63 WALL=661s | 2026-10-18 | `e06e1d5e3` |  |
+| Roast | raku | 180/1401 EXCLUDED=63 WALL=668s | 2026-10-21 | `e06e1d5e3` |  |
 | SnoRungs | snobol4 | 2033/2035 EXCLUDED=0 WALL=213s | 2026-10-21 | `9a649d4f8` | 2 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
 | ProRungs | prolog | 563/563 WALL=517s | 2026-10-21 | `821026ee0` | done |
@@ -44,7 +44,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TixDemo | scriptix | 12/12 WALL=11s | 2026-10-21 | `ca2bf4eaf` | done |
 | PasRosetta | pascal | 167/405 EXCLUDED=259 WALL=237s | 2026-10-18 | `e06e1d5e3` |  |
 | ProRosetta | prolog | 400/502 EXCLUDED=284 WALL=1027s | 2026-10-21 | `bae359133` |  |
-| ProPuzzles | prolog | 5/22 EXCLUDED=393 WALL=3995s | 2026-10-21 | `16cddcd71` |  |
+| ProPuzzles | prolog | 5/22 EXCLUDED=393 WALL=5060s | 2026-10-21 | `16cddcd71` |  |
 | TreallaTests | prolog | 214/331 EXCLUDED=125 WALL=193s | 2026-10-21 | `bae359133` |  |
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
