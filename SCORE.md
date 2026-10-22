@@ -14,7 +14,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-21 | `22f78bec7` | done |
 | Zona | icon | 117/119 EXCLUDED=5 WALL=32s | 2026-10-21 | `bae359133` |  |
 | Jcon | icon | 86/86 EXCLUDED=5 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
-| IPL | icon | 642/644 EXCLUDED=207 WALL=337s | 2026-10-21 | `a5e3d2d5a` |  |
+| IPL | icon | 643/644 EXCLUDED=207 WALL=337s | 2026-10-21 | `a5e3d2d5a` |  |
 | INRIA | prolog | 442/442 EXCLUDED=3 WALL=399s | 2026-10-21 | `611dd63f5` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=175s | 2026-10-21 | `ca2bf4eaf` |  |
@@ -43,7 +43,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProDemo | prolog | 8/8 WALL=120s | 2026-10-21 | `ca2bf4eaf` | done |
 | TixDemo | scriptix | 12/12 WALL=11s | 2026-10-21 | `ca2bf4eaf` | done |
 | PasRosetta | pascal | 167/405 EXCLUDED=259 WALL=237s | 2026-10-18 | `e06e1d5e3` |  |
-| ProRosetta | prolog | 394/503 EXCLUDED=283 WALL=1004s | 2026-10-21 | `bae359133` |  |
+| ProRosetta | prolog | 400/502 EXCLUDED=284 WALL=1027s | 2026-10-21 | `bae359133` |  |
 | ProPuzzles | prolog | 5/22 EXCLUDED=393 WALL=3995s | 2026-10-21 | `16cddcd71` |  |
 | TreallaTests | prolog | 214/331 EXCLUDED=125 WALL=193s | 2026-10-21 | `bae359133` |  |
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
