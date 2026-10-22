@@ -13,7 +13,7 @@ BLOCK = (KEY + " (Lon 2026-10-22 09:3x-10:1x CDT, in-chat to the ceo, verbatim: 
          "fleet.\"*; ruled CEO-1895, amending CEO-1886):** the cto measured it -- a third of SCRIP's landings re-decide memory placement one source shape at a "
          "time because two deciders exist (the layout grants every value box a frame slot, the emitter re-decides per shape through 27 predicates), frames are "
          "sized by keys (338,540 slots; a raised -s is the patch for a frame too big), and the Prolog activation's lifetime is not one rule; corrupted memory "
-         "grades as FAIL, not segv. THE CURE is placement decided ONCE at lower from Lon's two tests (the home pass and the shared core, on origin), the "
+         "grades as FAIL, not segv. THE CURE is placement decided ONCE in the PLANNER, its own stage in src/planner/ after lower and before the emitter (Lon: \"The planner is not moving to LOWER ... It is moving to src/planner folder.\"), from Lon's two tests (the home pass and the shared core, on origin), the "
          "per-regime switches in the order Pascal, Raku, Icon, Prolog, the emitter's predicates deleted as each lands, and the activation's lifetime under one "
          "design page. That programme is CORRECTNESS, rank 1 (the order census no longer reads it as speed). MODE TENET, SIX SEATS: ceo cto cfo coo hq_dotnet "
          "hq_jvm -- the four officers work the memory model alone (the cto designs and leads, the cfo builds, the coo verifies each landing and keeps the round "
