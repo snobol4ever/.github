@@ -43,13 +43,13 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProDemo | prolog | 8/8 WALL=106s | 2026-10-22 | `338aa2d6f` | done |
 | TixDemo | scriptix | 12/12 WALL=11s | 2026-10-22 | `338aa2d6f` | done |
 | PasRosetta | pascal | 169/405 EXCLUDED=259 WALL=237s | 2026-10-22 | `e06e1d5e3` |  |
-| ProRosetta | prolog | 418/502 EXCLUDED=284 WALL=1271s | 2026-10-22 | `bae359133` |  |
+| ProRosetta | prolog | 417/502 EXCLUDED=284 WALL=1268s | 2026-10-22 | `bae359133` |  |
 | ProPuzzles | prolog | 7/22 EXCLUDED=393 WALL=6073s | 2026-10-22 | `16cddcd71` |  |
 | TreallaTests | prolog | 244/331 EXCLUDED=125 WALL=230s | 2026-10-22 | `b6d618224` |  |
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 77/80 EXCLUDED=4 WALL=239s | 2026-10-22 | `3072d0240` |  |
-| XsbTests | prolog | 179/899 EXCLUDED=8 WALL=429s | 2026-10-22 | `24ffe1435` |  |
+| XsbTests | prolog | 180/899 EXCLUDED=8 WALL=433s | 2026-10-22 | `24ffe1435` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
