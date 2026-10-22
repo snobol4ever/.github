@@ -9,3 +9,4 @@
 338aa2d6f	prolog-bench-ref	coo	SUITE_BOARD family=prolog-bench-ref total=42 shipped=42 all_pass=42 all_n=42 m3_pass=42 m4_pass=42 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=84 oracles=gprolog:22,swipl:20
 338aa2d6f	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=8 shipped=23 all_pass=8 all_n=8 m3_pass=8 m4_pass=8 containers=15 workhorse_declared=8 chained=0 tree=338aa2d6f corpus=e775bbd81 RT_OPT=-O0
 338aa2d6f	scriptix-demos	coo	DEMOS_SUITE_BOARD lang=scriptix total=12 shipped=14 all_pass=12 all_n=12 m3_pass=12 m4_pass=12 containers=2 workhorse_declared=12 chained=0 tree=338aa2d6f corpus=e775bbd81 RT_OPT=-O0
+3072d0240	raku-bench-ref	coo	SUITE_BOARD family=raku-bench-ref total=80 shipped=84 excluded=4 all_pass=77 all_n=80 m3_pass=77 m4_pass=77 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=160

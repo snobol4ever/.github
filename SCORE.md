@@ -9,13 +9,13 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=58s | 2026-10-22 | `7ccf52517` | done |
 | Budne | snobol4 | 78/78 EXCLUDED=37 OUTSIDE=19 WALL=10s | 2026-10-21 | `b0489c0f2` | done |
 | Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-10-22 | `75f933a2b` | done |
-| AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-21 | `338aa2d6f` | done |
+| AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-22 | `338aa2d6f` | done |
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-22 | `30b5b230b` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-22 | `256b4eb2a` | done |
 | Zona | icon | 118/118 EXCLUDED=6 WALL=34s | 2026-10-22 | `bae359133` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
 | IPL | icon | 642/644 EXCLUDED=207 WALL=335s | 2026-10-22 | `bc2d85fda` |  |
-| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-21 | `611dd63f5` | done |
+| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-22 | `611dd63f5` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=149s | 2026-10-22 | `338aa2d6f` | done |
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=215s | 2026-10-22 | `e06e1d5e3` | done |
@@ -31,7 +31,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-18 | `e06e1d5e3` | done |
 | Logtalk | prolog | 3552/3552 EXCLUDED=65 WALL=26974s | 2026-10-22 | `52f822b69` | done |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=1114s | 2026-10-22 | `22f78bec7` | done |
-| X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-21 | `630a49df2` | done |
+| X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-22 | `630a49df2` | done |
 | SnoBench | snobol4 | 23/23 WALL=16s | 2026-10-22 | `338aa2d6f` | done |
 | IcnBench | icon | 26/26 WALL=4s | 2026-10-22 | `338aa2d6f` | done |
 | ProBench | prolog | 42/42 EXCLUDED=1 WALL=578s | 2026-10-22 | `338aa2d6f` | done |
@@ -49,7 +49,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 77/80 EXCLUDED=4 WALL=239s | 2026-10-22 | `3072d0240` |  |
-| XsbTests | prolog | 173/899 EXCLUDED=8 WALL=409s | 2026-10-22 | `24ffe1435` |  |
+| XsbTests | prolog | 179/899 EXCLUDED=8 WALL=429s | 2026-10-22 | `24ffe1435` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
