@@ -109,8 +109,8 @@ answer tries; `grep -rF "setval('\$tbl_" src` reads 0.
 Row `prolog-tabling-is-boxes-the-evaluation-state-is-the-table-header-ceo-1885` (cfo), its DONE-WHEN: IR_TABLE_HDR in `IR.h`; the § 4
 scheduler heads in `tabling.pl` and none in `prolog_parse.c`; zero `setval('$tbl_` under `src/`; `test_gate_no_c_to_bb.sh` adding no
 NEW transfer (origin fb35bf3d1 already reads one UNMEASURED, `rt_sc_module.c`, not this row's); every IR_TABLE_HDR in `--dump-homes`
-`home=RBP` with a HOMETEST naming a forcing test (CEO-1888 confirmed; whether the header enters the census's FRAMEHOME agree column is
-the state-word class, the cto's); and the files, m3 and m4, no fail, crash or hang: SWI `tabling/test_tabling` 35/35,
+`home=RBP` with a HOMETEST naming a forcing test (CEO-1888 confirmed; the cto then ruled it a state word of class address-escapes, and
+the census reads the declared row as forced: rbp_forced, never rbp_misplaced); and the files, m3 and m4, no fail, crash or hang: SWI `tabling/test_tabling` 35/35,
 `test_answer_subsumption` 2/2, `test_wfs` 8/8; XSB `delay` 87/87 graded, `neg` 24/24, `wfs` 72/72, `nonmt` 9/9, `ptq` 25/25, `attv` 7/7,
 `basics` 26/26, `ai` 11/11, `sub` 36/36, and `table_tests` 25/32 or better (origin's reading). RECEIPT: `tabsimp_seq`'s clock. LARGE
 CHUNKS: smoked once on `test_tabling` and `test_answer_subsumption`, then every tabled program at once.
