@@ -7,7 +7,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=58s | 2026-10-22 | `7ccf52517` | done |
-| Budne | snobol4 | 78/78 EXCLUDED=37 OUTSIDE=19 WALL=10s | 2026-10-21 | `b0489c0f2` | done |
+| Budne | snobol4 | 70/70 EXCLUDED=62 OUTSIDE=19 WALL=10s | 2026-10-22 | `338aa2d6f` | done |
 | Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-10-22 | `75f933a2b` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-22 | `338aa2d6f` | done |
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-22 | `30b5b230b` | done |
