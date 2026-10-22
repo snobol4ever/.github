@@ -594,7 +594,7 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError):
             _t=(r.get('today_total') or '').strip()
-            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"]); continue
+            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"] + ([_read_day(r)] if eng else [])); continue
         # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
         # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
         # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
@@ -606,12 +606,12 @@ def grid(plain=False):
             pct=f"{pv}%"
         # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
         # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the rung suites).
-        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")])
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")] + ([_read_day(r)] if eng else []))
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         if eng: print(f"SUITE GRID: no row yet (engine {eng}) -- no board has graded {GRID_PROGRAMS.get(eng, eng)} into SUITES.tsv"); return
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Lang","Suite","Pass","Total","Excl","Pct","Wall","State"]
+    hdr=["Lang","Suite","Pass","Total","Excl","Pct","Wall","State"] + (["Date"] if eng else [])
     cols=len(hdr)
     # ⭐ ONE EXTRA COLUMN OF ROOM PER CELL (Lon 2026-09-13: "Give one extra space in each column to give room
     # to breath."). Added to the WIDTH, so the rules that span each column widen with it and the box still
@@ -635,8 +635,51 @@ def grid(plain=False):
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
-    if eng: print(f"{len(data)} suites, {done} at 100% -- {GRID_PROGRAMS.get(eng, eng)}'s own readings (engine {eng}), {', '.join(langs or ())}")
+    if eng:
+        stale=[r[1] for r in data if r[8]!=dt.date.today().strftime('%m-%d')]
+        print(f"{len(data)} suites, {done} at 100% -- {GRID_PROGRAMS.get(eng, eng)}'s own readings (engine {eng}), {', '.join(langs or ())}")
+        if stale: print(f"NOT WRITTEN TODAY: {', '.join(stale)} -- file them with the coo (s4e_test_request.sh --engine {eng} <key> --part chunk:NN|core); a row is current only when every entry has a reading (ceo CEO-1903)")
     else: print(f"{len(data)} suites, {done} at 100%")
+def _read_day(r):
+    d=(r.get('today_date') or '').strip()
+    return d[5:] if len(d)==10 else "-"
+# ⭐⭐⭐ THE ENGINE LEADERBOARD (Lon 2026-10-22 12:0x CDT, in-chat to the ceo, verbatim: "Get both HQ-JVM and HQ-DOTNET working with leader boards."; ceo
+# CEO-1903): every suite a port engine has a row for, one line each, SCRIP's reading beside snobol4dotnet's and snobol4jvm's from this one table, each port
+# cell with the day its row was last written, so a stale cell shows its age and the race between the three engines is one glance. The ceo's banner prints it under SCRIP's
+# grid every turn; any seat asks for it with --engines. It reads SUITES.tsv only and runs nothing.
+def engines(plain=False):
+    head,rows=load(); by={r['key']:r for r in rows}
+    ports=[e for e in ('dotnet','jvm')]
+    bases=sorted({k.partition('@')[0] for k in by if _engine_of(k) in ports}, key=lambda b: ((by.get(b) or by.get(b+'@jvm') or by.get(b+'@dotnet') or {}).get('lang',''), (by.get(b) or by.get(b+'@jvm') or by.get(b+'@dotnet') or {}).get('nick','')))
+    if not bases: print("ENGINE LEADERBOARD: no port engine row in SUITES.tsv"); return
+    def cell(r):
+        if not r: return ("", "")
+        try: tp,tt=int(r['today_pass']),int(r['today_total'])
+        except (ValueError,KeyError): return ("-", _read_day(r))
+        return (f"{tp}/{tt}" + (" ✓" if tt and tp>=tt else ""), _read_day(r))
+    hdr=["Lang","Suite","SCRIP",".NET","date","JVM","date"]
+    data=[]; score={e:[0,0,0,0] for e in ['scrip']+ports}
+    for b in bases:
+        any_r=by.get(b) or by.get(b+'@jvm') or by.get(b+'@dotnet')
+        sc=cell(by.get(b)); dn=cell(by.get(b+'@dotnet')); jv=cell(by.get(b+'@jvm'))
+        data.append([any_r.get('lang',''), any_r.get('nick',b), sc[0], dn[0], dn[1], jv[0], jv[1]])
+        for e,k in (('scrip',b),('dotnet',b+'@dotnet'),('jvm',b+'@jvm')):
+            r=by.get(k)
+            if not r: continue
+            try: tp,tt=int(r['today_pass']),int(r['today_total'])
+            except (ValueError,KeyError): continue
+            score[e][0]+=1; score[e][1]+= 1 if tt and tp>=tt else 0; score[e][2]+=tp; score[e][3]+=tt
+    cols=len(hdr); w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) + 1 for c in range(cols)]
+    def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
+    NUM={2,3,5}
+    def line(cs, h=False): return "\u2502" + "\u2502".join(((rpad if (c in NUM and not h) else pad)(cs[c], w[c]-1) + " ") for c in range(cols)) + "\u2502"
+    print("ENGINE LEADERBOARD -- SCRIP against snobol4dotnet (hq_dotnet) and snobol4jvm (hq_jvm), every suite a port engine grades; date = the day the row was last written from its readings")
+    print(rule("\u250c","\u252c","\u2510")); print(line(hdr, True)); print(rule("\u251c","\u253c","\u2524"))
+    for r in data: print(line(r))
+    print(rule("\u2514","\u2534","\u2518"))
+    rank=sorted(score.items(), key=lambda kv: (-kv[1][1], -(kv[1][2]/kv[1][3] if kv[1][3] else 0)))
+    name={'scrip':'SCRIP','dotnet':'.NET','jvm':'JVM'}
+    print("STANDINGS: " + " · ".join(f"{i+1}. {name[e]} {v[1]}/{v[0]} suites at 100%, {v[2]}/{v[3]} programs" for i,(e,v) in enumerate(rank)))
 # ⭐ THE README'S SUITE TABLE IS GENERATED FROM THIS RECORD, NEVER TYPED (Lon 2026-09-23 16:2x, in-chat to the ceo: "We want the
 # test suite numbers and the benchmark numbers in the README."; CEO-1216; row instruments-the-readme-suite-table-is-written-from-the-
 # suite-table-and-a-gate-holds-it-current, the coo). SCRIP/README.md read the leaderboard "on 2026-09-07" sixteen days later -- Gimpel
@@ -1028,7 +1071,9 @@ def main(a):
                              "To verify, run --check (writes nothing). To rewrite one row you measured: --render --only <key>. To rewrite them all, say so: --render --all-rows. NOTHING WAS WRITTEN.\n"); sys.exit(2)
         print(render_table()); return
     if '--md' in a: md(); return
+    if '--engines' in a: engines(plain='--plain' in a); return
     grid(plain='--plain' in a)
+    if _grid_seat()=='ceo': print(); engines(plain='--plain' in a)
     return
 # ⛔⭐ AN IMPORT MUST NEVER BE A COMMAND (hq_B 2026-09-13). This module is the tree's ONE display-width
 # authority -- dw() -- so any consumer that wants it must import this file; util_fit_columns.py does exactly
