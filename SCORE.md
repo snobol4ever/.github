@@ -14,13 +14,13 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-22 | `256b4eb2a` | done |
 | Zona | icon | 118/118 EXCLUDED=6 WALL=34s | 2026-10-22 | `bae359133` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
-| IPL | icon | 642/644 EXCLUDED=207 WALL=335s | 2026-10-22 | `461fdb1fb` |  |
+| IPL | icon | 642/644 EXCLUDED=207 WALL=335s | 2026-10-22 | `bc2d85fda` |  |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-21 | `611dd63f5` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=149s | 2026-10-22 | `338aa2d6f` | done |
 | FPC | pascal | 92/94 EXCLUDED=87 OUTSIDE=0 WALL=214s | 2026-10-21 | `e06e1d5e3` |  |
 | PAT | pascal | 395/400 EXCLUDED=29 OUTSIDE=0 WALL=25s | 2026-10-21 | `75f933a2b` |  |
-| Roast | raku | 182/1401 EXCLUDED=63 WALL=666s | 2026-10-22 | `e06e1d5e3` |  |
+| Roast | raku | 188/1401 EXCLUDED=63 WALL=666s | 2026-10-22 | `e06e1d5e3` |  |
 | SnoRungs | snobol4 | 2033/2035 EXCLUDED=0 WALL=213s | 2026-10-21 | `9a649d4f8` | 2 xfail counted as FAIL — the whole gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
 | IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
 | ProRungs | prolog | 563/563 WALL=517s | 2026-10-22 | `bc2d85fda` | done |
@@ -43,7 +43,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProDemo | prolog | 8/8 WALL=106s | 2026-10-22 | `338aa2d6f` | done |
 | TixDemo | scriptix | 12/12 WALL=11s | 2026-10-22 | `338aa2d6f` | done |
 | PasRosetta | pascal | 167/405 EXCLUDED=259 WALL=237s | 2026-10-18 | `e06e1d5e3` |  |
-| ProRosetta | prolog | 405/502 EXCLUDED=284 WALL=1176s | 2026-10-21 | `bae359133` |  |
+| ProRosetta | prolog | 410/502 EXCLUDED=284 WALL=1219s | 2026-10-22 | `bae359133` |  |
 | ProPuzzles | prolog | 5/22 EXCLUDED=393 WALL=5060s | 2026-10-22 | `16cddcd71` |  |
 | TreallaTests | prolog | 243/331 EXCLUDED=125 WALL=228s | 2026-10-21 | `b6d618224` |  |
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
