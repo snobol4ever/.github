@@ -21,7 +21,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=215s | 2026-10-22 | `e06e1d5e3` | done |
 | PAT | pascal | 398/400 EXCLUDED=29 OUTSIDE=0 WALL=25s | 2026-10-22 | `75f933a2b` |  |
 | Roast | raku | 188/1401 EXCLUDED=63 WALL=666s | 2026-10-22 | `e06e1d5e3` |  |
-| SnoRungs | snobol4 | 2037/2037 EXCLUDED=1 WALL=211s | 2026-10-22 | `9a649d4f8` | done |
+| SnoRungs | snobol4 | 2092/2092 EXCLUDED=1 WALL=218s | 2026-10-22 | `9a649d4f8` | done |
 | IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
 | ProRungs | prolog | 563/563 WALL=517s | 2026-10-22 | `bc2d85fda` | done |
 | PasRungs | pascal | 252/252 WALL=24s | 2026-10-18 | `e06e1d5e3` | done |
