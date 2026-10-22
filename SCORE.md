@@ -24,7 +24,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SnoRungs | snobol4 | 2092/2092 EXCLUDED=1 WALL=218s | 2026-10-22 | `9a649d4f8` | done |
 | IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
 | ProRungs | prolog | 563/563 WALL=517s | 2026-10-22 | `bc2d85fda` | done |
-| PasRungs | pascal | 252/252 WALL=24s | 2026-10-18 | `e06e1d5e3` | done |
+| PasRungs | pascal | 252/252 WALL=24s | 2026-10-22 | `642aac59f` | done |
 | RakRungs | raku | 1023/1023 WALL=219s | 2026-10-17 | `e06e1d5e3` | done |
 | SncRungs | snocone | 358/358 WALL=22s | 2026-10-21 | `e06e1d5e3` | done |
 | SncBench | snocone | 23/23 WALL=4s | 2026-10-15 | `e06e1d5e3` | done |
@@ -35,18 +35,18 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SnoBench | snobol4 | 23/23 WALL=16s | 2026-10-22 | `338aa2d6f` | done |
 | IcnBench | icon | 26/26 WALL=4s | 2026-10-22 | `338aa2d6f` | done |
 | ProBench | prolog | 42/42 EXCLUDED=1 WALL=578s | 2026-10-22 | `338aa2d6f` | done |
-| PasBench | pascal | 11/11 WALL=76s | 2026-10-15 | `e06e1d5e3` | done |
+| PasBench | pascal | 11/11 WALL=74s | 2026-10-22 | `de76ad56d` | done |
 | RebBench | rebus | 3/3 WALL=2s | 2026-10-15 | `e06e1d5e3` | done |
 | SnoDemo | snobol4 | 24/24 WALL=6s | 2026-10-22 | `338aa2d6f` | done |
 | SncDemo | snocone | 23/23 WALL=23s | 2026-10-15 | `e06e1d5e3` | done |
 | IcnDemo | icon | 7/7 WALL=9s | 2026-10-22 | `338aa2d6f` | done |
 | ProDemo | prolog | 8/8 WALL=106s | 2026-10-22 | `338aa2d6f` | done |
 | TixDemo | scriptix | 12/12 WALL=11s | 2026-10-22 | `338aa2d6f` | done |
-| PasRosetta | pascal | 169/405 EXCLUDED=259 WALL=237s | 2026-10-22 | `e06e1d5e3` |  |
+| PasRosetta | pascal | 171/405 EXCLUDED=259 WALL=238s | 2026-10-22 | `e06e1d5e3` |  |
 | ProRosetta | prolog | 418/502 EXCLUDED=284 WALL=1268s | 2026-10-22 | `bae359133` |  |
 | ProPuzzles | prolog | 7/22 EXCLUDED=393 WALL=6073s | 2026-10-22 | `16cddcd71` |  |
 | TreallaTests | prolog | 244/331 EXCLUDED=125 WALL=230s | 2026-10-22 | `b6d618224` |  |
-| PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
+| PasDemo | pascal | 8/8 WALL=67s | 2026-10-22 | `de76ad56d` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 77/80 EXCLUDED=4 WALL=239s | 2026-10-22 | `3072d0240` |  |
 | XsbTests | prolog | 180/899 EXCLUDED=8 WALL=433s | 2026-10-22 | `24ffe1435` |  |
