@@ -14,7 +14,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-21 | `22f78bec7` | done |
 | Zona | icon | 117/119 EXCLUDED=5 WALL=32s | 2026-10-21 | `bae359133` |  |
 | Jcon | icon | 86/86 EXCLUDED=5 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
-| IPL | icon | 641/644 EXCLUDED=207 WALL=336s | 2026-10-21 | `a5e3d2d5a` |  |
+| IPL | icon | 642/644 EXCLUDED=207 WALL=337s | 2026-10-21 | `a5e3d2d5a` |  |
 | INRIA | prolog | 442/442 EXCLUDED=3 WALL=399s | 2026-10-21 | `611dd63f5` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=175s | 2026-10-21 | `ca2bf4eaf` |  |
@@ -29,9 +29,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SncRungs | snocone | 358/358 WALL=22s | 2026-10-18 | `e06e1d5e3` | done |
 | SncBench | snocone | 23/23 WALL=4s | 2026-10-15 | `e06e1d5e3` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-18 | `e06e1d5e3` | done |
-| Logtalk | prolog | 3207/3552 EXCLUDED=65 WALL=26296s | 2026-10-21 | `52f822b69` |  |
-| X64T | snobol4 | 32/33 EXCLUDED=3 OUTSIDE=0 WALL=1113s | 2026-10-21 | `22f78bec7` |  |
-| X32T | snobol4 | 17/18 EXCLUDED=3 OUTSIDE=0 WALL=4s | 2026-10-21 | `dd80c0079` |  |
+| Logtalk | prolog | 3541/3552 EXCLUDED=65 WALL=27473s | 2026-10-21 | `52f822b69` |  |
+| X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=1114s | 2026-10-21 | `22f78bec7` | done |
+| X32T | snobol4 | 18/18 EXCLUDED=3 OUTSIDE=0 WALL=6s | 2026-10-21 | `dd80c0079` | done |
 | SnoBench | snobol4 | 23/23 WALL=16s | 2026-10-21 | `b0489c0f2` | done |
 | IcnBench | icon | 25/26 WALL=4s | 2026-10-21 | `b0489c0f2` |  |
 | ProBench | prolog | 42/42 EXCLUDED=1 WALL=578s | 2026-10-21 | `b0489c0f2` | done |
@@ -49,7 +49,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasDemo | pascal | 8/8 WALL=82s | 2026-10-15 | `e06e1d5e3` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 68/80 EXCLUDED=4 WALL=109s | 2026-10-15 | `e06e1d5e3` |  |
-| XsbTests | prolog | 100/899 EXCLUDED=8 WALL=255s | 2026-10-21 | `e41bf8a6a` |  |
+| XsbTests | prolog | 162/899 EXCLUDED=8 WALL=439s | 2026-10-21 | `24ffe1435` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
