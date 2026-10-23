@@ -8,48 +8,48 @@ One row per suite — our seven rung suites and every vendored package suite ali
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=58s | 2026-10-22 | `7ccf52517` | done |
 | Budne | snobol4 | 70/70 EXCLUDED=62 OUTSIDE=19 WALL=10s | 2026-10-22 | `338aa2d6f` | done |
-| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-10-22 | `75f933a2b` | done |
-| AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-22 | `338aa2d6f` | done |
-| Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-22 | `30b5b230b` | done |
-| TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-22 | `256b4eb2a` | done |
-| Zona | icon | 118/118 EXCLUDED=6 WALL=34s | 2026-10-22 | `bae359133` | done |
+| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-10-23 | `26e79fe3e` | done |
+| AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-23 | `26e79fe3e` | done |
+| Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-23 | `26e79fe3e` | done |
+| TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-23 | `26e79fe3e` | done |
+| Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-10-23 | `bae359133` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-21 | `b0489c0f2` | done |
-| IPL | icon | 642/644 EXCLUDED=207 WALL=335s | 2026-10-22 | `bc2d85fda` |  |
-| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-22 | `611dd63f5` | done |
+| IPL | icon | 634/644 EXCLUDED=207 WALL=330s | 2026-10-23 | `ab0adf375` |  |
+| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-23 | `26e79fe3e` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=149s | 2026-10-22 | `338aa2d6f` | done |
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=213s | 2026-10-22 | `642aac59f` | done |
-| PAT | pascal | 398/400 EXCLUDED=29 OUTSIDE=0 WALL=25s | 2026-10-22 | `75f933a2b` |  |
-| Roast | raku | 181/1401 EXCLUDED=63 WALL=667s | 2026-10-22 | `e06e1d5e3` |  |
-| SnoRungs | snobol4 | 2092/2092 EXCLUDED=1 WALL=218s | 2026-10-22 | `9a649d4f8` | done |
-| IcnRungs | icon | 904/904 WALL=52s | 2026-10-15 | `bae359133` | done |
-| ProRungs | prolog | 563/563 WALL=517s | 2026-10-22 | `bc2d85fda` | done |
+| PAT | pascal | 398/400 EXCLUDED=29 OUTSIDE=0 WALL=24s | 2026-10-23 | `26e79fe3e` |  |
+| Roast | raku | 185/1401 EXCLUDED=63 WALL=667s | 2026-10-22 | `ab0adf375` |  |
+| SnoRungs | snobol4 | 2094/2096 EXCLUDED=1 WALL=191s | 2026-10-23 | `ab0adf375` | 1 xfail counted as FAIL of a 2-wide gap (CEO-416): they are in the denominator and not the numerator, so this row can only close by CURING them, never by re-captioning |
+| IcnRungs | icon | 931/931 WALL=46s | 2026-10-23 | `26e79fe3e` | done |
+| ProRungs | prolog | 573/573 WALL=533s | 2026-10-23 | `ab0adf375` | done |
 | PasRungs | pascal | 252/252 WALL=24s | 2026-10-22 | `642aac59f` | done |
 | RakRungs | raku | 1023/1023 WALL=219s | 2026-10-17 | `e06e1d5e3` | done |
-| SncRungs | snocone | 358/358 WALL=22s | 2026-10-21 | `e06e1d5e3` | done |
-| SncBench | snocone | 23/23 WALL=4s | 2026-10-15 | `e06e1d5e3` | done |
-| RebRungs | rebus | 43/43 WALL=3s | 2026-10-18 | `e06e1d5e3` | done |
-| Logtalk | prolog | 3552/3552 EXCLUDED=65 WALL=26955s | 2026-10-22 | `52f822b69` | done |
-| X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=1114s | 2026-10-22 | `22f78bec7` | done |
-| X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-22 | `630a49df2` | done |
+| SncRungs | snocone | 357/358 WALL=22s | 2026-10-23 | `26e79fe3e` |  |
+| SncBench | snocone | 23/23 WALL=4s | 2026-10-22 | `26e79fe3e` | done |
+| RebRungs | rebus | 43/43 WALL=3s | 2026-10-23 | `26e79fe3e` | done |
+| Logtalk | prolog | 3549/3552 EXCLUDED=65 WALL=16401s | 2026-10-23 | `52f822b69` |  |
+| X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=1114s | 2026-10-23 | `26e79fe3e` | done |
+| X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-23 | `26e79fe3e` | done |
 | SnoBench | snobol4 | 23/23 WALL=16s | 2026-10-22 | `338aa2d6f` | done |
 | IcnBench | icon | 26/26 WALL=4s | 2026-10-22 | `338aa2d6f` | done |
 | ProBench | prolog | 42/42 EXCLUDED=1 WALL=578s | 2026-10-22 | `338aa2d6f` | done |
 | PasBench | pascal | 11/11 WALL=74s | 2026-10-22 | `de76ad56d` | done |
-| RebBench | rebus | 3/3 WALL=2s | 2026-10-15 | `e06e1d5e3` | done |
+| RebBench | rebus | 3/3 WALL=2s | 2026-10-22 | `26e79fe3e` | done |
 | SnoDemo | snobol4 | 24/24 WALL=6s | 2026-10-22 | `338aa2d6f` | done |
-| SncDemo | snocone | 23/23 WALL=23s | 2026-10-15 | `e06e1d5e3` | done |
+| SncDemo | snocone | 23/23 WALL=23s | 2026-10-22 | `26e79fe3e` | done |
 | IcnDemo | icon | 7/7 WALL=9s | 2026-10-22 | `338aa2d6f` | done |
 | ProDemo | prolog | 8/8 WALL=106s | 2026-10-22 | `338aa2d6f` | done |
 | TixDemo | scriptix | 12/12 WALL=11s | 2026-10-22 | `338aa2d6f` | done |
 | PasRosetta | pascal | 174/405 EXCLUDED=259 WALL=976s | 2026-10-22 | `de76ad56d` |  |
-| ProRosetta | prolog | 418/502 EXCLUDED=284 WALL=1268s | 2026-10-22 | `bae359133` |  |
-| ProPuzzles | prolog | 7/22 EXCLUDED=393 WALL=6073s | 2026-10-22 | `16cddcd71` |  |
-| TreallaTests | prolog | 244/331 EXCLUDED=125 WALL=230s | 2026-10-22 | `b6d618224` |  |
+| ProRosetta | prolog | 435/502 EXCLUDED=284 WALL=2078s | 2026-10-23 | `26e79fe3e` |  |
+| ProPuzzles | prolog | 8/22 EXCLUDED=393 WALL=9427s | 2026-10-23 | `26e79fe3e` |  |
+| TreallaTests | prolog | 248/331 EXCLUDED=125 WALL=235s | 2026-10-23 | `ab0adf375` |  |
 | PasDemo | pascal | 8/8 WALL=67s | 2026-10-22 | `de76ad56d` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 77/80 EXCLUDED=4 WALL=239s | 2026-10-22 | `3072d0240` |  |
-| XsbTests | prolog | 180/899 EXCLUDED=8 WALL=433s | 2026-10-22 | `24ffe1435` |  |
+| XsbTests | prolog | 186/899 EXCLUDED=8 WALL=443s | 2026-10-23 | `ab0adf375` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
