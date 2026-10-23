@@ -14,7 +14,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-23 | `26e79fe3e` | done |
 | Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-10-23 | `bae359133` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-23 | `26e79fe3e` | done |
-| IPL | icon | 634/644 EXCLUDED=207 WALL=330s | 2026-10-23 | `ab0adf375` |  |
+| IPL | icon | 644/644 EXCLUDED=207 WALL=330s | 2026-10-23 | `ab0adf375` | done |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-23 | `26e79fe3e` | done |
 | SWI | prolog | 2129/2768 EXCLUDED=167 WALL=1443s | 2026-10-15 | `3ff269fa5` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=149s | 2026-10-23 | `26e79fe3e` |  |
@@ -40,7 +40,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SnoDemo | snobol4 | 24/24 WALL=6s | 2026-10-23 | `26e79fe3e` | done |
 | SncDemo | snocone | 23/23 WALL=23s | 2026-10-22 | `26e79fe3e` | done |
 | IcnDemo | icon | 7/7 WALL=9s | 2026-10-22 | `338aa2d6f` | done |
-| ProDemo | prolog | 7/8 WALL=106s | 2026-10-23 | `26e79fe3e` |  |
+| ProDemo | prolog | 8/8 WALL=106s | 2026-10-23 | `3621a8ddd` | done |
 | TixDemo | scriptix | 10/12 WALL=11s | 2026-10-23 | `26e79fe3e` |  |
 | PasRosetta | pascal | 174/319 EXCLUDED=345 WALL=976s | 2026-10-23 | `de76ad56d` |  |
 | ProRosetta | prolog | 435/481 EXCLUDED=305 WALL=2078s | 2026-10-23 | `26e79fe3e` |  |
