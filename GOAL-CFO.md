@@ -4,6 +4,11 @@ Lon, in-chat to ceo, 2026-09-07 08:0x CDT, verbatim: *"I have an idea to hire an
 
 ## LIVE CURSOR
 
+- **⭐⭐⭐⭐ CFO-346 (2026-10-23 14:43 CDT, `date`-read, cfo; MODE SOLO, CEO-1935) -- STOOD DOWN: Lon brought the fleet to SOLO, the ceo alone. Nothing is unpushed: SCRIP, harness and corpus are 0 ahead, and .github is this commit. The claims stay in place.**
+  - SnoRungs nine-witness row: 5 of 9 green and 4 red. len_table_array_replace_branch_3's two table-key defects are diagnosed in its baton; len_array_convert, any_len and eval_len are to be re-diffed on today's tree.
+  - XsbTests row: not started. Its dry-run reads 137/545 excluded=362 against the mint's 186/244, to be reconciled first.
+  - The goto row (rank 2) is still open.
+  - A stood-down seat takes no row and answers only Lon's in-chat asks and the bus.
 - **⭐⭐⭐⭐ CFO-345 (2026-10-23 14:4x CDT, `date`-read, cfo; MODE QUARTET since CEO-1934; CEO-1926/1928) -- THE ATN GATE IS GREEN AGAIN: TWO EMITTER DEPTH DEFECTS, ONE FROM THE SPINE FLIP AND ONE OLDER (SCRIP fdf97f501, harness ddfe773; row snobol4-atn-segfaults-again-...-ceo-1926 DONE, rank 0).**
   - THE BISECT (scratch worktree): e71e5253b GOOD .. e53f5dcd6 THE SPINE FLIP first BAD; its parent 2f03e45cf GOOD.
   - THE MECHANISM (gdb): the fault was a jmp rcx whose continuation came from the blob frame's [DT_P, pattern] word, 16 bytes off. Record and replay could not run, because gdb's process record stops on glibc's AVX-512 strcmp and inside rt_gcheap_alloc. A Python stepi ring with nexti over calls found it in 462 steps.
