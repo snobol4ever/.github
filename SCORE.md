@@ -26,7 +26,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProRungs | prolog | 573/573 WALL=533s | 2026-10-23 | `ab0adf375` | done |
 | PasRungs | pascal | 252/252 WALL=24s | 2026-10-22 | `642aac59f` | done |
 | RakRungs | raku | 1023/1023 WALL=219s | 2026-10-17 | `e06e1d5e3` | done |
-| SncRungs | snocone | 357/358 WALL=22s | 2026-10-23 | `26e79fe3e` |  |
+| SncRungs | snocone | 358/358 WALL=22s | 2026-10-23 | `26e79fe3e` | done |
 | SncBench | snocone | 23/23 WALL=4s | 2026-10-22 | `26e79fe3e` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-23 | `26e79fe3e` | done |
 | Logtalk | prolog | 3549/3552 EXCLUDED=65 WALL=16401s | 2026-10-23 | `52f822b69` |  |

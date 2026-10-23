@@ -59,6 +59,8 @@ An SWI engine is a coroutine, never a parallel thread: `engine_create/3` makes a
 
 Under "no new globals without Lon's in-chat banner grant": the design needs, and asks for, exactly these cells, each a single head or current cell and none of them a stack (a thread is an object in a list, never an entry pushed at a construct's entry): (1) the head of the thread list, through which the collector visits every record (beside `g_co_gc_head`, which is the same shape); (2) the head of the run queue; (3) the next thread id; (4) the timer pthread's handle and its quantum; (5) the alias table of threads, queues and mutexes, one rooted heap table. `scrip_co_current` already names the running context and is reused as the running thread.
 
+THE ATOM POOL'S LOCK (the cto to the cfo, 2026-10-22 18:2x, on SCRIP 2385766c3): an atom is interned by carving its text in `name_pool`, filling it in place, looking it up against its own slot, and retreating the bump pointer on a hit (`prolog_atom_carve` / `prolog_atom_carved` / `prolog_atom_uncarve`). Under one baton nothing can interleave, because a co-expression switches only at `scrip_coswitch` and never inside a carve. The landing that brings `thread_create` therefore makes intern hold its lock across carve, fill, lookup and retreat, all four, and that landing carries the witness: two threads interning colliding names. No row exists until then (CEO-1386: no thread builtin, no witness).
+
 ## 8. Open, to be measured in the landing that meets it
 
 - An arena from `rt_pl_tr_init` reserves 2 x 128 MB of address space; a file that creates thousands of short threads needs the arena released at join and unregistered from the root ranges. Measured at L2 on `thread/queue_gc.pl`.
