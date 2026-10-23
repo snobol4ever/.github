@@ -4,15 +4,21 @@ I've stopped HQ-RAKU and place Raku work as LOWEST priority until it is re-writt
 runtime-, instruments- or cto row naming raku -- moves to rank 9, below every other row, so the any-lane pass of `next` serves it last.
 FREE rows only (a live claim's cells are never rewritten by script, CEO-755c); the bus's mint lock held for the write (CEO-1708); a dated
 QUEUE.tsv backup first. --dry-run | --apply"""
-import sys, shutil, datetime, fcntl
-PO = '/home/resources/postoffice'; Q = PO + '/QUEUE.tsv'; apply = '--apply' in sys.argv; LOW = '9'
+import sys, os, time, atexit, shutil, datetime
+PO = '/home/resources/postoffice'; Q = PO + '/QUEUE.tsv'; apply = '--apply' in sys.argv; LOW = '9'; LK = PO + '/.mint.lock'
 SHARED = ('instruments-the-coos-loop-runs-the-four-auditor-master-passes',)
 def is_raku(topic):
     if topic.startswith(SHARED):
         return False
     return topic.startswith('raku-') or '-raku-' in topic or topic.endswith('-raku')
-lock = open(PO + '/.mint.lock', 'a')
-fcntl.flock(lock, fcntl.LOCK_EX)
+for _i in range(100):
+    try:
+        os.mkdir(LK); break
+    except FileExistsError:
+        time.sleep(0.1)
+else:
+    print('REFUSE(2): %s is held by a bus verb for 10 s -- nothing written' % LK); sys.exit(2)
+atexit.register(lambda: os.path.isdir(LK) and os.rmdir(LK))
 data = open(Q, 'rb').read().decode('utf-8'); rows = data.split('\n'); out = []; moved = []
 for l in rows:
     f = l.split('\t')
@@ -23,4 +29,3 @@ print(len(moved), 'Raku rows to rank', LOW); [print('  ', m) for m in moved]
 if apply and moved:
     shutil.copy2(Q, Q + '.bak.' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-ceo1931-raku-lowest')
     open(Q, 'wb').write('\n'.join(out).encode('utf-8')); print('applied')
-fcntl.flock(lock, fcntl.LOCK_UN)
