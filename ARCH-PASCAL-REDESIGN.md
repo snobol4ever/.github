@@ -61,3 +61,19 @@ The value representation does not change: DESCR cells, ARBLK arrays, records as 
 - Where `pascal_sem_check` (the ISO refusals) moves: TYPE, or a fourth pass after it.
 - Whether the pointer-to-variable model (section 3) is Pascal-only (a new DESCR kind handled in Pascal builtins) or reaches a shared runtime node. If it reaches a shared node, it is an ASK to the cto.
 - The order between the typer roll-out and the PasRosetta parse-error families. The typer comes first wherever a family needs resolved names.
+
+## 7. Status at stand-down (2026-10-23, CEO-1935, MODE SOLO)
+
+- **Chunk 1 is built and pushed to its own branch, not main:** `wip/hq_pascal/pascal-typer-shadow` at SCRIP `bc8a69628`, held for Lon and the ceo to test. It adds the new Pascal-only `src/lower/lower_pascal_types.c/.h`: DECLARE and TYPE over the flattened, prepassed tree, run before `E_program`, with an arena hash map from each source and lowered node to its `pty_t`. The legacy predicates `pas_is_charexpr`, `pas_is_stringexpr`, `pas_is_boolexpr` and `pas_is_setexpr` still decide. `scrip --dump-pas-types` prints each disagreement and a `PTY-STATS` tally.
+- **Measured before the push:** `--dump-ir` is identical to the parent on all 1,993 programs; the Pascal smoke is 9/9 in both modes; the fixed-caps census rows are unchanged. The branch touches shared files (the driver flag, an int field in `src/lower/g_lower.h`, the Makefile list), so the other seven smokes and the PasM, PAT and FPC tables are owed before it can reach main.
+- **The census (`scrip --dump-pas-types --dump-ir`, whole population):**
+
+| Predicate | Asked | Typer answered | Disagreements |
+|---|---|---|---|
+| char | 40,188 | 37,217 | 16 |
+| string | 32,743 | 32,635 | 8 |
+| bool | 10,249 | 10,201 | 3 |
+| set | 35,942 | 35,853 | 17 |
+
+  The 44 disagreements I read all show legacy errors: name-keyed set flags leaking across scopes (rosetta `set.pas`), a char subrange (`webtbs_tw3324`), `char(x)` casts (`quine-2`), PChar dereferences (`thue-morse`, `amicable-pairs-2`), `Format` results, and record boolean fields (p5 `pcom`). Two typer gaps were found and closed: `bytebool`/`wordbool`/`longbool` are integers at run time, and a bare function-typed variable is a call (`__pas_pcall`).
+- **Next step:** section 5.2, switching the char and string family to the typer's answers (typer first, legacy where the typer is silent), with the IR and output differentials, the smoke, and the PasM, PAT and FPC tables.
