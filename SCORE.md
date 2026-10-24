@@ -18,17 +18,17 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-23 | `26e79fe3e` | done |
 | SWI | prolog | 2309/2712 EXCLUDED=223 WALL=2048s | 2026-10-23 | `26e79fe3e` |  |
 | GNU source | prolog | 39/45 EXCLUDED=17 WALL=149s | 2026-10-23 | `d6ca2f621` |  |
-| FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=213s | 2026-10-22 | `642aac59f` | done |
+| FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=211s | 2026-10-24 | `db2d1f5a6` | done |
 | PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=24s | 2026-10-23 | `26e79fe3e` | done |
 | Roast | raku | 188/1401 EXCLUDED=63 WALL=668s | 2026-10-23 | `ab0adf375` |  |
-| SnoRungs | snobol4 | 2121/2121 EXCLUDED=1 WALL=195s | 2026-10-23 | `26e79fe3e` | done |
+| SnoRungs | snobol4 | 2111/2121 EXCLUDED=1 WALL=169s | 2026-10-24 | `db2d1f5a6` |  |
 | IcnRungs | icon | 931/931 WALL=46s | 2026-10-24 | `26e79fe3e` | done |
 | ProRungs | prolog | 573/573 WALL=533s | 2026-10-23 | `ab0adf375` | done |
 | PasRungs | pascal | 252/252 WALL=23s | 2026-10-24 | `642aac59f` | done |
 | RakRungs | raku | 1062/1062 WALL=152s | 2026-10-24 | `27b792077` | done |
-| SncRungs | snocone | 358/358 WALL=22s | 2026-10-23 | `26e79fe3e` | done |
+| SncRungs | snocone | 358/358 WALL=21s | 2026-10-24 | `db2d1f5a6` | done |
 | SncBench | snocone | 23/23 WALL=4s | 2026-10-22 | `26e79fe3e` | done |
-| RebRungs | rebus | 43/43 WALL=3s | 2026-10-23 | `26e79fe3e` | done |
+| RebRungs | rebus | 43/43 WALL=3s | 2026-10-24 | `db2d1f5a6` | done |
 | Logtalk | prolog | 3552/3552 EXCLUDED=65 WALL=16400s | 2026-10-24 | `52f822b69` | done |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=1114s | 2026-10-23 | `26e79fe3e` | done |
 | X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-23 | `26e79fe3e` | done |
