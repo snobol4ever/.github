@@ -6,13 +6,13 @@ One row per suite — our seven rung suites and every vendored package suite ali
 
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
-| Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=58s | 2026-10-22 | `7ccf52517` | done |
+| Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=43s | 2026-10-24 | `db2d1f5a6` | done |
 | Budne | snobol4 | 70/70 EXCLUDED=62 OUTSIDE=19 WALL=10s | 2026-10-23 | `26e79fe3e` | done |
 | Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-10-23 | `26e79fe3e` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-23 | `26e79fe3e` | done |
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-23 | `26e79fe3e` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-23 | `26e79fe3e` | done |
-| Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-10-23 | `bae359133` | done |
+| Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-10-24 | `db2d1f5a6` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-23 | `26e79fe3e` | done |
 | IPL | icon | 644/644 EXCLUDED=207 WALL=330s | 2026-10-23 | `ab0adf375` | done |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-23 | `26e79fe3e` | done |
@@ -22,10 +22,10 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=24s | 2026-10-23 | `26e79fe3e` | done |
 | Roast | raku | 188/1401 EXCLUDED=63 WALL=668s | 2026-10-23 | `ab0adf375` |  |
 | SnoRungs | snobol4 | 2121/2121 EXCLUDED=1 WALL=195s | 2026-10-23 | `26e79fe3e` | done |
-| IcnRungs | icon | 931/931 WALL=46s | 2026-10-23 | `26e79fe3e` | done |
+| IcnRungs | icon | 931/931 WALL=46s | 2026-10-24 | `26e79fe3e` | done |
 | ProRungs | prolog | 573/573 WALL=533s | 2026-10-23 | `ab0adf375` | done |
-| PasRungs | pascal | 252/252 WALL=24s | 2026-10-22 | `642aac59f` | done |
-| RakRungs | raku | 1062/1062 WALL=152s | 2026-10-23 | `27b792077` | done |
+| PasRungs | pascal | 252/252 WALL=23s | 2026-10-24 | `642aac59f` | done |
+| RakRungs | raku | 1062/1062 WALL=152s | 2026-10-24 | `27b792077` | done |
 | SncRungs | snocone | 358/358 WALL=22s | 2026-10-23 | `26e79fe3e` | done |
 | SncBench | snocone | 23/23 WALL=4s | 2026-10-22 | `26e79fe3e` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-23 | `26e79fe3e` | done |
