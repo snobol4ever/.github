@@ -6,6 +6,8 @@ it not? Is Prolog BB's designed properly?"*: *"You better get that tabling mess 
 supersedes ARCH-PROLOG-WFS-TABLING.md § 2 and § 3.1 as to WHERE THE STATE LIVES and WHO SCHEDULES; its algorithm (rounds to a
 fixpoint, the alternating fixpoint, the residual pass) is kept, because it is what makes today's files read green.
 
+**THE GRAPH (the cto, 2026-10-24, CEO-1960):** which tables depend on which tables and dynamic predicates, what a change does to them (incremental invalidation, monotonic eager and lazy propagation, transactions and snapshots, answer subsumption under all three) is `ARCH-PROLOG-TABLING-IDG.md`; §§ 1-3 here (where the evaluation's state lives) stand under it, and its § 6 asks one more header cell (cell 10, the transaction's undo log), ruled by the cfo before it lands.
+
 ## 0. What is wrong today (measured on SCRIP 26cfecaab plus the cfo's nine held commits)
 
 - The scheduler is Prolog text inside `src/parsers/prolog/prolog_parse.c` (`PL_PRELUDE_SRC`, the `'$tbl_*'` family, lines ~1949-2200).
