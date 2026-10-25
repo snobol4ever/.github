@@ -55,6 +55,16 @@ reaches `listing/1`'s source-layout road. The GNU dialect keeps `gnu_builtins.pl
 library as it picks the builtins file. Hand-written layout rules are refused: they drift on the next shape the corpus prints. Witnesses: ProRosetta quine-1, then
 a clause with an if-then-else and a disjunction body, both modes against swipl.
 
+**4b ADDENDUM (hq_runtime's measurement, 22:3x; my "zero dollar names" reading was wrong and is withdrawn):** vendored verbatim, `listing.pl` meets two
+directive kinds the reader lacks (`:- setting/4`, five of them, which become base `setting/2` facts at swipl's measured defaults 4, 0, false, 78, [fg(green)];
+`:- thread_local`, whose single-threaded meaning is `dynamic`, a reader rule) and, because an injected library is COMPILED WHOLE, the dead `listing/1` road's
+names refuse at compile time (`current_predicate/2`, `use_module/2` as a goal, `'$find_library'/5`, `'$define_predicate'/1`, `@/2`, `clause_property/2`).
+RULING: option (a), THE INJECTOR COMPILES THE CLOSURE, NOT THE FILE -- a vendored library's clauses are selected per predicate by reachability from the names
+the program references (the body walk the prelude already does across libraries, applied inside one, meta-arguments through the `meta_predicate` specs), so a
+predicate no program road reaches is never compiled; this is the general road for every vendored library (clpfd is 7,903 lines compiled whole today) and lands
+first, its witness a clpfd program's compile time before and after beside quine-1; then `current_predicate/2` as a base builtin (SWI has it, SCRIP lacks it);
+then `listing.pl` under the closure. Option (c), hand-written layout, stays refused.
+
 ## 5. The clause fragment compiles lazily (hq_zetas' measurement on db/test_abolish, 2026-10-24 19:5x; NOT YET A ROW)
 
 Measured by callgrind: every `assert` compiles its clause fragment at assert time (`pl_db_fragment`, 1.9M Ir each, 78 percent of what test_abolish spends after
@@ -68,3 +78,61 @@ record is theirs to lay out).
 - `db/test_module` (hq_zetas, c91370f86: 5 of 7): `Module:clause(H, _, Ref)` comes back module-qualified; a module-scoped `meta_predicate` `:` argument that is a
   cyclic qualifier raises nothing. The module-context section of this page rules on them when the two programs are brought with their swipl answers.
 - `ARCH-PROLOG-TABLING-IDG.md` § 6: the transaction's undo log, a spine local of the `transaction/1` activation under one `'$tx_cur'` root (the cfo's placement).
+
+## 7. The dynamic fact table is indexed on its first argument (hq_runtime's row `prolog-dynamic-fact-table-scales-long-primes-1`, steps 2 and 3; ProRosetta long-primes-1, sieve-of-eratosthenes-10 and the dynamic-fact time-outs)
+
+A call to a dynamic predicate with a bound first argument walks every clause today. RULING: the registry's clause list of a dynamic predicate carries a HASH
+INDEX on the first argument's atomic key (small integer, atom, functor id; a variable first argument or a clause whose first argument is a variable goes in an
+"any" bucket consulted on every call), built lazily at the first call with a bound first argument and maintained by `assert`/`retract` (an `assertz` appends to
+its bucket, a `retract` unlinks from it; the logical update view is the clause list's generation stamps as today, the index only narrows which clauses the
+walk visits). It is the WAM's first-argument indexing applied to the dynamic database, the static twin of ARCH-PROLOG-BB-REWRITE § 7.2's SWITCH box; the
+index lives in the registry record (hq_runtime's and the cfo's layout), a rooted typed vector on the collected heap (CEO-1210: no fixed limit), and § 5's
+lazy fragment compile rides with it (a clause the index never selects is never compiled). Witnesses: long-primes-1 and sieve-of-eratosthenes-10 against
+swipl in both modes.
+
+## 8. call_with_depth_limit/3 (ProRosetta integer-sequence-1)
+
+The depth is the number of predicate activations between the limited goal's entry and the current call. RULING: a program that REFERENCES
+`call_with_depth_limit/3` is lowered DEPTH-COUNTED (a graph fact the lowerer sets for every predicate of that program, LANGUAGE IDENTITY STOPS AT LOWER): the
+emitted call box increments a depth word in the standing frame at entry and decrements it at the γ/ω landings, two instructions each, and compares it against
+a limit word beside it, raising `depth_limit_exceeded` as the result when exceeded; `call_with_depth_limit(G, L, R)` saves and sets the two words around
+`call(G)` and reports the maximum reached in `R`, swipl's contract. A program that never names the predicate pays nothing (the fact is unset, the box is
+the plain one). The two words are two more cells of the standing frame (a single current-X cell each, CEO-1542), asked of Lon with this page.
+
+## 9. Streams: the column counter is the stream record's (ProRosetta arithmetic-integer-1)
+
+`format/2`'s column stops (`~t~20|`) and `line_position/2` read the stream's column, which swipl keeps per stream and SHARES between `user_input` and
+`user_output` when both are the terminal or a pipe pair (`set_stream(S, tty(true))`'s shared position). RULING: every SCRIP stream record carries line and
+column counters advanced by every write and read through it (the writer's one road, `core_lib`'s stream layer, a value service), and the three standard
+streams share one position record when they are the same device, as swipl measures it; `line_count/2`, `line_position/2`, `character_count/2` and the
+column-stop arms of `format/2` read that record. No new state outside the stream record.
+
+## 10. The ProRosetta mechanisms, ordered (hq_runtime's list, 2026-10-24 22:4x)
+
+1. `library(plunit)` inside a user program (catamorphism-6, json-pointer-1, sort-disjoint-sublist-3, test-a-function): the shim `corpus/tests/prolog/plunit.pl`
+   the SWI runner already feeds becomes a vendored prelude library `plunit`, selected when a program names `begin_tests/1`, `run_tests/0,1` or `test/1,2`, under
+   CEO-1473 (the shim is SCRIP's own text, so "verbatim" is its own copy; swipl's plunit.pl stays the oracle of its output format).
+2. `library(ctypes)` (rot-13-1 `is_endfile/1`, count-how-many-vowels `is_alpha/1`): the parked vendored copy lands.
+3. `lazy_findall/3` (deceptive-numbers): swipl's `library(lazy_lists)` vendored over `freeze/2` (ARCH-PROLOG-CLPFD § 4's attributed variable), no new mechanism.
+4. The fact table index, § 7 (long-primes-1, sieve-of-eratosthenes-10, the time-outs).
+5. `call_with_depth_limit/3`, § 8 (integer-sequence-1).
+6. The stream column, § 9 (arithmetic-integer-1).
+7. The listing layout, § 4b with its addendum (quine-1).
+8. `sha_hash/3` (sha-1-1): swipl's `library(sha)` is C; SHA-1 and SHA-256 over a code list are a text VALUE SERVICE in C (ARCH-PROLOG-BB-REWRITE § 2's rule), the
+   smallest of the list.
+9. Dicts and their functional notation (fractran): a page of their own, not before the above.
+OUT OF THIS PAGE: a last call after a cut that does not release its frame (hamming-numbers-1, lunar-arithmetic, reverse-the-order-of-lines overflow at any
+`-s`) is the activation's lifetime, the cfo's design authority (CEO-1960), telegrammed to the cfo with the three programs; universal-lambda-machine is a harness
+staging red (the coo's); CHR and the CLP family are ARCH-PROLOG-CONSTRAINTS.md.
+
+## 11. read_term/2 `subterm_positions` and `comments` (hq_packages, SWI core/test_read.pl: 19 subterm_positions cases, position#1, pos_block; CEO-1677 road (1))
+
+RULING, the ceo's road made concrete: the byte extent of every term is a FIELD OF EVERY `tree_t` NODE (CEO-1715: a field every node uses is a node field, never
+a side table), two 32-bit offsets `start`/`end` in the two padding holes `tree_t` has today (after `t`, after `n`), so `sizeof(tree_t)` does not move; the lexer's
+token carries its start and end offsets (`Lexer.pos`), and the reduce that builds a node stamps it from its first token's start and its last child's end
+(the `pt_stamp` sites), BUILT ONCE, read by no second pass; `read_term/2` with `subterm_positions(P)` builds the position term by one walk over the tree beside
+`pl_tree_cell` (`From-To`, `string_position` for the four `double_quotes` forms, `brace_term_position`, `list_position`, `term_position`; a negative number is one
+token), subtracting the 7 bytes of the reader's `'$rd'((...))` wrapper; `comments(C)` collects the lexer's skipped comment tokens with their positions the same
+way. The tree-for-tree gate prints no position, so `parser_prolog.sc` stays green and stamps when it replaces the C parser (a declared debt in its row).
+`dict_position`, `key_value_position` and `a()` zero-arity compounds are separate rows. `tree_t` is shared by every parser, so the landing owes the eight smokes
+and the reachable cores (CEO-1928). hq_packages builds it one case at a time.
