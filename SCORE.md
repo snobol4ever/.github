@@ -16,7 +16,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-23 | `26e79fe3e` | done |
 | IPL | icon | 644/644 EXCLUDED=207 WALL=330s | 2026-10-23 | `ab0adf375` | done |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-23 | `26e79fe3e` | done |
-| SWI | prolog | 2309/2712 EXCLUDED=223 WALL=2048s | 2026-10-23 | `26e79fe3e` |  |
+| SWI | prolog | 2342/2709 EXCLUDED=226 WALL=2110s | 2026-10-24 | `26e79fe3e` |  |
 | GNU source | prolog | 39/45 EXCLUDED=17 WALL=149s | 2026-10-23 | `d6ca2f621` |  |
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=211s | 2026-10-24 | `db2d1f5a6` | done |
 | PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=24s | 2026-10-23 | `26e79fe3e` | done |
@@ -44,12 +44,12 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TixDemo | scriptix | 12/12 WALL=11s | 2026-10-23 | `152f7fde4` | done |
 | PasRosetta | pascal | 195/319 EXCLUDED=345 WALL=1153s | 2026-10-23 | `de76ad56d` |  |
 | ProRosetta | prolog | 435/481 EXCLUDED=305 WALL=2078s | 2026-10-23 | `26e79fe3e` |  |
-| ProPuzzles | prolog | 220/267 EXCLUDED=148 WALL=10148s | 2026-10-25 | `76019d4ce` |  |
-| TreallaTests | prolog | 248/329 EXCLUDED=127 WALL=235s | 2026-10-23 | `ab0adf375` |  |
+| ProPuzzles | prolog | 234/267 EXCLUDED=148 WALL=9883s | 2026-10-25 | `76019d4ce` |  |
+| TreallaTests | prolog | 270/327 EXCLUDED=129 WALL=271s | 2026-10-25 | `26e79fe3e` |  |
 | PasDemo | pascal | 8/8 EXCLUDED=0 WALL=62s | 2026-10-24 | `9934db1be` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=464s | 2026-10-23 | `3072d0240` | done |
-| XsbTests | prolog | 186/244 EXCLUDED=663 WALL=443s | 2026-10-23 | `ab0adf375` |  |
+| XsbTests | prolog | 170/550 EXCLUDED=357 WALL=593s | 2026-10-25 | `225a1687c` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
