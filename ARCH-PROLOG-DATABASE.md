@@ -95,6 +95,41 @@ then `listing.pl` under the closure. Option (c), hand-written layout, stays refu
 
 **4b THE INJECTOR'S ROOTS INCLUDE EVERY PREDICATE THE LOWERER OR A PARSER REWRITE CAN NAME (hq_zetas, 2026-10-25 02:xx: bc63b803b's closure rooted the program's clauses, the base prelude's bodies and the refkeys, so `'$tbl_icall'`, `'$tbl_kcall'`, `'$tbl_mcall'`, `'$tbl_dcall'`, `'$tbl_dchange'` -- named by emitted code and the parser's rewrites, by no clause -- were dropped and every kinded or hooked tabling program died on existence_error; cured 6efe5b2eb by rooting those six keys when their name is referenced):** THE RULE: a predicate introduced by the lowerer, a template, a runtime road or a parser rewrite (the `'$tbl_*'` family, `'$mq_arg'`, `'$clause_unmangle'`, `'$lfx_*'`, every `'$'` name a C or `.cpp` file spells) is a ROOT of the closure whenever its name is in the referenced set, and the rooting list in prolog_parse.c beside the `tbl_call` root is the one place it is declared; a landing that teaches the lowerer a new `'$'` name adds it there in the same landing, or the injector drops it on the next program. A coo reading between bc63b803b and 6efe5b2eb on a tabling program is this, not a regression of the file.
 
+## 4c. predicate_property(H, meta_predicate(Spec)) is ONE record column, read at run time in both dialects (hq_runtime's open item under § 4b, 2026-10-24 22:1x; the cto's ruling 22:2x CDT under CEO-1964/1971)
+
+Measured (SCRIP b962f0c92, mode 3, SWI dialect, against swipl 9.0.4): with the head's functor known at compile time SCRIP answers `findall(?,0,?)` where swipl
+answers `findall(?,0,-)`; with the head bound at run time (`G = findall(_,_,_), predicate_property(G, meta_predicate(M))`, which is how `listing.pl`'s
+`portray_body` asks for every body goal it lays out) SCRIP answers NOTHING for forall, catch, setof, phrase, maplist, assertz, `\+` and a user
+`:- meta_predicate solve(2,-)`, where swipl answers `forall(0,0)`, `catch(0,?,0)`, `setof(?,^,-)`, `phrase(//,?)`, `maplist(2,?,?)`, `assertz(:)`, `\+0`,
+`solve(2,-)`. swipl holds 147 `system:` meta predicates; its library ones (maplist, foldl, include, aggregate_all, limit, freeze, ...) come from the libraries'
+own `:- meta_predicate` directives. THE CAUSE is three deciders of one fact: the lowerer's hand-typed `pl_meta_template` (29 rows, swipl's vocabulary
+misspelled, `?` where swipl says `-`), the runtime's `pl_gnu_meta_spec` string (gprolog's rows, read only under `pl_gnu_dialect()` by `pl_pp_prop` and
+`pl_pp_nth`), and the compile-time `g_stage2.pl_decl_meta` vector (the program's own directives, unreachable once the head is a run-time value). RULING, four
+rules, one mechanism:
+
+1. THE SPEC IS A COLUMN OF THE PREDICATE'S RECORD. Every predicate's meta spec lives on its registry record (the record `rt_pl_db_key_kind` finds by key), as
+   its `dynamic` and `multifile` facts do; `pl_pp_prop`'s `meta_predicate` arm reads that column in BOTH dialects for a head bound at any time, and `pl_pp_nth`
+   builds the compound from the column. The GNU-only branch of `pl_pp_prop` goes.
+2. TWO SOURCES WRITE THE COLUMN, NEITHER TYPED BY HAND. (a) A `:- meta_predicate` directive -- the program's, or a prelude library's (`apply.pl` line 80
+   declares maplist's) -- writes the column at lowering, for the program's and the closure's predicates alike (the closure's declarations ride the injector,
+   § 4b). (b) A builtin with no Prolog source (the C and asm builtins and the control constructs: findall/3,4, catch/3, forall/2, setof/3, bagof/3, `\+`/1,
+   call/1..8, once/1, ignore/1, not/1, assertz/1, retract/1, the `,` `;` `->` `*->` controls, ...) takes its spec from ONE STATIC TABLE PER DIALECT in the
+   runtime's record layout (ARCH-PROLOG-C-OUT-OF-THE-BOX.md § 15's compiled tables), GENERATED into an `.inc` by a harness script that runs the oracle -- swipl
+   `findall(P, predicate_property(system:P, meta_predicate(_)), L)` with each spec, 147 rows; gprolog `predicate_property(P, meta_predicate(M))` over its
+   builtins -- and gated current the way `box_cell_shapes.inc` is (`test_gate_box_cell_shapes_inc_is_current.sh`'s shape). The dialect picks the table as it
+   picks the builtins file. `pl_meta_template`, `pl_gnu_meta_spec` and `pl_gnu_meta_term`'s private vocabulary are DELETED in the landing that lands the table;
+   the lowerer's compile-time fold of `predicate_property` for a known head (lower_prolog.c 3253, 3268, 5207) stays only as a reader of the same table, never a
+   second list.
+3. THE VOCABULARY IS EACH ORACLE'S, VERBATIM. swipl's `0..9 : ^ // ? + - *` and gprolog's `0..9 : ? + -` print as the oracle prints them (`setof(?,^,-)`,
+   `phrase(//,?)`, `format(+,:)`); a spec SCRIP cannot answer as its oracle does is a red row against the generated table, never an edited row.
+4. LISTING NEEDS ONLY RULE 1. `listing.pl`'s layout asks at run time with a bound functor; the compile-time fold never serves it. The meta-argument
+   qualification masks of `'$mq_arg'` (`pl_mq_specs`, lower_prolog.c 4690) keep reading the program's directive tree: compile-time by nature, already one reader.
+
+WITNESSES: the probe above as a corpus program (eleven heads, the user `solve(2,-)` among them, every answer swipl's, both modes), then ProRosetta quine-1 and
+a clause whose body carries findall, catch and forall under `listing/1` (§ 4b's witness). Builder: hq_runtime mints and builds it as its own row, as it
+proposed, one program at a time (CEO-1926), the Prolog smoke before the push (CEO-1928), the generated table's gate adopted into the wiring floor in the same
+landing; no new global (the table is static data, the column a field of a record that exists).
+
 ## 5. The clause fragment compiles lazily (hq_zetas' measurement on db/test_abolish, 2026-10-24 19:5x; NOT YET A ROW)
 
 Measured by callgrind: every `assert` compiles its clause fragment at assert time (`pl_db_fragment`, 1.9M Ir each, 78 percent of what test_abolish spends after
