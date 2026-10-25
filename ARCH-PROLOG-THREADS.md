@@ -40,9 +40,70 @@ A thread record extends the co-expression context (`scrip_coctx_t`), as `rt_genp
 
 The C core is small and is a set of LEAVES that compute and return (CEO-985): create, yield, block on a reason, wake, and the queue and mutex operations. They are C so that each is atomic under the baton (a C leaf contains no safe point, so no preemption can split it); every policy above them -- option lists, `thread_property/2` enumeration, `with_mutex/2`, `concurrent/3`, `concurrent_maplist`, `first_solution/3`, `thread_pool` -- is Prolog in the prelude over those leaves. A message queue is a record with typed DESCR slot storage of copied terms and a waiter list (NO DELIMITER-JOINED AGGREGATES); a mutex is a record with an owner thread and a recursion count. `thread_wait/2` and `thread_update/2` are a generation word on the dynamic database plus a wait reason, woken by `thread_update` and by every assert or retract while a waiter exists.
 
-## 4. Engines need no scheduler
+## 4. Engines need no scheduler (EXPANDED 2026-10-24 21:2x CDT by the cto under CEO-1960/1964: the design of `prolog-swi-engines-designed-by-the-cto-and-built-ceo-1960`; Lon's CEO-1766 hold is on THREADS, an engine is a coroutine and is in scope)
 
-An SWI engine is a coroutine, never a parallel thread: `engine_create/3` makes a Prolog generator context on the `rt_genp` road (`src/runtime/rt/rt.c`) with its own machine stack and its own trail arena; `engine_next/2` activates it and receives the next answer; `engine_yield/1` parks it with a value through `rt_plco_park`; `engine_post/2,3` and `engine_fetch/1` are a one-term mailbox in the record; `engine_destroy/1` drops it; `engine_self/1` reads the current context. This is the 14 cases of `engines/test_engines.pl` and it is the first landing, because it proves the per-thread trail arena and the copied goal on a road that already runs.
+**The population (measured, `results.tsv`):** `engines/test_engines.pl`, 14 cases, every one red in both modes, `existence_error(procedure, engine_create/3)`:
+alias, rdef_alias, stack_limit, findall, yield, post, whisper, count (under `:- if(current_prolog_flag(threads, true))`, which SCRIP answers `false`, so it is
+skipped), error, no_data, gc, gc2, gc3, gc4. The surface they call: `engine_create/3,4` (options `alias(A)`, `stack(Limit)`/`stack_limit`), `engine_next/2`,
+`engine_next_reified/2`, `engine_yield/1`, `engine_post/2,3`, `engine_fetch/1`, `engine_destroy/1`, `engine_self/1`, `current_engine/1`, `is_engine/1`.
+
+**What exists and is reused whole:** the co-expression (`src/runtime/rt/rt_coexpr.c`, 499 lines): a context record (`scrip_coctx_t`: its own mmap'd machine
+stack `stk_lo..stk_hi`, the park site `park_sp/park_rbp/park_pc/park_r/park_srbp` the collector reads, `xmit` the one transmitted DESCR, `activator`, `gc_next`
+the collector's chain) created by `scrip_coexpr_create`, entered and resumed by `scrip_coexpr_activate`, left by `scrip_coret` (a value) or `scrip_cofail`
+(exhaustion), the templates `bb_create.cpp`, `bb_activate.cpp`, `bb_coret.cpp`, `bb_cofail.cpp` (Icon's `create`, `@`, and the body's exits), and the Prolog
+GENERATOR CONTEXT already built over it, `rt_genp_s` (`rt.c` 1608: a Prolog predicate run as a generator on its own co-expression; `rt_genp_deliver_γ`
+transmits an answer through `scrip_coret`, `rt_genp_deliver_ω` ends it through `scrip_cofail`) with THE PER-COROUTINE TRAIL MARK it carries (`pl_park`,
+`pl_base`, `pl_floor`, `pl_xtr` on the context: `rt_plco_mark`, `rt_plco_inside`, the park kinds), which is what `reset/3` and `shift/1` stand on
+(ARCH-PROLOG-CONTINUATIONS.md, 1e3b157b5; `core/test_continuation.pl` 9 of 52 cases green, so that road is measured, not assumed).
+
+**The design: an engine IS a generator context.** `engine_create(Templ, Goal, E, Opts)`: `copy_term(Templ-Goal, T2-G2)` (SWI copies; the engine shares no
+variable with its creator, so no binding ever crosses the switch), then create an `rt_genp_s` whose body is the prelude predicate
+`'$engine_body'(T2, G2)` -- `call(G2)`, on each solution `'$engine_answer'(T2)`: the answer is COPIED TO THE HEAP (it outlives the engine's stack and its trail
+segment: THE LIFETIME RULE; `findall/3`'s own copy, `rt_findall_copy`) and transmitted by `rt_genp_deliver_γ`; on exhaustion `rt_genp_deliver_ω`. `E` is a
+heap blob of kind `HB_ENGINE` holding the context pointer, the alias, the mailbox DESCR and the state (created, running, suspended, done); the blob is the
+collector's root of the context (`scrip_co_gc_link`), the context's stack is scanned as a root set as a co-expression's is today, and the context's trail
+segment is scanned by the same visitor the generator road uses.
+
+- **`engine_next(E, T)`** activates (`scrip_coexpr_activate`): the body runs to its next answer, which arrives in `xmit`; `T` unifies with the heap copy. A
+  second `engine_next` backtracks INTO the body's own choice points, which live on the engine's stack and in its trail segment -- the engine's choice points
+  are LIFO with the engine's activations, never interleaved with the caller's (r12 is saved and restored by the switch as the generator road already does it:
+  `rt_genp_thread_entry` loads r12-r15 from the record). On `scrip_cofail` the engine is `done`, `engine_next` fails, `engine_next_reified(E, no)`.
+- **`engine_yield(T)`** inside the body: copy `T` to the heap, `rt_genp_deliver_γ`; the body continues after the yield on the next activation (the park kind
+  distinguishes a yield from an answer only for `engine_next_reified`'s `the(T)` form, which both give).
+- **`engine_post(E, T)`** writes the blob's mailbox (a heap copy); `engine_fetch(T)` inside the body reads and clears it, or throws
+  `existence_error(term, delivery, E)` when it is empty (`no_data`); `engine_post(E, T, Reply)` is post then next.
+- **An exception in the body** (`error`): the body is wrapped in `catch/3` by `'$engine_body'`; the ball is copied to the heap and transmitted with the park kind
+  THROW; `engine_next` re-throws it in the caller (`engine_next_reified` gives `throw(Ball)`) and the engine is `done`. No ball ever crosses a stack switch as a
+  ball: it crosses as data and is re-thrown on the caller's stack (CEO-1576: a C road returns the address, the box jumps; here the prelude re-throws).
+- **`engine_destroy(E)`** marks the blob dead and `scrip_coexpr_destroy`s the context (its stack unmapped, its trail segment released); a `done` engine is
+  destroyed implicitly after its last answer unless an alias holds it. **`gc`..`gc4`:** an UNREACHABLE engine blob is reclaimed by the collector like any heap
+  blob, and the sweep of an `HB_ENGINE` blob destroys its context -- the one finaliser-shaped step, done inside the collector's sweep of a typed block, which
+  already knows the block's kind; no finaliser list, no second pass. 100 undestroyed engines of `gc_engines/2` therefore stay bounded.
+- **`alias(Name)`** registers the blob under `Name` in a registry root cell (`'$engine_aliases'`, a heap assoc rooted there, CEO-1542's single current-X cell);
+  `engine_create` with a taken alias throws `permission_error(create, engine, Name)` (`rdef_alias`); `current_engine/1` enumerates the registry and the live
+  blobs; `engine_self(E)` reads the current context's blob (`g_scrip_co_current` → its `rt_genp_s` → the blob back-pointer).
+- **`stack(Limit)` / `stack_limit`** sizes the context's mmap'd stack at create (`scrip_coexpr_create`'s `frame_bytes`/`below_bytes` already size it; the option
+  becomes those numbers); `statistics(stack_limit, L)` inside the engine reads the record (`stack_limit`: `TheLimit =:= 1_000_000`).
+- **`whisper`:** engines creating engines: an engine's body may `engine_create` and `engine_next` another; the activator chain (`activator`) is the one the
+  co-expression already keeps.
+
+**Lowering:** `engine_create/3,4`, `engine_next/2`, `engine_next_reified/2`, `engine_yield/1`, `engine_post/2,3`, `engine_fetch/1`, `engine_destroy/1`,
+`engine_self/1`, `current_engine/1`, `is_engine/1` are PRELUDE predicates (a `engines.pl` library in `prelude/`, injected when the source names one of them)
+over FIVE leaves: `'$engine_new'(T2, G2, Opts, E)` (the record, the context, the blob), `'$engine_next'(E, Kind, Value)` (activate; `Kind` = answer, yield,
+throw, done), `'$engine_yield'(Kind, Value)` (deliver from inside), `'$engine_destroy'(E)`, `'$engine_self'(E)`; the mailbox and the aliases are prelude data on
+their root cells. The leaves are the generator road's existing entries renamed to their meaning, in `rt.c` beside `rt_genp_*`; `'$engine_new'`'s body entry is
+the compiled `'$engine_body'/2`, so no new IR kind and no new template: the box that calls `'$engine_next'` makes the jump the leaf returns (`rt_call_next_t`).
+
+**New runtime state, asked before the first landing (ARCH § 7's rule):** the two registry root cells `'$engine_aliases'` and nothing else; `HB_ENGINE` is a
+new typed heap block kind (a visitor that roots the context and the mailbox), which the cfo reviews as the collector's reviewer.
+
+**The order:** one witness file, `engines/test_engines.pl`, built whole (the leaves, the blob kind, the prelude), rolled out small on `yield` and `findall`
+(the row's DONE-WHEN is `yield`), then the other twelve, then the Prolog smoke before every push; `core/test_continuation.pl`'s 43 reds are measured against
+this design's park kinds afterwards, because `reset/3` is the same road with a one-shot continuation.
+
+**Refused:** a scheduler, a thread, or a timer for engines (Lon's CEO-1766 hold stands on threads); a second trail or choice-point stack kind (an engine's trail
+segment is an instance of the one r12 island, as a co-expression's stack is an instance of the one machine stack); a finaliser list; a global engine table
+without a root cell; an engine sharing a variable with its creator.
 
 ## 5. The toplevel (`prolog/0`, `set_prolog_IO/3`)
 

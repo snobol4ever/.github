@@ -87,8 +87,8 @@ with incremental dependents invalidates them (xsb `test_abolish_nonincremental`)
 ## 4. MONOTONIC, EAGER: a delta-seeded semi-naive step in place of SWI's continuation
 
 SWI captures, with `shift/1` inside `reset/3` (`'$start_monotonic'`, `pdelim`), the CONTINUATION of a clause body after the call to a monotonic dynamic,
-stores it on the edge, and on an assert re-runs it per new fact. SCRIP has no delimited continuations and its engine re-runs clause bodies to a fixpoint
-(WFS § 3), so the equivalent is **the step the engine already knows how to take, seeded by an external delta**: on `'$tbl_dchange'(assert, F)` for mono D,
+stores it on the edge, and on an assert re-runs it per new fact. SCRIP's `reset/3` and `shift/1` are a one-shot coroutine road still 43 of 52 cases red (ARCH-PROLOG-CONTINUATIONS.md), and the tabling engine
+re-runs clause bodies to a fixpoint (WFS § 3), so the equivalent is **the step the engine already knows how to take, seeded by an external delta**: on `'$tbl_dchange'(assert, F)` for mono D,
 for each eager T in `D.Affects`:
 
 `'$tbl_mono_step'(T, Src, Delta)`: open a header (`'$tbl_hdr'`), own cell 6 = **`mono(Src, Delta)`** (a third context form beside today's `all` and
@@ -207,5 +207,5 @@ today's behaviour and what keeps `twice_invalid` green on the loader road.
 
 A global list of tables being evaluated or propagated (CEO-1542: the chain of headers IS the list); a worklist held anywhere but the machine stack; a
 new root cell (the transaction is found through the header chain); an answer or a dependency kept outside the trie's meta term; `nb_setval` on any
-`$tbl_` name; a continuation store (SCRIP has no `reset/3`, and the delta step needs none); invalidating every incremental table on a change once § 3
+`$tbl_` name; a continuation store (the one-shot `reset/3` road is not a foundation yet, and the delta step needs none); invalidating every incremental table on a change once § 3
 is in (the graph decides).
