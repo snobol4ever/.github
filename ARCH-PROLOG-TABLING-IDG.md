@@ -36,6 +36,30 @@ trie (`rt_pl_trie_meta_set/get`, `unification.c` 3962: meta slots 0 and 1, non-b
 `PL_TBH_CELLS`): cell 0 the bank, cells 1-9 all owned (TABLING-BOXES § 3). `assert/2` with a clause reference and `erase/1` exist (`test_monotonic` pa2,
 `prelude/gensym.pl`).
 
+## 0b. THE TRIE API, MEASURED 2026-10-25 02:xx CDT (CEO-1971 (1): no SWI design is owed, one harness ruling; the XSB intern API is a prelude library)
+
+SWI `tabling/test_trie.pl`, 24 cases: swipl 9.0.4 answers 22 run one at a time (`run_tests(trie:Name)`); `gen_compiled3_free` and `gen_compiled3_cycle` CRASH the
+oracle itself (rc 139, core dumped), so those two are NO_ORACLE_ANSWER exclusions (CEO-1696). The file-level oracle run dies on them, which is why EVERY case of
+the file has read UNGRADABLE since 2026-10-11 (`oracle process exited rc=139 with no verdict`): a HARNESS DEFECT, not debt. RULING: the SWI runner grades the
+oracle PER CASE, or re-runs the file with the named crashers excluded, so the 22 return to the denominator; the row is the SWI runner's owner's (hq_packages with
+the coo), its witness this file. SCRIP today (origin 76019d4ce, mode 3 through the runner's road): 22 passed, 1 failed (`gen_compiled3_cycle`, no oracle answer),
+1 skipped: 22 of 22 answerable. `test_trie_attvars.pl`, 12 cases: the unit's `condition(has_trie_attvar_support)` is FALSE on swipl 9.0.4 ("No tests to run"), so
+the oracle answers no case; SCRIP's `'$trie_ins_r'(-4, K)` free_of_attvar refusal makes the condition false too, and the 12 rows are EXCLUDED agreeing. No design
+page for the SWI trie API: the runtime's `'$trie_*'` leaves and the base rules of prolog_parse.c answer it.
+
+XSB `table_tests_test_trievars` (XSB the oracle, CEO-1927) reads FAIL with EMPTY output: the parser refuses `:- import P/N, ... from M.` with "expected . after
+directive" (measured on `:- import length/2 from basics.` alone, the SWI-marked reading of the file), XSB's `intern` module is unimplemented (`new_trie/1`,
+`trie_intern/2,3,4,5`, `trie_interned/2,3,4`, `trie_unintern/2`, `delete_trie/1`, `trie_dispose/2`, `bulk_trie_intern`), and `:- index(P/N, trie)` raises
+existence_error(index/2). THE DESIGN: (1) the `import ... from M` directive is accepted whole by the parser in every dialect (a comma list of predicate indicators,
+`from` the directive's own operator) and resolved by the loader as swipl resolves use_module: by name, through DATABASE § 6 rule 2's dialect module alias table
+(`basics`, `intern`, `num_vars`, `lists`, `usermod` cut from XSB's module list, never typed); (2) `library(intern)` is a SCRIP prelude library `xsb_intern.pl` over
+the runtime's trie leaves, no new runtime: a trie id stays `'$trie'(I)`, `new_trie(T)` is `trie_new`, `trie_intern(Term, T)` inserts the variant skeleton as the
+key with the node `'$trie_node'(I, R)` as the value, `trie_intern(Term, T, Leaf, Skel)` returns the node and `'$trie_entry_key'`'s skeleton, `trie_interned(Term, T)`
+enumerates `'$trie_entries'`, `trie_unintern` is `trie_delete`, `delete_trie` is `trie_destroy`; (3) `:- index(P/N, trie)` is accepted and ignored (an indexing hint;
+DATABASE § 7 indexes the first argument), counted in the landing. BUILDER: hq_icon under the XsbTests row, one program at a time against XSB (graded
+ignore-all-space as its table row says); `test_trie_property` stays ORACLE_REFUSES, excluded. The file's `use_module(library(lists))` marker comment ("the oracle is
+swipl") is stale since CEO-1927 and is corrected in the same landing.
+
 ## 1. The rule: what lives where (THE LIFETIME RULE, the three zetas, CEO-1542)
 
 - **THE ANSWERS AND THE GRAPH outlive every call that made them: HEAP.** A table's node, its dependencies, its dependents, its falsecount, its lazy
