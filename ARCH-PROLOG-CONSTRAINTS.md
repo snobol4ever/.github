@@ -64,6 +64,10 @@ fourmotz_r,bb_r}`: 419 attribute sites (`put_attr`/`get_attr`/`del_attr`, module
 **Refused:** a SCRIP-written linear solver; a shared `clpqr` loaded twice under two module names (one instance, the program picks Q or R); editing the
 vendored files to fit the flattener -- a flattening defect is a row on the flattener.
 
+## 2b. CLP(B): vendored verbatim, BSD, no licence question (hq_snobol4's TreallaTests issues_test0338 and issues_test0369, 2026-10-25; ruled by the cto 09:3x CDT)
+
+swipl's `library/clp/clpb.pl` is Markus Triska's, copyright 2014-2018 under the BSD-2 terms every other SWI library carries (its header: redistribution in source and binary forms with the two conditions), NOT the GPL that `clpq`, `clpr` and the `clpqr` core carry (`license(gpl_swipl)`, the question before Lon). It is vendored VERBATIM through the library road § 2 built (one library file, the `<lib>:<name>` private keys, the dialect flag it reads), nothing rewritten; `sat/1`, `taut/2`, `labeling/1`, `sat_count/2` are its exports; its attributed-variable and `attr_unify_hook` roads are the ones CLP(FD) already exercises. BUILDER: hq_snobol4, whose two Trealla entries are the witnesses (all three solutions of `sat(X*Y + X*Z)` under `labeling`; `sat(A+B), A=B` giving `A=1, B=1`), one program at a time against swipl 9.0.4, the Prolog smoke before the push; a defect the vendored text exposes in SCRIP's attributed-variable road comes back here as a row with its bracket, never as a patch to the library.
+
 ## 3. CHR: the LOWERER translates the rules; the store is the vendored runtime over attributed variables
 
 SWI's CHR is `chr.pl` (632 lines: a `term_expansion` driver), `chr/chr_runtime.pl` (1,016 lines: the constraint store as attributed variables per variable
