@@ -43,6 +43,18 @@ Every user predicate, static or dynamic: the static seeding (`pl_static_seed_pre
 `portray_clause/1` target can name, single-clause predicates included (the `TT_CHOICE` test is the defect), printed through the portray_clause road the dynamic
 ones use, so a quine prints itself as swipl does.
 
+## 4b. portray_clause and listing print swipl's layout in the SWI dialect: library(listing) vendored (hq_runtime's question 4, 2026-10-24 21:5x)
+
+Measured: swipl 9.0.4's `library/listing.pl` is 1,246 lines of plain Prolog with no system-internal call (zero names of the `$` form), no `print_message`,
+eleven `setting/2` reads (`listing:line_width`, `tab_distance`, `cut_at`, `comment_ansi_attributes`, ...) over `library(settings)` (752 lines, plain Prolog),
+and autoloads of `apply`, `error`, `lists`, `option`, `ansi_term`, `debug`, `prolog_clause` (`clause_info/5`), `prolog_code` (`most_general_goal/2`);
+`portray_clause/1,2,3` are its lines 650-658. RULING: vendor `listing.pl` verbatim under CEO-1473 for the SWI dialect, parsed only for a program naming
+`listing`, `portray_clause` or their options; its settings answered by vendoring `settings.pl`, or, if that library drags more than the cost gate allows, by a
+base-prelude rule answering exactly the listing settings with swipl's defaults cut from swipl; `clause_info/5` and `most_general_goal/2` only when a program
+reaches `listing/1`'s source-layout road. The GNU dialect keeps `gnu_builtins.pl`'s `portray_clause` (gprolog's layout, graded by gplc); the dialect picks the
+library as it picks the builtins file. Hand-written layout rules are refused: they drift on the next shape the corpus prints. Witnesses: ProRosetta quine-1, then
+a clause with an if-then-else and a disjunction body, both modes against swipl.
+
 ## 5. The clause fragment compiles lazily (hq_zetas' measurement on db/test_abolish, 2026-10-24 19:5x; NOT YET A ROW)
 
 Measured by callgrind: every `assert` compiles its clause fragment at assert time (`pl_db_fragment`, 1.9M Ir each, 78 percent of what test_abolish spends after
