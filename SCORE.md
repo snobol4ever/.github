@@ -14,7 +14,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-25 | `1a8972d05` | done |
 | Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-10-25 | `005253b63` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=22s | 2026-10-25 | `1ff4523a0` | done |
-| IPL | icon | 643/644 EXCLUDED=207 WALL=321s | 2026-10-25 | `005253b63` |  |
+| IPL | icon | 644/644 EXCLUDED=207 WALL=321s | 2026-10-25 | `005253b63` | done |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-25 | `26e79fe3e` | done |
 | SWI | prolog | 2342/2709 EXCLUDED=226 WALL=2110s | 2026-10-24 | `26e79fe3e` |  |
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=149s | 2026-10-24 | `d6ca2f621` | done |
