@@ -57,7 +57,7 @@ for p, info in b.items():
             k = m.group(1)
             grace = float(re.sub(r'[smhd]$', '', k)) if k and re.match(r'^\d+(\.\d+)?[smhd]?$', k) else 0.0
             if el > lim + grace + 60: why = 'outlived-its-timeout-%gs%s' % (lim, '' if k else '-no-k')
-    if not why and el > 1800 and c > 0.5 and info['comm'] not in ('claude', 'gnome-shell', 'gnome-terminal-', 'Xwayland', 'chrome', 'sublime_text') and not info['comm'].startswith('kworker'):
+    if not why and el > 1800 and c > 0.5 and info['comm'] not in ('claude', 'gnome-shell', 'gnome-terminal-', 'Xwayland', 'chrome', 'sublime_text') and not info['comm'].startswith('kworker') and os.path.basename(args(p).split(' ', 1)[0]) != 'claude':
         why = 'busy-%.0f-min' % (el / 60)
     if why: run.append((c, p, seat_of(cwd(p)), el, why, args(p)[:90]))
 for c, p, s, el, why, cmd in sorted(run, reverse=True):
