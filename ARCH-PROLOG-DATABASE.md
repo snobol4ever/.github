@@ -43,6 +43,20 @@ predicate. `clause/2`, `listing/1` and `current_predicate/1` name exported keys 
 lib2.pl (the own-export arm) first; then a program that redefines a `lists` export (`member/2` or `append/3`) and calls a spliced library predicate whose body
 uses it (the cross-library arm); both modes against swipl. BUILDER: hq_snobol4 under CEO-1964, one program at a time (CEO-1926), the Prolog smoke before the push.
 
+**THE SAME RULE COVERS THE BASE PRELUDE AND A MODULE-QUALIFIED LIBRARY CALL (hq_icon's ask, 2026-10-24 21:4x, XsbTests ai_tests cs_o/cs_r/kalah/pg/plan and
+call_tests; the cto 2026-10-25 02:1x CDT):** measured, SCRIP's own library code calls `member/2` by name from the base prelude (`memberchk/2`, `environ/2`,
+`file_property/2`, the debug topic check, `trie_gen/3`, `subtract/3`, `intersection/3`, `union/3`, `locale_property/2`, the load_files pickers), from
+`prelude/tabling.pl` (`tbl_rhas/2`, `incr_guard`), `xsb_tables.pl`, `lists.pl`, `aggregate.pl`, `nb_set.pl`, `rbtrees.pl`, `clpfd.pl`, and a program that defines
+its own `member/2` captures every one of them (ai_tests_cs_o misses 18 of 51 answer lines; renaming the program's member/2 alone cures it); a per-site private
+helper flips nothing (hq_icon tried five sites) and is REFUSED as the meanwhile: it is whack-a-mole. THE RULE IS ONE MECHANISM: the base prelude is a library
+(module `system`) like the vendored ones, so EVERY call site inside library code (base or vendored) to a predicate that LIBRARY CODE defines is lowered against
+the defining library's private key, and only the program's own clauses reach the exported key, whether the program defines the name at compile time (today's
+`pl_user_file_defines` road, § 3) or asserts it at load time (the LIBRARY-kind re-point above). A module-qualified call `M:G` with M a LIBRARY MODULE resolves to
+that library's private key (§ 6 rule 2), and a DIALECT MODULE ALIAS is a static table cut from the oracle, never typed by hand: XSB's `basics` (member/2,
+append/3, select/3, ...) is `lists`, `usermod` is `user`, so `call(basics:select, X, L, R)` reaches the library's select/3 while the program's own select/3 stays
+in user, as XSB keeps them apart. BUILDERS: hq_snobol4 builds the mechanism (the private keys, the library-internal lowering for the base and the vendored
+libraries) under its TreallaTests row; hq_icon brings the alias table and the XSB witnesses (cs_o first) one program at a time, both modes against XSB.
+
 ## 3. Redefining a builtin in the SWI dialect (hq_runtime's question 2; ProRosetta associative-array-iteration-1)
 
 swipl's own rule: a user clause for a predicate swipl marks `iso` (`predicate_property(P, iso)`: the ISO core, `length/2` among them) is
@@ -78,6 +92,8 @@ the program references (the body walk the prelude already does across libraries,
 predicate no program road reaches is never compiled; this is the general road for every vendored library (clpfd is 7,903 lines compiled whole today) and lands
 first, its witness a clpfd program's compile time before and after beside quine-1; then `current_predicate/2` as a base builtin (SWI has it, SCRIP lacks it);
 then `listing.pl` under the closure. Option (c), hand-written layout, stays refused.
+
+**4b THE INJECTOR'S ROOTS INCLUDE EVERY PREDICATE THE LOWERER OR A PARSER REWRITE CAN NAME (hq_zetas, 2026-10-25 02:xx: bc63b803b's closure rooted the program's clauses, the base prelude's bodies and the refkeys, so `'$tbl_icall'`, `'$tbl_kcall'`, `'$tbl_mcall'`, `'$tbl_dcall'`, `'$tbl_dchange'` -- named by emitted code and the parser's rewrites, by no clause -- were dropped and every kinded or hooked tabling program died on existence_error; cured 6efe5b2eb by rooting those six keys when their name is referenced):** THE RULE: a predicate introduced by the lowerer, a template, a runtime road or a parser rewrite (the `'$tbl_*'` family, `'$mq_arg'`, `'$clause_unmangle'`, `'$lfx_*'`, every `'$'` name a C or `.cpp` file spells) is a ROOT of the closure whenever its name is in the referenced set, and the rooting list in prolog_parse.c beside the `tbl_call` root is the one place it is declared; a landing that teaches the lowerer a new `'$'` name adds it there in the same landing, or the injector drops it on the next program. A coo reading between bc63b803b and 6efe5b2eb on a tabling program is this, not a regression of the file.
 
 ## 5. The clause fragment compiles lazily (hq_zetas' measurement on db/test_abolish, 2026-10-24 19:5x; NOT YET A ROW)
 
