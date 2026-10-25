@@ -1,0 +1,95 @@
+diff --git a/src/ir/frame_layout.c b/src/ir/frame_layout.c
+index c48fdd642..2639f8b07 100644
+--- a/src/ir/frame_layout.c
++++ b/src/ir/frame_layout.c
+@@ -1878,6 +1878,10 @@ typedef struct { const IR_t * nd; uint32_t gen; uint32_t fl; int vr; int pe; int
+ #define FCN_LHOME 0x10000u
+ #define FCN_RES 0x20000u
+ #define FCN_RO 0x40000u
++#define FCN_BSK 0x80000u
++#define FCN_BSF 0x100000u
++#define FCN_BOK 0x200000u
++#define FCN_BOV 0x400000u
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ static void fc_reg_hw(const char * tbl, int n) {
+     if (g_lower.ir.fc_reg_hw_e == (const char *) 1) g_lower.ir.fc_reg_hw_e = getenv("SCRIP_FC_REG_HIGHWATER");
+@@ -2039,6 +2043,8 @@ void zls_home_callees_mark(IR_graph_t ** gs, int n, const char ** pn, const int
+ }
+ int zls_fcn_hret(const IR_t * nd) { return fcn_find(nd, FCN_HRET) ? 1 : 0; }
+ int zls_fcn_hunres(const IR_t * nd) { return fcn_find(nd, FCN_HUNRES) ? 1 : 0; }
++int zls_fcn_bs_get(const IR_t * nd, int which) { uint32_t k = which ? FCN_BOK : FCN_BSK, v = which ? FCN_BOV : FCN_BSF; return fcn_find(nd, k) ? (fcn_find(nd, v) ? 2 : 1) : 0; }
++void zls_fcn_bs_set(const IR_t * nd, int which, int val) { if (!nd) return; uint32_t k = which ? FCN_BOK : FCN_BSK, v = which ? FCN_BOV : FCN_BSF; fcn_t * t = fcn_get(nd); t->fl |= k; if (val == 2) t->fl |= v; else t->fl &= ~v; }
+ static int zls_home_dyn(const IR_graph_t * g, const IR_t * nd) { extern int planner_home_dyn(const IR_graph_t *, const IR_t *); return planner_home_dyn(g, nd); }
+ const char * zls_home_why_name(int w) {
+     switch (w) {
+diff --git a/src/planner/planner.h b/src/planner/planner.h
+index 29798e11b..a8325c667 100644
+--- a/src/planner/planner.h
++++ b/src/planner/planner.h
+@@ -84,6 +84,8 @@ enum {
+ extern "C" {
+ int zls_fcn_hret(const IR_t * nd);
+ int zls_fcn_hunres(const IR_t * nd);
++int zls_fcn_bs_get(const IR_t * nd, int which);
++void zls_fcn_bs_set(const IR_t * nd, int which, int val);
+ }
+ #include "../ir/frame_layout.h"
+ int planner_retains(const IR_t * nd);
+diff --git a/src/planner/zeta_plan.cpp b/src/planner/zeta_plan.cpp
+index 0388215b8..7563cb12c 100644
+--- a/src/planner/zeta_plan.cpp
++++ b/src/planner/zeta_plan.cpp
+@@ -461,9 +461,13 @@ extern "C" int planner_bound_spine(const IR_graph_t * g, const IR_t * nd) {
+     if (!g || !nd || nd->op != IR_BOUND || !zls_g_home_frame(g) || !zls_g_resumable_frame(g)) return 0;
+     const IR_t * ig = zd_chase((IR_t *)nd->ω.node);
+     if (!ig || ig->op != IR_GATE) return 0;
+-    int fence = 0;
+-    for (int k = 0; k < g->n && !fence; k++) { const IR_t * u = g->all[k]; if (u && u->op == IR_UNMARK && u->n_operands > 0 && u->operands[0] == nd && IR_LIT(u).ival == 2) fence = 1; }
+-    if (!fence) return 0;
++    int fence = zls_fcn_bs_get(nd, 0);
++    if (!fence) {
++        for (int k = 0; k < g->n && fence != 2; k++) { const IR_t * u = g->all[k]; if (u && u->op == IR_UNMARK && u->n_operands > 0 && u->operands[0] == nd && IR_LIT(u).ival == 2) fence = 2; }
++        if (fence != 2) fence = 1;
++        zls_fcn_bs_set(nd, 0, fence);
++    }
++    if (fence == 1) return 0;
+     IR_graph_t * sv = g_emit_cfg;
+     g_emit_cfg = (IR_graph_t *)g;
+     std::vector<const IR_t *> seen(1, nd), stk(1, nd);
+@@ -480,13 +484,21 @@ extern "C" int planner_bound_spine(const IR_graph_t * g, const IR_t * nd) {
+             stk.push_back(y);
+         }
+     }
+-    for (int k = 0; k < g->n && !r; k++) {
+-        const IR_t * x = g->all[k];
+-        if (!x || x == nd || std::find(seen.begin(), seen.end(), x) != seen.end()) continue;
+-        for (int e = -2; e < x->n_operands && !r; e++) {
+-            const IR_t * y = e == -2 ? x->γ.node : e == -1 ? x->ω.node : x->operands[e];
+-            if (y && y->op == IR_UNMARK && y->n_operands > 0 && y->operands[0] == nd && !(IR_LIT(y).ival & 32)) r = 1;
++    if (!r) {
++        int o = zls_fcn_bs_get(nd, 1);
++        if (!o) {
++            for (int k = 0; k < g->n && o != 2; k++) {
++                const IR_t * x = g->all[k];
++                if (!x || x == nd || std::find(seen.begin(), seen.end(), x) != seen.end()) continue;
++                for (int e = -2; e < x->n_operands && o != 2; e++) {
++                    const IR_t * y = e == -2 ? x->γ.node : e == -1 ? x->ω.node : x->operands[e];
++                    if (y && y->op == IR_UNMARK && y->n_operands > 0 && y->operands[0] == nd && !(IR_LIT(y).ival & 32)) o = 2;
++                }
++            }
++            if (o != 2) o = 1;
++            zls_fcn_bs_set(nd, 1, o);
+         }
++        r = o == 2;
+     }
+     g_emit_cfg = sv;
+     return r ? 0 : 1;
+@@ -919,7 +931,7 @@ static void zst_plan(IR_t ** nodes, int n) {
+     std::vector<int> bnds; std::vector<std::vector<unsigned char>> esc; std::vector<unsigned char> wland((size_t)n, 0);
+     for (int i = 0; i < n; i++) { int q = zst_edge(nodes, n, i, 1); if (q >= 0) wland[(size_t)q] = 1; }
+     for (int b = 0; b < n; b++) { if (nodes[b]->op != IR_BOUND) continue; std::vector<unsigned char> r((size_t)n, 0); std::vector<int> wl;
+-        for (int u = 0; u < n; u++) if (nodes[u]->op == IR_UNMARK && (zd_pl_rest_ival(nodes[u]) || wland[(size_t)u]) && nodes[u]->n_operands > 0 && nodes[u]->operands[0] == nodes[b]) {
++        for (int u = 0; u < n; u++) if (nodes[u]->op == IR_UNMARK && nodes[u]->n_operands > 0 && nodes[u]->operands[0] == nodes[b] && (zd_pl_rest_ival(nodes[u]) || wland[(size_t)u])) {
+             int q = zst_edge(nodes, n, u, 0);
+             if (q >= 0 && !r[(size_t)q]) { r[(size_t)q] = 1; wl.push_back(q); } }
+         while (!wl.empty()) { int v = wl.back(); wl.pop_back(); for (int k = scnt[(size_t)v]; k < scnt[(size_t)v + 1]; k++) { int w = sd[(size_t)k]; if (w >= 0 && !r[(size_t)w]) { r[(size_t)w] = 1;
