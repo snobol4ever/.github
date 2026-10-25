@@ -25,9 +25,23 @@ LIBRARY, never static (a predicate the program defines keeps static: swipl refus
 for a key of kind LIBRARY DROPS the library definition and defines the predicate as the program's own, dynamic, re-pointing the key as an abolished key is
 re-pointed to its stub (`pl_runtime_install_packet_entry`, hq_zetas 3ccfcecdc), so every call site that resolved the key at compile time reaches the user's
 clauses; no warning, as swipl prints none when a local definition shadows an autoload; (3) the prelude's own calls to that predicate (`digits//1` calling
-`digit//1` inside `dcg/basics`) keep the library's definition, because the reader's renamed helper is a different key -- swipl's split is the same when a
-library exports both names and the user redefines one. The compile-time half already behaves (a plain fact overrides the library). Witnesses: issues_test1142
+`digit//1` inside `dcg/basics`) keep the library's definition. The compile-time half already behaves (a plain fact overrides the library). Witnesses: issues_test1142
 and the minimal program above, both modes, against swipl.
+
+**(3) AS FIRST WRITTEN WAS WRONG AND IS RE-CUT (hq_snobol4's measurement, 2026-10-24 22:0x, with (1) and (2) built; the cto's ruling 2026-10-25 00:5x CDT):**
+the reader renames nothing; a library's calls to its own exports go through the SAME key, so with (1) and (2) alone the user's `digit//1` (asserted after a
+`term_expansion`) is what library `digits//1` calls -- witness lib2.pl: swipl prints `123-` then `120`, the patch printed `-123`, the parent refused the assert.
+THE RULING is swipl's module rule, at compile time only: every predicate a spliced library defines is registered under a PRIVATE KEY, its module-qualified name
+(`dcg_basics:digit/3`: the library's file stem as swipl names the module), and the exported key `digit/3` is installed as the LIBRARY-kind entry of (1)
+sharing that same code. Every call site INSIDE a spliced library's clauses to an export of a spliced library -- its own, or another library's it imports -- is
+lowered against the DEFINING library's private key; only user code reaches the exported key; (2)'s re-pointing moves the exported key alone. So the user's
+definition is reached by every user call site and by no library call site, as swipl resolves a library body in its own module and the user's definition in
+`user`. A library's call to a name it does NOT export -- a hook the user is meant to define (`portray/1`, `message_hook/3`, `term_expansion/2`, any multifile
+predicate) -- keeps the shared key. REFUSED, hq_snobol4's (b): re-pointing at assert time registering an alias and re-targeting the library's call sites walks
+the registry at run time on every first assert and misses a library spliced after the assert. COST: none at run time; one more registry entry per library
+predicate. `clause/2`, `listing/1` and `current_predicate/1` name exported keys and the user's only; the private key is unreachable from source. WITNESSES:
+lib2.pl (the own-export arm) first; then a program that redefines a `lists` export (`member/2` or `append/3`) and calls a spliced library predicate whose body
+uses it (the cross-library arm); both modes against swipl. BUILDER: hq_snobol4 under CEO-1964, one program at a time (CEO-1926), the Prolog smoke before the push.
 
 ## 3. Redefining a builtin in the SWI dialect (hq_runtime's question 2; ProRosetta associative-array-iteration-1)
 
@@ -73,11 +87,30 @@ pays nothing and one that asserts a thousand facts and calls once compiles once 
 cfo) take this as a row when the ceo mints it; it needs no new state beyond a per-clause "compiled" mark the clause record already has room to carry (the
 record is theirs to lay out).
 
-## 6. Measured, waiting for a ruling with their program
+## 6. THE MODULE CONTEXT: the surface is swipl's compound, the mangled key is the registry's alone (hq_zetas's witness `mq1-module-context-witness.pl` with swipl 9.0.4's answers, 2026-10-24 23:xx; the cto's ruling 2026-10-25 01:5x CDT under CEO-1964/1971)
 
-- `db/test_module` (hq_zetas, c91370f86: 5 of 7): `Module:clause(H, _, Ref)` comes back module-qualified; a module-scoped `meta_predicate` `:` argument that is a
-  cyclic qualifier raises nothing. The module-context section of this page rules on them when the two programs are brought with their swipl answers.
-- `ARCH-PROLOG-TABLING-IDG.md` § 6: the transaction's undo log, a spine local of the `transaction/1` activation under one `'$tx_cur'` root (the cfo's placement).
+Measured: module `mq1`, `solve(Pred, R)` declared `meta_predicate solve(2, -)`, called `solve(t, R)`: swipl `qualified(mq1)`, SCRIP `bare('mq1:t')` (the closure
+arrives as the mangled atom); `test_module_2:clause(H, _, Ref)` on a clause asserted as `test_module_2:term`: swipl `term`, SCRIP `test_module_2:term` (db/test_module
+clause#2); `clause(H, _, Ref)` from mq1: both `test_module_2:term`; `clause(test_module_2:H, _, Ref)`: both `term`; `meta_predicate mqual(:)` called with `T = a:T`:
+swipl `type_error(acyclic_term, _)`, SCRIP no error (mqual#2). SWI tabling/test_monotonic_lazy lazy_15 fails on the first: its `Pred = M:t` never matches, so its
+`abolish_table_subgoals` is skipped and the stale plain table disagrees. One representation question, four rules:
+
+1. THE REPRESENTATION. The parser's module flatten mangles a non-user module's predicate NAME into the registry key `'mod:name'`, and that atom is the registry's
+   alone. A module-qualified term at the SURFACE (a meta argument the context qualifies, a closure, a goal handed to call/N, a head clause/3 returns, anything a
+   program can unify or print) is swipl's compound `':'(Module, Term)`, with Module the CONTEXT MODULE of the call site (the module whose clause holds the call:
+   `mq1`, never a fixed `user`, which is what `'$mq_arg'` writes today), and the plain term when the context is `user`.
+2. RESOLUTION. call/N, the closure-extending library roads (maplist and its kin) and every database road take `M:G` as DATA (bc63b803b's rule), strip the
+   qualifiers to the innermost module M and goal G, and form the registry key at the moment of the call: `'M:name'`/N for a non-user M, `name`/N for `user`; one
+   key build per call, nothing stored mangled inside a term.
+3. THE CONTEXT OF A MODULE-TRANSPARENT BUILTIN. A module-qualified call `M:clause(...)`, and likewise `M:assert`, `M:retract`, `M:current_predicate`,
+   `M:predicate_property`, `M:abolish`, runs with the context module M. clause/2,3 (through `'$clause_unmangle'`, which already has the test) return the head
+   BARE when the clause's module is the context module or the argument names the module itself (`clause(M:H, ...)`), and `Mod:Head` otherwise: so
+   `test_module_2:clause(H, _, Ref)` answers `term` and the same call from mq1 answers `test_module_2:term`.
+4. THE CYCLIC QUALIFIER. Stripping a `:` chain (`strip_module/3` and every meta-argument qualification) walks `M:T` while T is `_:_` under ONE cycle check on
+   the qualifier spine (`acyclic_term/1` of the chain, never a depth bound) and raises `type_error(acyclic_term, T)` as swipl does.
+
+Builder: hq_zetas (db/test_module clause#2 and mqual#2, then lazy_15), one program at a time (CEO-1926), the witness file's five swipl answers the test, the Prolog
+smoke before the push; no new global. Still open here: `ARCH-PROLOG-TABLING-IDG.md` § 6, the transaction's undo log (the cfo's placement).
 
 ## 7. The dynamic fact table is indexed on its first argument (hq_runtime's row `prolog-dynamic-fact-table-scales-long-primes-1`, steps 2 and 3; ProRosetta long-primes-1, sieve-of-eratosthenes-10 and the dynamic-fact time-outs)
 

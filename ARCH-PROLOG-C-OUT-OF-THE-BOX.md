@@ -534,3 +534,15 @@ Beside them: the prologue's `pl_choice_mark` scan over the trail's sentinels at 
 
 ### 14.4 Order, gates and who
 Order 1, 2, 3, 4, 5, 6 -- 1 first because 2 and 3 read the value block, 6 last because it is a different row and touches every language's startup (its mode-4 text changes are shared code: the eight smokes). Gates: the seven bars in this section's table re-read in each chunk's ledger line (the bar 1.0 is the destination of the row, not of a chunk); `bench_prolog_call_census.sh 'rt_pl_dop_(clause_)?unify.*|rt_pl_tr_.*'` at 0 and the `nm` arm at 0 close the unify row; the LEAF_SHARE line under 10 closes the leaf-share row; `test_gate_pl_the_general_unifier_is_one_asm_leaf_on_the_spine_not_a_c_road`, `test_gate_pl_a_head_structure_against_an_unbound_argument_is_built_by_the_box` and the frame gates stay green throughout; the ZSM frame census moves only on a ruling. The cto builds every chunk (CEO-1964 (3)); the cfo reviews chunk 2's collector half and the standing-frame words before they land (B, HB: two words, asked of Lon with this page, CEO-1542's single current-X cells); a shared-core change is telegrammed to the spine owners before it lands (ARCH-ZETA-ONE-COORDINATE § 6). FORBIDDEN: a heap-only variable cell (Lon's Q1), a per-cell mode flag at run time (read and write are two code copies, § 8.1), a second trail kind, a C road that binds, a new IR field (`ir_operand_push`).
+
+### 14.5 MEASURED 2026-10-25 01:xx CDT: the inline between/3 expansion's C road (hq_snobol4's bws.pl, the two-tree pair 12ece7319 against 850479705)
+`main :- ( between(1, 300000, J), between(J, J, _), fail ; true )`, mode 4 under callgrind: 40,911,256 Ir on 12ece7319 against 953,508,258 on 850479705 (hq_zetas's
+planner line, a retaining node whose gamma is its own beta never heads a run: three asm lines differ, the inner gate's failure pop) and 587,515,241 on HEAD with
+hq_snobol4's e59571650 det leaf. THE PARENT WAS FAST AND WRONG: a retaining if-then-else before a trailing fail re-entered at its stale beta after the first
+iteration, so `( between(1,3,J), ( J > 0 -> member(X,[a,b]), write(w(J,X)), nl ; true ), fail ; true )` prints two lines on it and six on 850479705, HEAD and swipl
+(the same body behind a user predicate prints six everywhere: the inline gate's self-edge alone). 850479705 is a correctness cure and the 23x is the price of
+doing the inner call's work at all. THE COST OF THAT WORK on HEAD, about 1,800 Ir per inner call: the expansion's two unary-plus normalizations are `$ax_pos`
+leaves with NO HOT ROAD (every call `rt_pl_ax_cold` -> `rt_pl_ax_cold_c` -> `dop_ax`, which dispatches the arithmetic functor BY NAME: 3.6 million `strcmp` calls,
+twelve per iteration, about 700 Ir; `rt_pl_deref_val` 333), `rt_pl_dop_between_guard` through its C half 274, `dop_pl_between_special` 46, `pl_rat_is` 30,
+fifteen boxes the rest. The arithmetic functor is a compile-time constant of the site, so the rewrite selects the leaf at lowering and leaves the cold road only
+the non-integer operands (the atom-intern shape of § 14.2, C that never binds); no speed row is minted (CEO-1914), the reading rides this page.

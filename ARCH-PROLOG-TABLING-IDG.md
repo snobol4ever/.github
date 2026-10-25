@@ -105,6 +105,32 @@ declared mono and `data/1` plain); `incr_invalidate_calls(G)` the retract arm. A
 call (`nested_reeval_mono`, `twice_invalid`). Nothing else in the engine changes: cell 6 is read by `'$tbl_range'` today, and the `mono` form is read
 only by `'$tbl_slice'` and `'$tbl_dcall'`.
 
+## 4b. THE RESUME RECORD: a continuation by construction, its environment recorded at the source call (hq_zetas's ruling request 2026-10-24 23:xx on lazy_6 and lazy_7; the cto 2026-10-25 01:5x CDT)
+
+Measured by hq_zetas on a14cf5ab7: `p(X) :- assert(reeval), r(X) ; q(X)` with r/1 a lazy monotonic dynamic; the test requires `assert(reeval)` NOT to run
+again when d1 or d2 changes, swipl's continuation starts after the `r(X)` call, and § 4's step re-enters the clause and runs the assert first, so no step that
+re-runs a body can pass lazy_6 or lazy_7. RULING: hq_zetas's option (a), the continuation BY CONSTRUCTION, with the environment RECORDED at the source call and
+never re-derived by re-running the prefix.
+
+1. THE LOWERER emits, for every clause of a monotonic-tabled predicate and every source-call position k in its body (a `'$tbl_dcall'`, or a tabled call § 2
+   marks a Dep), a RESUME CLAUSE beside the clause: `'$tbl_rs_<pred>_<clause>_<k>'(Vs, A) :- <the goals after position k>`, Vs the vector of the clause's
+   variables live across the call (occurring at or before k AND after k, the head's included), A the source call's answer term. A disjunction or if-then-else
+   arm holding the call gets a resume clause per arm position; a resume clause holding a later source call gets its own by the same rule (nested records).
+2. THE RECORD: when, during a table's evaluation (cell 6 = `all` or `sn`), `'$tbl_dcall'(G)` at position k of clause c runs, it appends to the IDG edge
+   (table, Src) the record `rs(ClauseKey, k, Vs)`, the live-variable vector as a heap term, once per reaching activation (a prefix reached twice records
+   twice, as SWI shifts twice). THE LIFETIME RULE places it: the record outlives the evaluation, so it belongs to the edge in the trie meta term, no second
+   stack, no new root.
+3. THE STEP: a delta on Src runs, for each record and each delta answer D, `'$tbl_rs_...'(Vs, D)` under the `mono(Src, Delta)` context and adds its answers to
+   the table; § 4's propagation is unchanged from there. The prefix never re-runs, so its side effects never repeat; the prefix's choice points are long dead
+   (the evaluation completed before any delta), which is why the record is a value and not a frame.
+4. § 4's body re-run stays only for a table that holds NO records for the source (evaluated before this landing, or every source a table, where re-running a pure
+   body is sound); a table with records steps by its records alone.
+
+REFUSED: real `reset/3` and `shift/1` as the foundation (ARCH-PROLOG-CONTINUATIONS.md's one-shot road, 43 of 52 red; a captured stack is a second stack under
+CEO-1542) and an exclusion (swipl answers and the answer is known, CEO-1696). COST: compile-time clauses for monotonic-tabled predicates only, one heap record
+per source-call activation during an evaluation, nothing on untabled code. Builder: hq_zetas, lazy_6 then lazy_7, the Prolog smoke and the tabling handful
+before the push; § 6 (transactions) stays hq_zetas's after the cfo's cell ruling, one file at a time.
+
 ## 5. LAZY MONOTONIC: queue, invalidate, force
 
 `Kind mono(lazy)`: on an assert (or a propagated answer from an eager source), push `Src-Delta` onto `T.Queue` and INVALIDATE T; the invalidation
