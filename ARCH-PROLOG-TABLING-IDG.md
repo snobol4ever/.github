@@ -43,9 +43,9 @@ trie (`rt_pl_trie_meta_set/get`, `unification.c` 3962: meta slots 0 and 1, non-b
   declared incremental or monotonic gets a node of its own the same way (§ 2).
 - **AN EVALUATION OR A PROPAGATION IN PROGRESS lives exactly as long as the box doing it: THE HEADER (ACT frame)**, TABLING-BOXES §§ 1-3 unchanged:
   the delta context of a monotonic step is a value of cell 6, the sources a pass consumed are cell 9, both already the header's.
-- **A TRANSACTION is a header too.** Its UNDO LOG is a heap list rooted from one header cell (cell 10, NEW, § 6), found by every change through the
-  header chain (`'$tbh_get'`), never through a root cell. Nested transactions are nested headers, each banking the previous in cell 0 as every header does.
-- **STANDING:** `'$tbl_cur'` alone, as today (CEO-1885 (b)'s one current cell). **No new global, no new root cell, no second stack**: the propagation
+- **A TRANSACTION is an activation.** Its UNDO LOG is a heap list rooted from a spine local of the `transaction/1` activation (§ 6, the cfo's placement
+  ruling of 19:1x: no header cell), found by every change through ONE trailed current-transaction root cell, which the transaction banks in its own cell.
+- **STANDING:** `'$tbl_cur'` and, with § 6, `'$tx_cur'` beside it: two single current-X cells (CEO-1885 (b)), never a stack. **No new global, no new root cell, no second stack**: the propagation
   worklist is the recursion of `'$tbl_mono_step'` on the machine stack (depth-first, SWI's `pdelim` shape), the lazy queues are heap lists on the graph's
   edges, nothing anywhere holds one entry per live call or per live evaluation. TABLING-BOXES § 5's `grep -rF "setval('\$tbl_" src` stays 0.
 
@@ -114,25 +114,29 @@ until T is forced). **Forcing**, at a call of an invalid lazy T (`'$tbl_valid'`)
 `False = 0`, `Forced = true`. `expect_queued_answers` reads `Queue` through `'$idg_mono_affects_lazy'/5`; `expect_forced` reads `Forced`. A retract on a
 mono dynamic with lazy dependents invalidates them for a full re-evaluation (`retract`: `[2]` after `retract(d(1))`).
 
-## 6. TRANSACTIONS AND SNAPSHOTS
+## 6. TRANSACTIONS AND SNAPSHOTS (placement ruled by the cfo, 2026-10-24 19:1x CDT: NO header cell)
 
 `transaction/1` and `snapshot/1` exist nowhere in SCRIP (26 cases). SCRIP is single-threaded, so a change inside a transaction is simply APPLIED and
 visible; what a transaction adds is UNDO on failure or exception, and `snapshot/1` is a transaction that always undoes.
 
+**Where the log lives (the cfo's ruling, THE LIFETIME RULE):** the undo log lives exactly as long as the `transaction/1` (or `snapshot/1`) activation,
+so its ROOT is a local of that activation, carved on the spine at first use like any local (RSP the default home, CEO-1942); its entries are unbounded
+and go on the heap, rooted from that cell. A database change finds the innermost transaction through ONE trailed current-transaction root cell,
+`'$tx_cur'` in the registry beside `'$tbl_cur'`, which the transaction banks in its own cell and restores at exit, failure or ball -- CEO-1542's single
+current-X cell, the tabling header's own pattern, not a stack. The first ask (cell 10 of every tabling header, `TABLE_HDR_CELLS` 10 → 11) was REFUSED:
+a DESCR in every tabled evaluation's frame for a cell only two predicates use is a pre-allocation, and CEO-1955/1959 hold those at zero. No new IR kind,
+no header change; if a program ever needs the log through the header chain, that program goes to the cfo with the shape question (a per-header cell
+count as a node fact, never the global count).
+
 ```prolog
-transaction(G) :- '$tbl_hdr', '$tbh_own'(10, []),
-    (   catch(once(G), E, ('$tx_undo', '$tbh_close', throw(E))) -> '$tx_commit', '$tbh_close' ; '$tx_undo', '$tbh_close', fail ).
-snapshot(G)    :- '$tbl_hdr', '$tbh_own'(10, []),
-    (   catch(once(G), E, ('$tx_undo', '$tbh_close', throw(E))) -> '$tx_undo', '$tbh_close' ; '$tx_undo', '$tbh_close', fail ).
+transaction(G) :- '$tx_open'(Prev), ( catch(once(G), E, ('$tx_undo', '$tx_close'(Prev), throw(E))) -> '$tx_commit', '$tx_close'(Prev) ; '$tx_undo', '$tx_close'(Prev), fail ).
+snapshot(G)    :- '$tx_open'(Prev), ( catch(once(G), E, ('$tx_undo', '$tx_close'(Prev), throw(E))) -> '$tx_undo', '$tx_close'(Prev) ; '$tx_undo', '$tx_close'(Prev), fail ).
 ```
 
-**Cell 10 is NEW**: `TABLE_HDR_CELLS` 10 → 11 (`IR.h` 35, `frame_layout.c` 530-534 grant `1 + TABLE_HDR_CELLS` slots) and the runtime's `PL_TBH_CELLS`
-with it; the resident header grows by one DESCR; `box_cell_shapes.tsv`'s IR_TABLE_HDR row is unchanged in kind. It is a frame-shape change and is
-TELEGRAMMED TO THE cfo (placement, CEO-1960) before it lands. Cells 1-9 are all owned, so no existing cell can hold the log; the graph's edges needed none.
-
-**The log** is a heap list in the nearest header owning cell 10 (`'$tbh_get'(10, L)`), appended by `'$tbh_set'`. Every change under a transaction logs
-one record; `'$tx_undo'` replays the log in reverse; `'$tx_commit'` drops it, or, nested, prepends it to the outer header's cell 10 after closing its own
-(so an outer rollback still undoes the inner). The records, each with its undo and the test that fixes it:
+`'$tx_open'(Prev)` banks `'$tx_cur'` in the clause's own local `Prev` and points `'$tx_cur'` at this activation's log cell (empty); `'$tx_close'(Prev)`
+restores it. Every change under a transaction appends one record to the log the current cell names; `'$tx_undo'` replays the log in reverse;
+`'$tx_commit'` drops it, or, nested, prepends it to the outer transaction's log (so an outer rollback still undoes the inner). The records, each with
+its undo and the test that fixes it:
 
 | record | written by | undo | fixed by |
 |---|---|---|---|
@@ -143,9 +147,9 @@ one record; `'$tx_undo'` replays the log in reverse; `'$tx_commit'` drops it, or
 | `invalidated(T)` | § 3 on an `incr` dependent, § 3 on any retract | INVALIDATE T again: it was re-evaluated against the rolled-back database | transact_incr rollback and snapshot (`expect_invalid`), transact_mono_2 retract (`expect_invalid`) |
 
 A table evaluated inside a transaction whose dependencies the transaction did not touch logs nothing and stays valid (transact_incr snapshot 2 and 3).
-**Where the hook is:** the declared functors already pass through `'$tbl_dchange'` (hq_zetas' rewrite), which logs; for an UNDECLARED dynamic the runtime's
-database leaves (`assert*`, `retract*`, `erase`) log when a header owning cell 10 is current — one pointer test, `pl_tbh_owner(root, 10)`, the C side of
-`'$tbh_get'` — so the core `transaction/` family (outside this page's population) rides the same road.
+**Where the hook is:** the declared functors already pass through `'$tbl_dchange'` (§ 3), which logs when `'$tx_cur'` names a log; for an UNDECLARED
+dynamic the runtime's database leaves (`assert*`, `retract*`, `erase`) log under the same test -- one root-cell read -- so the core `transaction/`
+family (outside this page's population) rides the same road.
 
 ## 7. ANSWER SUBSUMPTION (moded tables) under §§ 3-5
 
@@ -162,6 +166,24 @@ variable clause argument; `predicate_property(_, incremental)` stays compile-tim
 `test_gate_pl_swi_incremental_tabling_a_plain_assert_or_retract_on_an_incremental_dynamic_invalidates_the_tables_that_read_it.sh` stays green: its
 witness is the special case of § 3 where every incremental table happens to depend on the changed predicate. hq_zetas' incremental rows are not held.
 
+## 8b. THE RUNTIME LOADER IS THE SECOND ROAD, AND IT NEEDS THE SAME THREE HOOKS (measured 2026-10-24 19:5x CDT)
+
+A program that defines `term_expansion/2` or `goal_expansion/2` (every plunit file of the SWI tabling suite does, through its `cleanup` expansion) is
+not compiled statically after that clause: `pl_load_hook_line` (lower_prolog.c) hands the rest of the file to THE RUNTIME LOADER, the `'$lfx_*'`
+prelude in `prolog_parse.c`'s `PL_PRELUDE_SRC` (about lines 2780-2960), which scans the terms (`'$lfx_scan'`), wraps tabled predicates
+(`'$lfx_wraps'`: `k(F/N, none|incr|moded)` → `'$tbl_call'`, `'$tbl_icall'`, `'$tbl_mcall'`), declares dynamics (`'$lfx_dir'(dynamic(S))`, dropping
+`as` through `'$lfx_dspecs'`) and rewrites every body goal (`'$lfx_body'`). So the static hooks of §§ 2-4 (the lowerer's `'$tbl_dcall'` at the call
+site, the parser's `'$tbl_dchange'` rewrite, the table kind in the wrapper) never see test_monotonic.pl's units, and its ten cases keep their
+verdicts until the loader carries the same three: (1) `'$lfx_tspecs'(as(S,O),...)` reads `monotonic` and `lazy` beside `'$lfx_incr'` and
+`'$lfx_wraps'` emits `'$tbl_kcall'(H,I,mono|lazy)` (and `'$tbl_mcall'(H,I,Sp,Kind)`); (2) `'$lfx_dir'(dynamic(S as O))` with incremental or
+monotonic in O records the qualified functor as a hooked dynamic (a `'$tbl_dkind'(Q/N, Kind)` fact, the loader's runtime twin of the lowerer's
+hook list), and `'$lfx_body'` rewrites a call to one as `'$tbl_dcall'(G2)`; (3) `'$lfx_body'`'s database arm (`'$lfx_mdb'` for a variable clause,
+the `'$lfx_meta'` row for a bound one) appends `'$tbl_dchange'(Op, C2, Kind)` for a hooked head. The standalone witness (a monotonic table over a
+monotonic dynamic, an incremental table over a monotonic one, the self-recursive closure) and the same program inside a plunit unit WITHOUT
+term_expansion are equal to swipl in both modes on the static road (SCRIP, the IDG landing); with term_expansion present only the loader road runs.
+Until (1)-(3) land, a change the graph has no edge for falls back to the coarse `'$incr_inval'` (every incremental table invalidated), which is
+today's behaviour and what keeps `twice_invalid` green on the loader road.
+
 ## 9. Measured, not designed here
 
 - **THE CRASHES** (`test_reeval` dynamic_tabled, dynamic_tabled2-4: `wfs`, `wfs2`, 5 cases, signal 11 in both modes): a predicate both `:- table` and
@@ -175,10 +197,10 @@ witness is the special case of § 3 where every incremental table happens to dep
 ## 10. The rows and the order (LARGE CHUNKS, CEO-1478..1484; CEO-1928; CEO-1953)
 
 1. Bracket the § 9 crash (one row, one program at a time).
-2. BUILD §§ 2-4 WHOLE in `prelude/tabling.pl` plus the lowerer's `'$tbl_dcall'` rewrite and `'$tbl_dchange'`; SMALL ROLL-OUT on `test_monotonic.pl`
+2. BUILD §§ 2-4 WHOLE in `prelude/tabling.pl` plus the lowerer's `'$tbl_dcall'` rewrite and `'$tbl_dchange'` (LANDED, the static road); then § 8b's three loader twins; SMALL ROLL-OUT on `test_monotonic.pl`
    (10 cases; the row's DONE-WHEN is `pa1` and `incr_mono`), with the Prolog smoke and the tabling handful (`test_tabling` 35/35, `test_answer_subsumption`,
    `test_wfs` unchanged) before the push; requests to the coo name at most 8 cases.
-3. § 5 on `test_monotonic_lazy.pl` (15); § 6 on the three transaction files (26) after the cfo rules the header's cell 10; § 7 (9); then xsb incremental (7).
+3. § 5 on `test_monotonic_lazy.pl` (15); § 6 on the three transaction files (26) under the cfo's placement ruling; § 7 (9); then xsb incremental (7).
 4. The cto designs and builds (CEO-1960); the eight smokes before every push since the prelude is parsed for every tabling program; the coo grades.
 
 ## 11. What this page forbids
