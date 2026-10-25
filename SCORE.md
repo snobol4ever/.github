@@ -13,9 +13,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-25 | `1a8972d05` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-25 | `1a8972d05` | done |
 | Zona | icon | 117/118 EXCLUDED=6 WALL=33s | 2026-10-25 | `005253b63` |  |
-| Jcon | icon | 85/85 EXCLUDED=6 WALL=23s | 2026-10-23 | `26e79fe3e` | done |
+| Jcon | icon | 84/85 EXCLUDED=6 WALL=22s | 2026-10-25 | `1ff4523a0` |  |
 | IPL | icon | 643/644 EXCLUDED=207 WALL=321s | 2026-10-25 | `005253b63` |  |
-| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-23 | `26e79fe3e` | done |
+| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-25 | `26e79fe3e` | done |
 | SWI | prolog | 2342/2709 EXCLUDED=226 WALL=2110s | 2026-10-24 | `26e79fe3e` |  |
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=149s | 2026-10-24 | `d6ca2f621` | done |
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=211s | 2026-10-24 | `db2d1f5a6` | done |
@@ -45,7 +45,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasRosetta | pascal | 195/319 EXCLUDED=345 WALL=1153s | 2026-10-23 | `de76ad56d` |  |
 | ProRosetta | prolog | 435/481 EXCLUDED=305 WALL=2078s | 2026-10-23 | `26e79fe3e` |  |
 | ProPuzzles | prolog | 235/267 EXCLUDED=148 WALL=9883s | 2026-10-25 | `76019d4ce` |  |
-| TreallaTests | prolog | 270/327 EXCLUDED=129 WALL=271s | 2026-10-25 | `26e79fe3e` |  |
+| TreallaTests | prolog | 272/327 EXCLUDED=129 WALL=273s | 2026-10-25 | `26e79fe3e` |  |
 | PasDemo | pascal | 8/8 EXCLUDED=0 WALL=62s | 2026-10-24 | `9934db1be` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=464s | 2026-10-23 | `3072d0240` | done |
