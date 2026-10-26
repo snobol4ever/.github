@@ -32,9 +32,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Logtalk | prolog | 3545/3546 EXCLUDED=71 WALL=16372s | 2026-10-25 | `8657eaa00` |  |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=931s | 2026-10-25 | `1a8972d05` | done |
 | X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-25 | `1a8972d05` | done |
-| SnoBench | snobol4 | 23/23 WALL=16s | 2026-10-23 | `26e79fe3e` | done |
-| IcnBench | icon | 26/26 EXCLUDED=0 WALL=4s | 2026-10-23 | `26e79fe3e` | done |
-| ProBench | prolog | 42/42 EXCLUDED=0 WALL=577s | 2026-10-23 | `26e79fe3e` | done |
+| SnoBench | snobol4 | 23/23 WALL=16s | 2026-10-25 | `9bd097fa9` | done |
+| IcnBench | icon | 26/26 EXCLUDED=0 WALL=4s | 2026-10-25 | `9bd097fa9` | done |
+| ProBench | prolog | 42/42 EXCLUDED=0 WALL=577s | 2026-10-25 | `9bd097fa9` | done |
 | PasBench | pascal | 11/11 EXCLUDED=0 WALL=73s | 2026-10-24 | `9934db1be` | done |
 | RebBench | rebus | 3/3 WALL=2s | 2026-10-22 | `26e79fe3e` | done |
 | SnoDemo | snobol4 | 24/24 WALL=6s | 2026-10-23 | `26e79fe3e` | done |
