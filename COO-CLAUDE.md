@@ -237,6 +237,7 @@ make setup                  # a fresh machine only (already done on this box)
 - Every suite runner, gate and DONE-WHEN REFUSES rc=2 on a binary older than `src/` (`lib_build_currency.sh`). Merge, then `make`. rc=2 means "could not measure", never red.
 - The build governor (`lib_build_governor.sh`, `postoffice/governor.lock`) serialises builds against benchmarks across seats, so expect waits on a loaded box.
 - The objects live in `/tmp`, which a reboot or a full disk can take. A `make` that ends `No space left on device` filled it (the 10-25 08:43 make did, and the loop then sat on `build_failed_at`), so run `df -h /tmp` before blaming the tree. On 10-28, after the 07:44 boot, `/tmp/si_objs-home-claude_coo-SCRIP` was absent and `./scrip` was the 10-26 build, so the first `make` rebuilds everything.
+- A scratch script that compiles the identity population (about 5,800 programs) must unlink each `.s` after its compile, as `util_asm_identity.py` does. On 10-26 a coo probe that did not filled `/tmp` in under five minutes (15:50 to 15:53 CDT), and every build, smoke or run of any seat in that window was untrustworthy. The coo disclosed it to the ceo, cto and cfo the same hour; a coo that fills the box owes that telegram.
 - Two box-wide pools bound the load (CEO-1894). The Makefile runs every gcc and g++ through `harness/scripts/util_cc_slot.sh` (`S4E_CC_SLOTS`, default 8). Every child the harness starts takes one of `S4E_RUN_SLOTS` run slots (default 8).
 
 ## Run, trace and grade
