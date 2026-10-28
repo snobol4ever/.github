@@ -1,0 +1,33 @@
+diff --git a/src/templates/bb/bb_gate.cpp b/src/templates/bb/bb_gate.cpp
+index 8e81266e6..7e6fa0085 100644
+--- a/src/templates/bb/bb_gate.cpp
++++ b/src/templates/bb/bb_gate.cpp
+@@ -41,6 +41,7 @@ std::string bb_gate() {
+              + x86_alpha()
+              + x86_omega()
+              + x86_beta()
++             + IF(getenv("SCRIP_ZD_RTCHECK") != 0, x86("cmp", RDQ("rsp", 0), (long)DT_RAW) + x86("je", L(984)) + (MEDIUM_BINARY ? x86_Lrec(x86_b2(0x0F, 0x0B)) : x86_recn("ud2") + "\n") + x86("def", L(984)))
+              + IF(x86_resumable_frame(), x86_pl_ball_rule_omega(30))
+              + x86("mov", "eax", RDD("rsp", 8))
+              + gate_dispatch_chain((int) _.op_ival)
+diff --git a/src/templates/bb/bb_gate_arm.cpp b/src/templates/bb/bb_gate_arm.cpp
+index 27a42548d..a5599afa3 100644
+--- a/src/templates/bb/bb_gate_arm.cpp
++++ b/src/templates/bb/bb_gate_arm.cpp
+@@ -8,6 +8,7 @@ extern "C" {
+ #include "x86_asm.h"
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ extern "C" int emit_zrow_gcell(const IR_t * nd);
++extern "C" int emit_zrow_zchk(const IR_t * nd);
+ static std::string gate_arm_cell() {
+     if (_.op_ival < 0) return x86_alpha() + x86_bomb("bb_gate_arm: arm is not a member of its gate (op_ival<0)");
+     if (_.op_xrec & 4) return x86_alpha() + x86_bomb("bb_gate_arm: a gamma record restores rsp where the arm pushes its index cell");
+@@ -18,6 +19,8 @@ static std::string gate_arm_cell() {
+          + x86("note", "the arm pushes its live-arm index as its own spine cell {DT_RAW, arm}, below the join wall, so the GATE's beta finds it at [rsp + 8] whichever arm ran "
+                        "(ARCH-PROLOG-ACTIVATION-LIFETIME 8.2)")
+          + IF(w < 0, x86_add("rsp", w))
++         + IF(getenv("SCRIP_ZD_RTCHECK") != 0 && _.node->n_operands > 1 && emit_zrow_zchk(_.node->operands[1]) != (-2147483647 - 1),
++               x86("lea", "r11", RDQ("rbp", -emit_zrow_zchk(_.node->operands[1]))) + x86("cmp", "rsp", "r11") + x86("je", L(983)) + (MEDIUM_BINARY ? x86_Lrec(x86_b2(0x0F, 0x0B)) : x86_recn("ud2") + "\n") + x86("def", L(983)))
+          + x86_rsp_store64_imm(0, (long)DT_RAW)
+          + x86_rsp_store64_imm(8, (long)_.op_ival)
+          + IF(w > 0, x86("note", "a popping wall: the continuation restores below this construct (a commit), so no beta reaches the gate again and the cell goes with the carve")
