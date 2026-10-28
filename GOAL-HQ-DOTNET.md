@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-28 night — random-codegen step 10 opsyn-operators LANDED and DONE: corpus `2cf08c0b6`, pushed; the ceiling is 10; `--step 10` coverage=GREEN dotnet=GREEN jvm=REFUSED -> GREEN; `--step 18` GREEN (7). Every closed-world batch defines the unary `# % ! / = |` and binary `& @ # % ~` by OPSYN (rotated by seed + batch); `c_opsyn` emits each form and ARG. dotnet differ 0 on the step's batches and on the closed world pinned (11,838 lines). The scope-9 campaign after step 9: three rounds, 27,431 lines, one class cured (`e770534`). Next: step 11, the CODE road (the SCRIPtix side waits on hq_snocone's direct-goto answer).**
+
 - **2026-10-28 evening — random-codegen step 9 aggregates-rendered LANDED and DONE: corpus `143e5ae0c`, snobol4dotnet `375488b` + `d0d596e`, everything pushed. The ceiling is 9; `--step 9` coverage=GREEN dotnet=GREEN jvm=REFUSED -> GREEN; `--step 18` GREEN (6 harvested).**
   - **The evaluator, both spellings (R3):** `inf_render(value, inner)` renders an ARRAY as `ARRAY <prototype> [items by index]` and a TABLE as `TABLE <size> [key=value, ...]` sorted by rendered text (no hash order), an aggregate inside one by name only; every renderer pattern anchors itself (a batch may set &ANCHOR), and `check()`'s moved count now matches `ARB ' X='`. The Snocone spelling has not run on SCRIP (none here); the coo is asked to read TixDemo and the polyglot smoke.
   - **The generator:** `c_aggr` (ARRAY, TABLE, COPY, SORT/RSORT, PROTOTYPE of an array, CONVERT, a[b, c] and SORT(u)[i, j]) from `c_value` and `r_leaf`; PROTOTYPE of a table left out (undocumented; sbl answers its hash headers). Scopes 0, 7, 8 byte-identical; refs re-cut (demo 202 expressions, 15 moved).
