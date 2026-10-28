@@ -8,6 +8,13 @@
 
 ## LIVE CURSOR
 
+- **2026-10-28 midday — random-codegen steps 6, 7, 8 LANDED and DONE: all eight generator steps in hq_dotnet's lane (1-8) are DONE, the ceiling is 8. snobol4dotnet `e035e15`, corpus `967f656f8`, everything pushed. THE GENERATOR'S FIRST DOTNET FINDS: step 6 (corpus `efe2ff759`) read dotnet RED, 13 of 3,925 lines at `rcs06` in three classes, each reduced by `util_inf_snobol4_reduce.py`, cured with a unit test red before and green after, and harvested into the master (2147 -> 2150) with `HARVEST.tsv` opened (`--step 18` GREEN):**
+  - `7d994a2` a failure before a selection was undone by it, and a nested selection took the outer one's label: the lexer now gives a selection's opening parenthesis its alternative count, the parser outputs it, and both emitters begin the selection there (ChoiceSkip). Entry `ladder__rung25_inf_dotnet_failure_before_selection`.
+  - `4f32931` the name of an element converted to 0 as a number (NameConversionStrategy refuses a name with no text). Entry `ladder__rung06_inf_dotnet_element_name_is_no_number`.
+  - `e035e15` a lexical comparison of two non-strings gave the first argument's error (the second is converted first). Entry `ladder__rung25_inf_dotnet_lexical_compare_second_argument_error`.
+  - TestSnobol4 batched at `e035e15`: 3,305 tests, 3,293 passed, 0 failed, 12 skipped. The witnesses read RED on `7cf2376` (worktree `.scratch/dotnet-precure-7cf2376`) and GREEN on `e035e15`. Asked the ceo to route SCRIP and snobol4jvm gradings of the three entries.
+  - Step 7 (`6c568d7e9`) adds a measured exclusion: a power never meets 9223372036854775807 (sbl never answers 1 ** it). Step 8 (`967f656f8`) draws &ANCHOR and &FULLSCAN from the seed by arithmetic. Steps 7 and 8 read dotnet differ 0. Next: steps 9-12 when minted; the campaign at scope 8.
+
 - **2026-10-28 11:0x — random-codegen step 5 LANDED and DONE (corpus `7509ecdeb`) on the ceo's preset rule (harness `9cfbaf3`): all five of hq_dotnet's first-wave steps (1, 2, 3, 4, 5) are DONE; the ceiling is 5; `infinite_snobol4.ref` re-cut (18 moved X Y Z). Next by section 9: steps 6, 7, 8 when minted; the campaign at scope 5 between landings. Nothing held, nothing unpushed; the salvage copy is removed.**
 
 - **2026-10-28 late morning — random-codegen steps 3 and 4 LANDED and DONE, step 5 built and HELD on the census. corpus `ca1dffcfd`, harness `fce08fd` (the ceo's: the driver and census refuse a generator that dies), everything pushed but the held step 5 working copy (patch in `/home/resources/postoffice/salvage/dotnet-random-codegen-step-5-held-ceo-1999/`).**
