@@ -1,0 +1,25 @@
+diff --git a/src/planner/zeta_plan.cpp b/src/planner/zeta_plan.cpp
+index 33ec27ff3..47a1030c4 100644
+--- a/src/planner/zeta_plan.cpp
++++ b/src/planner/zeta_plan.cpp
+@@ -1594,7 +1594,7 @@ void zd_plan(const IR_graph_t * cg, IR_t **nodes, int n, unsigned char *zon, int
+             IR_t * ig = (nodes[i]->op == IR_GATE_ARM && !nodes[i]->γ.node && nodes[i]->n_operands > 1) ? nodes[i]->operands[1] : (IR_t *)0;
+             int gq = ig ? nidx(nodes, n, ig) : -1, cq = -1, cb = 0;
+             (void) zd_pl_land(cg, nodes, n, zon, zout, zgpop, zwpop, i, 0, &cq, &cb);
+-            if (gq >= 0 && zon[gq] && claim[gq] >= 0 && known[claim[gq]] && cq < 0) zgpop[i] = ai - (base[claim[gq]] + zout[gq]);
++            if (gq >= 0 && zon[gq] && claim[gq] >= 0 && known[claim[gq]] && (cq < 0 || (zon[cq] && claim[cq] >= 0 && !known[claim[cq]]))) zgpop[i] = ai - (base[claim[gq]] + zout[gq]);
+         }
+         for (int i = 0; i < n; i++) {
+             if (!zon[i] || claim[i] < 0 || nodes[i]->op != IR_GATE || known[claim[i]] || fam[claim[i]] < 0) continue;
+@@ -1800,8 +1800,9 @@ void zd_plan(const IR_graph_t * cg, IR_t **nodes, int n, unsigned char *zon, int
+             for (int p = zarm[i], g = 0; p >= 0 && g++ < 4096; p = zarm[p]) if (q != p && !zd_dj_anc(zarm, q, p)) zwpop[i] += zd_match_env_record(cg, nodes[p]);
+         }
+     { if (zd_map_on()) { fprintf(stderr, "[ZD-MAP] PLAN -- same i= indices as GRAPH above\n");
+-        for (int i = 0; i < n; i++) fprintf(stderr, "[ZD-MAP] i=%-3d %-22s claim=%-3d rpos=%-3d zon=%d zout=%-4d gpop=%-5d wpop=%-5d arm=%d slot=%d\n",
+-            i, bb_op_name(nodes[i]->op), claim[i], rpos[i], (int)zon[i], zout[i], zgpop[i], zwpop[i], zarm ? zarm[i] : -1, zls_off(nodes[i])); } }
++        for (int i = 0; i < n; i++) fprintf(stderr, "[ZD-MAP] i=%-3d %-22s claim=%-3d rpos=%-3d zon=%d zout=%-4d gpop=%-5d wpop=%-5d arm=%d slot=%d base=%d\n",
++            i, bb_op_name(nodes[i]->op), claim[i], rpos[i], (int)zon[i], zout[i], zgpop[i], zwpop[i], zarm ? zarm[i] : -1, zls_off(nodes[i]),
++            claim[i] >= 0 && known[claim[i]] ? base[claim[i]] : -999); } }
+     if (zclaim) for (int i = 0; i < n; i++) zclaim[i] = zon[i] ? claim[i] : -1;
+ }
+ void zd_depth_census_g(const IR_graph_t * cg, IR_t **nodes, int n, unsigned char *zon, int *zout, int *zgpop, int *zwpop, const char *prefix) {
