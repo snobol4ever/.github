@@ -1,0 +1,46 @@
+diff --git a/src/planner/plan_facts.cpp b/src/planner/plan_facts.cpp
+index ea80cb9cd..6bc9c9845 100644
+--- a/src/planner/plan_facts.cpp
++++ b/src/planner/plan_facts.cpp
+@@ -254,6 +254,9 @@ static void pf_cells(zeta_plan_t * rec, IR_t ** nodes, int n, int i, const IR_gr
+     z->tret = nd->op == IR_CALL_PROC_STAGED ? bb_proc_target_retains(IR_LIT(nd).sval) : 0;
+     z->zsmown = 0;
+     z->zsmw = planner_zsm_on() ? planner_zsm_row_word(g, rec, i, &z->zsmown) : 0L;
++    if (getenv("SCRIP_PL_DEFCMP2") && rec->on[i] && rec->xb && g->home_frame && planner_resumable_frame(g) && (planner_pl_definite(g, nd) != (rec->xb[i] != INT_MIN))) {
++          extern const char * zls_graph_name_get(const IR_graph_t *);
++              fprintf(stderr, "[PL-DEFCMP2] graph=%s i=%d %s def0=%d plan=%d\n", zls_graph_name_get(g), i, bb_op_name(nd->op), planner_pl_definite(g, nd), rec->xb[i] != INT_MIN); }
+     if ((nd->op == IR_BOUND || ir_node_produces_value(nd->op)) && rec->on[i] && rec->xb && getenv("SCRIP_PL_DEFCMP") && planner_pl_definite(g, nd) && rec->xb[i] == INT_MIN) {
+           extern const char * zls_graph_name_get(const IR_graph_t *);
+               fprintf(stderr, "[PL-DEFCMP] graph=%s i=%d %s def0=1 plan=0\n", zls_graph_name_get(g), i, bb_op_name(nd->op)); }
+diff --git a/src/planner/zeta_plan.cpp b/src/planner/zeta_plan.cpp
+index 245cb7926..5c14d31a2 100644
+--- a/src/planner/zeta_plan.cpp
++++ b/src/planner/zeta_plan.cpp
+@@ -1026,8 +1026,8 @@ extern "C" void planner_pl_indef0(const IR_graph_t * cg, unsigned char * ind) {
+     for (int t = 0; t < n; t++) if (gpn[(size_t)t] != 1) gp1[(size_t)t] = -1;
+     for (int i = 0; i < n; i++) if (nodes[i] && zd_edge_retains_g(cg, nodes[i])) { int q = zst_edge(nodes, n, i, 0);
+         for (int cur = i, hop = 0; q >= 0 && hop <= n && zd_pl_dj_join(nodes, n, cur, q); hop++) { cur = q; q = zst_edge(nodes, n, q, 0); }
+-        if (q >= 0 && q != i && !ind[q]) { ind[q] = 1; bl.push_back(q); if (nodes[q]->op != IR_CUT) wl.push_back(q); }
+-        for (int e = 2; nodes[i]->op == IR_DISJUNCTION && e < zd_pl_edges(nodes[i]); e++) { int w = zst_edge(nodes, n, i, e);
++        if (q >= 0 && q != i && !ind[q] && !(nodes[q]->op == IR_UNMARK && (IR_LIT(nodes[q]).ival & 6) && nodes[q]->n_operands > 0)) { ind[q] = 1; bl.push_back(q); if (nodes[q]->op != IR_CUT) wl.push_back(q); }
++        for (int e = 2; nodes[i]->op == IR_DISJUNCTION && !getenv("SCRIP_NO_ARMSEED") && e < zd_pl_edges(nodes[i]); e++) { int w = zst_edge(nodes, n, i, e);
+             if (w >= 0 && w != i && nodes[w] && !ind[w]) { ind[w] = 1; bl.push_back(w); if (nodes[w]->op != IR_CUT) wl.push_back(w); } } }
+     while (!wl.empty()) { int v = wl.back(); wl.pop_back();
+         for (int e = 0; e < zd_pl_edges(nodes[v]); e++) { if (e == 1 || (e >= 2 && nodes[v]->op != IR_DISJUNCTION)) continue;
+@@ -1044,6 +1044,7 @@ extern "C" void planner_pl_indef0(const IR_graph_t * cg, unsigned char * ind) {
+     auto reach = [&](IR_t * t) { int q = t ? nidx(nodes, n, zd_chase(t)) : -1; if (q >= 0 && nodes[q] && !ind[q] && !rch[(size_t)q]) { rch[(size_t)q] = 1; rl.push_back(q); } };
+     reach(cg->entry);
+     for (int a = 0; cg->alt_entry && a < cg->n_alts; a++) reach(cg->alt_entry[a]);
++    if (!getenv("SCRIP_NO_CUTROOT")) for (int u = 0; u < n; u++) if (nodes[u] && nodes[u]->op == IR_CUT && !IR_LIT(nodes[u]).ival) { int w = zst_edge(nodes, n, u, 0); if (w >= 0 && w != u && nodes[w]) reach(nodes[w]); }
+     for (int moved = 1; moved; ) { moved = 0;
+         while (!rl.empty()) { int v = rl.back(); rl.pop_back(); IR_t * x = nodes[v];
+             for (int e = 0; e < zd_pl_edges(x); e++) { if (e == 0 && zd_edge_retains_g(cg, x)) continue;
+@@ -1268,7 +1269,7 @@ void zd_plan(const IR_graph_t * cg, IR_t **nodes, int n, unsigned char *zon, int
+             fprintf(stderr, "] g=%d o=%d lit/nameptr=%lld src=%s\n", gi, oi, (long long)IR_LIT(nodes[i]).ival, bb_src_of(nodes[i]) ? bb_src_of(nodes[i]) : "-"); } } }
+     unsigned char * rjoin = (unsigned char *)alloca((size_t)(n > 0 ? n : 1));
+     for (int k = 0; k < n; k++) rjoin[k] = 0;
+-    for (int k = 0; k < n; k++) if (zd_edge_retains_g(cg, nodes[k])) { int q = nidx(nodes, n, zd_chase(nodes[k]->γ.node)); if (q >= 0 && q != k && nodes[q]->op != IR_DISJUNCTION) rjoin[q] = 1; }
++    for (int k = 0; k < n; k++) if (zd_edge_retains_g(cg, nodes[k])) { int q = nidx(nodes, n, zd_chase(nodes[k]->γ.node)); if (q >= 0 && q != k && (nodes[q]->op != IR_DISJUNCTION || (getenv("SCRIP_CLAIM_CUT") && cg && cg->home_frame && planner_resumable_frame(cg) && !zd_pl_dj_join(nodes, n, k, q)))) rjoin[q] = 1; }
+     for (int pass = 0; pass < 2; pass++) {
+     for (int hi = 0; hi < n; hi++) {
+         if (pass == 0) { }
