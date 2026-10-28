@@ -8,7 +8,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=43s | 2026-10-25 | `1a8972d05` | done |
 | Budne | snobol4 | 70/70 EXCLUDED=62 OUTSIDE=19 WALL=10s | 2026-10-28 | `7a6a3e65b` | done |
-| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-10-25 | `1a8972d05` | done |
+| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-10-28 | `d4b6b366d` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-10-28 | `d4b6b366d` | done |
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-10-28 | `e2d5b18cc` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-10-28 | `e2d5b18cc` | done |
@@ -26,7 +26,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProRungs | prolog | 577/577 WALL=529s | 2026-10-25 | `0ec4d1345` | done |
 | PasRungs | pascal | 252/252 WALL=22s | 2026-10-24 | `db2d1f5a6` | done |
 | RakRungs | raku | 1062/1062 WALL=137s | 2026-10-24 | `0ec4d1345` | done |
-| SncRungs | snocone | 358/358 WALL=21s | 2026-10-24 | `db2d1f5a6` | done |
+| SncRungs | snocone | 358/358 WALL=21s | 2026-10-28 | `d4b6b366d` | done |
 | SncBench | snocone | 23/23 EXCLUDED=0 WALL=4s | 2026-10-28 | `34ce84c94` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-28 | `e2d5b18cc` | done |
 | Logtalk | prolog | 3545/3546 EXCLUDED=71 WALL=16372s | 2026-10-25 | `8657eaa00` |  |
@@ -44,7 +44,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TixDemo | scriptix | 12/12 EXCLUDED=2 WALL=11s | 2026-10-28 | `7a6a3e65b` | done |
 | PasRosetta | pascal | 205/319 EXCLUDED=345 WALL=2308s | 2026-10-28 | `9934db1be` |  |
 | ProRosetta | prolog | 454/481 EXCLUDED=305 WALL=2180s | 2026-10-28 | `26e79fe3e` |  |
-| ProPuzzles | prolog | 235/267 EXCLUDED=148 WALL=9883s | 2026-10-25 | `76019d4ce` |  |
+| ProPuzzles | prolog | 245/267 EXCLUDED=148 WALL=10534s | 2026-10-28 | `76019d4ce` |  |
 | TreallaTests | prolog | 302/326 EXCLUDED=130 WALL=373s | 2026-10-28 | `c33d10f89` |  |
 | PasDemo | pascal | 8/8 EXCLUDED=0 WALL=62s | 2026-10-24 | `9934db1be` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
