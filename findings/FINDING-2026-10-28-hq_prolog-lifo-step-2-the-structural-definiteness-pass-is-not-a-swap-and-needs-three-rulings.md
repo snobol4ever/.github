@@ -38,3 +38,8 @@ Experiment: cut on, and the plan's INDEF seeding replaced by the predictor's mar
 ## 6. State left behind
 
 SCRIP clean at 40d6d5c50; the prototype (four edits plus the scratch comparison) is `hq_prolog-lifo-step-2-prototype-2026-10-28.patch` in this folder (46 lines, applies to 40d6d5c50). Harness `test_design_prolog_lifo_steps.sh` and STEPS.tsv row 2 are NOT edited: that belongs to the landing. The step-1 landing (f123525c3) and the step-4 witness (corpus) are done and graded by the coo (core 47/47 both modes).
+
+## 7. CORRECTION (hq_prolog, same day, after the landing SCRIP ba55b5d11)
+
+Section 3's experiment was WRONG, and so is its conclusion that "the two deciders differ materially" because step 1 went to 0/5. The substitution indexed the pass's marks by position in the plan's `nodes[]`, but the pass is indexed by position in `cg->all` (another order); the reader `planner_node_definite` maps by node pointer (`pdef_ix`) for exactly this reason. The failure was my indexing, not the design. Read by pointer, with pass-through IR_GOTO/IR_SUCCEED nodes skipped (reachability chases through them, so the pass leaves them "unreached" and a claim-wide OR would mark their claim), the plan reading the pass compiles and runs, once the pass also carries the plan's closure exception for a restoring UNMARK whose BOUND is definite (9.7 point 3, which the current predictor lacked and my prototype copied). Landed as ba55b5d11 per the cto's 9.8; the rest of this finding (the claim cut, the dangerous-direction counts, rules 1-3) stands as measured.
+
