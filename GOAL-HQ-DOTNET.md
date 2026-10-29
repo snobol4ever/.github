@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 night, after the campaign — the rungs master entry by entry against a fresh sbl run (includes staged, blank lines ignored): 4 real dotnet classes among the 44 RED, all cured: `6e00b9a` a constant capture into $ARB or $LEN(1) is 239 as compiled; `522f4a7` EVAL called by name of a value is 249; `dfa59eb` INTEGER of a name is its text; `ad63d5e` a bracket right after a goto's own groups (:((X = 1)) is 212). The other 40 are the plain runner's limits. Campaign at scope 12: seed `20261105` batches 11-30 of stmt and 11-20 of expr and match, 15,670 lines, 0 differing. TestSnobol4 batched 3,342 / 0 failed / 12 skipped. Unicode is ruled (RULINGS). Next: a fresh coo grading of SnoRungs on dotnet, and further campaign rounds.**
+
 - **2026-10-29 night, rounds 6-8 — scope 12, seeds `20261103` (12,008 lines, 0 differing), `20261104` (11,918, 2: CHAR 403 and 690, `LON_UNICODE_BY_DESIGN`), `20261105` (11,990, 0). Next: seed `20261105` batches 11-30 of stmt (every class this evening came from kind=stmt), 11-20 of expr and match.**
 
 - **2026-10-29 night, round 5 — campaign at scope 12 (seed0 `20261102`, preset unpinned): 11,552 lines, 178 differing, two classes cured: `509e1ce` a selection's long later alternative overran a one-byte branch (Brfalse_S) and the console DIED (177 lines were the crash's cascade); `d878512` CHAR of a real beyond the integers is 282 (Char cut to 32 bits first). Witnesses `ladder__rung25_inf_dotnet_a_long_alternative_compiles`, `ladder__rung26_inf_dotnet_char_of_a_real_beyond_the_integers_is_out_of_range` (corpus `aad5d94d5`, master 2,185, HARVEST 11-12). TestSnobol4 batched 3,338 / 0 failed / 12 skipped. Next: further rounds.**
