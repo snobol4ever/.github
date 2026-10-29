@@ -1,0 +1,21 @@
+diff --git a/src/planner/zeta_plan.cpp b/src/planner/zeta_plan.cpp
+index cb69492ce..15257112e 100644
+--- a/src/planner/zeta_plan.cpp
++++ b/src/planner/zeta_plan.cpp
+@@ -893,7 +893,7 @@ void zd_pl_bases(const IR_graph_t * cg, IR_t **nodes, int n, const unsigned char
+                         if (!zon[i] || claim[i] != h) continue;
+                         for (int e = 0; e < zd_pl_edges(nodes[i]); e++) {
+                             int l, q = zd_pl_entry(cg, nodes, n, zon, zout, zgpop, zwpop, claim, i, e, &l, dead);
+-                            if (q >= 0 && !known[q] && fam[q] < 0 && !zd_pl_restores_head(cg, nodes, n, claim, q)) { fam[q] = fam[h]; fbase[q] = fbase[h] + l - (zout[q] - zd_k_g(cg, nodes[q]));
++                            if ((e != 1 || getenv("CFO_NO_OMEGA")) && q >= 0 && !known[q] && fam[q] < 0 && !zd_pl_restores_head(cg, nodes, n, claim, q)) { fam[q] = fam[h]; fbase[q] = fbase[h] + l - (zout[q] - zd_k_g(cg, nodes[q]));
+                                 moved = 1; }
+                             if (e == 1 || (e >= 2 && nodes[i]->op != IR_DISJUNCTION) || zd_edge_retains_g(cg, nodes[i])) continue;
+                             int b2, q2;
+@@ -915,6 +915,7 @@ void zd_pl_bases(const IR_graph_t * cg, IR_t **nodes, int n, const unsigned char
+                 }
+             }
+         }
++        if (pl && fam && getenv("CFO_UNCLASS")) { extern const char * zls_graph_name_get(const IR_graph_t *); for (int h = 0; h < n; h++) { if (!zon[h] || claim[h] != h || nodes[h]->op != IR_UNMARK || known[h] || fam[h] >= 0) continue; int ub = nodes[h]->n_operands > 0 ? nidx(nodes, n, nodes[h]->operands[0]) : -1; int cb = ub >= 0 ? claim[ub] : -1; fprintf(stderr, "[ZD-UNCLASS] g=%s h=%d ival=%ld indef=%d ub=%d cb=%d cb_known=%d cb_fam=%d cb_indef=%d\n", cg ? zls_graph_name_get(cg) : "?", h, (long)IR_LIT(nodes[h]).ival, indef[h], ub, cb, cb >= 0 ? known[cb] : -1, cb >= 0 ? fam[cb] : -9, cb >= 0 ? indef[cb] : -1); } }
+         if (pl && fam && zd_map_on()) for (int r = 0; r < n; r++) if (zon[r] && claim[r] == r && fam[r] >= 0) fprintf(stderr, "[ZD-MAP] FAM run=%d head=%d fbase=%d\n", r, fam[r], fbase[r]);
+         int * anchor = (int *)alloca(sizeof(int) * (size_t)(n > 0 ? n : 1));
+         for (int r = 0; r < n; r++) anchor[r] = -1;
