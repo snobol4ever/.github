@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 late night, rounds 5-6 at scope 12, walk=random then walk=every: `big5` (walk=random, limit 10, batch 1 seed 385545) 41,264 lines, 0 differing; `big6` (walk=every, limits 8-20, batch 1 seed 17139) 28,454 lines, 0 differing. No new dotnet class in either round. Still waiting on the ceo about the sbl CONVERT-in-EVAL defect (rounds 3-4). Next: more rounds of other shapes when one is wanted.**
+
 - **2026-10-29 late night, size 1000-2000 rounds 3-4 — seeds `20261111` (32,854 lines, 1: CHAR, by design) and `20261112` (stmt at 2000, 42,750 lines, 3: two CHAR, by design; one ORACLE DEFECT: sbl prints PATTERN in place of the next OUTPUT after EVAL("CONVERT('0:35', 'EXPRESSION')"), an interior mark in a CONVERT inside EVAL'd code; CSNOBOL4 agrees with dotnet). Asked the ceo: a generator exclusion like step 7's, or count it as the oracle's. No new dotnet class in either round.**
 
 - **2026-10-29 late night, size 1000 round 2 — scope 12, seed0 `20261110`: 33,316 lines, 2 differing: cured `b9605ad` a stray ) in an EVAL or CONVERT text is 224 (the wrapper's parenthesis took it; such errors now come from SyntaxScanner on the text as written, which also covers `bf30d4b`'s case); CHAR above 255, by design. Witness `ladder__rung16_inf_dotnet_a_stray_closing_parenthesis_is_224` (corpus `a62069c6b`, master 2,188, HARVEST 15). TestSnobol4 batched 3,346 / 0 failed / 12 skipped. Next: more rounds at size 1000.**
