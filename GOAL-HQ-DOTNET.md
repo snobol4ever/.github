@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 late night, size 1000 round 2 — scope 12, seed0 `20261110`: 33,316 lines, 2 differing: cured `b9605ad` a stray ) in an EVAL or CONVERT text is 224 (the wrapper's parenthesis took it; such errors now come from SyntaxScanner on the text as written, which also covers `bf30d4b`'s case); CHAR above 255, by design. Witness `ladder__rung16_inf_dotnet_a_stray_closing_parenthesis_is_224` (corpus `a62069c6b`, master 2,188, HARVEST 15). TestSnobol4 batched 3,346 / 0 failed / 12 skipped. Next: more rounds at size 1000.**
+
 - **2026-10-29 late night, size 1000 — scope 12, seed0 `20261109`: 31,402 lines, 2 differing: cured `bf30d4b` an EVAL or CONVERT text ending with [ or < open is 229 (the *( ) wrapper's parenthesis met it first, 224); CHAR of 1,096 by design. Witness `ladder__rung16_inf_dotnet_an_open_bracket_at_the_end_is_229` (corpus `fe732a7b8`, master 2,187, HARVEST 14). TestSnobol4 batched 3,345 / 0 failed / 12 skipped. Next: more rounds at size 1000.**
 
 - **2026-10-29 late night, later — SnoRungs@dotnet WRITTEN: 2,185 / 2,185, 1 excluded, 100%, at `06e21c1` (core 31 + chunks 01-22 all PASS, 568 s); from-progress needed `--criterion-changed` for the denominator's move from 2,092. README's SnoRungs row updated (`30a5fa9`). Next: the campaign at a larger size.**
