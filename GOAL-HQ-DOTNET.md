@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 night, round 10 — scope 12, seed0 `20261106`, size 500: 17,790 lines, 1 differing, cured `c9e85c9`: an error that ends a match inside a negation's operand left its value on the stack (the statement's own assignment then took the wrong target) and became a plain failure (EVAL succeeded); PatternMatch now restores the stack and keeps the error. Witness `ladder__rung28_inf_dotnet_an_error_ending_a_match_under_a_negation` (corpus `ca43f46ae`, master 2,186, HARVEST 13). TestSnobol4 batched 3,343 / 0 failed / 12 skipped. Next: further rounds.**
+
 - **2026-10-29 night, after the campaign — the rungs master entry by entry against a fresh sbl run (includes staged, blank lines ignored): 4 real dotnet classes among the 44 RED, all cured: `6e00b9a` a constant capture into $ARB or $LEN(1) is 239 as compiled; `522f4a7` EVAL called by name of a value is 249; `dfa59eb` INTEGER of a name is its text; `ad63d5e` a bracket right after a goto's own groups (:((X = 1)) is 212). The other 40 are the plain runner's limits. Campaign at scope 12: seed `20261105` batches 11-30 of stmt and 11-20 of expr and match, 15,670 lines, 0 differing. TestSnobol4 batched 3,342 / 0 failed / 12 skipped. Unicode is ruled (RULINGS). Next: a fresh coo grading of SnoRungs on dotnet, and further campaign rounds.**
 
 - **2026-10-29 night, rounds 6-8 — scope 12, seeds `20261103` (12,008 lines, 0 differing), `20261104` (11,918, 2: CHAR 403 and 690, `LON_UNICODE_BY_DESIGN`), `20261105` (11,990, 0). Next: seed `20261105` batches 11-30 of stmt (every class this evening came from kind=stmt), 11-20 of expr and match.**
