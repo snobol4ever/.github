@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 night, rounds 6-8 — scope 12, seeds `20261103` (12,008 lines, 0 differing), `20261104` (11,918, 2: CHAR 403 and 690, `LON_UNICODE_BY_DESIGN`), `20261105` (11,990, 0). Next: seed `20261105` batches 11-30 of stmt (every class this evening came from kind=stmt), 11-20 of expr and match.**
+
 - **2026-10-29 night, round 5 — campaign at scope 12 (seed0 `20261102`, preset unpinned): 11,552 lines, 178 differing, two classes cured: `509e1ce` a selection's long later alternative overran a one-byte branch (Brfalse_S) and the console DIED (177 lines were the crash's cascade); `d878512` CHAR of a real beyond the integers is 282 (Char cut to 32 bits first). Witnesses `ladder__rung25_inf_dotnet_a_long_alternative_compiles`, `ladder__rung26_inf_dotnet_char_of_a_real_beyond_the_integers_is_out_of_range` (corpus `aad5d94d5`, master 2,185, HARVEST 11-12). TestSnobol4 batched 3,338 / 0 failed / 12 skipped. Next: further rounds.**
 
 - **2026-10-29 night, last — campaign round at scope 12 (seed0 `20261101`, preset unpinned): 11,552 lines, 1 differing, cured `9421483`: a failed CODE reports its first statement's error (CompileQuietly kept the last); witness `ladder__rung16_inf_dotnet_a_failed_code_reports_its_first_error` (corpus `f95faabca`, master 2,183, HARVEST row 10). TestSnobol4 batched 3,336 / 0 failed / 12 skipped. Rounds so far at scope 12: seeds 20261029, 20261030, 20261031, 20261101. Next: further rounds.**
