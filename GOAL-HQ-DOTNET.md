@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 night, last — campaign round at scope 12 (seed0 `20261101`, preset unpinned): 11,552 lines, 1 differing, cured `9421483`: a failed CODE reports its first statement's error (CompileQuietly kept the last); witness `ladder__rung16_inf_dotnet_a_failed_code_reports_its_first_error` (corpus `f95faabca`, master 2,183, HARVEST row 10). TestSnobol4 batched 3,336 / 0 failed / 12 skipped. Rounds so far at scope 12: seeds 20261029, 20261030, 20261031, 20261101. Next: further rounds.**
+
 - **2026-10-29 night, latest — campaign round at scope 12 (seed0 `20261031`, preset unpinned): 11,778 lines, 7 differing, one class, cured `56fa0cb`: an element, table entry or field holding an expression is itself the target of =, . and $ (Assign's deferred-target loop now needs Key null too); witness `ladder__rung07_inf_dotnet_an_element_holding_an_expression_is_assigned_itself` (corpus `1e1aaf256`, master 2,182, HARVEST row 9). TestSnobol4 batched 3,335 / 0 failed / 12 skipped. Note: a test that captures the console must sit in a [DoNotParallelize] class. Next: further rounds at scope 12.**
 
 - **2026-10-29 night, later — campaign round at scope 12 (seed0 `20261030`, preset 3, 1-10 of each kind): 12,120 lines, 2 differing. Cured `a2fe5de`: a goto to a label a failed CODE left before its statement in error runs into it, error 7 (`PopulateCodeMetadata` records `ErroneousStatements` as the main program does); witness `ladder__rung16_inf_dotnet_the_statement_in_error_of_a_failed_code_is_error_7` (corpus `9f31c1b30`, master 2,181, HARVEST row 8). The other: CHAR(999), `LON_UNICODE_BY_DESIGN`. TestSnobol4 batched 3,334 / 0 failed / 12 skipped. Next: further rounds at scope 12 with fresh seeds.**
