@@ -9,3 +9,9 @@ e2d5b18cc	rebus-bench-ref	coo	SUITE_BOARD family=rebus-bench-ref total=3 shipped
 7a6a3e65b	icon-demos	coo	DEMOS_SUITE_BOARD lang=icon total=7 shipped=10 all_pass=7 all_n=7 m3_pass=7 m4_pass=7 containers=3 workhorse_declared=7 chained=0 tree=7a6a3e65b corpus=f2149528f RT_OPT=-O0
 7a6a3e65b	scriptix-demos	coo	DEMOS_SUITE_BOARD lang=scriptix total=12 shipped=14 all_pass=12 all_n=12 m3_pass=12 m4_pass=12 containers=2 workhorse_declared=12 chained=0 tree=7a6a3e65b corpus=f2149528f RT_OPT=-O0
 d4b6b366d	snobol4-bench-ref	coo	SUITE_BOARD family=snobol4-bench-ref total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 angles=process,iter,time iter_n=3 bud_ms=200 memory_declared=46
+e92462182	scriptix-demos	coo	DEMOS_SUITE_BOARD lang=scriptix total=12 shipped=14 all_pass=11 all_n=12 m3_pass=11 m4_pass=11 containers=2 workhorse_declared=12 chained=0 tree=e92462182 corpus=d9f4e652d RT_OPT=-O0
+e92462182	snocone-demos	coo	DEMOS_SUITE_BOARD lang=snocone total=23 shipped=23 all_pass=23 all_n=23 m3_pass=23 m4_pass=23 containers=0 workhorse_declared=23 chained=1 tree=e92462182 corpus=d9f4e652d RT_OPT=-O0
+e92462182	pascal-demos	coo	DEMOS_SUITE_BOARD lang=pascal total=8 shipped=8 all_pass=8 all_n=8 m3_pass=8 m4_pass=8 containers=0 workhorse_declared=0 chained=0 tree=e92462182 corpus=d9f4e652d RT_OPT=-O0
+e92462182	pascal-bench-ref	coo	SUITE_BOARD family=pascal-bench-ref total=11 all_pass=11 all_n=11 m3_pass=11 m4_pass=11 angles=wrap,iter,time
+e92462182	prolog-demos	coo	DEMOS_SUITE_BOARD lang=prolog total=8 shipped=23 all_pass=8 all_n=8 m3_pass=8 m4_pass=8 containers=15 workhorse_declared=8 chained=0 tree=e92462182 corpus=d9f4e652d RT_OPT=-O0
+e92462182	ipl	coo	IPL_SUITE_BOARD total=851 compile_graded=851 compile_pass=845 compile_fail=6 run_graded=644 nomain_total=391 hasmain_total=460 nomain_ok=0 linkgap=3 parseerr=2 timeout=0 other=1
