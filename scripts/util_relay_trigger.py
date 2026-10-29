@@ -104,7 +104,12 @@ def main():
     rb_all = sum(v[0] for v in per.values())
     c_all = sum(v[1] for v in per.values())
     ratio = (rb_all / c_all) if c_all else (float(rb_all) if rb_all else 0.0)
-    loops = sorted([s for s, (rb, c) in per.items() if rb >= LOOP_REBASES and rb >= LOOP_RATIO * max(c, 1)])
+    landed = {}
+    for s in [s for s, (rb, c) in per.items() if rb >= LOOP_REBASES and rb >= LOOP_RATIO * max(c, 1)]:
+        h = git(["rev-parse", "HEAD"], "/home/claude_%s/SCRIP" % s)
+        if h and subprocess.run(["git", "-C", scrip, "merge-base", "--is-ancestor", h.strip(), "origin/main"], capture_output=True).returncode == 0:
+            landed[s] = h.strip()[:9]
+    loops = sorted([s for s, (rb, c) in per.items() if rb >= LOOP_REBASES and rb >= LOOP_RATIO * max(c, 1) and s not in landed])
     try:
         l1, l5 = [float(x) for x in open("/proc/loadavg").read().split()[:2]]
     except Exception:
@@ -146,7 +151,7 @@ def main():
              ("  WARN CPU SLOW: under %.0f MHz with load %.1f >= %d cores" % (CPU_SLOW_MHZ, l1, cores)) if mhz and avg_mhz < CPU_SLOW_MHZ and l1 >= cores else ""))
     for s, (rb, c) in sorted(per.items(), key=lambda kv: (-kv[1][0], kv[0])):
         if rb or c:
-            print("  %-10s rebases %3d  commits %3d" % (s, rb, c))
+            print("  %-10s rebases %3d  commits %3d%s" % (s, rb, c, ("  loop ENDED: HEAD %s is on origin/main, its rebases ended in a landing (CEO-2017)" % landed[s]) if s in landed else ""))
     contending = [s for s, (rb, c) in sorted(per.items(), key=lambda kv: (-kv[1][0], -kv[1][1], kv[0])) if rb > 0 and s != "ceo"]
     if reasons:
         print("RELAY: ON -- " + "; ".join(reasons) + " -- contending seats, most rebases first: " + " ".join(contending[:5]))
