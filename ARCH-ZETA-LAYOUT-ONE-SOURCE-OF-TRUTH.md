@@ -17,7 +17,7 @@ THE PLAN'S RECORD is `corpus/tests/shared/zeta_layout/STEPS.tsv` (seventeen rows
 | the spine between frames | found by search: 16-byte units at every 8-byte phase, 14 of 26 tags accepted, 62.9 M words searched for 590 cells on one witness | `gc_cell_visit` `gc_heap.c:2187`, `.Lsw_reject` `rtx_gc.s` (24 lines) |
 | the ZSM's expectation | `x86_rsp_slide_known()` returns the constant 1 | `x86_asm.h:638` |
 | C roads that set the machine's depth | `rt_return_to_emitted` reloads rsp, rbp, r12-r15 from a saved record (`core.c:2389`); 5 setjmp catchers (`string_ops.c:80`, `arithmetic.c:364`, `runtime_eval.c:364`, `core.c:2384`, `by_name_dispatch.c:19460,19806`), one thread-exit setjmp (`rt_coexpr.c:69`) | `src/runtime` |
-| the eight witnesses, four ways | recorded by `--step 0` in the baton the day the plan is minted | STEPS.tsv row 0 |
+| the eight witnesses, four ways (`--step 0`, 2026-10-29 19:3x CDT, SCRIP fe4714842) | **GREEN: m3 8/8, m4 8/8, m3 under stress 8/8, m4 under stress 8/8; rule5_sites 0; template_rsp_moves 434** | STEPS.tsv row 0 |
 
 **Read honestly:** nothing in the population reads rule 5 today, so this design cures no measured collector red. What it removes is the SECOND SOURCE: every one of those 224,950 records is right because an encoder-side interpreter over string tags happened to agree with the plan; the identity run is the only proof the two media agree; a template that pushes across a join reads unknown and the collector would stop silently; the fleet re-cuts a binary-derived table in one commit of ten. Lon's ruling is that the layout is decided ONCE (CEO-1895/1988): this plan makes the record of the decision the only thing anyone reads.
 
