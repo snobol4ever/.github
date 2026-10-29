@@ -62,7 +62,7 @@ make                 # ./scrip + out/libscrip_rt.so (the rtx .s files assemble i
 bash scripts/test_feature_reps.sh <lang> <feature>...  # your handful: <=8 core programs carrying the feature, both modes; --list runs nothing
 bash scripts/test_gate_<name>.sh                      # ONE arm; every arm is a standalone script
 ./scrip prog.sno < /dev/null                          # mode 3 (default)
-./scrip --compile -o prog.s prog.sno < /dev/null      # mode 4 text; then link the way the suite harness grades (PIE):
+./scrip --compile --out=prog.s prog.sno < /dev/null      # mode 4 text; then link the way the suite harness grades (PIE):
 gcc prog.s -L$PWD/out -lscrip_rt -lm -Wl,-rpath,$PWD/out -o prog
 valgrind --tool=callgrind --callgrind-out-file=/tmp/cg.out ./scrip prog.sno < /dev/null; callgrind_annotate /tmp/cg.out | head -40
 python3 scripts/strip_comments.py --check             # zero comments in C/C++/asm

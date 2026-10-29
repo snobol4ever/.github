@@ -22,7 +22,7 @@ if [ "$m3rc" -ne 0 ]; then echo "⛔ TDUMP-M3 rc=$m3rc$([ "$m3rc" = 139 ] && ech
 elif ! diff -q "$tmp/m3.out" "$BS/TDump_driver.ref" > /dev/null; then echo "⛔ TDUMP-M3 rc=0 but output differs from TDump_driver.ref"; rc=1
 else echo "✅ TDUMP-M3 rc=0, byte-equal to ref"; fi
 # --- 2. TDump_driver, mode 4 (m3 == m4 is a design invariant) ---------------------------------
-( cd "$BS" && timeout 120s "$SCRIP_BIN" --compile -o "$tmp/td.s" TDump_driver.sno < /dev/null > /dev/null 2>&1 ) \
+( cd "$BS" && timeout 120s "$SCRIP_BIN" --compile --out="$tmp/td.s" TDump_driver.sno < /dev/null > /dev/null 2>&1 ) \
   && gcc -m64 -no-pie "$tmp/td.s" -o "$tmp/td.bin" -L"$ROOT/SCRIP/out" -lscrip_rt -Wl,-rpath,"$ROOT/SCRIP/out" -lm -lpthread > /dev/null 2>&1
 if [ -x "$tmp/td.bin" ]; then
   ( cd "$BS" && timeout 60s "$tmp/td.bin" < /dev/null > "$tmp/m4.out" 2>&1 ); m4rc=$?

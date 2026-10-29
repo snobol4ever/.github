@@ -30,7 +30,7 @@ make preflight       # the cheap hermetic arms -- part of EVERY landing verdict
 make test            # THE blocking set (hundreds of arms, tens of minutes) -- HEAVY: once per batch of 3-4 landings (CEO-1316)
 make test-sequential # the same arms, stopping at the FIRST red -- for bisecting a batch, never a verdict
 bash scripts/test_gate_<name>.sh                      # ONE arm; every arm is a standalone script; grep <name> Makefile finds its line
-./scrip --compile -o out.s prog.sno < /dev/null      # mode 4 text: the A/B witness of a template edit
+./scrip --compile --out=out.s prog.sno < /dev/null      # mode 4 text: the A/B witness of a template edit
 ./scrip prog.sno < /dev/null                          # mode 3 (default)
 bash scripts/audit_bb_fixup_rank.sh                   # whole-set census (your loop's instrument)
 bash scripts/audit_bb_fixup_file.sh src/templates/bb/bb_X.cpp   # one file; rc 0 = conformant

@@ -15,7 +15,7 @@ for L in langs:
         k = t.count('\n'); offs.append((n, n + k, os.path.basename(f))); n += k; text += t
     src = f'{OUT}/{L}.sc'; open(src, 'w', encoding='utf-8').write(text)
     env = dict(os.environ, SCRIP_PATDIAG='1')
-    r = subprocess.run([f'{WT}/scrip', '--compile', '-o', f'{OUT}/{L}.s', src], stdin=subprocess.DEVNULL, capture_output=True, text=True, env=env, timeout=300)
+    r = subprocess.run([f'{WT}/scrip', '--compile', f"--out={OUT}/{L}.s", src], stdin=subprocess.DEVNULL, capture_output=True, text=True, env=env, timeout=300)
     rows = []
     for l in r.stderr.splitlines():
         if not l.startswith('[PATDIAG]'): continue

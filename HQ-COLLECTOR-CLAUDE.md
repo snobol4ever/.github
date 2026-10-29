@@ -61,7 +61,7 @@ make                 # ./scrip + out/libscrip_rt.so; objdir /tmp/si_objs<tree-pa
 make preflight       # the cheap hermetic arms, the area smoke last -- part of EVERY landing verdict
 bash scripts/test_gate_<name>.sh                      # ONE arm; every arm is a standalone script
 ./scrip prog.sno < /dev/null                          # mode 3 (default)
-./scrip --compile -o prog.s prog.sno < /dev/null      # mode 4 text; then link the way the suite harness grades (PIE; -no-pie is refused, SCRIP 27e4e3960, CEO-1536):
+./scrip --compile --out=prog.s prog.sno < /dev/null      # mode 4 text; then link the way the suite harness grades (PIE; -no-pie is refused, SCRIP 27e4e3960, CEO-1536):
 gcc prog.s -L$PWD/out -lscrip_rt -lm -Wl,-rpath,$PWD/out -o prog
 SCRIP_GC_CHAIN_CHECK=1 ./scrip prog.sno < /dev/null    # the chain checked against the marker scan at every collection (2 aborts on the first disagreement)
 SCRIP_GC_STRESS=1 ./scrip prog.sno < /dev/null         # collect at every safe point, for one witness by hand (the coo runs the plant)

@@ -82,7 +82,7 @@ make                 # ./scrip + out/libscrip_rt.so; objdir /tmp/si_objs<tree-pa
 bash scripts/test_feature_reps.sh <lang> <feature>... # your handful: at most eight core programs carrying the feature, both modes (CEO-1677); --list runs nothing
 bash scripts/test_gate_<name>.sh                      # ONE arm; every arm is a standalone script
 ./scrip prog.sno < /dev/null                          # mode 3 (default)
-./scrip --compile -o prog.s prog.sno < /dev/null      # mode 4 text; then link the way the suite harness grades (PIE; -no-pie is refused, SCRIP 27e4e3960, CEO-1536):
+./scrip --compile --out=prog.s prog.sno < /dev/null      # mode 4 text; then link the way the suite harness grades (PIE; -no-pie is refused, SCRIP 27e4e3960, CEO-1536):
 gcc prog.s -L$PWD/out -lscrip_rt -lm -Wl,-rpath,$PWD/out -o prog
 ./scrip --dump-bb prog.sno < /dev/null                # the boxes and their ports; --dump-zeta for the zeta plan
 objdump -d --no-show-raw-insn prog | less               # the ABI fact, measured, before any register argument

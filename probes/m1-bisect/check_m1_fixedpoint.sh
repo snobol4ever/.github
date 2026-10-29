@@ -54,7 +54,7 @@ report() { # $1=arm $2=outfile
 case "$ARM" in m3|both)
   ( cd "$BEAUTY" && timeout 120 "$SCRIP" "$SRC" < "$SRC" > "$T/m3.out" 2>"$T/m3.err" ); report m3 "$T/m3.out";; esac
 case "$ARM" in m4|both)
-  ( cd "$BEAUTY" && timeout 180 "$SCRIP" --compile -o "$T/m4.s" "$SRC" > "$T/m4c.log" 2>&1 )
+  ( cd "$BEAUTY" && timeout 180 "$SCRIP" --compile --out="$T/m4.s" "$SRC" > "$T/m4c.log" 2>&1 )
   if [ -s "$T/m4.s" ] && gcc -o "$T/m4.bin" "$T/m4.s" -L"$RT" -lscrip_rt -Wl,-rpath,"$RT" 2>"$T/m4l.log"; then
     ( cd "$BEAUTY" && timeout 120 "$T/m4.bin" < "$SRC" > "$T/m4.out" 2>"$T/m4.err" ); report m4 "$T/m4.out"
   else printf '  m4  ⛔ COMPILE/LINK FAILED (see log)\n'; tail -2 "$T/m4c.log" "$T/m4l.log" 2>/dev/null; rc=1; fi;; esac

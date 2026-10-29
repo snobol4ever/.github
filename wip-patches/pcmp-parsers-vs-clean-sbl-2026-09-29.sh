@@ -14,7 +14,7 @@ printf '%-8s %5s %9s | %-16s | %-16s | %-16s | %-9s | %s\n' lang files bytes "C 
 for L in ${*:-snobol4 snocone icon prolog rebus pascal}; do
   if [ -f $S/cclean/$L.ok ]; then cp $S/cclean/$L.ok $O/$L.list; else grep -vxF -f $S/corp/orig/$L/sbl.crash $S/corp/orig/$L.list > $O/$L.list 2>/dev/null || cp $S/corp/orig/$L.list $O/$L.list; fi
   cat $B/global.sc $B/case.sc $B/assign.sc $B/match.sc $B/counter.sc $B/stack.sc $B/tree.sc $B/ShiftReduce.sc $B/tdump.sc $B/gen.sc $B/qize.sc $B/semantic.sc $B/omega.sc $B/trace.sc $B/parser_$L.sc > $O/$L.sc
-  $W/scrip --compile $O/$L.sc -o $O/$L.s < /dev/null > $O/$L.cc.err 2>&1 && (cd $W && gcc -c $O/$L.s -o $O/$L.o && gcc $O/$L.o -L out -lscrip_rt -lm -Wl,-rpath,$W/out -o $O/$L.bin) 2>> $O/$L.cc.err || { echo "$L: m4 build failed"; continue; }
+  $W/scrip --compile $O/$L.sc --out=$O/$L.s < /dev/null > $O/$L.cc.err 2>&1 && (cd $W && gcc -c $O/$L.s -o $O/$L.o && gcc $O/$L.o -L out -lscrip_rt -lm -Wl,-rpath,$W/out -o $O/$L.bin) 2>> $O/$L.cc.err || { echo "$L: m4 build failed"; continue; }
   $W/scrip --transpile $O/$L.sc > $O/$L.sno 2>/dev/null
   cp=(); sp=(); bp=()
   for k in 1 2 3; do

@@ -132,7 +132,7 @@ grep -n 'RT_OPT' Makefile | head    # one definition; the rest are comments ABOU
 ```bash
 ./scrip prog.pl  < /dev/null              # mode-3 --run (DEFAULT): flat-wired x86 BB blobs in a sealed slab
 ./scrip --compile prog.pl < /dev/null     # mode-4: standalone x86-64 asm (links out/libscrip_rt.so)
-./scrip --compile -o prog.s prog.pl       # -o accepted before OR after the source file
+./scrip --compile --out=prog.s prog.pl       # --out= accepted before OR after the source file
 ./scrip --target=ARCH prog.pl             # x86 | jvm | js | wasm; implies --compile (non-x86 arms stub out)
 ./scrip --dump-ast|--dump-ir|--dump-ir-verbose|--dump-bb|--dump-zeta prog.pl
 ./scrip --transpile prog.sno              # AST -> portable SNOBOL4 source
