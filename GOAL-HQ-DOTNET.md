@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 night, round 5 — campaign at scope 12 (seed0 `20261102`, preset unpinned): 11,552 lines, 178 differing, two classes cured: `509e1ce` a selection's long later alternative overran a one-byte branch (Brfalse_S) and the console DIED (177 lines were the crash's cascade); `d878512` CHAR of a real beyond the integers is 282 (Char cut to 32 bits first). Witnesses `ladder__rung25_inf_dotnet_a_long_alternative_compiles`, `ladder__rung26_inf_dotnet_char_of_a_real_beyond_the_integers_is_out_of_range` (corpus `aad5d94d5`, master 2,185, HARVEST 11-12). TestSnobol4 batched 3,338 / 0 failed / 12 skipped. Next: further rounds.**
+
 - **2026-10-29 night, last — campaign round at scope 12 (seed0 `20261101`, preset unpinned): 11,552 lines, 1 differing, cured `9421483`: a failed CODE reports its first statement's error (CompileQuietly kept the last); witness `ladder__rung16_inf_dotnet_a_failed_code_reports_its_first_error` (corpus `f95faabca`, master 2,183, HARVEST row 10). TestSnobol4 batched 3,336 / 0 failed / 12 skipped. Rounds so far at scope 12: seeds 20261029, 20261030, 20261031, 20261101. Next: further rounds.**
 
 - **2026-10-29 night, latest — campaign round at scope 12 (seed0 `20261031`, preset unpinned): 11,778 lines, 7 differing, one class, cured `56fa0cb`: an element, table entry or field holding an expression is itself the target of =, . and $ (Assign's deferred-target loop now needs Key null too); witness `ladder__rung07_inf_dotnet_an_element_holding_an_expression_is_assigned_itself` (corpus `1e1aaf256`, master 2,182, HARVEST row 9). TestSnobol4 batched 3,335 / 0 failed / 12 skipped. Note: a test that captures the console must sit in a [DoNotParallelize] class. Next: further rounds at scope 12.**
