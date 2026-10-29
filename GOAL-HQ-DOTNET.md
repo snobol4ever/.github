@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 night, round 7 at scope 12 (walk=random, limit 24, 30 batches, seed0 385545): 33,024 lines, 3 differing. Two are CHAR above 255, by design (CHAR(3333) through `!` in expr batch 2, CHAR(1096) through `/` in expr batch 4). One class cured `56fdb50`: @A sets A when A holds a NAME (AtSign took any NameVar's pointer; it now keeps Assign's rule, a NAME is followed only when the statement produced it). Witness `ladder__rung07_inf_dotnet_a_cursor_given_to_a_variable_holding_a_name_sets_the_variable` (corpus `3d859b6c5`, master 2,189, HARVEST 16). TestSnobol4 batched 3,347 / 0 failed / 12 skipped; 32 dotnet witnesses and 33 master entries holding @ PASS. The loop's RESUME row (sbl CONVERT-in-EVAL, CEO-2011) stays PARKED-LON-HOLD, untouched. Next: more rounds of other shapes when one is wanted.**
+
 - **2026-10-29 late night, rounds 5-6 at scope 12, walk=random then walk=every: `big5` (walk=random, limit 10, batch 1 seed 385545) 41,264 lines, 0 differing; `big6` (walk=every, limits 8-20, batch 1 seed 17139) 28,454 lines, 0 differing. No new dotnet class in either round. Still waiting on the ceo about the sbl CONVERT-in-EVAL defect (rounds 3-4). Next: more rounds of other shapes when one is wanted.**
 
 - **2026-10-29 late night, size 1000-2000 rounds 3-4 — seeds `20261111` (32,854 lines, 1: CHAR, by design) and `20261112` (stmt at 2000, 42,750 lines, 3: two CHAR, by design; one ORACLE DEFECT: sbl prints PATTERN in place of the next OUTPUT after EVAL("CONVERT('0:35', 'EXPRESSION')"), an interior mark in a CONVERT inside EVAL'd code; CSNOBOL4 agrees with dotnet). Asked the ceo: a generator exclusion like step 7's, or count it as the oracle's. No new dotnet class in either round.**
