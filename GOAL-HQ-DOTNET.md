@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 late night, later — SnoRungs@dotnet WRITTEN: 2,185 / 2,185, 1 excluded, 100%, at `06e21c1` (core 31 + chunks 01-22 all PASS, 568 s); from-progress needed `--criterion-changed` for the denominator's move from 2,092. README's SnoRungs row updated (`30a5fa9`). Next: the campaign at a larger size.**
+
 - **2026-10-29 late night — the ceo: SnoRungs@dotnet is this seat's own row (CEO-1912/1913), run and written here: `S4E_ENGINE=dotnet python3 harness/scripts/corpus_suite_harness.py run corpus/tests/snobol4/ALL.sno corpus/tests/snobol4/ALL.ref --partition <core|chunk:NN> --modes m3` (no m4 for a port), then `util_score_row.py from-progress --suite sno-rungs@dotnet`. Board running at `06e21c1` (core 31/31). Whole-master check on the current build: no regression; one new entry (hq_snobol4's code_eval_eval_convert_replace_branch_1) cured `06e21c1` (before a mark in EVAL or CONVERT text only a syntax error counts). TestSnobol4 batched 3,344 / 0 failed / 12 skipped. Next: write the board, then the campaign at a larger size.**
 
 - **2026-10-29 night, rounds 11-12 — scope 12 seed0 `20261107` size 500 (16,752 lines, 0 differing); seed0 `20261108` at scopes 8 and 10 (expr, match) and 11 (stmt), size 400 (23,276 lines, 0). No new class in four rounds: the campaign stands converged at these sizes. README and CLAUDE.md read the suite as it runs (`0cfb49c`: 3,343 tests at `c9e85c9`). Next: the coo's fresh SnoRungs grading on dotnet (asked through the ceo), and wider campaign shapes (other walks, larger limits) when a round is wanted.**
