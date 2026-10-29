@@ -8,6 +8,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 late night, size 1000 — scope 12, seed0 `20261109`: 31,402 lines, 2 differing: cured `bf30d4b` an EVAL or CONVERT text ending with [ or < open is 229 (the *( ) wrapper's parenthesis met it first, 224); CHAR of 1,096 by design. Witness `ladder__rung16_inf_dotnet_an_open_bracket_at_the_end_is_229` (corpus `fe732a7b8`, master 2,187, HARVEST 14). TestSnobol4 batched 3,345 / 0 failed / 12 skipped. Next: more rounds at size 1000.**
+
 - **2026-10-29 late night, later — SnoRungs@dotnet WRITTEN: 2,185 / 2,185, 1 excluded, 100%, at `06e21c1` (core 31 + chunks 01-22 all PASS, 568 s); from-progress needed `--criterion-changed` for the denominator's move from 2,092. README's SnoRungs row updated (`30a5fa9`). Next: the campaign at a larger size.**
 
 - **2026-10-29 late night — the ceo: SnoRungs@dotnet is this seat's own row (CEO-1912/1913), run and written here: `S4E_ENGINE=dotnet python3 harness/scripts/corpus_suite_harness.py run corpus/tests/snobol4/ALL.sno corpus/tests/snobol4/ALL.ref --partition <core|chunk:NN> --modes m3` (no m4 for a port), then `util_score_row.py from-progress --suite sno-rungs@dotnet`. Board running at `06e21c1` (core 31/31). Whole-master check on the current build: no regression; one new entry (hq_snobol4's code_eval_eval_convert_replace_branch_1) cured `06e21c1` (before a mark in EVAL or CONVERT text only a syntax error counts). TestSnobol4 batched 3,344 / 0 failed / 12 skipped. Next: write the board, then the campaign at a larger size.**
