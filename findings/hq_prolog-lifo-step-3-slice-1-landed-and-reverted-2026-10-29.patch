@@ -1,0 +1,49 @@
+diff --git a/src/planner/zeta_plan.cpp b/src/planner/zeta_plan.cpp
+index 44a254b60..7372191df 100644
+--- a/src/planner/zeta_plan.cpp
++++ b/src/planner/zeta_plan.cpp
+@@ -560,21 +560,6 @@ extern "C" int planner_node_definite(const IR_graph_t * g, const IR_t * nd) {
+     return 0;
+ }
+ static int zd_bound_spine0(const IR_graph_t * g, const IR_t * nd);
+-static int zd_bound_arm_resumes(const IR_graph_t * g, const IR_t * nd, const IR_t * ig) {
+-    std::vector<const IR_t *> seen(1, nd), stk(1, nd);
+-    while (!stk.empty()) {
+-        const IR_t * x = stk.back();
+-        stk.pop_back();
+-        if (x != nd && (x->op == IR_SUSPEND || x->op == IR_DISJUNCTION || zd_edge_retains_g(g, x))) return 1;
+-        for (int e = -2; e < x->n_operands; e++) {
+-            const IR_t * y = e == -2 ? x->γ.node : e == -1 ? x->ω.node : x->operands[e];
+-            if (!y || y == ig || y == ig->γ.node || y == ig->ω.node || std::find(seen.begin(), seen.end(), y) != seen.end()) continue;
+-            seen.push_back(y);
+-            stk.push_back(y);
+-        }
+-    }
+-    return 0;
+-}
+ static int zd_pl_freezes(const IR_graph_t * g) { return g && zls_g_resumable_frame(g) && zls_g_home_frame(g); }
+ extern "C" int planner_bound_spine(const IR_graph_t * g, const IR_t * nd) {
+     if (!nd || nd->op != IR_BOUND) return 0;
+@@ -626,11 +611,10 @@ static int zd_bound_spine0(const IR_graph_t * g, const IR_t * nd) {
+         }
+         r = o == 2;
+     }
+-    if (!r && zd_bound_arm_resumes(g, nd, ig)) r = 1;
+     return r ? 0 : 1;
+ }
+ extern "C" int planner_gate_cells(const IR_graph_t * g, const IR_t * gate) {
+-    if (!g || !gate || gate->op != IR_GATE || !zd_pl_home(g) || !getenv("SCRIP_PL_GATE_CELLS")) return 0;
++    if (!g || !gate || gate->op != IR_GATE || !zd_pl_home(g)) return 0;
+     int v = zls_fcn_bs_get(gate, 3);
+     if (v) return v == 2;
+     const IR_t * t = zd_chase((IR_t *)gate->γ.node);
+@@ -873,7 +857,8 @@ void zd_pl_bases(const IR_graph_t * cg, IR_t **nodes, int n, const unsigned char
+                         if (!zon[i] || claim[i] != h) continue;
+                         for (int e = 0; e < zd_pl_edges(nodes[i]); e++) {
+                             int l, q = zd_pl_entry(cg, nodes, n, zon, zout, zgpop, zwpop, claim, i, e, &l, dead);
+-                            if (q >= 0 && !known[q] && fam[q] < 0 && !zd_pl_restores_head(cg, nodes, n, claim, q)) { fam[q] = fam[h]; fbase[q] = fbase[h] + l - (zout[q] - zd_k_g(cg, nodes[q]));
++                            if (e != 1 && q >= 0 && !known[q] && fam[q] < 0 && !zd_pl_restores_head(cg, nodes, n, claim, q)) { fam[q] = fam[h];
++                                fbase[q] = fbase[h] + l - (zout[q] - zd_k_g(cg, nodes[q]));
+                                 moved = 1; }
+                             if (e == 1 || (e >= 2 && nodes[i]->op != IR_DISJUNCTION) || zd_edge_retains_g(cg, nodes[i])) continue;
+                             int b2, q2;
