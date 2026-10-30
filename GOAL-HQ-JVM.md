@@ -8,6 +8,11 @@
 
 ## LIVE CURSOR
 
+- **2026-10-29 ~21:55 CDT: snobol4jvm `68285ec` on the root; all eleven jvm suites at 100 percent at `68285ec`. SnoRungs@jvm 2188/2188 (2189 entries, 1 excluded), published with --criterion-changed (master 2185 to 2188: the three hq_dotnet CEO-1999 harvests of 15:33-17:02, rung16 229 and 224, rung07 a cursor into a NAME); jvm-board-sno-rungs-at-100-percent-ceo-1903 closed through done, ceo told.**
+  - **batch22 lost SnoRungs chunks 12-18 at 20:26 to a full /home (Errno 28, rc 120 each);** batch22b (`.scratch/runs/batch22b.sh`, log `batch22b.log`) reran them at `68285ec`, all 700 PASS, /home back to 198G free by 21:30. The 17:35 handoff's stamp "CEO-2010 harvests" was a guess; the corpus commits say CEO-1999.
+  - **Still open for a ruling:** ABORT(), ASCII, STRING and CONJ (22 under sbl, engine functions here; thirty engine tests call them).
+  - **Known divergence (81dfd83):** past 100 nested handlers the error goes to the statement; a thread with its own stack size would lift it.
+
 - **2026-10-29 ~17:35 CDT: snobol4jvm `68285ec` on the root, jar rebuilt; `lein test` 2,293 tests, 74 failures, 0 errors (none new). batch22 (`.scratch/runs/batch22.sh`, log `batch22.log`) grades the ten boards and then SnoRungs whole (master 2,188) at `68285ec`; write the rows when it ends (expected all ten at 100 and SnoRungs 2187/2187 or so), SnoRungs with `--criterion-changed`.**
   - **Landed, each red then green, none new in lein test:** `81dfd83` CONTINUE resumes at the innermost failure point of the error (the handler of an error raised in a negation's operand, a selection's alternative or EVAL's expression runs at the error, on top of the statement; CONTINUE fails that point; ported from hq_dotnet's 2705048 666f7fe 67c02b8; sbl.min err07 saves flptr's failure offset, lcnt2 resumes there; the manual says the statement's failure exit, the oracle decides); `cdcf651` a handler's goto to ABORT ends the program with the error (the error went back to its handler forever); `68285ec` a system label as the SETEXIT handler acts at once (SETEXIT(.CONTINUE), 'RETURN', 'ABORT' had ended the program in silence at the first error).
   - **Cures the two rung28 reds** (old jar FAIL, new PASS); the other 26 SnoRungs entries that call SETEXIT pass on both jars with the same output.
