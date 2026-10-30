@@ -8,7 +8,7 @@
 #   SEAT <root> cpu=<cores>          (live CPU summed by the process's working directory under /home/claude_*, else tmp/other)
 #   RUNAWAY pid=P seat=S cpu=C elapsed=E why=<reason> cmd=<head>   (a process to kill or chase)
 # A RUNAWAY is (a) a child of `timeout` that has outlived its own limit plus its -k grace by over a minute (the oracle-leak class), or (b) any process
-# other than a claude session or the desktop, busy above 50% of a core for over 30 minutes. rc 0 none, rc 1 at least one runaway, rc 2 /proc unreadable.
+# other than a claude session, the desktop or a kernel thread (a child of kthreadd, pid 2: kswapd0 reclaiming read as one on 2026-10-30), busy above 50% of a core for over 30 minutes. rc 0 none, rc 1 at least one runaway, rc 2 /proc unreadable.
 import os, sys, time, re
 def procs():
     out = {}
@@ -57,7 +57,7 @@ for p, info in b.items():
             k = m.group(1)
             grace = float(re.sub(r'[smhd]$', '', k)) if k and re.match(r'^\d+(\.\d+)?[smhd]?$', k) else 0.0
             if el > lim + grace + 60: why = 'outlived-its-timeout-%gs%s' % (lim, '' if k else '-no-k')
-    if not why and el > 1800 and c > 0.5 and info['comm'] not in ('claude', 'gnome-shell', 'gnome-terminal-', 'Xwayland', 'chrome', 'sublime_text') and not info['comm'].startswith('kworker') and os.path.basename(args(p).split(' ', 1)[0]) != 'claude':
+    if not why and el > 1800 and c > 0.5 and info['comm'] not in ('claude', 'gnome-shell', 'gnome-terminal-', 'Xwayland', 'chrome', 'sublime_text') and info['ppid'] != 2 and p != 2 and os.path.basename(args(p).split(' ', 1)[0]) != 'claude':
         why = 'busy-%.0f-min' % (el / 60)
     if why: run.append((c, p, seat_of(cwd(p)), el, why, args(p)[:90]))
 for c, p, s, el, why, cmd in sorted(run, reverse=True):
