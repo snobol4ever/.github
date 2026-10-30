@@ -8,6 +8,11 @@
 
 ## LIVE CURSOR
 
+- **2026-10-30 ~14:15 CDT: IDLE under CEO-2059 (Lon, through the ceo: the whole fleet completely idle). Nothing of this seat's is running.**
+  - Rows read by util_suite_row_at_100.sh at 14:1x: snoflake@jvm 126/126 and snobol4-demos@jvm 24/24, both at `10ff562`. sno-rungs@jvm is 2188/2188 at `68285ec` (10-29).
+  - The partial SnoRungs readings of batch25 stay in results.tsv. Core, chunk:01 and chunk:02 are 0 red; the rest is in the bullet below.
+  - Every repo here is clean and level with origin.
+
 - **2026-10-30 ~12:50 CDT: snobol4jvm `10ff562` on the root; under CEO-2052 (MODE line 2, 12:3x: the HQs finish their current work and go idle; the port HQs finish their own board re-grades and write those rows first) this seat finishes the board re-grade and then stops: no next, no new claim.**
   - **Written at `10ff562`, corpus `b65ff1c9e`:** Snoflake@jvm 126/126 (batch24, `b24-snoflake.out`), SnoDemo@jvm 24/24 (batch25, `b25-demos.out`). batch23 had the other eight at 100 at `cacf522`.
   - **Stopped, 13:06 CDT, at Lon's word ("finish your background shell process"):** batch25 (`.scratch/runs/batch25.sh`, log `batch25.log`) graded SnoRungs core, chunk:01 and chunk:02 at `10ff562`, 0 red each (`b25-rungs-{core,chunk01,chunk02}.out`); chunk:03 was killed mid-run (its `.out` is partial, not a result). SnoRungs@jvm is NOT written. To finish: rerun chunk:03-22 (and core-02 again if the tree or corpus moved), then `python3 harness/scripts/util_score_row.py from-progress --suite sno-rungs@jvm` from the root (dry-run first; `--criterion-changed` if the denominator moved, master 2,190), then tell the ceo.
