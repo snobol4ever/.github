@@ -16,12 +16,12 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=22s | 2026-10-30 | `e92462182` | done |
 | IPL | icon | 644/644 EXCLUDED=207 WALL=319s | 2026-10-30 | `e92462182` | done |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-25 | `26e79fe3e` | done |
-| SWI | prolog | 2491/2702 EXCLUDED=234 WALL=2365s | 2026-10-30 | `26e79fe3e` |  |
-| GNU source | prolog | 44/45 EXCLUDED=17 WALL=148s | 2026-10-30 | `e92462182` |  |
+| SWI | prolog | 2494/2702 EXCLUDED=234 WALL=2373s | 2026-10-30 | `26e79fe3e` |  |
+| GNU source | prolog | 45/45 EXCLUDED=17 WALL=148s | 2026-10-30 | `e92462182` | done |
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=95s | 2026-10-28 | `e92462182` | done |
 | PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=21s | 2026-10-28 | `e92462182` | done |
 | Roast | raku | 156/1401 EXCLUDED=63 WALL=667s | 2026-10-25 | `1ff4523a0` |  |
-| SnoRungs | snobol4 | 2142/2142 EXCLUDED=1 WALL=161s | 2026-10-25 | `9ad74082e` | done |
+| SnoRungs | snobol4 | 2142/2142 EXCLUDED=1 WALL=160s | 2026-10-25 | `9ad74082e` | done |
 | IcnRungs | icon | 936/936 WALL=44s | 2026-10-29 | `e92462182` | done |
 | ProRungs | prolog | 579/579 WALL=535s | 2026-10-30 | `0ec4d1345` | done |
 | PasRungs | pascal | 252/252 WALL=22s | 2026-10-28 | `e92462182` | done |
@@ -29,7 +29,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SncRungs | snocone | 358/358 WALL=21s | 2026-10-28 | `d4b6b366d` | done |
 | SncBench | snocone | 23/23 EXCLUDED=0 WALL=4s | 2026-10-28 | `34ce84c94` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-10-28 | `e2d5b18cc` | done |
-| Logtalk | prolog | 3545/3546 EXCLUDED=71 WALL=16372s | 2026-10-25 | `8657eaa00` |  |
+| Logtalk | prolog | 3546/3546 EXCLUDED=71 WALL=16371s | 2026-10-25 | `8657eaa00` | done |
 | X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=931s | 2026-10-25 | `1a8972d05` | done |
 | X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-10-28 | `7a6a3e65b` | done |
 | SnoBench | snobol4 | 23/23 EXCLUDED=0 WALL=16s | 2026-10-28 | `d4b6b366d` | done |
@@ -45,7 +45,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasRosetta | pascal | 216/305 EXCLUDED=359 WALL=2353s | 2026-10-29 | `9934db1be` |  |
 | ProRosetta | prolog | 480/481 EXCLUDED=305 WALL=2870s | 2026-10-30 | `26e79fe3e` |  |
 | ProPuzzles | prolog | 245/267 EXCLUDED=148 WALL=10534s | 2026-10-28 | `76019d4ce` |  |
-| TreallaTests | prolog | 311/318 EXCLUDED=138 WALL=431s | 2026-10-30 | `c33d10f89` |  |
+| TreallaTests | prolog | 313/318 EXCLUDED=138 WALL=451s | 2026-10-30 | `c33d10f89` |  |
 | PasDemo | pascal | 8/8 EXCLUDED=0 WALL=34s | 2026-10-28 | `e92462182` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=464s | 2026-10-23 | `3072d0240` | done |
