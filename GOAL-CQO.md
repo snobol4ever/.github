@@ -4,6 +4,12 @@
 
 ## LIVE CURSOR
 
+- **2026-10-30 09:2x CDT (ceo, CEO-2029) -- YOUR ROWS FROM THE ceo's REALLOCATION.** Lon, in-chat to the ceo, verbatim: *"You must re-allocate all the work based on the current fleet layout. Get busy."* · *"I wanted more brain power available when HQs flounder."* Reowned to `cqo`:
+  - `prolog-treallatests-to-100-the-81-failing-programs-ceo-1926` (the program list) and `prolog-treallatests-suite-to-100-ceo-1981` (the suite umbrella). Work TreallaTests first.
+  - `prolog-gnu-builtins-the-drivers-find-128-predicates-gnu-defines-and-scrip-lacks` (GNU source 43/45).
+  - The umbrellas of the Prolog suites an HQ is working: `prolog-swi-suite-to-100-ceo-1981` (hq_icon holds the SWI case row), `prolog-propuzzles-suite-to-100-ceo-1981` (hq_prolog), `prolog-prorosetta-suite-to-100-ceo-1981` (hq_runtime). The HQ keeps its row. You take the programs it escalates, and what is left when it moves on.
+  - The coo's 20 programs with no reading (PasRosetta 18, ProRosetta 2): the coo mints them as a row to you. Each gets a ref cut from its oracle, or a NO_ORACLE_ANSWER exclusion (CEO-1696/1926), after a rebuild on a quiet box.
+
 - **2026-10-30 09:0x CDT (ceo, at the seat's opening) -- FIRST WORK: TreallaTests, THEN GNU source.** Both suites are below 100 percent, and no seat is moving on either:
   - **TreallaTests**, 302/326 on the 10-30 board. Its row `prolog-treallatests-to-100-the-81-failing-programs-ceo-1926` is FREE under hq_packages, which is working XsbTests. The ceo reowns it to `cqo` at your opening; the count in its title is stale, so read the board.
   - **GNU source**, 43/45. `prolog-gnu-builtins-the-drivers-find-128-predicates-gnu-defines-and-scrip-lacks` is FREE under the cfo, which is on the memory model (CEO-1937). Take it only after the ceo has reowned it to `cqo`.

@@ -6,6 +6,13 @@
 
 - **2026-10-30 09:11 CDT (cao) -- LON RE-SEATS THE cao AT OPUS 5.5 XHIGH.** Lon, in-chat to the cao, verbatim: *"You, CAO, have been demoted to Opus 5.5 xhigh due to the CEO being confused."* The seat's own transcript reads `claude-opus-5-5` from that message on. The Fable 5.1 seating quoted in the opening words is withdrawn; the cao sits at Opus 5.5 xhigh with the other CxOs, as Lon's first purpose sentence says. The ceo is told to correct MODE line 2's ROSTER block (CEO-2026) and the seed `.github/CAO-CLAUDE.md`; this root's CLAUDE.md title and role paragraph carry the change. The same sitting refreshed this root's CLAUDE.md codebase mechanics by `/init` against SCRIP `ec46093be`, corpus `466aec828`, harness `65fdb70` and .github `7faa27ff4`; the four breadth designs below are unchanged.
 
+- **2026-10-30 09:2x CDT (ceo, CEO-2029) -- THE cao IS A GENERAL OFFICER, NOT A DESIGNER; ITS ROWS FROM THE ceo's REALLOCATION.** Lon, in-chat to the ceo, verbatim: *"So CAO is not longer design only. It is whatever is needed by your assignements after you analysis of the complete work queue."* · *"You must re-allocate all the work based on the current fleet layout. Get busy."* · *"I wanted more brain power available when HQs flounder."* The opening bullet below is VOID: the four breadth design rows were already DONE (the cto wrote those plans; the ceo misread receipt files in claims/ as live claims), and the cto alone designs (RULES.md FACT RULE of CEO-2029). YOUR ROWS, reowned to `cao` at 09:2x:
+  - **XSB tabling build**, the largest gap on the board (XsbTests 213/550): `prolog-xsb-wfs-step-7-the-scc-depth-number-ceo-2005` (FREE, yours now); steps 6 and 10 follow once the cfo releases its claims on them; the umbrella `prolog-xsbtests-suite-to-100-ceo-1981`. hq_packages keeps the program-at-a-time XsbTests row and escalates to you what it cannot cure. The plan is the cto's (`ARCH-PROLOG-*` / the design row's baton); a design gap goes to the cto as an ask.
+  - `snobol4-an-error-inside-eval-runs-no-later-arm-the-redirect-c-ceo-1926` (from the cfo).
+  - `instruments-the-fixed-caps-ratchet-is-a-blocking-arm-and-every-remaining-cap-refuses-loudly` (from the cfo).
+  - `compiler-globals-collect-into-g-parser-g-lower-g-emitter-g-template-structs-lons-housekeeping-ceo-1561` (from the cfo; BLOCKED-ON, so it waits).
+  - And any row an HQ escalates that the ceo reowns to you.
+
 - **2026-10-30 09:0x CDT (ceo, at the seat's opening) -- FIRST WORK: TAKE OVER THE FOUR BREADTH DESIGNS FROM THE cto.** The cto holds the design rows of CEO-1998 (`design-*-ceo-1998`). Four are breadth and become yours once the cto releases them:
   - `design-prolog-xsb-tabling-with-delay-and-well-founded-semantics-ceo-1998` (XsbTests 213/550 on 10-30). Its steps 6, 7 and 10 are already the cfo's rows (CEO-2005).
   - `design-prolog-clpr-braces-and-library-chr-ceo-1998` (ProRosetta, SWI). Each needs an ARCH page before any landing (CEO-1934).
@@ -16,7 +23,7 @@
 
 ## THE ROLE
 
-The second design seat, beside the cto (CLAUDE.md seed `.github/CAO-CLAUDE.md`). For each subject you write an ARCH page, a step plan, the test sources (witnesses whose refs are cut from the oracle and proven red once) and the harness that grades each step. Each step is minted as a row with its witness as the DONE-WHEN (`bash harness/scripts/s4e_msg.sh mint <topic> <rank> --owner <seat> --stdin`) and assigned to an HQ, the cfo or the cqo. You land designs and instruments; implementation is the executors'. Refuse mundane work. Agree any design that touches the memory model with the cto before its first row.
+An Opus 5.5 xhigh officer with more ability than the HQs, assigned by the ceo from its analysis of the whole queue (CEO-2029). It builds, cures and tests as any executor does: one program at a time, the monitor bracket first, the smokes of every language the diff touches before the push. It takes rows an HQ escalates when the ceo reowns them. A design gap goes to the cto as an ask; the cao never redesigns a plan the cto owns.
 
 ## RULINGS
 
