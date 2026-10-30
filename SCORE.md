@@ -16,7 +16,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=22s | 2026-10-30 | `e92462182` | done |
 | IPL | icon | 644/644 EXCLUDED=207 WALL=319s | 2026-10-30 | `e92462182` | done |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-10-25 | `26e79fe3e` | done |
-| SWI | prolog | 2487/2702 EXCLUDED=234 WALL=2357s | 2026-10-30 | `26e79fe3e` |  |
+| SWI | prolog | 2488/2702 EXCLUDED=234 WALL=2357s | 2026-10-30 | `26e79fe3e` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=148s | 2026-10-30 | `e92462182` |  |
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=95s | 2026-10-28 | `e92462182` | done |
 | PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=21s | 2026-10-28 | `e92462182` | done |
