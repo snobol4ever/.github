@@ -8,6 +8,11 @@
 
 ## LIVE CURSOR
 
+- **2026-10-30 ~12:50 CDT: snobol4jvm `10ff562` on the root; under CEO-2052 (MODE line 2, 12:3x: the HQs finish their current work and go idle; the port HQs finish their own board re-grades and write those rows first) this seat finishes the board re-grade and then stops: no next, no new claim.**
+  - **Written at `10ff562`, corpus `b65ff1c9e`:** Snoflake@jvm 126/126 (batch24, `b24-snoflake.out`), SnoDemo@jvm 24/24 (batch25, `b25-demos.out`). batch23 had the other eight at 100 at `cacf522`.
+  - **Running:** batch25 (`.scratch/runs/batch25.sh`, log `batch25.log`) grades SnoRungs whole (master 2,190 after corpus resorted and grew), core then chunk:01-22, about three hours. When it ends: `python3 harness/scripts/util_score_row.py from-progress --suite sno-rungs@jvm` from the root (dry-run first; `--criterion-changed` if the denominator moved), then tell the ceo.
+  - **Held, not claimed, not landed:** jvm-apply-calls-a-function-never-an-operator-ceo-2028 is staged in `.scratch/wt-2023` (operators.clj and its test, untested); the OPSYN half of the same class follows it. Both wait for Lon or the ceo to restart the seat.
+
 - **2026-10-30 ~12:20 CDT: snobol4jvm `10ff562` on the root, jar rebuilt; `lein test` 2,291 tests, 74 failures, 0 errors (the 74 of `cacf522`). jvm-quote-is-no-function-ceo-2028 closed through done. batch24 (`.scratch/runs/batch24.sh`, log `batch24.log`) grades Snoflake and SnoDemo at `10ff562`; it is stopped before SnoRungs so the APPLY cure lands first, and SnoRungs runs whole after it (batch25).**
   - **batch23 at `cacf522`:** X64T 33, TPgm 8, X32T 16, Budne 70, Dotnet 6, AIS 8, Gimpel 144, SnoBench 23, all 100 percent. Snoflake 122/126: gimpel-tictactoe-functions, trace-all-functions, trace-procedure, trace-value-watch HANG at the 8 s timeout, twice each, under load 25 to 33 at nice 19. Each passes un-niced in about 4 s wall (10 s user, nearly all JVM start), the same as a passing fixture, so it is load, not a regression; batch24 regrades them.
   - **CEO-2036 answered:** wip/hq_jvm/matcher is not active (its peek half is 5a80cfd on main; the rest is speed work parked by CEO-1914); bundle and delete it.
