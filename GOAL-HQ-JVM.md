@@ -8,6 +8,17 @@
 
 ## LIVE CURSOR
 
+- **2026-10-30 ~10:20 CDT: snobol4jvm `cacf522` on the root, jar rebuilt; `lein test` 2,290 tests, 74 failures, 0 errors (the 74 of `68285ec`, none new). Four rows closed through done, each red then green; batch23 (`.scratch/runs/batch23.sh`, log `batch23.log`) grades the ten boards and then SnoRungs whole at `cacf522`. Write the rows when it ends.**
+  - **The ceo's CEO-2023 checks, measured against `sbl -bf`.** Check 1: a program's DEFINE wins for ASCII, STRING and CONJ, but not for ABORT. Check 2: the ABORT label failed twice, on 036 and 217.
+  - **Landed:**
+    - `0b99109`: a goto to ABORT outside a handler ends the run with &ERRTYPE's error, or is 036 when there is none (sbl.min l_abo).
+    - `bb95fa2`: the 48 functions of the CEO-2024 census are gone (CEO-2027, CEO-2028), so each is 22. env/$$fn reaches core for an upper-case name only. The IR spells @ # ~ as at-op, sharp-op and tilde-op, so a source call `tilde(X)` is a call. Tests moved to ORD, CONVERT, the ABORT pattern and upper-case calls; the 7 CONJ tests are deleted.
+    - `b2ca1b7`: only a direct assignment to a pattern variable is 042 (vrsto, b_vre). A call's entry and exit, an indirect store and a capture all write (b_pfc, asign). compiler/freeze marks a pattern variable that a constant expression reads, so after a capture into REM, DATATYPE(REM) stays PATTERN (svkvc).
+    - `cacf522`: a label already defined, or a system label, is 217 in the program's own compile; a CODE text may redefine it (sbl.min cmp11).
+  - **Census (CEO-2024, sent to the ceo):** of 131 callable names, 48 were 22 under sbl. None is a CSNOBOL4 function (2.3.4, folded or not), and none is in SIL v3.11's FNLIST. `/home/claude_ceo/.tools/docs/green-book.txt` is only the title page.
+  - **Open, minted:** jvm-quote-is-no-function-ceo-2028. `quote('a')` returns 'a' here and is 22 under sbl. EVAL!'s quote arm, kept for Clojure-level IR, catches the source call. The census missed it because its scan stopped at that arm.
+  - **Not followed yet:** APPLY with a string that names an IR operator (APPLY('tilde-op', X), APPLY('+', 1, 2)) still reaches the operator. Under sbl -bf, APPLY('+',1,2) has not been measured.
+
 - **2026-10-29 ~21:55 CDT: snobol4jvm `68285ec` on the root; all eleven jvm suites at 100 percent at `68285ec`. SnoRungs@jvm 2188/2188 (2189 entries, 1 excluded), published with --criterion-changed (master 2185 to 2188: the three hq_dotnet CEO-1999 harvests of 15:33-17:02, rung16 229 and 224, rung07 a cursor into a NAME); jvm-board-sno-rungs-at-100-percent-ceo-1903 closed through done, ceo told.**
   - **batch22 lost SnoRungs chunks 12-18 at 20:26 to a full /home (Errno 28, rc 120 each);** batch22b (`.scratch/runs/batch22b.sh`, log `batch22b.log`) reran them at `68285ec`, all 700 PASS, /home back to 198G free by 21:30. The 17:35 handoff's stamp "CEO-2010 harvests" was a guess; the corpus commits say CEO-1999.
   - **Still open for a ruling:** ABORT(), ASCII, STRING and CONJ (22 under sbl, engine functions here; thirty engine tests call them).
