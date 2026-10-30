@@ -8,6 +8,13 @@
 
 ## LIVE CURSOR
 
+- **2026-10-30 ~12:20 CDT: snobol4jvm `10ff562` on the root, jar rebuilt; `lein test` 2,291 tests, 74 failures, 0 errors (the 74 of `cacf522`). jvm-quote-is-no-function-ceo-2028 closed through done. batch24 (`.scratch/runs/batch24.sh`, log `batch24.log`) grades Snoflake and SnoDemo at `10ff562`; it is stopped before SnoRungs so the APPLY cure lands first, and SnoRungs runs whole after it (batch25).**
+  - **batch23 at `cacf522`:** X64T 33, TPgm 8, X32T 16, Budne 70, Dotnet 6, AIS 8, Gimpel 144, SnoBench 23, all 100 percent. Snoflake 122/126: gimpel-tictactoe-functions, trace-all-functions, trace-procedure, trace-value-watch HANG at the 8 s timeout, twice each, under load 25 to 33 at nice 19. Each passes un-niced in about 4 s wall (10 s user, nearly all JVM start), the same as a passing fixture, so it is load, not a regression; batch24 regrades them.
+  - **CEO-2036 answered:** wip/hq_jvm/matcher is not active (its peek half is 5a80cfd on main; the rest is speed work parked by CEO-1914); bundle and delete it.
+  - **Minted and staged, `.scratch/wt-2023`:** jvm-apply-calls-a-function-never-an-operator-ceo-2028. sbl -bf: APPLY('+',1,2), APPLY('tilde-op','x'), APPLY('SEQ',...), APPLY('quote',...) are 22; after DEFINE('+(X,Y)','PL') APPLY('+',1,2) calls the program's +. The engine handed the name to INVOKE, whose case holds the operators | $ . + - * / ** ? = ?= tilde-op. Cure: operators/call-function-named; test apply-calls-a-function-never-an-operator. Not yet run (one JVM at a time).
+  - **Next, same class:** OPSYN's second argument "must always be an already-defined function name" (manual ch. 19 OPSYN). sbl -bf: OPSYN('PLUS','+') then PLUS(3,4) is 22, and OPSYN('&','+',2) then 5 & 6 is 22. The engine's OPSYN wraps (INVOKE old-sym ...), so both reach the operator. Cure by call-function-named in its own commit. The Budne csnobol4-alis test calls OPSYN('SUM','+',2) (CSNOBOL4 dialect; already one of the 74).
+  - **Dead code seen:** src/SNOBOL4clojure/invoke.clj, required by nothing, still has its quote arms.
+
 - **2026-10-30 ~10:20 CDT: snobol4jvm `cacf522` on the root, jar rebuilt; `lein test` 2,290 tests, 74 failures, 0 errors (the 74 of `68285ec`, none new). Four rows closed through done, each red then green; batch23 (`.scratch/runs/batch23.sh`, log `batch23.log`) grades the ten boards and then SnoRungs whole at `cacf522`. Write the rows when it ends.**
   - **The ceo's CEO-2023 checks, measured against `sbl -bf`.** Check 1: a program's DEFINE wins for ASCII, STRING and CONJ, but not for ABORT. Check 2: the ABORT label failed twice, on 036 and 217.
   - **Landed:**
