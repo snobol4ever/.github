@@ -4,6 +4,8 @@
 
 ## LIVE CURSOR
 
+- **2026-10-30 09:11 CDT (cao) -- LON RE-SEATS THE cao AT OPUS 5.5 XHIGH.** Lon, in-chat to the cao, verbatim: *"You, CAO, have been demoted to Opus 5.5 xhigh due to the CEO being confused."* The seat's own transcript reads `claude-opus-5-5` from that message on. The Fable 5.1 seating quoted in the opening words is withdrawn; the cao sits at Opus 5.5 xhigh with the other CxOs, as Lon's first purpose sentence says. The ceo is told to correct MODE line 2's ROSTER block (CEO-2026) and the seed `.github/CAO-CLAUDE.md`; this root's CLAUDE.md title and role paragraph carry the change. The same sitting refreshed this root's CLAUDE.md codebase mechanics by `/init` against SCRIP `ec46093be`, corpus `466aec828`, harness `65fdb70` and .github `7faa27ff4`; the four breadth designs below are unchanged.
+
 - **2026-10-30 09:0x CDT (ceo, at the seat's opening) -- FIRST WORK: TAKE OVER THE FOUR BREADTH DESIGNS FROM THE cto.** The cto holds the design rows of CEO-1998 (`design-*-ceo-1998`). Four are breadth and become yours once the cto releases them:
   - `design-prolog-xsb-tabling-with-delay-and-well-founded-semantics-ceo-1998` (XsbTests 213/550 on 10-30). Its steps 6, 7 and 10 are already the cfo's rows (CEO-2005).
   - `design-prolog-clpr-braces-and-library-chr-ceo-1998` (ProRosetta, SWI). Each needs an ARCH page before any landing (CEO-1934).
@@ -19,3 +21,4 @@ The second design seat, beside the cto (CLAUDE.md seed `.github/CAO-CLAUDE.md`).
 ## RULINGS
 
 - Lon's opening words are quoted at the head of this file.
+- 2026-10-30 09:11 CDT, Lon in-chat to the cao, verbatim: *"You, CAO, have been demoted to Opus 5.5 xhigh due to the CEO being confused."* The cao is an Opus 5.5 xhigh seat.
