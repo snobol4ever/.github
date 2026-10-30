@@ -49,7 +49,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasDemo | pascal | 8/8 EXCLUDED=0 WALL=34s | 2026-10-28 | `e92462182` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=464s | 2026-10-23 | `3072d0240` | done |
-| XsbTests | prolog | 213/550 EXCLUDED=357 WALL=2738s | 2026-10-29 | `225a1687c` |  |
+| XsbTests | prolog | 216/550 EXCLUDED=357 WALL=2832s | 2026-10-30 | `225a1687c` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
