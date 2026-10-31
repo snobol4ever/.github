@@ -1,0 +1,89 @@
+abelian-sandpile-model	1	NE	1	1	5	scrip: error 22: undefined function called
+amicable-pairs-2	1	NE	0	0	27	scrip: error 22: undefined function called
+amicable-pairs-3	1	NE	0	0	28	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+arbitrary-precision-integers-included-	1	NE	0	0	3	pascal: uses gmp in arbitrary-precision-integers-included-.pas: no unit gmp.pas beside it and no SCRIP prelude unit of that name
+arena-storage-pool-2	1	NE	0	0	2	pascal parse error line 6: syntax error
+arithmetic-geometric-mean-calculate-pi	1	NE	0	0	1	pascal: uses gmp in arithmetic-geometric-mean-calculate-pi.pas: no unit gmp.pas beside it and no SCRIP prelude unit of that name
+averages-mean-angle	0	NE	0	3	3	
+b-zier-curves-intersections	-6	NE	0	0	6	libscrip_rt: BOMB — bb_call_proc_staged: a block-protocol callee is called with the wrong argument count
+bioinformatics-base-count-1	1	NE	12	12	18	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+bioinformatics-global-alignment	1	NE	0	0	18	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (in deref)
+calculating-the-value-of-e	0	NE	0	1	1	
+collections-6	1	NE	0	0	3	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (it denotes no variable ever created) (in deref)
+continued-fraction	0	NE	1	8	8	
+conways-game-of-life	1	NE	1	1	46	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (it denotes no variable ever created) (in deref)
+count-in-factors	0	NE	1	22	22	
+create-an-object-at-a-given-address	0	NE	3	4	4	
+de-bruijn-sequences	1	NE	0	10	120	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+distribution-of-0-digits-in-factorial-series	1	NE	0	0	5	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+dynamic-variable-names	1	NE	0	0	1	pascal parse error line 19: syntax error
+equilibrium-index-2	1	NE	1	1	5	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (it denotes no variable ever created) (in deref)
+esthetic-numbers	1	NE	0	0	61	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (in field_set)
+euler-method	0	NE	4	6	6	
+executable-library-1	1	NE	0	0	4	pascal parse error line 51: syntax error
+execute-a-markov-algorithm	1	NE	0	0	1	pascal parse error line 12: syntax error
+execute-brain-	1	NE	0	0	2	scrip: error 22: undefined function called
+factorial-3	1	NE	0	0	1	pascal parse error line 32: syntax error
+fibonacci-word	0	NE	1	38	38	
+first-power-of-2-that-has-leading-decimal-digits-of-12-2	1	NE	0	0	6	scrip: pascal runtime error: ISO 7185 6.6.6.3: trunc(x) of a value whose integer part is not in -maxint..maxint, so no such integer value exists
+fusc-sequence	1	NE	0	0	23	[ZHP] heap exhausted AT THE HARD CAP (131072 KB cap, 131072 KB committed lazily so far, 197 blocks live, cap hit 0 times, COLLECTIONS RUN 0) -- THIS REQUEST wanted 20048000000 payload bytes (20048000016 with the header) 
+gapful-numbers-2	1	NE	0	0	24	scrip: pascal runtime error: ISO 7185 6.7.2.2: the divisor of div or mod is zero
+generic-swap-1	1	NE	0	0	2	pascal parse error line 6: syntax error
+generic-swap-2	1	NE	0	0	2	pascal parse error line 6: syntax error
+hailstone-sequence	1	NE	0	0	11	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (it denotes no variable ever created) (in field_set)
+hamming-numbers-1	124	NE	2	2	3	
+hash-from-two-arrays	0	EQ	-1	1	1	
+hopcroft-karp-algorithm	1	NE	0	0	7	pascal parse error line 102: syntax error
+hostname	1	NE	0	0	1	pascal: uses unix in hostname.pas: no unit unix.pas beside it and no SCRIP prelude unit of that name
+http-1	1	NE	0	0	1	pascal: uses fphttpclient in http-1.pas: no unit fphttpclient.pas beside it and no SCRIP prelude unit of that name
+json	1	NE	0	0	20	pascal: uses fpjson in json.pas: no unit fpjson.pas beside it and no SCRIP prelude unit of that name
+knapsack-problem-continuous	1	NE	0	0	5	pascal parse error line 4: syntax error
+langtons-ant	1	NE	0	0	2604	pascal: ISO 7185 6.2.2.1 violation: the identifier 'font8x8' has no defining-point -- it is declared nowhere in a region enclosing this use
+largest-int-from-concatenated-ints-1	0	NE	0	3	3	
+long-multiplication	0	EQ	-1	3	3	
+longest-increasing-subsequence	1	NE	0	0	3	pascal parse error line 6: syntax error
+look-and-say-sequence-2	0	NE	2	79	79	
+ludic-numbers-1	1	NE	0	0	11	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (in deref)
+machine-code	1	NE	0	0	1	pascal parse error line 11: syntax error
+maximum-triangle-path-sum	2	NE	0	0	1	Runtime error 2 at $0
+minimum-number-of-cells-after-before-above-and-below-nxn-squares	1	NE	0	1	0	scrip: error 22: undefined function called
+minimum-positive-multiple-in-base-10-using-only-0-and-1	1	NE	0	0	36	pascal: uses gmp in minimum-positive-multiple-in-base-10-using-only-0-and-1.pas: no unit gmp.pas beside it and no SCRIP prelude unit of that name
+mosaic-matrix	1	NE	1	1	9	scrip: pascal runtime error: ISO 7185 6.8.3.9: the control-variable 'dimension' of a for-statement is undefined after the for-statement is left
+nonoblock	-6	NE	0	0	36	[IBB] FATAL bb_call: unsupported call shape fn=''
+numbers-with-same-digit-set-in-base-10-and-base-16	0	NE	2	15	20	
+one-dimensional-cellular-automata	1	NE	0	0	10	scrip: error 102: numeric expected
+perlin-noise	0	NE	0	1	1	
+permutations-with-repetitions	1	NE	0	0	1	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable denotes nil (in deref)
+permutations-with-some-identical-elements	1	NE	0	0	59	scrip: error 22: undefined function called
+pythagorean-triples	1	NE	6	6	9	scrip: runtime error: ERROR 246 -- stack overflow (unbounded or too-deep recursion exhausted the call stack)
+regular-expressions	1	NE	0	0	2	pascal: uses regexpr in regular-expressions.pas: no unit regexpr.pas beside it and no SCRIP prelude unit of that name
+reverse-words-in-a-string-2	0	EQ	-1	10	10	
+roots-of-unity	0	NE	4	6	6	
+sedols	1	NE	0	0	11	scrip: error 102: numeric expected
+send-an-unknown-method-call	1	NE	0	0	3	pascal parse error line 44: syntax error
+sha-1	1	NE	0	0	1	pascal: uses sha1 in sha-1.pas: no unit sha1.pas beside it and no SCRIP prelude unit of that name
+smallest-multiple-2	1	NE	0	0	24	pascal: uses gmp in smallest-multiple-2.pas: no unit gmp.pas beside it and no SCRIP prelude unit of that name
+smith-numbers	1	NE	0	0	1	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+sockets-1	1	NE	0	0	1	pascal: uses sockets in sockets-1.pas: no unit sockets.pas beside it and no SCRIP prelude unit of that name
+sort-using-a-custom-comparator	0	EQ	-1	1	1	
+soundex	1	NE	1	1	17	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+stern-brocot-sequence	1	NE	0	0	4	[ZHP] heap exhausted AT THE HARD CAP (131072 KB cap, 131072 KB committed lazily so far, 197 blocks live, cap hit 0 times, COLLECTIONS RUN 0) -- THIS REQUEST wanted 173364528 payload bytes (173364544 with the header) of b
+strange-unique-prime-triplets	1	NE	0	0	46	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+strong-and-weak-primes	1	NE	0	0	14	[ZHP] heap exhausted AT THE HARD CAP (131072 KB cap, 131072 KB committed lazily so far, 193 blocks live, cap hit 0 times, COLLECTIONS RUN 0) -- THIS REQUEST wanted 8000000000 payload bytes (8000000016 with the header) of
+sum-to-100	1	NE	3	4	36	scrip: pascal runtime error: ISO 7185 6.8.3.5: no case-constant of the case-statement is equal to the value of its case-index
+symmetric-difference-1	0	EQ	-1	5	5	
+taxicab-numbers	1	NE	0	0	33	scrip: pascal runtime error: ISO 7185 6.5.4: the pointer-variable of an identified-variable is undefined (in deref)
+thue-morse	1	NE	1	9	9	[ZHP] heap exhausted AT THE HARD CAP (131072 KB cap, 131072 KB committed lazily so far, 241 blocks live, cap hit 0 times, COLLECTIONS RUN 0) -- THIS REQUEST wanted 1073741825 payload bytes (1073741856 with the header) of
+top-rank-per-group	1	NE	0	0	8	pascal: ISO 7185 6.6.3.4 violation: the actual-parameter 2 of '__pc_tlist__sort' shall be a function-identifier
+topological-sort-1	1	NE	0	0	4	pascal parse error line 4: syntax error
+topological-sort-2	1	NE	0	0	5	pascal parse error line 4: syntax error
+topological-sort-extracted-top-item	1	NE	0	0	7	pascal parse error line 4: syntax error
+triangular-numbers	0	NE	30	48	47	
+trigonometric-functions	0	NE	0	7	7	
+ulam-numbers	1	NE	1	1	6	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+ulam-spiral-for-primes--1	1	NE	0	0	4	pascal: ISO 7185 6.2.2.1 violation: the identifier 'font8x8' has no defining-point -- it is declared nowhere in a region enclosing this use
+ulam-spiral-for-primes--2	1	NE	0	0	21	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+ulam-spiral-for-primes--3	0	NE	-1	20	20	
+unprimeable-numbers-2	1	NE	0	0	24	[ZHP] heap exhausted AT THE HARD CAP (131072 KB cap, 131072 KB committed lazily so far, 232 blocks live, cap hit 0 times, COLLECTIONS RUN 0) -- THIS REQUEST wanted 16000000176 payload bytes (16000000192 with the header) 
+van-eck-sequence	1	NE	0	0	3	scrip: pascal runtime error: ISO 7185 6.5.3.2: an index value is not assignment-compatible with the index-type of the array
+word-wheel	2	NE	0	0	1	Runtime error 2 at $0
