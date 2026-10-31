@@ -71,6 +71,12 @@ bash scripts/jcon_selfhost_build.sh                                             
 
 ## ⛔ LIVE CURSOR
 
+**⭐⭐⭐ 2026-10-31 hq_pascal, RUNG 15 (ARRAY LAYOUT) IS ON ORIGIN: SCRIP `d9e79884e`, corpus `cf3d1e7fe` and `318efa6d4`. THE 2026-10-15 "PASCAL IS IDLE" ENTRY BELOW IS SUPERSEDED: the lane has run on the cfo's rung ladder since 2026-10-28 (rungs 13, 14, 15, 17 and the R17 completion landed; the front-end plan's step 3 resumes between rungs).**
+- A 2-D array is one dense row-major block (stride chi-clo+1, subscript (i-rlo)*stride+(j-clo), the subtraction only for a non-zero low); a bounded static array of a bounded static one-index array of INT/REAL/ENUM folds into it (`pt_fold_rows`); a subscript on a dereferenced pointer to such an array asks the typer (`pas_dense_type`). A pointer can walk a row end into the next row.
+- Proof: 2,026-program IR population, 21 moved, all IR-only, none changes rc or stderr, behaviour old vs new equal; six fpc-cut witnesses `ladder__rung15_layout_ptr_to_*` / `_new_ptr_to_nested` (the guards shown red on the uncured tree); rungs 14, 15, 16 at 14 of 14 in m3 and m4; eight smokes green. A regression the population could not see (the fold alone broke pointers to a whole nested array) was found by minimal probes and cured before the push: probe every access form of a changed representation against fpc.
+- Still red, none new: a record field of a nested or two-index array type (`r.g[i,j]`); `conways-game-of-life` (an element pointer cast to a pointer-to-array, then address arithmetic); crt `Delay` is 1000 times too long (`prelude/crt.pas` line 129, `sleep(ms)` where sleep is seconds). Standing red I did not cause: `test_gate_dyn_caps_ratchet` arms 5 and 7 (function-scope fills 22 against baseline 20), told the cto.
+- NEXT in the cfo's order: PChar over the string's own heap block; R18 top-rank-per-group and the R18/R19 grammar items; the step-3 arrays shadow census between rungs. Baton: `pascal-front-end-step-3-every-predicate-asks-the-typer-and-the-tables-go-ceo-2005` (NEXT at the top).
+
 **⭐⭐⭐ 2026-10-15 hq_pascal, STOPPED ON THE CEO'S ORDER (CEO-1765): THE FLEET IS NARROWED TO SNOBOL4, ICON AND PROLOG; PASCAL IS IDLE.**
 - Nothing in flight: SCRIP, corpus and .github had no unpushed commit and a clean tree at the stop. No Pascal row is claimed; the bus serves none while the focus holds.
 - RESUME HERE (two reds the coo measured, neither bisected; both unread by any landing of mine):
