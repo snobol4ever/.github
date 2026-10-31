@@ -63,4 +63,32 @@ for p, info in b.items():
 for c, p, s, el, why, cmd in sorted(run, reverse=True):
     print('RUNAWAY pid=%d seat=%s cpu=%.2f elapsed=%dm why=%s cmd=%s' % (p, s, c, el / 60, why, cmd))
 print('MACHINE_HEALTH runaways=%d' % len(run))
+# ⛔⭐ CONTENTION, NOT ONLY LOAD (ceo CEO-2085; Lon 2026-10-31, in-chat to the ceo, verbatim: "how did you not catch this problem with the build in your
+# previous health check? What do you during that check? Nothing useful it seems."). Load and busy cores say the box is full, never what waits; the
+# health check read "no runaways" for hours while compiles queued 45 compiler-hours in 3.4 h for the 8 compile slots. Every check now prints the
+# kernel's CPU pressure (the share of time some task waited for a CPU) and the last hour of slot waits from progress/SLOT_WAITS.tsv, and says WAIT
+# when either crosses its bar, so the waiting is a line in every turn's hook, not a question Lon has to ask.
+try:
+    import time as _t
+    psi = {}
+    for l in open('/proc/pressure/cpu'):
+        f = l.split(); psi[f[0]] = dict(kv.split('=') for kv in f[1:4])
+    cpu60 = float(psi['some']['avg60'])
+    waits = {}; cut = _t.time() - 3600
+    try:
+        for l in open('/home/resources/progress/SLOT_WAITS.tsv'):
+            if l.startswith('#'): continue
+            f = l.rstrip('\n').split('\t')
+            if len(f) < 4: continue
+            try: ts = __import__('calendar').timegm(_t.strptime(f[0], '%Y-%m-%dT%H:%M:%SZ'))
+            except Exception: continue
+            if ts < cut: continue
+            w = waits.setdefault(f[2], [0, 0.0]); w[0] += 1; w[1] += float(f[3] or 0)
+    except FileNotFoundError: pass
+    cc = waits.get('cc', [0, 0.0]); rn = waits.get('run', [0, 0.0])
+    flag = 'WAIT' if (cpu60 >= 50 or cc[1] >= 3600 or rn[1] >= 1800) else 'ok'
+    print('MACHINE CONTENTION %s cpu_pressure60=%.0f%% compile_waits_1h=%d (%.1f h waited) run_waits_1h=%d (%.1f h waited)' % (flag, cpu60, cc[0], cc[1] / 3600, rn[0], rn[1] / 3600))
+except Exception as e:
+    print('MACHINE CONTENTION refused: %s' % e)
+
 sys.exit(1 if run else 0)
