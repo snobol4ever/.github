@@ -34,7 +34,7 @@ for r in rows:
     seat = st.split(':', 1)[1]
     if not standing(seat): down[seat] += 1; continue
     held[seat] += 1
-    try: age = (now - os.stat('%s/tasks/%s.task.md' % (PO, topic)).st_mtime) / 3600
+    try: age = (now - max(os.stat('%s/tasks/%s.task.md' % (PO, topic)).st_mtime, os.stat('%s/claims/%s.claim' % (PO, topic)).st_mtime if os.path.exists('%s/claims/%s.claim' % (PO, topic)) else 0)) / 3600  # the newer of the baton and the claim: a claim's RUNNING mark is a start (CEO-2078)
     except OSError: continue
     if age > 24: stale.append((age, st, topic))
 over = [(s, n) for s, n in held.items() if n > 2]
