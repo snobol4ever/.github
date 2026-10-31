@@ -17,7 +17,7 @@ DESIGN-PLAN: header-split
 | IR.h | 370 lines, 13 structs, 28 inline bodies; directly included by 15 units, reached by 209 through emit.h and x86_asm.h |
 | g_runtime.h | 51 lines: eighteen includes and one struct of nineteen parts BY VALUE (the asm reads fixed offsets from g_runtime) |
 | include paths | -I src -I src/ir -I src/lower -I src/emitter -I src/runtime/core -I src/runtime (+ templates and parsers for the runtime): any header is includable by bare name from anywhere, so a header's directory says nothing about who may reach it |
-| dead headers (no includer at the census) | g_runtime_entry.h (0 lines), gc_slot_table.h (0 lines), sync_monitor.h, cset_block.h, box_rt.h, bb_common.h, pl_cell.h, unicode_alpha_ranges.h, emit_per_kind_audit.h |
+| dead headers (no includer at the census) | g_runtime_entry.h (0 lines), gc_slot_table.h (0 lines), sync_monitor.h, cset_block.h, box_rt.h, bb_common.h, pl_cell.h, unicode_alpha_ranges.h, emit_per_kind_audit.h RE-MEASURED 2026-10-31 on SCRIP 5ec68d47a (hq_packages, grep for real include lines): only box_rt.h, bb_common.h and unicode_alpha_ranges.h had no includer, and step 6 A deleted them; g_runtime_entry.h and gc_slot_table.h are no longer empty, and sync_monitor.h, cset_block.h and emit_per_kind_audit.h have includers: all five stay (section 4). pl_cell.h was not re-measured. |
 | data wearing a .h | rk_core_names.h 51,439 lines (2.3 MB), rk_case_table.h 700 lines |
 
 **Read honestly:** the recompiles today are not caused by big headers but by UMBRELLAS: core.h carries g_runtime.h into 215 units of which 57 use it; emit.h carries IR.h, rt_arena.h, bb_box.h, call_forms.h, bb_pool.h, stno_map.h and XA.h into 159 units of which the templates need three small things; x86_asm.h carries rtcc.h, pin_va.h, rt_pl_trail.h, stage2.h and x86_arg_roles.h into 145. A one-line edit to g_runtime_gc.h (3 users) recompiles 405 of 1,122 units. The cure is not to shrink the big headers first; it is to cut the umbrellas and make every unit include what it uses.
@@ -65,10 +65,10 @@ DESIGN-PLAN: header-split
 | header | lines | fan-in (this root) | destination | why |
 |---|---|---|---|---|
 | `src/driver/driver.h` | 30 | 9 | KEEP (the driver's interface) |  |
-| `src/driver/driver_private.h` | 195 | 7 | SPLIT: driver_private.h keeps the driver's own records; its 65 prototypes go to the defining files (parse_stage.h, polyglot.h, planner_stage.h); it stops including sil_macros.h and SM.h wholesale |  |
+| `src/driver/driver_private.h` | 195 | 7 | SPLIT BY DEFINING FILE (CORRECTED 2026-10-31, hq_packages, measured on SCRIP 5e816bdc9 with nm over the built objects: the destinations parse_stage.h, polyglot.h and planner_stage.h named here do not match the file). Its 62 prototypes are defined by driver_globals.c 30 (the fh_ file-handle table with fh_slot_t and the g_fh and FH_N macros, drv_gc_roots, rt_script_die_surface), driver_data.c 19 (DatType and the dat_ and class_ registry, data_field_ptr), driver_label.c 2, driver_call.c 2 (init_update_snapshot, call_user_function, with the InitSlot table), driver_hooks.c 1, by_name_dispatch.c 1 (try_call_builtin_by_name), string_ops.c 1 (real_str); 6 are declared and defined nowhere (_expr_is_pat, eval_ast_ref, string_section_assign, call_builtin, try_call_builtin, scan_try_call_builtin) and are deleted; the two inline NAME_DEREF and NAME_SET bodies break R3. New interface headers: driver_globals.h, driver_data.h, driver_label.h, driver_call.h, driver_hooks.h. NOT DONE: parked, step 6 B1 |  |
 | `src/driver/polyglot.h` | 13 | 3 | KEEP |  |
 | `src/driver/scrip_sm.h` | 9 | 3 | KEEP |  |
-| `src/driver/sync_monitor.h` | 24 | 0 | DELETE if no includer (fan-in 0), else KEEP |  |
+| `src/driver/sync_monitor.h` | 24 | 0 | KEEP (measured 2026-10-31 on SCRIP 5ec68d47a): the interface of sync_monitor.c, one includer |  |
 | `src/emitter/emit.h` | 870 | 159 | SPLIT into emit_state.h (the g_emit struct and the `_` macro, nothing else), bb_label.h (bb_label_t, bb_patch_t, jmp_kind_t, the label and patch prototypes), emit_medium.h (the medium enums and emitter_text_*/emitter_pos_*/emitter_end_* prototypes), emit_sm.h (the 46 emit_sm_* prototypes of the state machine), bb_walk_states.h (stmt_t, prog_t, bb_conj_state_t, bb_catch_state_t, bb_match_kids_state_t: the walkers of emit.cpp), bb_pl_call_state.h (pl_gz_callee_t, pl_gz_call_state_t, pl_ix_arm_t and the Prolog call states, beside their templates), emit_data.h (emit_data_*, data_buf_*), emit_knobs.h; emit.h itself becomes the interface header of emit.cpp alone (its own prototypes, no includes but forward declarations) | the measured umbrella: eight former headers pasted at lines 9, 80, 106, 179, 215, 248, 276, 728, 742, 795, 815, 828; 143 of its 159 TUs are templates that need only emit_state.h, bb_label.h and x86_ops.h |
 | `src/emitter/emit_decls.h` | 78 | 0 | KEEP as emit.cpp-private; its two .inc includes go with zeta-layout step 5c; bb_templates.h is included by emit.cpp directly, not through this file |  |
 | `src/emitter/emit_head.h` | 49 | 1 | MERGE into g_emitter.h (fan-in 1, the same TU) |  |
@@ -84,7 +84,7 @@ DESIGN-PLAN: header-split
 | `src/ir/bb_pool.h` | 22 | 164 | KEEP (the slab pool's interface, 14 prototypes of bb_pool.c); included by the three TUs that call it | reaches 164 through emit.h today |
 | `src/ir/bb_program.h` | 9 | 187 | MERGE into stage2.h (one struct, 2 prototypes, fan-in 187 only through stage2.h) |  |
 | `src/ir/call_forms.h` | 46 | 168 | KEEP (one family: the call-form records, 8 structs, 20 prototypes of call_forms.c); included directly by the planner and the emitter, no longer through emit.h |  |
-| `src/ir/cset_block.h` | 26 | 0 | DELETE if no includer (fan-in 0 at the census); else KEEP |  |
+| `src/ir/cset_block.h` | 26 | 0 | KEEP (measured 2026-10-31 on SCRIP 5ec68d47a): three includers (x86_asm.cpp, lower_icon.c, keywords.c) |  |
 | `src/ir/ct_arena.h` | 27 | 261 | KEEP, declared BASE: the compile-time arena is the allocator of every compile-time object; ast.h and ct_vec.h stop including it (a pointer to an arena is a forward declaration) | reaches 261 (476 of 1,122) today; after the split only the TUs that call ct_* include it |
 | `src/ir/ct_vec.h` | 34 | 242 | KEEP, declared BASE for the compile-time layers (ir, lower, optimizer, planner, emitter, driver, parsers); its two inline bodies stay (one expression each) | reaches 242; the runtime does not use it and stops reaching it |
 | `src/ir/descr.h` | 151 | 224 | SPLIT into descr_tags.h (the DT_ enum, the three bits, DT_DATA_STRIDE: what templates and asm need) and descr.h (DESCR_t with its two always_inline source-node accessors and the IS_*_fn predicates, one line each); VCELL_t moves to table.h with its table | a BASE header: DESCR_t is the value of every language; 109 TUs name it, 224 reach it today; descr_tags.h is the wide one after the split and is declared base for that reason |
@@ -99,7 +99,7 @@ DESIGN-PLAN: header-split
 | `src/ir/stno_map.h` | 24 | 159 | KEEP (one structure, the statement-number map); included by the two TUs that use it, not by emit.h |  |
 | `src/lower/g_lower.h` | 281 | 20 | KEEP (the lowerer's granted state, 17 structs of one family) |  |
 | `src/lower/lc_vec.h` | 4 | 34 | KEEP |  |
-| `src/lower/lower.h` | 62 | 23 | SPLIT: lower.h keeps the stage interface; the 42 prototypes of the per-language lowerers go to lower_<lang>.h beside each |  |
+| `src/lower/lower.h` | 62 | 23 | DONE (step 6 B, SCRIP 5e816bdc9, R5 297 of 297): one interface header per defining file, lines moved verbatim: lower_common.h (lc_ and lp_ helpers, bb_label and bb_src registries, binop_dcg_t, binop_apply, T0 and T1), lc_vec.h (the vec prototypes beside the type), lower_snobol4.h, lower_snocone.h, lower_icon.h, lower_prolog.h, lower_prolog_chr.h, lower_raku.h, lower_pascal.h, lower_pascal_tree.h; lower.h DELETED (once split it only included other headers, an umbrella). lower_proc_gen was declared and defined nowhere and is gone |  |
 | `src/lower/lower_pascal_class.h` | 4 | 2 | MERGE into lower_pascal_types.h (4 lines) |  |
 | `src/lower/lower_pascal_tree.h` | 267 | 20 | KEEP (the Pascal typer's tree records, 47 structs of one family, front-end step 3's) |  |
 | `src/lower/lower_pascal_types.h` | 60 | 2 | KEEP |  |
@@ -133,7 +133,7 @@ DESIGN-PLAN: header-split
 | `src/parsers/prolog/prolog_parse.h` | 46 | 3 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
 | `src/parsers/prolog/prolog_prelude_libs.inc` | 34586 | 1 | KEEP (the embedded prelude, generated, one includer) |  |
 | `src/parsers/raku/raku_driver.h` | 6 | 11 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
-| `src/parsers/raku/rk_core_names.h` | 51439 | 1 | RENAME to rk_core_names.inc (51,439 lines, 2.3 MB of embedded names: data, one includer) |  |
+| `src/parsers/raku/rk_core_names.h` | 51439 | 1 | DONE (step 6 A, SCRIP 03ca2dd0a): renamed rk_core_names.inc; harness util_raku_core_names_regen.sh writes the .inc |  |
 | `src/parsers/raku/rk_regex.h` | 5 | 2 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
 | `src/parsers/raku/rk_syntax.h` | 11 | 3 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
 | `src/parsers/raku/rk_tree.h` | 147 | 2 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
@@ -142,7 +142,7 @@ DESIGN-PLAN: header-split
 | `src/parsers/snobol4/scrip_cc.h` | 112 | 19 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
 | `src/parsers/snobol4/snobol4.h` | 33 | 2 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
 | `src/parsers/snobol4/snobol4.tab.h` | 153 | 2 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
-| `src/parsers/snobol4/unicode_alpha_ranges.h` | 660 | 0 | RENAME to unicode_alpha_ranges.inc if included (data), DELETE if not (fan-in 0) |  |
+| `src/parsers/snobol4/unicode_alpha_ranges.h` | 660 | 0 | DONE (step 6 A, SCRIP 03ca2dd0a): DELETED, no includer anywhere (and tools/beautify.py loses its skip pattern) |  |
 | `src/parsers/snocone/snocone_driver.h` | 6 | 12 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
 | `src/parsers/snocone/snocone_lex.h` | 16 | 2 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
 | `src/parsers/snocone/snocone_parse.tab.h` | 199 | 2 | KEEP (a per-language front-end header with a fan-in of 2 to 19; the bison .tab.h files are generated) |  |
@@ -155,7 +155,7 @@ DESIGN-PLAN: header-split
 | `src/runtime/builtin_ids.h` | 216 | 3 | KEEP (the builtin ids, one family) |  |
 | `src/runtime/builtin_table.h` | 101 | 3 | KEEP (ARCH-BUILTIN-TABLE's table and header; the .inc generated) |  |
 | `src/runtime/builtin_table.inc` | 591 | 1 | KEEP (generated, one includer) |  |
-| `src/runtime/builtins/box_rt.h` | 8 | 0 | DELETE if no includer (fan-in 0), else KEEP |  |
+| `src/runtime/builtins/box_rt.h` | 8 | 0 | DONE (step 6 A, SCRIP 03ca2dd0a): DELETED, no includer anywhere (grep for real include lines on 5ec68d47a) |  |
 | `src/runtime/builtins/gen.h` | 20 | 19 | KEEP (the generator record) |  |
 | `src/runtime/builtins/gen_runtime.h` | 39 | 15 | KEEP (gen_runtime.c's interface); it stops including bb_box.h and SM.h wholesale |  |
 | `src/runtime/builtins/gen_value.h` | 8 | 2 | KEEP |  |
@@ -174,7 +174,7 @@ DESIGN-PLAN: header-split
 | `src/runtime/core/g_runtime_bn.h` | 34 | 215 | KEEP (one part structure of the runtime state; included by g_runtime.h and, under option B, by its bn users alone) |  |
 | `src/runtime/core/g_runtime_coexpr.h` | 5 | 215 | KEEP (one part structure of the runtime state; included by g_runtime.h and, under option B, by its coexpr users alone) |  |
 | `src/runtime/core/g_runtime_core.h` | 64 | 215 | KEEP (one part structure of the runtime state; included by g_runtime.h and, under option B, by its core users alone) |  |
-| `src/runtime/core/g_runtime_entry.h` | 0 | 0 | DELETE (0 lines) |  |
+| `src/runtime/core/g_runtime_entry.h` | 0 | 0 | KEEP (CORRECTED 2026-10-31, hq_packages, the cto ruling): the 0 lines were the census; SCRIP 72ce36d51 gave it the RT_ENTRY_DECL macro and the RT_ENTRY_CONV_ enum (13 lines), included by g_runtime.h and two .S files |  |
 | `src/runtime/core/g_runtime_eval.h` | 17 | 215 | KEEP (one part structure of the runtime state; included by g_runtime.h and, under option B, by its eval users alone) |  |
 | `src/runtime/core/g_runtime_gc.h` | 139 | 215 | KEEP (one part structure of the runtime state; included by g_runtime.h and, under option B, by its gc users alone) |  |
 | `src/runtime/core/g_runtime_kw.h` | 20 | 215 | KEEP (one part structure of the runtime state; included by g_runtime.h and, under option B, by its kw users alone) |  |
@@ -196,13 +196,13 @@ DESIGN-PLAN: header-split
 | `src/runtime/pl_meta_specs.inc` | 705 | 1 | KEEP (data, one includer) |  |
 | `src/runtime/pl_rat.h` | 23 | 3 | KEEP |  |
 | `src/runtime/re.h` | 14 | 10 | KEEP |  |
-| `src/runtime/rk_case_table.h` | 700 | 1 | RENAME to rk_case_table.inc (700 lines of table data, one includer) |  |
+| `src/runtime/rk_case_table.h` | 700 | 1 | DONE (step 6 A, SCRIP 03ca2dd0a): renamed rk_case_table.inc |  |
 | `src/runtime/rk_rakudo_method_names.inc` | 51 | 1 | KEEP (generated data, one includer) |  |
 | `src/runtime/rk_unicode_norm_tables.inc` | 928 | 1 | KEEP (data, one includer) |  |
 | `src/runtime/rt/bbprof.h` | 14 | 1 | KEEP |  |
 | `src/runtime/rt/gc_audit_b.h` | 28 | 1 | KEEP |  |
 | `src/runtime/rt/gc_heap.h` | 116 | 29 | SPLIT: gc_heap.h keeps the heap block header (rt_hblk_t, the HB_ codes and HB_KIND_NAME) and the collector's interface; the 57 prototypes of other files (the slide, the chain, the roots) go to their defining files' headers (gc_chain.h, gc_roots.h); gc_layout.h (hq_collector's) stays beside |  |
-| `src/runtime/rt/gc_slot_table.h` | 0 | 0 | DELETE (0 lines; the file is gc_layout.h, ARCH-GC 13.14) |  |
+| `src/runtime/rt/gc_slot_table.h` | 0 | 0 | KEEP (CORRECTED 2026-10-31, hq_packages, the cto ruling): 13 lines now (the gc_sfield_t and gc_run_t records and the GS_ and GR_ constants), included by gc_heap.c and gc_slot_table.c |  |
 | `src/runtime/rt/pl_rational.h` | 76 | 2 | KEEP (one family) |  |
 | `src/runtime/rt/portcount.h` | 15 | 2 | KEEP |  |
 | `src/runtime/rt/prolog_atom.h` | 31 | 20 | KEEP (the atom table, one family) |  |
@@ -222,7 +222,7 @@ DESIGN-PLAN: header-split
 | `src/runtime/rx.h` | 19 | 2 | KEEP |  |
 | `src/runtime/snobol4_system_fns.h` | 55 | 5 | KEEP |  |
 | `src/runtime/string_ops.h` | 15 | 1 | KEEP (string_ops.c's interface) |  |
-| `src/templates/bb/bb_common.h` | 55 | 0 | DELETE if no includer (fan-in 0, 44 prototypes duplicated in bb_templates.h), else MERGE |  |
+| `src/templates/bb/bb_common.h` | 55 | 0 | DONE (step 6 A, SCRIP 03ca2dd0a): DELETED, no includer anywhere; harness area_map.tsv row removed |  |
 | `src/templates/bb/bb_pl_cell.h` | 122 | 8 | KEEP (the Prolog cell layout the templates read); it stops including rt_pl_trail.h and stage2.h and includes pl_trail_layout.h |  |
 | `src/templates/bb/bb_pl_leaf_kinds.h` | 14 | 3 | KEEP |  |
 | `src/templates/bb/bb_template_common.h` | 14 | 131 | KEEP as the templates' one common header, re-cut to include emit_state.h, bb_label.h, x86_ops.h and ir_node.h only (today it includes emit.h, emit_ir.h and XA.h); the `_` macro and the three zls_ prototypes stay | 131 TUs: this is where the templates' fan-in is decided |
@@ -234,7 +234,7 @@ DESIGN-PLAN: header-split
 | `src/templates/x86/x86_asm.h` | 3310 | 145 | SPLIT: x86_asm.cpp (the encoder core: xop, x86(), x86_core_, x86_core_inner_, the text and binary media, the record encoder x86_rec_*, the internal label bookkeeping: lines 1-1800 and 2893 as compiled code, compiled ONCE), x86_ops.h (the API every template reads: the 116 helpers the templates name, as prototypes, plus the one-line port helpers x86_alpha/beta/gamma/omega/bomb/begin kept inline), x86_rtcc.h/.cpp (the 16 rtcc write-back, reload and call helpers), x86_frame.h/.cpp (the 19 frame, 9 align, 31 rsp and the hb helpers), x86_jump.h/.cpp (jmp, jcc, deflabel, internal labels, X86_INTERNAL_MAX), x86_zeta.h/.cpp (zop, zref, ztos, zdp, zsm: the cell forms and the verifier emitters), x86_gc.h/.cpp (the gate, the 15 poll forms and the site helpers, which zeta-layout step 6 then reduces to one), x86_call.h/.cpp (fc, pl, port and call forms), x86_icn.h/.cpp (the Icon scanning helpers), x86_consts.cpp (the 35 const_ tables), x86_rsp_tracker.h/.cpp (x86_rsp_st_t, lines 199-262, deleted by zeta-layout step 3); the 40-odd extern "C" runtime prototypes it declares go to their owners' interface headers | 3,310 lines, 466 inline functions, 145 TUs (144 of 1,122): at -O0 none of the inline bodies is inlined, so every template object today carries its own copy of the encoder; compiled once, an encoder edit recompiles one TU |
 | `src/templates/xa/xa_template_common.h` | 7 | 17 | MERGE into bb_template_common.h (7 lines; the xa templates are templates) |  |
 | `src/templates/xa/xa_templates.h` | 20 | 1 | KEEP (the 16 xa entry prototypes) |  |
-| `src/tools/emit_per_kind_audit.h` | 5 | 0 | DELETE if no includer (fan-in 0), else KEEP |  |
+| `src/tools/emit_per_kind_audit.h` | 5 | 0 | KEEP (measured 2026-10-31 on SCRIP 5ec68d47a): the interface of emit_per_kind_audit.c, included by scrip.c |  |
 
 ## 5. THE ROLL-OUT UNDER LARGE CHUNKS (CEO-1478): ONE SMALL SPLIT WITH ITS PROOF FIRST, THEN THE REST IN FEW LARGE LANDINGS IN A QUIET WINDOW
 
