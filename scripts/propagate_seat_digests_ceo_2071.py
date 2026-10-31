@@ -17,6 +17,7 @@ LANG = {
     "raku":    ("RAKU", "GOAL-RAKU-100.md", "/raku", "RakRungs Roast RakDemo RakBench", "ARCH-RAKU-TO-100.md (the rung ladder), ARCH-RAKU-BOXES.md, ARCH-RAKU-REWRITE.md"),
     "snobol4": ("SNOBOL4", "GOAL-SNOBOL4-100.md", "/snobol4", "SnoRungs Gimpel Flake Budne AIS TPgm X32T X64T Dotnet SnoDemo SnoBench", "ARCH-SNOBOL4-RTX.md, ARCH-RANDOM-SNOBOL4-GENERATOR.md"),
     "snocone": ("SNOCONE", "GOAL-SNOCONE-100.md and GOAL-PARSER-SC-TRANSPILE.md", "/snobol4", "SncRungs SncDemo SncBench; the seven bootstrap parsers in SCRIP/bootstrap/", "ARCH-PARSER-SC-BOOTSTRAP.md"),
+    "unicon":  ("UNICON (the Icon superset, CEO-2072: one front end with hq_icon's, no switch; a class, package, import or method header marks a Unicon program)", "GOAL-UNICON-100.md", "/icon", "UniTests (Unicon's own 267 tests, refs cut from unicon through unicon_bin()); the Icon suites stay at 100 and are hq_icon's", "ARCH-UNICON.md (the cto's design: markers, the class and package model, the builtin families), ARCH-ICON-RTX.md"),
 }
 SEATS = {
     "ceo": """## THIS ROOT IS THE CEO SEAT (postoffice identity `ceo`)
