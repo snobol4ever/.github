@@ -41,8 +41,16 @@ seat = {}
 for p, c in cpu.items():
     if c > 0.02: seat[seat_of(cwd(p))] = seat.get(seat_of(cwd(p)), 0.0) + c
 print('MACHINE load=%s/%s/%s cores=%d busy_cores=%.1f' % (la[0], la[1], la[2], cores, sum(cpu.values())))
-for s, c in sorted(seat.items(), key=lambda x: -x[1]):
-    if c >= 0.2: print('SEAT %-12s cpu=%.1f' % (s, c))
+# THE SEAT ARM READS THE LEDGER (ARCH-SHARED-DEVELOPMENT 2.3, shared-dev step 1, CEO-2041): the per-seat figure is LOAD.tsv's, from the cgroup
+# scopes, never this /proc sampler's (a ps-based per-seat figure undercounts the short-lived compilers, section 9). The RUNAWAY arm below is unchanged.
+try:
+    _rows = [l.rstrip('\n').split('\t') for l in open('/home/resources/progress/LOAD.tsv') if l.strip() and not l.startswith('utc')]
+    _last = _rows[-1][0] if _rows else None
+    for _r in sorted((r for r in _rows if r[0] == _last and r[1] == 'UNIT' and r[2] == 'SEAT'), key=lambda r: -float(r[4])):
+        if float(_r[4]) >= 0.2: print('SEAT %-12s cpu=%s (ledger %s)' % (_r[3], _r[4], _last))
+    if not _rows: print('SEAT ledger absent: util_seat_census.py run writes /home/resources/progress/LOAD.tsv')
+except (OSError, ValueError, IndexError):
+    print('SEAT ledger absent: util_seat_census.py run writes /home/resources/progress/LOAD.tsv')
 run = []
 for p, info in b.items():
     el = up - info['start'] / hz
