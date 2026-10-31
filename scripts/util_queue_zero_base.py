@@ -156,6 +156,10 @@ for f in parsed:
     if s.startswith("CLAIMED") or s.startswith("ASSIGNED"): decisions[topic] = ("KEEP-LIVE-CLAIM", "", "KEEP"); continue
     if s.startswith("DONE"): decisions[topic] = ("ARCHIVE-DONE", "", "DONE"); continue
     if s.startswith("SUPERSEDED") or s.startswith("RETIRED"): decisions[topic] = ("RETIRE-ALREADY", "", "RETIRED"); continue
+    # ⛔ AN UMBRELLA THAT NAMES NO LIVE ROW IS NO UMBRELLA (ceo CEO-2083): 25 prolog rows sat PARKED-UMBRELLA:prolog-construct-ladder-old-
+    # machine-defect-re-measured-when-its-rung-lands, a topic with no row anywhere, and this sweep kept them forever; re-measured 10-31, ten
+    # read green, four red, two past 240 s and nine could not measure. Such a row is swept as FREE: its own DONE-WHEN decides it.
+    if s == "PARKED-UMBRELLA" and ":" in state and state.split(":", 1)[1] not in topics_live: s = "FREE"
     if s == "PARKED-LON-HOLD" or s == "PARKED-UMBRELLA": decisions[topic] = ("KEEP-" + s, "", "KEEP"); continue
     if s in ("PARKED-EXECUTIVE-NO-SEAT", "PARKED-REBUS-CLOSED", "PARKED"): decisions[topic] = ("RETIRE-" + s.lower(), "", "RETIRED"); continue
     if s in ("PARKED-SUPERSEDED-BY", "PARKED-DUPLICATE-OF"): decisions[topic] = ("RETIRE-" + s.lower(), "", "RETIRED"); continue
