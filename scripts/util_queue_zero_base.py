@@ -109,7 +109,12 @@ def run_dw(dw):
     # refuses under load says so on its refusal line, and nothing else distinguishes that rc 2 from a cannot-measure one.
     env = dict(os.environ, S4E_HOME=S4E, S4E_PROGRESS_OFF="1", S4E_SCORE_NO_WRITE="1", S4E_DONE_WHEN_RUN="1")
     with tempfile.TemporaryFile() as fh:
-        p = subprocess.Popen(["bash", "-c", dw], cwd=S4E, env=env, stdin=subprocess.DEVNULL, stdout=fh, stderr=subprocess.STDOUT, start_new_session=True)
+        # THE CHECK CACHE (ARCH-SHARED-DEVELOPMENT 3.3, shared-dev step 7): a criterion that names only cacheable test_gate_*.sh goes through
+        # util_check_cache.sh under the same name s4e_msg.sh done uses, so the sweep and done share one verdict per tree.
+        cc = os.path.join(S4E, "harness", "scripts", "util_check_cache.sh")
+        cacheable = os.path.isfile(cc) and subprocess.run(["bash", cc, "--cacheable-text", dw], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+        argv = ["bash", cc, "done-when", "--", "bash", "-c", dw] if cacheable else ["bash", "-c", dw]
+        p = subprocess.Popen(argv, cwd=S4E, env=env, stdin=subprocess.DEVNULL, stdout=fh, stderr=subprocess.STDOUT, start_new_session=True)
         try: rc = p.wait(timeout=tmo)
         except subprocess.TimeoutExpired:
             kill_tree(p); rc = "timeout"
