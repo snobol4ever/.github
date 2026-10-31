@@ -21,6 +21,8 @@ A **segment** is a maximal region of a clause's boxes within which the depth is 
 
 Per box the planner exports `zd_xb[i]` (the run's absolute base, or INT_MIN) and the templates read `op_zdef = (zd_xb[i] != INT_MIN)`.
 
+**The switch leaves and the walker (the cto, 2026-10-31, CEO-2079):** the four rtx entries that load rsp from a segment or choice record (`rt_pl_pseg_switch`, `rt_pl_pseg_ball`, `rt_pl_dop_tbl_park`, `rt_pl_dop_tbl_resume_all`) are TRANSFER LEAVES under ARCH-RT-CALL-PROTOCOL.md §16: declared in rt_entries.tsv, proven by the walker's REC/RR/D form at their transfer exits (r9 the GVA, r8 r10 r11 and the pins record-restored, rsp the record's saved entry), the records holding the parked activation's r8 r10 r11 as well as its pins.
+
 ## 3. The addressing rules, per box
 
 - **R-A frame words** (`FRQ(off)`: BOUND and choice words, act words, variable slots): definite -> `[rsp + off + zabs]` as today; indefinite -> `[rbp + off]`. rbp is the frame base (the gamma releases with `lea rsp, [rbp + kt]`), so `off` is the same constant either way.
