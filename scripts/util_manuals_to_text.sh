@@ -31,6 +31,8 @@ conv icon pdftotext "$R/The Icon Programming Language 3rd Edition.pdf" icon-book
 conv icon pdftotext "$R/Simple Translation of Goal Directed Evaluation.pdf" goal-directed-evaluation-simple-translation.txt
 for f in $R/icon-master/doc/*.htm; do conv icon pandoc "$f" "icon-doc-$(basename "${f%.htm}").txt"; done
 for f in $R/unicon/doc/unicon/utr*.pdf; do [ -e "$f" ] && conv icon pdftotext "$f" "unicon-$(basename "${f%.pdf}").txt"; done
+for f in $R/unicon/doc/book/*.tex; do [ -e "$f" ] && conv icon detex "$f" "unicon-book-$(basename "${f%.tex}").txt"; done
+[ -f $R/unicon/tests/README ] && conv icon copy $R/unicon/tests/README unicon-tests-README.txt
 conv pascal pandoc $R/Pascal-P5/doc/iso7185.html iso7185-standard.txt
 conv pascal pandoc $R/Pascal-P5/doc/iso7185rules.html iso7185-rules.txt
 conv pascal pandoc $R/Pascal-P5/doc/the_p5_compiler.html p5-compiler.txt
@@ -61,7 +63,7 @@ echo "appel-1989-simple-generational-gc.pdf is a scanned image with no text laye
   echo "| area | what is here | the oracle it describes |"
   echo "|---|---|---|"
   echo "| prolog/ | SWI-Prolog 9 manual, one file per chapter (swi-*.txt, from swipl-devel-master/man); GNU Prolog 1.6 manual (gprolog-*.txt) | swipl 9.0.4 and gprolog 1.6.0; the ISO conformance suites are /home/resources/prolog-iso-conformance |"
-  echo "| icon/ | The Icon Programming Language, 3rd edition; the Icon implementation docs (icon-doc-*.txt); the goal-directed-evaluation paper; Unicon technical reports | the SCRIP-dialect build under /home/resources/icon-master |"
+  echo "| icon/ | The Icon Programming Language, 3rd edition; the Icon implementation docs (icon-doc-*.txt); the goal-directed-evaluation paper; the Unicon book by chapter (unicon-book-*.txt) and Unicon technical reports | the SCRIP-dialect build under /home/resources/icon-master |"
   echo "| pascal/ | ISO 7185 standard text and its rules; Wirth 1973; the Pascal-P compiler notes and the P5 compiler book | ISO 7185 wins over fpc -Miso (CEO-1225); fpc's own manual is not on the box |"
   echo "| raku/ | Rakudo 2026.05 design docs, NQP docs and the raku-examples docs, copied as text | rakudo 2026.05; THE SPEC IS THE ROAST, /home/resources/roast-master |"
   echo "| snobol4/ | SPITBOL manual v3.7, the green book, the discrete-patterns theory paper, the spitbol-docs notes, CSNOBOL4 docs, the Snoflake manual | /home/resources/x64/bin/sbl -bf |"
