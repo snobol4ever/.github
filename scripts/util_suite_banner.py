@@ -560,7 +560,9 @@ GRID_LANGS={'jvm':('snobol4','snocone','rebus'),'dotnet':('snobol4',)}
 GRID_ENGINES={'jvm':'jvm','dotnet':'dotnet'}
 GRID_PROGRAMS={'jvm':'snobol4jvm','dotnet':'snobol4dotnet'}
 def _grid_seat():
-    return os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..'))))
+    # ⛔ S4E_SEAT IS THE BUS IDENTITY (hq_dotnet, hq_jvm) SINCE util_fleet_settings.sh wrote it into every root's env (CEO-2041); the folder
+    # fallback reads dotnet/jvm. Both forms name the same port: strip the hq_ prefix, or a port seat's grid falls through to SCRIP's (ceo CEO-2081).
+    return re.sub(r'^hq_','',os.environ.get('S4E_SEAT') or re.sub(r'^claude_','',os.path.basename(os.path.abspath(os.path.join(HERE,'..','..')))))
 def _grid_langs():
     return GRID_LANGS.get(_grid_seat())
 def _grid_engine():
