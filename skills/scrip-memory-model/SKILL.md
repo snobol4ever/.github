@@ -1,56 +1,50 @@
 ---
 name: scrip-memory-model
-description: SCRIP's memory model: the three zetas (RSP spine, RBP frame, standing frame), placement decided once by the planner, the plan table, compile-time frame maps and the collector, polls and safe points. REQUIRED by the skill gate before editing src/planner, src/emitter or src/runtime/rt/gc_*.
+description: SCRIP's memory model: the three zetas in one coordinate (the RSP spine of variable-length cells, the RBP activation frame, the standing root frame), the edge, discard, gamma and reach laws, definiteness and Lon's two tests, the planner's passes and its plan table (the emitter's one input), the cell forms templates use today, the verifiers (ZD-CHECK, ZD-RTCHECK, the ZSM), and the zeta-layout and planner-finish DESIGN-PLANs. REQUIRED by the skill gate before editing src/planner, src/emitter or src/runtime/rt/gc_*; the collector itself is skill gc-collector.
 ---
 
 # SCRIP's memory model
 
-One machine under seven syntaxes: every pattern, generator and goal is a four-port Byrd box (α proceed, β recede, γ succeed, ω concede) wired at compile time. The law is RULES.md (THE MEMORY MODEL, THE LIFETIME RULE, NO GLOBAL HOLDS A STACK, NO FRAME MARKERS, THE COLLECTOR GUESSES NOTHING); the design is the ARCH pages of § 4, and a page beats this skill. File maps, verifier lists and receipts in full are in `reference.md` beside this file.
+One machine under seven syntaxes: every pattern, generator and goal is a four-port Byrd box (α proceed, β recede, γ succeed, ω concede) wired at compile time. The law is RULES.md (THE MEMORY MODEL, THE LIFETIME RULE, NO GLOBAL HOLDS A STACK, ZETA HAS NO MODES, BB FRAME-PLACEMENT CRITERION). Detail, the verifiers and the debugging method are in `reference.md`; the collector (frame maps, safe points, the chain walk) is skill `gc-collector`.
 
-## 1. The law and its verifiers
+## 1. The three zetas, one coordinate
 
-- **Three zetas:** every operand and local starts on the RSP spine (16-byte DESCR cells at compile-time offsets); it moves to the RBP activation frame only when Lon's two tests force it; the standing frame is the root graph's own storage, never a global.
-- **The lifetime rule** (CEO-1354): construct lifetime → stack; outlives its scope → heap; out of stack → a bigger declared `-s`.
-- **Placement is decided once, in the planner** (CEO-1895); the emitter reads the plan table and decides nothing. A retry never restores RSP (no RSP reset at any β); a γ pops only a fenced construct's cells (CEO-1843). Edge laws: γ→α `X_i − gpop = E_j`; ω→β `X_i − K_i − wpop = X_j`.
-- **No global holds a stack** (CEO-1542/1543): the only stacks outside RSP/RBP are the two r12 islands (SNOBOL4 conditional assignment, Prolog trail and choice points).
-- **The maps stay** (CEO-1368/1371): one static frame map per frame, typed visitors, no conservative scan, no pin; only emitted code at the return of an allocating call collects.
-- **The verifiers are the oracle of this layer**, each red once before trusted: `SCRIP_ZD_CHECK=1` (edge laws), `SCRIP_ZD_RTCHECK=1` (depth at every α and β), `SCRIP_GC_CHAIN_CHECK=1..3`, `SCRIP_GC_STRESS=1` with `SCRIP_GC_PLANT_FLIP=1`, `SCRIP_ZSM=1` (the frame census), `util_gen_gc_allocating_table.py --check`. The language oracle still grades every witness in both modes.
+Every graph has a FRAME BASE (where its prologue leaves rsp); every depth in the plan is bytes below it. A cell is on exactly one zeta, written in the plan's `zeta` column:
+- **The spine (rsp)**: a FORTH stack of variable-length cells. Box i carves `K_i` at α and pops exactly that at ω; its exit depth `X_i`, entry depth `E_i = X_i - K_i`; a reader addresses a cell at the constant distance between the two depths.
+- **The activation frame (rbp)**: a block per activation of a construct (a call, a match `S ? P`, a deferred pattern, a generator), opened `push rbp; mov rbp, rsp; sub rsp, R`, closed `mov rsp, rbp; pop rbp`. It holds exactly the cells no fixed rsp distance reaches, plus the construct's state words; `R` is that resident set's size.
+- **The standing frame**: the root graph's frame, holding global-type box state that boxes of any graph read; reached by walking the rbp links down to the null link (Lon 2026-10-22, CEO-1908: "None, since it can be reached via RBP and walked down."). No standing register.
 
-## 2. The manuals
+## 2. The laws (Lon's words are in reference.md § 1)
 
-`/home/resources/manuals/gc/` (the collector literature; `PROVENANCE.txt` names each), `/home/resources/manuals/byrd-boxes/` (the four-port model, the WAM, Proebsting on Icon), the language folders. ABI facts are measured (`objdump -d` on the linked binary), never remembered.
+- **Edge laws** (CEO-1759): γ→α `X_i - gpop_i = E_j`; ω→β `X_i - K_i - wpop_i = X_j`; γ→β `X_i - gpop_i = X_j`. A violation is a planner defect, never an rbp need. **A retry never restores rsp**; a β re-entry finds rsp at the box's exit depth.
+- **The gamma law** (CEO-1843; Lon 2026-10-24: "Do not free on GAMMA ever, except on a FENCE'd success."): a γ pops only when the construct it leaves is fenced (FENCE0, FENCE1, a cut, BOUND, UNMARK, a GATE's commit, a statement or match end), and may put its result in the popped region. A retaining γ pops nothing.
+- **The discard law**: a discard (cut, a committing UNMARK, FENCE's β, MATCH_END, a statement's failure landing, ARBNO's record, catch's unwind) restores rsp to the entry depth the plan assigns to the box it continues at: `restore_i = E_cont`. A transfer (a goto, SETEXIT, a jump into run-time code) pops `X_i - E_t` in its own column.
+- **The reach law**: an ACT cell is addressed only through its owner's rbp while the owner's frame is current; one static link for an inline-pinned construct; never a dynamic number of hops.
+- **The flat cell law** (zeta-layout R1): inside a box rsp moves only at α, γ, ω and declared edge sites; a value kept across a runtime call lives in a declared word of the box's cell (`box_cell_shapes.tsv`), never pushed.
 
-## 3. The source map
+## 3. Definiteness and the two tests
 
-- Planner `SCRIP/src/planner/`: `planner_stage.c` (the entry), `zeta_plan.cpp` (`zd_plan`, `zd_k`), `plan_facts.cpp` (the PLAN_COLUMNS the emitter reads), `frame_layout.c`, `planner_report.cpp` (`--dump-plan`), generated `box_cell_shapes.inc`. Plan-time code uses the `_g` forms.
-- Emitter `SCRIP/src/emitter/emit.cpp` (one `switch (nd->op)` binding kinds to templates); `src/ir/` (`IR.h`, `descr.h`, `gc_frame_map.h`, `ct_arena.c`: no malloc).
-- Templates `src/templates/bb/`, `xa/`, `x86/` (the one encoder `x86_asm.cpp` behind `x86_ops.h`).
-- Runtime: `src/runtime/rt/gc_heap.c` (heap, chain walk, compactor), `rt_slab.c`, `rt_coexpr.c`, `rt_pl_trail.c`; `src/runtime/rtx/` (asm leaves on rtcc); `src/runtime/core/g_runtime*.h` (the one runtime state struct).
-- Dumps: `--dump-ir|--dump-bb|--dump-zeta|--dump-plan`; sizes by `-d<kb>k -s<kb>k`; `SCRIP_PL_TRACE=1` the Prolog port tracer.
+A box is definite when `E_i` is a compile-time constant on every path. Two things make it indefinite, in every language: a retaining edge (the γ out of a call whose callee may be re-entered at β: a multi-clause predicate, a suspending procedure, CALL_VALUE, a gather's take; `zd_edge_retains`) and a push of non-constant size (call/N's argument block). SNOBOL4, Snocone, Rebus and Pascal have no retaining edge. Cells leave the spine only by Lon's two tests: **TEST 1** an operand whose consumer cannot read it at a constant rsp distance; **TEST 2** a local whose home box is not definite at every use. The decision order: a global-type cell is STANDING; else a cell some box cannot reach at a fixed distance is ACT; else SPINE.
 
-## 4. The ARCH pages
+## 4. The planner and the plan table (CEO-1895: placement decided once)
 
-ARCH-ZETA-ONE-COORDINATE.md (the coordinate, definiteness); ARCH-THREE-ZETAS-EMISSION.md (the cell forms, the plan table); ARCH-ZD-DEPTH-PLANNER.md (K, the admission ladder); ARCH-ZETA-LAYOUT-ONE-SOURCE-OF-TRUTH.md; ARCH-FRAME-LAYOUT-FIXED-CELLS.md; ARCH-GC-COMPILE-TIME-FRAME-MAPS.md (§ 7 frozen, § 13 the chain, § 14 asm collection, § 15 the compactor); ARCH-RT-CALL-PROTOCOL.md; ARCH-X86-ASM-ENCODER.md; ARCH-EXCEPTIONS-ONE-PROTOCOL.md; the Prolog, SNOBOL4 and Icon RTX and frame pages. The full question-to-page table is in `reference.md` § 4.
+`src/planner/` runs after lower and before the emitter: definiteness, homes, carves, depths, layout, site rules, then `zd_check`. The row per node (`zeta_plan_t`; `--dump-plan` prints `PLAN_COLUMNS E X K definite zeta off depth retains_code owner fenced gpop wpop restore act vdj`) is read by four readers and no fifth: the emitter, the collector's site and map records, the verifiers, the instruments. The emitter decides no placement and computes no depth; no accessor layer is built over the row (Lon 2026-10-24: "forget about ZCELL"; deciders are deleted, not wrapped). Plan-time code uses the `_g` forms. A new IR kind needs a row in `harness/scripts/box_cell_shapes.tsv` and the include regenerated with `--write`.
 
-## 5. How a landing here is graded
+## 5. Verifiers (each red once before it is trusted, CEO-1680)
 
-Shared code: graded by every language's witnesses. Per landing: the row's DONE-WHEN (a design step `test_design_*_steps.sh --step N`, or a gate); `test_feature_reps.sh <lang> <feature>` for touched features; ALL EIGHT `test_smoke_*.sh` before the push; the collector's witnesses under `SCRIP_GC_STRESS=1` in both modes for a collector landing. One program by hand: `corpus_suite_harness.py run ... --modes m3,m4 --partition entry:<name>` (in `harness/scripts/`). The coo runs the heavy passes and the emission identity. Measure by instruction count (`util_instr_count.sh`); a clock only inside `util_quiet_slice.sh`.
+`SCRIP_ZD_CHECK=1 ./scrip --compile prog` (the plan's laws, per graph: `violations=0` means a red program is a template or runtime defect); `SCRIP_ZD_RTCHECK=1` (an emitted depth check at every α and β, SIGILL on a miss); `SCRIP_ZSM=1` with `SCRIP_ZSM_ALL=1 SCRIP_ZSM_DECL=1` (the run-time frame census, `util_zsm_declared_census.sh --lang L`); `util_zeta_layout_check.py` (the emitted asm against `--dump-plan`); `test_gate_no_rsp_reset_at_beta.sh` (blocking at 0); `util_emitter_memory_model_census.py` (the emitter-decides ratchet).
 
-## 6. Debugging a red here
+## 6. Rulings a landing here must not break
 
-1. `bash ../harness/scripts/monitor_run.sh <prog> --oracle` (the bug is between the last agreeing and the first diverging event), then asm-diff beside a passing sibling within one mode.
-2. The plan before the code: `--dump-plan` diff of PLAN_ROWs; `SCRIP_ZD_CHECK=1`; `SCRIP_ZD_RTCHECK=1` traps the first α or β at the wrong depth.
-3. Collector suspicion: `SCRIP_GC_STRESS=1` with the flip plant; `SCRIP_GC_CHAIN_CHECK=2`; bound memory with a cgroup, not a timeout.
-4. Templates: `SCRIP_PL_TRACE=1` under gdb; gdb last, with a breakpoint and a hit count. A `-dirty` reading is unread (CEO-2060).
+- The planner decides, the emitter reads; after lower every variance is an IR fact (CEO-1838/1840); a deletion carries its re-expression.
+- Zeta has no modes: no switch chooses a zeta's behaviour.
+- The lifetime rule (CEO-1354): construct lifetime → stack; outlives its scope → heap; out of stack → a bigger declared `-s`, never data moved to the heap.
+- No global holds a stack (CEO-1542/1543): the only stacks off RSP/RBP are the two r12 islands (SNOBOL4's conditional-assignment stack; Prolog's trail and choice points), and no movable DESCR lives in an island.
+- A ball never re-enters a retained frame; a new IR op needs the flat walk; a graph-level carve is declared to the plan depth.
+- Generated tables are regenerated, never edited: `box_cell_shapes.inc`, `gc_allocating_table.inc`, `rt_entry_table.inc`.
+- Large chunks (CEO-1478..1484); fetch origin before a planner cure; never widen a Lon ruling.
 
-## 7. Rulings a landing here must not break
+## 7. DESIGN (the cto's; the live plans of this layer)
 
-- The planner decides, the emitter reads (CEO-1895); after lower every variance is an IR fact (CEO-1838/1840).
-- Zeta has no modes: no selector chooses a zeta's behaviour.
-- A retry never restores RSP; a γ pops only fenced cells; a ball never re-enters a retained frame (CEO-1759/1814/1841/1843).
-- The maps stay; the collector guesses nothing; the allocator never collects; a leaf that can allocate returns to a safe point.
-- Out of stack is a bigger declared `-s` (CEO-1354/1353); `SCRIP_HEAP_KB` never sets a program's size.
-- No new global without Lon's grant that session; `g_runtime` is the one runtime state struct.
-- Generated tables are regenerated, never edited or merged (`gc_allocating_table.inc`, `box_cell_shapes.inc`, `rt_entry_table.inc`).
-- Every instruction through `x86(...)`, both media; one form per box; no C function enters a box (CEO-1576, CEO-2045).
-- Large chunks (CEO-1478..1484); hand-written C on the 200-column rule with no comments; no `-O2`; no fixed limits.
+- **zeta-layout** (CEO-2019; `corpus/tests/shared/zeta_layout/STEPS.tsv`, `test_design_zeta_layout_steps.sh`): the plan row is the one source of truth for every layout. Laws R1-R9 in `reference.md` § 5. On 2026-11-01: step 2a (the flat cell rule in the SNOBOL4 and shared templates) CLAIMED by hq_zetas, 2b-2e and 3, 5, 6, 9, 10 BLOCKED behind it, 4b ASSIGNED to hq_collector, 4a-3 ASSIGNED, 5c FREE.
+- **planner-finish** (CEO-2002; `corpus/tests/snobol4/planner_finish/STEPS.tsv`, `test_design_planner_finish_steps.sh`): the last placement decisions in the emitter move to the planner. Steps 2-9 are DONE; step 11, the finish, is FREE; steps 1 and 10 have no live row.
