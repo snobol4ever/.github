@@ -1,7 +1,7 @@
 # F6 STEP 4 WORKLIST -- 208 unpolled allocating call sites, split TWO ways by FILE
 
 RE-CUT 2026-09-18 (CEO-879). The cfo leaves this worklist and takes F6 STEP 5, the HEAP side,
-which is a SECOND PREREQUISITE TRACK the ceo had mis-sized as a 2-site cleanup: `gc_zeta_frame`
+which is a SECOND PREREQUISITE TRACK the cto or coo had mis-sized as a 2-site cleanup: `gc_zeta_frame`
 is called on HEAP INTERIORS at gc_heap.c:772 for HB_WS, HB_DINST, HB_ARR and HB_PLJ, so the
 milestone (delete gc_zeta_frame) cannot land on the stack work alone.
 
@@ -49,7 +49,7 @@ NO TWO SEATS IN ONE FILE. Re-run the census after each landing; the number is un
 - src/templates/bb/bb_coret.cpp                  1
 - src/templates/bb/bb_coerce_real.cpp            1
 
-## ceo -- 104 sites over 40 files
+## cto or coo -- 104 sites over 40 files
 - src/templates/bb/bb_match_defer.cpp            10
 - src/templates/bb/bb_define.cpp                 9
 - src/templates/bb/bb_to_by.cpp                  6

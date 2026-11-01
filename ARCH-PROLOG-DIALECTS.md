@@ -1,6 +1,6 @@
 # ARCH-PROLOG-DIALECTS.md — one Prolog front end, two dialects, one record
 
-**Minted 2026-10-10 by hq_prolog on the ceo's ruling CEO-1632** (approving the design asked under row
+**Minted 2026-10-10 by hq_prolog on the cto or coo's ruling CEO-1632** (approving the design asked under row
 `prolog-a-swi-dialect-program-reads-a-double-quoted-text-as-a-string-object-as-swipl-does-the-gnu-dialect-as-codes-ceo-1599`;
 CEO-1605 for display/1). SCRIP's Prolog is the ISO superset (CEO-391): ISO is the core, every non-conflicting GNU and SWI builtin
 is added, and where the two oracles CONFLICT the program's own dialect decides. There is no command-line switch, ever (RULES.md
@@ -17,7 +17,7 @@ ONE ORACLE, ONE FEATURE SET).
 ## 2. The rule and its markers — grown by measurement, never by taste
 
 A program is SWI when its own source tree carries a construct the GNU oracle REFUSES OR DOES NOT READ; otherwise it is GNU/ISO.
-The principle is the ceo's (CEO-1632), the same as Pascal's dialect switch (CEO-1624). MEASURED by the ceo on gprolog 1.6.0 and
+The principle is the cto or coo's (CEO-1632), the same as Pascal's dialect switch (CEO-1624). MEASURED by the cto or coo on gprolog 1.6.0 and
 swipl 9.0.4:
 
 - a `:- module/2` directive: gprolog warns and does not read it, swipl runs the program;
@@ -107,7 +107,7 @@ Every XsbTests red hq_icon names (float_tests_roots, roots_int_comp, arith_op, n
 
 **§ 6 STEP (1) AS BUILT (hq_icon, SCRIP 8cbf19b8f and 5c435f745, corpus 2bd8e5850, 2026-10-25 00:4x; recorded by the cto 08:3x CDT):** one `pl_dialect` field (ISO/SWI/GNU/XSB) with about sixteen reads, the XSB markers outranking SWI's, `'$dialect'` xsb, `--dialect=xsb`, the package prelude's one marker; a markerless program prints `[97,98]` as XSB does. 5c435f745 withdrew `:- export P.` and `:- index/1` from the marker set because swipl accepts both: the markers are what BOTH other oracles refuse (import-from, compiler_options, hilog, ti), by § 2's measurement; family_prolog.pl's main graph tripling and returning between 01964419b and 5c435f745 in the coo's ZSM census was that flip. ONE CONTRACT FINDING: the vendoring's driver passed `""` where XSB reads codes, so it now passes atoms at its 1,034 sites. TWO SWITCHES RECORDED, SWI's value given to XSB and accepted until a measured difference says otherwise: (a) a program's own definition of a NON-ISO builtin wins (`pl_swi_user_redefines`: table_tests_abol_test defines `print/2`, a name XSB does not have, so no builtin is lost); (b) a program's own definition of a library leaf wins. Every other SWI-keyed switch gives XSB the ISO/GNU arm. Next in the page's order: the float writer.
 
-### 6.1 XSB MODULES: a module name is a ground term and a key; the file is a load site, never part of the name; a module-tagged structure symbol is a module-qualified ATOM, not a cell bit and not a side table (the cto, 2026-10-31 09:30 CDT; hq_packages' ask of 2026-10-30 under its XsbTests row, routed by the ceo 2026-10-31 09:4x; CEO-1926, CEO-2067)
+### 6.1 XSB MODULES: a module name is a ground term and a key; the file is a load site, never part of the name; a module-tagged structure symbol is a module-qualified ATOM, not a cell bit and not a side table (the cto, 2026-10-31 09:30 CDT; hq_packages' ask of 2026-10-30 under its XsbTests row, routed by the cto or coo 2026-10-31 09:4x; CEO-1926, CEO-2067)
 
 **THE ORACLE'S DEFINITION (XSB 5.0.0, `docs/userman/module_system.tex`, read whole):** a module name is a GROUND TERM `M(m_1, ..., m_n)`, the main symbol the base module (its file `M.P` by default), the arguments the actual modules that replace the formals of `:- module_parameters(f_1, ..., f_n)`; there is no limit on nesting. `Name>>File` names the file the module's code is loaded from on demand, in an import and in a qualified goal alike (`Mod = moda>>moda_file, Mod:p(X,Y)`), and EVERY reference to such a module must carry the same file. `usermod(File)` and `usermod>>File` are PSEUDO-MODULE references: File is not a module, its predicates load into usermod on the first call of the imported predicate; `usermod(load_dyn(File))` and `usermod(consult:load_dync(File,a))` name the loading predicate. `:- import P/N from Mod as Q/N` renames at the importer. A STRUCTURE SYMBOL is (module, name, arity): every predicate symbol of a module file is in that module, every non-predicate structure is in usermod unless imported or `:- local`; `term_new_mod/3` coerces a term's symbol into any module; `functor(Term, Module, Name, Arity)` reads it, and the parametrised module prints as its ground term (functor4_tests t57: `t57(g(A,B,C),newmod(newmod2,newmod3),g,3)`), while `write` of the term prints the bare name (t36: `g(A,B,C)`); two tagged terms of one module unify (t35, t56).
 

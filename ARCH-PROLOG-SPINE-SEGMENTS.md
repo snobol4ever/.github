@@ -42,7 +42,7 @@ The planner marks each box definite or not; an **rbp-required site** is a read o
 
 Built whole in this seat, measured on the swipl-checked batteries (if-then-else shapes, basics, the chunk:02 entries), then landed on origin in the order: the zst_plan corrections and the absolute exit pop (hello, the ITE and locals classes); the segment break, `op_zdef`, R-A/R-B in `x86_zop`, R-E in the flat protocol; R-C frame homes. Check per landing: `bash ../harness/scripts/test_feature_reps.sh prolog findall between` (the row's DONE-WHEN) and the if_then_else reps; the coo's loop reads the suites. Icon is byte-identical: only the Prolog planner clears `op_zdef` or breaks a run at a call; hq_icon owns the shared core and may recut any of it the same tick (CEO-1826).
 
-## 6. The rsp loads in the emitted Prolog, classified (the ceo's asm census, CEO-1832)
+## 6. The rsp loads in the emitted Prolog, classified (the cto or coo's asm census, CEO-1832)
 
 `util_rsp_restore_census.sh --lang prolog` at the segments landing: 11,385 `mov rsp, [memory]` over the 54 core entries, 3,803 at an alpha label, 7,582 at a numbered label, 0 at a beta, plus 34,878 `lea rsp, [rbp ...]`. Every one of them is a DISCARD or a frame protocol word, none is a retry re-establishing rsp from a record:
 

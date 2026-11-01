@@ -1,8 +1,8 @@
 # ARCH-BUILD-SYSTEM-DRAFT — the build system for the scrip executable
 
-**Author:** hq_P (HQ-PERFORMANCE) · **Session:** 2026-08-23 s268 · **Brief:** ceo `src-reorg-build-design`
+**Author:** hq_P (HQ-PERFORMANCE) · **Session:** 2026-08-23 s268 · **Brief:** cto or coo `src-reorg-build-design`
 **Evidence:** every number here is measured in `FINDING-2026-08-23-hq_P-so-boundary-runtime-is-2.2MB-of-34.3MB.md`. Read that first; this file is the design, not the proof.
-**Status:** ⛔ **DRAFT. Nothing moves before Lon rules.** CEO arbitrates this against hq_C's source-layout draft into one proposal.
+**Status:** ⛔ **DRAFT. Nothing moves before Lon rules.** CTO or COO arbitrates this against hq_C's source-layout draft into one proposal.
 **Binding through all of it:** per-checkout objdir (HQ-27) · flag-keyed `RT_TAG` cache · `RT_OPT` is `-O0`, no `-O2` arm ever (RULES.md § NO `-O2` BUILDS) · gates green through every step · m3 ≡ m4 · TEMPLATE-ONLY EMISSION · BOTH-MEDIUM · no-lang-past-lower.
 
 ---
@@ -152,7 +152,7 @@ Each step is independently green, independently revertable, and valuable even if
 
 ⛔ **Steps 5–7 change what ships. None of them start before Lon rules.**
 
-## 8. Open questions for CEO/Lon
+## 8. Open questions for CTO or COO/Lon
 
 1. **Does the registration vtable count as a new global?** If yes it needs an in-chat banner grant naming it, and step 6 does not start without one.
 2. **Is the `.so` split worth doing at all** given that the honest win is "the runtime is small and nameable" rather than a quotable multiple? Steps 0–5 stand on their own regardless; step 6 is the one that needs the ruling.

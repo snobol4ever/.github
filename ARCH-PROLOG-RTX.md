@@ -4,7 +4,7 @@
 
 ## ⛔⭐⭐⭐⭐ LON DIRECTIVE 2026-09-26 — UNIFICATION MIRRORS THE SNOBOL4 MATCHER: r13/r14/r15 THE SUBJECT, r12 THE BINDING STACK (CEO-1279)
 
-**Lon, in-chat to the ceo, 10:2x CDT, verbatim:** *"The Prolog unification needs to mirror SNOBOL4's pattern matching, using R13, R14, and R15, and also R12 as a stack."*
+**Lon, in-chat to the cto or coo, 10:2x CDT, verbatim:** *"The Prolog unification needs to mirror SNOBOL4's pattern matching, using R13, R14, and R15, and also R12 as a stack."*
 
 **The plane it names** (`ARCH-SNOBOL4-RTX.md` §1): r13 = Σ the subject base, r14 = δ the subject cursor, r15 = Δ the subject length/end, r12 = the conditional-assignment stack top (Lon's directive of 2026-08-02; the CAS base is a MATCH_BEGIN frame slot, never a register). **Read for Prolog:** unification is pattern matching over a term's cells — r13 the base of the term being walked, r14 the cursor over its cells, r15 its end — and a binding is a conditional assignment: pushed on the r12 stack as it is made, undone from that stack on backtracking (the trail IS the CAS twin, which is what this plane already keeps in r12). The get, put and unify steps are emitted boxes with α/β/γ/ω ports exactly as a SNOBOL4 pattern node is (`ARCH-PROLOG-BYRD-BOX-TRANSLATION.md`), and the C walk — `plw_unify_cells`, `plw_cell_deref_slow`, `plw_bind`, `plw_mkc_kids`, `rt_pl_deref_val`, `rt_pl_dop_unify_ci_c` in `src/runtime/by_name_dispatch.c` — is deleted, not wrapped.
 

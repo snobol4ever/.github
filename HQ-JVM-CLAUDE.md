@@ -4,13 +4,13 @@ This file guides Claude Code in the root `/home/claude_jvm`, the seat **HQ-JVM**
 
 ## The seat
 
-Lon opened this seat on 2026-10-17, saying to the ceo, verbatim: *"We need to create two new HQ seats and their corresponding root folders (I'll do that part) for finishing and polishing snobol4ever/snobol4dotnet and snobol4ever/snobol4jvm. Call them HQ-DOTNET and HQ-JVM."* He added: *"These two HQ's have ZERO to do with SCRIP. Not related at all."*
+Lon opened this seat on 2026-10-17, saying to the cto or coo, verbatim: *"We need to create two new HQ seats and their corresponding root folders (I'll do that part) for finishing and polishing snobol4ever/snobol4dotnet and snobol4ever/snobol4jvm. Call them HQ-DOTNET and HQ-JVM."* He added: *"These two HQ's have ZERO to do with SCRIP. Not related at all."*
 
 - **The work:** finish and polish **snobol4ever/snobol4jvm**, a full SNOBOL4/SPITBOL implementation for the JVM written in Clojure.
 - **A fleet seat, not a SCRIP seat:** Lon, the same sitting, verbatim: *"These two HQ's will certainly need to be fully apart of our fleet, they just happen not to be SCRIP."* This seat is a full member of the snobol4ever fleet. It works through the postoffice like every seat (mail, queue rows, claims, MODE, the banner), and its officer is the cfo (completeness and correctness). Its code has nothing to do with SCRIP, the fleet's x86-64 compiler: the root holds no SCRIP clone, and SCRIP's internals (its zetas, its emitter, its suites) are not this seat's business.
-- **The bus:** `harness/` beside your repos is a clone of `snobol4ever/harness`, the fleet's harness (the postoffice bus, the runners, the gates, the benchmarks, the monitor; Lon 2026-10-17, CEO-1819/1820). Run every bus verb from this root: `bash harness/scripts/s4e_msg.sh check`, `clear`, `next`, `done <topic>`, `send <seat> <topic> --stdin`, `mint <topic> 1 --owner hq_jvm --stdin`; the Stop banner and the inbox hook run it from `.claude/settings.json`. Pull harness with the other repos (`git -C harness pull --ff-only`); never edit it to suit this seat -- a harness defect is one telegram to the ceo. No symlinks, ever: never create one, and `harness/scripts/test_gate_no_symlinks.sh` run from this root reads every repo here.
+- **The bus:** `harness/` beside your repos is a clone of `snobol4ever/harness`, the fleet's harness (the postoffice bus, the runners, the gates, the benchmarks, the monitor; Lon 2026-10-17, CEO-1819/1820). Run every bus verb from this root: `bash harness/scripts/s4e_msg.sh check`, `clear`, `next`, `done <topic>`, `send <seat> <topic> --stdin`, `mint <topic> 1 --owner hq_jvm --stdin`; the Stop banner and the inbox hook run it from `.claude/settings.json`. Pull harness with the other repos (`git -C harness pull --ff-only`); never edit it to suit this seat -- a harness defect is one telegram to the cto or coo. No symlinks, ever: never create one, and `harness/scripts/test_gate_no_symlinks.sh` run from this root reads every repo here.
 - **Rows:** a row's DONE-WHEN runs from this root, so it begins `cd "${S4E_HOME:-$PWD}/snobol4jvm" || exit 2;` and names a command that measures (the failing test, the corpus program against the oracle), never prose. A topic carries no SCRIP language prefix, so `mint` needs `--owner hq_jvm`.
-- **Who directs it:** Lon, and the ceo through the bus; MODE line 2 of `/home/resources/postoffice/MODE` names this seat's business.
+- **Who directs it:** Lon, and the cto or coo through the bus; MODE line 2 of `/home/resources/postoffice/MODE` names this seat's business.
 - **Where state lives:** in `.github/GOAL-HQ-JVM.md`. Its LIVE CURSOR is on top; keep it current and push it.
 
 ## The root
@@ -27,7 +27,7 @@ Lon opened this seat on 2026-10-17, saying to the ceo, verbatim: *"We need to cr
 - **`.github/`** (`snobol4ever/.github`) is the org brain; this seat's GOAL file lives there.
 - **`.scratch/`** is for scratch work. Scratch clones, downloaded tools and build experiments go here, never inside a repo.
 
-## Build and test (what the ceo found on 2026-10-17 at `f35d392`)
+## Build and test (what the cto or coo found on 2026-10-17 at `f35d392`)
 
 - **No build tool yet.** Java is OpenJDK 21.0.11, but there is no `lein`, no `clojure` CLI and no `~/.m2`.
 - **Your first job:** install Leiningen for this user. Its self-installing `lein` script goes on the PATH (for example `~/.local/bin`). Then run `lein deps` and `lein test`, and record the measured count in the GOAL file's cursor.

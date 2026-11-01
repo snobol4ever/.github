@@ -4,7 +4,7 @@
 half of the brief, and this draft is written so that it constrains the build as little as possible.
 
 **Companion:** `FINDING-2026-08-23-hq_C-src-reorg-carve-list-adversarial-verification.md` — every
-number below marked ✅ was measured there this session. Numbers marked ⟨carried⟩ come from the CEO
+number below marked ✅ was measured there this session. Numbers marked ⟨carried⟩ come from the CTO or COO
 survey reports and were **not** re-verified.
 
 **Binding constraints** (00-INDEX § CEO-9): TEMPLATE-ONLY EMISSION · BOTH-MEDIUM · no-lang-past-lower ·
