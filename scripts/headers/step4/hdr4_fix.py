@@ -1,6 +1,6 @@
 import os, re, sys, subprocess, collections
 root=sys.argv[1]; log=sys.argv[2]; src=os.path.join(root,'src')
-HDRS=['ir/ir_fwd.h','ir/ir_ops.h','ir/ir_node.h','ir/ir_graph.h','ir/ir_construct.h','ir/bb_box.h','ir/bb_program.h','ir/stage2.h','ir/SM.h','ir/call_forms.h','ir/ct_vec.h','ir/ct_arena.h','ir/gc_frame_map.h','ir/dtp.h','ir/ir_node_index.h','optimizer/ir_index.h','optimizer/ir_query.h','planner/zeta_depth.h','planner/frame_layout.h','planner/g_planner.h','emitter/emit_state.h','emitter/emit_regime.h','runtime/keywords.h','lower/lower_common.h','lower/g_lower.h','driver/driver_private.h']
+HDRS=['ir/ir_fwd.h','ir/ir_node.h','ir/ir_graph.h','ir/ir_construct.h','planner/zeta_plan.h','planner/act_words.h','planner/plan_facts.h','planner/planner.h','planner/frame_layout.h','ir/descr.h','runtime/core/name_t.h','lower/lower_common.h','runtime/builtins/gen.h','ir/ast.h','ir/bb_box.h','ir/bb_program.h','ir/stage2.h','ir/SM.h','ir/call_forms.h','ir/ct_vec.h','ir/ct_arena.h','ir/gc_frame_map.h','ir/dtp.h','ir/ir_node_index.h','optimizer/ir_index.h','optimizer/ir_query.h','planner/zeta_depth.h','planner/g_planner.h','emitter/emit_state.h','emitter/emit_regime.h','runtime/keywords.h','lower/g_lower.h','driver/driver_private.h']
 def idents(path):
     out=set(); text=open(os.path.join(src,path),errors='replace').read()
     for s in text.split('\n'):
@@ -42,7 +42,7 @@ for h in HDRS:
         for e in m.group(1).split(','):
             e=e.strip().split('=')[0].strip()
             if re.match(r'^\w+$',e): table.setdefault(e,h)
-table['_']='emitter/emit_state.h'; table['IR_t']='ir/ir_node.h'; table['IR_graph_t']='ir/ir_graph.h'; table['IR_construct_t']='ir/ir_construct.h'; table['FILE']='<stdio.h>'; table['size_t']='<stddef.h>'
+table['_']='emitter/emit_state.h'; table['DESCR_t']='ir/descr.h'; table['is_global']='lower/lower_common.h'; table['ZST_BIAS']='planner/frame_layout.h'; table['IR_t']='ir/ir_node.h'; table['IR_graph_t']='ir/ir_graph.h'; table['IR_construct_t']='ir/ir_construct.h'; table['FILE']='<stdio.h>'; table['size_t']='<stddef.h>'
 for w in ('strlen','memcpy','memset','memcmp','strcmp','strncmp','strchr','strrchr','strstr','strcpy','strncpy','strdup','strcat'): table[w]='<string.h>'
 for w in ('snprintf','fprintf','printf','sprintf','fputs','fputc','fwrite','fflush','stderr','stdout','fopen','fclose','vsnprintf','sscanf','puts'): table[w]='<stdio.h>'
 for w in ('getenv','abort','exit','strtol','strtoll','strtoul','atoi','atol','qsort','bsearch','llabs','labs'): table[w]='<stdlib.h>'
