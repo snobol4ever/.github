@@ -39,6 +39,7 @@ assert mk.count(old78)==1, 'CBASE line'
 m80=re.search(r'^CXXRT   := -O0 -g \$\(DBGMAP\) \$\(WARN\) \$\(DEPFLAGS\) -std=c\+\+17 -finput-charset=UTF-8 -I\$\(SRC\)(?: -I\$\((?:SRC|RT)\)[^ ]*)+', mk, re.M); assert m80, 'CXXRT line'
 m1930=re.search(r'^RT_INCS := -I\$\(SRC\)(?: -I\$\((?:SRC|RT)\)[^ \\]*)+ \\\n(?:    (?:-I\$\((?:SRC|RT)\)[^ \n]*)(?: -I\$\((?:SRC|RT)\)[^ \n]*)*)\n', mk, re.M); assert m1930, 'RT_INCS lines'
 mk2=mk.replace(old78, 'CBASE   := -O0 -g $(DBGMAP) $(WARN) $(DEPFLAGS) -I$(SRC)')
+m80=re.search(r'^CXXRT   := -O0 -g \$\(DBGMAP\) \$\(WARN\) \$\(DEPFLAGS\) -std=c\+\+17 -finput-charset=UTF-8 -I\$\(SRC\)(?: -I\$\((?:SRC|RT)\)[^ ]*)+', mk2, re.M)   # re-matched on the edited text: the CBASE cut moved every later offset
 mk2=mk2[:m80.start()]+'CXXRT   := -O0 -g $(DBGMAP) $(WARN) $(DEPFLAGS) -std=c++17 -finput-charset=UTF-8 -I$(SRC)'+mk2[m80.end():]
 m1930=re.search(r'^RT_INCS := -I\$\(SRC\)(?: -I\$\((?:SRC|RT)\)[^ \\]*)+ \\\n(?:    (?:-I\$\((?:SRC|RT)\)[^ \n]*)(?: -I\$\((?:SRC|RT)\)[^ \n]*)*)\n', mk2, re.M)
 mk2=mk2[:m1930.start()]+'RT_INCS := -I$(SRC)\n'+mk2[m1930.end():]
