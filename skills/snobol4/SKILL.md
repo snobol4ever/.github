@@ -25,9 +25,9 @@ The record is GOAL-SNOBOL4-100.md, GOAL-SNOCONE-100.md and GOAL-REBUS-100.md (LI
 - Runtime: `pattern_match.c`, `runtime_eval.c` (CODE/EVAL; the one granted global `g_sno_stmt_compiled`, CEO-1271), `string_ops.c`, `aggregates.c`, `keywords.c`, `io_format.c`; the leaves `rtx_match.s`, `rtx_str.s`, `rtx_table.s`; boxes `bb_match_*.cpp`.
 - `./scrip --dump-ast|--dump-ir|--dump-plan prog.sno`; mode 3 `--run`, mode 4 `--compile --out=prog.s`.
 
-## 4. The ARCH pages
+## 4. The related skills
 
-ARCH-SNOBOL4-RTX.md (leaves, the register contract: r12 the conditional-assignment stack, r13 Σ, r14 δ, r15 Δ); ARCH-THREE-ZETAS-EMISSION.md and ARCH-ZETA-ONE-COORDINATE.md; ARCH-ZD-DEPTH-PLANNER.md; ARCH-ZETA-LAYOUT-ONE-SOURCE-OF-TRUTH.md (§ 9 the frame whack); ARCH-RT-CALL-PROTOCOL.md; ARCH-BUILTIN-TABLE.md; ARCH-LANGUAGES.md (Snocone's spellings).
+`rtx-asm-leaves` (the leaves and the register plane: r12 the conditional-assignment stack, r13 Σ, r14 δ, r15 Δ); `scrip-memory-model` (the spine, the match frame, the plan, the layout record); `gc-collector`; `runtime-calls` (DEFINE, by-name calls, the builtin table, SETEXIT on the error protocol); `box-templates`; `snocone-parser-patterns`; `ports` (snobol4dotnet and snobol4jvm, graded by the same harness); `scrip-backends`. The user-declared `&` constants and the random-codegen plan are in `reference.md` § 8-9.
 
 ## 5. The suites
 
