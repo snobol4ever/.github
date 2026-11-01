@@ -1,0 +1,186 @@
+line	id	templates	others	headers	others_eg	headers_eg
+3	zrd_t	0	4	0	emit.cpp act_words.cpp plan_facts.cpp zeta_plan.cpp	
+4	znode_t	0	3	0	emit.cpp plan_facts.cpp zeta_plan.cpp	
+23	ZW_BETA	0	2	0	emit.cpp plan_facts.cpp	
+23	ZW_OMEGA	0	2	0	emit.cpp plan_facts.cpp	
+23	ZW_GAMMA	0	2	0	emit.cpp plan_facts.cpp	
+23	ZW_NONE	0	1	0	plan_facts.cpp	
+23	ZW_REPALT	0	2	0	emit.cpp plan_facts.cpp	
+23	ZW_NAFO	0	2	0	emit.cpp plan_facts.cpp	
+23	ZW_ALPHA	0	2	0	emit.cpp plan_facts.cpp	
+24	zeta_plan_t	0	8	3	driver_procs.c scrip.c emit.cpp act_words.cpp plan_facts.cpp planner_report.cpp	emit.h g_emitter.h g_planner.h
+96	ZETA_NONE	0	2	0	planner_report.cpp zeta_plan.cpp	
+96	ZETA_PRE	0	1	0	zeta_plan.cpp	
+96	ZETA_SPINE	0	1	0	zeta_plan.cpp	
+96	ZETA_SPINE_ACT	0	1	0	zeta_plan.cpp	
+96	ZETA_ACT	0	1	0	zeta_plan.cpp	
+97	zeta_name	0	2	0	act_words.cpp planner_report.cpp	
+98	planner_frame_slot	0	2	0	act_words.cpp zeta_plan.cpp	
+99	planner_frame_slot_at	0	1	0	act_words.cpp	
+100	planner_read_distance	0	2	0	act_words.cpp zeta_plan.cpp	
+101	planner_graph_retains	0	2	0	act_words.cpp planner_stage.c	
+102	planner_consumers_build	0	2	0	act_words.cpp zeta_plan.cpp	
+103	planner_consumers_of	0	1	0	act_words.cpp	
+104	planner_rec_home_g	0	1	0	act_words.cpp	
+105	planner_rec_home	0	2	0	act_words.cpp planner_report.cpp	
+106	planner_rec_read	0	1	0	act_words.cpp	
+107	planner_capture	0	1	0	zeta_plan.cpp	
+108	planner_restore	0	2	0	planner_stage_chains.cpp zeta_plan.cpp	
+109	planner_chain_record	0	3	0	driver_procs.c scrip.c zeta_plan.cpp	
+110	planner_facts	0	2	0	plan_facts.cpp zeta_plan.cpp	
+111	zd_wk_fold	0	2	0	plan_facts.cpp zeta_plan.cpp	
+112	zd_wk_own	0	1	0	zeta_plan.cpp	
+113	planner_blob_facts	0	2	0	plan_facts.cpp planner_stage_chains.cpp	
+114	planner_dump_homes	0	2	0	planner_report.cpp planner_stage_chains.cpp	
+115	planner_dump_plan	0	2	0	planner_report.cpp planner_stage_chains.cpp	
+116	planner_dump_homes_on	0	2	0	scrip.c planner_report.cpp	
+117	planner_dump_plan_on	0	2	0	scrip.c planner_report.cpp	
+118	planner_pass_plan	0	2	0	planner_stage_chains.cpp zeta_plan.cpp	
+119	planner_table_clear	0	2	0	scrip.c zeta_plan.cpp	
+120	planner_table_forget	0	2	0	planner_stage_chains.cpp zeta_plan.cpp	
+121	planner_entry_planned	0	2	0	planner_stage_chains.cpp zeta_plan.cpp	
+122	planner_chain_plan	0	1	0	zeta_plan.cpp	
+123	zd_dj_admitted	0	2	0	plan_facts.cpp zeta_plan.cpp	
+124	zd_dj_cellless	0	2	0	plan_facts.cpp zeta_plan.cpp	
+125	zd_pl_dj_arm_holds	0	2	0	plan_facts.cpp zeta_plan.cpp	
+126	zd_dj_arm_end	0	2	0	plan_facts.cpp zeta_plan.cpp	
+127	zd_scan_subject	0	2	0	plan_facts.cpp zeta_plan.cpp	
+128	zd_value_producer_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+129	zd_value_producer	0	1	0	zeta_plan.cpp	
+130	zd_conj_value_node_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+131	zd_conj_value_node	0	1	0	zeta_plan.cpp	
+132	zd_plan_on_of	0	1	0	zeta_plan.cpp	
+133	zd_sr_role	0	2	0	plan_facts.cpp zeta_plan.cpp	
+134	zd_cpos	0	2	0	plan_facts.cpp zeta_plan.cpp	
+135	zd_fam_delta	0	2	0	act_words.cpp zeta_plan.cpp	
+136	zd_gate_pair_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+137	zd_gate_pair	0	1	0	zeta_plan.cpp	
+138	zd_gate_pair_at_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+139	zd_gate_pair_at	0	1	0	zeta_plan.cpp	
+140	zd_cl_read_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+141	zd_cl_read	0	1	0	zeta_plan.cpp	
+142	zd_chase	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+143	zd_yield_end	0	2	0	plan_facts.cpp zeta_plan.cpp	
+144	zd_vdj_live	0	1	0	zeta_plan.cpp	
+145	zd_nops_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+146	zd_nops	0	1	0	zeta_plan.cpp	
+147	zd_rec_arm	0	1	0	zeta_plan.cpp	
+148	zd_cp_arm	0	1	0	zeta_plan.cpp	
+149	zd_icn_local_var_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+150	zd_icn_local_var	0	1	0	zeta_plan.cpp	
+151	zd_icn_local_assign_g	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+152	zd_icn_local_assign	0	1	0	zeta_plan.cpp	
+153	zd_local_home_node	0	1	0	zeta_plan.cpp	
+154	zd_icn_suspend_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+155	zd_icn_suspend	0	1	0	zeta_plan.cpp	
+156	zd_djx_of	0	2	0	plan_facts.cpp zeta_plan.cpp	
+157	zd_upost_of	0	2	0	plan_facts.cpp zeta_plan.cpp	
+158	zd_k_g	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+159	zd_kf_g	0	1	0	zeta_plan.cpp	
+160	zd_mframe_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+161	zd_rel_g	0	2	0	act_words.cpp zeta_plan.cpp	
+162	planner_fence0_release	0	1	0	zeta_plan.cpp	
+163	zd_k	0	2	0	planner_report.cpp zeta_plan.cpp	
+164	zd_call_curmov	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+165	zd_k_own_g	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+166	zd_k_own	0	1	0	zeta_plan.cpp	
+167	zd_omega_test_kind	0	1	0	zeta_plan.cpp	
+168	zd_arrival_depth_g	0	1	0	zeta_plan.cpp	
+169	zd_arrival_depth	0	1	0	zeta_plan.cpp	
+170	zd_edge_retains_g	0	2	0	plan_facts.cpp zeta_plan.cpp	
+171	zd_edge_retains	0	1	0	zeta_plan.cpp	
+173	PR_GENERATOR_CALLEE	0	1	0	zeta_plan.cpp	
+173	PR_GATE_HOLDS	0	1	0	zeta_plan.cpp	
+173	PR_DEFERRED_PATTERN	0	1	0	zeta_plan.cpp	
+173	PR_UNRESOLVED_CALLEE	0	1	0	zeta_plan.cpp	
+173	PR_RETAINING_CALLEE	0	1	0	zeta_plan.cpp	
+173	PR_SUSPEND	0	1	0	zeta_plan.cpp	
+173	PR_UNKNOWN_CALLEE	0	1	0	zeta_plan.cpp	
+173	PR_COEXPR	0	1	0	zeta_plan.cpp	
+174	PR_DB_GENERATOR	0	1	0	zeta_plan.cpp	
+174	PR_DISJUNCTION_HOLDS	0	1	0	zeta_plan.cpp	
+174	PR_RETAINING_TARGET	0	1	0	zeta_plan.cpp	
+177	zls_fcn_hret	0	2	0	frame_layout.c zeta_plan.cpp	
+178	zls_fcn_hunres	0	2	0	frame_layout.c zeta_plan.cpp	
+179	zls_fcn_bs_get	0	2	0	frame_layout.c zeta_plan.cpp	
+180	zls_fcn_bs_set	0	2	0	frame_layout.c zeta_plan.cpp	
+183	planner_retains_g	0	1	0	zeta_plan.cpp	
+184	planner_retains	0	2	0	planner_report.cpp zeta_plan.cpp	
+186	ACT_BOUNDED_ARM	0	1	0	act_words.cpp	
+186	ACT_HOME	0	1	0	act_words.cpp	
+186	ACT_STATIC_PATTERN	0	1	0	act_words.cpp	
+186	ACT_DEFERRED_PATTERN	0	1	0	act_words.cpp	
+186	ACT_ARBNO_ITERATION	0	1	0	act_words.cpp	
+186	ACT_NONE	0	1	0	act_words.cpp	
+186	ACT_PATTERN_FUNCTION	0	1	0	act_words.cpp	
+186	ACT_RESUME_ROAD	0	1	0	act_words.cpp	
+186	ACT_BOUNDED_OTHER	0	1	0	act_words.cpp	
+187	ACT_REGEX_KIT	0	1	0	act_words.cpp	
+189	ACT_CLASS_CAPTURE	0	3	0	emit.cpp act_words.cpp plan_facts.cpp	
+189	ACT_CLASS_CHOICE	0	1	0	act_words.cpp	
+189	ACT_CLASS_NONE	0	1	0	act_words.cpp	
+189	ACT_CLASS_ARBNO	0	2	0	act_words.cpp plan_facts.cpp	
+189	ACT_CLASS_LEAF	0	0	0		
+189	ACT_CLASS_REGEX	0	2	0	act_words.cpp plan_facts.cpp	
+189	ACT_CLASS_HOME	0	1	0	act_words.cpp	
+189	ACT_CLASS_FENCE	0	2	0	act_words.cpp plan_facts.cpp	
+189	ACT_CLASS_VALUE	0	1	0	act_words.cpp	
+190	planner_act_cause	0	1	0	act_words.cpp	
+191	planner_act_cause_name	0	2	0	act_words.cpp planner_report.cpp	
+192	planner_act_class_name	0	1	0	act_words.cpp	
+193	planner_act_build	0	3	0	act_words.cpp planner_stage_chains.cpp zeta_plan.cpp	
+194	planner_act_slot	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+195	planner_act_value_slot	0	1	0	act_words.cpp	
+196	planner_act_class_of	0	2	0	act_words.cpp plan_facts.cpp	
+197	planner_act_cause_of	0	3	0	act_words.cpp plan_facts.cpp planner_report.cpp	
+198	planner_act_extra	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+199	planner_blob_slot_bytes	0	2	0	act_words.cpp plan_facts.cpp	
+200	planner_act_window	0	2	0	act_words.cpp plan_facts.cpp	
+201	planner_act_visit	0	1	0	act_words.cpp	
+202	planner_body_live	0	2	0	act_words.cpp plan_facts.cpp	
+203	planner_alt_arm_exits	0	1	0	act_words.cpp	
+204	planner_alt_arm_live	0	2	0	act_words.cpp plan_facts.cpp	
+205	planner_alt_exit	0	2	0	act_words.cpp plan_facts.cpp	
+206	planner_fence_k	0	3	0	act_words.cpp plan_facts.cpp zeta_plan.cpp	
+207	planner_env_encloses	0	2	0	act_words.cpp zeta_plan.cpp	
+208	planner_read_extra	0	1	0	act_words.cpp	
+209	planner_alt_k	0	2	0	act_words.cpp zeta_plan.cpp	
+210	planner_blob_exit_live	0	2	0	act_words.cpp plan_facts.cpp	
+211	planner_retains_emitter_view	0	2	0	act_words.cpp zeta_plan.cpp	
+212	planner_home_dyn	0	2	0	frame_layout.c zeta_plan.cpp	
+213	planner_bound_spine	1	3	0	frame_layout.c plan_facts.cpp zeta_plan.cpp	
+214	planner_span_retains	0	2	0	frame_layout.c zeta_plan.cpp	
+215	zd_pl_bases	0	1	0	zeta_plan.cpp	
+217	zst_s_of	0	2	0	plan_facts.cpp zeta_plan.cpp	
+218	zst_finish	0	1	0	zeta_plan.cpp	
+219	zst_coord	0	2	0	plan_facts.cpp zeta_plan.cpp	
+220	zd_plan	0	1	0	zeta_plan.cpp	
+221	zd_depth_census_g	0	1	0	zeta_plan.cpp	
+222	zd_depth_census	0	1	0	zeta_plan.cpp	
+223	zd_run_alpha_dead	0	1	0	zeta_plan.cpp	
+224	zd_check_g	0	1	0	zeta_plan.cpp	
+226	zd_check	0	2	0	emit.cpp zeta_plan.cpp	
+228	planner_published_graph	0	2	0	act_words.cpp zeta_plan.cpp	
+229	planner_resumable_frame	0	1	0	zeta_plan.cpp	
+230	planner_road_none	0	3	0	driver_procs.c planner_road.cpp planner_stage_chains.cpp	
+231	planner_road_named	0	3	0	lower_prolog.c planner_road.cpp runtime_eval.c	
+232	planner_road_pattern	0	2	0	planner_road.cpp runtime_eval.c	
+233	planner_road_proc	0	2	0	planner_road.cpp planner_stage_chains.cpp	
+234	planner_proc_road	0	3	0	driver_procs.c scrip.c planner_stage_chains.cpp	
+235	planner_road_of	0	1	0	planner_stage_chains.cpp	
+236	planner_road_floor_dc	0	2	0	planner_stage_chains.cpp runtime_eval.c	
+237	planner_port_exit_promotes	0	2	0	planner_road.cpp planner_stage_chains.cpp	
+238	planner_chain_operands	0	2	0	planner_operands.cpp planner_stage_chains.cpp	
+239	planner_blob_casmark	0	2	0	plan_facts.cpp planner_stage_chains.cpp	
+240	planner_blob_head_bytes	0	2	0	plan_facts.cpp planner_stage_chains.cpp	
+241	planner_road_blob_scope	0	1	0	planner_stage_chains.cpp	
+242	planner_stage_chain	0	1	0	planner_stage_chains.cpp	
+243	planner_graph_facts	0	2	0	planner_stage.c planner_stage_chains.cpp	
+244	is_global	1	8	2	scrip.c emit.cpp lower_common.c lower_icon.c lower_pascal_tree.c lower_raku.c	lower_pascal_tree.h gen_runtime.h
+245	fc_geom	0	5	0	emit.cpp lower_snobol4.c frame_layout.c plan_facts.cpp zeta_plan.cpp	
+246	planner_stage_proc	0	2	0	planner_stage_chains.cpp runtime_eval.c	
+247	planner_stage_procs	0	3	0	scrip.c planner_stage_chains.cpp runtime_eval.c	
+248	planner_stage_main	0	2	0	scrip.c planner_stage_chains.cpp	
+249	proc_role3_kind	0	2	0	scrip.c planner_stage_chains.cpp	
+250	planner_stage_rt	0	2	0	driver_procs.c planner_stage_chains.cpp	
+251	planner_stage_release	0	2	0	driver_procs.c planner_stage_chains.cpp	
