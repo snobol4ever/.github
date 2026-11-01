@@ -1,0 +1,29 @@
+---
+name: prolog-tabling
+description: SCRIP Prolog's tabling: the tabled call as a header box (IR_TABLE_HDR) whose evaluation state is the box's own frame cells, the answer tries on the heap, the leader's semi-naive rounds, moded tables (answer subsumption), the incremental dependency graph (incremental, monotonic eager and lazy, transactions), well-founded negation by the alternating fixpoint (tnot/1, delay lists), call subsumption, the XSB loader and test package, and the xsb-tabling-wfs DESIGN-PLAN. Load it with the prolog skill before touching tabling.pl, xsb_tables.pl, bb_table_hdr.cpp, the trie leaves, the table directives in lower_prolog.c, or an XsbTests or SWI tabling red.
+---
+
+# Prolog tabling
+
+Detail is in `reference.md` beside this file; the language's oracles and suites are skill `prolog`.
+
+## 1. The rule (CEO-1885 (a): compiled Prolog IS boxes)
+
+**The memory of a tabled evaluation is the state of the box doing it.** A table's ANSWERS outlive every call, so they live on the heap in the answer trie (`HB_TRIE`, traced, rooted off the variant table; the `pl_trie_*` leaves). An EVALUATION in progress lives exactly as long as the generator evaluating it, so it lives in that generator's HEADER: the cells of an `IR_TABLE_HDR` box (`src/templates/bb/bb_table_hdr.cpp`) in its clause's frame. No global holds evaluation state: no `nb_setval` on a `$tbl_` name, no list of tables in progress beside the header chain, no worklist off the machine stack.
+
+## 2. The engine (prelude `src/parsers/prolog/prelude/tabling.pl`, compiled with the program)
+
+- A tabled `p/N` is renamed to `'$tbl p'/N` (lower's `pl_table_rewrite` and `pl_table_wrapper`; the run-time loader's twins) and its entry is `'$tbl_call'(G, I)`, routed to `'$tbl_icall'` or `'$tbl_mcall'` by the declaration's kind.
+- The first tabled call LEADS (`'$tbl_lead'`): it evaluates its table, then repeats semi-naive rounds over every in-progress table until a round adds no answer and no table, then completes them all. The header cells: the leader owns 1-4, one table's evaluation (`'$tbl_eval1'`, `'$tbl_eval1n'`) owns 5, one pass (`'$tbl_eval'`) owns 6-9; the leaves `'$tbh_get'`, `'$tbh_set'`, `'$tbh_bset'` (trailed), `'$tbh_own'`, `'$tbh_close'`, `'$tbh_leading'` reach the nearest owning header.
+- **Moded tables** (answer subsumption: `:- table p(max)`) aggregate through `'$tbl_madd'`.
+- **The incremental dependency graph**: each table's node lives in its trie's meta term (its kind, dependencies, dependents, falsecount, lazy queue, forced flag). A call to a dynamic predicate declared incremental or monotonic is rewritten by the lowerer to `'$tbl_dcall'`; every change enters `'$tbl_dchange'`. Incremental tables invalidate and re-evaluate (the old answer set kept until the new one compares); monotonic eager tables take a delta-seeded semi-naive step (`'$tbl_mono_step'`); lazy ones queue the delta and force at the next call. A transaction is an activation whose undo log is rooted from its own local (`'$tx_cur'`).
+- **Well-founded negation**: the alternating fixpoint (Van Gelder) over the rounds with `tnot/1` read against the previous round, then one residual pass that builds the delay lists.
+- **Call subsumption**: `:- table p/N as subsumptive` and the file-wide `:- use_subsumptive_tabling.`; XSB's `-S` is the entry's oracle and compile argument, mapped by the driver to that prepended directive (CEO-2110).
+
+## 3. The XSB package (`corpus/packages/prolog/xsb_tests`, the oracle XSB 5.0.0 through `xsb_bin()`)
+
+The XSB dialect is the program's own (`xsb_dialect.pl`, `xsb_builtins.pl`, `xsb_tables.pl`, `xsb_ordsets.pl`); the entry runs the package's own driver as XSB's `test.sh` does, refs compared ignoring white space. Ruled: tabling engine scale is its own row, not call subsumption (CEO-2112: `sub_tests_decker` needs an SCC of about ten thousand tables inside the declared 128 MB and 4 MB, so per-table memory, an iterative leader and a trie-walk subsumer lookup instead of `'$tbl_sfind'` materialising `'$trie_entries'` per call).
+
+## 4. DESIGN: xsb-tabling-wfs (CEO-2005; `corpus/tests/prolog/xsb_wfs/STEPS.tsv`, `test_design_xsb_tabling_wfs_steps.sh`)
+
+Steps 1-7 DONE (the loader reads table directives; the WFS driver as XSB runs it; the XSB reading; auto_table and suppl_table; the table builtin surface; one body one run; the SCC depth number). Step 8 (delay lists as XSB prints them), 9 (the cut over an incomplete table) and 11 (the finish) FREE; step 10 (call subsumption) CLAIMED by the cao, closing on xw11, sg1, lrtc1 and drtc1 with decker moved to the engine-scale row (CEO-2112).

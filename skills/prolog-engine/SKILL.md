@@ -1,0 +1,35 @@
+---
+name: prolog-engine
+description: How compiled Prolog runs on SCRIP's one machine: a predicate call as a Byrd box with a retained activation frame, the clause step and cut, the term cell (DESCR tags DT_PLVAR, DT_PLATOM), the register plane (r12 the trail top, r13 the choice barrier B, r15 the ball), the trail arena and its header, the one placement decider (the unbounded-excursion test), the ball and catch/3, run-time goals compiled through EVAL/CODE, continuations (reset/shift) on generator stacks, threads excluded, and the prolog-lifo DESIGN-PLAN. Load it with the prolog skill before touching Prolog templates, rtx_plunify.s, rt_pl_trail.c, lower_prolog.c's clause lowering, or a Prolog frame, choice or trail red.
+---
+
+# The Prolog engine
+
+The language's oracles, dialects, suites and source map are skill `prolog`; the shared memory model is skill `scrip-memory-model`. Detail is in `reference.md` beside this file.
+
+## 1. The model (Lon 2026-09-02: "give Prolog its activation ZETA like all the rest"; 2026-09-26: the rewrite as Byrd boxes)
+
+- **A predicate call is one box.** α enters the current clause and unifies its head; γ succeeds; β re-enters to redo the youngest sub-goal or step to the next clause; ω releases after the trail is unwound to the mark. Clause alternatives are the box's β path; the last clause's β is its ω. A bounded box emits no β and no choice point.
+- **A box's logic is inside its chunk**: a call from emitted Prolog into C or rtx is legal only for a value service (I/O, atom and string text, sorting, bignum and float arithmetic, `copy_term`, error-term construction). Unification, dereference, binding, the trail push and unwind, term construction, the frame, choice open and cut, and clause selection are emitted. The old C helpers for these (`rt_pl_choice_open`, `rt_pl_disj_open`, `rt_pl_cut_barrier`, `rt_pl_unify_value`, `rt_pl_dop_mkc`, `rt_pl_unify_struct_fresh`, `rt_pl_goal_spine_prep`) are gone.
+- **Run-time goals** (`call/N`, a catch goal, the goal of findall, negation, an asserted body) are compiled at run time through the EVAL/CODE path and run as boxes; there is no solver.
+- **Unification mirrors the SNOBOL4 matcher** (Lon 2026-09-26, CEO-1279: "The Prolog unification needs to mirror SNOBOL4's pattern matching, using R13, R14, and R15, and also R12 as a stack."): a binding is a conditional assignment pushed on the r12 stack and undone from it on backtracking; the trail is the CAS twin.
+
+## 2. The register plane and the trail (as built, `src/runtime/rtx/rtx_plunify.s`, `src/runtime/rt/pl_trail_layout.h`)
+
+- **r12 = TR**, the trail top. The trail is one arena aligned to its size (`PL_TR_ARENA_LG2` 29), so `r12 & PL_TR_ARENA_MASK` is the arena's header (`PL_TR_HEADER_BYTES` 160): the ball slot, the wake slot, the cleanup record, the floor, the alarm words. Entries are 32 bytes. The trail and the choice records are one of the two r12 islands Lon keeps off the RSP/RBP stack; no movable DESCR lives in an island.
+- **r13 = B**, the choice point and cut barrier; saved at a fence (`bb_bound.cpp`).
+- **r15 = the ball** (a heap pointer while armed); `PL_BALL_ARM`, `PL_BALL_DROP` and `PL_BALL_GET` write and read it together with the header's ball slot. A ball propagates ω by ω to the innermost `catch/3` gate, which restores its planned depth (`x86_pl_ball_rule_omega`, `bb_gate.cpp`, `rt_pl_catch_handle_c`). This is the model the one error protocol generalises (skill `runtime-calls`).
+- **r14** is not a Prolog-wide pin today; the leaf uses it as scratch inside unification.
+
+## 3. Placement in the Prolog regime (the one decider)
+
+Every Prolog graph is a home-frame graph (`home_frame` in `pl_graph_stamp`; Lon, CEO-1945: "keep it whacked and fix the misplaced ones by changing that carve logic to be proper"). A cell leaves the spine only for Lon's three reasons (CEO-1942): a generator's resumption, a retry after an unknown number of pushes, a recursion. The decider is the unbounded-excursion test, one function: `planner_span_retains(g, from, to)` in `src/planner/zeta_plan.cpp`, over `zd_edge_retains` (codes `PR_UNKNOWN_CALLEE`, `PR_GATE_HOLDS`, `PR_DISJUNCTION_HOLDS`, `PR_DB_GENERATOR`, `PR_RETAINING_TARGET`), `IR_SUSPEND` and a retaining disjunction (`zls_dj_retains`). A second copy of that test anywhere is a defect. The order is classify every graph, then plan, then lay out; the frame is sized by its resident words, never by keys.
+
+## 4. Continuations and threads
+
+- **`reset/3` and `shift/1`** are one-shot coroutines on the generator-procedure road: prelude clauses embedded in `src/parsers/prolog/prolog_parse.c` over the `$co_*` leaves (`rt_pl_dop_co_*` in `by_name_dispatch.c`), each coroutine on its own stack, r12 crossing every switch, the state in `scrip_coctx_t`. A continuation failing back across its trail floor raises `permission_error(backtrack, continuation, ...)` where swipl backtracks: the one recorded divergence.
+- **Threads, engines and the toplevel are excluded** (Lon, CEO-1766: "Put the multi-threaded Prolog work as excluded for now."): thread cases leave the denominator as `THREADS_EXCLUDED_BY_LON`. The recorded design (one baton, real pthreads, preemption at the poll) is in `reference.md` § 4.
+
+## 5. DESIGN: prolog-lifo (CEO-2000; `corpus/tests/prolog/lifo/STEPS.tsv`, `test_design_prolog_lifo_steps.sh`)
+
+Every Prolog operand on the spine, the frame a header only. Steps (all hq_prolog's): 1 to-beta anchor; 2 one definiteness decider (DONE, relanded after the plain CLP(FD) regression); 3 a join normalized to the deepest arm (PARKED); 4 a discard restores by distance or hop; 5 the hop for operands; 6 the clause step balanced; 7 the finish (4-7 FREE on 2026-11-01).
