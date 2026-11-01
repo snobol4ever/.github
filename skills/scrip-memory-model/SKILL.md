@@ -1,6 +1,6 @@
 ---
 name: scrip-memory-model
-description: REQUIRED before any edit under SCRIP/src/planner, src/emitter or src/runtime/rt/gc_* (the skill gate refuses it otherwise). SCRIP's memory model for every language -- the three zetas (the RSP spine, the RBP activation frame, the standing frame), the planner that decides every cell's placement once, the plan table the emitter reads, the compile-time frame maps and the collector's chain walk, the templates and the x86() encoder, the rtx leaves and the rtcc ABI. Load before touching src/planner, src/emitter, src/templates, src/runtime/rt/gc_*, src/runtime/rtx, a frame layout, a box's cell shape, a poll or safe point, or before answering any question about where a value lives, what a pop or carve must equal, why a retry never restores RSP, or what the collector reads. For hq_zetas, hq_collector, hq_templates, hq_runtime, the cfo and anyone with a frame or placement question.
+description: SCRIP's memory model: the three zetas (RSP spine, RBP frame, standing frame), placement decided once by the planner, the plan table, compile-time frame maps and the collector, polls and safe points. REQUIRED by the skill gate before editing src/planner, src/emitter or src/runtime/rt/gc_*.
 ---
 
 # SCRIP's memory model: the working knowledge of the stack, the frames, the collector and the boxes

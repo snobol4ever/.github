@@ -1,6 +1,6 @@
 ---
 name: snocone-parser-patterns
-description: REQUIRED before any edit of a SCRIP/bootstrap/*.sc parser or the library beside it (the skill gate refuses it otherwise). Writing a parser as ONE PATTERN in Snocone -- a whole source file matched by one closed set of mutually referential patterns that builds the pruned parse tree by conditional assignment with queued Shift and Reduce calls and the counter stack, as SCRIP/bootstrap/parser_{snobol4,snocone,rebus,icon,prolog,pascal,raku}.sc do. Load before touching a bootstrap parser or the library beside it, before adding a construct, a token, a keyword table, a memo table or a preprocess line to one, before grading a parser against its C twin, and for any question about Compiland, Shift, Reduce, FLUSH, FENCE, ARBNO, PushCounter, nTop, PushVal, the $' ' token convention, deferred versus immediate assignment, or what a parser may not do.
+description: Writing the bootstrap parsers (SCRIP/bootstrap/parser_*.sc) as one Snocone pattern: Shift and Reduce by conditional assignment, the counter stack, FENCE and ARBNO, tokens, keyword and memo tables. REQUIRED by the skill gate before editing a .sc parser or its library.
 ---
 
 # Parsers as patterns in Snocone: the working knowledge

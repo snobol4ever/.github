@@ -1,6 +1,6 @@
 ---
 name: lowering
-description: REQUIRED before any edit under SCRIP/src/lower (the skill gate refuses it otherwise), with the language skill of the lowerer touched. Writing a lowerer in SCRIP/src/lower (13 files, 37,958 lines) -- the pruned parse tree in, the IR graph out; every language variance written into the IR as a graph fact, a node fact or a runtime entry named on the node, so that no language flag crosses lower (CEO-1838/1840); every runtime table built by lower from the program's own declarations; the builtin table resolved at lower; a deletion carrying its re-expression in the same landing; --dump-ast and --dump-ir as the proof. Load before touching lower_<lang>.c, lower_common.c, lower_call_forms, IR.h's registry, builtins.tsv or a lowering gate, and for any question about where a construct's semantics is imposed, how a node is built, what a tree_t attribute means, or why a template may not decide a form.
+description: Writing lowerers in SCRIP/src/lower (pruned parse tree in, IR graph out): every language variance as an IR fact, runtime tables built by lower, builtins resolved at lower, --dump-ast and --dump-ir as proof. REQUIRED by the skill gate before editing src/lower, with the language skill.
 ---
 
 # Lowering: the craft

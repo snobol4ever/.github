@@ -1,6 +1,6 @@
 ---
 name: rtx-asm-leaves
-description: REQUIRED before any edit under SCRIP/src/runtime/rtx (a .s leaf, rtx_abi.inc, rtcc.h, rt_entries.tsv; the skill gate refuses it otherwise). Writing a hand-written x86-64 runtime leaf in SCRIP/src/runtime/rtx/*.s (16 files, 11 _test.c batteries) -- the rtx_abi.inc macros, the rtcc ABI of the register block, the four registers the emitted machine owns (r8 anchor, r9 GVA base, r10 statement, r11 box id) that a leaf never saves and never restores, the clobber mask derived from the assembled objects, the entry registry and the declining-leaf protocol, CFI true at every pc, a leaf that never enters a box, each leaf proven bit-identical against its C body. Load before touching any rtx_*.s, rtx_abi.inc, rtcc.h, rt_entries.tsv, the clobber table or an rtx gate, and for any question about a runtime call's registers, a veneer, RTX_FUNC, RTX_DECLINE or a leaf test.
+description: Hand-written x86-64 runtime leaves in SCRIP/src/runtime/rtx (*.s, rtx_abi.inc, rtcc.h, rt_entries.tsv): the rtcc ABI, the four registers the machine owns, clobber masks, declining leaves, CFI, leaf tests. REQUIRED by the skill gate before editing them.
 ---
 
 # Writing rtx asm leaves: the craft

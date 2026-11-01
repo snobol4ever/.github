@@ -1,6 +1,6 @@
 ---
 name: pascal
-description: Working SCRIP's Pascal -- ISO 7185 as the base with the FPC, ObjFPC and Delphi dialects over fpc 3.2.2, the oracle in the program's own mode. Load before touching src/parsers/pascal, src/lower/lower_pascal*.c, the Pascal prelude units or runtime arms, a Pascal suite (PasRungs PAT FPC PasRosetta PasDemo PasBench, the P4/P5 self-hosts), a Pascal ref, the typer or the dialect switch, or any question about a Pascal type, string kind, pointer, unit, class, generic, file or diagnostic. REQUIRED by the skill gate before any edit of this language's parser, lowerer or prelude.
+description: SCRIP's Pascal (ISO 7185 base; FPC, ObjFPC and Delphi dialects over fpc 3.2.2): src/parsers/pascal, lower_pascal*.c, the prelude units, the PasRungs, PAT, FPC, PasRosetta, PasDemo and PasBench suites and refs, types, strings, units, classes. REQUIRED by the skill gate before editing the Pascal parser, lowerer or prelude.
 ---
 
 # SCRIP Pascal: the seat's working knowledge

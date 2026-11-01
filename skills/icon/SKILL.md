@@ -1,6 +1,6 @@
 ---
 name: icon
-description: Working SCRIP's Icon -- Arizona Icon v9.5.25a as the one oracle and feature set, semicolon-required, on the SNOBOL4 machine (three zetas, the scanning environment in r13/r14/r15, generators as Byrd boxes, co-expressions on pthread stacks). Load before touching src/parsers/icon, src/lower/lower_icon.c, the Icon rtx leaves, the IPL, Arizona, Jcon or IcnRungs suites, an Icon ref, or any question about a generator, a scan, a co-expression, a keyword, a table or set, or an Icon runtime error number. REQUIRED by the skill gate before any edit of this language's parser, lowerer or prelude.
+description: SCRIP's Icon (Arizona Icon 9.5.25a is the oracle; semicolons required): src/parsers/icon, lower_icon.c, the Icon rtx leaves, the IPL, Arizona, Jcon and IcnRungs suites and refs, generators, scanning, co-expressions. REQUIRED by the skill gate before editing the Icon parser, lowerer or prelude.
 ---
 
 # SCRIP Icon: the seat's working knowledge
