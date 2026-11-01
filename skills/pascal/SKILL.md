@@ -3,70 +3,52 @@ name: pascal
 description: SCRIP's Pascal (ISO 7185 base; FPC, ObjFPC and Delphi dialects over fpc 3.2.2): src/parsers/pascal, lower_pascal*.c, the prelude units, the PasRungs, PAT, FPC, PasRosetta, PasDemo and PasBench suites and refs, types, strings, units, classes. REQUIRED by the skill gate before editing the Pascal parser, lowerer or prelude.
 ---
 
-# SCRIP Pascal: the seat's working knowledge
+# SCRIP Pascal
 
-The record is `.github/GOAL-PASCAL-100.md` (LIVE FRONT sections on top) and the ARCH pages below; this skill is the map to them and the rulings a Pascal landing must not break. When a fact here and a page disagree, the page wins and this skill is corrected the same landing. The design of Pascal's own front end is hq_pascal's (CEO-1933); the cto reviews what reaches a shared node.
+The record is GOAL-PASCAL-100.md (LIVE FRONT on top); a page beats this skill. Pascal's front-end design is hq_pascal's (CEO-1933); the cto reviews shared nodes. Suite tables, file maps and receipts in full are in `reference.md` beside this file.
 
-## 1. The oracle and the dialect rule (CEO-1225, CEO-1588, CEO-1624, ARCH-PASCAL-DIALECTS.md)
+## 1. The oracle and the dialect
 
-- The oracle is **fpc 3.2.2, in the program's own mode**: ISO 7185 under `fpc -Miso` (the base, PAT 427/427, the strictness the PAT rejection tests require), FPC/Turbo under plain `fpc`, ObjFPC under `fpc -Mobjfpc`, Delphi under `fpc -Mdelphi`. ISO 7185 WINS over fpc where fpc's `-Miso` is lax (CEO-1225); fpc's own manual is not on the box. Reach the binary through `fpc_bin()` in `harness/scripts/lib_oracle_flags.sh`, never `command -v`.
-- **A program's dialect decides its oracle, never the reverse.** The switch is ONE per program, set early: (1) a `{$mode X}` directive read by the lexer (`{$mode}`, `{$ifdef}`/`{$ifndef}`/`{$else}`/`{$endif}`/`{$define}`, `{$I-}`/`{$I+}`, `{$H+}` are read; unknown directives ignored as fpc ignores them); (2) absent a directive, ISO until the FIRST DIALECT CONSTRUCT, one fpc -Miso REFUSES as measured (`string` in a type position unless declared, `otherwise`, `string[n]`, `uses`, `unit`, `class`, `object`, `try`); `{$ifdef}` and initialized variables are NOT flip points because -Miso accepts them (CEO-1624). In the C parser the switch is the dialect field of `g_pascal_cenv`; in `bootstrap/parser_pascal.sc` it is the one granted global `dialect` tested in the patterns by `*IDENT(dialect, 'objfpc')`. There is no `--compat` switch and never a fourth way to pick a mode.
-- **ISO Pascal is CASE-INSENSITIVE**; do not carry the SPITBOL case-sensitivity fact here. `string` is `ShortString(255)` in fpc, tp and objfpc modes without `{$H+}`, `AnsiString` under `{$H+}` and in delphi mode; a `string[N]` type is `ShortString(N)`.
-- **A ref is cut from the oracle, never from our output; there is no XFAIL** (CEO-753). What fpc refuses, crashes on or hangs is `NO_ORACLE_ANSWER`, excluded (CEO-1696); a form fpc accepts is debt until a ref proves otherwise. What fpc prints -- the truncated ShortString, the 20-digit extended, the store order -- is what SCRIP prints. A unit's `finalization` part runs after fpc has closed the standard files, so its writes never appear (CEO-1617, measured); SCRIP matches it behind `__pas_std_mute`.
-- PasRosetta's refs are cut per program in its own mode (`ALL.dialect` names the mode fpc compiled in; a source's own `{$mode X}` overrides `-Miso`).
+- **fpc 3.2.2 in the program's own mode** through `fpc_bin()` in `harness/scripts/lib_oracle_flags.sh`: ISO 7185 under `fpc -Miso`, FPC/Turbo plain, `-Mobjfpc`, `-Mdelphi`. ISO 7185 wins where `-Miso` is lax (CEO-1225).
+- **The program's dialect decides its oracle**, one switch per program: a `{$mode X}` directive, else ISO until the first construct `-Miso` refuses (`string` in a type position, `otherwise`, `string[n]`, `uses`, `unit`, `class`, `object`, `try`) (CEO-1624). Never guessed from a filename; no `--compat`.
+- ISO Pascal is CASE-INSENSITIVE. `string` is `ShortString(255)` without `{$H+}`, `AnsiString` with it and in delphi mode.
+- A ref is cut from the oracle; no XFAIL; what fpc refuses, crashes on or hangs is `NO_ORACLE_ANSWER` (CEO-1696). A unit's `finalization` output never appears (fpc closed the files first, CEO-1617).
 
-## 2. The manuals (text, grep them)
+## 2. The manuals
 
-- `/home/resources/manuals/pascal/iso7185-standard.txt` (the standard), `iso7185-rules.txt` (its rules as the PAT rejection tests cite them), `wirth-1973-the-programming-language-pascal.txt`, `p5-compiler.txt` and `pascal-p-compiler-implementation-notes.txt` (the P4/P5 self-host sources' own notes). `PROVENANCE.txt` names each source.
-- The vendored programs and their licences: `corpus/packages/pascal/{pat,fpc_tests,p4,p5,rosetta-pascal,grammar}/`, `ARCH-PASCAL-PROLOG-PROGRAM-SOURCES.md` (where the downloads live, which compile under fpc, the Rosetta dialect itemization, why Rosetta's web outputs are not refs).
-- Before ruling what a construct means: `grep -n 'for-statement' /home/resources/manuals/pascal/iso7185-standard.txt`, then compile a three-line probe with `fpc -Miso` (or the program's mode) and run it. The standard says what; the oracle's output is the ref; where they disagree in ISO mode the standard wins and the row says so.
+`/home/resources/manuals/pascal/iso7185-standard.txt`, `iso7185-rules.txt`, `wirth-1973-the-programming-language-pascal.txt`, `p5-compiler.txt`. Before ruling: grep the standard, then compile a three-line probe in the program's mode.
 
 ## 3. The source map
 
-- Parser: `SCRIP/src/parsers/pascal/` -- `pascal.l`, `pascal.y` (flex/bison; `pascal.lex.c`, `pascal.tab.c` are GENERATED by `harness/scripts/regenerate_parser_and_lexer_from_sources.sh`, never edited), `pascal_driver.c` (the entry, the dialect field, the prelude units), `prelude/` the units written in Pascal (system, sysutils, strutils, classes, math, dos, contnrs, crt, strings, types; the generics units are R9 of the redesign, not yet written) listed in `pascal_prelude_units.inc` (generated by `harness/scripts/util_gen_pascal_prelude_units.py`; `test_gate_pas_prelude_units_in_sync.sh`). The bootstrap Snocone parser is `SCRIP/bootstrap/parser_pascal.sc`, tree-for-tree against the C parser (`test_gate_snocone_parsers_match_the_c_parsers_tree_for_tree.sh`). The tree is the PRUNED PARSE TREE (`ARCH-PASCAL-PRUNED-TREE.md`: node vocabulary, directives ride the next leaf, an enumeration member's spelling is an attribute child).
-- Lowering: `SCRIP/src/lower/lower_pascal_tree.c` (DECLARE, TYPE, ELABORATE over the tree: scopes, symbols with uids, the typer), `lower_pascal_types.c/.h` (the type model: `ShortString(N)`, the ordinal widths, records and variants, the pointer kind), `lower_pascal_class.c/.h` (classes as a record plus a method table, exceptions on `bb_catch`), `lower_pascal.c` (statements to boxes, the duplicate-name pass, units and `uses`, the program body as the entry graph `main`). Only `tree_t` crosses from the parser (`test_gate_pas_only_the_tree_crosses_from_the_parser_to_lower.sh`).
-- Runtime: the Pascal arms of the shared runtime -- `src/runtime/arithmetic.c`, `io_format.c`, `string_builtins.c`, `by_name_dispatch.c` with `pas_bi_names.h` and the builtin table (`builtin_table.inc`, generated from `harness/scripts/builtins.tsv` by `util_gen_builtin_table.py`), `core/g_runtime_pas.h` (the Pascal state inside `g_runtime`: the heap table root of `test_gate_pas_heap_table_is_a_movable_root.sh`, the file table). Pascal has no runtime of its own: a Pascal value is a DESCR, an array an ARBLK, a record a slot array; the lexical display rides r13/r14/r15 (PAS-DISPLAY).
-- Pipeline: parser → lower → optimizer → planner → the one emitter. `./scrip --dump-ast|--dump-ir|--dump-bb|--dump-plan prog.pas`; `--dump-pas-types` is the typer's shadow census (PTY-STATS).
+- Parser `src/parsers/pascal/` (`pascal.l`, `pascal.y`; generated twins by `regenerate_parser_and_lexer_from_sources.sh`), `pascal_driver.c`, `prelude/` (the units in Pascal, listed by `util_gen_pascal_prelude_units.py`); the bootstrap `parser_pascal.sc`.
+- Lowering: `lower_pascal_tree.c` (scopes, the typer), `lower_pascal_types.c` (the type model), `lower_pascal_class.c`, `lower_pascal.c` (statements, units, the entry graph `main`).
+- Runtime: the Pascal arms of the shared runtime (`arithmetic.c`, `io_format.c`, `string_builtins.c`, `builtins.tsv`); `core/g_runtime_pas.h`. A value is a DESCR, an array an ARBLK, a record a slot array.
+- `--dump-ast|--dump-ir|--dump-plan`, `--dump-pas-types` (the typer's census).
 
-## 4. The ARCH pages, by question
+## 4. The ARCH pages
 
-| question | page |
-|---|---|
-| which dialect, which oracle, what flips the switch, the finalization fact | ARCH-PASCAL-DIALECTS.md |
-| the redesign: the typer, the tables that go, strings, pointers, extended, units, generics; the STEPS and their rulings | ARCH-PASCAL-REDESIGN.md § 8 (the DESIGN-PLAN pascal-front-end; 8.2 the law, 8.3 R1-R10, 8.5 what it forbids, 8.7-8.11 the step rulings) |
-| the tree the parser hands to lower | ARCH-PASCAL-PRUNED-TREE.md |
-| where the program sources came from, Rosetta's dialects, the standardpascaline programs | ARCH-PASCAL-PROLOG-PROGRAM-SOURCES.md |
-| placement of Pascal's cells, the activation frame, the display | ARCH-THREE-ZETAS-EMISSION.md, ARCH-ZETA-ONE-COORDINATE.md, GOAL-PASCAL-100.md (PAS-DISPLAY) |
-| the collector and the Pascal heap table, pointer kinds | ARCH-GC-COMPILE-TIME-FRAME-MAPS.md § 2c, ARCH-PASCAL-REDESIGN.md R5 |
-| the builtin table every language's builtins ride | ARCH-BUILTIN-TABLE.md |
+ARCH-PASCAL-DIALECTS.md (which dialect, which oracle); ARCH-PASCAL-REDESIGN.md § 8 (the front-end DESIGN-PLAN, R1-R10, the step rulings); ARCH-PASCAL-PRUNED-TREE.md; ARCH-PASCAL-PROLOG-PROGRAM-SOURCES.md; ARCH-THREE-ZETAS-EMISSION.md (placement); ARCH-GC-COMPILE-TIME-FRAME-MAPS.md § 2c; ARCH-BUILTIN-TABLE.md.
 
-## 5. The suites and how one program is graded
+## 5. The suites
 
-| suite key | runner | population |
-|---|---|---|
-| pas-rungs (PasRungs) | `test_pascal_ladder.sh --list | --to N | --only N`; one entry: `corpus_suite_harness.py run ../corpus/tests/pascal/ALL.pas ../corpus/tests/pascal/ALL.ref --lang pascal --modes m3,m4 --partition entry:<name>` | `corpus/tests/pascal/` (`ALL.csv` the index with `heap_kb`/`stack_kb`, `ALL.in` stdin, `ALL.wantrc`, `ALL.excluded.txt`, `PARTITION.tsv`; `config/LADDER.tsv` the rungs 0-11: hello, var, arithmetic, if/while, for/repeat, proc/func, arrays, records, sets, strings, pointers, case) |
-| pat (PAT, the ISO 7185 denominator) | `test_pascal_pat_suite.sh` | `corpus/packages/pascal/pat`: `iso7185prt*` are REJECTION tests (PASS = scrip exits non-zero with a diagnostic), `iso7185pat*` the ACCEPTANCE test against `fpc -Miso`; the `.cmp`/`.ecp` files are not the oracle |
-| fpc (FPC) | `test_pascal_fpc_suite.sh` | `corpus/packages/pascal/fpc_tests/`, refs from fpc in each file's mode |
-| rosetta-pascal (PasRosetta) | `test_pascal_rosetta_suite.sh` | `corpus/packages/pascal/rosetta-pascal/` (319 programs, `ALL.dialect`) |
-| pascal-demos, pascal-bench-ref | `test_pascal_wirth76_suite.sh`, `test_pascal_bench_suite.sh`, `test_pascal_p4_selfhost.sh`, `test_pascal_p5_selfhost.sh` | `corpus/demos/pascal/`, `corpus/benchmarks/pascal/` |
+- Keys and runners in `harness/scripts/`: `pas-rungs` (`test_pascal_ladder.sh`), `pat` (`test_pascal_pat_suite.sh`; `iso7185prt*` are REJECTION tests: PASS is a non-zero exit with a diagnostic), `fpc` (`test_pascal_fpc_suite.sh`), `rosetta-pascal` (`test_pascal_rosetta_suite.sh`, `ALL.dialect` per program), `pascal-demos`, `pascal-bench-ref`, the P4/P5 self-hosts.
+- One program: `corpus_suite_harness.py run ../corpus/tests/pascal/ALL.pas ../corpus/tests/pascal/ALL.ref --lang pascal --modes m3,m4 --partition entry:<name>`; a package program by its runner with `S4E_CHUNK=entry:<name>`.
+- Per landing: the DONE-WHEN, `test_feature_reps.sh pascal <feature>`, `test_smoke_pascal.sh`; then `s4e_test_request.sh` for the coo. Design steps: `test_design_pascal_front_end_steps.sh --step N`.
 
-A package program: its runner with `S4E_CHUNK=entry:<name>`. A seat grades ONE program in both modes (`--modes m3,m4` is mandatory); the whole suite is the coo's (`s4e_test_request.sh <suite-key> <entry>...`, at most eight entries). A seat's own verdict is the row's DONE-WHEN plus `test_feature_reps.sh pascal <feature>...` (at most eight core entries; `--list` names them) and `test_smoke_pascal.sh` before the push. The design steps: `test_design_pascal_front_end_steps.sh --list | --step N`. Pascal has NO `ALL.xfail` sidecar: a board's denominator is the printed population. A green board is necessary, never sufficient: verify the one program by hand against its own `.ref`.
+## 6. Debugging a red
 
-## 6. Debugging a Pascal red
+1. `bash ../harness/scripts/monitor_run.sh prog.pas --oracle` (fpc through the Pascal plug); `--modes` for mode 3 against mode 4.
+2. Asm-diff the smallest repro beside a passing sibling within one mode.
+3. `--dump-pas-types` for a typing question; `--dump-ir` A/B for a no-behaviour-change landing.
+4. gdb last, with a breakpoint and a hit count.
 
-1. `bash ../harness/scripts/monitor_run.sh prog.pas --oracle` (fpc through the Pascal plug: `test_gate_pas_monitor_plug_sends_every_assignment.sh`): the bug lies between the last event both agree on and the first they diverge on. `--trace` prints the mode-3 trace; `--modes` runs mode 3 against mode 4 in lock-step; `--input FILE` feeds stdin.
-2. ASM-DIFF-FIRST: the smallest repro beside a passing sibling, `--compile` both, diff within one mode (modes may diverge legally).
-3. `--dump-pas-types` for a typing question (which kind the typer gave an expression); `--dump-ir` A/B over the population for a landing that claims no behaviour change (hq_pascal's 1,993-program proof).
-4. Only then gdb with a breakpoint and a hit count. A port trace: `test_gate_pas_port_trace.sh` (self-pin).
+## 7. Rulings a landing must not break
 
-## 7. Rulings a Pascal landing must not break (receipts in GOAL-PASCAL-100.md, ARCH-PASCAL-REDESIGN.md § 8 and GOAL-CEO.md)
-
-- **One type model, built by LOWER, keyed by symbol, never by name** (8.2 law 1): no name-keyed or capped table in the front end after step 3 of the redesign; no second type model beside the typer (a `pas_is_*` that guesses from a lowered node's shape); the stage struct is the one global grant (CEO-1210 no fixed limits).
-- **The value representation and the placement stay** (8.2 law 2): DESCR cells, ARBLK arrays, records as slot arrays; a pointer is (base cell, element index) and never an interior pointer in a DESCR (R5 as amended); `extended` is a boxed 80-bit leaf (R6), x87 in the emitter is refused; no change to Pascal's rbp operands or pre-allocations without the cto.
-- **ShortString semantics are the type's** (R4): a store into a `ShortString(N)` truncates to N, `sizeof` is N+1, `s[0]` is the length byte; the representation stays `DT_S`.
-- **The entry graph is `main`**: a user routine whose folded name is `main` is renamed by the duplicate-name pass, never the body (the cto, 2026-10-31, the cfo's gapful-numbers-2).
-- **Features land in ever-growing rungs** (Lon 2026-10-30, as for Raku): a rung is at most 20 lines, one construct, its ref cut from fpc, red once before it is trusted (CEO-1680); rung N+1 opens when N is green in both modes; a feature is tested on top of green ones only.
-- **A grammar edit is invisible until `regenerate_parser_and_lexer_from_sources.sh` runs**; the prelude units list is regenerated by `util_gen_pascal_prelude_units.py`; the builtin table by `util_gen_builtin_table.py`; `util_gen_gc_allocating_table.py --check` reads rc 0 after any allocating runtime function is added.
-- **The PAT rejection tests are the ISO strictness**: a cure that makes `fpc -Miso`'s laxity SCRIP's (accepting what the standard forbids) is refused; a `{$mode}` the source lacks is never guessed from a filename (`test_gate_pas_the_dialect_switch_stands_in_for_a_mode_directive_the_source_lacks.sh`).
-- A cure that trades one program for another never lands (CEO-589); the re-grade of the cured program in both modes AND the Pascal smoke run before the push; a prelude or runtime change is shared code (all eight smokes). The coo re-grades the suite; a seat writes no SUITE TABLE row (CEO-1342).
-- The declared `heap_kb`/`stack_kb` of a test unit is a HARD CAP (CEO-1353): out of stack is a bigger declared `-s`, never data moved to the heap (CEO-1354).
+- One type model, built by lower, keyed by symbol, never by name; no second model beside the typer.
+- DESCR cells, ARBLK arrays, records as slot arrays; a pointer is (base cell, element index), never an interior pointer (R5); `extended` is a boxed 80-bit leaf (R6), no x87 in the emitter.
+- ShortString(N): a store truncates to N, `sizeof` is N+1, `s[0]` is the length byte (R4).
+- The entry graph is `main`; a user routine named `main` is renamed by the duplicate-name pass.
+- Features land in rungs of at most 20 lines, one construct, ref cut from fpc, red once (CEO-1680); rung N+1 opens when N is green in both modes.
+- The PAT rejection tests are the ISO strictness: never adopt `-Miso`'s laxity.
+- Regenerate the grammar, prelude list and builtin table before building; a cure that trades programs never lands (CEO-589); a prelude or runtime change runs all eight smokes.
+- Declared sizes are a hard cap (CEO-1353/1354).

@@ -3,66 +3,52 @@ name: raku
 description: SCRIP's Raku (rakudo 2026.05 is the oracle, the roast the spec): src/parsers/raku, lower_raku.c, the setting and kernel boxes, the Seq pull protocol, the RakRungs, Roast, RakBench and RakDemo suites and the rung ladder. REQUIRED by the skill gate before editing the Raku parser, lowerer or prelude.
 ---
 
-# SCRIP Raku: the seat's working knowledge
+# SCRIP Raku
 
-The record is `.github/GOAL-RAKU-100.md` (LIVE CURSOR entries on top) and the ARCH pages below; this skill is the map to them and the rulings a Raku landing must not break. When a fact here and a page disagree, the page wins and this skill is corrected the same landing. Raku builds at rank 9 behind the fleet's correctness rows (CEO-1931) and climbs the cto's rung ladder, not the suites, until half the rungs are green (CEO-2070).
+The record is GOAL-RAKU-100.md (LIVE CURSOR on top) and ARCH-RAKU-TO-100.md; a page beats this skill. Raku builds at rank 9 (CEO-1931) and climbs the cto's rung ladder, not the suites, until half the rungs are green (CEO-2070). Suite tables, file maps and receipts in full are in `reference.md` beside this file.
 
-## 1. The oracle and the dialect rule (CEO-1174..1178, CEO-1931, ARCH-RAKU-TO-100.md § 1)
+## 1. The oracle
 
-- **The oracle is rakudo 2026.05; THE SPEC IS THE ROAST** (`/home/resources/roast-master`, 1,401 files in the graded set). The binary is reached through `rakudo_bin()` in `harness/scripts/lib_oracle_flags.sh` (`/home/resources/rakudo-local/bin/raku`, built from `/home/resources/rakudo-2026.05`); the `raku` on PATH is apt's 2022.12 and is NEVER the oracle, and every grid quoting a rakudo arm names its version. There is one dialect and no switch.
-- **A ref is cut from rakudo, never from our output; there is no XFAIL.** A ref cut from our own output is a SELF-PIN, not an oracle (it proves the output has not moved, never that it is right). What rakudo refuses, crashes on or hangs (`timeout -k 5`, a blocking read ignores SIGTERM) is `NO_ORACLE_ANSWER` (CEO-1696); a rakudo answer that is an accident of its implementation is no answer (CEO-1934). Witness gotchas under 2026.05: `OUTER` is a pseudo-package, a mid-line `}` needs `;`, `MONKEY-SEE-NO-EVAL` for EVAL of a string.
-- **The setting resolves before the lib path as a named INTERIM** (the cto 2026-10-31, ARCH-RAKU-TO-100 § 1.2 (c)): a name the PROGRAM defines wins; a name a lib-path module exports does not win over the setting until F05's `bb_rk_dispatch` carries typed multi candidates, and the flip to lib-first lands with F05, its witnesses the six Roast files that read red lib-first today.
-- The Test module is Rakudo's `lib/Test.rakumod` (Artistic 2.0), vendored as the setting's first file (`src/parsers/raku/setting/Test.rakumod`, R10) and loaded through the module road; its C arms are deleted.
+- **rakudo 2026.05; the spec is the roast** (`/home/resources/roast-master`). The binary through `rakudo_bin()` in `harness/scripts/lib_oracle_flags.sh`; the `raku` on PATH (2022.12) is never the oracle. One dialect, no switch.
+- A ref is cut from rakudo; a ref cut from our output is a SELF-PIN, not an oracle; no XFAIL. Refusal, crash or hang (`timeout -k 5`) is `NO_ORACLE_ANSWER` (CEO-1696); an implementation accident is no answer (CEO-1934). Gotchas: `OUTER` is a pseudo-package, a mid-line `}` needs `;`, EVAL of a string needs `MONKEY-SEE-NO-EVAL`.
+- Interim (ARCH-RAKU-TO-100 § 1.2 (c)): the program's own names win; a lib-path export does not beat the setting until F05's typed multi dispatch lands.
+- Test is Rakudo's `lib/Test.rakumod`, vendored as the setting's first file.
 
-## 2. The manuals (text, grep them)
+## 2. The manuals
 
-- `/home/resources/manuals/raku/`: the Rakudo 2026.05 design docs and release announcements (`rakudo-2026.05--*`), the NQP docs (`nqp--6model--*.markdown`, `nqp--ops.markdown`, `nqp--qast.markdown`, `nqp--built-ins.md`: the 6model object model, the ops the setting's primitives mirror), the raku-examples docs. `PROVENANCE.txt` names each source.
-- The spec itself: `/home/resources/roast-master/S*/` (one directory per synopsis chapter; `corpus/tests/raku/config/ROAST-RUNG-MAP.tsv` maps every roast file to its first rung and its unblock rung); Rakudo's own grammar `src/Perl6/Grammar.nqp` and setting `src/core.c/*.rakumod` under `/home/resources/rakudo-2026.05/` (the recognizer `rk_syntax.c` was translated from that grammar; a core method's exact behaviour is read there before it is written in SCRIP's setting).
-- Before ruling what a construct does: `grep -rn 'sub infix:<minmax>' /home/resources/rakudo-2026.05/src/core.c/`, then run the oracle on a three-line probe (`rakudo_bin` -e '...'). The spec test is the ref; the setting source says why.
+`/home/resources/manuals/raku/` (Rakudo 2026.05 docs, the NQP 6model and ops docs); the roast `S*/` directories (`ROAST-RUNG-MAP.tsv` maps each file to its rung); Rakudo's `src/Perl6/Grammar.nqp` and `src/core.c/*.rakumod` under `/home/resources/rakudo-2026.05/`. Before ruling: grep the setting source, then run `rakudo_bin -e '...'` on a three-line probe.
 
 ## 3. The source map
 
-- Parser: `SCRIP/src/parsers/raku/` -- `rk_syntax.c/.h` (the hand-written lexer and recursive-descent recognizer translated from Rakudo's Grammar.nqp, building `tree_t` as it recognizes; the flex/bison grammar was deleted at CEO-1289), `rk_tree.c/.h` (tree construction), `rk_regex.c/.h` (the regex tree), `rk_core_names.h` (GENERATED by `harness/scripts/util_raku_core_names_regen.sh`), `raku_driver.c` (the entry), `raku_setting.inc` (generated by `util_gen_raku_setting.py` from `setting/*.rakumod`). Only `tree_t` crosses to lower. The bootstrap parser is `SCRIP/bootstrap/parser_raku.sc`.
-- Lowering: `SCRIP/src/lower/lower_raku.c` -- every construct to the kernel boxes of ARCH-RAKU-TO-100 § 2 (`bb_rk_coerce`, `bb_rk_scalar`, `bb_rk_aggr`, `bb_rk_iter`, `bb_rk_block`, `bb_rk_sig`, `bb_rk_dispatch`, `bb_rk_type`, `bb_rk_control`, `bb_rk_smartmatch`, `bb_rk_junction`, `bb_rk_hyper`, `bb_rk_num`, `bb_rk_sets`, `bb_rk_phaser`; the regex boxes `bb_match_rkrun`, `bb_match_rkcap`, `bb_match_rkland` under `src/templates/bb/`), each born with its family's first rung, and the existing shared boxes (`bb_lit_scalar`, `bb_var`, `bb_gate`, `bb_call_fn`, `bb_iterate`, `bb_suspend`, `bb_create`, `bb_field_get`).
-- Runtime: the Raku arms of the shared runtime -- `src/runtime/rk_rat.c` (rationals), `bignum.c`, `rk_case_table.h` and `rk_unicode_norm_tables.inc` (generated by `util_raku_case_table_regen.sh`), `rk_rakudo_method_names.inc` (generated by `util_gen_rakudo_method_names.py`), `rx.c` (the regex engine R6 retires), the asm leaves `rtx_rk_*` as § 8 of the page names them. The Raku-only runtime C is the census ARCH-RAKU-TO-100 § 8 ranks for deletion.
-- Pipeline: parser → lower → optimizer → planner → the one emitter. `./scrip --dump-ast|--dump-ir|--dump-bb|--dump-plan prog.raku`; `--syntax` for the recognizer alone (`util_raku_syntax_agreement.py` against `raku -c`).
+- Parser `src/parsers/raku/`: `rk_syntax.c` (the recognizer translated from Grammar.nqp), `rk_tree.c`, `rk_regex.c`, generated `rk_core_names.h` and `raku_setting.inc` (from `setting/*.rakumod`), `raku_driver.c`; the bootstrap `parser_raku.sc`.
+- Lowering `src/lower/lower_raku.c`: every construct to the kernel boxes (`bb_rk_coerce`, `bb_rk_scalar`, `bb_rk_aggr`, `bb_rk_iter`, `bb_rk_sig`, `bb_rk_dispatch`, `bb_rk_smartmatch`, `bb_rk_junction`, and the rest; the regex boxes `bb_match_rk*`) and the shared boxes.
+- Runtime: `rk_rat.c`, `bignum.c`, the generated case and Unicode tables, `rx.c` (retiring), the `rtx_rk_*` leaves.
+- `--dump-ast|--dump-ir|--dump-plan prog.raku`; `--syntax` for the recognizer alone.
 
-## 4. The ARCH pages, by question
+## 4. The ARCH pages
 
-| question | page |
-|---|---|
-| the re-design: the value model, the five layers (parser, lowerer, the setting in Raku, the primitives, the planner), the kernel boxes, the 930-rung ladder, the map, the build order, the C roads' fates, the rows, what a builder must not do | ARCH-RAKU-TO-100.md (§ 1 the model, § 2 the kernel, § 4 the ladder, § 6 the build, § 10 the forbids) |
-| the twelve rewrite steps R1-R12 and their rulings (names declared by the lowerer, pod is data, containers, roles as templates, the Seq machine, regex as a pattern graph, exceptions by the frame walk, dispatch tabled, smartmatch and junctions as boxes, Test in Raku, EVAL, the finish) | ARCH-RAKU-REWRITE.md (superseded as a plan by ARCH-RAKU-TO-100 § 7, kept for its rulings and step-1 landings) |
-| the box census of the C roads that called user code | ARCH-RAKU-BOXES.md |
-| generators, suspend and the pull protocol Raku reuses from Icon | ARCH-ICON-RTX.md § 9, GOAL-RAKU-100.md § THE MODEL |
-| the one exception protocol every language rides | ARCH-EXCEPTIONS-ONE-PROTOCOL.md |
-| placement of Raku's cells, native cell kinds | ARCH-THREE-ZETAS-EMISSION.md, `harness/scripts/box_cell_shapes.tsv` |
+ARCH-RAKU-TO-100.md (§ 1 the value model, § 2 the kernel boxes, § 4 the ladder, § 6 the build order, § 10 the forbids); ARCH-RAKU-REWRITE.md (the R1-R12 rulings); ARCH-RAKU-BOXES.md; ARCH-ICON-RTX.md § 9 (the pull protocol); ARCH-EXCEPTIONS-ONE-PROTOCOL.md; ARCH-THREE-ZETAS-EMISSION.md.
 
-## 5. The suites and how one program is graded
+## 5. The suites
 
-| suite key | runner | population |
-|---|---|---|
-| raku-rungs (RakRungs) | `test_raku_ladder.sh --list | --to N | --only N`; one entry: `corpus_suite_harness.py run ../corpus/tests/raku/ALL.raku ../corpus/tests/raku/ALL.ref --lang raku --modes m3,m4 --partition entry:<name>` | `corpus/tests/raku/` (`ALL.csv` with `heap_kb`/`stack_kb`, `ALL.wantrc`, `ALL.refpins.tsv`, `ALL.excluded.txt`, `ALL.nolayout.tsv`, `ALL.argv.bare`, `PARTITION.tsv`; `config/LADDER.tsv` the rungs, `config/ROAST-RUNG-MAP.tsv`, `config/RAKUDO-SYNTAX-VERDICTS.tsv`) |
-| roast (Roast) | `raku_roast_scoreboard.sh run | report` (`--limit N` smokes the instrument and writes no row), `lib_raku_roast_stage.sh`, `util_raku_roast_ablation_ranker.sh` | `/home/resources/roast-master` staged under `corpus/packages/raku/roast` |
-| raku-bench-ref (RakBench), raku-demos (RakDemo) | `test_raku_bench_suite.sh`, `bench_raku_bar.sh` | `corpus/benchmarks/raku/`, `corpus/demos/raku/` |
+- Keys and runners in `harness/scripts/`: `raku-rungs` (`test_raku_ladder.sh --list|--to N|--only N`), `roast` (`raku_roast_scoreboard.sh`), `raku-bench-ref`, `raku-demos`.
+- One program: `corpus_suite_harness.py run ../corpus/tests/raku/ALL.raku ../corpus/tests/raku/ALL.ref --lang raku --modes m3,m4 --partition entry:<name>`. The master is a container.
+- A rung: at most 20 lines, one construct, ref cut from rakudo, red once on the base binary (`util_add_ladder_witness.py`); rung N+1 opens when N is green in both modes; `util_raku_ladder_status.py` reads the ladder.
+- Per landing: the DONE-WHEN, `test_feature_reps.sh raku <feature>`, `test_smoke_raku.sh`; then `s4e_test_request.sh` for the coo. Speed is CLOSED for Raku (CEO-1914).
 
-The master is a CONTAINER: never run `./scrip ALL.raku` whole; `corpus_suite_harness.py extract` is the one extraction authority. A seat grades ONE program in both modes; the suite is the coo's (`s4e_test_request.sh <suite-key> <entry>...`). A rung is at most 20 lines, one construct, its ref cut from rakudo, red once on the base binary before it lands (`util_add_ladder_witness.py` adds it); rung N+1 opens when N is green in both modes; `util_raku_ladder_status.py` reads the ladder; `util_raku_ladder_design.py --dry-run` is the ladder rule's executable form. Per landing: the DONE-WHEN, `test_feature_reps.sh raku <feature>...`, `test_smoke_raku.sh`; `test_design_raku_rewrite_steps.sh --list | --step N` for the rewrite steps. Speed is CLOSED for Raku (CEO-1914).
+## 6. Debugging a red
 
-## 6. Debugging a Raku red
+1. `bash ../harness/scripts/monitor_run.sh prog.raku --oracle` (the rakudo-mon fork); never a Raku-private monitor.
+2. Asm-diff the smallest repro beside a passing sibling within one mode.
+3. Parse questions: `util_raku_syntax_agreement.py` (scrip `--syntax` against `raku -c`); roast reds ranked by `util_raku_roast_ablation_ranker.sh`.
+4. gdb last, with a breakpoint and a hit count.
 
-1. `bash ../harness/scripts/monitor_run.sh prog.raku --oracle` (rakudo through the `rakudo-mon` fork under `/home/resources/`): the bug lies between the last event both agree on and the first they diverge on; `--modes` for mode 3 against mode 4; `--trace`. Never write a Raku-private copy of the monitor (GOAL-RAKU-100, Lon 2026-09-23).
-2. ASM-DIFF-FIRST: the smallest repro beside a passing sibling, `--compile` both, diff within one mode.
-3. `util_raku_syntax_agreement.py` for a parse question (scrip `--syntax` against `raku -c`, verdicts cached in `RAKUDO-SYNTAX-VERDICTS.tsv`); `util_raku_ast_agreement.sh` against the frozen trees; `util_raku_roast_error_histogram.sh` and `util_raku_roast_ablation_ranker.sh` to rank roast reds by the construct that kills them.
-4. Only then gdb with a breakpoint and a hit count.
+## 7. Rulings a landing must not break
 
-## 7. Rulings a Raku landing must not break (receipts in GOAL-RAKU-100.md, ARCH-RAKU-TO-100.md § 10 and GOAL-CEO.md)
-
-- **Every Raku value is ONE DESCR** (§ 1.1): the tag names the setting's class; a lexical's slot holds its value (THE LIFETIME RULE); `:=` between lexicals of one scope is a compile-time alias; a run-time binding and an itemized element hold a REF to a heap Scalar dereferenced by a tag test in the box, never in C; a native is a planner cell kind, unboxed on the spine.
-- **Raku is a Seq language: one four-port pull protocol**, identical to Icon's generator pump (yield-one-at-β); no new iterator machinery, no second protocol.
-- **The setting is Raku** (§ 1.2 (c)): a core method is written in Raku and the C body it replaces is deleted in the same landing; the primitives are the closed vocabulary of kernel boxes and asm leaves; no C core method the setting can write, no leaf in C that ASM can carry, no leaf that calls a box or loops over user code (CEO-1576).
-- **Never** lower a construct to a C function by name, add an `IR_CALL <name>` to `lower_raku.c`, a `strcmp` chain or a by-name table on a Raku path, or a desugar to `rk_tree.c` or `rk_syntax.c` (§ 10).
-- **The parser reaches 100% before lower and runtime** (Lon 2026-09-16); the recognizer is translated from Rakudo's grammar, never a second grammar.
-- **A kernel box is born with its family's first rung, never ahead of one**; a rung lands with its forms' refs cut from rakudo 2026.05 and proven red against a corrupted ref; a Roast file is cured by its rung, never by its name; a feature is tested on top of green ones only (Lon 2026-10-29).
-- **RakRungs and RakBench never fall below 100 at a landing**; a Raku number is published from `results.tsv` and the LEAF_SHARE line only, never a wall clock.
-- **S17 (concurrency) stays closed until Lon opens it**; a program is placed on the map by the generator and the instrument, never by hand.
-- The absolute rules stand under Raku: no global, no side table, no frame marker, no second stack, no stack held by the runtime, no fixed limit a program can reach; the Raku smoke runs before every push, all eight for shared code.
+- Every Raku value is ONE DESCR; a lexical's slot holds its value; `:=` in one scope is a compile-time alias; a run-time binding holds a REF to a heap Scalar, dereferenced in the box, never in C.
+- One four-port pull protocol, Icon's generator pump; no second iterator machinery.
+- The setting is Raku: a core method is written in Raku and its C body deleted in the same landing; no leaf that calls a box or loops over user code (CEO-1576).
+- Never lower a construct to a C function by name, add an `IR_CALL <name>`, a `strcmp` chain or by-name table, or a desugar in `rk_tree.c`/`rk_syntax.c` (§ 10).
+- The parser reaches 100% first; the recognizer is translated from Rakudo's grammar.
+- A kernel box is born with its family's first rung; a Roast file is cured by its rung, never by its name; RakRungs and RakBench never fall below 100 at a landing.
+- S17 (concurrency) stays closed until Lon opens it. No global, side table, frame marker, second stack or fixed limit; the Raku smoke before every push (all eight for shared code).
