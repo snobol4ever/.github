@@ -25,9 +25,9 @@ The record is GOAL-PASCAL-100.md (LIVE FRONT on top); a page beats this skill. P
 - Runtime: the Pascal arms of the shared runtime (`arithmetic.c`, `io_format.c`, `string_builtins.c`, `builtins.tsv`); `core/g_runtime_pas.h`. A value is a DESCR, an array an ARBLK, a record a slot array.
 - `--dump-ast|--dump-ir|--dump-plan`, `--dump-pas-types` (the typer's census).
 
-## 4. The ARCH pages
+## 4. The related skills
 
-ARCH-PASCAL-DIALECTS.md (which dialect, which oracle); ARCH-PASCAL-REDESIGN.md § 8 (the front-end DESIGN-PLAN, R1-R10, the step rulings); ARCH-PASCAL-PRUNED-TREE.md; ARCH-PASCAL-PROLOG-PROGRAM-SOURCES.md; ARCH-THREE-ZETAS-EMISSION.md (placement); ARCH-GC-COMPILE-TIME-FRAME-MAPS.md § 2c; ARCH-BUILTIN-TABLE.md.
+`lowering` (the pruned tree in, the IR out; `lower_pascal_tree.c` and the typer), `scrip-memory-model` (Pascal's frames and the display), `gc-collector` (the heap table, pointer values), `runtime-calls` (the builtin table, the FATAL road of the error protocol), `snocone-parser-patterns` (`parser_pascal.sc`). The dialect record, the pruned tree and the front-end plan are in `reference.md` § 8-9.
 
 ## 5. The suites
 
