@@ -1,11 +1,11 @@
 # ARCH — the README benchmark campaign: every working program against its rival
 
-**Owner:** hq_P (HQ-PERFORMANCE) · **Authority:** Lon's order relayed by cto or coo s272 · **Opened:** 2026-08-24 s272
+**Owner:** hq_P (HQ-PERFORMANCE) · **Authority:** Lon's order relayed by cto s272 · **Opened:** 2026-08-24 s272
 **Order, verbatim in substance:** *after cleanup, BENCHMARKS for SNOBOL4, Icon and Prolog against their rivals — a COMPLETE RUN OF EVERY WORKING PROGRAM, gathering the comparative tables for the README.*
 
 ## ⭐ THE BLOCKER LIST IS NOT WHAT THE BRIEF SAID — MEASURED, NOT ASSUMED
 
-cto or coo's baton named **Prolog** as the blocked column and left Icon implicitly fine. Both halves needed correcting, in opposite directions:
+cto's baton named **Prolog** as the blocked column and left Icon implicitly fine. Both halves needed correcting, in opposite directions:
 
 | column | rival | state | denominator |
 |---|---|---|---|
@@ -39,7 +39,7 @@ Each row emits a FACT-RULE grid, README-ready. **Axes named once above each grid
 
 - **BENCH-1 · SNOBOL4 × SPITBOL** (mechanical, seat-runnable). 18 programs, `sbl_clean_bin()` with `-bf`, mode-4, `RT_OPT=-O0`. **DONE-WHEN:** 18 rows, each with a verified-identical output pre-check, or an explicit VOID with its reason.
 - **BENCH-2 · Icon × icont/iconx** (mechanical once the module step is in the brief). 20 programs, `PATH=/home/resources/icon-master/bin`, modules precompiled first.
-- **BENCH-3 · Prolog × SWI + GNU** ✅ **UNBLOCKED 2026-08-24 (cto or coo): Lon installed `swipl` via apt; rivals verified on disk.** Everything ready; dispatch behind the crunch ordering.
+- **BENCH-3 · Prolog × SWI + GNU** ✅ **UNBLOCKED 2026-08-24 (cto): Lon installed `swipl` via apt; rivals verified on disk.** Everything ready; dispatch behind the crunch ordering.
 - **BENCH-4 · assembly + README emission** (hq_P). Consumes 1–3, emits the comparative tables. ⛔ Must refuse to emit a Prolog column while BENCH-3 is blocked rather than shipping a vacuous one.
 
 ## ⭐⛔ THREE-ANGLE TRIANGULATION (Lon 2026-08-24, in-chat — binding on every BENCH row above)
@@ -73,7 +73,7 @@ Lon, verbatim in substance: *"Ensure that the benchmarks are looked at from 3 AN
 
 `corpus/benchmarks/icon/` is the live denominator for **icon-n2** and for BENCH-2. seat02 (row `icon-corpus-semicolonize`) correctly held it pending hq_P ack. **Measured: all 23 files are already semicolonized** (e.g. `bench_icnint_loop.icn`, 4 semicolons in 6 lines), so there is no sweep to do there and no dialect question to settle — released to seat02 with that finding rather than a bare yes/no.
 
-## ⭐⭐ THE TWO-ASPECT PRESENTATION LAW (Lon, in-chat to CTO or COO, 2026-08-28 — binding on every benchmark presentation)
+## ⭐⭐ THE TWO-ASPECT PRESENTATION LAW (Lon, in-chat to CTO, 2026-08-28 — binding on every benchmark presentation)
 **Lon, verbatim in substance:** *"Always present from TWO aspects: (1) elapsed time — running SPITBOL, running SCRIP mode 3, or running the mode-4 generated executable from the command line; and (2) measured time from the program itself (elapsed AND cpu) at begin and end of the program's benchmark fixture."*
 - **Aspect 1 — COMMAND-LINE ELAPSED**: the whole-process wall time the user feels. For m3 it INCLUDES the compile — that is honest, it is what running `scrip prog.sno` costs; for m4 the compile sits outside; label which. External instrument (`bench_rusage`), never engine self-timing.
 - **Aspect 2 — IN-PROGRAM BRACKETS**: TIME()/host-clock readings taken INSIDE the program at fixture begin/end, elapsed AND cpu — the match/compute phase isolated from compile and startup BY THE PROGRAM ITSELF. ⭐ This is the standing answer to compile-dominated demo inputs (treebank-match's 9.3M-insn total): the bracket sees the match phase TODAY, without waiting on any harness. Precedent: the TIME()-bracket method is already ruled sufficient for oracle comparisons (CEO-30, microsecond-unit on the patched oracle clock, NS-TIME s249).

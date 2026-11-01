@@ -1,6 +1,6 @@
 # ANNOUNCE-DRAFT — 2026-08-24 announcement to SNOBOL4 groups.io + SNOBOL4/Icon Discourse
 
-**Working file, CTO or COO + Lon directly (s267). The story below is Lon's, verbatim in substance, captured 2026-08-23 evening. This file feeds the org README, the three repo READMEs, and the announcement text.**
+**Working file, CTO + Lon directly (s267). The story below is Lon's, verbatim in substance, captured 2026-08-23 evening. This file feeds the org README, the three repo READMEs, and the announcement text.**
 
 ## THE STRATEGY (Lon's words, the ordering principle)
 
@@ -22,11 +22,11 @@
 ## ⭐⭐ THE SCOPE, RULED (Lon s267, in-chat, verbatim in substance — THE product definition)
 *"SCRIP is SEVEN LANGUAGES on FIVE PLATFORMS such that they can call each other and even co-exist in the same TRANSLATION UNIT, compiland."* Languages: SNOBOL4 · Snocone · Icon · Prolog · Rebus · Raku · Pascal. Platforms: x86-64 · JVM · .NET · JavaScript · WebAssembly. The polyglot `.scrip` demos (fenced per-language sections, one document) and the `family_net` cross-language linkage demo (SNOBOL4 parses → Prolog infers → Icon formats, real EXPORT/IMPORT) are the scope made visible.
 
-## THE ARC FOR THE READMEs (ruled by Lon s267, correcting CTO or COO's first frame)
+## THE ARC FOR THE READMEs (ruled by Lon s267, correcting CTO's first frame)
 
 - **Then:** ALL backends + many frontends ALMOST COMPLETELY running — 120,000+ lines of duplicated, unmaintainable code. Capability proven; cost fatal.
 - **Now:** one engine — one IR, Byrd boxes, template discipline (every instruction through one encoder). x86-64 native, complete, self-hosting. The consolidation WAS the work.
-- **Next, NEAR-TERM (weeks):** .NET MSIL · JVM bytecode · JavaScript · WebAssembly return as TEMPLATE ENCODERS modeled on the existing x86 BB set, old emitters as architecture reference (`src/backends/` dormant in-tree + git history), developed SIMULTANEOUSLY under the CTO or COO/HQ/FLEET method.
+- **Next, NEAR-TERM (weeks):** .NET MSIL · JVM bytecode · JavaScript · WebAssembly return as TEMPLATE ENCODERS modeled on the existing x86 BB set, old emitters as architecture reference (`src/backends/` dormant in-tree + git history), developed SIMULTANEOUSLY under the CTO/HQ/FLEET method.
 
 ## PER-DOCUMENT CENTER OF GRAVITY
 
@@ -37,7 +37,7 @@
 | snobol4jvm README | the ~1,000-line Clojure elegance |
 | SCRIP README | the platform: one engine, five frontends, x86-64 today, four backends near-term, the cross-language vision |
 
-## OPEN QUESTIONS FOR LON — ✅ ALL SEVEN RULED 2026-08-29 (in-chat via cto or coo structured asks; answers inline below)
+## OPEN QUESTIONS FOR LON — ✅ ALL SEVEN RULED 2026-08-29 (in-chat via cto structured asks; answers inline below)
 
 1. ✅ RULED (Lon 2026-08-29): **ORG DEBUT, TOLD AS THE STORY** — the narrative carries it; SCRIP and milestones appear as chapters.
 2. ✅ RULED (Lon 2026-08-29, verbatim in substance): **SNOBOL4 is NOT "self-hosting" — no bootstrap claim.** The true public claims: it BEAUTIFIES ITS OWN SOURCE, and the language parsers are written in Snocone (parser_*.sc). Label: "complete" with those two facts. Icon "in active development" and Prolog "experimental" stand unobjected. ⛔ STYLE LAW for the whole piece: NO internal vocabulary in external-facing text — no "rungs", boards, seats, batons; public words only.

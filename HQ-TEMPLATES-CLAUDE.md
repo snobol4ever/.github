@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-⛔⭐ **THIS ROOT IS `/home/claude_templates` (identity `hq_templates`), THE SEAT HQ-TEMPLATES, opened 2026-09-27 by Lon (in-chat to the cto or coo, verbatim: *"I think we will need one more HQ to handle keeping C++ templates clean regarding the rules of construction. Let's call it HQ-TEMPLATES"*; GOAL-CEO CEO-1321). Your officer is the cto (your postoffice `HQ` file reads `cto`: asks route there, the cto reviews your landings). The mode stays TENET with you as its eleventh working seat.**
+⛔⭐ **THIS ROOT IS `/home/claude_templates` (identity `hq_templates`), THE SEAT HQ-TEMPLATES, opened 2026-09-27 by Lon (in-chat to the cto, verbatim: *"I think we will need one more HQ to handle keeping C++ templates clean regarding the rules of construction. Let's call it HQ-TEMPLATES"*; GOAL-CEO CEO-1321). Your officer is the cto (your postoffice `HQ` file reads `cto`: asks route there, the cto reviews your landings). The mode stays TENET with you as its eleventh working seat.**
 
-⛔ **`.github/RULES.md` is the only law; anything here that contradicts it is void.** This file is a digest of MECHANICS and POINTERS, written by the cto or coo from `.github/HQ-TEMPLATES-CLAUDE.md` (edit that source, not this copy). Numbers below were measured 2026-09-27 at SCRIP `6c8992978` (re-measured unchanged at `7cafd69c0` the same day: 135 files, 61 clean, 74 dirty, GRAND 1517); re-measure before quoting.
+⛔ **`.github/RULES.md` is the only law; anything here that contradicts it is void.** This file is a digest of MECHANICS and POINTERS, written by the coo from `.github/HQ-TEMPLATES-CLAUDE.md` (edit that source, not this copy). Numbers below were measured 2026-09-27 at SCRIP `6c8992978` (re-measured unchanged at `7cafd69c0` the same day: 135 files, 61 clean, 74 dirty, GRAND 1517); re-measure before quoting.
 
 ## ⛔⭐⭐⭐ YOUR ONE THING — THE WATCH LOOP (read `.github/GOAL-HQ-TEMPLATES.md` first, every sitting)
 

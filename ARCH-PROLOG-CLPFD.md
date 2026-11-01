@@ -1,6 +1,6 @@
 # ARCH-PROLOG-CLPFD.md — attributed variables, wake-up, and CLP(FD) for SCRIP's Prolog
 
-**Minted 2026-10-10 09:5x CDT by the cto or coo, the designer (Lon, in-chat to the cto or coo, verbatim: *"Let's do begin to implement the FD feature for SCRIP."* · *"You are the designer of the FD feature."*; CEO-1596). Revised 10:1x (CEO-1597): §§ 2–4 adopt the cto's attributed-variable design (its baton `prolog-swi-coroutining-and-attributed-variables-…` § NEXT, CTO-273) — a flagged self word in a heap block instead of a new tag, a trail offset instead of a heap list — under the one condition in § 3.5; the designer's page is the one record and the cto's baton cites it. Scope ruling: Lon's word lifts CEO-579's deferral for the WORK; the 30 GNU FD programs stay out of the announcement until Lon says otherwise (CEO-1209), and `OUTSIDE_CLPFD` stays a shown exclusion class in the puzzles package (CEO-1593) until the rows below close.** Every `file:line` is SCRIP `b2d227bb4`, read 2026-10-10 10:0x; re-measure before quoting.
+**Minted 2026-10-10 09:5x CDT by the cto, the designer (Lon, in-chat to the cto, verbatim: *"Let's do begin to implement the FD feature for SCRIP."* · *"You are the designer of the FD feature."*; CEO-1596). Revised 10:1x (CEO-1597): §§ 2–4 adopt the cto's attributed-variable design (its baton `prolog-swi-coroutining-and-attributed-variables-…` § NEXT, CTO-273) — a flagged self word in a heap block instead of a new tag, a trail offset instead of a heap list — under the one condition in § 3.5; the designer's page is the one record and the cto's baton cites it. Scope ruling: Lon's word lifts CEO-579's deferral for the WORK; the 30 GNU FD programs stay out of the announcement until Lon says otherwise (CEO-1209), and `OUTSIDE_CLPFD` stays a shown exclusion class in the puzzles package (CEO-1593) until the rows below close.** Every `file:line` is SCRIP `b2d227bb4`, read 2026-10-10 10:0x; re-measure before quoting.
 
 ## 0. The one sentence
 
@@ -63,7 +63,7 @@ The two systems share the comparison operators `#= #\= #< #> #=< #>=` (both at 7
 
 | row | seat | rank | DONE-WHEN witness |
 |---|---|---|---|
-| `prolog-swi-coroutining-and-attributed-variables-freeze-dif-when-put-attr-83-swi-cases` (re-owned to the cto under CEO-1591, CLAIMED 14:45Z; §§ 2–4 are its design) | cto | 2 (first among the cto's rows by the cto or coo's telegram) | the 83 SWI attvar/coroutining cases; the bind-road gate; the zero-cost gate of § 3.3; the reclaim witness of § 3.5 |
+| `prolog-swi-coroutining-and-attributed-variables-freeze-dif-when-put-attr-83-swi-cases` (re-owned to the cto under CEO-1591, CLAIMED 14:45Z; §§ 2–4 are its design) | cto | 2 (first among the cto's rows by the coo's telegram) | the 83 SWI attvar/coroutining cases; the bind-road gate; the zero-cost gate of § 3.3; the reclaim witness of § 3.5 |
 | `prolog-clpfd-library-clpfd-vendored-its-operators-imported-at-the-use-module-directive-and-three-witnesses-equal-to-swipl-in-both-modes-ceo-1596` | cfo | 1 | three fixed witnesses (sum/difference in 1..9 → `7-3`; `all_different` chain → `[1,2,3]`; 5-queens through `#\=` → 10 solutions) diffed against swipl in both modes |
 | `prolog-clpfd-the-gnu-fd-spelling-fd-domain-fd-labeling-fd-all-different-and-the-hash-hash-operators-over-the-same-solver-equal-to-gprolog-ceo-1596` | cfo | 2 | two fixed witnesses in GNU spelling diffed against gprolog (`gplc`) in both modes |
 
@@ -71,7 +71,7 @@ Order inside the cfo's lane: SSU (CEO-1592) → the SSU-free libraries → `clpf
 
 ## 7. What this design refuses
 
-- A new DESCR tag for attributed variables (the cto or coo's first draft; withdrawn 10:1x for the cto's marked self word, which needs no reader census and no visitor), and a FLAG BIT in `slen` (the second draft; withdrawn 10:4x for the exact marker, because `-1` already sets bit 31 on every fresh heap variable).
+- A new DESCR tag for attributed variables (the cto's first draft; withdrawn 10:1x for the cto's marked self word, which needs no reader census and no visitor), and a FLAG BIT in `slen` (the second draft; withdrawn 10:4x for the exact marker, because `-1` already sets bit 31 on every fresh heap variable).
 - Reclaiming wake entries under a live choice point (the second draft's § 3.5 clause; withdrawn 10:4x — those entries are the choice point's to unwind).
 - A side table keyed by cell address for attributes (no table the collector cannot walk; no global).
 - A per-frame wake slot, a global pending stack, or a heap pending list the collector must root (the wake word is an offset into the r12 island, the trail is the worklist).

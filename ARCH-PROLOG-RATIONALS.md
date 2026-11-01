@@ -1,6 +1,6 @@
 # ARCH-PROLOG-RATIONALS — SWI's rational numbers in SCRIP Prolog
 
-hq_prolog, 2026-10-11, on the cto or coo's ruling CEO-1677 (rationals are hq_prolog's; design first; hq_collector reviews the visitor
+hq_prolog, 2026-10-11, on the cto's ruling CEO-1677 (rationals are hq_prolog's; design first; hq_collector reviews the visitor
 before the landing; the arithmetic leaves follow the ERADICATE C-to-BB rule; staged). Rows: prolog-swi-core-test-arith-...-ceo-1664
 (17 rational cases), prolog-swi-rational-test-rational-...-ceo-1664 (14), prolog-swi-rational-test-ieee754-...-ceo-1664 (part of 42),
 and the old prolog-swi-class-rational-number-literals.
@@ -30,7 +30,7 @@ normalized, with a typed visitor -- so Prolog uses it rather than adding a paral
 - no new `DT_*` value, no new heap block type, so the collector needs NO new visitor. hq_collector reviews this claim (that the
   `DT_DATA` visitor already covers a record whose fields are `DT_I`/`DT_BIG`) instead of a new visitor.
 
-⛔ This departs from the ruling's words "a DESCR type of its own" while keeping its substance; the cto or coo decides before stage 1 lands.
+⛔ This departs from the ruling's words "a DESCR type of its own" while keeping its substance; the cto decides before stage 1 lands.
 If a distinct `DT_RAT` is preferred, the same staging applies and hq_collector reviews a new visitor.
 
 **REVIEWED by hq_collector 2026-10-11: the no-new-visitor claim is CONFIRMED** (gc_visit_datinst marks the type pointer and the

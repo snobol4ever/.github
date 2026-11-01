@@ -1,6 +1,6 @@
-# ARCH-CALL-FORMS — THE CALL FAMILY ON ONE FORM PER BOX (hq_templates, 2026-10-14; RULED by the cto or coo, CEO-1706 -- § 8)
+# ARCH-CALL-FORMS — THE CALL FAMILY ON ONE FORM PER BOX (hq_templates, 2026-10-14; RULED by the cto, CEO-1706 -- § 8)
 
-**ORDER:** Lon 2026-10-14, in-chat to hq_templates, verbatim: *"You are seated as Fable 5.1 with xhigh effort. Go re-think, re-write, and re-factor those remaining problematic cases."* · *"You should also read the best and worse of ALL the existing templates to know how to PROPERLY create the new IR's and BB templates."* · *"It seems you have a mess to clean up. Get with CEO on how to move forward. Give your recommendations and make it happen."* The seat is `hq_templates`; its officer is the cto; this page is the recommendation the cto or coo rules on. It is a DRAFT until the cto or coo's CEO-number is written into its header.
+**ORDER:** Lon 2026-10-14, in-chat to hq_templates, verbatim: *"You are seated as Fable 5.1 with xhigh effort. Go re-think, re-write, and re-factor those remaining problematic cases."* · *"You should also read the best and worse of ALL the existing templates to know how to PROPERLY create the new IR's and BB templates."* · *"It seems you have a mess to clean up. Get with CEO on how to move forward. Give your recommendations and make it happen."* The seat is `hq_templates`; its officer is the cto; this page is the recommendation the cto rules on. It is a DRAFT until the cto's CEO-number is written into its header.
 
 ## 1. THE FINDING (form census at SCRIP 47b9a08c8; rule census 540 in 9 of 146 files)
 
@@ -37,7 +37,7 @@ Per-argument arrays are `cv_t`-backed and grown by `cv_reserve` (the `op_arg_slo
 
 The same scheme for the other two: **`define_prepare`** (the role-4 shim's probe results `np / ns / gk[] / rg / nf / xt / T / F`, the entry label and cell, the knobs, computed once in the emitter; one box per role: bind (6), wire-adopt (3), SIG shim (4 under `SCRIP_FN_SIG`), TINY shim (4 legacy), the three floaters (1, 2, −1); the emitter's `IR_DEFINE` case already computes `op_define_role`) and **`xa_flat`**'s prologue / epilogue / chain generators the same way (not boxes but the xa emission layer; the same rules).
 
-## 4. THE DECISION FOR THE cto or coo: WHERE THE CALL'S FORM IS CHOSEN
+## 4. THE DECISION FOR THE cto: WHERE THE CALL'S FORM IS CHOSEN
 
 The call roads depend on facts LOWER cannot see when it lowers graph A: graph B's frame shape (det block, Icon block, pinned, SIG-eligible), fixed only when every graph is lowered (`g_stage2`, `bb_proc_target_*`). Two ways to keep the rule:
 
@@ -61,7 +61,7 @@ The call roads depend on facts LOWER cannot see when it lowers graph A: graph B'
 - **`CLASS_AB.tsv`** (dyn-caps): the `gk` / `scc_gk` / `scc_gk_z` / `gk4` fixed out-arrays become `cv_t` plan arrays; their rows retire in the landing that moves them.
 - **The form census** reads one form per box by construction (one alpha at the top of each box); **the rule census** reads 0 for every file the landing touches.
 
-## 7. ASKS OF THE cto or coo
+## 7. ASKS OF THE cto
 
 - **(a)** Rule § 4: option 1 then 2 (recommended), or straight to 2.
 - **(b)** Confirm the LARGE-CHUNKS unit for a template scheme: the small roll-out is ONE BOX FILE (`bb_call_fn`), not one language — the call family serves every language, so a language is not a unit here.
@@ -69,7 +69,7 @@ The call roads depend on facts LOWER cannot see when it lowers graph A: graph B'
 - **(d)** Rows: the whole-set row carries L1, L2, L4, L5 as its LEDGER; if § 4 (2) is ruled, mint a rank-1 row for L3 with DONE-WHEN `python3 scripts/audit_template_forms.py` reading no kind case that picks among boxes.
 - **(e)** Who else is in these files: hq_prolog (`bb_call_pl_leaf`, the Prolog roads of `bb_call_proc_staged`), hq_raku (the method opens), hq_zetas (`xa_flat`), the cto (`bb_cleanup`, the continuations). I read origin before each landing and telegram each lane the file and the hour; a landing of theirs that arrives mid-rewrite is rebased in, never reverted.
 
-## 8. THE RULING (cto or coo, CEO-1706, 2026-10-14 13:0x CDT)
+## 8. THE RULING (cto, CEO-1706, 2026-10-14 13:0x CDT)
 
 - **(a) STRAIGHT TO 2.** The form is chosen in LOWER: the re-kinding of `IR_CALL` by road (`IR_CALL_DIRECT`, `IR_CALL_BYNAME`, `IR_CALL_BAKED`, `IR_CALL_TRY`, `IR_CALL_DET_BLOCK`, `IR_CALL_ICN_BLOCK`, `IR_CALL_SIG`, `IR_CALL_GEN_SCAN`, ...) is LOWER's LAST TRAVERSAL, run once every graph is lowered and the frame facts it reads are final, before anything reads a call's form; a fact it reads that is computed in the emitter today moves into LOWER with it (CEO-1324: what the later stages read, LOWER builds by traversal); if the optimizer matches `IR_CALL`, its matches extend to the new kinds in the same landing. WHY: Lon's own word to this seat names "the new IR's"; LARGE CHUNKS (CEO-1478..1484) builds the scheme WHOLE and smokes the scheme that stays -- option 1's emitter classification would be a second scheme the massive roll-out tears out; and option 1 leaves the form census blind, so its small roll-out could not be measured. The plan VALUES (offsets, the marshal plan, symbols, flags) stay in `call_prepare` in `emit.cpp` (the `defer_prepare` pattern); the FORM is the kind.
 - **(b) CONFIRMED, with the bound.** For a template scheme the LARGE-CHUNKS unit is ONE BOX FILE (one road family, `bb_call_fn` first), smoked in every language that reaches it, both modes: a box serves every language, so a language is not the unit. The seat's proof per landing stays CEO-1677's -- the DONE-WHEN plus at most eight witnesses, chosen to cover the box's roads and regimes, its mode-4 text identical to the parent; the wider sweep (every road, the bench sets) is the coo's tier 2, named in the landing's telegram, never a seat's board (the cto was held to the same bound at CEO-1705).

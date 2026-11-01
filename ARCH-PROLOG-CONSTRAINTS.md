@@ -1,6 +1,6 @@
 # ARCH-PROLOG-CONSTRAINTS — CLP(FD) FINISHED, CLP(Q) AND CLP(R) VENDORED, CHR LOWERED: THE CONSTRAINT SUB-SYSTEMS OVER ONE ATTRIBUTED VARIABLE (the cto, Fable 5.1, 2026-10-24 21:1x CDT, CEO-1960/1964)
 
-**Status: DESIGN OF RECORD. Nothing below is built yet except what § 0 measures as standing.** The cto designs, a builder the cto or coo names builds one
+**Status: DESIGN OF RECORD. Nothing below is built yet except what § 0 measures as standing.** The cto designs, a builder the cto names builds one
 program at a time (CEO-1964); this page is the row `prolog-the-constraint-sub-systems-clpfd-finished-clpqr-and-chr-designed-by-the-cto-and-built-ceo-1960`'s
 design. It stands on `ARCH-PROLOG-CLPFD.md` (10-10: the attributed variable as a flagged self word in a two-DESCR heap block, the wake word a trail
 offset, the probe placed by the lowerer, hooks by module, the library vendored verbatim under CEO-1473) and adds nothing to that mechanism: every
@@ -27,7 +27,7 @@ The solver is SWI's own library and 220 of the 251 "outside" programs already an
 
 1. **RE-ADMISSION, a ruling for Lon.** `OUTSIDE_CLPFD` was cut when SCRIP had no FD (CEO-579). CEO-1696 says a program that becomes answerable returns to the
    denominator in the landing that gives it its answer. 220 programs are answerable today and read PASS; the 31 reds are debt SCRIP owes on a library it ships.
-   The cto or coo puts to Lon: retire the `OUTSIDE_CLPFD` class, return the 251 to ProPuzzles' denominator (`EXCLUDED.tsv` loses its 251 rows, `util_suite_partition.py build`
+   The coo puts to Lon: retire the `OUTSIDE_CLPFD` class, return the 251 to ProPuzzles' denominator (`EXCLUDED.tsv` loses its 251 rows, `util_suite_partition.py build`
    on `ALL.csv` in the same landing), and the 31 become rows. Until Lon rules, the 31 are worked as rows anyway: they are the measurement.
 2. **THE 31 REDS, one program at a time**, each bracketed against swipl (`monitor_run.sh --oracle`, swipl under `MONITOR_PL_ORACLE=swipl`) before its cure:
    the three HANGs first (hidato, sudoku and stable_marriage are `all_distinct`/`all_different` propagation over a grid or a matching: a propagation loop that
@@ -103,7 +103,7 @@ instrument at most); a C-side store; a global that holds the store without a roo
 
 ## 4. Order of the build and who measures
 
-1. The cto or coo asks Lon the re-admission ruling (§ 1.1). 2. The 31 CLP(FD) reds and the 9 coroutining cases, one program at a time, by the builder the cto or coo names
+1. The coo asks Lon the re-admission ruling (§ 1.1). 2. The 31 CLP(FD) reds and the 9 coroutining cases, one program at a time, by the builder the coo names
 (hq_prolog for the engine, hq_packages for the library), the three HANGs first. 3. The GNU FD suite opened by the coo. 4. CLP(Q/R) and simplex vendored
 (hq_packages: the CEO-1473 scheme is theirs), five witnesses plus the four knapsacks. 5. CHR lowered (a builder under the cto's review), eight programs. Every
 push after the Prolog smoke (CEO-1928); a change to the prelude regenerates `prolog_prelude_libs.inc` first (the generator, not the Makefile); requests to the

@@ -1,7 +1,7 @@
 # PLAN.md — snobol4ever HQ
 
 **Product:** SCRIP — SNOBOL4, Snocone, Rebus, Icon, Prolog, Pascal. Ten times faster.
-**⭐ TARGETS (Lon 2026-08-22 s257, in-chat, verbatim in substance — ship / dream), measured per the s255 two-oracle law (fixed-work callgrind Ir; SPITBOL = `spitbol-clean`):** SNOBOL4/Snocone **2–3x SPITBOL / dream 10x** · Icon **5–10x Arizona `icont`/`iconx`, ≫ JCON / dream 20x** · Prolog **2–3x SWI, par GNU / dream 10x SWI, 1.5x GNU (Lon: GNU is a true compiler)** — order: SNOBOL4 (Snocone) → Icon → Prolog → Pascal & Raku. **Fleet v2 config (same ruling): CTO or COO = Fable @ `/home/claude`; hq_C + hq_P = Opus 5 (Max); seats = Sonnet 5, 8 active + 8 reserve.** ⭐ **PLATFORM ROADMAP (Lon 2026-08-28, in-chat to CTO or COO, verbatim in substance: "the plan is to port to JVM, .NET, JavaScript, and Web Assembly"): x86/x64 ships FIRST (the announcement); the four ports are PLANNED TARGETS, not retired scope — the IS_JVM/IS_JS/IS_NET/IS_WASM stubs and the port-era GOAL/design files are living roadmap material and must never be archived as dead.**
+**⭐ TARGETS (Lon 2026-08-22 s257, in-chat, verbatim in substance — ship / dream), measured per the s255 two-oracle law (fixed-work callgrind Ir; SPITBOL = `spitbol-clean`):** SNOBOL4/Snocone **2–3x SPITBOL / dream 10x** · Icon **5–10x Arizona `icont`/`iconx`, ≫ JCON / dream 20x** · Prolog **2–3x SWI, par GNU / dream 10x SWI, 1.5x GNU (Lon: GNU is a true compiler)** — order: SNOBOL4 (Snocone) → Icon → Prolog → Pascal & Raku. **Fleet v2 config (same ruling): CTO = Fable @ `/home/claude`; hq_C + hq_P = Opus 5 (Max); seats = Sonnet 5, 8 active + 8 reserve.** ⭐ **PLATFORM ROADMAP (Lon 2026-08-28, in-chat to CTO, verbatim in substance: "the plan is to port to JVM, .NET, JavaScript, and Web Assembly"): x86/x64 ships FIRST (the announcement); the four ports are PLANNED TARGETS, not retired scope — the IS_JVM/IS_JS/IS_NET/IS_WASM stubs and the port-era GOAL/design files are living roadmap material and must never be archived as dead.**
 **Team:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
 
 ---
@@ -24,7 +24,7 @@ Bootstrap here does NOT mean "SCRIP compiles its own C". It means **the compiler
 
 ## ⭐⭐⭐ MASTER-PLAN.md — THE ORDER OF THE WORK UNDER FLEET-16 (Lon 2026-09-01: Prolog is the #1 priority — test, performance, Term eradication)
 
-Four ladders (T Term→DESCR · C correctness/tests · P performance · I instruments/dispatch), every rung a QUEUE row, rank 0/1 reserved for rungs; `python3 SCRIP/scripts/util_ladder_walk.py` is the instrument the cto or coo runs every sitting. HQs place every new Prolog row on a rung (`LADDER:<id> RUNG:<n>` on the LINKS line). Read it after this file, before any GOAL file, when the MODE file says FLEET-*.
+Four ladders (T Term→DESCR · C correctness/tests · P performance · I instruments/dispatch), every rung a QUEUE row, rank 0/1 reserved for rungs; `python3 SCRIP/scripts/util_ladder_walk.py` is the instrument the cto runs every sitting. HQs place every new Prolog row on a rung (`LADDER:<id> RUNG:<n>` on the LINKS line). Read it after this file, before any GOAL file, when the MODE file says FLEET-*.
 
 ## ⛔ SESSION START — every session, no exceptions
 
@@ -55,7 +55,7 @@ git clone https://github.com/snobol4ever/x64 /home/claude_ceo/x64   # SUPERSEDED
 
 | Goal | File | Step (stale by design — trust the goal file's LIVE CURSOR) |
 |------|------|------|
-| **⛔⭐⭐⭐⭐⭐ CTO or COO** ⬅ Lon 2026-08-22 s257: Fable seat ABOVE the two HQ — audit · arbitration · law custody · strategy; never briefs, never measures. Identity `cto or coo` | `GOAL-CEO.md` + `ARCH-FLEET-CEO.md` | CEO-0 done: fleet-v1 retrospective FINDING routed; fleet-v2 + task-baton designed; `PROTOCOL-V2-DRAFT.md` staged awaiting Lon's flip. |
+| **⛔⭐⭐⭐⭐⭐ CTO** ⬅ Lon 2026-08-22 s257: Fable seat ABOVE the two HQ — audit · arbitration · law custody · strategy; never briefs, never measures. Identity `cto` | `GOAL-CEO.md` + `ARCH-FLEET-CEO.md` | CEO-0 done: fleet-v1 retrospective FINDING routed; fleet-v2 + task-baton designed; `PROTOCOL-V2-DRAFT.md` staged awaiting Lon's flip. |
 | **⛔⭐⭐⭐⭐ HQ-CORRECTNESS** ⬅ Lon 2026-08-22 s256: HQ SPLIT IN TWO. Owns "does it produce the right answer" — SNOBOL4 #1 · Icon #2 · Prolog #3. Root `/home/claude_C`, identity `hq_C` | `GOAL-HQ-COMPLETE.md` | C-0: MILESTONE 1 MODE-3 REGRESSED — beauty m3 emits 278 bytes vs the 40,971 fixed point; m4 still correct, so it is a BOTH-MEDIUM violation. |
 | **⛔⭐⭐⭐⭐ HQ-PERFORMANCE** ⬅ Lon 2026-08-22 s256. Owns "how many instructions" — same three, same priority. Root `/home/claude_P`, identity `hq_P` | `GOAL-HQ-PERFORM.md` | P-0: profile `roman` (67,170 Ir/iter vs SPITBOL 7,966). SCRIP WINS on scalar (1.1–1.5x), LOSES 2.8–8.4x on tables/strings/real programs. The 10x is not blocked on codegen. |
 | **⛔ SCRIP HQ (SUPERSEDED s256 — split into the two above; kept for its laws and history)** ⬅ Lon 2026-08-19: HQ designs rungs + dispatch briefs; Lon fires worker seats; fronts = the three ⭐100 goals | `GOAL-SCRIP-HQ.md` | HQ-1: M1 campaign ladder cut; DISPATCH BOARD D-1 (seeding fix) + D-2 (claws5) READY. |
@@ -101,7 +101,7 @@ Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip, Pascal) produces t
 | Lon says | Meaning |
 |----------|---------|
 | "here we go" | Session starting |
-| **"Go."** | ⭐ Lon s257, the fleet-v2 universal prompt: orient from THIS root's CLAUDE.md standing orders, resume the sovereign file's LIVE CURSOR / your task's NEXT block, execute, banner fires itself. Works identically at CTO or COO, HQ, and seat — Lon never needs to remember state; the files carry it. |
+| **"Go."** | ⭐ Lon s257, the fleet-v2 universal prompt: orient from THIS root's CLAUDE.md standing orders, resume the sovereign file's LIVE CURSOR / your task's NEXT block, execute, banner fires itself. Works identically at CTO, HQ, and seat — Lon never needs to remember state; the files carry it. |
 | "perform hand off" | End of session — update goal state, commit, push per RULES.md |
 | "perform emergency hand off" | Same, note breakage |
 | "grand master reorg" | HQ system work |

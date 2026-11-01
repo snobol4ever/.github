@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """propagate_seat_digests_ceo_2071.py [--apply] [--root=<seat>]... -- EVERY SEAT'S CLAUDE.md IS GENERATED: A SHORT SOP, ONE SEAT BLOCK, ONE COMMON
-TEXT (Lon 2026-10-31, in-chat to the cto or coo, verbatim: "Reduce the size of CLAUDE.md files but ensure standard operating procedure, SOP, and motus
-operandi, mode of operations, etc are solid."; cto or coo CEO-2071). Each /home/claude_<seat>/CLAUDE.md becomes: the header, the seat's own block (below,
+TEXT (Lon 2026-10-31, in-chat to the cto, verbatim: "Reduce the size of CLAUDE.md files but ensure standard operating procedure, SOP, and motus
+operandi, mode of operations, etc are solid."; cto CEO-2071). Each /home/claude_<seat>/CLAUDE.md becomes: the header, the seat's own block (below,
 one dict entry per seat), then .github/digest/COMMON.md verbatim. Language knowledge lives in the skills (.github/skills/), not here. Without
 --apply it prints each root's new size and whether it changes; with --apply it writes the file (LF, UTF-8) and keeps the previous text beside it
 as CLAUDE.md.bak-2026-10-31-ceo-2071 (never overwritten once written). Idempotent. The gate is test_gate_seat_digests_within_budget.sh (24 KB).
