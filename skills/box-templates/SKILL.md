@@ -5,7 +5,7 @@ description: Byrd-box C++ templates (src/templates/bb, x86_*.{h,cpp}, emit.cpp p
 
 # Writing box templates
 
-A box is the body of ONE IR kind for ONE form, emitted as straight-line x86 with four ports: α proceed, β recede (a retry), γ succeed (jump to the successor's α), ω concede (jump to the predecessor's β). A template is a C++ function returning ONE string of `x86(...)` calls; the encoder renders it as text (mode 4) or bytes (mode 3). The law is RULES.md (LOGIC LIVES IN EMITTED BOXES, MODES MAY DIVERGE, ZERO COMMENTS, NO NEW GLOBALS); the design is ARCH-THREE-ZETAS-EMISSION.md (§ 2 the stack forms, § 6 the plan table) and ARCH-X86-ASM-ENCODER.md. Quoted code, file inventories and receipts are in `reference.md` beside this file.
+A box is the body of ONE IR kind for ONE form, emitted as straight-line x86 with four ports: α proceed, β recede (a retry), γ succeed (jump to the successor's α), ω concede (jump to the predecessor's β). A template is a C++ function returning ONE string of `x86(...)` calls; the encoder renders it as text (mode 4) or bytes (mode 3). The law is RULES.md (LOGIC LIVES IN EMITTED BOXES, MODES MAY DIVERGE, ZERO COMMENTS, NO NEW GLOBALS); the design is this skill with skill `scrip-memory-model` (the plan table, the accessor forms). Quoted code, file inventories and receipts are in `reference.md` beside this file.
 
 ## 1. THE RULES
 
@@ -21,7 +21,7 @@ A box is the body of ONE IR kind for ONE form, emitted as straight-line x86 with
 
 ## 2. THE FILES
 
-- `SCRIP/src/templates/bb/bb_*.cpp` (one family per file), `bb_template_common.h` (`#define _ g_emit`), `bb_templates.h`.
+- `SCRIP/src/templates/bb/bb_*.cpp` (one family per file), `src/emitter/emit_state.h` (`#define _ g_emit`), `bb_templates.h`.
 - `SCRIP/src/templates/x86/`: `x86_asm.cpp` (the encoder, compiled once) behind `x86_ops.h`; family headers `x86_jump` `x86_frame` `x86_rtcc` `x86_rodata` `x86_zeta` `x86_zverify` `x86_gc` `x86_call` `x86_icn` `x86_rsp_tracker` `x86_arg_roles`, and `x86_armed.h`. A template includes `x86_ops.h` and only the family headers it names.
 - `SCRIP/src/templates/xa/xa_*.cpp`: the non-box emissions (prologue, epilogue, flat, rodata), same rules.
 - `SCRIP/src/emitter/emit.cpp`: `bb_prepare(nd)` and the per-kind `case IR_X:` blocks are the only graph readers; `emit.h` holds `g_emit`'s fields; `emit_str.h` holds `IF()` and `FOR()`.
@@ -61,9 +61,9 @@ In `harness/scripts/`: `audit_bb_fixup_file.sh <file>` (rc 0 conformant) and `au
 
 A raw byte or medium branch; `emit_fmt`; a second `return`; a local or parameter; a graph read; a language name; a `jmp` or `call` written as text; an rsp or rbp address outside the five forms; an rsp write at β; a pop at an unfenced γ; a carve its row does not state; a call with no `rt_entries.tsv` row; a veneer around a leaf call; a hand-edited `.inc`; a comment, blank line or line over 200 columns; an invalid mnemonic (CV7); correctness that depends on the mode.
 
-## 6. THE ARCH PAGES
+## 6. WHERE THE REST LIVES
 
-ARCH-THREE-ZETAS-EMISSION.md (§ 2, § 6); ARCH-ZETA-ONE-COORDINATE.md § 3.5 (the carve, the cell shapes); ARCH-X86-ASM-ENCODER.md (the media, rtcc); ARCH-RT-CALL-PROTOCOL.md § 7, § 15 (leaves, returns); ARCH-IR-CARRIES-EVERY-LANGUAGE-VARIANCE.md § 2-3; ARCH-ZETA-LAYOUT-ONE-SOURCE-OF-TRUTH.md (the entry table); ARCH-GC-COMPILE-TIME-FRAME-MAPS.md § 7, § 13. Receipts: CEO-1565, CEO-1576, CEO-1843, CEO-1895, CEO-2019, CEO-2045 in RULES.md and GOAL-CEO.md.
+`scrip-memory-model` (placement, the accessor forms, the carve), `scrip-architecture` (one form per box, the graph facts), `runtime-calls` and `rtx-asm-leaves` (calls, leaves, the register plane), `gc-collector` (polls, sites, maps). The rtcc veneer, block types, the flat blob, four columns, the call forms and the templates-zero plan are in `reference.md` § 8-9.
 
 ## 7. HOW A LANDING IS PROVED
 
