@@ -5,14 +5,14 @@ description: SCRIP's Raku (rakudo 2026.05 is the oracle, the roast the spec): sr
 
 # SCRIP Raku
 
-The record is GOAL-RAKU-100.md (LIVE CURSOR on top) and ARCH-RAKU-TO-100.md; a page beats this skill. Raku builds at rank 9 (CEO-1931) and climbs the cto's rung ladder, not the suites, until half the rungs are green (CEO-2070). Suite tables, file maps and receipts in full are in `reference.md` beside this file.
+The record is GOAL-RAKU-100.md (LIVE CURSOR on top); the design is `reference.md` § 8. Raku builds at rank 9 (CEO-1931) and climbs the cto's rung ladder, not the suites, until half the rungs are green (CEO-2070). Suite tables, file maps and receipts in full are in `reference.md` beside this file.
 
 ## 1. The oracle
 
 - **rakudo 2026.05; the spec is the roast** (`/home/resources/roast-master`). The binary through `rakudo_bin()` in `harness/scripts/lib_oracle_flags.sh`; the `raku` on PATH (2022.12) is never the oracle. One dialect, no switch.
 - A ref is cut from rakudo; a ref cut from our output is a SELF-PIN, not an oracle; no XFAIL. Refusal, crash or hang (`timeout -k 5`) is `NO_ORACLE_ANSWER` (CEO-1696); an implementation accident is no answer (CEO-1934). Gotchas: `OUTER` is a pseudo-package, a mid-line `}` needs `;`, EVAL of a string needs `MONKEY-SEE-NO-EVAL`.
-- Interim (ARCH-RAKU-TO-100 § 1.2 (c)): the program's own names win; a lib-path export does not beat the setting until F05's typed multi dispatch lands.
-- Test is Rakudo's `lib/Test.rakumod`, vendored as the setting's first file.
+- Interim (the re-design's layer (c), `reference.md` § 8): the program's own names win; a lib-path export does not beat the setting until F05's typed multi dispatch lands.
+- Test is Rakudo's `src/parsers/raku/setting/Test.rakumod`, vendored as the setting's first file.
 
 ## 2. The manuals
 
@@ -20,14 +20,14 @@ The record is GOAL-RAKU-100.md (LIVE CURSOR on top) and ARCH-RAKU-TO-100.md; a p
 
 ## 3. The source map
 
-- Parser `src/parsers/raku/`: `rk_syntax.c` (the recognizer translated from Grammar.nqp), `rk_tree.c`, `rk_regex.c`, generated `rk_core_names.h` and `raku_setting.inc` (from `setting/*.rakumod`), `raku_driver.c`; the bootstrap `parser_raku.sc`.
+- Parser `src/parsers/raku/`: `rk_syntax.c` (the recognizer translated from Grammar.nqp), `rk_tree.c`, `rk_regex.c`, generated `rk_core_names.inc` and `raku_setting.inc` (from `setting/*.rakumod`), `raku_driver.c`; the bootstrap `parser_raku.sc`.
 - Lowering `src/lower/lower_raku.c`: every construct to the kernel boxes (`bb_rk_coerce`, `bb_rk_scalar`, `bb_rk_aggr`, `bb_rk_iter`, `bb_rk_sig`, `bb_rk_dispatch`, `bb_rk_smartmatch`, `bb_rk_junction`, and the rest; the regex boxes `bb_match_rk*`) and the shared boxes.
 - Runtime: `rk_rat.c`, `bignum.c`, the generated case and Unicode tables, `rx.c` (retiring), the `rtx_rk_*` leaves.
 - `--dump-ast|--dump-ir|--dump-plan prog.raku`; `--syntax` for the recognizer alone.
 
-## 4. The ARCH pages
+## 4. The related skills
 
-ARCH-RAKU-TO-100.md (§ 1 the value model, § 2 the kernel boxes, § 4 the ladder, § 6 the build order, § 10 the forbids); ARCH-RAKU-REWRITE.md (the R1-R12 rulings); ARCH-RAKU-BOXES.md; ARCH-ICON-RTX.md § 9 (the pull protocol); ARCH-EXCEPTIONS-ONE-PROTOCOL.md; ARCH-THREE-ZETAS-EMISSION.md.
+`lowering`, `box-templates`, `scrip-memory-model` (the cell kinds, `box_cell_shapes.tsv`), `runtime-calls` (the builtin table's Raku step, the error protocol for die, try and CATCH), `icon` (the generator and suspend road Raku reuses), `snocone-parser-patterns` (`parser_raku.sc`). The re-design, the ladder and the rewrite are in `reference.md` § 8-9.
 
 ## 5. The suites
 
