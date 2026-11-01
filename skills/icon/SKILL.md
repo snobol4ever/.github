@@ -5,7 +5,7 @@ description: SCRIP's Icon (Arizona Icon 9.5.25a is the oracle; semicolons requir
 
 # SCRIP Icon
 
-The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this skill. Icon is the SNOBOL4 machine with a second syntax; the Unicon superset (CEO-2072, ARCH-UNICON.md) extends it with no switch. Suite tables, file maps and receipts in full are in `reference.md` beside this file.
+The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this skill. Icon is the SNOBOL4 machine with a second syntax; the Unicon superset (CEO-2072, `reference.md` § 8) extends it with no switch. Suite tables, file maps and receipts in full are in `reference.md` beside this file.
 
 ## 1. The oracle
 
@@ -25,9 +25,9 @@ The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this sk
 - Runtime: `src/runtime/rtx/rtx_icn{agg,call,gen,num,rel,sub,var}.s`, `rt/rt_coexpr.c` (co-expressions), `rt_sg_scan.S`, `keywords.c` (`&subject` and `&pos` derived from r13/r14/r15 at the read), `aggregates.c`, `string_ops.c`.
 - `./scrip --dump-ast|--dump-ir|--dump-plan prog.icn`; mode 3 `--run`, mode 4 `--compile`.
 
-## 4. The ARCH pages
+## 4. The related skills
 
-ARCH-ICON-RTX.md (leaves, register contract, § 9 the activation record as frame, § 10 the scanning environment in three registers); ARCH-SNOBOL4-RTX.md, ARCH-THREE-ZETAS-EMISSION.md, ARCH-ZETA-ONE-COORDINATE.md; ARCH-ENGINE.md (co-expressions); ARCH-GC-COMPILE-TIME-FRAME-MAPS.md; ARCH-CALL-FORMS.md, ARCH-BUILTIN-TABLE.md; ARCH-UNICON.md.
+`rtx-asm-leaves` (the Icon leaves `rtx_icn*.s`, the register plane: r13 Σ, r14 δ, r15 Δ inside a scan); `scrip-memory-model` (the cell frame of an Icon procedure, the spine, generators as retaining edges); `gc-collector` (co-expression segments, the allocating-box polls); `runtime-calls` (the call protocol, generator procedures, the builtin table's Icon step, `&error` and `runerr` on the error protocol); `box-templates`; `scrip-backends` (SCRIP's future targets). The Unicon superset and the two design plans are in `reference.md` § 8-9.
 
 ## 5. The suites
 
@@ -44,7 +44,7 @@ ARCH-ICON-RTX.md (leaves, register contract, § 9 the activation record as frame
 
 ## 7. Rulings a landing must not break
 
-- No software value stack; the activation record IS the frame (ARCH-ICON-RTX § 9, CEO-1542).
+- No software value stack; the activation record IS the frame (CEO-1542).
 - The scanning environment is (r13, r14, r15) at every instruction of an Icon graph: `&subject` is `{DT_S, r15d, r13}`, `&pos` is `r14 + 1`, derived at the read; no `scan_subj`, `scan_pos` or `in_scan` returns.
 - A co-expression runs on the pthread's own mmap'd stack: never a heap block, never pinned.
 - An Icon call crosses no C helper (CEO-1488/1491); `main` is an ordinary procedure; no C function enters a box (CEO-1576).
