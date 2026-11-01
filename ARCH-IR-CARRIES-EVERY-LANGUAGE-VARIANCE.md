@@ -31,6 +31,7 @@ A graph fact is a scalar on the graph that the emitter's prologue, epilogue, cal
 | `body_root` | the node that heads the body after the pattern/head part — where a right-sealed construct's body begins | `lower_snobol4.c`, `lower_prolog.c` | 21 |
 | `entry_frame` | the main graph has an entry frame to install | `lower_raku.c` | 0 (read in scrip.c) |
 | `static_calls`, `decl_level`, `caller_frame` | the procedure is called only statically, at a known nesting level, and may read its caller's frame (nested procedures) | `lower_pascal.c` | through `zls_g_det_block`, `zls_g_pinned_frame` |
+| `poll_alpha` | the procedure's entry tests the thread's goal-interrupt word (the trail header's DUE) and raises `time_limit_exceeded` before its first clause | `lower_prolog.c` — every predicate on a cycle of the static call graph (`pl_poll_alpha_mark`) and every run-time compiled predicate | 1 (emit.cpp, the procedure prologue at `_α_body`; ARCH-PROLOG-DATABASE 19.8) |
 | `keeps_choice`, `deterministic`, `block_args`, `is_variadic`, `rest_kind`, `standing_cells`, `runtime_fragment_graph`, `smx`, `multi_proto`, `rt_redefinable`, `jcon_value_region`, `pkt_*`, `zeta_mark_slot`, `resume_slot` | OWED A ROW IN THIS TABLE by the lane that reads it: each is either a behaviour fact (it stays, with its four columns written here) or a language fact in disguise (it goes the way of § 2's first paragraph) | various | — |
 
 ## 3. Node facts and the one-form rule for templates
