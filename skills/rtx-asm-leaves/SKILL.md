@@ -68,9 +68,21 @@ In `harness/scripts/`: `test_rtx_unit.sh` (every battery); `test_gate_rtx_calls_
 
 A stack move without its `RTX_` macro; a veneer around a leaf call, or a courtesy save inside one; a write to r8-r11 the table does not carry; a hand-edited `.inc`; a call from a leaf into emitted code or a box; a name looked up at run time; `strlen` on a DESCR; a new `.data`/`.bss` symbol without Lon's grant; any malloc spelling; AT&T syntax; a declining leaf with no twin; a leaf without its `rt_entries.tsv` row and battery line; a comment in the `.s` beyond the separator; mode-dependent correctness.
 
-## 6. THE ARCH PAGES
+## 6. THE REGISTER PLANE (who owns which register)
 
-ARCH-RT-CALL-PROTOCOL.md § 15, § 7; ARCH-X86-ASM-ENCODER.md § 1-2; ARCH-ZETA-LAYOUT-ONE-SOURCE-OF-TRUTH.md § 3, § 10 (the entry table); ARCH-GC-COMPILE-TIME-FRAME-MAPS.md § 7, § 13; ARCH-SNOBOL4-RTX.md § 5 and ARCH-ICON-RTX.md (the inventory); ARCH-RUNTIME-GLOBALS-INVENTORY.md. Receipts: CEO-1224, CEO-1576, CEO-2019 in RULES.md, GOAL-CEO.md and GOAL-RTCC.md.
+| register | owner and role |
+|---|---|
+| rsp | the spine and the C stack: ONE stack |
+| rbp | the activation frame base in a graph that pins one; a free register otherwise |
+| r12 | SNOBOL4: the conditional-assignment stack top (its base is a MATCH_BEGIN frame slot). Prolog: TR, the trail top (skill `prolog-engine`). The two r12 islands are the only stacks off RSP and RBP |
+| r13, r14, r15 | inside a match or scan box: Σ the subject's first byte, δ the 0-based cursor, Δ the length (Lon 2026-09-19: "Yes R13 for SNOBOL4 and Icon points to the subject string, &subject."). Prolog: r13 is B, r15 the ball |
+| rbx | free, preserved only (the allocation frontier is the memory word `g_hp_fr`, not rbx) |
+| r8, r9, r10, r11 | the rtcc four, the emitted machine's: r8 the anchor (master copy in `rtccb`), r9 the GVA base, r10 the statement number, r11 the box id; a leaf returns them as received unless its `clobbers` cell says otherwise, and never writes r9 |
+| rax, rcx, rdx, rsi, rdi, xmm0-15 | the leaf's working set; a DESCR comes back in rax:rdx (the tag in al) |
+
+The six GP pins (rbx, rbp, r12-r15) are the SysV callee-saved set, so a leaf only C calls keeps the C convention for them. `cld` holds everywhere (a `std` user restores it); conditions are EFLAGS, never a memory flag byte. One syntax: GNU `as`, `.intel_syntax noprefix`.
+
+Related skills: `runtime-calls` (the call protocol, the verdict road), `gc-collector` (the collection runs in `rtx_gc.s` and `rtx_alloc.s`), `prolog-engine` (`rtx_plunify.s`), `icon` (the Icon leaves and the scanning plan), `scrip-memory-model` (the entry table's columns, zeta-layout R4). Receipts: CEO-1224, CEO-1576, CEO-2019 in RULES.md, GOAL-CEO.md and GOAL-RTCC.md.
 
 ## 7. HOW A LANDING IS PROVED
 
