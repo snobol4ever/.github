@@ -1,6 +1,6 @@
 ---
 name: raku
-description: Working SCRIP's Raku -- rakudo 2026.05 as the oracle, the roast as the spec, the one four-port Seq pull protocol over the Icon generator road, the setting written in Raku, the 930-rung construct ladder built rung by rung. Load before touching src/parsers/raku, src/lower/lower_raku.c, the Raku setting or kernel boxes, a Raku suite (RakRungs Roast RakBench RakDemo), a Raku ref, a rung of the ladder, or any question about a Raku container, signature, multi dispatch, regex, phaser, junction, role, module or the Test module.
+description: Working SCRIP's Raku -- rakudo 2026.05 as the oracle, the roast as the spec, the one four-port Seq pull protocol over the Icon generator road, the setting written in Raku, the 930-rung construct ladder built rung by rung. Load before touching src/parsers/raku, src/lower/lower_raku.c, the Raku setting or kernel boxes, a Raku suite (RakRungs Roast RakBench RakDemo), a Raku ref, a rung of the ladder, or any question about a Raku container, signature, multi dispatch, regex, phaser, junction, role, module or the Test module. REQUIRED by the skill gate before any edit of this language's parser, lowerer or prelude.
 ---
 
 # SCRIP Raku: the seat's working knowledge

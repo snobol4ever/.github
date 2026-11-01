@@ -1,6 +1,6 @@
 ---
 name: prolog
-description: Working SCRIP's Prolog -- the ISO-plus superset over swipl 9.0.4, GNU Prolog 1.6.0 and XSB 5.0.0. Load before touching src/parsers/prolog, src/lower/lower_prolog*.c, the Prolog runtime or prelude, a Prolog suite (ProRungs INRIA GNU Logtalk SWI TreallaTests XsbTests ProPuzzles ProRosetta), a Prolog ref, or any question about a Prolog builtin, dialect, error term, operator, stream, module, tabling or the trail.
+description: Working SCRIP's Prolog -- the ISO-plus superset over swipl 9.0.4, GNU Prolog 1.6.0 and XSB 5.0.0. Load before touching src/parsers/prolog, src/lower/lower_prolog*.c, the Prolog runtime or prelude, a Prolog suite (ProRungs INRIA GNU Logtalk SWI TreallaTests XsbTests ProPuzzles ProRosetta), a Prolog ref, or any question about a Prolog builtin, dialect, error term, operator, stream, module, tabling or the trail. REQUIRED by the skill gate before any edit of this language's parser, lowerer or prelude.
 ---
 
 # SCRIP Prolog: the seat's working knowledge
