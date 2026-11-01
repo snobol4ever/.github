@@ -1,6 +1,6 @@
 # Parsers as patterns in Snocone: the reference (the detail behind SKILL.md; read the section you need)
 
-The law is RULES.md (THE TREE IS THE PRUNED PARSE TREE, THE TREE IS BUILT ONCE IN RECOGNITION ORDER WITH RAW SHIFT AND REDUCE ALONE, A PARSER MOVES NOTHING, ONLY tree_t CROSSES TO LOWER; CEO-1322/1369/1371/1377/1378/1532/1715) and the design is `.github/ARCH-PARSER-SC-BOOTSTRAP.md` (§ 1 the rulings, § 3 the module, § 5 and § 7 the four forms and the corrections); the record is `GOAL-SNOCONE-100.md` (its parser cursors) and hq_snocone's batons. Lon's statement of the method (2026-10-31): *"writing one PATTERN to match an ENTIRE FILE with syntax as ONE closed set of mutually referential PATTERNS"*, the tree built by conditional assignment with function calls. Every quoted line below is from the file it names, at the line it names, on SCRIP 8e366c454; re-read the file before trusting a line number.
+The law is RULES.md (THE TREE IS THE PRUNED PARSE TREE, THE TREE IS BUILT ONCE IN RECOGNITION ORDER WITH RAW SHIFT AND REDUCE ALONE, A PARSER MOVES NOTHING, ONLY tree_t CROSSES TO LOWER; CEO-1322/1369/1371/1377/1378/1532/1715) and the design is § 8 of this file (the rulings, the module, the four forms); the record is `GOAL-SNOCONE-100.md` (its parser cursors) and hq_snocone's batons. Lon's statement of the method (2026-10-31): *"writing one PATTERN to match an ENTIRE FILE with syntax as ONE closed set of mutually referential PATTERNS"*, the tree built by conditional assignment with function calls. Every quoted line below is from the file it names, at the line it names, on SCRIP 8e366c454; re-read the file before trusting a line number.
 
 ## 1. The oracle and the rule: SPITBOL semantics, one closed set of patterns, the tree built once
 
@@ -22,16 +22,13 @@ The law is RULES.md (THE TREE IS THE PRUNED PARSE TREE, THE TREE IS BUILT ONCE I
 - **THE MODULE WRAPPER**: `mod_head.sc` (`if (DIFFER(ModInited)) goto ModParse;`: the C entry `src/runtime/rt/rt_sc_module.c` runs the top level once, the library and the parser build their patterns, and every later entry jumps to `ModParse` with `ModSrc` set), `mod_tail.sc` (`if (DIFFER(ModLinked)) { ModInited = 1; return; }` then `ModParse: ModTree = ; ModErrPos = -1; goto ModEntry;`), the generated `out/sc_mod/scmod_<lang>.sc` (mod_head, the library, the parser, mod_tail, each under its `ModPrefix` -- `sno_ snc_ rak_ reb_ icn_ pro_ pas_`, the library `sc_` -- and the one language-specific line `ModEntry: goto sno_SnoParse` for a wired language, `ModEntry: return` for the rest; `SC_MOD_ENTRY_snobol4 := sno_SnoParse`, Makefile 1952). The four cells the C entry needs: `ModSrc`, `ModLinked`, `ModTree`, `ModInited`.
 - **THE DRIVER TAIL** of every parser is labelled top-level code: `SnoParse: if (DIFFER(ModLinked)) { Src = ModSrc; }` (parser_snobol4.sc 323), the preprocess loop at `SnoPP:` (336), the per-parse reset (`InitCounter(); InitStack(); ... ptree = ;`), the match `if (Src ? *Compiland) { ptree = Pop(); }` (376), and `if (DIFFER(ModLinked)) { ModTree = ptree; goto ModEnd; }`; standalone it dumps the tree (`TreeDump`) for the gates and prints `PARSER-METRICS` at `ModEnd`.
 
-## 4. The ARCH pages, by question
+## 4. Where each question is answered
 
-| question | page |
+| question | where |
 |---|---|
-| the module design: INCLUDE and IMPORT, the GVA per module, the ABI (one entry, one exit, the tree), the tree bridge to `tree_t`, the gaps, the landings | ARCH-PARSER-SC-BOOTSTRAP.md § 3 |
-| the finish line is zero functions; the four forms F1 INLINE, F2 PATTERN, F3 ACTION CHAIN, F4 LABELLED CODE; the memo-table correction; the anchored nested match; the ARBNO trap; D1/D2 to the lowerer; the position field | ARCH-PARSER-SC-BOOTSTRAP.md § 5, § 7, § 7.x |
-| the pruned parse tree's node vocabulary per language | ARCH-PASCAL-PRUNED-TREE.md, ARCH-LANGUAGES.md, the C parsers' `ir_dump_tree` |
-| the tree law and its receipts | RULES.md (grep `THE TREE IS THE PRUNED PARSE TREE`, `RAW SHIFT AND REDUCE ALONE`, `A PARSER MOVES NOTHING`, `ONLY tree_t CROSSES`) |
-| the transpile road `.sc` → `.sno` and the SPITBOL manual index | GOAL-PARSER-SC-TRANSPILE.md |
-| the lane's history: the deferred-capture defect, the seven parsers' measured zero, the FLUSH announcement | GOAL-SNOCONE-100.md, the postoffice ANNOUNCEMENT.md |
+| the module design: INCLUDE and IMPORT, the namespace per module, the ABI (one entry, one exit, the tree), the bridge to `tree_t` | this file § 8 |
+| the finish line is zero functions; the four forms F1 INLINE, F2 PATTERN, F3 ACTION CHAIN, F4 LABELLED CODE | this file § 8 |
+| the pruned parse tree's node vocabulary per language | the language skill (`pascal` § 8 for Pascal), the C parsers' `--dump-ast` |
 
 ## 5. The suites, the gates and how one parser is proved
 
@@ -58,7 +55,7 @@ The law is RULES.md (THE TREE IS THE PRUNED PARSE TREE, THE TREE IS BUILT ONCE I
 4. The timing instrument is the parser's own `PARSER-METRICS` line (parse_first_us, parse_us) and `util_parser_sc_census.py --timeout`; a file that takes seconds has an ARBNO prefix explosion (§ 7 (a)).
 5. Only then the C-level tools: `scrip --dump-ast` of the `.sc` itself for a Snocone parse question, ASM-DIFF-FIRST of the twin within one mode, gdb last.
 
-## 7. What a parser may not do, and the style it keeps (receipts in RULES.md, ARCH-PARSER-SC-BOOTSTRAP.md § 5 and § 7, GOAL-CEO.md)
+## 7. What a parser may not do, and the style it keeps (receipts in RULES.md and GOAL-CEO.md)
 
 - **DEFINE NO FUNCTIONS** (CEO-1532; `test_gate_bootstrap_parsers_define_no_functions.sh`, floors snobol4 0, icon 8, pascal 48, the others 0, finish 0): a helper becomes F1 INLINE (the body at each call site), F2 PATTERN (a recognizer with conditional or immediate assignment, built once at init, its result in a memo table keyed by the raw text), F3 ACTION CHAIN (`*DIFFER(x = e)`, `*IDENT(a, b)`, `*LE(p, n)`, `*DIFFER(s ? pat)` standing where the call stood; an if/else as an alternation; nothing returned except through a global) or F4 LABELLED CODE at the top level for what runs OUTSIDE the match (the driver, the per-parse reset, the preprocess stage); a match cannot goto out and come back, so inside the grammar only F1-F3.
 - **EVALUATE OR CHECK NOTHING** (D1/D2: the refusals of a value where a name is required and the constant fold are the LOWERER's, `lower_snobol4.c`): a parser never evaluates, never checks meaning, never desugars.
@@ -68,3 +65,9 @@ The law is RULES.md (THE TREE IS THE PRUNED PARSE TREE, THE TREE IS BUILT ONCE I
 - **SPITBOL's limits**: a string literal of at most 130 characters (a table moved into a literal is built in chunks); `SUBSTR(S, I, 0)` is the rest of S; the upper-cased reserved words (`END` is `END`); `-CASE` folding as `sbl -bf` reads it.
 - **STYLE**: NAME-16 (descriptive lower-case names of at most 16 characters, spelled out, Lon 2026-08-21), the 200-column rule for `.sc` as for every source we write (CEO-1565), comments only as `/* ... */` blocks above a pattern that explain the C lexer's rule the pattern mirrors (`snobol4.l W ({WS}|{CONT})+ ...`, parser_snobol4.sc 82); the driver tail byte-identical in shape across the seven (parser_pascal.sc 763).
 - **NEVER REWRITE A `parser_*.sc`** (Lon 2026-09-24: *"At most a few characters will need to be changed to fix a bug."*); a construct is added as one pattern in the closed set, proven on the tree-for-tree gate and the IR-identity gate, the function floor never rising.
+
+## 8. DESIGN: the seven parsers linked into SCRIP as its parse stage (stage 1 of the bootstrap)
+
+- **Lon's rulings**: the seven `parser_<lang>.sc` are added to the SCRIP executable and replace the C, bison and flex parsers (CEO-1375: "We will add these seven parsers to the SCRIP executable and replace the old C/Bison/Flex based parsers."); stage 1 of the bootstrap (CEO-1383); each parser has its own namespace, an imported library the caller's (CEO-1567); a SCRIPtix program may load three languages at once (CEO-1568).
+- **The module**: native code linked in (the mode-4 assembly), one module per compiland; SNOBOL4 keeps INCLUDE (one namespace across the includes), Snocone alone gains IMPORT; the C entry `src/runtime/rt/rt_sc_module.c` runs the module's top level once (the library and the parser build their patterns) and then matches; only `tree_t` crosses to lower.
+- **Zero functions** (the cto 2026-10-28; RULES.md since CEO-1532: a bootstrap parser defines NO functions; `ParseOne` goes too): every function becomes one of four forms, F1 INLINE, F2 PATTERN, F3 ACTION CHAIN, F4 LABELLED CODE. The ratchet `test_gate_bootstrap_parsers_define_no_functions.sh` (no build, floors only fall) read on 2026-11-01: snobol4, snocone, rebus, prolog and raku 0; icon 8; pascal 48. The row is `snocone-the-seven-bootstrap-parsers-define-no-functions-...` (hq_snocone).

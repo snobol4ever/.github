@@ -5,7 +5,7 @@ description: Writing the bootstrap parsers (SCRIP/bootstrap/parser_*.sc) as one 
 
 # Parsers as patterns in Snocone
 
-A parser matches a WHOLE FILE with ONE closed set of mutually referential patterns and builds the pruned parse tree by conditional assignment (Lon 2026-10-31). The law is RULES.md (THE TREE IS THE PRUNED PARSE TREE, RAW SHIFT AND REDUCE ALONE, A PARSER MOVES NOTHING, ONLY tree_t CROSSES; CEO-1322/1369/1371/1377/1378/1532); the design is ARCH-PARSER-SC-BOOTSTRAP.md. Quoted lines, file positions and receipts are in `reference.md` beside this file.
+A parser matches a WHOLE FILE with ONE closed set of mutually referential patterns and builds the pruned parse tree by conditional assignment (Lon 2026-10-31). The law is RULES.md (THE TREE IS THE PRUNED PARSE TREE, RAW SHIFT AND REDUCE ALONE, A PARSER MOVES NOTHING, ONLY tree_t CROSSES; CEO-1322/1369/1371/1377/1378/1532); the design is `reference.md` § 8. Quoted lines, file positions and receipts are in `reference.md` beside this file.
 
 ## 1. The oracle and the rule
 
@@ -23,9 +23,9 @@ A parser matches a WHOLE FILE with ONE closed set of mutually referential patter
 - Library (Makefile `SC_MOD_LIB`, concatenated before a parser): `global.sc`, `tree.sc`, `stack.sc` (`$'@S'`), `counter.sc` (`$'#N'`), `ShiftReduce.sc` (Shift, Reduce, PushVal, PopVal), `semantic.sc` (`nTop`), `tdump.sc`, and the rest.
 - Module wrapper: `mod_head.sc`, `mod_tail.sc`, generated `out/sc_mod/scmod_<lang>.sc`; the C entry is `src/runtime/rt/rt_sc_module.c` (cells `ModSrc ModLinked ModTree ModInited`).
 
-## 4. The ARCH pages
+## 4. The design this skill carries, and the related skills
 
-ARCH-PARSER-SC-BOOTSTRAP.md § 3 (the module), § 5 and § 7 (the four forms, the memo-table and anchoring corrections, the ARBNO trap); ARCH-PASCAL-PRUNED-TREE.md and ARCH-LANGUAGES.md (node vocabulary); GOAL-PARSER-SC-TRANSPILE.md; GOAL-SNOCONE-100.md.
+The module design (each parser a compiland with its own namespace: SNOBOL4's INCLUDE shares one namespace, Snocone's IMPORT links a library into the caller's; one entry, one exit, the tree bridged to `tree_t` by `src/runtime/rt/rt_sc_module.c`) and the zero-functions finish are in `reference.md` § 8. Related skills: `snobol4` (SPITBOL semantics, the oracle), `scrip-architecture` (where the bootstrap sits in the pipeline), `pascal` (the dialect global tested in `parser_pascal.sc`), the language skill of the parser touched, `gates-and-witnesses`.
 
 ## 5. The patterns and the proof
 
