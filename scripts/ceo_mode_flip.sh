@@ -52,7 +52,11 @@ case "${1:---check}" in
       TENET)   ok="*";;
       *) printf '⛔ MODE line 1 is %s, not one of the five modes SOLO DUO TRIO QUARTET TENET (CEO-1818)\n' "$MODE_NOW"; exit 1;;
     esac
-    case " $ROSTER " in *" ceo "*) ;; *) printf '⛔ the ROSTER line does not name the ceo\n'; exit 1;; esac
+    # ⛔ THE OFFICER IN CHARGE IS THE cto (Lon 2026-10-31 15:5x CDT, in his window to the cto, verbatim: "I'm the new CEO now." and "you are the
+    # new boss, the one in charge."; the ceo seat removed from the ROSTER the same hour; CEO-2089): the roster must name the cto. The four
+    # non-TENET shapes above still name the removed ceo seat, so a non-TENET mode refuses until Lon re-rules the shapes (cto, CEO-2113).
+    case " $ROSTER " in *" cto "*) ;; *) printf '⛔ the ROSTER line does not name the cto, the officer in charge (CEO-2089)\n'; exit 1;; esac
+    [ "$ok" = "*" ] || { printf '⛔ %s names the ceo seat, removed 2026-10-31; Lon re-rules the five shapes before a non-TENET mode (CEO-2113)\n' "$MODE_NOW"; exit 1; }
     if [ "$ok" != "*" ]; then
       match=0; IFS='|'; for s in $ok; do [ "$s" = "$SET" ] && match=1; done; unset IFS
       [ "$match" = 1 ] || { printf '⛔ %s allows the roster %s, and MODE names: %s\n' "$MODE_NOW" "$ok" "$SET"; exit 1; }
