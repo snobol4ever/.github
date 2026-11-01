@@ -32,7 +32,7 @@ assert L[221].startswith('typedef enum { IR_CK_GRAPH') and L[222].startswith('ty
 assert L[223] == 'struct IR_graph_t {' and L[337] == '};'
 assert L[339].startswith('IR_graph_t * IR_alloc') and L[346].startswith('int graph_has_local')
 assert L[366].startswith('IR_t * IR_node_alloc') and L[368].startswith('int ir_node_produces_value') and L[369].startswith('void bb_reset') and L[370].startswith('void IR_free') and L[373].startswith('const char * bb_op_name')
-MOVED=['ir_is_matcher','ir_is_matcher_element','ir_decides_own_failure_kind','ir_range_tag_has','ir_range_kind_is','ir_define_ch8_role','ir_floater_kind','ir_floater_member','ir_glue_box','ir_define_bind_entry','ir_define_bind_proto','ir_define_is_bind','ir_graph_has_suspend','ir_call_arg','ir_pair_arg']
+MOVED=['ir_is_matcher','ir_is_matcher_element','ir_is_call_kind','ir_decides_own_failure_kind','ir_range_tag_has','ir_range_kind_is','ir_define_ch8_role','ir_floater_kind','ir_floater_member','ir_glue_box','ir_define_bind_entry','ir_define_bind_proto','ir_define_is_bind','ir_graph_has_suspend','ir_call_arg','ir_pair_arg']
 bodies={}; protos={}
 for n in MOVED:
     a, b = fn_block(n); blk = lines(a, b)
@@ -43,10 +43,9 @@ for n in MOVED:
     assert sig.endswith(')'), sig
 # one-line inline that the instrument would count: ir_is_scan_kind ((void) t; return 0;) and ir_is_call_kind (a one-expression body over two lines)
 scan_kind = 'static inline int ir_is_scan_kind(IR_e t) { return 0; }'
-a, b = fn_block('ir_is_call_kind'); ck = ' '.join(x.strip() for x in lines(a, b)); ck = re.sub(r'\s+', ' ', ck); assert len(ck) <= 200, len(ck)
 WRAP_O=['#ifdef __cplusplus', 'extern "C" {', '#endif']; WRAP_C=['#ifdef __cplusplus', '}', '#endif']
 fwd=['#ifndef SCRIP_IR_FWD_H', '#define SCRIP_IR_FWD_H', 'typedef struct IR_t IR_t;', 'typedef struct IR_graph_t IR_graph_t;', 'typedef struct IR_construct_t IR_construct_t;', '#endif', '']
-ops=['#ifndef SCRIP_IR_OPS_H', '#define SCRIP_IR_OPS_H', '#include "ir/descr_tags.h"'] + WRAP_O + lines(24, 50) + [L[134]] + [scan_kind, L[124], ck, L[129], protos['ir_is_matcher'], protos['ir_is_matcher_element'], protos['ir_decides_own_failure_kind'], L[373]] + WRAP_C + ['#endif', '']
+ops=['#ifndef SCRIP_IR_OPS_H', '#define SCRIP_IR_OPS_H', '#include "ir/descr_tags.h"'] + WRAP_O + lines(24, 50) + [L[134]] + [scan_kind, L[124], protos['ir_is_call_kind'], L[129], protos['ir_is_matcher'], protos['ir_is_matcher_element'], protos['ir_decides_own_failure_kind'], L[373]] + WRAP_C + ['#endif', '']
 node=['#ifndef SCRIP_IR_NODE_H', '#define SCRIP_IR_NODE_H', '#include <stdint.h>', '#include "ir/ir_fwd.h"', '#include "ir/ir_ops.h"'] + WRAP_O + lines(138, 166) + [protos['ir_range_tag_has'], protos['ir_range_kind_is'], L[180], L[181], protos['ir_define_ch8_role'], L[184], protos['ir_floater_kind'], protos['ir_floater_member'], L[198], L[199], protos['ir_glue_box'], protos['ir_define_bind_entry'], protos['ir_define_bind_proto'], protos['ir_define_is_bind'], protos['ir_call_arg'], protos['ir_pair_arg'], L[366], L[367], L[368]] + WRAP_C + ['#endif', '']
 graph=['#ifndef SCRIP_IR_GRAPH_H', '#define SCRIP_IR_GRAPH_H', '#include <stdio.h>', '#include <stdint.h>', '#include "ir/descr.h"', '#include "ir/ir_fwd.h"'] + WRAP_O + lines(224, 338) + [protos['ir_graph_has_suspend'], L[339], L[344], L[345], L[346], L[370], L[371], L[372]] + WRAP_C + ['#endif', '']
 cons=['#ifndef SCRIP_IR_CONSTRUCT_H', '#define SCRIP_IR_CONSTRUCT_H', '#include "ir/ir_fwd.h"'] + WRAP_O + [L[221], L[222], L[340], L[341], L[342], L[343]] + WRAP_C + ['#endif', '']
