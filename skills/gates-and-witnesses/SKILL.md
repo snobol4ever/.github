@@ -61,9 +61,9 @@ timeout -k 5 60 "$(swipl_bin)" -q -t halt -g main w.pl < /dev/null > w.ref
 
 A test edited to exit 0; an `xfail` of 1; a prose DONE-WHEN, one that pins a count, or one a deletion satisfies (`! grep -q defect`); a plant in `src/`; a gate with no refusal arm; a gate anchored on one found witness; a board or suite row written by anyone but the coo; a ref cut from the other mode or from a bare oracle path; a run without `timeout -k 5`, or without `< /dev/null` when it reads no stdin; an env size knob in a runner; outputs under the root; a symlink; `pkill -f`; `grep -q` under `pipefail`.
 
-## 6. THE ARCH PAGES
+## 6. WHERE THE REST LIVES
 
-RULES.md (`A ROW EXISTS ONLY WHILE`, `NO PLANTED BREAKAGE`, `ONE TESTING OFFICER`, `DECLARED SIZES`, `DIRTY-TREE`); ARCH-SUITE-PARTITIONS.md; ARCH-FLEET-PLAN-TO-100.md; SCORE.md § THE SUITE TABLE; the receipts in GOAL-CEO.md. More in `reference.md` § 6.
+RULES.md (`A ROW EXISTS ONLY WHILE`, `NO PLANTED BREAKAGE`, `ONE TESTING OFFICER`, `DECLARED SIZES`, `DIRTY-TREE`); skill `suites-and-grading` (the masters, stored partitions, the progress store, the suite table, test requests); skill `design-plans` (STEPS.tsv and the step harnesses); skill `fleet-bus` (a DONE-WHEN on a row).
 
 ## 7. HOW A LANDING IS PROVED
 

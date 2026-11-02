@@ -5,7 +5,7 @@ description: Hand-written C under SCRIP/src (.c, .h, .inc): the 200-column rule,
 
 # SCRIP C code
 
-Every hand-written `.c`, `.h` and `.inc` under `SCRIP/src/` (the bison/flex parsers and generated tables excepted) follows one shape and a set of prohibitions Lon ruled on verbatim. The law is RULES.md (C code style, CEO-1565; the malloc FACT RULE, CEO-832/842; NO NEW GLOBAL VARIABLES; THE LENGTH IS CARRIED; NO `-O2`; NO FIXED LIMITS) and ARCH-DYNAMIC-STORAGE.md § 5. Lon's verbatim words, the full gate list and receipts are in `reference.md` beside this file.
+Every hand-written `.c`, `.h` and `.inc` under `SCRIP/src/` (the bison/flex parsers and generated tables excepted) follows one shape and a set of prohibitions Lon ruled on verbatim. The law is RULES.md (C code style, CEO-1565; the malloc FACT RULE, CEO-832/842; NO NEW GLOBAL VARIABLES; THE LENGTH IS CARRIED; NO `-O2`; NO FIXED LIMITS) and `reference.md` § 6 (dynamic storage, the runtime globals). Lon's verbatim words, the full gate list and receipts are in `reference.md` beside this file.
 
 ## 1. THE RULES
 
@@ -61,9 +61,9 @@ On every file touched: `python3 harness/scripts/util_reflow_200.py --check <path
 
 A line over 200 bytes; a blank line; any comment but the separator; two children on one line when their parent overflowed; any allocator spelling (`strdup`, `asprintf`, `getline`, a wrapper, an alias); a mutable `static` or exported cell without the grant cited in the commit; `char buf[256]` or `#define MAX_* 1024` a program can exceed; `-O1`/`-O2`/`-O3`; `strlen` on a DESCR; a hand-edited generated table; a field holding two kinds of value; a language name past the driver; a C function entering a box (CEO-1576); `#if 0`.
 
-## 6. THE ARCH PAGES
+## 6. WHERE THE REST LIVES
 
-RULES.md (grep: C code style, malloc FACT RULE, NO NEW GLOBAL, THE LENGTH IS CARRIED); ARCH-DYNAMIC-STORAGE.md § 5; ARCH-RUNTIME-GLOBALS-INVENTORY.md; ARCH-GC-COMPILE-TIME-FRAME-MAPS.md. Receipts: CEO-1565, CEO-832/842/843, CEO-1353, CEO-1838/1840, CEO-1316, CEO-1561 in GOAL-CEO.md.
+RULES.md (grep: C code style, malloc FACT RULE, NO NEW GLOBAL, THE LENGTH IS CARRIED); `reference.md` § 6 (dynamic storage, the fixed-caps ratchet, the runtime globals and their classes); skill `gc-collector` (the collector's view of a root); skill `scrip-memory-model` (the lifetime rule's homes).
 
 ## 7. HOW A LANDING IS PROVED
 
