@@ -1,5 +1,7 @@
 # RULES.md — snobol4ever Working Rules
 
+⛔ **THE ARCH PAGES ARE RETIRED INTO THE SKILLS (Lon 2026-11-01, in the cto's window: "consolidate the information into a set of SKILLS file instead" and "We want to delete the ARCH files when you are done."; CEO-2115).** A citation of an `ARCH-*.md` page in this file is a receipt: read the page at its last commit with the command in `.github/RETIRED-ARCH-PAGES.tsv`, and read its current design in the skill that table names (`.github/skills/<name>/`). A design plan's text lives in the owning skill's DESIGN section.
+
 
 ## ⛔⭐⭐ THE MODE — READ `/home/resources/postoffice/MODE`, NEVER ASSUME ONE. (Lon s261; rewritten cto 2026-08-29 on hq_B's finding: this section named no authority that exists)
 

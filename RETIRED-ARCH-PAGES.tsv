@@ -1,0 +1,66 @@
+# RETIRED-ARCH-PAGES.tsv -- every .github/ARCH-*.md page, retired into the skills on 2026-11-01 (Lon, in the cto's window: "Scan the ARCH-*.md files and consolidate the information into a set of SKILLS file instead" and "We want to delete the ARCH files when you are done."; CEO-2115). An old citation of a page reads it at its last commit: git -C .github show <last_commit>:<page>. The current design is the skill named; 'history' marks content not carried because it was superseded or dated.
+page	last_commit	skills	read
+ARCH-BENCH-CAMPAIGN-README-TABLES.md	defabd23c	speed-measurement	git -C .github show defabd23c:ARCH-BENCH-CAMPAIGN-README-TABLES.md
+ARCH-BUILD-SYSTEM-DRAFT.md	defabd23c	scrip-build (history)	git -C .github show defabd23c:ARCH-BUILD-SYSTEM-DRAFT.md
+ARCH-BUILTIN-TABLE.md	d30dc3e5a	runtime-calls (DESIGN builtin-table)	git -C .github show d30dc3e5a:ARCH-BUILTIN-TABLE.md
+ARCH-CALL-FORMS.md	82319d3e4	box-templates (DESIGN templates-zero)	git -C .github show 82319d3e4:ARCH-CALL-FORMS.md
+ARCH-DEFER-BOX-RATIONALE.md	defabd23c	box-templates (history: a verbatim transcript of an old template's comments)	git -C .github show defabd23c:ARCH-DEFER-BOX-RATIONALE.md
+ARCH-DYNAMIC-STORAGE.md	defabd23c	scrip-c-code	git -C .github show defabd23c:ARCH-DYNAMIC-STORAGE.md
+ARCH-ENGINE.md	defabd23c	scrip-architecture, box-templates, runtime-calls (crossing law), snobol4 (pattern laws)	git -C .github show defabd23c:ARCH-ENGINE.md
+ARCH-EXCEPTIONS-ONE-PROTOCOL.md	defabd23c	runtime-calls (DESIGN exceptions)	git -C .github show defabd23c:ARCH-EXCEPTIONS-ONE-PROTOCOL.md
+ARCH-FLEET-CEO.md	defabd23c	fleet-bus	git -C .github show defabd23c:ARCH-FLEET-CEO.md
+ARCH-FLEET-PLAN-TO-100.md	defabd23c	history (a dated 2026-10-30 snapshot plan; the rows carry their own batons)	git -C .github show defabd23c:ARCH-FLEET-PLAN-TO-100.md
+ARCH-FRAME-LAYOUT-FIXED-CELLS.md	1d4d97c6c	scrip-memory-model	git -C .github show 1d4d97c6c:ARCH-FRAME-LAYOUT-FIXED-CELLS.md
+ARCH-FRAME-LAYOUT-GRANTS.md	1d4d97c6c	scrip-memory-model	git -C .github show 1d4d97c6c:ARCH-FRAME-LAYOUT-GRANTS.md
+ARCH-GC-COMPILE-TIME-FRAME-MAPS.md	3ca24feaa	gc-collector	git -C .github show 3ca24feaa:ARCH-GC-COMPILE-TIME-FRAME-MAPS.md
+ARCH-GC-PINNED-ALLOCATOR-LIFETIME-CLASSES.md	defabd23c	gc-collector	git -C .github show defabd23c:ARCH-GC-PINNED-ALLOCATOR-LIFETIME-CLASSES.md
+ARCH-GLOBAL-STACKS-TO-THE-ZETAS.md	defabd23c	scrip-memory-model	git -C .github show defabd23c:ARCH-GLOBAL-STACKS-TO-THE-ZETAS.md
+ARCH-HEADER-SPLIT.md	defabd23c	scrip-build	git -C .github show defabd23c:ARCH-HEADER-SPLIT.md
+ARCH-ICON-RTX.md	defabd23c	icon (DESIGN icon-scanning-asm), rtx-asm-leaves	git -C .github show defabd23c:ARCH-ICON-RTX.md
+ARCH-IR-CARRIES-EVERY-LANGUAGE-VARIANCE.md	d65b7e158	scrip-architecture, lowering	git -C .github show d65b7e158:ARCH-IR-CARRIES-EVERY-LANGUAGE-VARIANCE.md
+ARCH-JS.md	ec4f955e6	scrip-backends	git -C .github show ec4f955e6:ARCH-JS.md
+ARCH-JVM.md	ec4f955e6	scrip-backends, ports	git -C .github show ec4f955e6:ARCH-JVM.md
+ARCH-LANGUAGES.md	defabd23c	scrip-architecture, prolog (entry-point convention), snobol4 (& constants, Snocone), pascal, icon	git -C .github show defabd23c:ARCH-LANGUAGES.md
+ARCH-NET.md	02f698e85	scrip-backends, ports	git -C .github show 02f698e85:ARCH-NET.md
+ARCH-PARSER-SC-BOOTSTRAP.md	defabd23c	snocone-parser-patterns	git -C .github show defabd23c:ARCH-PARSER-SC-BOOTSTRAP.md
+ARCH-PASCAL-DIALECTS.md	defabd23c	pascal	git -C .github show defabd23c:ARCH-PASCAL-DIALECTS.md
+ARCH-PASCAL-PROLOG-PROGRAM-SOURCES.md	defabd23c	pascal, prolog	git -C .github show defabd23c:ARCH-PASCAL-PROLOG-PROGRAM-SOURCES.md
+ARCH-PASCAL-PRUNED-TREE.md	defabd23c	pascal	git -C .github show defabd23c:ARCH-PASCAL-PRUNED-TREE.md
+ARCH-PASCAL-REDESIGN.md	2e93dcfad	pascal (DESIGN pascal-front-end)	git -C .github show 2e93dcfad:ARCH-PASCAL-REDESIGN.md
+ARCH-PERF-TOOLING.md	c5b2a5969	speed-measurement	git -C .github show c5b2a5969:ARCH-PERF-TOOLING.md
+ARCH-PROGRAM-LEDGER.md	defabd23c	suites-and-grading	git -C .github show defabd23c:ARCH-PROGRAM-LEDGER.md
+ARCH-PROLOG-ACTIVATION-LIFETIME.md	defabd23c	prolog-engine (DESIGN prolog-lifo)	git -C .github show defabd23c:ARCH-PROLOG-ACTIVATION-LIFETIME.md
+ARCH-PROLOG-BB-REWRITE.md	defabd23c	prolog-engine	git -C .github show defabd23c:ARCH-PROLOG-BB-REWRITE.md
+ARCH-PROLOG-BYRD-BOX-TRANSLATION.md	defabd23c	prolog-engine	git -C .github show defabd23c:ARCH-PROLOG-BYRD-BOX-TRANSLATION.md
+ARCH-PROLOG-C-OUT-OF-THE-BOX.md	defabd23c	prolog-engine (history: its rows are done)	git -C .github show defabd23c:ARCH-PROLOG-C-OUT-OF-THE-BOX.md
+ARCH-PROLOG-CLPFD.md	defabd23c	prolog-constraints	git -C .github show defabd23c:ARCH-PROLOG-CLPFD.md
+ARCH-PROLOG-CLPR-CHR.md	defabd23c	prolog-constraints (DESIGN clpr-chr, done)	git -C .github show defabd23c:ARCH-PROLOG-CLPR-CHR.md
+ARCH-PROLOG-CONSTRAINTS.md	defabd23c	prolog-constraints	git -C .github show defabd23c:ARCH-PROLOG-CONSTRAINTS.md
+ARCH-PROLOG-CONTINUATIONS.md	adb0e7964	prolog-engine	git -C .github show adb0e7964:ARCH-PROLOG-CONTINUATIONS.md
+ARCH-PROLOG-DATABASE.md	d65b7e158	prolog	git -C .github show d65b7e158:ARCH-PROLOG-DATABASE.md
+ARCH-PROLOG-DIALECTS.md	defabd23c	prolog	git -C .github show defabd23c:ARCH-PROLOG-DIALECTS.md
+ARCH-PROLOG-RATIONALS.md	defabd23c	prolog	git -C .github show defabd23c:ARCH-PROLOG-RATIONALS.md
+ARCH-PROLOG-RTX.md	defabd23c	prolog-engine	git -C .github show defabd23c:ARCH-PROLOG-RTX.md
+ARCH-PROLOG-SPINE-SEGMENTS.md	defabd23c	prolog-engine	git -C .github show defabd23c:ARCH-PROLOG-SPINE-SEGMENTS.md
+ARCH-PROLOG-TABLING-BOXES.md	d789826a0	prolog-tabling	git -C .github show d789826a0:ARCH-PROLOG-TABLING-BOXES.md
+ARCH-PROLOG-TABLING-IDG.md	defabd23c	prolog-tabling	git -C .github show defabd23c:ARCH-PROLOG-TABLING-IDG.md
+ARCH-PROLOG-THREADS.md	defabd23c	prolog-engine (excluded, CEO-1766)	git -C .github show defabd23c:ARCH-PROLOG-THREADS.md
+ARCH-PROLOG-THREE-ZETAS.md	defabd23c	prolog-engine	git -C .github show defabd23c:ARCH-PROLOG-THREE-ZETAS.md
+ARCH-PROLOG-WFS-TABLING.md	defabd23c	prolog-tabling (DESIGN xsb-tabling-wfs)	git -C .github show defabd23c:ARCH-PROLOG-WFS-TABLING.md
+ARCH-RAKU-BOXES.md	defabd23c	raku	git -C .github show defabd23c:ARCH-RAKU-BOXES.md
+ARCH-RAKU-REWRITE.md	defabd23c	raku (DESIGN the rewrite)	git -C .github show defabd23c:ARCH-RAKU-REWRITE.md
+ARCH-RAKU-TO-100.md	defabd23c	raku (DESIGN raku-to-100)	git -C .github show defabd23c:ARCH-RAKU-TO-100.md
+ARCH-RANDOM-SNOBOL4-GENERATOR.md	defabd23c	snobol4 (DESIGN random-codegen-scope)	git -C .github show defabd23c:ARCH-RANDOM-SNOBOL4-GENERATOR.md
+ARCH-RT-CALL-PROTOCOL.md	defabd23c	runtime-calls, rtx-asm-leaves (the leaf contract)	git -C .github show defabd23c:ARCH-RT-CALL-PROTOCOL.md
+ARCH-RUNTIME-GLOBALS-INVENTORY.md	defabd23c	scrip-c-code	git -C .github show defabd23c:ARCH-RUNTIME-GLOBALS-INVENTORY.md
+ARCH-SHARED-DEVELOPMENT.md	3cfa01e7c	shared-box, fleet-bus (the wake rule)	git -C .github show 3cfa01e7c:ARCH-SHARED-DEVELOPMENT.md
+ARCH-SNOBOL4-RTX.md	defabd23c	rtx-asm-leaves (the register plane), snobol4	git -C .github show defabd23c:ARCH-SNOBOL4-RTX.md
+ARCH-SRC-LAYOUT-DRAFT-hq_C.md	defabd23c	scrip-build (history)	git -C .github show defabd23c:ARCH-SRC-LAYOUT-DRAFT-hq_C.md
+ARCH-SUITE-PARTITIONS.md	defabd23c	suites-and-grading	git -C .github show defabd23c:ARCH-SUITE-PARTITIONS.md
+ARCH-THREE-ZETAS-EMISSION.md	defabd23c	scrip-memory-model	git -C .github show defabd23c:ARCH-THREE-ZETAS-EMISSION.md
+ARCH-UNICON.md	c2d611260	icon (Unicon, DESIGN unicon)	git -C .github show c2d611260:ARCH-UNICON.md
+ARCH-WASM.md	ec4f955e6	scrip-backends	git -C .github show ec4f955e6:ARCH-WASM.md
+ARCH-X86-ASM-ENCODER.md	3fbe193df	box-templates	git -C .github show 3fbe193df:ARCH-X86-ASM-ENCODER.md
+ARCH-ZD-DEPTH-PLANNER.md	486af8545	scrip-memory-model	git -C .github show 486af8545:ARCH-ZD-DEPTH-PLANNER.md
+ARCH-ZETA-LAYOUT-ONE-SOURCE-OF-TRUTH.md	eecca21d2	scrip-memory-model (DESIGN zeta-layout)	git -C .github show eecca21d2:ARCH-ZETA-LAYOUT-ONE-SOURCE-OF-TRUTH.md
+ARCH-ZETA-ONE-COORDINATE.md	defabd23c	scrip-memory-model	git -C .github show defabd23c:ARCH-ZETA-ONE-COORDINATE.md
