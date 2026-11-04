@@ -15,7 +15,6 @@ LANG = {
     "prolog":  ("PROLOG", "GOAL-PROLOG-100.md", "/prolog", "ProRungs INRIA GNU-source Logtalk SWI TreallaTests XsbTests ProPuzzles ProRosetta ProDemo ProBench", "/prolog, /prolog-engine, /prolog-tabling, /prolog-constraints"),
     "pascal":  ("PASCAL", "GOAL-PASCAL-100.md", "/pascal", "PasRungs PAT FPC PasRosetta PasDemo PasBench", "/pascal (reference § 8-9: the dialect record, the pruned tree, the front-end plan)"),
     "raku":    ("RAKU", "GOAL-RAKU-100.md", "/raku", "RakRungs Roast RakDemo RakBench", "/raku (reference § 8-9: the rung ladder, the rewrite)"),
-    "snobol4": ("SNOBOL4", "GOAL-SNOBOL4-100.md", "/snobol4", "SnoRungs Gimpel Flake Budne AIS TPgm X32T X64T Dotnet SnoDemo SnoBench", "/snobol4 (reference § 8-11), /rtx-asm-leaves"),
     "snocone": ("SNOCONE", "GOAL-SNOCONE-100.md and GOAL-PARSER-SC-TRANSPILE.md", "/snobol4", "SncRungs SncDemo SncBench; the seven bootstrap parsers in SCRIP/bootstrap/", "/snocone-parser-patterns (reference § 8), /snobol4 § 10 (Snocone)"),
     "unicon":  ("UNICON (the Icon superset, CEO-2072: one front end with hq_icon's, no switch; a class, package, import or method header marks a Unicon program)", "GOAL-UNICON-100.md", "/icon", "UniTests (Unicon's own 267 tests, refs cut from unicon through unicon_bin()); the Icon suites stay at 100 and are hq_icon's", "/icon (reference § 8: the markers, the class and package model, the builtin families; § 9 the unicon plan)"),
 }
@@ -70,6 +69,10 @@ SEATS = {
     "jvm": """## THIS ROOT IS THE hq_jvm SEAT (postoffice identity `hq_jvm`), THE JVM PORT
 - `snobol4jvm/` is its repo (a sibling in this root); its rows are `<suite>@jvm` under `S4E_ENGINE=jvm` for SNOBOL4, Snocone and Rebus, graded by the same runners against the same refs (CEO-1822/1912). GOAL-HQ-JVM.md is its cursor. Down while SCRIP climbs to 100 (CEO-2069); its rows stay in place.
 - Skills: `/snobol4`.
+""",
+    "snobol4": """## THIS ROOT IS THE hq_snobol4 SEAT (postoffice identity `hq_snobol4`), THE SNOBOL4 LANE
+- Suites to 100, one program at a time by THE LANDING RECIPE: SnoRungs Gimpel Flake Budne AIS TPgm X32T X64T Dotnet SnoDemo SnoBench; the lane's state is the LIVE CURSOR of `GOAL-SNOBOL4-100.md`; manuals under `/home/resources/manuals/snobol4/`. A red in shared code (runtime, collector, planner, templates) is named by bus to its seat and cured there, never patched around in the lane.
+- Skills: `/snobol4` first (reference § 8-11), `/rtx-asm-leaves`, `/scrip-memory-model` for any frame, placement or collector question.
 """,
 }
 for seat, (lane, goal, skill, suites, arch) in LANG.items():
