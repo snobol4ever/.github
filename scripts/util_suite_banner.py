@@ -1092,7 +1092,16 @@ def main(a):
         print(render_table()); return
     if '--md' in a: md(); return
     if '--engines' in a: engines(plain='--plain' in a); return
-    grid(plain='--plain' in a)
+    if '--single' in a:
+        grid(plain='--plain' in a)
+    else:   # the coo 2026-11-04 (Lon: "no reason to keep the single sided version"): the printed grid is the DOUBLE-SIDED banner by default, banner_compact.py beside this script; --single keeps the one-row-per-suite grid for a reader that parses it
+        import io, contextlib, subprocess
+        _buf = io.StringIO()
+        with contextlib.redirect_stdout(_buf):
+            grid(plain='--plain' in a)
+        _bc = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'banner_compact.py')
+        _r = subprocess.run([sys.executable, '-I', _bc], input=_buf.getvalue(), capture_output=True, text=True) if os.path.isfile(_bc) else None
+        sys.stdout.write(_r.stdout if _r is not None and _r.returncode == 0 and _r.stdout.strip() else _buf.getvalue())
     return
 # ⛔⭐ AN IMPORT MUST NEVER BE A COMMAND (hq_B 2026-09-13). This module is the tree's ONE display-width
 # authority -- dw() -- so any consumer that wants it must import this file; util_fit_columns.py does exactly
