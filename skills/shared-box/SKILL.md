@@ -10,7 +10,7 @@ Nineteen seats share 16 cores and about 30 GB. The kernel divides CPU by weight 
 ## 1. Where your work runs (live values, read 2026-11-01)
 
 - **Your session scope is the door** (CEO-2105): every child of your session inherits `CPUQuota=400%`, `cpu.weight 100`, `MemoryHigh 4G`, `MemoryMax 8G`, `MemorySwapMax 1G`, `TasksMax 2048`, set by the `SessionStart` hook (`harness/scripts/s4e_session_start.sh`). A seat's scope weighted wrong is restored by `s4e_session_start.sh --pid <session pid>`, never by hand.
-- **The grader** (the coo's loops): `s4e.slice/s4e-grader.slice`, weight 300, `MemoryMax 10G`. **Batch** (identity runs, censuses, compile-all sweeps, callgrind, the DONE-WHEN sweep, cron): `s4e.slice/s4e-batch.slice`, weight 50, `MemoryMax 12G`, each job its own 8 GB scope. **The sessions** sit in `app-org.gnome.Terminal.slice` (weight 100, high 20G, max 24G). `s4e.slice` and `app.slice` compete at weight 100 each at the top.
+- **The grader** (the coo's loops): `s4e.slice/s4e-grader.slice`, weight 300, `MemoryMax 10G`. **Batch** (identity runs, censuses, compile-all sweeps, callgrind, the DONE-WHEN sweep, cron): `s4e.slice/s4e-batch.slice`, weight 50, `MemoryMax 12G`, each job its own 8 GB scope. **The sessions** sit in `app-org.gnome.Terminal.slice` (weight 100, high 20G, max 24G). `s4e.slice` (weight 200) outranks `app.slice` (weight 100) at the top (box-scheduler step 7, CTO-496).
 - **A helper is never placed** (CEO-2108): Claude Code's own daemon and pty hosts are not sessions; a seat's scope is never weighted as Lon's.
 
 ## 2. The three kinds of run
