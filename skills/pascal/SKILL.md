@@ -45,7 +45,7 @@ The record is GOAL-PASCAL-100.md (LIVE FRONT on top); a page beats this skill. P
 ## 7. Rulings a landing must not break
 
 - One type model, built by lower, keyed by symbol, never by name; no second model beside the typer.
-- DESCR cells, ARBLK arrays, records as slot arrays; a pointer is (base cell, element index), never an interior pointer (R5); `extended` is a boxed 80-bit leaf (R6), no x87 in the emitter.
+- DESCR cells, ARBLK arrays, records as slot arrays; a pointer is (base cell, element index), never an interior pointer (R5); `extended` is an INLINE DESCR kind `DT_XR` (R6 as amended, CTO-486 on hq_pascal's reading of descr.h: the 64-bit mantissa in the value word, sign and exponent in slen's low 16 bits, nothing allocated, no visitor, the cfo reviews the tag), no x87 in the emitter.
 - ShortString(N): a store truncates to N, `sizeof` is N+1, `s[0]` is the length byte (R4).
 - The entry graph is `main`; a user routine named `main` is renamed by the duplicate-name pass.
 - Features land in rungs of at most 20 lines, one construct, ref cut from fpc, red once (CEO-1680); rung N+1 opens when N is green in both modes.

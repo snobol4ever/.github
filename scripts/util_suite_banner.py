@@ -593,6 +593,12 @@ def grid(plain=False):
     rows=[r for r in rows if _engine_of(r.get('key',''))==eng] if eng else _scrip(rows)
     if langs: rows=[r for r in rows if (r.get('lang') or '').strip().lower() in langs]
     data=[]
+    # ⭐ M3 and M4 (Lon 2026-11-04, in-chat to the cto, verbatim: "The display banner need modifying to show both mode 3 and mode 4 numbers
+    # seperately."; CTO-482): each mode's own pass count over the SAME population and tree as Pass, from the today_m3_pass and today_m4_pass
+    # columns the row's writer sets (--set ... --m3 N --m4 N, util_score_row.py from-progress counts them beside the both-modes AND). A row whose
+    # reading carries no per-mode count prints "-" in both cells: the number is the writer's or it is absent, never read from another population.
+    def _pm(r):
+        return [((r.get(c) or '').strip() or "-") for c in ('today_m3_pass','today_m4_pass')]
     for r in rows:
         # ⛔ A ROW WITH NO READING IS PRINTED, NEVER SKIPPED (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...). This
         # loop used to `continue` past any row whose today_* did not parse, so a suite nobody had graded yet vanished from the grid while
@@ -601,7 +607,7 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError):
             _t=(r.get('today_total') or '').strip()
-            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", "", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"] + ([_read_day(r)] if eng else [])); continue
+            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-"] + _pm(r) + ["", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"] + ([_read_day(r)] if eng else [])); continue
         # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
         # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
         # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
@@ -613,12 +619,12 @@ def grid(plain=False):
             pct=f"{pv}%"
         # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
         # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the rung suites).
-        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", delta(r, tp, tt), (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")] + ([_read_day(r)] if eng else []))
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}"] + _pm(r) + [delta(r, tp, tt), (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")] + ([_read_day(r)] if eng else []))
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         if eng: print(f"SUITE GRID: no row yet (engine {eng}) -- no board has graded {GRID_PROGRAMS.get(eng, eng)} into SUITES.tsv"); return
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Lang","Suite","Pass","Total","\u0394","Excl","Pct","Wall","State"] + (["Date"] if eng else [])
+    hdr=["Lang","Suite","Pass","Total","M3","M4","\u0394","Excl","Pct","Wall","State"] + (["Date"] if eng else [])
     cols=len(hdr)
     # ⭐ ONE EXTRA COLUMN OF ROOM PER CELL (Lon 2026-09-13: "Give one extra space in each column to give room
     # to breath."). Added to the WIDTH, so the rules that span each column widen with it and the box still
@@ -626,7 +632,7 @@ def grid(plain=False):
     # right of a left-justified name -- which is why this is one number here and not a space glued onto a cell.
     w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) + 1 for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
-    NUM={2,3,4,5,6,7}   # Pass, Total, Delta, Excl, Pct, Wall -- the numeric cells, right-justified; Lang/Suite/State stay left.
+    NUM={2,3,4,5,6,7,8,9}   # Pass, Total, M3, M4, Delta, Excl, Pct, Wall -- the numeric cells, right-justified; Lang/Suite/State stay left.
     def line(cs, hdr_row=False):
         # ⭐ THE EXTRA COLUMN IS A TRAILING SPACE ON EVERY CELL, not slack handed to the justifier. Give it to
         # rpad() instead and a right-justified number lands FLUSH AGAINST THE RIGHT BORDER with the gap on its
@@ -636,14 +642,14 @@ def grid(plain=False):
             j = rpad if (c in NUM and not hdr_row) else pad
             return j(cs[c], w[c]-1) + " "
         return "\u2502" + "\u2502".join(cell(c) for c in range(cols)) + "\u2502"
-    done=sum(1 for r in data if r[8]=="DONE")
+    done=sum(1 for r in data if r[10]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
     print(line(hdr, hdr_row=True))
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
     if eng:
-        stale=[r[1] for r in data if r[9]!=dt.date.today().strftime('%m-%d')]
+        stale=[r[1] for r in data if r[11]!=dt.date.today().strftime('%m-%d')]
         print(f"{len(data)} suites, {done} at 100% -- {GRID_PROGRAMS.get(eng, eng)}'s own readings (engine {eng}), {', '.join(langs or ())}")
         if stale: print(f"NOT WRITTEN TODAY: {', '.join(stale)} -- file them with the coo (s4e_test_request.sh --engine {eng} <key> --part chunk:NN|core); a row is current only when every entry has a reading (ceo CEO-1903)")
     else: print(f"{len(data)} suites, {done} at 100%")
@@ -952,6 +958,20 @@ def main(a):
         history(head,before,rows)
         print(f"--set-wall {key}: the Wall reads {(new + ' s') if new else 'blank'}" + (f"\n{note}" if note else ""))
         return
+    if '--add-mode-columns' in a:
+        # ⭐ THE ONE-TIME SCHEMA STEP OF CTO-482 (Lon 2026-11-04: "show both mode 3 and mode 4 numbers seperately."): today_m3_pass and today_m4_pass join the
+        # record empty, under the table lock and the history writer; every later --set fills the one row it writes. Idempotent; a table that has them is untouched.
+        _suite_table_lock()
+        head,rows=load()
+        if 'today_m3_pass' in head and 'today_m4_pass' in head:
+            print(f"--add-mode-columns: {TSV} already carries today_m3_pass and today_m4_pass; nothing written"); return
+        before=open(TSV,encoding='utf-8').read()
+        for c in ('today_m3_pass','today_m4_pass'):
+            if c not in head:
+                head.append(c)
+                for x in rows: x.setdefault(c,'')
+        save(head,rows); history(head,before,rows)
+        print(f"--add-mode-columns: today_m3_pass and today_m4_pass added to {TSV} ({len(rows)} rows, every cell empty until its row's next from-progress write)"); return
     if '--readme' in a:
         j=a.index('--readme'); path=a[j+1] if len(a)>j+1 and not a[j+1].startswith('-') else _readme_path()
         sys.exit(readme_write(path))
@@ -983,6 +1003,17 @@ def main(a):
         # ⭐ --secs N (Lon 2026-10-08, in-chat to the ceo: "List in a grid the total time for each test suite to run."; CEO-1562): the run's
         # wall clock in seconds, from the runner's own start (util_score_row.py reads S4E_RUN_T0, stamped by one_runner_guard) to its row
         # write, written to the today_secs column (added on first use, as today_excluded was) and shown as WALL= and in the grid's Wall column.
+        # ⭐ --m3 N --m4 N (Lon 2026-11-04: "show both mode 3 and mode 4 numbers seperately."; CTO-482): the reading's pass count in each mode alone,
+        # over the row's own population, written to today_m3_pass and today_m4_pass (columns added on first use) and shown as the grid's M3 and M4.
+        # A --set that carries neither is a reading with no per-mode count: it CLEARS both cells unless it re-sets the same reading, so a stale per-mode
+        # number never sits beside a new Pass.
+        pm={}
+        for _mo in ('--m3','--m4'):
+            if _mo in a:
+                j=a.index(_mo)
+                if len(a)<=j+1 or not re.match(r'^\d+$', a[j+1]):
+                    sys.stderr.write(f"REFUSE(rc=2): {_mo} takes a count\n"); sys.exit(2)
+                pm[_mo[2:]]=a[j+1]; a=a[:j]+a[j+2:]
         secs=None
         if '--secs' in a:
             j=a.index('--secs')
@@ -1034,6 +1065,12 @@ def main(a):
                 head.append('today_excluded')
                 for x in rows: x.setdefault('today_excluded','')
             r['today_excluded']=excluded
+        # ⛔ THE COLUMNS ARE NEVER ADDED BY A ROW WRITE (the port-engine gate, first proof of CTO-482): growing the header rewrites EVERY row's line, and a
+        # port's publish must leave SCRIP's row untouched. --add-mode-columns adds them to a table once; a table without them records no per-mode count.
+        if 'today_m3_pass' in head and 'today_m4_pass' in head:
+            for m in ('m3','m4'):
+                r['today_'+m+'_pass']=pm.get(m, (r.get('today_'+m+'_pass') or '') if (_same_reading and not pm) else '')
+        elif pm: print(f"--set {key}: per-mode counts not recorded -- {TSV} has no today_m3_pass/today_m4_pass columns (util_suite_banner.py --add-mode-columns adds them once)")
         if void or (r.get('today_void') or '').strip():
             if 'today_void' not in head:
                 head.append('today_void')

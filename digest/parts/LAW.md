@@ -1,0 +1,9 @@
+## ⛔ STANDING LAW (the text and Lon's words: `.github/RULES.md`; the rulings: GOAL-CTO.md under each CTO-NNNN, GOAL-CEO.md under each CEO-NNNN, a closed record)
+- ORDER OF WORK: completeness, correctness (placement included), speed; speed only for SNOBOL4 and Icon, by instruction count; Raku climbs the rung ladder.
+- THE GO: an `assign`, or a SendMessage from the cto or coo naming a row, IS Lon's go; a question never stops the work; only Lon answers a permission prompt.
+- MEMORY MODEL: placement decided ONCE in the planner; a retry never restores RSP; a γ pops only a fenced construct's cells; construct → stack, outlives scope → heap, out of stack → bigger declared `-s`; no global holds a stack; no frame markers.
+- NO C FUNCTION ENTERS A BOX; only `tree_t` crosses to lower, and lower builds every runtime table; no language flag past the driver.
+- ONE TESTING OFFICER: only the coo runs suites, boards and the blocking set, and writes suite rows. A lander re-grades its ONE program in both modes, runs the feature reps and the smoke of each language touched (all eight for shared code), then asks `s4e_test_request.sh` (eight programs at most).
+- MEASUREMENT: `-dirty` is UNREAD; no oracle answer → excluded, never debt; no XFAIL; a test that cannot measure refuses rc 2; a DONE-WHEN a deletion satisfies is false; instruction counts, never clocks.
+- CODE: 200 columns, zero comments, zero blank lines; no symlinks, `malloc`, `-O2`, fixed limits or delimiter-joined aggregates; declared sizes are hard caps; generated tables regenerated, never edited; no new global without Lon's grant; no subagents in the repos.
+- THE CHAT IS NOT THE RECORD: a ruling lands in its GOAL file's LIVE CURSOR on origin the same sitting; what a seat did goes in its baton's LEDGER. ANNOUNCEMENT.md is the scope authority.

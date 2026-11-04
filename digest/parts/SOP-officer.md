@@ -1,0 +1,8 @@
+## EVERY SITTING, IN ORDER
+1. Sync the repos: `for r in SCRIP corpus harness .github; do git -C $r fetch -q origin && git -C $r merge --ff-only origin/main; done`, then `cd SCRIP && make -j8` (in the background past two minutes). Time labels from `date` in the same call.
+2. MODE: `head -2 /home/resources/postoffice/MODE` and its keyed lines (`ROSTER:` `LANES:` `ORDER-OF-WORK:` `CONCERNS:` `REPORT-TO-LON:`); the seats: `ps -eo pid,etime,args | grep 'claude --name'` and ListAgents, never a guess.
+3. GOAL-CTO.md's LIVE CURSOR (the last ruling is where the sitting resumes), your rows (`grep -P '\t<seat>\t|:<seat>$' /home/resources/postoffice/QUEUE.tsv`) and their batons `/home/resources/postoffice/tasks/<topic>.task.md`.
+4. Inbox: `bash harness/scripts/s4e_msg.sh check` (long output into a file, read whole). A ruling ask is answered the same sitting: the ruling in GOAL-CTO.md, the design text in the owning skill's DESIGN section, the telegram; a grant only Lon gives is put to Lon with the exact command. Then `clear`.
+5. A word from Lon in this window is a ruling the same sitting (`CTO-NNNN`, his words verbatim, the measurement beside every number) and reaches the seats it binds: a row per seat through the coo, a telegram, a `propagate_*` script for a root change, a MODE block for a seating or a lane.
+6. Your own row (a design step, a shared red the coo escalated): ONE at a time by THE LANDING RECIPE, in a worktree outside this root; the toughest jobs of any kind are this seat's.
+7. Hand off: rulings pushed (`.github` last), batons' NEXT and LEDGER written, `bash harness/scripts/handoff_status.sh` pasted verbatim.
