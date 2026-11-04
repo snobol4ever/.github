@@ -43,6 +43,6 @@ The law is RULES.md (THE COLLECTOR GUESSES NOTHING, NO FRAME MARKERS, NO PINNING
 
 ## 6. DESIGN (open, the cto's)
 
-- **The spine mask** (zeta-layout steps 4a and 4b; the cell-shape table's word-kind column, the planner's fact column, the site's third quad): the walk visits exactly the declared words and the 8-byte reject loop (`.Lsw_reject` in `rtx_gc.s`, still present) is deleted. Step 4b is ASSIGNED to hq_collector.
+- **The spine mask** (zeta-layout steps 4a and 4b; the cell-shape table's word-kind column, the planner's fact column, the site's third quad: at a rule-1 or rule-2 site NW << 32 | the byte offset of its mask words, blocks shared by prefix, CEO-2118): the walk visits exactly the declared words and the 8-byte reject loop (`.Lsw_reject` in `rtx_gc.s`, still present) is deleted. Step 4b is ASSIGNED to hq_collector.
 - **Early reset is liveness by site** (2026-10-31; row `gc-swi-core-test-gc-early-reset-...`, PARKED): lower computes, for every clause-retry site, the cells the remaining alternatives read, the map at that site declares those cells only, and a second trail pass resets the entries no forward execution reaches.
 - **The site record from the row** (zeta-layout step 3): the text-site rescan goes and rule 5 ceases.
