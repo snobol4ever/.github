@@ -6,3 +6,4 @@ S4E_ENGINE={engine} bash harness/scripts/test_snobol4_<pkg>_suite.sh            
 bash harness/scripts/util_instr_count.sh <cmd>...                                           # speed is an instruction count against sbl
 ```
 `/home/resources/x64/bin/sbl -bf` is the oracle; `/home/resources/manuals/snobol4/` the manual. Never `pkill -f`; kill only pids you spawned. Large outputs in `/tmp/s4e/<seat>/`, never under the root.
+`perf` is the launcher `~/.local/bin/perf`: the `/usr/bin/perf` shim prints `WARNING: perf not found for kernel 6.17.0-1032` because the OEM package ships no perf, yet the counter works. Never `apt install`, never drop an instruction count for it; `perf --version` reads 6.8.12, else `type -a perf` (GOAL-SNOBOL4-100.md BOX FACT).

@@ -9,3 +9,4 @@ python3 ../harness/scripts/corpus_suite_harness.py run ../corpus/tests/{lang}/AL
 bash ../harness/scripts/test_{lang}_ladder.sh --to N | --only N
 ```
 A package program: its runner `test_{lang}_<pkg>_suite.sh` with `S4E_CHUNK=entry:<name>`. Never `pkill -f`; kill only pids you spawned. Large outputs in `/tmp/s4e/<seat>/`, never under the root; a scratch worktree outside the root.
+`perf` is the launcher `~/.local/bin/perf`: the `/usr/bin/perf` shim prints `WARNING: perf not found for kernel 6.17.0-1032` because the OEM package ships no perf, yet the counter works. Never `apt install`, never drop an instruction count for it; `perf --version` reads 6.8.12, else `type -a perf` (GOAL-SNOBOL4-100.md BOX FACT).
