@@ -5,7 +5,7 @@ description: SCRIP's Unicon superset of Icon (unicon 13.3 is the oracle through 
 
 # SCRIP Unicon
 
-The record is `GOAL-UNICON-100.md` (LIVE CURSOR, newest first); a page beats this skill. Unicon is Icon plus classes, packages, patterns, threads and the system interface. SCRIP has ONE Icon front end (Lon, CEO-2072: "Let's extend Icon ..."): no switch a user types, a marker or the package's declaration decides. Load skill `icon` first (the machine, the scan registers, the suites), `scrip-memory-model` for any frame or placement question, `gates-and-witnesses` for a witness. Seat hq_unicon (`/home/claude_unicon`, bus identity `hq_unicon`).
+The record is `GOAL-UNICON-100.md` (LIVE CURSOR, newest first); a page beats this skill. Unicon is Icon plus classes, packages, patterns, threads and the system interface. SCRIP has ONE Icon front end (Lon, CEO-2072: "Let's extend Icon ..."): no switch a user types, a marker or the package's declaration decides. The documentation is distilled in `reference.md` beside this file (langref, diffs, classes, large, string, thread, system, struct: each section says what SCRIP does today and names its witness); this page keeps SCRIP's own facts. Load skill `icon` first (the machine, the scan registers, the suites), `scrip-memory-model` for any frame or placement question, `gates-and-witnesses` for a witness. Seat hq_unicon (`/home/claude_unicon`, bus identity `hq_unicon`).
 
 ## 1. The rulings
 
