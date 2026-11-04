@@ -121,6 +121,16 @@ bash scripts/test_icon_all_rungs.sh 2>/dev/null | tail -1   # fresh watermark FI
 
 ---
 
+## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-11-04 13:2x CST hq_icon (TENET, CTO-470; the coo's SendMessage naming the row, THE GO) — **SLICE 1 OF THE START-UP ROW IS ON ORIGIN: THE ICON GLOBAL NAMES AND THE PROCEDURES' NAME ROWS ARE STATIC DATA AND ONE rt_icn_tabs_install CALL, NOT 205 rt_icn_global_note AND 70 rt_proc_loc_add CALLS (SCRIP `e1fa98da1`, harness `0afbb05`)**
+
+Row icon-the-startup-rebuilds-compile-time-tables-procedures-csets-globals-registered-by-c-calls-at-run-time-ceo-1969 (CLAIMED, not done). The DONE-WHEN's emitted calls over the 17 Icon benchmarks read 395 and now read 120: rt_icn_global_note 205 -> 0, rt_proc_loc_add 70 -> 0; rt_proc_register_rec 71 and rt_icn_cset_register 49 REMAIN. The compiler emits `.Lstartup_gnames` and `.Lstartup_icn_loc` (48-byte rows) behind a 32-byte arena block header (CT_MAGIC_BIG, now in ct_arena.h) so a later ct_grow copies them; one call assigns the runtime's own vectors (g_lower.lc.icn_gnames.v, g_runtime.rt.proc_loc) to them, no new global and no new exported symbol. gva_register no longer runs the lowerer's note function in every program. MEASURED with both libraries in equal-length directories (a long RUNPATH alone adds 2-3K): empty Icon program 429,195 -> 428,489, tgrlink 661,990 -> 639,999 user instructions. Gate test_gate_icon_global_and_local_names_ride_the_module_table_not_startup_calls.sh (wired, adopted): RED on 5ac03c751, GREEN after; display() byte-equal to iconx in both modes; eight display/variable witnesses PASS m3 and m4; nine smokes rc 0. A weak-default exported symbol read by the library was built first and reverted: +1.2K in every mode-4 program (BIND_NOW). Full measurements, slices 2 and 3 designed: the row's baton NEXT.
+
+The 17 stored corpus/benchmarks/icon/*.s are stale by this emission change (the coo regenerates). Two reds on origin that are not this lane's, identical before and after this landing and already named to the coo: test_gate_dyn_caps_ratchet.sh arms 2, 5, 7 and the ratchet arm (d) of test_gate_c_allocators_are_eradicated_and_say_where_they_went.sh.
+
+NEXT: slice 2 (rt_proc_register_rec and the rt_gen_procs registry, Icon-only programs, same static-array-plus-install shape), then slice 3 (rt_icn_cset_register, with icon-scanning-asm step 2); the second assigned row icon-lists-tables-and-record-fields-are-built-and-read-in-c-from-the-emitted-site-ceo-1969 follows.
+
+---
+
 ## ⛔⭐⭐⭐⭐ LIVE CURSOR — 2026-11-04 10:58 CST hq_icon (TENET, CTO-470; the coo's assign and SendMessage, THE GO) — **THE THREE SUITE ROWS ARE CLOSED AND THE keywords.c CLASS-1 EVASION IS CURED ON ORIGIN: THE CSET REGISTRY'S THREE TABLES ARE COLLECTED-HEAP BLOCKS WITH ROOTS (SCRIP `7cdf2c219`, harness `9c0b3dc`)**
 
 Rows closed with `done` on the boards: icon-icn-rungs-to-100-the-failing-rungs-ceo-2094 (IcnRungs 936/936), icon-arizona-to-100-lgint-and-tracer-ceo-2094 (118/118) and icon-jcon-to-100-lgint-ceo-2094 (Jcon 85/85), each `util_suite_row_at_100.sh <key>` rc 0 at the sitting's start.
