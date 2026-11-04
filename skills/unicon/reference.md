@@ -33,7 +33,7 @@ The book's own list of what breaks an Icon program, in full: (1) functions Unico
 | `key(list)` indices | GREEN (Unicon state only) | rung 45 key_list |
 | `system()` exit status | GREEN (Unicon state only) | rung 47 system_status |
 | `name()` forms `table_1[...]` `list_1[3]` `record C_1.f` | GREEN (Unicon state) | the harness name-form gate, UniTests general/var |
-| 16-digit reals | RED (grant) | uni_class_hello, checkc checkx ck checkfpc checkfpx overflow tprintf ilib |
+| 16-digit reals | GREEN (Unicon state; STATE-GLOBAL `g_runtime.misc.real_digits`, CTO-501; `ICN$UDIGITS(16)` at the start of main) | uni_class_hello, checkc checkx ck checkfpc checkfpx overflow tprintf (ilib stays red for another cause: `link` resolves Arizona's IPL and unicon's ipl/procs is a different, semicolon-free version: `spell` and `DateLineToSec` differ) |
 | mixed int/real sort order, `min`/`max` lists | RED | general/sort |
 | `&clock`/`&dateline` time zone | not probed | none yet |
 
