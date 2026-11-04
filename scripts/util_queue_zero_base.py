@@ -51,9 +51,10 @@ printed and nothing is written; --no-run skips the execution and reports the sta
 import json, os, re, shutil, signal, subprocess, sys, tempfile, time
 PO = os.environ.get("S4E_POSTOFFICE", "/home/resources/postoffice")
 Q, QD, QR, TASKS = PO + "/QUEUE.tsv", PO + "/QUEUE.done.tsv", PO + "/QUEUE.retired.tsv", PO + "/tasks"
-S4E = os.environ.get("S4E_HOME", "/home/claude_ceo")
+S4E = os.environ.get("S4E_HOME") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # the coo 2026-11-04: the root that holds this .github (the ceo root is gone; the default crashed every sweep since 11-01)
 if "--help" in sys.argv or "-h" in sys.argv: print(__doc__); sys.exit(0)
 apply = "--apply" in sys.argv; norun = "--no-run" in sys.argv
+_m = re.search(r"^ROSTER:\s*(.*)$", open("/home/resources/postoffice/MODE", encoding="utf-8").read(), re.M); SEATED = set(_m.group(1).split()) if _m else set()   # MODE's keyed ROSTER line: the seated seats (the coo 2026-11-04)
 tmo = int(sys.argv[sys.argv.index("--timeout") + 1]) if "--timeout" in sys.argv else 240
 stamp = time.strftime("%Y%m%d-%H%M%S")
 PLACEHOLDER = ("NOT MEASURED", "minted with no acceptance criterion", "NOT EXPRESSED")
@@ -166,6 +167,8 @@ for f in parsed:
     # read green, four red, two past 240 s and nine could not measure. Such a row is swept as FREE: its own DONE-WHEN decides it.
     if s == "PARKED-UMBRELLA" and ":" in state and state.split(":", 1)[1] not in topics_live: s = "FREE"
     if s == "PARKED-LON-HOLD" or s == "PARKED-UMBRELLA": decisions[topic] = ("KEEP-" + s, "", "KEEP"); continue
+    if s == "PARKED": decisions[topic] = ("KEEP-PARKED-SEATED" if owner in SEATED else "KEEP-PARKED-STOOD-DOWN", "", "KEEP"); continue   # the coo 2026-11-04: a seated seat's plain PARKED row is live work
+    # (a cure waiting on its grade, a design step), not litter: retiring it lost the cto's euler14 and predicate_property rows in a dry run. A stood-down seat's is kept too: MODE parks its rows in place until Lon's word (CEO-755c, no re-lane).
     if s in ("PARKED-EXECUTIVE-NO-SEAT", "PARKED-REBUS-CLOSED", "PARKED"): decisions[topic] = ("RETIRE-" + s.lower(), "", "RETIRED"); continue
     if s in ("PARKED-SUPERSEDED-BY", "PARKED-DUPLICATE-OF"): decisions[topic] = ("RETIRE-" + s.lower(), "", "RETIRED"); continue
     if s == "PARKED-EXPIRED":
