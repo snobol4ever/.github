@@ -5,7 +5,7 @@ description: SCRIP's Icon (Arizona Icon 9.5.25a is the oracle; semicolons requir
 
 # SCRIP Icon
 
-The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this skill. Icon is the SNOBOL4 machine with a second syntax; the Unicon superset (CEO-2072, `reference.md` § 8) extends it with no switch. Suite tables, file maps and receipts in full are in `reference.md` beside this file.
+The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this skill. Icon is the SNOBOL4 machine with a second syntax; the Unicon superset (CEO-2072; skill `unicon`) extends it with no switch. Suite tables, file maps and receipts in full are in `reference.md` beside this file.
 
 ## 1. The oracle
 
@@ -27,7 +27,7 @@ The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this sk
 
 ## 4. The related skills
 
-`rtx-asm-leaves` (the Icon leaves `rtx_icn*.s`, the register plane: r13 Σ, r14 δ, r15 Δ inside a scan); `scrip-memory-model` (the cell frame of an Icon procedure, the spine, generators as retaining edges); `gc-collector` (co-expression segments, the allocating-box polls); `runtime-calls` (the call protocol, generator procedures, the builtin table's Icon step, `&error` and `runerr` on the error protocol); `box-templates`; `scrip-backends` (SCRIP's future targets). The Unicon superset and the two design plans are in `reference.md` § 8-9.
+`rtx-asm-leaves` (the Icon leaves `rtx_icn*.s`, the register plane: r13 Σ, r14 δ, r15 Δ inside a scan); `scrip-memory-model` (the cell frame of an Icon procedure, the spine, generators as retaining edges); `gc-collector` (co-expression segments, the allocating-box polls); `runtime-calls` (the call protocol, generator procedures, the builtin table's Icon step, `&error` and `runerr` on the error protocol); `box-templates`; `scrip-backends` (SCRIP's future targets). The Unicon superset is skill `unicon` (load it for any Unicon edit); the design plans are in `reference.md` § 9.
 
 ## 5. The suites
 

@@ -90,7 +90,7 @@ LANES = {
              "`/icon` first (reference § 8-9), `/rtx-asm-leaves` for a generator leaf", "icon", "icn"),
     "unicon": ("THE UNICON LANE (the Icon superset: one front end with hq_icon's, no switch; a class, package, import or method header marks a Unicon program)", "UniTests (Unicon's own tests, refs cut through `unicon_bin()`); the Icon suites stay at 100 and are hq_icon's", "GOAL-UNICON-100.md",
                "Unicon through `unicon_bin()`; Icon's `icont_bin()` for what both share", "icon",
-               "`/icon` first (reference § 8: the markers, the class and package model; § 9 the unicon plan)", "icon", "icn"),
+               "`/unicon` first (the markers, the class and package model, the pattern type, UniTests, the rungs), then `/icon`", "icon", "icn"),
     "prolog": ("THE PROLOG LANE", "ProRungs INRIA GNU-source Logtalk SWI TreallaTests XsbTests ProPuzzles ProRosetta ProDemo ProBench", "GOAL-PROLOG-100.md",
                "the program's own dialect decides: swipl 9.0.4 (`swipl_bin()`), GNU Prolog 1.6.0 (`gprolog_bin()`, `gplc_bin()`), XSB 5.0.0 (`xsb_bin()`, the xsb_tests package only); a Prolog witness is graded against swipl run once", "prolog",
                "`/prolog` first, then `/prolog-engine`, `/prolog-tabling` or `/prolog-constraints` as the row's machine", "prolog", "pl"),
