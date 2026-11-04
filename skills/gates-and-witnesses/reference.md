@@ -68,7 +68,7 @@ rank,entry,origin,family,kind,xfail,n_lines,heap_kb,stack_kb,compile_args,run_ar
 A DONE-WHEN that a deletion cannot satisfy and that reads its own denominator (the craft-skills row, CEO-2076): it tests the files exist, then runs the checker over them and the installer's `--check`; deleting a skill turns it red, and `done` runs it.
 
 ```bash
-DONE-WHEN: cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" && for s in box-templates rtx-asm-leaves lowering scrip-c-code gates-and-witnesses; do test -f .github/skills/$s/SKILL.md || { echo "RED: no skill $s"; exit 1; }; done && python3 harness/scripts/util_skill_check.py --craft box-templates rtx-asm-leaves lowering scrip-c-code gates-and-witnesses && bash .github/scripts/propagate_skills_ceo_2071.sh --check
+DONE-WHEN: cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" && for s in box-templates rtx-asm-leaves lowering scrip-c-code gates-and-witnesses; do test -f .github/skills/$s/SKILL.md || { echo "RED: no skill $s"; exit 1; }; done && python3 harness/scripts/util_skill_check.py --craft box-templates rtx-asm-leaves lowering scrip-c-code gates-and-witnesses && bash .github/scripts/propagate_skills.sh --check
 PREMISE-WHEN: test -d "${S4E_HOME:?}/.github/skills"
 ```
 

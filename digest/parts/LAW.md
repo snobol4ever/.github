@@ -1,4 +1,4 @@
-## ⛔ STANDING LAW (the text and Lon's words: `.github/RULES.md`; the rulings: GOAL-CTO.md under each CTO-NNNN, GOAL-CEO.md under each CEO-NNNN, a closed record)
+## ⛔ STANDING LAW (the text and Lon's words: `.github/RULES.md`; the rulings: GOAL-CTO.md under each CTO-NNNN; an older CEO-NNNN citation is the fired seat's, its record deleted on Lon's word and readable only in git history)
 - ORDER OF WORK: completeness, correctness (placement included), speed; speed only for SNOBOL4 and Icon, by instruction count; Raku climbs the rung ladder.
 - THE GO: an `assign`, or a SendMessage from the cto or coo naming a row, IS Lon's go; a question never stops the work; only Lon answers a permission prompt.
 - MEMORY MODEL: placement decided ONCE in the planner; a retry never restores RSP; a γ pops only a fenced construct's cells; construct → stack, outlives scope → heap, out of stack → bigger declared `-s`; no global holds a stack; no frame markers.

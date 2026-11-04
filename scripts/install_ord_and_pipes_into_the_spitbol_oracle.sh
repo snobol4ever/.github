@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install_ord_and_pipes_into_the_spitbol_oracle_ceo_1424.sh -- compile ORD into our SPITBOL fork AND cure its ! command pipes, and swap
+# install_ord_and_pipes_into_the_spitbol_oracle.sh -- compile ORD into our SPITBOL fork AND cure its ! command pipes, and swap
 # the build in as the SNOBOL4 correctness oracle,
 # under the ORACLE-SWAP PROCEDURE (RULES.md section Oracles). Lon 2026-10-02, in-chat to the ceo: "Add the ORD function." and "Finish ORD
 # and test6." (ceo CEO-1415); and on the pipes: "I'm hoping we have the "!process" file I/O fake-out sub-process." and "You could use that
@@ -13,7 +13,7 @@
 # (packages, tests, benchmarks, demos, include, library: 0); the 23 users are under programs/lon_cherryholmes, which no suite grades.
 #
 # WHY LON RUNS IT: every write under /home/resources is refused to the ceo seat by the harness classifier (Modify Shared Resources); the
-# 2026-09-05 swap was a one-line ! bash for the same reason. Run it as:   ! bash .github/scripts/install_ord_and_pipes_into_the_spitbol_oracle_ceo_1424.sh
+# 2026-09-05 swap was a one-line ! bash for the same reason. Run it as:   ! bash .github/scripts/install_ord_and_pipes_into_the_spitbol_oracle.sh
 #
 # WHAT IT DOES, and nothing else:
 #   1 refuses unless the fork is clean at 012d00e (SET) with the installed bin/sbl md5 ffda07f4..., the binary the ceo measured against;
@@ -30,7 +30,7 @@
 # CENSUS (the ceo, 730 corpus SNOBOL4 programs, stdin /dev/null, 20 s, old against new): 717 identical; csnobol4_suite/ord.sno and
 # snoflake_suite/csnobol4-extensions.sno change (they call ORD); the other 11 differ old against old too, or only in the post-mortem's
 # execution-time line (timing, ASLR, EOF loops cut by the timeout).
-# Usage: bash install_ord_and_pipes_into_the_spitbol_oracle_ceo_1424.sh [--dry-run]     (--dry-run stops after step 3)
+# Usage: bash install_ord_and_pipes_into_the_spitbol_oracle.sh [--dry-run]     (--dry-run stops after step 3)
 # Exit: 0 done · 1 a step failed after the install began · 2 REFUSED, nothing installed.
 set -u
 DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1

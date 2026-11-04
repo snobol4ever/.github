@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# install_lower_case_end_and_division_by_minus_one_into_the_spitbol_oracle_ceo_1452.sh -- TWO cures in the SNOBOL4 correctness oracle, one
-# swap, under the ORACLE-SWAP PROCEDURE (RULES.md section Oracles). SUPERSEDES install_division_by_minus_one_into_the_spitbol_oracle_ceo_1445.sh,
+# install_lower_case_end_and_division_by_minus_one_into_the_spitbol_oracle.sh -- TWO cures in the SNOBOL4 correctness oracle, one
+# swap, under the ORACLE-SWAP PROCEDURE (RULES.md section Oracles). SUPERSEDES install_division_by_minus_one_into_the_spitbol_oracle.sh,
 # which was never run: both patches sit on fork commit 9a70e79, and one swap carries both.
 # (1) Lon 2026-10-03, in-chat to the ceo, verbatim: "So fix the SPITBOL oracle to accept END as upper-case, and end as lower-case." and
 #     "Ensure that SCRIP only accepts upper-case END." (ceo CEO-1452). Under -f the end statement was found only by the predefined
@@ -12,7 +12,7 @@
 #     REMDR(m, -1) killed sbl with SIGFPE (int.dcl's do_dvi and do_rmi tested only a zero divisor before idiv): a divisor of -1 now
 #     negates (ERROR 14 on the smallest integer) or leaves remainder 0, as SCRIP already answers.
 # WHY LON RUNS IT: every write under /home/resources is refused to the ceo seat by the harness classifier (Modify Shared Resources).
-# Run it as:   ! bash .github/scripts/install_lower_case_end_and_division_by_minus_one_into_the_spitbol_oracle_ceo_1452.sh   (--dry-run stops after step 3)
+# Run it as:   ! bash .github/scripts/install_lower_case_end_and_division_by_minus_one_into_the_spitbol_oracle.sh   (--dry-run stops after step 3)
 # WHAT IT DOES, and nothing else:
 #   1 refuses unless the fork is clean at 9a70e79 with the installed bin/sbl md5 5bd72ede..., the binary the ceo measured against;
 #   2 copies the fork to a temp dir, applies the patch below (sbl.min 8 lines, int.dcl 15 lines), rebuilds, and refuses unless the build's

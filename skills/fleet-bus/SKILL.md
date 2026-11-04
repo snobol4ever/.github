@@ -10,7 +10,7 @@ The law is `.github/RULES.md`; the postoffice's own rules are `/home/resources/p
 ## 1. Who is who (MODE is the record; read it, never prose)
 
 - **Lon is the CEO** (2026-10-31). The **cto** is the officer in charge and the designer: rulings, DESIGN-PLANs, MODE custody, grants put to Lon (CEO-2089/2095). The **coo** is the admin boss and the one testing officer: the loop, the board, the queue, assignments, the suite table, test requests (CEO-1342, CEO-2095). The cfo, cao and cqo are officers; the `hq_*` seats work their lanes.
-- `head -1 /home/resources/postoffice/MODE` is the mode (SOLO, DUO, TRIO, QUARTET, TENET); line 2 is each seat's business, newest block first; the keyed lines `ROSTER:` `LANES:` `ORDER-OF-WORK:` `CONCERNS:` `REPORT-TO-LON:` are machine-read. A MODE flip: back up, one edit at the head of line 2, `.github/scripts/ceo_mode_flip.sh --check` rc 0.
+- `head -1 /home/resources/postoffice/MODE` is the mode (SOLO, DUO, TRIO, QUARTET, TENET); line 2 is each seat's business, newest block first; the keyed lines `ROSTER:` `LANES:` `ORDER-OF-WORK:` `CONCERNS:` `REPORT-TO-LON:` are machine-read. A MODE flip: back up, one edit at the head of line 2, `.github/scripts/mode_flip.sh --check` rc 0.
 - **The go** (CEO-2071): an `assign` or a SendMessage from the cto or the coo naming a row is Lon's go; a question never stops the work; only Lon answers a permission prompt.
 
 ## 2. The bus: `bash harness/scripts/s4e_msg.sh <verb>` from the root

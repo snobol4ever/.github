@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# propagate_banner_compact_ceo_2129.sh -- THE DOUBLE-SIDED BANNER ON EVERY SEAT'S STOP HOOK (Lon 2026-11-04, in-chat to the cto, verbatim: "In the
+# propagate_banner_compact.sh -- THE DOUBLE-SIDED BANNER ON EVERY SEAT'S STOP HOOK (Lon 2026-11-04, in-chat to the cto, verbatim: "In the
 # display banner add a column for a delta/difference and distribute the new double-sided banner across the fleet."; CEO-2129).
 # The banner a seat sees at every Stop is `s4e_msg.sh banner` piped through .claude/banner_compact.py (the two-column grid with the Δ column,
 # source .github/scripts/banner_compact.py, first built in the cto's root 2026-11-03). This script copies the filter into every root's .claude/
 # and rewrites the root's Stop hook command to pipe through it when present (the file's absence is guarded in the hook, so a root without the
 # file keeps the plain banner; a hook written into settings reaches a running session at once). A settings.json is backed up beside itself
 # before it is rewritten. --check reports without writing.
-#   usage: propagate_banner_compact_ceo_2129.sh [--check]
+#   usage: propagate_banner_compact.sh [--check]
 CHECK=0; [ "${1:-}" = "--check" ] && CHECK=1
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/banner_compact.py"
 [ -f "$SRC" ] || { echo "REFUSE(2): no $SRC"; exit 2; }

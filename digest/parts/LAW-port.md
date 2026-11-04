@@ -1,4 +1,4 @@
-## ⛔ STANDING LAW (the text and Lon's words: `.github/RULES.md`; the rulings: GOAL-CTO.md under each CTO-NNNN, GOAL-CEO.md under each CEO-NNNN, a closed record)
+## ⛔ STANDING LAW (the text and Lon's words: `.github/RULES.md`; the rulings: GOAL-CTO.md under each CTO-NNNN; an older CEO-NNNN citation is the fired seat's, its record deleted on Lon's word and readable only in git history)
 - ORDER OF WORK: completeness, correctness, speed; speed by instruction count against `sbl`, never a clock.
 - THE GO: an `assign`, or a SendMessage from the cto or coo naming a row, IS Lon's go; a question never stops the work; only Lon answers a permission prompt.
 - ONE TESTING OFFICER: only the coo runs suites and boards and writes suite rows (a port's row is `<suite>@<engine>`, opened by its first publish through `util_score_row.py from-progress`). A lander re-grades its ONE program and runs `test_smoke_snobol4_<engine>.sh`, then asks `s4e_test_request.sh --engine <engine>` (eight programs at most).

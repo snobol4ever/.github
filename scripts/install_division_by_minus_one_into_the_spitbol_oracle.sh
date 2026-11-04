@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install_division_by_minus_one_into_the_spitbol_oracle_ceo_1445.sh -- the SNOBOL4 correctness oracle stops dying of SIGFPE on the
+# install_division_by_minus_one_into_the_spitbol_oracle.sh -- the SNOBOL4 correctness oracle stops dying of SIGFPE on the
 # smallest integer divided by -1, under the ORACLE-SWAP PROCEDURE (RULES.md section Oracles: when the oracle is broken we stop and fix it).
 # Lon 2026-10-02, in-chat to the ceo, building the SCRIPtix program's variables: "Have lowest intger also so - 1 will do overflow." With
 # m = -9223372036854775807 - 1, every overflow agrees between sbl and SCRIP (m - 1 ERROR 34, -m 11, m * -1 28, n + 1 3) EXCEPT that
@@ -10,7 +10,7 @@
 # overflow). SCRIP already answers ERROR 14 and 0, so after this swap the two agree on every case.
 #
 # WHY LON RUNS IT: every write under /home/resources is refused to the ceo seat by the harness classifier (Modify Shared Resources).
-# Run it as:   ! bash .github/scripts/install_division_by_minus_one_into_the_spitbol_oracle_ceo_1445.sh       (--dry-run stops after step 3)
+# Run it as:   ! bash .github/scripts/install_division_by_minus_one_into_the_spitbol_oracle.sh       (--dry-run stops after step 3)
 #
 # WHAT IT DOES, and nothing else:
 #   1 refuses unless the fork is clean at 9a70e79 (ORD and pipes) with the installed bin/sbl md5 5bd72ede..., the binary the ceo measured;
@@ -24,7 +24,7 @@
 # gimpel-random-poem, x64 gcbuster) differ old against old too, or match on a rerun -- timing, the clock, random seeds.
 # Exit: 0 done · 1 a step failed after the install began · 2 REFUSED, nothing installed.
 set -u
-[ "${CEO_1452_ALLOW:-}" = 1 ] || { echo "⛔ REFUSE(rc=2): superseded by install_lower_case_end_and_division_by_minus_one_into_the_spitbol_oracle_ceo_1452.sh, which carries this patch too -- run that one"; exit 2; }
+[ "${CEO_1452_ALLOW:-}" = 1 ] || { echo "⛔ REFUSE(rc=2): superseded by install_lower_case_end_and_division_by_minus_one_into_the_spitbol_oracle.sh, which carries this patch too -- run that one"; exit 2; }
 DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1
 FORK=${FORK:-/home/resources/x64}
 ORACLES=${ORACLES:-/home/resources/ORACLES.md}

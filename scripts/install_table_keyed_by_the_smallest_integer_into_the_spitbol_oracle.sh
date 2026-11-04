@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install_table_keyed_by_the_smallest_integer_into_the_spitbol_oracle_ceo_1461.sh -- the SNOBOL4 correctness oracle no longer dies when a
+# install_table_keyed_by_the_smallest_integer_into_the_spitbol_oracle.sh -- the SNOBOL4 correctness oracle no longer dies when a
 # TABLE is subscripted by the smallest integer, under the ORACLE-SWAP PROCEDURE (RULES.md section Oracles: when the oracle is broken we
 # stop and fix it). Found by the ceo's millions-run of the SCRIPtix program on Lon's a..z layout, where m = -9223372036854775807 - 1 is
 # a preset and a batch line (h(s) =RPOS(0)) after (s = m) assigned through t[m]: the SPITBOL child died with SIGSEGV (CEO-1461). The
@@ -7,7 +7,7 @@
 # integer has no positive twin, so the bucket offset went negative and the oracle read or wrote wild. The cure hashes that one value as
 # zero (tfn0a). t[m] = 1 and OUTPUT = t[m] both died before; SCRIP and CSNOBOL4 answer them.
 # WHY LON RUNS IT: every write under /home/resources is refused to the ceo seat by the harness classifier (Modify Shared Resources).
-# Run it as:   ! bash /home/claude_ceo/.github/scripts/install_table_keyed_by_the_smallest_integer_into_the_spitbol_oracle_ceo_1461.sh   (--dry-run stops after step 3)
+# Run it as:   ! bash /home/claude_ceo/.github/scripts/install_table_keyed_by_the_smallest_integer_into_the_spitbol_oracle.sh   (--dry-run stops after step 3)
 # WHAT IT DOES, and nothing else:
 #   1 refuses unless the fork is clean at c545d25 (the CEO-1452 swap) with the installed bin/sbl md5 cac7dec6..., the binary the ceo measured;
 #   2 copies the fork to a temp dir, applies the 10-line sbl.min patch below, rebuilds, and refuses unless the build's md5 is the one the
