@@ -15,12 +15,13 @@ The law is `.github/RULES.md`; the postoffice's own rules are `/home/resources/p
 
 ## 2. The bus: `bash harness/scripts/s4e_msg.sh <verb>` from the root
 
-`next claim unclaim park done assign reown mint ask send check clear mailbox sweep board banner fleet whoami premise`. Run bus verbs one at a time with absolute paths; never pipe one into a short read; a send during a bus lock delivers nothing.
+`next claim unclaim park done assign reown mint rule ask send check clear mailbox sweep board banner fleet whoami premise`. Run bus verbs one at a time with absolute paths; never pipe one into a short read; a send during a bus lock delivers nothing.
 
 - **next** serves rows ASSIGNED to you, then your unfinished claim, then FREE rows by rank. A seat holds at most two live claims (CEO-2078); an ASSIGNED row not yet running does not count.
 - **mint** `<topic> [rank] [--owner <seat>] --stdin` is the only way to add work: a GOAL with its own `DONE-WHEN:` and `PREMISE-WHEN:` lines. A topic needs a language prefix or `--owner`. Mint refuses a prose criterion.
 - **done** `<topic>` runs the DONE-WHEN and refuses a red; the claim is untouched on a refusal. A criterion over `S4E_DONE_TIMEOUT` refuses rc 2 (could not measure). `S4E_DONE_OVERRIDE="why"` is loud and written into the claim.
 - **park** `<topic> <STATE>`: `PARKED-AWAITING:<request-id>` (waiting on the coo's verdict), `BLOCKED-ON:<topic>` (waiting on another row; it clears when that row is DONE), `PARKED-LON-HOLD:<why>`, `GRANT-NEEDED:<why>`.
+- **rule** `<GOAL-file> <ID> --to <seat,seat> --row <topic> --stdin` (headline line, then body; CTO-496 box-scheduler step 12): ONE act writes a ruling once -- the bullet at the head of the GOAL file's LIVE CURSOR, committed alone, rebased and pushed; a telegram to each named seat citing the hash; the row's baton LEDGER line. Every input is checked before the first write; an id already heading a bullet refuses; a failed push undoes the commit. `rule --probe` proves it on scratch.
 - **send** `<seat> <topic> --stdin` with a quoted heredoc; it refuses a backtick or a command substitution. **check** displays the inbox; **clear** archives exactly what check displayed. An empty inbox is the acknowledgement.
 
 ## 3. The baton: `/home/resources/postoffice/tasks/<topic>.task.md`
