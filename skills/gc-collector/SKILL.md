@@ -39,6 +39,7 @@ The law is RULES.md (THE COLLECTOR GUESSES NOTHING, NO FRAME MARKERS, NO PINNING
 - A leaf that can allocate returns to a safe point; a poll is a register-preserving asm leaf; a recording poll form clobbers caller-saved registers, so a tail never re-stores registers after an arm polled.
 - `ZGC-STALE` in an asm leaf after a C call is a clobbered register, not a root. A poll that DIFFs in every configuration names a reclaimed root, not a moved one. A hang under stress is often slowness.
 - A GC witness may not print what the collector decides (counts, addresses); it prints the program's answer.
+- The asm spine scans (`rt_gc_walk_words_a`, `rt_gc_frame_cells_a`) keep their cursor in `gc_mk` bytes 184..271 (draining, fc_*, sw_p, sw_hi); a visitor reached from `gc_visit_mblk` that walks stack words runs its own scans through the same fields and each ends by zeroing them, so it must save and restore the region around the walk (`gc_visit_pseg` does, since 2026-11-04). A red that appears only under `SCRIP_DIAG=0` while `SCRIP_DIAG=0 SCRIP_GC_MAPS=1` is green is this class: the C census walk has no shared cursor, the asm one does.
 - Bound a collector experiment's memory with a cgroup, never a timeout. Grade a collector landing in both modes under stress on the witnesses, and the identity lines against a control worktree.
 
 ## 6. DESIGN (open, the cto's)
