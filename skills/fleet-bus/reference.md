@@ -39,8 +39,8 @@ Verified 2026-11-01 against `harness/scripts/s4e_msg.sh` (harness 30f859e), the 
 
 ## 4. The officers' loops
 
-- **The coo's** (CEO-2095): the round robin and tier 1 under `s4e-grader.slice`, the verifier reds, the test requests, the board, the queue (assign FREE rows to seats that finish; release stale claims with a reason), the fleet-system watch (`util_seat_census.py --check` and `--memory-check`, `SLOT_WAITS.tsv`, /tmp, the oom ledger), the hourly `sweep`.
-- **The cto's**: every ask and design gap answered on the owning skill's DESIGN section and by telegram the same sitting; a ruling recorded in `GOAL-CEO.md`'s LIVE CURSOR numbered after the highest `CEO-NNNN` on origin; a fleet-wide ruling propagated to every root by a `propagate_*` script, never by hand; grants only Lon gives put to Lon in the cto's window.
+- **The coo's** (CEO-2095): the round robin and tier 1 under `s4e-grader.slice`, the verifier reds, the test requests, the board, the queue (assign FREE rows to seats that finish; release stale claims with a reason), the fleet-system watch (`util_seat_census.py --check` and `--memory-check`, `SLOT_WAITS.tsv`, /tmp, the oom ledger), the hourly `sweep`, and the idle watch (CTO-469): a seat with no live row is given work first (its red found, minted, assigned) and then woken by SendMessage.
+- **The cto's**: every ask and design gap answered on the owning skill's DESIGN section and by telegram the same sitting; a ruling recorded in `GOAL-CTO.md`'s LIVE CURSOR as the next `CTO-NNNN` on origin (GOAL-CEO.md is the closed record, CTO-469); a fleet-wide ruling propagated to every root by a `propagate_*` script, never by hand; grants only Lon gives put to Lon in the cto's window.
 - **An HQ's**, in order: drain (answer every question into the batons' QA), verify (run the DONE-WHEN of anything claiming done), mint (criteria a correct fix can meet and a wrong fix cannot), assign.
 
 ## 5. Conduct rules from PROTOCOL.md that stand
@@ -51,14 +51,6 @@ Verified 2026-11-01 against `harness/scripts/s4e_msg.sh` (harness 30f859e), the 
 - A row passed through three seats with no commit is design work, and goes to the cto.
 - Questions go to the officers by the bus, never to Lon in the chat; Lon's asks are put to him by the cto.
 
-## 6. The wake rule as designed (CEO-2107; the coo's row `fleet-the-wake-list-names-who-holds-advanceable-work-the-verdict-unparks-and-the-hand-off-is-cheap-ceo-2107`, ASSIGNED:coo on 2026-11-01)
+## 6. The wake rule (CTO-469; the CEO-2107 wake-list design is retired)
 
-1. `s4e_msg.sh wake` prints one verdict per ROSTER seat: `RESUME <topic>` (a RUNNING claim, an idle session), `NEW <n>` (no live row, n rows wait for it), `LEAVE <why>` (busy, BLOCKED-ON, PARKED-AWAITING, no row, port stood down). Idle is the newest transcript under `~/.claude/projects/-home-claude-<seat>/` older than three minutes and no command running under the root. The coo's tick rewrites `postoffice/WAKE.txt` every five minutes.
-2. A sitting ends by parking its wait (`PARKED-AWAITING:<request-id>` or `BLOCKED-ON:<topic>`).
-3. The coo's verdict telegram moves `PARKED-AWAITING:<request>` back to `CLAIMED:<seat>`.
-4. A SendMessage goes only to a RESUME or NEW seat and only to name the row; everything else is a telegram.
-5. `handoff_status.sh` runs only the seat's own facts and prints in under a minute; the box-wide censuses are the coo's tick.
-6. Assign ahead; never wake a finished seat (Lon's `/clear` and `next` start it).
-7. `assign` runs its probes holding no bus identity and no queue lock.
-8. A pending test request reads as PARKED-AWAITING whether or not the seat parked.
-9. The acceptance: a day's census with no sitting ending within ten minutes on nothing unless the list said LEAVE, every hand-off under a minute. The proof gate is `test_gate_wake_list_names_each_seats_verdict.sh` (to be written with the row).
+Lon 2026-11-04, verbatim: "You ensure that the seat HAS WORK first, and then you wake it." The coo, every tick: for each ROSTER seat with no live row and an idle session, find its work (a red in its language from the loop, or an ASSIGNED or FREE row it can serve), mint what is not yet a row, assign it, then SendMessage the seat naming the row. A RUNNING row with an idle session: SendMessage the row. What stands from CEO-2107: a sitting that waits parks its wait (`PARKED-AWAITING:<request-id>`, `BLOCKED-ON:<topic>`); the coo's verdict telegram un-parks it; `handoff_status.sh` prints the seat's own facts in under a minute; `assign` runs its probes holding no bus identity and no queue lock. Retired: the wake list, `s4e_msg.sh wake`, `WAKE.txt`, the RESUME/NEW/LEAVE verdicts, "never wake a finished seat", the acceptance census of the list, and the row `fleet-the-wake-list-names-who-holds-advanceable-work-the-verdict-unparks-and-the-hand-off-is-cheap-ceo-2107`.

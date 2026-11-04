@@ -5,7 +5,7 @@ description: How the fleet coordinates: the officers and seats, MODE and its key
 
 # The fleet bus
 
-The law is `.github/RULES.md`; the postoffice's own rules are `/home/resources/postoffice/PROTOCOL.md` (cto custody); the rulings carry their numbers in `GOAL-CEO.md`. Detail and every verb's behaviour are in `reference.md` beside this file.
+The law is `.github/RULES.md`; the postoffice's own rules are `/home/resources/postoffice/PROTOCOL.md` (cto custody); the rulings are `CTO-NNNN` entries in `GOAL-CTO.md`'s LIVE CURSOR (the fired ceo seat's series CEO-1 to CEO-2133 is closed in `GOAL-CEO.md` and is cited as the record, CTO-469). Detail and every verb's behaviour are in `reference.md` beside this file.
 
 ## 1. Who is who (MODE is the record; read it, never prose)
 
@@ -35,13 +35,12 @@ Line 1 is `# TASK <topic>` and nothing else (state lives only in `QUEUE.tsv`: ra
 - **The chat is not the record**: a ruling lands in its GOAL file's LIVE CURSOR on origin before the sitting ends; what a seat did goes in the baton's LEDGER.
 - **Tests**: a lander runs its program in both modes, `test_feature_reps.sh`, and the smokes; the suites are the coo's, asked for by `s4e_test_request.sh` (at most eight programs).
 
-## 5. Telegrams, SendMessage and the wake rule (CEO-2107)
+## 5. Telegrams, SendMessage and the wake rule (CTO-469)
 
-- A telegram (`send`) is the record and is read at the recipient's next sitting; it wakes nobody. A SendMessage is a pointer that starts a turn.
-- To the cto: a ruling ask, a design gap, a grant. To the coo: a cross-seat fact, a claim collision, a test request. Unsure: both.
-- Wake a seat only if it has not finished its row: a SendMessage goes to a seat with a RUNNING row and an idle session, to name that row. A seat that finished is started only by Lon's `/clear` and `next`; the coo assigns its next row ahead so `next` serves it.
-- A seat that stops because it waits parks the wait first (`PARKED-AWAITING:` or `BLOCKED-ON:`), shows its banner and stops.
-- The wake list (`s4e_msg.sh wake`, `postoffice/WAKE.txt`) is designed (`reference.md` § 6) and is the coo's ASSIGNED row; neither the verb nor the file exists on 2026-11-01.
+- A telegram (`send`) is the record and is read at the recipient's next sitting; it wakes nobody. A SendMessage is a pointer that starts a turn. `send ceo` is refused: that seat was fired 2026-10-31.
+- To the cto: a ruling ask, a design gap, a grant. To the coo: a cross-seat fact, a claim collision, a test request, a red. Unsure: both.
+- THE WAKE RULE (Lon 2026-11-04: "You ensure that the seat HAS WORK first, and then you wake it."): the coo, every tick, for each ROSTER seat with no live row and an idle session, finds its work (a red in its language, or an ASSIGNED or FREE row it can serve), mints what is not yet a row, assigns it, and only then sends the SendMessage naming the row. A seat with a RUNNING row and an idle session is sent its row. No wake list, no WAKE.txt. The cto wakes nobody.
+- A seat that stops because it waits parks the wait first (`PARKED-AWAITING:` or `BLOCKED-ON:`), shows its banner and stops; a seat that finished its row hands off and stops, and the coo gives it work and wakes it.
 
 ## 6. Ending a sitting
 

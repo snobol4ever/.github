@@ -1,4 +1,4 @@
-## ⛔ STANDING LAW (text and Lon's words: RULES.md and GOAL-CEO.md under each number)
+## ⛔ STANDING LAW (text and Lon's words: RULES.md; GOAL-CTO.md under each CTO-NNNN; GOAL-CEO.md under each CEO-NNNN, the fired seat's closed record)
 - ORDER OF WORK (CEO-1886/1895/2035/1931): completeness, correctness (placement included), speed; speed only for SNOBOL4 and Icon, by instruction count; Raku climbs the rung ladder.
 - THE GO (CEO-2071): an `assign`, or a SendMessage from the cto or coo naming a row, IS Lon's go; a question never stops the work; only Lon answers a permission prompt.
 - MEMORY MODEL (CEO-1895/1354/1542/1368): placement decided ONCE in the planner; a retry never restores RSP; a γ pops only a fenced construct's cells; construct → stack, outlives scope → heap, out of stack → bigger declared `-s`; no global holds a stack; no frame markers.
