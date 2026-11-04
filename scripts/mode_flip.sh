@@ -62,6 +62,8 @@ case "${1:---check}" in
       [ "$match" = 1 ] || { printf '⛔ %s allows the roster %s, and MODE names: %s\n' "$MODE_NOW" "$ok" "$SET"; exit 1; }
     fi
     printf 'roster (%s)     :%s\n' "$n" "$ROSTER"
+    bash "$S4E/harness/scripts/util_mode_cap.sh" --check \
+        || { printf '⛔ MODE is over its cap or has no archive (box-scheduler step 14): run harness/scripts/util_mode_cap.sh --apply\n'; exit 1; }
     bash "$GATE" >/dev/null 2>&1; rc=$?
     if [ "$rc" = 0 ]; then printf '✅ table and MODE AGREE (gate rc=0)\n'; exit 0; fi
     printf '⛔ table and MODE DISAGREE (gate rc=%s)\n' "$rc"
