@@ -567,6 +567,19 @@ def _grid_langs():
     return GRID_LANGS.get(_grid_seat())
 def _grid_engine():
     return GRID_ENGINES.get(_grid_seat())
+def delta(r, tp, tt):
+    """THE DELTA COLUMN (Lon 2026-11-04, in-chat to the cto: "In the display banner add a column for a delta/difference and distribute the
+    new double-sided banner across the fleet."; CEO-2129): the SIGNED move of this row's reading since the reading before it. --set keeps
+    the superseded today_pass/today_total/today_date in prev_pass/prev_total/prev_date whenever a write changes the pass or the total
+    (a re-assembly of the same numbers moves nothing and keeps the previous move visible), so the cell reads the last move and only the
+    last move: +3 (three more pass), -2 (two fewer), and when the denominator moved too, the total's own signed move after a slash
+    (+3/+5: three more pass over five more programs). Double-sided means both signs are shown as they are, a fall as plainly as a rise,
+    and both numbers move. Blank while a row has no earlier reading on file."""
+    pp=(r.get('prev_pass') or '').strip(); pt=(r.get('prev_total') or '').strip()
+    if not pp.isdigit(): return ""
+    out=f"{tp-int(pp):+d}"
+    if pt.isdigit() and int(pt)!=tt: out+=f"/{tt-int(pt):+d}"
+    return out
 def grid(plain=False):
     """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "And a grid of the test suite
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
@@ -596,7 +609,7 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError):
             _t=(r.get('today_total') or '').strip()
-            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"] + ([_read_day(r)] if eng else [])); continue
+            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-", "", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"] + ([_read_day(r)] if eng else [])); continue
         # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
         # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
         # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
@@ -608,12 +621,12 @@ def grid(plain=False):
             pct=f"{pv}%"
         # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
         # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the rung suites).
-        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")] + ([_read_day(r)] if eng else []))
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}", delta(r, tp, tt), (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")] + ([_read_day(r)] if eng else []))
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         if eng: print(f"SUITE GRID: no row yet (engine {eng}) -- no board has graded {GRID_PROGRAMS.get(eng, eng)} into SUITES.tsv"); return
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Lang","Suite","Pass","Total","Excl","Pct","Wall","State"] + (["Date"] if eng else [])
+    hdr=["Lang","Suite","Pass","Total","\u0394","Excl","Pct","Wall","State"] + (["Date"] if eng else [])
     cols=len(hdr)
     # ⭐ ONE EXTRA COLUMN OF ROOM PER CELL (Lon 2026-09-13: "Give one extra space in each column to give room
     # to breath."). Added to the WIDTH, so the rules that span each column widen with it and the box still
@@ -621,7 +634,7 @@ def grid(plain=False):
     # right of a left-justified name -- which is why this is one number here and not a space glued onto a cell.
     w=[max(dw(hdr[c]), max(dw(r[c]) for r in data)) + 1 for c in range(cols)]
     def rule(l,m,rr): return l + m.join("\u2500"*(w[c]) for c in range(cols)) + rr
-    NUM={2,3,4,5,6}   # Pass, Total, Excl, Pct, Wall -- the numeric cells, right-justified; Lang/Suite/State stay left.
+    NUM={2,3,4,5,6,7}   # Pass, Total, Delta, Excl, Pct, Wall -- the numeric cells, right-justified; Lang/Suite/State stay left.
     def line(cs, hdr_row=False):
         # ⭐ THE EXTRA COLUMN IS A TRAILING SPACE ON EVERY CELL, not slack handed to the justifier. Give it to
         # rpad() instead and a right-justified number lands FLUSH AGAINST THE RIGHT BORDER with the gap on its
@@ -631,14 +644,14 @@ def grid(plain=False):
             j = rpad if (c in NUM and not hdr_row) else pad
             return j(cs[c], w[c]-1) + " "
         return "\u2502" + "\u2502".join(cell(c) for c in range(cols)) + "\u2502"
-    done=sum(1 for r in data if r[7]=="DONE")
+    done=sum(1 for r in data if r[8]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
     print(line(hdr, hdr_row=True))
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
     if eng:
-        stale=[r[1] for r in data if r[8]!=dt.date.today().strftime('%m-%d')]
+        stale=[r[1] for r in data if r[9]!=dt.date.today().strftime('%m-%d')]
         print(f"{len(data)} suites, {done} at 100% -- {GRID_PROGRAMS.get(eng, eng)}'s own readings (engine {eng}), {', '.join(langs or ())}")
         if stale: print(f"NOT WRITTEN TODAY: {', '.join(stale)} -- file them with the coo (s4e_test_request.sh --engine {eng} <key> --part chunk:NN|core); a row is current only when every entry has a reading (ceo CEO-1903)")
     else: print(f"{len(data)} suites, {done} at 100%")
@@ -1016,6 +1029,15 @@ def main(a):
                              f"A denominator move without its stamp is the dishonest-denominator class (CEO-546, CEO-749): pass the stamp, or keep the total. "
                              f"NOTHING WAS WRITTEN.\n"); sys.exit(2)
         _same_reading=((r.get('today_pass') or '').strip(),(r.get('today_total') or '').strip(),(r.get('tree') or '').strip())==(str(p).strip(),str(t).strip(),(tree or (r.get('tree') or '')).strip())
+        # ⭐ THE PREVIOUS READING IS KEPT FOR THE DELTA COLUMN (Lon 2026-11-04, CEO-2129): a write that moves the pass or the total files the
+        # superseded today_* as prev_*; the same reading re-assembled files nothing, so the grid's delta keeps reading the last move.
+        _op,_ot=(r.get('today_pass') or '').strip(),(r.get('today_total') or '').strip()
+        if _op.isdigit() and _ot.isdigit() and (_op!=str(p).strip() or _ot!=str(t).strip()):
+            for _c in ('prev_pass','prev_total','prev_date'):
+                if _c not in head:
+                    head.append(_c)
+                    for x in rows: x.setdefault(_c,'')
+            r['prev_pass'],r['prev_total'],r['prev_date']=_op,_ot,(r.get('today_date') or '').strip()
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
         # ⛔ A ROW'S FIRST READING IS ALSO ITS first_* (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...): a row that
         # entered the table empty had no first_pass, so eta() read int('') and the render inside this call raised -- the lane's FIRST
