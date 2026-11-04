@@ -36,8 +36,7 @@ SEATS = {
 - Skills: `/pascal` first, then the language of the row it holds; `/scrip-memory-model` for any frame or collector question.
 """,
     "cao": """## THIS ROOT IS THE CAO SEAT (postoffice identity `cao`)
-- A general Opus officer (CEO-2026): suite rows to 100 by the landing recipe and the rows MODE line 2 names for it (on 2026-10-31: XsbTests' well-founded-semantics steps and the Prolog streams step). GOAL-CAO.md is its cursor.
-- Skills: `/prolog` and `/prolog-tabling` first, then the language of the row it holds.
+- A general Opus officer (CEO-2026): the rows MODE line 2 names for it, by the landing recipe; GOAL-CAO.md is its cursor. Skills: `/prolog` and `/prolog-tabling` first.
 """,
     "cqo": """## THIS ROOT IS THE CQO SEAT (postoffice identity `cqo`)
 - A general Opus officer (CEO-2026): suite rows to 100 by the landing recipe and the rows MODE line 2 names for it (on 2026-10-31: SWI and TreallaTests, split with hq_icon by file; then the consulted-clause record build). GOAL-CQO.md is its cursor.
