@@ -569,17 +569,9 @@ def _grid_engine():
     return GRID_ENGINES.get(_grid_seat())
 def delta(r, tp, tt):
     """THE DELTA COLUMN (Lon 2026-11-04, in-chat to the cto: "In the display banner add a column for a delta/difference and distribute the
-    new double-sided banner across the fleet."; CEO-2129): the SIGNED move of this row's reading since the reading before it. --set keeps
-    the superseded today_pass/today_total/today_date in prev_pass/prev_total/prev_date whenever a write changes the pass or the total
-    (a re-assembly of the same numbers moves nothing and keeps the previous move visible), so the cell reads the last move and only the
-    last move: +3 (three more pass), -2 (two fewer), and when the denominator moved too, the total's own signed move after a slash
-    (+3/+5: three more pass over five more programs). Double-sided means both signs are shown as they are, a fall as plainly as a rise,
-    and both numbers move. Blank while a row has no earlier reading on file."""
-    pp=(r.get('prev_pass') or '').strip(); pt=(r.get('prev_total') or '').strip()
-    if not pp.isdigit(): return ""
-    out=f"{tp-int(pp):+d}"
-    if pt.isdigit() and int(pt)!=tt: out+=f"/{tt-int(pt):+d}"
-    return out
+    new double-sided banner across the fleet." and, 09:2x: "The delta column represents how many failures remain."; CEO-2129): Total minus
+    Pass, the programs of the printed denominator still to cure. 0 on a done suite; blank only where the row has no reading."""
+    return f"{tt-tp}"
 def grid(plain=False):
     """THE SUITE SCORE GRID (Lon 2026-09-13, in-chat to cfo, verbatim, in order: "And a grid of the test suite
     scores." - "Ensure a grid is output not text from the shell script." - "No, the grid must not be text." -
@@ -1029,15 +1021,6 @@ def main(a):
                              f"A denominator move without its stamp is the dishonest-denominator class (CEO-546, CEO-749): pass the stamp, or keep the total. "
                              f"NOTHING WAS WRITTEN.\n"); sys.exit(2)
         _same_reading=((r.get('today_pass') or '').strip(),(r.get('today_total') or '').strip(),(r.get('tree') or '').strip())==(str(p).strip(),str(t).strip(),(tree or (r.get('tree') or '')).strip())
-        # ⭐ THE PREVIOUS READING IS KEPT FOR THE DELTA COLUMN (Lon 2026-11-04, CEO-2129): a write that moves the pass or the total files the
-        # superseded today_* as prev_*; the same reading re-assembled files nothing, so the grid's delta keeps reading the last move.
-        _op,_ot=(r.get('today_pass') or '').strip(),(r.get('today_total') or '').strip()
-        if _op.isdigit() and _ot.isdigit() and (_op!=str(p).strip() or _ot!=str(t).strip()):
-            for _c in ('prev_pass','prev_total','prev_date'):
-                if _c not in head:
-                    head.append(_c)
-                    for x in rows: x.setdefault(_c,'')
-            r['prev_pass'],r['prev_total'],r['prev_date']=_op,_ot,(r.get('today_date') or '').strip()
         r['today_pass'],r['today_total'],r['today_date']=p,t,date
         # ⛔ A ROW'S FIRST READING IS ALSO ITS first_* (coo 2026-09-23, row instruments-benchmarks-enter-the-suite-grid-...): a row that
         # entered the table empty had no first_pass, so eta() read int('') and the render inside this call raised -- the lane's FIRST

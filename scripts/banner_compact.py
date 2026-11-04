@@ -3,8 +3,8 @@
 2026-11-04: "In the display banner add a column for a delta/difference and distribute the new double-sided banner across the fleet.";
 CEO-2129). The Stop hook pipes `s4e_msg.sh banner` through this filter: the suite grid's rows are laid out in TWO COLUMNS side by side,
 half the suites on the left, half on the right, each cell `Lang Suite Pass/Tot Δ Pct S`, so the whole fleet score fits one screen without
-a wrapped line (Lon's terminal wraps a long line; the full grid is 45 rows). Δ is util_suite_banner.py's delta column (the signed move of
-the pass count since the reading before the last move; a slash and the total's move when the denominator moved). S is the state in one
+a wrapped line (Lon's terminal wraps a long line; the full grid is 45 rows). Δ is util_suite_banner.py's delta column: Total minus Pass, how many failures remain
+(Lon 2026-11-04: "The delta column represents how many failures remain."). S is the state in one
 character: ✓ done, V void, ? no reading. The grid's header names the columns, so this filter reads them by NAME and renders an older
 grid without Δ the same way (Δ blank). Lines before and after the grid pass through, cut to the banner's width. When no grid row is found
 the input passes through untouched, so a refused or missing grid is never hidden."""
