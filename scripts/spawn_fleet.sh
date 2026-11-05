@@ -1,35 +1,26 @@
 #!/usr/bin/env bash
-# spawn_fleet.sh [--dry] [--stagger S] [--all | SEAT...] -- THE FLEET FIRES BACK FROM ONE COMMAND (the cio, 2026-11-05; Lon, in the cio's window 15:5x CST,
+# spawn_fleet.sh [--dry] [--table] [--stagger S] [--all | SEAT...] -- THE FLEET FIRES BACK FROM ONE COMMAND (the cio, 2026-11-05; Lon, in the cio's window 15:5x CST,
 # verbatim: "What I would prefer versus manually SPAWNING the fleet which takes 30 minutes, but instead a shell script that fires a process with a window
 # being the claude executable with proper title based on seat name and proper model and effort on the command-line."). One gnome-terminal window per seat,
 # titled by the seat's name, working directory the seat's root, running `claude --name NAME --model MODEL --effort EFFORT` -- the three the box controller
-# and the postoffice read (the controller lowercases the name and turns - into _ for the postoffice identity). The table below is the fleet (Lon's org
-# model, MODE 2026-11-05 15:1x: Fable 5.1 high for the cio and cto, Opus for the CxOs, Sonnet 5.5 xhigh for the four company men, Haiku 5.5 xhigh for
-# the twenty workers); edit the table, never a window by hand. A seat whose `claude --name NAME` already runs is skipped, never doubled; a seat whose
-# root is missing is refused and named. --stagger S seconds between windows (default 4: twenty-nine sessions starting at once would spike the box).
+# and the postoffice read (the controller lowercases the name and turns - into _ for the postoffice identity). The fleet is read from .github/TIERS.tsv,
+# THE ONE TIERS TABLE (fleet-queue step 2; Lon's org model, MODE 2026-11-05 15:1x: Fable 5.1 high for the cio and cto, Opus for the CxOs, Sonnet 5.5 xhigh
+# for the four company men, Haiku 5.5 xhigh for the twenty workers); edit TIERS.tsv, never a window by hand, never a seat list in this file. A seat whose
+# `claude --name NAME` already runs is skipped, never doubled; a seat whose root is missing is refused and named. --stagger S seconds between windows
+# (default 4: twenty-nine sessions starting at once would spike the box).
 # Model IDs as the sessions ran today (ps: claude-fable-5-1, claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5; Lon 15:5x named fable-5-5, which does not exist -- the coo 16:06), efforts xhigh high medium; claude 2.1.318 has no --color flag
 # (the color is the /color command inside a session), so each session is started with "/color COLOR" as its opening prompt (claude's [prompt] argument; a local command, no model turn; verified 2.1.318 for red green yellow purple cyan) and the window title is the seat's name. Lon runs /home/satirical/spawn_fleet.sh, a symlink to this file: ONE file.
-# --dry prints every command and opens nothing. The FLEET: line on MODE is the cio's to remove on Lon's word; this script only opens the windows.
+# --dry prints every command and opens nothing. --table prints the seat rows read from TIERS.tsv (seat name root model effort color) and opens nothing; util_tiers.py --check compares that output with the table. The FLEET: line on MODE is the cio's to remove on Lon's word; this script only opens the windows.
 set -uo pipefail
-DRY=0; STAGGER=4; SEATS=()
-while [ $# -gt 0 ]; do case "$1" in --dry) DRY=1;; --stagger) STAGGER="${2:?seconds}"; shift;; --all) SEATS=(ALL);; -h|--help) sed -n '2,12p' "$0"; exit 0;; *) SEATS+=("$1");; esac; shift; done
-[ ${#SEATS[@]} -gt 0 ] || { echo "usage: spawn_fleet.sh [--dry] [--stagger S] --all | SEAT..."; exit 2; }
-# seat  NAME  root  model  effort  color (the session color, Lon 16:0x: "red, green, yellow, purple, and cyan. From top down": Fable red, the coo green, the CxOs yellow, the company men purple, the workers cyan; run as the /color command at session start, never a terminal background)
-TABLE="$(cat <<'T'
-cio	CIO	/home/claude_cio	claude-fable-5-1	high	red
-cto	CTO	/home/claude_cto	claude-fable-5-1	high	red
-coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green
-cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	yellow
-cao	CAO	/home/claude_cao	claude-opus-5-5	high	yellow
-cqo	CQO	/home/claude_cqo	claude-opus-5-5	high	yellow
-president	PRESIDENT	/home/claude_president	claude-sonnet-5-5	xhigh	purple
-vice_president	VICE-PRESIDENT	/home/claude_vice_president	claude-sonnet-5-5	xhigh	purple
-secretary	SECRETARY	/home/claude_secretary	claude-sonnet-5-5	xhigh	purple
-manager	MANAGER	/home/claude_manager	claude-sonnet-5-5	xhigh	purple
-T
-)"
-for n in $(seq -w 1 20); do TABLE="$TABLE
-worker_$n	WORKER_$n	/home/claude_worker_$n	claude-haiku-5-5	xhigh	cyan"; done
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; TIERS="$HERE/../TIERS.tsv"
+DRY=0; STAGGER=4; SEATS=(); TABLEONLY=0
+while [ $# -gt 0 ]; do case "$1" in --dry) DRY=1;; --table) TABLEONLY=1;; --stagger) STAGGER="${2:?seconds}"; shift;; --all) SEATS=(ALL);; -h|--help) sed -n '2,12p' "$0"; exit 0;; *) SEATS+=("$1");; esac; shift; done
+# seat  NAME  root  model  effort  color, from TIERS.tsv (the session color, Lon 16:0x: "red, green, yellow, purple, and cyan. From top down": Fable red, the coo green, the CxOs yellow, the company men purple, the workers cyan; run as the /color command at session start, never a terminal background)
+[ -f "$TIERS" ] || { echo "REFUSE(2): no tiers table at $TIERS"; exit 2; }
+TABLE="$(awk -F'\t' '!/^#/ && $1 != "seat" && NF >= 8 {print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6}' "$TIERS")"
+[ -n "$TABLE" ] || { echo "REFUSE(2): $TIERS names no seat"; exit 2; }
+if [ "$TABLEONLY" = 1 ]; then printf '%s\n' "$TABLE"; exit 0; fi
+[ ${#SEATS[@]} -gt 0 ] || { echo "usage: spawn_fleet.sh [--dry] [--table] [--stagger S] --all | SEAT..."; exit 2; }
 command -v gnome-terminal >/dev/null || { echo "REFUSE(2): no gnome-terminal on PATH"; exit 2; }
 [ "$DRY" = 1 ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { echo "REFUSE(2): no DISPLAY or WAYLAND_DISPLAY -- run this from a desktop terminal of the box"; exit 2; }
 opened=0; skipped=0; refused=0
