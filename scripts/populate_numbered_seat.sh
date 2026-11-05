@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # populate_numbered_seat.sh NN [--from ROOT] -- ONE NUMBERED HAIKU SEAT IN ONE COMMAND (the cio, 2026-11-05; Lon 15:1x CST: "rename them all 01, 02,
 # ..., 20. Because there are no longer any specialties seats. We have skills now instead use by ANY ASSIGNED seat. Make it so."). Lon creates the folder
-# /home/claude_workerNN (/home is root's); this fills it: the four repos cloned from a populated root (local clone: the objects are hardlinked, origin set
+# /home/claude_worker_NN (/home is root's); this fills it: the four repos cloned from a populated root (local clone: the objects are hardlinked, origin set
 # to github), a SPARSE corpus (tests packages programs library reference editor_configs; `git -C corpus sparse-checkout add benchmarks` widens it for a
 # row that needs them), the Stop banner and inbox hooks and the skill gate named for the seat (from the source root's .claude, seat and root substituted),
-# banner_compact.py, /tmp/s4e/workerNN, the postoffice mailbox (inbox archive, HQ file naming cio), and the worker digest (propagate_seat_digests_cto_484.py).
+# banner_compact.py, /tmp/s4e/worker_NN, the postoffice mailbox (inbox archive, HQ file naming cio), and the worker digest (propagate_seat_digests_cto_484.py).
 # It does NOT touch ROSTER, FLEET or the old seat's rows: the cio adds the seat to ROSTER and reowns the retired HQ's rows in the same sitting, by hand, measured.
 # rc 0 populated (prints the root's du); 1 refused (no folder, folder not empty, no source root); 2 usage.
 set -uo pipefail
 NN="${1:-}"; FROM=/home/claude_cio; [ "${2:-}" = --from ] && FROM="${3:?--from ROOT}"
-case "$NN" in [0-9][0-9]) ;; *) echo "usage: populate_numbered_seat.sh NN [--from ROOT]  (NN two digits, 01..20; the seat is workerNN)"; exit 2;; esac
-seat="worker$NN"; root="/home/claude_$seat"; PO=/home/resources/postoffice
+case "$NN" in [0-9][0-9]) ;; *) echo "usage: populate_numbered_seat.sh NN [--from ROOT]  (NN two digits, 01..20; the seat is worker_NN)"; exit 2;; esac
+seat="worker_$NN"; root="/home/claude_$seat"; PO=/home/resources/postoffice
 [ -d "$root" ] || { echo "REFUSE(1): $root does not exist -- Lon creates the folder (/home is root's)"; exit 1; }
 [ -z "$(ls -A "$root")" ] || { echo "REFUSE(1): $root is not empty -- this script fills an empty folder only"; exit 1; }
 for r in SCRIP corpus harness .github; do [ -d "$FROM/$r/.git" ] || { echo "REFUSE(1): $FROM/$r is not a repo"; exit 1; }; done

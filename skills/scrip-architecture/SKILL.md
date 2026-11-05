@@ -68,3 +68,7 @@ One `scrip` binary compiles SNOBOL4, Snocone, Rebus, Icon (and its Unicon supers
 ## 6. Names a reader of old receipts meets that are gone
 
 `IR.h` (now `src/ir/ir_node.h`, `ir_graph.h`, `ir_fwd.h`); `MOD_OP` trace tags (deleted, the tag-ceiling rule is void); `IR_INDIRECT_GOTO` and `IR_MOVE_LABEL` (now `IR_GATE`, `IR_GATE_ARM`); `bb_broker`, `emit_core.c`, `SM_templates/`, `BB_templates/`, `emit_jvm.c`, `emit_js.c`, `emit_wasm.c`; `STMT_t.lang`, `LANG_*`, `g_lang`; modes 1 and 2. The full table is `reference.md` § 4. A retired ARCH page is read with the command in `.github/RETIRED-ARCH-PAGES.tsv`.
+
+## THE TWO MODES AND THE EXTENSIONS (moved from CLAUDE.md 2026-11-05)
+
+Mode 3 (`./scrip prog.<ext> < /dev/null`, the default `--run`) builds the x86-64 blobs in a sealed slab and jumps in, in-process; mode 4 (`./scrip --compile --out=prog.s prog.<ext> && gcc prog.s -L$PWD/out -lscrip_rt -lm -Wl,-rpath,$PWD/out -o prog`) assembles the same emitted text against `out/libscrip_rt.so`; the two must agree on every program, and a program is graded in both (`--modes m3,m4`). Switches `-d<kb>k -s<kb>k` (the declared heap cap and stack) go before the file, the program's own arguments after `--`; `--dump-ast --dump-ir --dump-bb --dump-zeta --dump-plan` show each stage. The driver picks the language by extension: `.sno .spt .sbl` SNOBOL4, `.sc` Snocone, `.reb` Rebus, `.icn` Icon and Unicon (`--dialect=unicon` or the program's own markers), `.pl .pro .prolog .plt` Prolog, `.pas .dpr` Pascal, `.raku` Raku, `.md .scrip` polyglot; no language flag passes the driver.

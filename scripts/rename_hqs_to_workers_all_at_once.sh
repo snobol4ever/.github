@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # rename_hqs_to_workers_all_at_once.sh --plan | --records | --roots -- THE MASSIVE REPLACE: EVERY HQ BECOMES A NUMBERED WORKER IN ONE ACT (the cio,
-# 2026-11-05; Lon, in the cio's window 15:3x CST, verbatim: "Someone, probably you, needs to do an ALL AT ONCE MASSIVE replace. We want 20 workers.";
+# 2026-11-05; Lon, in the cio's window 15:3x CST, verbatim: "Someone, probably you, needs to do an ALL AT ONCE MASSIVE replace. We want 20 workers." / 15:4x: "So use worker_01 and worker_02. Add the underscaore." / "Start from 01 not 00.";
 # 15:1x in the coo's window: "rename them all 01, 02, ..., 20. Because there are no longer any specialties seats. We have skills now instead use by ANY
 # ASSIGNED seat."). THE MAP is MAP below (the coo's order of 15:2x; hq_dotnet, hq_jvm and hq_packages stay named: the ports have their own repos).
 #   --plan      print every action and change nothing
 #   --records   the fleet's records, all at once: QUEUE.tsv owners and states (ASSIGNED CLAIMED RUNNING MEASURING), the .claim files, CLAIMS.log, the
 #               mailboxes (inbox and archive moved, the old box DRAINED with a pointer), MODE ROSTER and ON-CALL, the controller's sleeping list
-#   --roots     the roots: for every map row whose /home/claude_workerNN exists -- EMPTY: populate_numbered_seat.sh fills it; MOVED (Lon ran the
+#   --roots     the roots: for every map row whose /home/claude_worker_NN exists -- EMPTY: populate_numbered_seat.sh fills it; MOVED (Lon ran the
 #               `sudo mv` the plan prints, so it holds the old HQ's repos): rewrite .claude/settings*.json to the worker and regenerate the digest;
 #               a worker with no old HQ (12-20) is populated fresh. /home is root's, so the folders are Lon's; the plan prints the one sudo block.
 # Every file written is backed up beside itself as <file>.bak-<stamp>-workers. rc 0 done; 1 a refusal (named); 2 usage.
@@ -14,7 +14,7 @@ set -uo pipefail
 MODE_ARG="${1:-}"; case "$MODE_ARG" in --plan|--records|--roots) ;; *) echo "usage: $0 --plan | --records | --roots"; exit 2;; esac
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; PO=/home/resources/postoffice; S=/home/claude_coo/.scratch/verifier
 STAMP="$(date +%Y%m%dT%H%M)"; apply=0; [ "$MODE_ARG" != --plan ] && apply=1
-declare -A MAP=( [worker01]=hq_collector [worker02]=hq_icon [worker03]=hq_zetas [worker04]=hq_templates [worker05]=hq_snocone [worker06]=hq_pascal [worker07]=hq_prolog [worker08]=hq_unicon [worker09]=hq_runtime [worker10]=hq_snobol4 [worker11]=hq_raku [worker12]= [worker13]= [worker14]= [worker15]= [worker16]= [worker17]= [worker18]= [worker19]= [worker20]= )
+declare -A MAP=( [worker_01]=hq_collector [worker_02]=hq_icon [worker_03]=hq_zetas [worker_04]=hq_templates [worker_05]=hq_snocone [worker_06]=hq_pascal [worker_07]=hq_prolog [worker_08]=hq_unicon [worker_09]=hq_runtime [worker_10]=hq_snobol4 [worker_11]=hq_raku [worker_12]= [worker_13]= [worker_14]= [worker_15]= [worker_16]= [worker_17]= [worker_18]= [worker_19]= [worker_20]= )
 WORKERS="$(printf '%s\n' "${!MAP[@]}" | sort)"
 say() { printf '%s\n' "$*"; }
 bak() { [ -f "$1" ] && cp "$1" "$1.bak-$STAMP-workers"; }
@@ -66,7 +66,7 @@ fi
 if [ "$MODE_ARG" = --roots ]; then
     for w in $WORKERS; do o="${MAP[$w]}"; r="/home/claude_$w"
         if [ ! -d "$r" ]; then say "  $w: no root yet ($r)"; continue; fi
-        if [ -z "$(ls -A "$r")" ]; then say "  $w: empty root, populating"; bash "$HERE/populate_numbered_seat.sh" "${w#worker}" | tail -2; continue; fi
+        if [ -z "$(ls -A "$r")" ]; then say "  $w: empty root, populating"; bash "$HERE/populate_numbered_seat.sh" "${w#worker_}" | tail -2; continue; fi
         if [ -d "$r/SCRIP/.git" ]; then
             old_seat="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["env"]["S4E_SEAT"])' "$r/.claude/settings.local.json" 2>/dev/null)"; old_root="/home/claude_${old_seat#hq_}"
             [ "$old_seat" = "$w" ] && { say "  $w: already plumbed"; continue; }
