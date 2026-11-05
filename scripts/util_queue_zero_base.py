@@ -272,9 +272,9 @@ for ln in fresh:
         if cls.startswith("LOAD-GUARD"): guard_add.append((topic, f[0]))
         out.append("\t".join(f))
     elif place == "DONE":
-        f[3] = f[3] if cls == "ARCHIVE-DONE" else "DONE:zero-base-green-ceo-1386"; done_add.append("\t".join(f))
+        f[3] = f[3] if cls == "ARCHIVE-DONE" else "DONE:zero-base-green-r-1386"; done_add.append("\t".join(f))
     else:
-        f[3] = f[3] if cls == "RETIRE-ALREADY" else "RETIRED:zero-base-ceo-1386-" + cls.replace("RETIRE-", ""); ret_add.append("\t".join(f))
+        f[3] = f[3] if cls == "RETIRE-ALREADY" else "RETIRED:zero-base-r-1386-" + cls.replace("RETIRE-", ""); ret_add.append("\t".join(f))
     log.append((topic, f[2], old_state[topic], cls, str(rc), place))
 for p in (Q, QD, QR):
     if os.path.exists(p): shutil.copyfile(p, p + ".bak.%s-zero-base-ceo-1386" % stamp)
