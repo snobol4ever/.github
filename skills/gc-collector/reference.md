@@ -10,7 +10,9 @@ Verified 2026-11-01 against SCRIP 9cb24d2ca. Consolidated from ARCH-GC-COMPILE-T
 - `src/ir/gc_frame_map.h` (the map format), `src/planner/frame_layout.c` (the layout quads), `src/emitter/emit.cpp` (`gc_site_rule_pick`, `emit_gc_site_new`, `emit_gc_site_play`), `src/templates/x86/x86_gc.cpp`, the generated `gc_allocating_table.inc`.
 - Co-expressions: `src/runtime/rt/rt_coexpr.c` (`scrip_coctx_t`, `park_rbp`). The Prolog trail: `rt_pl_trail.c`.
 
-## 2. The site rules (a site entry is `{pc, w = kind | rule << 16 | depth << 32, mask}`)
+## 2. The site rules (a site entry is `{pc, w = kind | rule << 16 | depth << 32, third, anchor}`, 32 bytes, CTO-509)
+
+The third quad is the mask: rule 0 and 4 inline to 512 bytes of depth, else a byte offset into the pool after the entries; rule 1 and 2 pool offset | NW << 32. Bit w names the word at R + 8A - 8(w + 1), A the fourth quad (the run base's distance from R in words: depth / 8 at rule 0 and 4, dk / 8 at rule 1 and 2, 0 where the site declares no cell), w = 0 the oldest word of the run. `gc_site_ent_t` (gc_heap.c) and `rt_gc_site_find_a` (rtx_gc.s, shl 5) read the 32-byte stride; the table is `quads = 4 + 4n + pool`.
 
 Kinds: 1 CALL, 2 LANDING, 3 RES, 4 MATCH_ENTER, 5 MATCH_LEAVE, 6 FN_EXIT, 7 RET_ROAD. R is the address just above the return slot the call pushed.
 - **0** the rsp regime: base = R + depth, depth = E + K (the plan's entry depth and the encoder's tracked distance); carries the mask.
