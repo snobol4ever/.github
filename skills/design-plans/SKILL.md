@@ -49,3 +49,5 @@ A design is the cto's (CEO-2025/2029/2067; Lon 2026-10-28: the cto is the fleet'
 | raku-rewrite, raku-to-100 | `corpus/tests/raku/rewrite/`, `corpus/tests/raku/config/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
 | header-split | `.github/scripts/headers/` | the header ratchet gates | skill `scrip-build` DESIGN |
 | shared-development | the step rows `shared-dev-step-*` | `util_seat_census.py` | skill `shared-box` |
+| batch-grader | `corpus/tests/shared/batch_grader/` | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
+| test-cycle | `corpus/tests/shared/test_cycle/` | `test_design_test_cycle_steps.sh` | skill `suites-and-grading` section 7 |
