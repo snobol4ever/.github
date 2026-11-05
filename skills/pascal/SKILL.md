@@ -10,7 +10,7 @@ The record is GOAL-PASCAL-100.md (LIVE FRONT on top); a page beats this skill. P
 ## 1. The oracle and the dialect
 
 - **fpc 3.2.2 in the program's own mode** through `fpc_bin()` in `harness/scripts/lib_oracle_flags.sh`: ISO 7185 under `fpc -Miso`, FPC/Turbo plain, `-Mobjfpc`, `-Mdelphi`. ISO 7185 wins where `-Miso` is lax (CEO-1225).
-- **The program's dialect decides its oracle**, one switch per program: a `{$mode X}` directive, else ISO until the first construct `-Miso` refuses (`string` in a type position, `otherwise`, `string[n]`, `uses`, `unit`, `class`, `object`, `try`) (CEO-1624). Never guessed from a filename; no `--compat`.
+- **The program's dialect decides its oracle**, one switch per program: a `{$mode X}` directive, else ISO until the first construct `-Miso` refuses (`string` in a type position, `otherwise`, `string[n]`, `uses`, `unit`, `class`, `object`, `try`, and a `write` or `writeln` of an enumeration value: `-Miso` refuses it and `-Mobjfpc` prints the identifier, so it selects objfpc like the others, CTO-524 on worker_17's measurement) (CEO-1624). Never guessed from a filename; no `--compat`.
 - ISO Pascal is CASE-INSENSITIVE. `string` is `ShortString(255)` without `{$H+}`, `AnsiString` with it and in delphi mode.
 - A ref is cut from the oracle; no XFAIL; what fpc refuses, crashes on or hangs is `NO_ORACLE_ANSWER` (CEO-1696). A unit's `finalization` output never appears (fpc closed the files first, CEO-1617).
 
