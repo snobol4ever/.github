@@ -2,7 +2,7 @@
 """THE DOUBLE-SIDED BANNER (the cto, 2026-11-03 22:3x CST, first as /home/claude_cto/.claude/banner_compact.py; fleet-wide on Lon's word
 2026-11-04: "In the display banner add a column for a delta/difference and distribute the new double-sided banner across the fleet.";
 CEO-2129). The Stop hook pipes `s4e_msg.sh banner` through this filter: the suite grid's rows are laid out in TWO COLUMNS side by side,
-half the suites on the left, half on the right, each cell `Lang Suite Pass/Tot M3 M4 Δ Pct S`, so the whole fleet score fits one screen without
+half the suites on the left, half on the right, each cell `Lang Suite Pass/Tot M3 M4 Δ Pct Min`, so the whole fleet score fits one screen without
 a wrapped line (Lon's terminal wraps a long line; the full grid is 45 rows). Δ is util_suite_banner.py's delta column: Total minus Pass, how many failures remain
 (Lon 2026-11-04: "The delta column represents how many failures remain."); since 2026-11-05 it also carries the state, the S column
 merged into it (Lon, in the coo's window: "Fix the test suite display banner to show the minimum time required for each of the 44 suites.
