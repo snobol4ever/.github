@@ -7,6 +7,8 @@
 # model, MODE 2026-11-05 15:1x: Fable 5.1 high for the cio and cto, Opus for the CxOs, Sonnet 5.5 xhigh for the four company men, Haiku 5.5 xhigh for
 # the twenty workers); edit the table, never a window by hand. A seat whose `claude --name NAME` already runs is skipped, never doubled; a seat whose
 # root is missing is refused and named. --stagger S seconds between windows (default 4: twenty-nine sessions starting at once would spike the box).
+# Models and efforts as Lon names them (15:5x: "models are fable-5-5 opus-5-5 sonnet-5-5 haiku-5-5", efforts xhigh high medium); claude 2.1.318 has no --color flag
+# (the color is the /color command inside a session), so the window title is the seat's mark. Lon runs the copy at /home/satirical/spawn_fleet.sh; the source is .github/scripts/spawn_fleet.sh.
 # --dry prints every command and opens nothing. The FLEET: line on MODE is the cio's to remove on Lon's word; this script only opens the windows.
 set -uo pipefail
 DRY=0; STAGGER=4; SEATS=()
@@ -14,20 +16,20 @@ while [ $# -gt 0 ]; do case "$1" in --dry) DRY=1;; --stagger) STAGGER="${2:?seco
 [ ${#SEATS[@]} -gt 0 ] || { echo "usage: spawn_fleet.sh [--dry] [--stagger S] --all | SEAT..."; exit 2; }
 # seat  NAME  root  model  effort
 TABLE="$(cat <<'T'
-cio	CIO	/home/claude_cio	claude-fable-5-1	high
-cto	CTO	/home/claude_cto	claude-fable-5-1	high
-coo	COO	/home/claude_coo	claude-opus-5-5	xhigh
-cfo	CFO	/home/claude_cfo	claude-opus-5-5	high
-cao	CAO	/home/claude_cao	claude-opus-5-5	high
-cqo	CQO	/home/claude_cqo	claude-opus-5-5	high
-president	PRESIDENT	/home/claude_president	claude-sonnet-5-5	xhigh
-vice_president	VICE-PRESIDENT	/home/claude_vice_president	claude-sonnet-5-5	xhigh
-secretary	SECRETARY	/home/claude_secretary	claude-sonnet-5-5	xhigh
-manager	MANAGER	/home/claude_manager	claude-sonnet-5-5	xhigh
+cio	CIO	/home/claude_cio	fable-5-5	high
+cto	CTO	/home/claude_cto	fable-5-5	high
+coo	COO	/home/claude_coo	opus-5-5	xhigh
+cfo	CFO	/home/claude_cfo	opus-5-5	high
+cao	CAO	/home/claude_cao	opus-5-5	high
+cqo	CQO	/home/claude_cqo	opus-5-5	high
+president	PRESIDENT	/home/claude_president	sonnet-5-5	xhigh
+vice_president	VICE-PRESIDENT	/home/claude_vice_president	sonnet-5-5	xhigh
+secretary	SECRETARY	/home/claude_secretary	sonnet-5-5	xhigh
+manager	MANAGER	/home/claude_manager	sonnet-5-5	xhigh
 T
 )"
 for n in $(seq -w 1 20); do TABLE="$TABLE
-worker_$n	WORKER_$n	/home/claude_worker_$n	claude-haiku-5-5	xhigh"; done
+worker_$n	WORKER_$n	/home/claude_worker_$n	haiku-5-5	xhigh"; done
 command -v gnome-terminal >/dev/null || { echo "REFUSE(2): no gnome-terminal on PATH"; exit 2; }
 [ "$DRY" = 1 ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { echo "REFUSE(2): no DISPLAY or WAYLAND_DISPLAY -- run this from a desktop terminal of the box"; exit 2; }
 opened=0; skipped=0; refused=0
