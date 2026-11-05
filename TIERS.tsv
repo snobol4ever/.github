@@ -2,33 +2,33 @@
 # Read by .github/scripts/spawn_fleet.sh (the windows), harness/scripts/util_tiers.py (the check), and every reader step 2 names.
 # A seat-specific pattern in any script is forbidden: the seat's tier, model, effort, color and role live here and nowhere else.
 seat	name	root	model	effort	color	tier	role
-cio	CIO	/home/claude_cio	claude-fable-5-1	high	red	1	fleet system: bus, records, landings, hygiene, box controller and dispatcher, wakes
-cto	CTO	/home/claude_cto	claude-fable-5-1	high	red	1	SCRIP design: every design question, on call
-coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green	2	the one testing officer: runs the fleet day to day, suites, boards, test requests, grades every landing
-cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	yellow	2	diagnoses reds and writes designs of its named suites (named suites set by the cio)
-cao	CAO	/home/claude_cao	claude-opus-5-5	high	yellow	2	diagnoses reds and writes designs of its named suites (named suites set by the cio)
-cqo	CQO	/home/claude_cqo	claude-opus-5-5	high	yellow	2	diagnoses reds and writes designs of its named suites (named suites set by the cio)
-president	PRESIDENT	/home/claude_president	claude-sonnet-5-5	xhigh	purple	3	company man: cuts designs into Haiku rows with DONE-WHENs and SKILLS, answers asks, lands a step a worker cannot
-vice_president	VICE-PRESIDENT	/home/claude_vice_president	claude-sonnet-5-5	xhigh	purple	3	company man: cuts designs into Haiku rows with DONE-WHENs and SKILLS, answers asks, lands a step a worker cannot
-secretary	SECRETARY	/home/claude_secretary	claude-sonnet-5-5	xhigh	purple	3	company man: cuts designs into Haiku rows with DONE-WHENs and SKILLS, answers asks, lands a step a worker cannot
-manager	MANAGER	/home/claude_manager	claude-sonnet-5-5	xhigh	purple	3	company man: cuts designs into Haiku rows with DONE-WHENs and SKILLS, answers asks, lands a step a worker cannot
-worker_01	WORKER_01	/home/claude_worker_01	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_02	WORKER_02	/home/claude_worker_02	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_03	WORKER_03	/home/claude_worker_03	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_04	WORKER_04	/home/claude_worker_04	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_05	WORKER_05	/home/claude_worker_05	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_06	WORKER_06	/home/claude_worker_06	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_07	WORKER_07	/home/claude_worker_07	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_08	WORKER_08	/home/claude_worker_08	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_09	WORKER_09	/home/claude_worker_09	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_10	WORKER_10	/home/claude_worker_10	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_11	WORKER_11	/home/claude_worker_11	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_12	WORKER_12	/home/claude_worker_12	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_13	WORKER_13	/home/claude_worker_13	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_14	WORKER_14	/home/claude_worker_14	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_15	WORKER_15	/home/claude_worker_15	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_16	WORKER_16	/home/claude_worker_16	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_17	WORKER_17	/home/claude_worker_17	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_18	WORKER_18	/home/claude_worker_18	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_19	WORKER_19	/home/claude_worker_19	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
-worker_20	WORKER_20	/home/claude_worker_20	claude-haiku-5-5	xhigh	cyan	4	worker: works only the row an officer or company man ASSIGNS it, exactly as written, loading its SKILLS first
+cio	CIO	/home/claude_cio	claude-fable-5-1	high	red	1	fleet-system
+cto	CTO	/home/claude_cto	claude-fable-5-1	high	red	1	scrip-design,unitests
+coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green	2	testing-officer
+cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	yellow	2	swi
+cao	CAO	/home/claude_cao	claude-opus-5-5	high	yellow	2	roast
+cqo	CQO	/home/claude_cqo	claude-opus-5-5	high	yellow	2	prorungs,trealla,prorosetta
+president	PRESIDENT	/home/claude_president	claude-sonnet-5-5	xhigh	purple	3	company-man
+vice_president	VICE-PRESIDENT	/home/claude_vice_president	claude-sonnet-5-5	xhigh	purple	3	company-man
+secretary	SECRETARY	/home/claude_secretary	claude-sonnet-5-5	xhigh	purple	3	company-man
+manager	MANAGER	/home/claude_manager	claude-sonnet-5-5	xhigh	purple	3	company-man
+worker_01	WORKER_01	/home/claude_worker_01	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_02	WORKER_02	/home/claude_worker_02	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_03	WORKER_03	/home/claude_worker_03	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_04	WORKER_04	/home/claude_worker_04	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_05	WORKER_05	/home/claude_worker_05	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_06	WORKER_06	/home/claude_worker_06	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_07	WORKER_07	/home/claude_worker_07	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_08	WORKER_08	/home/claude_worker_08	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_09	WORKER_09	/home/claude_worker_09	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_10	WORKER_10	/home/claude_worker_10	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_11	WORKER_11	/home/claude_worker_11	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_12	WORKER_12	/home/claude_worker_12	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_13	WORKER_13	/home/claude_worker_13	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_14	WORKER_14	/home/claude_worker_14	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_15	WORKER_15	/home/claude_worker_15	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_16	WORKER_16	/home/claude_worker_16	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_17	WORKER_17	/home/claude_worker_17	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_18	WORKER_18	/home/claude_worker_18	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_19	WORKER_19	/home/claude_worker_19	claude-haiku-5-5	xhigh	cyan	4	worker
+worker_20	WORKER_20	/home/claude_worker_20	claude-haiku-5-5	xhigh	cyan	4	worker
