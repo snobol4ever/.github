@@ -43,7 +43,7 @@ A design is the cto's (CEO-2025/2029/2067; Lon 2026-10-28: the cto is the fleet'
 | clpr-chr | `corpus/tests/prolog/clpr_chr/` | `test_design_clpr_chr_steps.sh` | skill `prolog-constraints` DESIGN |
 | consulted-clause-source-record | `corpus/tests/prolog/clause_source_record/` | `test_design_clause_source_record_steps.sh` | skill `prolog` DESIGN |
 | icon-scanning-asm | `corpus/tests/icon/scanning_asm/` | `test_design_icon_scanning_asm_steps.sh` | skill `icon` DESIGN |
-| unicon | `corpus/tests/icon/unicon/` | `test_design_unicon_steps.sh` | skill `icon` DESIGN |
+| unicon | `corpus/tests/icon/unicon/` (steps 1-5 the surface, 6-16 UniTests to 100) | `test_design_unicon_steps.sh` | skill `unicon` sections 1-2 and 7 |
 | random-codegen-scope | `corpus/demos/scriptix/infinite_snobol4/` (with `COVERAGE.tsv`) | `test_design_random_codegen_scope_steps.sh` | skill `snobol4` DESIGN |
 | pascal-front-end | `corpus/tests/pascal/front_end/` | `test_design_pascal_front_end_steps.sh` | skill `pascal` DESIGN |
 | raku-rewrite, raku-to-100 | `corpus/tests/raku/rewrite/`, `corpus/tests/raku/config/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
