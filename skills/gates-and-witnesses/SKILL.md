@@ -19,6 +19,11 @@ Every claim is proved by a command that reads RED now and GREEN when the work is
 - **Declared sizes** (CEO-1353): every entry's `heap_kb`/`stack_kb` in `ALL.csv`; runners pass `-d<kb>k -s<kb>k`, never an env knob.
 - **One testing officer** (CEO-1342/2068): the coo runs suites, boards and the blocking set and writes the suite table. A lander re-grades its one program in both modes, runs `test_feature_reps.sh` and the smokes of every language its diff touches, then asks `s4e_test_request.sh <suite-key> <entry>...` (8 at most).
 - **A dirty-tree reading is unread** (CEO-2060): grade in a clean worktree outside the root.
+- **The landing gate is not the close criterion** (2026-11-05, the coo's ruling and the cao's `--land N`): a row or step whose pass reads the coo's graded readings (`results.tsv`, the board) cannot gate its own landing. Land on what the lander can prove (the witnesses in both modes, the census, the smoke; a design harness's `--land N`), file `s4e_test_request.sh`, park `PARKED-AWAITING:<request-id>`, and close by `done` on the coo's verdict (`--step N`, unchanged).
+- **A probe reads an order of events, never a wall-clock bound**: a lease held "at most 3 s" or a timeout race reads red under box load and blocks every lander (`s4e_land.sh --probe` arm 7 and `util_run_slot.sh --probe-sem`, 2026-11-05).
+- **A probe writes only scratch state**: a scratch postoffice (`S4E_POST`) and scratch tubes, never the live queue, `QUEUE.tsv` or a live baton.
+- **A sparse worktree keeps `include/` and `library/`**: `sparse-checkout set --no-cone '/*' '!/benchmarks/' '!/demos/'`. Without `corpus/include` a SNOBOL4 program cannot open its `.inc` and exits 231 with empty output, a false red (2026-11-05).
+- **An absence counts only after the tool spoke**: a DONE-WHEN that reads a tool's output first requires that tool's own board line, then checks the program is absent (`grep -q '^SUITE_ROW suite=K ' f && ! grep -qE '^SUITE_ROW_RED ([^ ]*:)?NAME ' f`); a bare `! grep` after a refused tool is a false green.
 
 ## 2. THE FILES
 
@@ -59,7 +64,7 @@ timeout -k 5 60 "$(swipl_bin)" -q -t halt -g main w.pl < /dev/null > w.ref
 
 ## 5. THE FORBIDDEN FORMS
 
-A test edited to exit 0; an `xfail` of 1; a prose DONE-WHEN, one that pins a count, or one a deletion satisfies (`! grep -q defect`); a plant in `src/`; a gate with no refusal arm; a gate anchored on one found witness; a board or suite row written by anyone but the coo; a ref cut from the other mode or from a bare oracle path; a run without `timeout -k 5`, or without `< /dev/null` when it reads no stdin; an env size knob in a runner; outputs under the root; a symlink; `pkill -f`; `grep -q` under `pipefail`.
+A test edited to exit 0; an `xfail` of 1; a prose DONE-WHEN, one that pins a count, or one a deletion satisfies (`! grep -q defect`); a plant in `src/`; a gate with no refusal arm; a gate anchored on one found witness; a board or suite row written by anyone but the coo; a ref cut from the other mode or from a bare oracle path; a run without `timeout -k 5`, or without `< /dev/null` when it reads no stdin; an env size knob in a runner; outputs under the root; a symlink; `pkill -f`; `grep -q` under `pipefail`; a wall-clock assertion in a probe; a proof row on the live queue; a pass probe that reads the coo's readings used as a landing gate; a sparse worktree without `include/`.
 
 ## 6. WHERE THE REST LIVES
 
@@ -67,7 +72,4 @@ RULES.md (`A ROW EXISTS ONLY WHILE`, `NO PLANTED BREAKAGE`, `ONE TESTING OFFICER
 
 ## 7. HOW A LANDING IS PROVED
 
-1. Write the criterion first, as a command; run it and keep the red; `mint` it with `--stdin` and a quoted heredoc.
-2. Build the instrument (gate, witness or step) and show it red once without a plant.
-3. Prove the cure: green after, both modes; the feature reps and the smokes; the coo's test request for the suite.
-4. Land harness and corpus before `.github`; write the baton's LEDGER and NEXT; `claim` + `done` (it runs the DONE-WHEN and refuses a red).
+The landing recipe is skill `fleet-bus` section 7 (one copy, there). What it owes this skill: the criterion written first and red once without a plant (section 1); the cure green in both modes with the feature reps and the smokes; the land gate split from the close criterion when the pass reads the coo's readings (section 1); the coo's test request for the suite's part.

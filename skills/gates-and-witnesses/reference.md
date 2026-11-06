@@ -96,7 +96,4 @@ A test edited to exit 0; an `xfail` cell set to 1; a prose DONE-WHEN, or one tha
 
 ## 7. HOW A LANDING IS PROVED
 
-1. Write the criterion first, as a command: red on today's tree (run it, keep the red output), its PREMISE-WHEN true; `mint` it with `--stdin` and a quoted heredoc (no backtick, no `$(`).
-2. Build the instrument: a gate with its three exit codes, its board line and its line-2 preflight; or a witness with its oracle-cut ref and its row (sizes declared) and the partition rebuilt; or a step harness over its `STEPS.tsv`. Show it red once without a plant.
-3. Prove the cure with it: green after, in both modes for a witness; `test_feature_reps.sh` and the smokes for the lander's part; the coo's named test request for the suite's part; the gate adopted into the wiring floor.
-4. Land: harness and corpus before `.github`; the baton's LEDGER and NEXT; `claim` + `done` (which runs the DONE-WHEN and refuses a red); `handoff_status.sh` at the sitting's end.
+The landing recipe lives once, in skill `fleet-bus` section 7. The proof it owes from this skill is SKILL.md section 1: the criterion red once without a plant, the cure green in both modes with the feature reps and the smokes, the land gate split from the close criterion when the pass reads the coo's readings (the cao's `--land N`, 2026-11-05), and the coo's test request for the suite's part.
