@@ -31,6 +31,8 @@ A design is the cto's (CEO-2025/2029/2067; Lon 2026-10-28: the cto is the fleet'
 
 ## 4. The live plans and where their design text lives
 
+A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, Lon: "Go and trim any skill that needs it."): the heading and its number stay, so every "section N" citation resolves, and the full text is in that skill's `reference.md` under the same heading. A design is written or amended there, never in the stub.
+
 | plan | table | harness | design text |
 |---|---|---|---|
 | builtin-table | `corpus/tests/shared/builtin_table/` | `test_design_builtin_table_steps.sh` | skill `runtime-calls` DESIGN |
