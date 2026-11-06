@@ -32,7 +32,10 @@ while IFS=$'\t' read -r seat name root model effort color; do
     cmd="claude --name $name --model $model --effort $effort '/color $color'"
     echo "OPEN    $seat: gnome-terminal --maximize --title=$name --working-directory=$root -- $cmd"
     if [ "$DRY" = 0 ]; then
-        gnome-terminal --maximize --title="$name" --working-directory="$root" -- bash -lc "printf '\\e]2;$name\\a'; cd '$root' && exec $cmd" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
+        # NO exec (Lon 2026-11-06 08:3x CST, in the coo's window: "I tried to exit a claude worker to re-execute it from the bash shell and when I did it
+        # DISAPPEARED since there is NO bash shell. So go fix that in your spawn script."): claude runs as a child of the window's bash, and when it exits the
+        # window drops to an interactive login shell in the seat's root, titled by the seat, with the exact restart command printed, so a seat is restarted in place.
+        gnome-terminal --maximize --title="$name" --working-directory="$root" -- bash -lc "printf '\\e]2;$name\\a'; cd '$root' && $cmd; rc=\$?; printf '\\e]2;$name (shell)\\a'; echo; echo \"[$name] claude exited rc=\$rc; this window is a bash shell in $root. Restart the seat with:\"; echo \"  $cmd\"; exec bash -l" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
         opened=$((opened+1)); sleep "$STAGGER"
     fi
 done <<< "$TABLE"
