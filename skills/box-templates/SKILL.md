@@ -11,7 +11,7 @@ A box is the body of ONE IR kind for ONE form, emitted as straight-line x86 with
 
 - **Every instruction is `x86(mnem, ...)`.** No raw bytes, no `MEDIUM_BINARY` branch, no `emit_fmt`. A missing instruction shape is a new encoder, byte-verified against `as`.
 - **One return, no locals, no parameters, no graph.** `std::string bb_<kind>()` returns one `+` chain with `IF(c, ...)` and `FOR(lo, hi, f)`; everything it needs is in `g_emit` (`_`), written by the kind's prepare block in `emit.cpp`. Never `_.node`, `pBB`, an operand node or `IR_LIT(...)` (EMIT-BLIND).
-- **One line of C++ per line of asm** (CEO-1565): zero comments except the separator and `x86("comment", "IR_<KIND>")`, zero blank lines, 200 columns.
+- **One line of C++ per line of asm** (CEO-1565): zero comments except the separator and `x86("comment", "IR_<KIND>")`, zero blank lines; the column rule is skill `scrip-c-code` section 1.
 - **The plan decides placement; the template reads it** (CEO-1895/1954/1971): `_.op_zdepth`, `_.op_zgpop`, `_.op_zread[k]`, `_.op_off` are copies of the plan row; address through `ZOPQ(k, w)`, `XSAQ(d)`, `FRQ(off)`, `RDQ("rbp", off)`. No "is this on the spine" test.
 - **Five stack forms only:** `ZALPHA(K)` carve at α, `ZOMEGA(K)` pop own carve at ω, `ZGAMMA(gpop, fenced)` pop only on a fenced γ (CEO-1843), `ZDISCARD`, the cell accessor. A β never resets rsp. A carve is a row of `box_cell_shapes.tsv`; the row changes first.
 - **A record grown in one box is grown in every box that carves it** (one landing over every reader).

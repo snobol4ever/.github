@@ -32,7 +32,8 @@ Run verbs one at a time. Full text: `reference.md` section 2.
 - `expire <topic>` is the tick's verb for a claim whose job is back.
 - `rule <GOAL-file> <ID> --stdin` writes one ruling; refuses a used id.
 - `resume <topic> ...` writes the RESUME line; write it before a stop.
-- `ask <topic> ...` sends a question to the HQ or a seat.
+- `ask <topic> ...` sends a question up the ladder (the ask tube of the tier above); `answer <topic> --stdin` is the senior's reply, delivered to the asker's inbox.
+- `escalate <topic> --stdin` moves a job one tube up with the measurement in the body (refused without one); the baton gets an ESCALATION section.
 - `send <seat> <topic> --stdin` is a telegram; wakes nobody.
 - `check` displays the inbox.
 - `clear` archives what check displayed.

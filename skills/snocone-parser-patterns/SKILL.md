@@ -51,5 +51,5 @@ The module design (each parser a compiland with its own namespace: SNOBOL4's INC
 - DEFINE NO FUNCTIONS (CEO-1532; floors only fall, finish 0): use F1 inline, F2 pattern with a memo table, F3 action chain (`*DIFFER(x = e)`), F4 labelled top-level code.
 - Evaluate, check meaning or desugar nothing (that is the lowerer's); re-order nothing (CEO-1371); invent no wrapper nodes; keep no side table past the tree (CEO-1322/1715).
 - SPITBOL's limits: string literals of at most 130 characters; `SUBSTR(S, I, 0)` is the rest of S.
-- Style: names of at most 16 characters, the 200-column rule (CEO-1565), comments only as `/* */` blocks above a pattern.
+- Style: names of at most 16 characters, the column rule of skill `scrip-c-code` section 1 (CEO-1565), comments only as `/* */` blocks above a pattern.
 - Never rewrite a `parser_*.sc` (Lon: "At most a few characters will need to be changed to fix a bug.").

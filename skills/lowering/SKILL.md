@@ -17,7 +17,7 @@ The lowerer is the ONE stage that knows a language. It reads a `tree_t` (and not
 - **Placement is not here** (CEO-1895): lower names kinds and facts; the planner decides cells.
 - **A deletion carries its re-expression in the same landing** (CEO-1840).
 - **Run-time compile roads lower the same way** (CODE/EVAL, assert, exec): one lowerer.
-- **Style** (CEO-1565): the 200-column rule, zero comments, zero blank lines; shared helpers in `lower_common.c` with the `lc_` prefix.
+- **Style**: the C rules of skill `scrip-c-code` section 1 (CEO-1565: the column rule, zero comments, zero blank lines); shared helpers in `lower_common.c` with the `lc_` prefix.
 
 ## 2. THE FILES
 

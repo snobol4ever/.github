@@ -97,3 +97,46 @@ A test edited to exit 0; an `xfail` cell set to 1; a prose DONE-WHEN, or one tha
 ## 7. HOW A LANDING IS PROVED
 
 The landing recipe lives once, in skill `fleet-bus` section 7. The proof it owes from this skill is SKILL.md section 1: the criterion red once without a plant, the cure green in both modes with the feature reps and the smokes, the land gate split from the close criterion when the pass reads the coo's readings (the cao's `--land N`, 2026-11-05), and the coo's test request for the suite's part.
+
+## 8. THE INSTRUMENT LAWS, MEASURE AND CURE, THE MONITOR BRACKET: THEIR HOME (the cio, 2026-11-07, DESIGN-PLAN skills-complete step 5; the cto reviews)
+
+These sections of `.github/RULES.md` are the measuring law every lander and every grader obeys, and until 2026-11-07 no skill named them (the skills audit: 37 instrument-law sections, 150 KB, found by no grep of any skill). This skill is their home: this section is the index, read one law by its lines (`sed -n 'A,Bp' .github/RULES.md`; the ranges below are regenerated into `.github/RULES-INDEX.md` by `util_rules_index.py --regenerate`, so when they drift, the index is the truth and this list is re-cut from it). THE SHAPE every instrument law shares: a claim about a program is proved by an instrument that reads the machine (the monitor, a trace, an asm diff, a census over emitted code), never by reading source proximity or by inference; the bug lies between the last agreed event and the first diverging one (THE MONITOR BRACKET); you find it, you fix it, in its layer (MEASURE AND CURE), and the cure is proved by the same instrument reading green and by the witnesses of skill section 1.
+
+- L23-40 (17K) MEASURE AND CURE — YOU FIND IT, YOU FIX IT
+- L41-46 (2K) THE MONITOR BRACKET — THE BUG LIES BETWEEN THE LAST AGREED EVENT AND THE FIRST DIVERGING ONE; STEP OR TRACE A…
+- L433-441 (4K) THE INSTRUMENT LAWS
+- L442-447 (2K) THE INSTRUMENT LAWS, SECOND BATCH
+- L448-453 (2K) THE INSTRUMENT LAWS, THIRD BATCH
+- L454-458 (1K) THE INSTRUMENT LAWS, FOURTH BATCH
+- L459-469 (5K) THE INSTRUMENT LAWS, FIFTH BATCH
+- L486-490 (2K) THE INSTRUMENT LAWS, FIFTEENTH BATCH
+- L491-498 (5K) THE INSTRUMENT LAWS, SIXTEENTH BATCH
+- L499-502 (2K) THE INSTRUMENT LAWS, TWENTY-SECOND BATCH
+- L503-514 (5K) THE INSTRUMENT LAWS, TWENTY-FOURTH BATCH
+- L515-520 (3K) THE INSTRUMENT LAWS, TWENTY-FIFTH BATCH
+- L521-526 (3K) THE INSTRUMENT LAWS, TWENTY-SEVENTH BATCH
+- L546-554 (5K) THE INSTRUMENT LAWS, THIRTY-FOURTH BATCH
+- L555-574 (7K) THE INSTRUMENT LAWS, THIRTY-THIRD BATCH
+- L575-580 (6K) THE INSTRUMENT LAWS, THIRTY-SECOND BATCH
+- L581-588 (7K) THE INSTRUMENT LAWS, THIRTY-FIRST BATCH
+- L589-594 (6K) THE INSTRUMENT LAWS, THIRTIETH BATCH
+- L595-598 (1K) THE INSTRUMENT LAWS, TWENTY-NINTH BATCH
+- L599-604 (11K) THE INSTRUMENT LAWS, TWENTY-EIGHTH BATCH
+- L605-612 (4K) THE INSTRUMENT LAWS, TWENTY-SIXTH BATCH
+- L613-616 (1K) THE INSTRUMENT LAWS, TWENTY-THIRD BATCH
+- L617-622 (3K) THE INSTRUMENT LAWS, TWENTY-FIRST BATCH
+- L623-626 (1K) THE INSTRUMENT LAWS, TWENTIETH BATCH
+- L627-632 (3K) THE INSTRUMENT LAWS, NINETEENTH BATCH
+- L633-640 (1K) THE INSTRUMENT LAWS, EIGHTEENTH BATCH
+- L641-646 (5K) THE INSTRUMENT LAWS, SEVENTEENTH BATCH
+- L647-651 (2K) THE INSTRUMENT LAWS, EIGHTEENTH BATCH
+- L657-660 (2K) THE INSTRUMENT LAWS, THIRTEENTH BATCH
+- L661-664 (1K) THE INSTRUMENT LAWS, FOURTEENTH BATCH
+- L665-670 (1K) THE INSTRUMENT LAWS, TWELFTH BATCH
+- L671-674 (1K) THE INSTRUMENT LAWS, ELEVENTH BATCH
+- L675-678 (1K) THE INSTRUMENT LAWS, TENTH BATCH
+- L679-689 (3K) THE INSTRUMENT LAWS, NINTH BATCH
+- L690-704 (5K) THE INSTRUMENT LAWS, EIGHTH BATCH
+- L711-747 (16K) THE INSTRUMENT LAWS, SIXTH BATCH
+
+The landing recipe's first step (skill `fleet-bus` section 7: `monitor_run.sh <prog> --oracle`, then the asm diff against a passing sibling, gdb last) is THE MONITOR BRACKET applied; the three exit codes and fail-once (section 1) are the instrument laws applied to a gate.

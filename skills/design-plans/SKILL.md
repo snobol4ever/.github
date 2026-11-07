@@ -5,7 +5,7 @@ description: How a design is written and stepped through: the DESIGN-PLAN (numbe
 
 # Design plans
 
-A design is the cto's (CEO-2025/2029/2067; Lon 2026-10-28: the cto is the fleet's design brain). It lands as a DESIGN-PLAN: numbered steps, each with an executor, a probe and witnesses, in a table a harness reads. The design text lives in the DESIGN section of the skill that owns the layer (the ARCH pages it lived on are retired, CEO-2115); the steps live in the table; the work lives in one row per step.
+A design is the cto's for SCRIP and the suites (CEO-2025/2029/2067; Lon 2026-10-28: the cto is the fleet's design brain) and the cio's for the fleet system and the test cycle (COO-481, Lon 2026-11-07: "You, CIO, and CTO are the designers"). It lands as a DESIGN-PLAN: numbered steps, each with an executor, a probe and witnesses, in a table a harness reads. The design text lives in the DESIGN section of the skill that owns the layer (the ARCH pages it lived on are retired, CEO-2115); the steps live in the table; the work lives in one row per step.
 
 ## 1. The parts of a plan
 
@@ -16,8 +16,8 @@ A design is the cto's (CEO-2025/2029/2067; Lon 2026-10-28: the cto is the fleet'
 
 ## 2. The rows
 
-- One row per step, minted by the cto or the coo: `<plan>-step-<N>-<slug>-<ceo-number>`, owner the step's executor, `DONE-WHEN: cd "${S4E_HOME:?}" && bash harness/scripts/test_design_<name>_steps.sh --step N`, `PREMISE-WHEN` that the table names the step and the step reads red (CEO-2016).
-- Executors follow the lanes (CEO-1996); the cfo takes a step an HQ cannot; a step that founders escalates to the officer named, and a design gap comes to the cto by telegram, answered in the skill's DESIGN section the same sitting.
+- One row per step, minted by the designer (the cto or the cio) or the coo: `<plan>-step-<N>-<slug>` (a ruling it answers is cited in the GOAL as CTO-NNNN or R-NNNN, never in the name), queued to tier-haiku or a worker's seat tube under THE HAIKU BAR (skill `fleet-bus` section 1), `DONE-WHEN: cd "${S4E_HOME:?}" && bash harness/scripts/test_design_<name>_steps.sh --step N`, `PREMISE-WHEN` that the table names the step and the step reads red (CEO-2016).
+- Executors: the ladder of skill `fleet-bus` section 1 (COO-481): a step starts at a worker and climbs by escalation after one honest try; a design gap comes to the designer by telegram, answered in the skill's DESIGN section the same sitting.
 - **An entry the step alone does not flip moves to the row that does** (CEO-2112): a step closes on its own probe; an entry that needs other work leaves its `entries=` list in the same landing, citing the ruling, and a row for that work is minted.
 - Step 0 of a plan is the baseline: the witnesses and probes read today, recorded so every later step is a measured move.
 
@@ -53,3 +53,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | shared-development | the step rows `shared-dev-step-*` | `util_seat_census.py` | skill `shared-box` |
 | batch-grader | `corpus/tests/shared/batch_grader/` | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
 | test-cycle | `corpus/tests/shared/test_cycle/` | `test_design_test_cycle_steps.sh` | skill `suites-and-grading` section 7 |
+| box-budget | `corpus/tests/shared/box_budget/` | `test_design_box_budget_steps.sh` | skill `shared-box` section 7 |
+| box-scheduler | `corpus/tests/shared/box_scheduler/` | `test_design_box_scheduler_steps.sh` | skill `shared-box` section 8 |
+| fleet-queue | `corpus/tests/shared/fleet_queue/` | `test_design_fleet_queue_steps.sh` | skill `fleet-bus` section 8 (reference) |
+| skills-complete | `corpus/tests/shared/skills_complete/` | `test_design_skills_complete_steps.sh` | skill `fleet-bus` section 9 (reference) |
