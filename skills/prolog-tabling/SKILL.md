@@ -1,6 +1,6 @@
 ---
 name: prolog-tabling
-description: SCRIP Prolog's tabling: the tabled call as a header box (IR_TABLE_HDR) whose evaluation state is the box's own frame cells, the answer tries on the heap, the leader's semi-naive rounds, moded tables (answer subsumption), the incremental dependency graph (incremental, monotonic eager and lazy, transactions), well-founded negation by the alternating fixpoint (tnot/1, delay lists), call subsumption, the XSB loader and test package, and the xsb-tabling-wfs DESIGN-PLAN. Load it with the prolog skill before touching tabling.pl, xsb_tables.pl, bb_table_hdr.cpp, the trie leaves, the table directives in lower_prolog.c, or an XsbTests or SWI tabling red.
+description: SCRIP Prolog's tabling: IR_TABLE_HDR, answer tries, semi-naive rounds, moded tables, incremental tabling, well-founded negation, call subsumption, the XSB loader. Load with prolog before touching tabling.pl, xsb_tables.pl or bb_table_hdr.cp
 ---
 
 # Prolog tabling

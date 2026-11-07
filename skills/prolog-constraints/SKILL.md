@@ -1,6 +1,6 @@
 ---
 name: prolog-constraints
-description: SCRIP Prolog's constraint systems over one attributed variable: the attributed-variable cell (DT_PLVAR with the PL_VAR_ATTV flag and its creation serial in the tag word, the attribute chain on the heap, value-trailed), the wake word in the trail header and the wake probe the lowerer places in an armed program, hooks by module, freeze, dif and when, CLP(FD) and GNU fd vendored, CLP(Q), CLP(R) and CLP(B) vendored, CHR lowered by lower_prolog_chr.c over the vendored runtime, and the clpr-chr DESIGN-PLAN (done). Load it with the prolog skill before touching attributed variables, a bind site, clpfd.pl, the clpq and clpr files, chr_runtime.pl, lower_prolog_chr.c, or a CLP or CHR red.
+description: SCRIP Prolog's constraints over one attributed variable: the wake word, hooks, freeze, dif, CLP(FD/Q/R/B), CHR (lower_prolog_chr.c). Load with prolog before touching an attributed variable, clpfd.pl, chr_runtime.pl or a CLP red.
 ---
 
 # Prolog constraints

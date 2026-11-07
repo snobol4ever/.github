@@ -1,6 +1,6 @@
 ---
 name: shared-box
-description: The one box every seat shares: the cgroup tree (each seat's session scope with its four-core quota and 8 GB cap, the grader and batch slices), the compile and run pools with per-seat caps, the build cache, check cache and oracle cache, the ledgers (LOAD.tsv, SEATS.tsv, SLOT_WAITS.tsv), memory and /tmp rules, util_batch.sh and the quiet slice. Load it before a heavy run, a batch job, a benchmark, or when a seat's scope reads over its memory or a run waits on a slot.
+description: The one box every seat shares: the cgroup tree and seat scopes, the compile and run pools, the build cache, the ledgers (LOAD.tsv, SEATS.tsv, SLOT_WAITS.tsv), memory and /tmp rules, util_batch.sh. REQUIRED by the skill gate before editing t
 ---
 
 # The shared box (CEO-2041, CEO-2105, CEO-2108)

@@ -1,6 +1,6 @@
 ---
 name: scrip-backends
-description: SCRIP's backends: x86-64 is the one live target; JVM, .NET, JavaScript and WebAssembly are future targets built as new template sets plus their own runtime, with the parser, lower, optimizer, planner and emitter kept identical (Lon 2026-11-01, CEO-2114). The recorded per-target box shapes, the 2026-08 prototypes under SCRIP/miscellaneous, and the dead scripts. Not snobol4jvm or snobol4dotnet: those are independent SNOBOL4 implementations (skill ports).
+description: SCRIP's backends: x86-64 the one live target; JVM, .NET, JavaScript and WebAssembly as future template sets over the same pipeline (CEO-2114); the 2026-08 prototypes. Load before any backend question; the ports are skill ports.
 ---
 
 # SCRIP's backends

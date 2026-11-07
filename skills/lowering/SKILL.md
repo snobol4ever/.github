@@ -1,6 +1,6 @@
 ---
 name: lowering
-description: Writing lowerers in SCRIP/src/lower (pruned parse tree in, IR graph out): every language variance as an IR fact, runtime tables built by lower, builtins resolved at lower, --dump-ast and --dump-ir as proof. REQUIRED by the skill gate before editing src/lower, with the language skill.
+description: Writing lowerers in src/lower: pruned tree in, IR graph out, every language variance an IR fact, builtins resolved at lower, --dump-ast and --dump-ir as proof. REQUIRED by the skill gate before editing src/lower.
 ---
 
 # Lowering

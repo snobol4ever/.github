@@ -1,6 +1,6 @@
 ---
 name: suites-and-grading
-description: How SCRIP's correctness is graded: the corpus masters (one ALL.<ext> container per language with ALL.ref, ALL.csv and PARTITION.tsv), the packages and their runners, corpus_suite_harness.py, declared sizes and the compile and oracle arguments, the stored partitions (core, shells, chunks), the progress store results.tsv and the suite table SUITES.tsv and SCORE.md, exclusion classes and the denominator identity, the coo as the one testing officer, test requests, and the program ledger's three axes. Load it before grading a program, reading a score, adding entries or columns to a table, excluding a program, or filing a test request.
+description: How SCRIP is graded: the corpus masters and packages, the runners, corpus_suite_harness.py, results.tsv, SUITES.tsv, exclusion classes, the coo as the one testing officer. REQUIRED by the skill gate before editing the suite tables or the ha
 ---
 
 # Suites and grading

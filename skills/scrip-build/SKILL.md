@@ -1,6 +1,6 @@
 ---
 name: scrip-build
-description: How SCRIP is built: make -j8 and its targets (build-all, parsers-sc, pristine, test, preflight), the outputs (scrip, out/libscrip_rt.so, the stage-0 libscrip_rt0.so, the parser modules), the per-root objdir, ccache, the build cache that FETCHES a clean tree's build, the freshness guard, generated parsers and tables, and the header rule (one header per structure, include what you use, no umbrella, the fan-in ceiling) with its gate. Load it before touching the Makefile or a header's includes, when make refuses or rebuilds everything, or when a header gate is red.
+description: How SCRIP is built: make -j8 and its targets, the outputs, the per-root objdir, ccache, the build cache that fetches a clean tree's build, the freshness guard, generated tables, the header rule. REQUIRED by the skill gate before editing the
 ---
 
 # Building SCRIP

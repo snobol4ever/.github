@@ -1,6 +1,6 @@
 ---
 name: icon
-description: SCRIP's Icon (Arizona Icon 9.5.25a is the oracle; semicolons required): src/parsers/icon, lower_icon.c, the Icon rtx leaves, the IPL, Arizona, Jcon and IcnRungs suites and refs, generators, scanning, co-expressions. REQUIRED by the skill gate before editing the Icon parser, lowerer or prelude.
+description: SCRIP's Icon (Arizona Icon 9.5.25a the oracle): src/parsers/icon, lower_icon.c, the IPL, Arizona, Jcon and IcnRungs suites, generators, scanning, co-expressions. REQUIRED by the skill gate before editing the Icon parser, lowerer or prelude.
 ---
 
 # SCRIP Icon

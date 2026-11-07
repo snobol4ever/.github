@@ -1,6 +1,6 @@
 ---
 name: snocone-parser-patterns
-description: Writing the bootstrap parsers (SCRIP/bootstrap/parser_*.sc) as one Snocone pattern: Shift and Reduce by conditional assignment, the counter stack, FENCE and ARBNO, tokens, keyword and memo tables. REQUIRED by the skill gate before editing a .sc parser or its library.
+description: Writing the bootstrap parsers (SCRIP/bootstrap/parser_*.sc) as one Snocone pattern: Shift and Reduce by conditional assignment, the counter stack, FENCE and ARBNO, the token tables. REQUIRED by the skill gate before editing a .sc parser.
 ---
 
 # Parsers as patterns in Snocone

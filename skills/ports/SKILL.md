@@ -1,6 +1,6 @@
 ---
 name: ports
-description: The two SNOBOL4 ports, snobol4dotnet (C#, seat hq_dotnet) and snobol4jvm (Clojure, seat hq_jvm): independent SNOBOL4 implementations in their own repos, graded by the fleet's runners against the same SPITBOL-cut refs as SCRIP under S4E_ENGINE=dotnet or jvm, their rows named <suite>@<port>. Their runners, builds and the calling shape every port shares. Not SCRIP's future JVM and .NET backends (skill scrip-backends).
+description: The two SNOBOL4 ports, snobol4dotnet (C#) and snobol4jvm (Clojure): independent implementations graded by the fleet's runners under S4E_ENGINE=dotnet or jvm, rows <suite>@<port>. Load before touching a port's runner or build.
 ---
 
 # The ports: snobol4dotnet and snobol4jvm

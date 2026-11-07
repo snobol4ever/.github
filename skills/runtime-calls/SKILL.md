@@ -1,6 +1,6 @@
 ---
 name: runtime-calls
-description: How emitted code calls procedures and the runtime: the procedure record (rt_proc_t) and its registry, the open, prologue and epilogue families of the call protocol, by-name calls, generator procedures on their own stacks, the mode-3 entry thunk, the verdict road of a declining asm leaf, and two DESIGN-PLANs of this layer, the one builtin table (a builtin call decided once in lower) and the one error protocol (a raise returns with the ball armed and the root speaks once), with the resource-error edge. Load it before touching src/runtime/rt/rt.c, a call template, lower_call_forms.c, builtins.tsv, an error or raise path, SETEXIT, catch/3, try/CATCH or &error.
+description: How emitted code calls procedures and the runtime: rt_proc_t, the call protocol, by-name calls, generator stacks, the one builtin table and the one error protocol. REQUIRED by the skill gate before editing rt.c, lower_call_forms.c or builti
 ---
 
 # Runtime calls: procedures, builtins, errors

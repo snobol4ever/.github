@@ -1,6 +1,6 @@
 ---
 name: rtx-asm-leaves
-description: Hand-written x86-64 runtime leaves in SCRIP/src/runtime/rtx (*.s, rtx_abi.inc, rtcc.h, rt_entries.tsv): the rtcc ABI, the four registers the machine owns, clobber masks, declining leaves, CFI, leaf tests. REQUIRED by the skill gate before editing them.
+description: Hand-written x86-64 runtime leaves in src/runtime/rtx (*.s, rtx_abi.inc, rtcc.h, rt_entries.tsv): the rtcc ABI, the four owned registers, clobber masks, declining leaves, CFI. REQUIRED by the skill gate before editing them.
 ---
 
 # Writing rtx asm leaves

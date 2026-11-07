@@ -1,6 +1,6 @@
 ---
 name: prolog-engine
-description: How compiled Prolog runs on SCRIP's one machine: a predicate call as a Byrd box with a retained activation frame, the clause step and cut, the term cell (DESCR tags DT_PLVAR, DT_PLATOM), the register plane (r12 the trail top, r13 the choice barrier B, r15 the ball), the trail arena and its header, the one placement decider (the unbounded-excursion test), the ball and catch/3, run-time goals compiled through EVAL/CODE, continuations (reset/shift) on generator stacks, threads excluded, and the prolog-lifo DESIGN-PLAN. Load it with the prolog skill before touching Prolog templates, rtx_plunify.s, rt_pl_trail.c, lower_prolog.c's clause lowering, or a Prolog frame, choice or trail red.
+description: How compiled Prolog runs: a predicate call as a Byrd box, the clause step and cut, the term cell, the register plane, the trail, the ball and catch/3, continuations. Load with prolog before touching rtx_plunify.s, rt_pl_trail.c or the claus
 ---
 
 # The Prolog engine

@@ -1,6 +1,6 @@
 ---
 name: scrip-c-code
-description: Hand-written C under SCRIP/src (.c, .h, .inc): the 200-column rule, no comments or blank lines, no malloc, no new global without Lon's grant, no fixed limits, generated tables regenerated never edited. REQUIRED by the skill gate before any edit of them.
+description: Hand-written C under SCRIP/src (.c, .h, .inc): the column rule, no comments or blank lines, no malloc, no new global without a grant, no fixed limits, generated tables never edited. REQUIRED by the skill gate before any edit of them.
 ---
 
 # SCRIP C code

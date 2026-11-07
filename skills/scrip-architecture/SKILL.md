@@ -1,6 +1,6 @@
 ---
 name: scrip-architecture
-description: The map of SCRIP as a whole: the one pipeline (driver, parser, lower, optimizer, planner, the one x86-64 emitter, the runtime), modes 3 and 4, the IR types (tree_t, IR_t, IR_graph_t, stage2_t), the graph facts that carry every language variance, the cross-layer rulings, and which skill owns which layer. Load it first when a task crosses layers, when routing a red to its layer, or when an old receipt names a file that is gone.
+description: The map of SCRIP: the one pipeline (driver, parser, lower, optimizer, planner, emitter, runtime), modes 3 and 4, the IR types, the cross-layer rulings, which skill owns which layer. Load first when a task crosses layers or routes a red.
 ---
 
 # SCRIP's architecture

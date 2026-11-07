@@ -1,6 +1,6 @@
 ---
 name: gc-collector
-description: SCRIP's collector: the frozen design (the collector guesses nothing, no pinning, no malloc, the allocator never collects, collection only at a safe point after an allocating call), the compile-time frame maps and site table, the chain over the maps keyed by return pc, the spine between frames read as tagged cells, the asm collection runs and the exact bitmap compactor in rtx_gc.s and rtx_alloc.s, the stress and flip plants, the gc witnesses, and the open rows (the spine mask, early reset). Load it before touching src/runtime/rt/gc_*, rtx_gc.s, rtx_alloc.s, a poll, a root, a frame map or a site record, or when a red appears only under SCRIP_GC_STRESS.
+description: SCRIP's collector: frame maps, the site table, the spine, rtx_gc.s and rtx_alloc.s, the stress and flip plants, the gc witnesses. REQUIRED by the skill gate before editing src/runtime/rt/gc_*, rtx_gc.s or rtx_alloc.s.
 ---
 
 # The collector

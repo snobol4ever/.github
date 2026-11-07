@@ -1,6 +1,6 @@
 ---
 name: pascal
-description: SCRIP's Pascal (ISO 7185 base; FPC, ObjFPC and Delphi dialects over fpc 3.2.2): src/parsers/pascal, lower_pascal*.c, the prelude units, the PasRungs, PAT, FPC, PasRosetta, PasDemo and PasBench suites and refs, types, strings, units, classes. REQUIRED by the skill gate before editing the Pascal parser, lowerer or prelude.
+description: SCRIP's Pascal (ISO 7185, FPC, ObjFPC, Delphi over fpc 3.2.2): src/parsers/pascal, lower_pascal*.c, the prelude units, the PasRungs, PAT, FPC and PasRosetta suites. REQUIRED by the skill gate before editing the Pascal front end.
 ---
 
 # SCRIP Pascal

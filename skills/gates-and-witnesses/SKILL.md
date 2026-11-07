@@ -1,6 +1,6 @@
 ---
 name: gates-and-witnesses
-description: Fleet tests: test_gate_*.sh, test_*.sh, smokes, ladder rungs, witnesses and refs, ALL.csv, STEPS.tsv, LADDER.tsv, and every DONE-WHEN and PREMISE-WHEN. Exit codes, oracle-cut refs, fail-once, who runs what. REQUIRED by the skill gate before editing them.
+description: Fleet tests: test_gate_*.sh, witnesses and refs, ALL.csv, STEPS.tsv, every DONE-WHEN and PREMISE-WHEN; the three exit codes, fail-once, the instrument laws. REQUIRED by the skill gate before editing a test or a criterion.
 ---
 
 # Gates and witnesses

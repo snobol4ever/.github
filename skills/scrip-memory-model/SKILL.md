@@ -1,6 +1,6 @@
 ---
 name: scrip-memory-model
-description: SCRIP's memory model: the three zetas in one coordinate (the RSP spine of variable-length cells, the RBP activation frame, the standing root frame), the edge, discard, gamma and reach laws, definiteness and Lon's two tests, the planner's passes and its plan table (the emitter's one input), the cell forms templates use today, the verifiers (ZD-CHECK, ZD-RTCHECK, the ZSM), and the zeta-layout and planner-finish DESIGN-PLANs. REQUIRED by the skill gate before editing src/planner, src/emitter or src/runtime/rt/gc_*; the collector itself is skill gc-collector.
+description: SCRIP's memory model: the three zetas, the edge, discard, gamma and reach laws, the planner and its plan table, the cell forms, the verifiers. REQUIRED by the skill gate before editing src/planner, src/emitter or src/runtime/rt/gc_*.
 ---
 
 # SCRIP's memory model

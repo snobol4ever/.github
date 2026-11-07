@@ -1,6 +1,6 @@
 ---
 name: raku
-description: SCRIP's Raku (rakudo 2026.05 is the oracle, the roast the spec): src/parsers/raku, lower_raku.c, the setting and kernel boxes, the Seq pull protocol, the RakRungs, Roast, RakBench and RakDemo suites and the rung ladder. REQUIRED by the skill gate before editing the Raku parser, lowerer or prelude.
+description: SCRIP's Raku (rakudo 2026.05 the oracle, the roast the spec): src/parsers/raku, lower_raku.c, the setting and kernel boxes, the Seq pull protocol, the RakRungs, Roast, RakBench suites. REQUIRED by the skill gate before editing the Raku fron
 ---
 
 # SCRIP Raku

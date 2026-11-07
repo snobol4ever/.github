@@ -1,6 +1,6 @@
 ---
 name: design-plans
-description: How a design is written and stepped through: the DESIGN-PLAN (numbered steps, witnesses with oracle-cut refs under corpus/tests/<lang>/<design>/, a STEPS.tsv, a test_design_<name>_steps.sh with --list, --step N, --cut), one row per step whose DONE-WHEN is the literal --step N, the executor's duties, and where each live plan's design text lives (the owning skill's DESIGN section). Load it before writing, stepping, minting or closing a design step, or answering a design ask.
+description: How a design is written and stepped: DESIGN-PLAN steps, witnesses, STEPS.tsv, test_design_<name>_steps.sh, one row per step, the live plans' table. REQUIRED by the skill gate before editing a step table or a step harness.
 ---
 
 # Design plans

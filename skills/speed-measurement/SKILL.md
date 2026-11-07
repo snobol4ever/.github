@@ -1,6 +1,6 @@
 ---
 name: speed-measurement
-description: How speed is measured and when it may be worked: a benchmark is an instruction count, never a wall clock (CEO-1912); speed opens only for SNOBOL4 and Icon (CEO-2035) after completeness and correctness (CEO-1886); util_instr_count.sh's OVERHEAD and WORK, the benchmark oracle, callgrind and perf as profilers, the quiet slice for the rare clock, the bench_* scripts, the kernel convention and the README tables. Load it before a speed row, a benchmark landing, a profile, or any number that claims one engine is faster.
+description: How speed is measured: a benchmark is an instruction count, never a wall clock; util_instr_count.sh, callgrind and perf, the quiet slice, the bench_* scripts, the kernel convention. REQUIRED by the skill gate before editing util_instr_count
 ---
 
 # Speed measurement

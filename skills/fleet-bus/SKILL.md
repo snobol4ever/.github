@@ -1,6 +1,6 @@
 ---
 name: fleet-bus
-description: How the fleet coordinates: the officers and seats, MODE and its keyed lines, the postoffice bus (s4e_msg.sh verbs), rows and their batons (GOAL, DONE-WHEN, PREMISE-WHEN, NEXT, QA, LEDGER), the four ports of a task, mint, claim, park, done, the sweep, test requests, telegrams and SendMessage, the wake rule, and the provenance law. Load it before minting, assigning, parking, closing or telegramming, or when a bus verb refuses.
+description: The fleet: officers and seats, MODE, the bus verbs (s4e_msg.sh), rows and batons, mint/claim/park/done, the sweep, telegrams, the wake rule, the sitting and the landing recipe. Load first, every sitting. REQUIRED by the skill gate before ed
 ---
 
 # The fleet bus
@@ -75,4 +75,4 @@ The queue design: tubes, tick, escalation and acceptance. Full text: `reference.
 
 ## 9. DESIGN: skills-complete (the cio, 2026-11-07)
 
-Every name a skill speaks is live, the gate fires on exactly the files a skill owns, each law has one home, and the drift reads RED by a census (`util_skill_refs_census.py --check`, its gate `test_gate_skills_name_live_files.sh`, the plan `corpus/tests/shared/skills_complete/STEPS.tsv`, `test_design_skills_complete_steps.sh`). The full text is `reference.md` section 9.
+Every name a skill speaks is live, the gate fires on exactly the files a skill owns, each law has one home, and the drift reads RED by a census (`util_skill_refs_census.py --check`, the plan `corpus/tests/shared/skills_complete/STEPS.tsv`, `test_design_skills_complete_steps.sh`). The full text is `reference.md` section 9.

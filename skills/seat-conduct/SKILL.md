@@ -1,6 +1,6 @@
 ---
 name: seat-conduct
-description: How a seat behaves on the shared box: kill by pid and only your own, orphans to their seat, background jobs by handle, scratch under /tmp/s4e/<seat>, one process per identity, the record not the chat, time labels from date, the coo root's objects never pruned. Load it at every sitting's start with fleet-bus.
+description: How a seat behaves on the shared box: kill by pid and only your own, orphans to their seat, background jobs by handle, scratch under /tmp/s4e/<seat>, one process per identity, the record not the chat. Load every sitting with fleet-bus.
 ---
 
 # Seat conduct

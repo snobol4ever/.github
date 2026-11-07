@@ -1,6 +1,6 @@
 ---
 name: box-templates
-description: Byrd-box C++ templates (src/templates/bb, x86_*.{h,cpp}, emit.cpp prepare blocks): the four ports, the x86() encoder, what a template reads from the plan table, carves and pops, the template audit. REQUIRED by the skill gate before editing them.
+description: Byrd-box C++ templates under src/templates (bb, x86_*.h/.cpp, emit.cpp prepare blocks): the four ports, the x86() encoder, the plan table, carves and pops. REQUIRED by the skill gate before editing them.
 ---
 
 # Writing box templates
