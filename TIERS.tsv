@@ -32,3 +32,12 @@ worker_17	WORKER_17	/home/claude_worker_17	claude-haiku-5-5	xhigh	cyan	4	worker
 worker_18	WORKER_18	/home/claude_worker_18	claude-haiku-5-5	xhigh	cyan	4	worker
 worker_19	WORKER_19	/home/claude_worker_19	claude-haiku-5-5	xhigh	cyan	4	worker
 worker_20	WORKER_20	/home/claude_worker_20	claude-haiku-5-5	xhigh	cyan	4	worker
+officer_01	OFFICER_01	/home/claude_officer_01	claude-opus-5-5	high	yellow	2	designer
+officer_02	OFFICER_02	/home/claude_officer_02	claude-opus-5-5	high	yellow	2	designer
+officer_03	OFFICER_03	/home/claude_officer_03	claude-opus-5-5	high	yellow	2	designer
+officer_04	OFFICER_04	/home/claude_officer_04	claude-opus-5-5	high	yellow	2	designer
+officer_05	OFFICER_05	/home/claude_officer_05	claude-opus-5-5	high	yellow	2	designer
+senior_01	SENIOR_01	/home/claude_senior_01	claude-sonnet-5-5	xhigh	purple	3	senior
+senior_02	SENIOR_02	/home/claude_senior_02	claude-sonnet-5-5	xhigh	purple	3	senior
+senior_03	SENIOR_03	/home/claude_senior_03	claude-sonnet-5-5	xhigh	purple	3	senior
+senior_04	SENIOR_04	/home/claude_senior_04	claude-sonnet-5-5	xhigh	purple	3	senior

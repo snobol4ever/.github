@@ -17,8 +17,8 @@ point_at_coo() {
     grep -qxF "$objs" "$alt" 2>/dev/null || printf '%s\n' "$objs" >> "$alt"
 }
 NN="${1:-}"; FROM=/home/claude_cio; [ "${2:-}" = --from ] && FROM="${3:?--from ROOT}"
-case "$NN" in [0-9][0-9]) ;; *) echo "usage: populate_numbered_seat.sh NN [--from ROOT]  (NN two digits, 01..20; the seat is worker_NN)"; exit 2;; esac
-seat="worker_$NN"; root="/home/claude_$seat"; PO=/home/resources/postoffice
+case "$NN" in [0-9][0-9]) seat="worker_$NN";; officer_[0-9][0-9]|senior_[0-9][0-9]) seat="$NN";; *) echo "usage: populate_numbered_seat.sh NN|officer_NN|senior_NN [--from ROOT]  (NN two digits: the seat is worker_NN; a named numbered seat is itself; Lon 2026-11-07 15:4x: the Opus designers and Sonnet seniors)"; exit 2;; esac
+root="/home/claude_$seat"; PO=/home/resources/postoffice
 [ -d "$root" ] || { echo "REFUSE(1): $root does not exist -- Lon creates the folder (/home is root's)"; exit 1; }
 [ -z "$(ls -A "$root")" ] || { echo "REFUSE(1): $root is not empty -- this script fills an empty folder only"; exit 1; }
 for r in SCRIP corpus harness .github; do [ -d "$FROM/$r/.git" ] || { echo "REFUSE(1): $FROM/$r is not a repo"; exit 1; }; done
