@@ -59,7 +59,7 @@ In `harness/scripts/`: `audit_bb_fixup_file.sh <file>` (rc 0 conformant) and `au
 
 ## 5. THE FORBIDDEN FORMS
 
-A raw byte or medium branch; `emit_fmt`; a second `return`; a local or parameter; a graph read; a language name; a `jmp` or `call` written as text; an rsp or rbp address outside the five forms; an rsp write at β; a pop at an unfenced γ; a carve its row does not state; a call with no `rt_entries.tsv` row; a veneer around a leaf call; a hand-edited `.inc`; a comment, blank line or line over 200 columns; an invalid mnemonic (CV7); correctness that depends on the mode.
+A raw byte or medium branch; `emit_fmt`; a second `return`; a local or parameter; a graph read; a language name; a `jmp` or `call` written as text; an rsp or rbp address outside the five forms; an rsp write at β; a pop at an unfenced γ; a carve its row does not state; a call with no `rt_entries.tsv` row; a veneer around a leaf call; a hand-edited `.inc`; a comment, blank line or line over the column rule of skill `scrip-c-code` section 1; an invalid mnemonic (CV7); correctness that depends on the mode.
 
 ## 6. WHERE THE REST LIVES
 
