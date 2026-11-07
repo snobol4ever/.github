@@ -8,6 +8,14 @@
 # It does NOT touch ROSTER, FLEET or the old seat's rows: the cio adds the seat to ROSTER and reowns the retired HQ's rows in the same sitting, by hand, measured.
 # rc 0 populated (prints the root's du); 1 refused (no folder, folder not empty, no source root); 2 usage.
 set -uo pipefail
+# point_at_coo ROOT REPO: the alternates line for one repo, written once (idempotent), as util_sync_root.sh writes it (the cio 2026-11-07): the seat's fetches move refs and the few new objects, never a pack.
+point_at_coo() {
+    local objs="/home/claude_coo/$2/.git/objects" alt="$1/$2/.git/objects/info/alternates"
+    [ "$1" = /home/claude_coo ] && return 0
+    [ -d "$objs" ] || return 0
+    mkdir -p "$(dirname "$alt")" || return 1
+    grep -qxF "$objs" "$alt" 2>/dev/null || printf '%s\n' "$objs" >> "$alt"
+}
 NN="${1:-}"; FROM=/home/claude_cio; [ "${2:-}" = --from ] && FROM="${3:?--from ROOT}"
 case "$NN" in [0-9][0-9]) ;; *) echo "usage: populate_numbered_seat.sh NN [--from ROOT]  (NN two digits, 01..20; the seat is worker_NN)"; exit 2;; esac
 seat="worker_$NN"; root="/home/claude_$seat"; PO=/home/resources/postoffice
@@ -20,6 +28,7 @@ for r in SCRIP harness .github; do git clone -q "$FROM/$r" "$root/$r" && git -C 
 git clone -q --no-checkout "$FROM/corpus" "$root/corpus" && git -C "$root/corpus" remote set-url origin "$(git -C "$FROM/corpus" remote get-url origin)" || exit 1
 git -C "$root/corpus" sparse-checkout set --no-cone tests packages programs library reference editor_configs README.md >/dev/null 2>&1 || git -C "$root/corpus" sparse-checkout set tests packages programs library reference editor_configs
 git -C "$root/corpus" checkout -q main || exit 1
+for r in SCRIP corpus harness .github; do point_at_coo "$root" "$r" || exit 1; done
 for r in SCRIP corpus harness .github; do git -C "$root/$r" fetch -q origin && git -C "$root/$r" merge -q --ff-only origin/main || exit 1; done
 mkdir -p "$root/.claude" "$root/.scratch" "/tmp/s4e/$seat" "$PO/$seat/inbox" "$PO/$seat/archive"
 [ -d "$PO/$seat/HQ" ] && rmdir "$PO/$seat/HQ"; echo cio > "$PO/$seat/HQ"
