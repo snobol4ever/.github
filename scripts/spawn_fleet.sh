@@ -21,13 +21,21 @@ while [ $# -gt 0 ]; do case "$1" in --dry) DRY=1;; --table) TABLEONLY=1;; --prob
 TABLE="$(awk -F'\t' '!/^#/ && $1 != "seat" && NF >= 8 {print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6}' "$TIERS")"
 [ -n "$TABLE" ] || { echo "REFUSE(2): $TIERS names no seat"; exit 2; }
 if [ "$TABLEONLY" = 1 ]; then printf '%s\n' "$TABLE"; exit 0; fi
+# THE FIRST PROMPT IS THE SITTING (the cio, 2026-11-07 15:2x; MEASURED at the cold start from ~/spawn_fleet.sh: thirty seats up in two minutes and NONE took a job, zero
+# Stop-gate blocks in the hour, because the opening prompt "/color COLOR" is a local command that makes no model turn, so no Stop ever fired and every seat sat at its
+# prompt until a message). A seat's opening prompt is now a real turn: run the sitting and end on next --wait 240; from that turn's Stop the gate holds the seat on the
+# queue for good. The session color (Lon 2026-11-05: red, green, yellow, purple, cyan by tier) cannot be set without a slash command and a slash command cannot be the
+# first turn, so the color is named in the prompt for the seat to read, and the window title carries the seat; the tier is in TIERS.tsv.
+first_prompt() {   # <seat> <root> <color> -> the opening prompt, one line, no shell syntax (it travels through bash -lc quoting)
+    printf 'You are seat %s (session color %s). Run your sitting now, in order (skill fleet-bus section 7): export S4E_HOME=%s S4E_SEAT=%s; bash harness/scripts/util_sync_root.sh; cd SCRIP and make -j8; head -2 /home/resources/postoffice/MODE; bash harness/scripts/s4e_msg.sh check, act or reply, then clear; then bash harness/scripts/s4e_msg.sh next --wait 240 and work exactly what it serves, as its baton NEXT says, loading the skills its SKILLS line names; one honest try, then escalate with the measurement. When nothing is served, stop: your Stop gate sends you back to next --wait 240 on its own. A worker takes no FREE row and mints nothing.' "$1" "$3" "$2" "$1"
+}
 seat_scope() { printf 'systemd-run --user --scope --slice=%s --unit=s4e-seat-%s -p CPUQuota=%s%% -p MemoryHigh=%s -p MemoryMax=%s --' "$SEAT_SCOPE_SLICE" "$1" "$SEAT_SCOPE_CPU" "$SEAT_SCOPE_MEMHIGH" "$SEAT_SCOPE_MEMMAX"; }
 if [ "$PROBE" = 1 ]; then
     command -v systemd-run >/dev/null || { echo "REFUSE(2): no systemd-run on PATH"; exit 2; }
     IFS=$'\t' read -r pseat pname proot pmodel peffort pcolor <<< "$(printf '%s\n' "$TABLE" | tail -1)"
     seatre="$(printf '%s\n' "$TABLE" | cut -f1 | paste -sd'|' -)"
     patterns="$(grep -cE "^[[:space:]]*($seatre)([|]|\))" "${BASH_SOURCE[0]}")"
-    echo "CMD $(seat_scope "$pseat") claude --name $pname --model $pmodel --effort $peffort '/color $pcolor'"
+    echo "CMD $(seat_scope "$pseat") claude --name $pname --model $pmodel --effort $peffort '<the sitting prompt, color $pcolor>'"
     echo "SCOPE launcher=systemd-run slice=$SEAT_SCOPE_SLICE unit=s4e-seat-$pseat cpu=$SEAT_SCOPE_CPU memhigh=$SEAT_SCOPE_MEMHIGH memmax=$SEAT_SCOPE_MEMMAX seats=$(printf '%s\n' "$TABLE" | grep -c .) patterns=$patterns"
     exit 0
 fi
@@ -63,7 +71,7 @@ while IFS=$'\t' read -r seat name root model effort color; do
     alive_pid="$(pgrep -f "(^|/)claude --name $name( |$)" | head -1)"
     [ -n "$alive_pid" ] || alive_pid="$(for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = claude ] && [ "$(readlink "$p/cwd" 2>/dev/null)" = "$root" ] && { basename "$p"; break; }; done)"
     if [ -n "$alive_pid" ]; then echo "SKIP    $seat: a claude session of $root already runs (pid $alive_pid)"; skipped=$((skipped+1)); continue; fi
-    cmd="$(seat_scope "$seat") claude --name $name --model $model --effort $effort '/color $color'"
+    cmd="$(seat_scope "$seat") claude --name $name --model $model --effort $effort '$(first_prompt "$seat" "$root" "$color")'"
     echo "OPEN    $seat: gnome-terminal --maximize --zoom=$TERM_ZOOM --profile=$TERM_PROFILE --title=$name --working-directory=$root -- $cmd"
     if [ "$DRY" = 0 ]; then
         # NO exec (Lon 2026-11-06 08:3x CST, in the coo's window: "I tried to exit a claude worker to re-execute it from the bash shell and when I did it
