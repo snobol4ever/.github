@@ -5,7 +5,7 @@ description: How speed is measured and when it may be worked: a benchmark is an 
 
 # Speed measurement
 
-Detail is in `reference.md` beside this file.
+Detail is in `.github/skills/speed-measurement/reference.md`, beside this file.
 
 ## 1. The rulings
 

@@ -1,6 +1,6 @@
 # Speed measurement: the reference
 
-Verified 2026-11-01 against the harness and the box. Consolidated from ARCH-PERF-TOOLING (2026-08-28) and ARCH-BENCH-CAMPAIGN-README-TABLES, retired (`.github/RETIRED-ARCH-PAGES.tsv`); both predate CEO-1912, so their wall-clock and three-angle method is history: the count of § 2 of SKILL.md replaced it.
+Verified 2026-11-07 against the harness and the box. Consolidated from ARCH-PERF-TOOLING (2026-08-28) and ARCH-BENCH-CAMPAIGN-README-TABLES, retired (`.github/RETIRED-ARCH-PAGES.tsv`); both predate CEO-1912, so their wall-clock and three-angle method is history: the count of § 2 of .github/skills/speed-measurement/SKILL.md replaced it.
 
 ## 1. The instruments by question
 
