@@ -52,6 +52,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | header-split | `.github/scripts/headers/` | the header ratchet gates | skill `scrip-build` DESIGN |
 | shared-development | the step rows `shared-dev-step-*` | `util_seat_census.py` | skill `shared-box` |
 | batch-grader | `corpus/tests/shared/batch_grader/` | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
+| fleet-control | `corpus/tests/shared/fleet_control/` | `test_design_fleet_control_steps.sh` | skill `shared-box` section 9 (supersedes box-scheduler, fleet-queue, test-cycle, box-budget, shared-development, batch-grader) |
 | test-cycle | `corpus/tests/shared/test_cycle/` | `test_design_test_cycle_steps.sh` | skill `suites-and-grading` section 7 |
 | box-budget | `corpus/tests/shared/box_budget/` | `test_design_box_budget_steps.sh` | skill `shared-box` section 7 |
 | box-scheduler | `corpus/tests/shared/box_scheduler/` | `test_design_box_scheduler_steps.sh` | skill `shared-box` section 8 |

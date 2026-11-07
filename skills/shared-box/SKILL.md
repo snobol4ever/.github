@@ -50,3 +50,6 @@ The full text of this section (about 2 KB) is in `reference.md` beside this file
 
 The full text of this section (about 11 KB) is in `reference.md` beside this file, under the same heading, moved there verbatim on 2026-11-06 so the skill loads light (Lon: "Go and trim any skill that needs it."). Read it before executing, cutting or ruling on a step of this design.
 
+## 9. DESIGN: fleet-control (the cio, 2026-11-07, on Lon's word: "SCRAP it and do it again the correct way"; `corpus/tests/shared/fleet_control/STEPS.tsv`, `test_design_fleet_control_steps.sh`)
+
+The full text is `reference.md` section 9: the measurements of 2026-11-07, the law (kernel-enforced limits, fixed work once per hash, one controller on PSI, measured outcomes only, the cio's hand), the tools and the eight steps. It supersedes the 71 live rows of sections 7 and 8 and of fleet-queue, test-cycle, batch-grader and shared-development.
