@@ -2,7 +2,7 @@
 """THE DOUBLE-SIDED BANNER (the cto, 2026-11-03 22:3x CST, first as /home/claude_cto/.claude/banner_compact.py; fleet-wide on Lon's word
 2026-11-04: "In the display banner add a column for a delta/difference and distribute the new double-sided banner across the fleet.";
 CEO-2129). The Stop hook pipes `s4e_msg.sh banner` through this filter: the suite grid's rows are laid out in TWO COLUMNS side by side,
-half the suites on the left, half on the right, each cell `Lang Suite Pass/Tot M3 M4 Δ Pct Min`, so the whole fleet score fits one screen without
+half the suites on the left, half on the right, each cell `Lang Suite Pass/Tot Excl M3 M4 Δ Pct Min` (Excl is the suite's excluded count, `-` when blank), so the whole fleet score fits one screen without
 a wrapped line (Lon's terminal wraps a long line; the full grid is 45 rows). Δ is util_suite_banner.py's delta column: Total minus Pass, how many failures remain
 (Lon 2026-11-04: "The delta column represents how many failures remain."); since 2026-11-05 it also carries the state, the S column
 merged into it (Lon, in the coo's window: "Fix the test suite display banner to show the minimum time required for each of the 44 suites.
@@ -17,7 +17,7 @@ the input passes through untouched, so a refused or missing grid is never hidden
 import re
 import sys
 
-CELLW = 58
+CELLW = 63
 WIDTH = 2 * CELLW + 3
 STATE = {"DONE": "✓", "VOID": "V", "NO READING": "?", "": ""}
 
@@ -59,13 +59,14 @@ def main():
     def fmt(r):
         st = r.get("State", "")
         ds = STATE.get(st, st[:1]) if st else r.get("Δ", "")
-        s = f"{r.get('Lang',''):<8} {r.get('Suite',''):<12} {r.get('Pass',''):>4}/{r.get('Total',''):<4} {r.get('M3',''):>4} {r.get('M4',''):>4} {ds:>4} {r.get('Pct',''):>4} {r.get('Wall',''):>6}"
+        ex = (r.get("Excl", "") or "").strip() or "-"
+        s = f"{r.get('Lang',''):<8} {r.get('Suite',''):<12} {r.get('Pass',''):>4}/{r.get('Total',''):<4} {ex:>4} {r.get('M3',''):>4} {r.get('M4',''):>4} {ds:>4} {r.get('Pct',''):>4} {r.get('Wall',''):>6}"
         return s[:CELLW].ljust(CELLW)
 
     half = (len(rows) + 1) // 2
     left, right = rows[:half], rows[half:]
     out = [cut(h) for h in head if h.strip()]
-    hdr = f"{'Lang':<8} {'Suite':<12} {'Pass/Tot':<9} {'M3':>4} {'M4':>4} {'Δ':>4} {'Pct':>4} {'Min':>6}".ljust(CELLW)
+    hdr = f"{'Lang':<8} {'Suite':<12} {'Pass/Tot':<9} {'Excl':>4} {'M3':>4} {'M4':>4} {'Δ':>4} {'Pct':>4} {'Min':>6}".ljust(CELLW)
     out.append(hdr + " │ " + hdr)
     for i in range(half):
         l = fmt(left[i])
