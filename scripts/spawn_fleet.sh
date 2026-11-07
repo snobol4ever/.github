@@ -14,7 +14,7 @@
 # THE SEAT SCOPE (row spawn-fleet-starts-every-seat-in-app-slice-so-no-seat-scope-exists-for-the-law-to-cap, the cio 2026-11-07): each claude runs inside `systemd-run --user --scope --slice=s4e-seats.slice --unit=s4e-seat-<seat> -p CPUQuota=400% -p MemoryHigh=8G -p MemoryMax=10G --`, so every seat has a scope named for it under s4e.slice (the box controller's SEATCAP actuator caps a scope it can find; a seat left in app.slice cannot be capped). --probe-scope renders the last TIERS.tsv seat's command and prints one SCOPE line; it opens nothing.
 set -uo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; TIERS="$HERE/../TIERS.tsv"
-DRY=0; STAGGER=4; SEATS=(); TABLEONLY=0; PROBE=0; SEAT_SCOPE_SLICE=s4e-seats.slice; SEAT_SCOPE_CPU=400; SEAT_SCOPE_MEMHIGH=4G; SEAT_SCOPE_MEMMAX=8G
+DRY=0; STAGGER=4; SEATS=(); TABLEONLY=0; PROBE=0; TERM_PROFILE="${S4E_TERM_PROFILE:-Fleet}"; SEAT_SCOPE_SLICE=s4e-seats.slice; SEAT_SCOPE_CPU=400; SEAT_SCOPE_MEMHIGH=4G; SEAT_SCOPE_MEMMAX=8G
 while [ $# -gt 0 ]; do case "$1" in --dry) DRY=1;; --table) TABLEONLY=1;; --probe-scope) PROBE=1;; --stagger) STAGGER="${2:?seconds}"; shift;; --all) SEATS=(ALL);; -h|--help) sed -n '2,12p' "$0"; exit 0;; *) SEATS+=("$1");; esac; shift; done
 # seat  NAME  root  model  effort  color, from TIERS.tsv (the session color, Lon 16:0x: "red, green, yellow, purple, and cyan. From top down": Fable red, the coo green, the CxOs yellow, the company men purple, the workers cyan; run as the /color command at session start, never a terminal background)
 [ -f "$TIERS" ] || { echo "REFUSE(2): no tiers table at $TIERS"; exit 2; }
@@ -41,7 +41,7 @@ while IFS=$'\t' read -r seat name root model effort color; do
     if [ ! -d "$root" ] || [ ! -f "$root/CLAUDE.md" ]; then echo "REFUSED $seat: root $root missing or unpopulated"; refused=$((refused+1)); continue; fi
     if pgrep -f "^claude --name $name( |$)" >/dev/null; then echo "SKIP    $seat: claude --name $name already runs (pid $(pgrep -f "^claude --name $name( |$)" | head -1))"; skipped=$((skipped+1)); continue; fi
     cmd="$(seat_scope "$seat") claude --name $name --model $model --effort $effort '/color $color'"
-    echo "OPEN    $seat: gnome-terminal --maximize --title=$name --working-directory=$root -- $cmd"
+    echo "OPEN    $seat: gnome-terminal --maximize --profile=$TERM_PROFILE --title=$name --working-directory=$root -- $cmd"
     if [ "$DRY" = 0 ]; then
         # NO exec (Lon 2026-11-06 08:3x CST, in the coo's window: "I tried to exit a claude worker to re-execute it from the bash shell and when I did it
         # DISAPPEARED since there is NO bash shell. So go fix that in your spawn script."): claude runs as a child of the window's bash, and when it exits the
@@ -49,7 +49,7 @@ while IFS=$'\t' read -r seat name root model effort color; do
         # A CLEAN ENVIRONMENT (Lon 2026-11-06: the respawned workers warned CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1; MEASURED by the coo: a window opened
         # from inside a Claude Code session inherited that session's CLAUDECODE, CLAUDE_CODE_CHILD_SESSION, CLAUDE_CODE_SESSION_ID, CLAUDE_PID and its
         # messaging socket and token, so the new seat ran as the caller's child): every exported CLAUDECODE or CLAUDE_* variable is unset before claude starts.
-        gnome-terminal --maximize --title="$name" --working-directory="$root" -- bash -lc "unset \$(compgen -e | grep -E '^(CLAUDECODE|CLAUDE_)'); printf '\\e]2;$name\\a'; cd '$root' && $cmd; rc=\$?; printf '\\e]2;$name (shell)\\a'; echo; echo \"[$name] claude exited rc=\$rc; this window is a bash shell in $root. Restart the seat with:\"; echo \"  $cmd\"; exec bash -l" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
+        gnome-terminal --maximize --profile="$TERM_PROFILE" --title="$name" --working-directory="$root" -- bash -lc "unset \$(compgen -e | grep -E '^(CLAUDECODE|CLAUDE_)'); printf '\\e]2;$name\\a'; cd '$root' && $cmd; rc=\$?; printf '\\e]2;$name (shell)\\a'; echo; echo \"[$name] claude exited rc=\$rc; this window is a bash shell in $root. Restart the seat with:\"; echo \"  $cmd\"; exec bash -l" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
         opened=$((opened+1)); sleep "$STAGGER"
     fi
 done <<< "$TABLE"
