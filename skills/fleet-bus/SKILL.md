@@ -67,7 +67,7 @@ Hand-off checks: `handoff_status.sh` rc 0, everything pushed, one plain closing 
 
 **The landing recipe.** (1) Reproduce with `monitor_run.sh <prog> --oracle`. (2) Criterion first: a DONE-WHEN red now, each line starting `cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" &&`. (3) Cure in a clean `git worktree`; never edit a generated table. (4) Prove: DONE-WHEN green; both modes against the oracle; `test_feature_reps.sh`; the smoke. (5) Land: `s4e_land.sh --probe`, then `s4e_land.sh --row <topic>`; by hand only on refusal. (6) Record the LEDGER and NEXT; `claim` then `done` once the coo's reading is green.
 
-**The fleet check (Lon 2026-11-07, CTO-541).** When Lon asks any seat for a fleet check, run `python3 harness/scripts/fleet_check.py` and paste what it prints AS IT IS: a 6x5 markdown grid of the thirty seats, a coloured square and a few measured words per cell; never in a code fence (dark blue on black), never HTML, never a hand-kept note; on demand only. Detail: reference.md section 7.
+**The fleet check (Lon 2026-11-07, CTO-541, redone CTO-542).** When Lon asks any seat for a fleet check, run `python3 harness/scripts/fleet_check.py` and paste what it prints AS IT IS: one markdown table, six seats across, five seat rows down, every seat a square seven table rows tall (a three-by-three coloured square whose colour is the state, the language or area and one plain verb, a progress bar with the percent and the stage, mail, escalation and landing icons, cpu, memory and disk as a meter plus the number); never a row name, a job number or a step number; never in a code fence (dark blue on black), never HTML, never a hand-kept note; on demand only. Detail: reference.md section 7.
 
 ## 8. DESIGN: fleet-queue (the cio, 2026-11-05)
 
