@@ -1,6 +1,6 @@
 ---
 name: prolog-tabling
-description: SCRIP Prolog's tabling: IR_TABLE_HDR, answer tries, semi-naive rounds, moded tables, incremental tabling, well-founded negation, call subsumption, the XSB loader. Load with prolog before touching tabling.pl, xsb_tables.pl or bb_table_hdr.cp
+description: SCRIP Prolog's tabling: IR_TABLE_HDR, answer tries, semi-naive rounds, moded and incremental tables, well-founded negation, the XSB loader. REQUIRED by the skill gate before editing tabling.pl, xsb_tables.pl or bb_table_hdr.cpp.
 ---
 
 # Prolog tabling

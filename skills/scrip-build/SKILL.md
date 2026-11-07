@@ -1,6 +1,6 @@
 ---
 name: scrip-build
-description: How SCRIP is built: make -j8 and its targets, the outputs, the per-root objdir, ccache, the build cache that fetches a clean tree's build, the freshness guard, generated tables, the header rule. REQUIRED by the skill gate before editing the
+description: How SCRIP is built: make -j8 and its targets, the outputs, the per-root objdir, ccache, the build cache, the freshness guard, generated tables, the header rule. REQUIRED by the skill gate before editing the Makefile.
 ---
 
 # Building SCRIP

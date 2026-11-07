@@ -1,6 +1,6 @@
 ---
 name: prolog
-description: SCRIP's Prolog (swipl 9.0.4, GNU Prolog, XSB the oracles): src/parsers/prolog, lower_prolog*.c, the prelude, the ProRungs, INRIA, GNU, Logtalk, SWI, XSB suites, the dialect record. REQUIRED by the skill gate before editing the Prolog front 
+description: SCRIP's Prolog (swipl 9.0.4, GNU Prolog, XSB the oracles): src/parsers/prolog, lower_prolog*.c, the prelude, the ProRungs, INRIA, Logtalk, SWI and XSB suites, the dialect record. REQUIRED by the skill gate before editing its front end.
 ---
 
 # SCRIP Prolog

@@ -1,6 +1,6 @@
 ---
 name: snobol4
-description: SCRIP's SNOBOL4, Snocone and Rebus (SPITBOL semantics, sbl -bf the oracle): their parsers, lowerers, the pattern runtime and match leaves, the SnoRungs, Gimpel, Budne, Flake and the other suites. REQUIRED by the skill gate before editing th
+description: SCRIP's SNOBOL4, Snocone and Rebus (SPITBOL semantics, sbl -bf the oracle): parsers, lowerers, the pattern runtime and match leaves, the SnoRungs, Gimpel, Budne, Flake and the other suites. REQUIRED by the skill gate before editing them.
 ---
 
 # SCRIP SNOBOL4, Snocone and Rebus

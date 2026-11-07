@@ -1,6 +1,6 @@
 ---
 name: runtime-calls
-description: How emitted code calls procedures and the runtime: rt_proc_t, the call protocol, by-name calls, generator stacks, the one builtin table and the one error protocol. REQUIRED by the skill gate before editing rt.c, lower_call_forms.c or builti
+description: How emitted code calls procedures and the runtime: rt_proc_t, the call protocol, by-name calls, generator stacks, the builtin table, the error protocol. REQUIRED by the skill gate before editing rt.c, lower_call_forms.c or builtins.tsv.
 ---
 
 # Runtime calls: procedures, builtins, errors

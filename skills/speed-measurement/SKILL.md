@@ -1,6 +1,6 @@
 ---
 name: speed-measurement
-description: How speed is measured: a benchmark is an instruction count, never a wall clock; util_instr_count.sh, callgrind and perf, the quiet slice, the bench_* scripts, the kernel convention. REQUIRED by the skill gate before editing util_instr_count
+description: How speed is measured: a benchmark is an instruction count, never a wall clock; util_instr_count.sh, callgrind and perf, the quiet slice, the bench_* scripts. REQUIRED by the skill gate before editing util_instr_count.sh or a bench script.
 ---
 
 # Speed measurement

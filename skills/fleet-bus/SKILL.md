@@ -1,6 +1,6 @@
 ---
 name: fleet-bus
-description: The fleet: officers and seats, MODE, the bus verbs (s4e_msg.sh), rows and batons, mint/claim/park/done, the sweep, telegrams, the wake rule, the sitting and the landing recipe. Load first, every sitting. REQUIRED by the skill gate before ed
+description: The fleet: officers and seats, MODE, the bus verbs (s4e_msg.sh), rows and batons, the sweep, telegrams, the wake rule, the sitting and the landing recipe. Load first every sitting; REQUIRED by the skill gate for the bus and MODE.
 ---
 
 # The fleet bus

@@ -1,6 +1,6 @@
 ---
 name: suites-and-grading
-description: How SCRIP is graded: the corpus masters and packages, the runners, corpus_suite_harness.py, results.tsv, SUITES.tsv, exclusion classes, the coo as the one testing officer. REQUIRED by the skill gate before editing the suite tables or the ha
+description: How SCRIP is graded: the corpus masters and packages, the runners, corpus_suite_harness.py, results.tsv, SUITES.tsv, exclusions, the coo as the one testing officer. REQUIRED by the skill gate before editing the suite tables or the harness.
 ---
 
 # Suites and grading

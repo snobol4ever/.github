@@ -1,6 +1,6 @@
 ---
 name: prolog-engine
-description: How compiled Prolog runs: a predicate call as a Byrd box, the clause step and cut, the term cell, the register plane, the trail, the ball and catch/3, continuations. Load with prolog before touching rtx_plunify.s, rt_pl_trail.c or the claus
+description: How compiled Prolog runs: a predicate call as a Byrd box, the clause step and cut, the term cell, the register plane, the trail, the ball. REQUIRED by the skill gate before editing rtx_plunify.s, rt_pl_trail.c or pl_trail_layout.h.
 ---
 
 # The Prolog engine

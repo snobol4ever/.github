@@ -1,6 +1,6 @@
 ---
 name: unicon
-description: SCRIP's Unicon superset of Icon (unicon 13.3 the oracle): the markers, --dialect=unicon, classes, packages, the pattern type, threads, the UniTests package, rungs 43 to 49. REQUIRED by the skill gate before editing the Unicon parts of the I
+description: SCRIP's Unicon superset of Icon (unicon 13.3 the oracle): the markers, --dialect=unicon, classes, packages, the pattern type, threads, UniTests, rungs 43 to 49. REQUIRED by the skill gate before editing the Unicon parts of the front end.
 ---
 
 # SCRIP Unicon

@@ -1,6 +1,6 @@
 ---
 name: shared-box
-description: The one box every seat shares: the cgroup tree and seat scopes, the compile and run pools, the build cache, the ledgers (LOAD.tsv, SEATS.tsv, SLOT_WAITS.tsv), memory and /tmp rules, util_batch.sh. REQUIRED by the skill gate before editing t
+description: The one box every seat shares: the cgroup tree and seat scopes, the compile and run pools, the build cache, the ledgers, memory and /tmp rules, util_batch.sh. REQUIRED by the skill gate before editing the slot, batch or tick scripts.
 ---
 
 # The shared box (CEO-2041, CEO-2105, CEO-2108)

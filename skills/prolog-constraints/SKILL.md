@@ -1,6 +1,6 @@
 ---
 name: prolog-constraints
-description: SCRIP Prolog's constraints over one attributed variable: the wake word, hooks, freeze, dif, CLP(FD/Q/R/B), CHR (lower_prolog_chr.c). Load with prolog before touching an attributed variable, clpfd.pl, chr_runtime.pl or a CLP red.
+description: SCRIP Prolog's constraints over one attributed variable: the wake word, hooks, freeze, dif, CLP(FD/Q/R/B), CHR. REQUIRED by the skill gate before editing clpfd.pl, clpq, clpr, chr_runtime.pl or lower_prolog_chr.c.
 ---
 
 # Prolog constraints
