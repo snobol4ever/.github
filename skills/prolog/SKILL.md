@@ -53,4 +53,4 @@ The record is GOAL-PROLOG-100.md (LIVE CURSOR on top). Suite tables, the dialect
 
 ## 8. DESIGN
 
-The consulted-clause source record (CEO-2064; `corpus/tests/prolog/clause_source_record/STEPS.tsv`) is DONE, all eight steps. The live Prolog plans are prolog-lifo (skill `prolog-engine`), xsb-tabling-wfs (skill `prolog-tabling`) and the shared builtin-table and exceptions plans (skill `runtime-calls`).
+The consulted-clause source record (CEO-2064; `corpus/tests/prolog/clause_source_record/STEPS.tsv`) is DONE, all eight steps. DESIGN-PLAN prolog-gnu-gaps (CTO-543, 2026-11-07; `corpus/tests/prolog/gnu_gaps/STEPS.tsv`, `test_design_prolog_gnu_gaps_steps.sh`): the nine GNU builtin gaps left after the family probe, one witness each, cut from gprolog; the design text is `reference.md` section 8. The live Prolog plans are prolog-lifo (skill `prolog-engine`), xsb-tabling-wfs (skill `prolog-tabling`) and the shared builtin-table and exceptions plans (skill `runtime-calls`).
