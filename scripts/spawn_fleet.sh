@@ -14,7 +14,7 @@
 # THE SEAT SCOPE (row spawn-fleet-starts-every-seat-in-app-slice-so-no-seat-scope-exists-for-the-law-to-cap, the cio 2026-11-07): each claude runs inside `systemd-run --user --scope --slice=s4e-seats.slice --unit=s4e-seat-<seat> -p CPUQuota=400% -p MemoryHigh=8G -p MemoryMax=10G --`, so every seat has a scope named for it under s4e.slice (the box controller's SEATCAP actuator caps a scope it can find; a seat left in app.slice cannot be capped). --probe-scope renders the last TIERS.tsv seat's command and prints one SCOPE line; it opens nothing.
 set -uo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; TIERS="$HERE/../TIERS.tsv"
-DRY=0; STAGGER=4; SEATS=(); TABLEONLY=0; PROBE=0; SEAT_SCOPE_SLICE=s4e-seats.slice; SEAT_SCOPE_CPU=400; SEAT_SCOPE_MEMHIGH=8G; SEAT_SCOPE_MEMMAX=10G
+DRY=0; STAGGER=4; SEATS=(); TABLEONLY=0; PROBE=0; SEAT_SCOPE_SLICE=s4e-seats.slice; SEAT_SCOPE_CPU=400; SEAT_SCOPE_MEMHIGH=4G; SEAT_SCOPE_MEMMAX=8G
 while [ $# -gt 0 ]; do case "$1" in --dry) DRY=1;; --table) TABLEONLY=1;; --probe-scope) PROBE=1;; --stagger) STAGGER="${2:?seconds}"; shift;; --all) SEATS=(ALL);; -h|--help) sed -n '2,12p' "$0"; exit 0;; *) SEATS+=("$1");; esac; shift; done
 # seat  NAME  root  model  effort  color, from TIERS.tsv (the session color, Lon 16:0x: "red, green, yellow, purple, and cyan. From top down": Fable red, the coo green, the CxOs yellow, the company men purple, the workers cyan; run as the /color command at session start, never a terminal background)
 [ -f "$TIERS" ] || { echo "REFUSE(2): no tiers table at $TIERS"; exit 2; }
@@ -28,7 +28,7 @@ if [ "$PROBE" = 1 ]; then
     seatre="$(printf '%s\n' "$TABLE" | cut -f1 | paste -sd'|' -)"
     patterns="$(grep -cE "^[[:space:]]*($seatre)([|]|\))" "${BASH_SOURCE[0]}")"
     echo "CMD $(seat_scope "$pseat") claude --name $pname --model $pmodel --effort $peffort '/color $pcolor'"
-    echo "SCOPE launcher=systemd-run slice=$SEAT_SCOPE_SLICE unit=s4e-seat-$pseat cpu=$SEAT_SCOPE_CPU memhigh=$SEAT_SCOPE_MEMHIGH seats=$(printf '%s\n' "$TABLE" | grep -c .) patterns=$patterns"
+    echo "SCOPE launcher=systemd-run slice=$SEAT_SCOPE_SLICE unit=s4e-seat-$pseat cpu=$SEAT_SCOPE_CPU memhigh=$SEAT_SCOPE_MEMHIGH memmax=$SEAT_SCOPE_MEMMAX seats=$(printf '%s\n' "$TABLE" | grep -c .) patterns=$patterns"
     exit 0
 fi
 [ ${#SEATS[@]} -gt 0 ] || { echo "usage: spawn_fleet.sh [--dry] [--table] [--stagger S] --all | SEAT..."; exit 2; }
