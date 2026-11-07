@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# spawn_fleet.sh [--dry] [--table] [--probe-scope] [--stagger S] [--all | SEAT...] -- THE FLEET FIRES BACK FROM ONE COMMAND (the cio, 2026-11-05; Lon, in the cio's window 15:5x CST,
+# spawn_fleet.sh [--dry] [--table] [--probe-scope] [--stagger S] [--all | SEAT...]  (env: S4E_TERM_PROFILE=Fleet S4E_TERM_FONT="Ubuntu Sans Mono 11" S4E_TERM_ZOOM=1.0) -- THE FLEET FIRES BACK FROM ONE COMMAND (the cio, 2026-11-05; Lon, in the cio's window 15:5x CST,
 # verbatim: "What I would prefer versus manually SPAWNING the fleet which takes 30 minutes, but instead a shell script that fires a process with a window
 # being the claude executable with proper title based on seat name and proper model and effort on the command-line."). One gnome-terminal window per seat,
 # titled by the seat's name, working directory the seat's root, running `claude --name NAME --model MODEL --effort EFFORT` -- the three the box controller
@@ -14,7 +14,7 @@
 # THE SEAT SCOPE (row spawn-fleet-starts-every-seat-in-app-slice-so-no-seat-scope-exists-for-the-law-to-cap, the cio 2026-11-07): each claude runs inside `systemd-run --user --scope --slice=s4e-seats.slice --unit=s4e-seat-<seat> -p CPUQuota=400% -p MemoryHigh=8G -p MemoryMax=10G --`, so every seat has a scope named for it under s4e.slice (the box controller's SEATCAP actuator caps a scope it can find; a seat left in app.slice cannot be capped). --probe-scope renders the last TIERS.tsv seat's command and prints one SCOPE line; it opens nothing.
 set -uo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; TIERS="$HERE/../TIERS.tsv"
-DRY=0; STAGGER=4; SEATS=(); TABLEONLY=0; PROBE=0; TERM_PROFILE="${S4E_TERM_PROFILE:-Fleet}"; SEAT_SCOPE_SLICE=s4e-seats.slice; SEAT_SCOPE_CPU=400; SEAT_SCOPE_MEMHIGH=4G; SEAT_SCOPE_MEMMAX=8G
+DRY=0; STAGGER=4; SEATS=(); TABLEONLY=0; PROBE=0; TERM_PROFILE="${S4E_TERM_PROFILE:-Fleet}"; TERM_FONT="${S4E_TERM_FONT:-Ubuntu Sans Mono 11}"; TERM_ZOOM="${S4E_TERM_ZOOM:-1.0}"; SEAT_SCOPE_SLICE=s4e-seats.slice; SEAT_SCOPE_CPU=400; SEAT_SCOPE_MEMHIGH=4G; SEAT_SCOPE_MEMMAX=8G
 while [ $# -gt 0 ]; do case "$1" in --dry) DRY=1;; --table) TABLEONLY=1;; --probe-scope) PROBE=1;; --stagger) STAGGER="${2:?seconds}"; shift;; --all) SEATS=(ALL);; -h|--help) sed -n '2,12p' "$0"; exit 0;; *) SEATS+=("$1");; esac; shift; done
 # seat  NAME  root  model  effort  color, from TIERS.tsv (the session color, Lon 16:0x: "red, green, yellow, purple, and cyan. From top down": Fable red, the coo green, the CxOs yellow, the company men purple, the workers cyan; run as the /color command at session start, never a terminal background)
 [ -f "$TIERS" ] || { echo "REFUSE(2): no tiers table at $TIERS"; exit 2; }
@@ -32,16 +32,35 @@ if [ "$PROBE" = 1 ]; then
     exit 0
 fi
 [ ${#SEATS[@]} -gt 0 ] || { echo "usage: spawn_fleet.sh [--dry] [--table] [--stagger S] --all | SEAT..."; exit 2; }
+# THE WINDOW SIZE IS A COMMAND-LINE OPTION, NEVER THE DESKTOP'S (Lon 2026-11-07 13:2x, in the cio's window: the spawned windows' letters were too large, then
+# too small once the cio changed the profile under his hand; "Make sure to fix the problem not now, but in the scripts that spawn. Get the command-line options correct."):
+# the Fleet profile's font is declared here (S4E_TERM_FONT, default Ubuntu Sans Mono 11; the system font is never used, it follows the desktop) and written to the
+# profile only when it differs, and every window opens with --zoom=S4E_TERM_ZOOM (default 1.0). One FONT line records what the windows get.
+fleet_profile_font() {
+    local base=org.gnome.Terminal.ProfilesList id p cur
+    for id in $(gsettings get $base list 2>/dev/null | tr -d "[],'"); do
+        p="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$id/"
+        [ "$(gsettings get "$p" visible-name 2>/dev/null)" = "'$TERM_PROFILE'" ] || continue
+        cur="$(gsettings get "$p" font) sysfont=$(gsettings get "$p" use-system-font)"
+        if [ "$cur" != "'$TERM_FONT' sysfont=false" ]; then
+            [ "$DRY" = 1 ] || { gsettings set "$p" use-system-font false && gsettings set "$p" font "$TERM_FONT"; }
+            echo "FONT    profile=$TERM_PROFILE font='$TERM_FONT' zoom=$TERM_ZOOM (was $cur)$([ "$DRY" = 1 ] && echo " dry")"
+        else echo "FONT    profile=$TERM_PROFILE font='$TERM_FONT' zoom=$TERM_ZOOM (unchanged)"; fi
+        return 0
+    done
+    echo "REFUSE(2): no gnome-terminal profile named $TERM_PROFILE (gsettings org.gnome.Terminal.ProfilesList)"; return 2
+}
 command -v gnome-terminal >/dev/null || { echo "REFUSE(2): no gnome-terminal on PATH"; exit 2; }
 [ "$DRY" = 1 ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { echo "REFUSE(2): no DISPLAY or WAYLAND_DISPLAY -- run this from a desktop terminal of the box"; exit 2; }
+fleet_profile_font || exit 2
 opened=0; skipped=0; refused=0
 while IFS=$'\t' read -r seat name root model effort color; do
     [ -n "$seat" ] || continue
     if [ "${SEATS[0]}" != ALL ]; then want=0; for s in "${SEATS[@]}"; do [ "$s" = "$seat" ] || [ "$s" = "$name" ] && want=1; done; [ $want = 1 ] || continue; fi
     if [ ! -d "$root" ] || [ ! -f "$root/CLAUDE.md" ]; then echo "REFUSED $seat: root $root missing or unpopulated"; refused=$((refused+1)); continue; fi
-    if pgrep -f "^claude --name $name( |$)" >/dev/null; then echo "SKIP    $seat: claude --name $name already runs (pid $(pgrep -f "^claude --name $name( |$)" | head -1))"; skipped=$((skipped+1)); continue; fi
+    if pgrep -f "(^|/)claude --name $name( |$)" >/dev/null; then echo "SKIP    $seat: claude --name $name already runs (pid $(pgrep -f "(^|/)claude --name $name( |$)" | head -1))"; skipped=$((skipped+1)); continue; fi
     cmd="$(seat_scope "$seat") claude --name $name --model $model --effort $effort '/color $color'"
-    echo "OPEN    $seat: gnome-terminal --maximize --profile=$TERM_PROFILE --title=$name --working-directory=$root -- $cmd"
+    echo "OPEN    $seat: gnome-terminal --maximize --zoom=$TERM_ZOOM --profile=$TERM_PROFILE --title=$name --working-directory=$root -- $cmd"
     if [ "$DRY" = 0 ]; then
         # NO exec (Lon 2026-11-06 08:3x CST, in the coo's window: "I tried to exit a claude worker to re-execute it from the bash shell and when I did it
         # DISAPPEARED since there is NO bash shell. So go fix that in your spawn script."): claude runs as a child of the window's bash, and when it exits the
@@ -49,7 +68,7 @@ while IFS=$'\t' read -r seat name root model effort color; do
         # A CLEAN ENVIRONMENT (Lon 2026-11-06: the respawned workers warned CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1; MEASURED by the coo: a window opened
         # from inside a Claude Code session inherited that session's CLAUDECODE, CLAUDE_CODE_CHILD_SESSION, CLAUDE_CODE_SESSION_ID, CLAUDE_PID and its
         # messaging socket and token, so the new seat ran as the caller's child): every exported CLAUDECODE or CLAUDE_* variable is unset before claude starts.
-        gnome-terminal --maximize --profile="$TERM_PROFILE" --title="$name" --working-directory="$root" -- bash -lc "unset \$(compgen -e | grep -E '^(CLAUDECODE|CLAUDE_|S4E_)'); export S4E_HOME='$root' S4E_SEAT='$seat'; printf '\\e]2;$name\\a'; cd '$root' && $cmd; rc=\$?; printf '\\e]2;$name (shell)\\a'; echo; echo \"[$name] claude exited rc=\$rc; this window is a bash shell in $root. Restart the seat with:\"; echo \"  $cmd\"; exec bash -l" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
+        gnome-terminal --maximize --zoom="$TERM_ZOOM" --profile="$TERM_PROFILE" --title="$name" --working-directory="$root" -- bash -lc "unset \$(compgen -e | grep -E '^(CLAUDECODE|CLAUDE_|S4E_)'); export S4E_HOME='$root' S4E_SEAT='$seat'; printf '\\e]2;$name\\a'; cd '$root' && $cmd; rc=\$?; printf '\\e]2;$name (shell)\\a'; echo; echo \"[$name] claude exited rc=\$rc; this window is a bash shell in $root. Restart the seat with:\"; echo \"  $cmd\"; exec bash -l" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
         opened=$((opened+1)); sleep "$STAGGER"
     fi
 done <<< "$TABLE"
