@@ -11,7 +11,7 @@ The record is `.github/GOAL-PROLOG-100.md` (LIVE CURSOR on top). Verified 2026-1
 
 ## 2. The manuals (text, grep them)
 
-- SWI-Prolog 9 manual, one file per chapter: `/home/resources/manuals/prolog/swi-*.txt` (`swi-builtin.txt` the builtins, `swi-manual.txt`-style chapter names as in `swipl-devel-master/man/`); the library sources themselves are `/home/resources/swipl-devel-master/library/*.pl` (the vendored prelude copies are `SCRIP/src/parsers/prolog/prelude/*.pl`).
+- SWI-Prolog 9 manual, one file per chapter: `/home/resources/manuals/prolog/swi-*.txt` (`swi-builtin.txt` the builtins, `swi-threads.txt`, `swi-attvar.txt`, `swi-foreign.txt` and the other chapters, named as in `swipl-devel-master/man/`); the library sources themselves are `/home/resources/swipl-devel-master/library/*.pl` (the vendored prelude copies are `SCRIP/src/parsers/prolog/prelude/*.pl`).
 - GNU Prolog 1.6 manual: `/home/resources/manuals/prolog/gprolog-*.txt`.
 - The ISO conformance suites: `/home/resources/prolog-iso-conformance/` (inriasuite, prologsuite).
 - XSB: `/home/resources/prologs/xsb/XSB/` (its own `docs/` and the `xsb_tests` sources under `corpus/packages/prolog/xsb_tests/`).

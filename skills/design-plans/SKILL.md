@@ -27,7 +27,7 @@ A design is the cto's for SCRIP and the suites (CEO-2025/2029/2067; Lon 2026-10-
 2. Write the rulings the plan is under (Lon's words verbatim, the CEO numbers) and the design in the owning skill's DESIGN section.
 3. Cut the witnesses from the oracle (`--cut`, or `util_add_ladder_witness.py` for a rung); each red today at its named class.
 4. Write `STEPS.tsv` and the harness; prove every probe token fail-once and pass-once (CEO-1680).
-5. Mint the step rows; telegram the executors; record the plan in `GOAL-CEO.md`'s cursor.
+5. Mint the step rows; telegram the executors; record the plan in the designer's GOAL file (`GOAL-CTO.md` or `GOAL-CIO.md`) LIVE CURSOR.
 
 ## 4. The live plans and where their design text lives
 

@@ -5,7 +5,7 @@ description: Hand-written x86-64 runtime leaves in SCRIP/src/runtime/rtx (*.s, r
 
 # Writing rtx asm leaves
 
-An rtx leaf is a hand-written asm routine that emitted code calls BARE (no veneer, no save and restore) for hot runtime operations: compare, arithmetic, strings, tables, allocation, unification, the Icon aggregates. It is not a C function: it keeps the four RTCC registers unless its derived row says otherwise, tells the unwinder the truth at every instruction, and never enters a box (CEO-1576; RULES.md LOGIC LIVES IN EMITTED BOXES). The design is ARCH-RT-CALL-PROTOCOL.md § 15 (the leaf contract) and ARCH-X86-ASM-ENCODER.md § 1 (rtcc). Quoted code, file lists and receipts are in `reference.md` beside this file.
+An rtx leaf is a hand-written asm routine that emitted code calls BARE (no veneer, no save and restore) for hot runtime operations: compare, arithmetic, strings, tables, allocation, unification, the Icon aggregates. It is not a C function: it keeps the four RTCC registers unless its derived row says otherwise, tells the unwinder the truth at every instruction, and never enters a box (CEO-1576; RULES.md LOGIC LIVES IN EMITTED BOXES). The design is the retired call-protocol ARCH page (CEO-2115; now skill runtime-calls) § 15 (the leaf contract) and the retired x86-encoder ARCH page (CEO-2115; now skill box-templates) § 1 (rtcc). Quoted code, file lists and receipts are in `reference.md` beside this file.
 
 ## 1. THE RULES
 
