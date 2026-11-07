@@ -41,7 +41,7 @@ The law is `.github/RULES.md`; the postoffice's own rules are `/home/resources/p
 | `send <seat> <topic> --stdin` | a telegram | a backtick or `$(` in the body; a DRAINED box; a bus lock (it prints the lock line, delivers nothing) |
 | `check` / `clear` / `mailbox` | display the inbox / archive exactly what check displayed / list | |
 | `sweep` | moves receipted DONE rows to `QUEUE.done.tsv`, collects claims with no live row | a DONE row without a receipt (named, not moved) |
-| `board` / `banner` / `fleet` / `whoami` | the computed views; the banner is the Stop hook's | |
+| `board` / `banner` / `fleet` / `whoami` | the computed views; the banner is the Stop hook's. Its row reading is `s4e_banner_verdict`: SUCCESS when the claim is closed or every landing hash the LEDGER names is on origin/main (whatever the row's park state), FAILURE when the last `DONE-WHEN read RED` line (written by `done` on a red) is newer than any landing or a named hash is not on origin, else NOTHING LANDED; `banner --probe-verdict` proves the three on a scratch origin | |
 | `premise <topic>` | reads the PREMISE-WHEN through the bus (one reader, never a private copy) | |
 
 `.github/scripts/util_queue_zero_base.py --apply` is the ruling sweep over every FREE row's DONE-WHEN (CEO-1386): GREEN closes it, RED keeps it with a LEDGER line, a refusal retires it as cannot-measure; a FREE row unwritten for 7 days parks `PARKED-EXPIRED`, retired after 30 more. CLAIMED, ASSIGNED, PARKED-LON-HOLD and BLOCKED-ON rows are never touched. Rank 0 and 1 are for a red on the suite table or a blocking gate.
