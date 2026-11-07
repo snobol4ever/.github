@@ -58,7 +58,11 @@ while IFS=$'\t' read -r seat name root model effort color; do
     [ -n "$seat" ] || continue
     if [ "${SEATS[0]}" != ALL ]; then want=0; for s in "${SEATS[@]}"; do [ "$s" = "$seat" ] || [ "$s" = "$name" ] && want=1; done; [ $want = 1 ] || continue; fi
     if [ ! -d "$root" ] || [ ! -f "$root/CLAUDE.md" ]; then echo "REFUSED $seat: root $root missing or unpopulated"; refused=$((refused+1)); continue; fi
-    if pgrep -f "(^|/)claude --name $name( |$)" >/dev/null; then echo "SKIP    $seat: claude --name $name already runs (pid $(pgrep -f "(^|/)claude --name $name( |$)" | head -1))"; skipped=$((skipped+1)); continue; fi
+    # ALIVE BY NAME OR BY ROOT (the cio, 2026-11-07 15:2x): a seat started by hand (Lon's own cio window carries no --name) is found by a claude process whose cwd is the
+    # seat's root, the controller's own reading (box_tick.py alive_seats); without it ~/spawn_fleet.sh would open a second cio beside the live one (two processes, one identity).
+    alive_pid="$(pgrep -f "(^|/)claude --name $name( |$)" | head -1)"
+    [ -n "$alive_pid" ] || alive_pid="$(for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = claude ] && [ "$(readlink "$p/cwd" 2>/dev/null)" = "$root" ] && { basename "$p"; break; }; done)"
+    if [ -n "$alive_pid" ]; then echo "SKIP    $seat: a claude session of $root already runs (pid $alive_pid)"; skipped=$((skipped+1)); continue; fi
     cmd="$(seat_scope "$seat") claude --name $name --model $model --effort $effort '/color $color'"
     echo "OPEN    $seat: gnome-terminal --maximize --zoom=$TERM_ZOOM --profile=$TERM_PROFILE --title=$name --working-directory=$root -- $cmd"
     if [ "$DRY" = 0 ]; then
