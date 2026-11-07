@@ -49,7 +49,7 @@ while IFS=$'\t' read -r seat name root model effort color; do
         # A CLEAN ENVIRONMENT (Lon 2026-11-06: the respawned workers warned CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1; MEASURED by the coo: a window opened
         # from inside a Claude Code session inherited that session's CLAUDECODE, CLAUDE_CODE_CHILD_SESSION, CLAUDE_CODE_SESSION_ID, CLAUDE_PID and its
         # messaging socket and token, so the new seat ran as the caller's child): every exported CLAUDECODE or CLAUDE_* variable is unset before claude starts.
-        gnome-terminal --maximize --profile="$TERM_PROFILE" --title="$name" --working-directory="$root" -- bash -lc "unset \$(compgen -e | grep -E '^(CLAUDECODE|CLAUDE_)'); printf '\\e]2;$name\\a'; cd '$root' && $cmd; rc=\$?; printf '\\e]2;$name (shell)\\a'; echo; echo \"[$name] claude exited rc=\$rc; this window is a bash shell in $root. Restart the seat with:\"; echo \"  $cmd\"; exec bash -l" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
+        gnome-terminal --maximize --profile="$TERM_PROFILE" --title="$name" --working-directory="$root" -- bash -lc "unset \$(compgen -e | grep -E '^(CLAUDECODE|CLAUDE_|S4E_)'); export S4E_HOME='$root' S4E_SEAT='$seat'; printf '\\e]2;$name\\a'; cd '$root' && $cmd; rc=\$?; printf '\\e]2;$name (shell)\\a'; echo; echo \"[$name] claude exited rc=\$rc; this window is a bash shell in $root. Restart the seat with:\"; echo \"  $cmd\"; exec bash -l" >/dev/null 2>&1 || { echo "REFUSED $seat: gnome-terminal did not open"; refused=$((refused+1)); continue; }
         opened=$((opened+1)); sleep "$STAGGER"
     fi
 done <<< "$TABLE"
