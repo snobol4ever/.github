@@ -129,8 +129,8 @@ for seat, (title, suites, goal, oracle, man, skills, lang, ext) in LANES.items()
 - Skills: {skills}; `/scrip-memory-model` for any frame, placement or collector question; `/gates-and-witnesses` before writing a test.
 """, (lang, ext))
 for _n in range(1, 21):
-    _seat = "worker_%02d" % _n
-    SEATS[_seat] = ("worker", """## THIS ROOT IS SEAT %s (postoffice identity `%s`): A HAIKU WORKER, ONE OF TWENTY (worker_01 to worker_20) (Lon 2026-11-05 15:1x CST: "rename them all 01, 02, ..., 20." / 15:4x: "So use worker_00 and worker_01. Add the underscaore." / "Start from 01 not 00. Because there are no longer any specialties seats. We have skills now instead use by ANY ASSIGNED seat.")
+    _seat = "junior_%02d" % _n
+    SEATS[_seat] = ("worker", """## THIS ROOT IS SEAT %s (postoffice identity `%s`): A HAIKU JUNIOR, ONE OF TWENTY (junior_01 to junior_20; named worker_NN until Lon 2026-11-08 06:4x: "rename WORKER to be JUNIOR to match the SENIOR") (Lon 2026-11-05 15:1x CST: "rename them all 01, 02, ..., 20." / 15:4x: "So use worker_00 and worker_01. Add the underscaore." / "Start from 01 not 00. Because there are no longer any specialties seats. We have skills now instead use by ANY ASSIGNED seat.")
 - No specialty and no lane: this seat works ONLY a row an officer or a company man ASSIGNS it (MODE 2026-11-05 16:4x, the ladder: design flows Fable to Opus to Sonnet to Haiku, work climbs back), exactly as the step is written in the row's baton NEXT, one landing per step; it loads the skills the row's files need (the skill gate names them before the first edit; the language skill of the program it touches; `/gates-and-witnesses` before any test or DONE-WHEN edit); it mints nothing, claims no FREE row, and the dispatcher hands it none.
 - A step it cannot land after one honest try goes back by telegram to the seat that assigned it, with the measurement (the command, the output, the tree hash), never patched around; a fleet-system matter goes to the cio. Its cursor is the row's baton: NEXT rewritten and LEDGER written before it stops.
 """ % (_seat.upper(), _seat), None)

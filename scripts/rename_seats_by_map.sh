@@ -14,7 +14,7 @@ declare -A MAP; for kv in $MAPSTR; do MAP["${kv%%=*}"]="${kv#*=}"; done
 apply=0; [ "$MODE_ARG" != --plan ] && apply=1
 say() { printf '%s\n' "$*"; }
 bak() { cp -p "$1" "$1.bak-$STAMP-rename" 2>/dev/null || true; }
-tier_of_new() { case "$1" in officer_*) echo "claude-opus-5-5	high	yellow	2	designer";; senior_*) echo "claude-sonnet-5-5	xhigh	purple	3	senior";; *) return 1;; esac; }
+tier_of_new() { case "$1" in officer_*) echo "claude-opus-5-5	high	yellow	2	designer";; senior_*) echo "claude-sonnet-5-5	medium	purple	3	senior";; junior_*) echo "claude-haiku-5-5	medium	cyan	4	junior";; *) return 1;; esac; }   # Lon 2026-11-08 06:4x: WORKER becomes JUNIOR to match SENIOR
 if [ "$MODE_ARG" = --plan ] || [ "$MODE_ARG" = --records ]; then
     say "== QUEUE.tsv owner and state cells"
     for o in "${!MAP[@]}"; do n="${MAP[$o]}"; c=$(awk -F'\t' -v o="$o" '$3==o || $4 ~ ("^(ASSIGNED|CLAIMED|RUNNING):" o "$") || $4 ~ ("^MEASURING:" o ":")' "$PO/QUEUE.tsv" | wc -l); say "  $o -> $n: $c row(s)"; done
@@ -55,7 +55,7 @@ PY
     else sed -n 's/^ROSTER:[[:space:]]*/  ROSTER now: /p' "$PO/MODE" | cut -c1-200; fi
     say "== TIERS.tsv rows"
     for o in "${!MAP[@]}"; do n="${MAP[$o]}"; grep -q "^$o	" "$TIERS" || { say "  $o: no row"; continue; }; t="$(tier_of_new "$n")" || { say "  REFUSE(1): $n is not officer_NN or senior_NN"; exit 1; }; say "  $o -> $n	${n^^}	/home/claude_$n	$t"
-        [ $apply = 1 ] && { bak "$TIERS"; awk -F'\t' -v OFS='\t' -v o="$o" -v n="$n" -v t="$t" '$1==o { split(t, a, "\t"); print n, toupper(n), "/home/claude_" n, a[1], a[2], a[3], a[4], a[5]; next } { print }' "$TIERS" > "$TIERS.tmp" && mv "$TIERS.tmp" "$TIERS"; }; done
+        [ $apply = 1 ] && { bak "$TIERS"; awk -F'\t' -v OFS='\t' -v o="$o" -v n="$n" -v t="$t" '$1==o { split(t, a, "\t"); nm = toupper(n); gsub(/_/, "-", nm); print n, nm, "/home/claude_" n, a[1], a[2], a[3], a[4], a[5]; next } { print }' "$TIERS" > "$TIERS.tmp" && mv "$TIERS.tmp" "$TIERS"; }; done
     say "== /tmp/s4e/<seat>"
     for o in "${!MAP[@]}"; do n="${MAP[$o]}"; [ -d "/tmp/s4e/$o" ] || continue; say "  /tmp/s4e/$o -> /tmp/s4e/$n"; [ $apply = 1 ] && { [ -d "/tmp/s4e/$n" ] && mv "/tmp/s4e/$n" "/tmp/s4e/$n.before-rename-$STAMP"; mv "/tmp/s4e/$o" "/tmp/s4e/$n"; }; done
 fi
