@@ -44,7 +44,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TixDemo | scriptix | 12/12 EXCLUDED=2 WALL=11s | 2026-11-04 | `8e366c454` | done |
 | PasRosetta | pascal | 216/305 EXCLUDED=359 WALL=2353s | 2026-10-29 | `9934db1be` |  |
 | ProRosetta | prolog | 481/481 EXCLUDED=305 WALL=1932s | 2026-11-04 | `b24eac962` | done |
-| ProPuzzles | prolog | 262/266 EXCLUDED=149 WALL=14136s | 2026-11-04 | `b275c0c27` |  |
+| ProPuzzles | prolog | 264/266 EXCLUDED=149 WALL=12077s | 2026-11-08 | `478395910` |  |
 | TreallaTests | prolog | 318/318 EXCLUDED=138 WALL=535s | 2026-11-04 | `5e816bdc9` | done |
 | PasDemo | pascal | 8/8 EXCLUDED=0 WALL=33s | 2026-11-04 | `01f9ae696` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
