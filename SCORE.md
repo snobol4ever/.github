@@ -15,23 +15,23 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-11-04 | `65d7c686d` | done |
 | Jcon | icon | 85/85 EXCLUDED=6 WALL=22s | 2026-11-04 | `01f9ae696` | done |
 | IPL | icon | 644/644 EXCLUDED=207 WALL=317s | 2026-11-04 | `01f9ae696` | done |
-| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-11-04 | `01f9ae696` | done |
+| INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-11-08 | `9e0bc12de` | done |
 | SWI | prolog | 2518/2659 EXCLUDED=277 WALL=2170s | 2026-11-08 | `bcb2b3440` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=148s | 2026-11-04 | `5e816bdc9` |  |
-| FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=89s | 2026-11-04 | `01f9ae696` | done |
-| PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=18s | 2026-11-04 | `01f9ae696` | done |
+| FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=49s | 2026-11-08 | `c89bb80f9` | done |
+| PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=13s | 2026-11-08 | `e6bd32eed` | done |
 | Roast | raku | 249/1302 EXCLUDED=162 WALL=701s | 2026-11-08 | `1ff4523a0` |  |
-| SnoRungs | snobol4 | 2194/2194 EXCLUDED=1 WALL=162s | 2026-11-04 | `01f9ae696` | done |
-| IcnRungs | icon | 936/936 WALL=44s | 2026-10-29 | `e92462182` | done |
-| ProRungs | prolog | 584/584 WALL=550s | 2026-11-04 | `01f9ae696` | done |
+| SnoRungs | snobol4 | 2210/2210 EXCLUDED=1 WALL=163s | 2026-11-08 | `c89bb80f9` | done |
+| IcnRungs | icon | 956/956 WALL=44s | 2026-11-08 | `478395910` | done |
+| ProRungs | prolog | 584/584 WALL=550s | 2026-11-08 | `c89bb80f9` | done |
 | PasRungs | pascal | 383/383 WALL=29s | 2026-11-08 | `478395910` | done |
-| RakRungs | raku | 1322/1322 WALL=151s | 2026-11-04 | `22ab39126` | done |
-| SncRungs | snocone | 358/358 WALL=20s | 2026-11-04 | `01f9ae696` | done |
+| RakRungs | raku | 1390/1390 WALL=138s | 2026-11-08 | `478395910` | done |
+| SncRungs | snocone | 358/358 WALL=20s | 2026-11-08 | `c89bb80f9` | done |
 | SncBench | snocone | 23/23 EXCLUDED=0 WALL=4s | 2026-11-04 | `01f9ae696` | done |
-| RebRungs | rebus | 43/43 WALL=3s | 2026-11-04 | `01f9ae696` | done |
-| Logtalk | prolog | 3524/3524 EXCLUDED=93 WALL=16371s | 2026-11-04 | `8657eaa00` | done |
-| X64T | snobol4 | 33/33 EXCLUDED=3 OUTSIDE=0 WALL=929s | 2026-11-04 | `e1867fc1f` | done |
-| X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-11-04 | `01f9ae696` | done |
+| RebRungs | rebus | 43/43 WALL=3s | 2026-11-08 | `c89bb80f9` | done |
+| Logtalk | prolog | 3523/3524 EXCLUDED=93 WALL=16371s | 2026-11-08 | `ea3791fb4` |  |
+| X64T | snobol4 | 16/33 EXCLUDED=3 OUTSIDE=0 WALL=497s | 2026-11-08 | `c89bb80f9` |  |
+| X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-11-08 | `478395910` | done |
 | SnoBench | snobol4 | 23/23 EXCLUDED=0 WALL=16s | 2026-11-04 | `01f9ae696` | done |
 | IcnBench | icon | 26/26 EXCLUDED=0 WALL=4s | 2026-11-04 | `01f9ae696` | done |
 | ProBench | prolog | 41/42 EXCLUDED=0 WALL=300s | 2026-11-04 | `a1ce8031d` |  |
@@ -42,10 +42,10 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | IcnDemo | icon | 7/7 EXCLUDED=3 WALL=9s | 2026-11-04 | `01f9ae696` | done |
 | ProDemo | prolog | 8/8 EXCLUDED=15 WALL=103s | 2026-11-04 | `01f9ae696` | done |
 | TixDemo | scriptix | 12/12 EXCLUDED=2 WALL=11s | 2026-11-04 | `8e366c454` | done |
-| PasRosetta | pascal | 216/305 EXCLUDED=359 WALL=2353s | 2026-10-29 | `9934db1be` |  |
-| ProRosetta | prolog | 481/481 EXCLUDED=305 WALL=1932s | 2026-11-04 | `b24eac962` | done |
-| ProPuzzles | prolog | 264/266 EXCLUDED=149 WALL=12077s | 2026-11-08 | `478395910` |  |
-| TreallaTests | prolog | 318/318 EXCLUDED=138 WALL=535s | 2026-11-04 | `5e816bdc9` | done |
+| PasRosetta | pascal | 286/308 EXCLUDED=356 WALL=3823s | 2026-11-08 | `c89bb80f9` |  |
+| ProRosetta | prolog | 483/483 EXCLUDED=303 WALL=2072s | 2026-11-08 | `4e633dac6` | done |
+| ProPuzzles | prolog | 264/266 EXCLUDED=149 WALL=11879s | 2026-11-08 | `478395910` |  |
+| TreallaTests | prolog | 318/318 EXCLUDED=138 WALL=507s | 2026-11-08 | `478395910` | done |
 | PasDemo | pascal | 8/8 EXCLUDED=0 WALL=33s | 2026-11-04 | `01f9ae696` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=315s | 2026-11-04 | `01f9ae696` | done |
