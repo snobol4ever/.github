@@ -8,7 +8,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=43s | 2026-10-28 | `e92462182` | done |
 | Budne | snobol4 | 70/70 EXCLUDED=62 OUTSIDE=19 WALL=10s | 2026-11-04 | `01f9ae696` | done |
-| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=19s | 2026-11-04 | `01f9ae696` | done |
+| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=18s | 2026-11-09 | `39ebe39b8` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-11-04 | `01f9ae696` | done |
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-11-04 | `01f9ae696` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-11-04 | `01f9ae696` | done |
@@ -19,7 +19,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SWI | prolog | 2218/2311 EXCLUDED=625 WALL=2170s | 2026-11-09 | `478395910` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=148s | 2026-11-04 | `5e816bdc9` |  |
 | FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=49s | 2026-11-08 | `c89bb80f9` | done |
-| PAT | pascal | 400/400 EXCLUDED=29 OUTSIDE=0 WALL=13s | 2026-11-08 | `e6bd32eed` | done |
+| PAT | pascal | 399/399 EXCLUDED=30 OUTSIDE=0 WALL=12s | 2026-11-09 | `e6bd32eed` | done |
 | Roast | raku | 249/1302 EXCLUDED=162 WALL=701s | 2026-11-08 | `1ff4523a0` |  |
 | SnoRungs | snobol4 | 2210/2210 EXCLUDED=1 WALL=163s | 2026-11-08 | `c89bb80f9` | done |
 | IcnRungs | icon | 956/956 WALL=44s | 2026-11-08 | `478395910` | done |
@@ -29,7 +29,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SncRungs | snocone | 358/358 WALL=20s | 2026-11-08 | `c89bb80f9` | done |
 | SncBench | snocone | 23/23 EXCLUDED=0 WALL=4s | 2026-11-04 | `01f9ae696` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-11-08 | `c89bb80f9` | done |
-| Logtalk | prolog | 3523/3524 EXCLUDED=93 WALL=16371s | 2026-11-08 | `ea3791fb4` |  |
+| Logtalk | prolog | 3524/3524 EXCLUDED=93 WALL=16371s | 2026-11-09 | `ea3791fb4` | done |
 | X64T | snobol4 | 16/33 EXCLUDED=3 OUTSIDE=0 WALL=497s | 2026-11-08 | `c89bb80f9` |  |
 | X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 WALL=4s | 2026-11-08 | `478395910` | done |
 | SnoBench | snobol4 | 23/23 EXCLUDED=0 WALL=16s | 2026-11-04 | `01f9ae696` | done |
