@@ -47,7 +47,7 @@ case "${1:---check}" in
     case "$MODE_NOW" in
       SOLO)    ok="ceo";;
       DUO)     ok="ceo cto|ceo coo";;
-      TRIO)    ok="cfo coo cto";;   # Lon 2026-11-03 23:5x CST, in the cto's window: "Go to TRIO mode. It is just you three overnight." (the cto, the coo, the cfo; cto CEO-2116)
+      TRIO)    ok="cfo coo cto|cio coo cto";;   # the second shape: Lon 2026-11-10 11:2x CST, in the cio's window: "Let the fleet go idle except CIO, CTO, and COO." then "Go to TRIO mode." (the three bosses; CIO-58);   # Lon 2026-11-03 23:5x CST, in the cto's window: "Go to TRIO mode. It is just you three overnight." (the cto, the coo, the cfo; cto CEO-2116)
       QUARTET) ok="ceo cfo coo cto";;
       TENET)   ok="*";;
       *) printf '⛔ MODE line 1 is %s, not one of the five modes SOLO DUO TRIO QUARTET TENET (CEO-1818)\n' "$MODE_NOW"; exit 1;;
