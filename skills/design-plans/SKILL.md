@@ -9,8 +9,8 @@ A design is the cto's for SCRIP and the suites (CEO-2025/2029/2067; Lon 2026-10-
 
 ## 1. The parts of a plan
 
-- **The witnesses**: small programs under `corpus/tests/<lang>/<design>/` (or `corpus/tests/shared/<design>/` for a cross-language plan), each beside a `.ref` cut from the language's oracle (SPITBOL `sbl -bf`, Arizona Icon, swipl, XSB, fpc `-Miso`, Rakudo), never from our output.
-- **`STEPS.tsv`** beside them: a `#` header naming the plan, the ruling numbers, the harness and the probe-token vocabulary, then one row per step: `step slug executor depends probe witnesses`, and in most plans `ruling landing_files`. A step's `depends` names the steps it waits on.
+- **The witnesses are ENTRIES OF THE LANGUAGE'S CONTAINER, never loose files** (CIO-24, 2026-11-10; Lon's law of 2026-08-29/30, corpus 11a36c87f: a language folder is flat, the container files and one `config/`, every program absorbed; Lon 2026-11-10: "Why are these folders not organized properly."): a small program added to `corpus/tests/<lang>/ALL.<ext>` with the plan's name in its `family` column, its answer cut from the language's oracle twice (SPITBOL `sbl -bf`, Arizona Icon, unicon, swipl, XSB, fpc `-Miso`, Rakudo), never from our output, so the cycle grades it every lap and its suite row counts it. This page told designers until 2026-11-10 to make a folder `corpus/tests/<lang>/<design>/` of loose pairs; `util_tests_layout_census.py` measured 365 such pairs no cell grades, and no new one is made. The folders that stand are absorbed under CIO-24's rows; a plan whose folder still stands reads its witnesses there until its row lands.
+- **`STEPS.tsv`** (for a new plan `harness/designs/<plan>/STEPS.tsv`: a step table is an instrument, not a test; the tables under `corpus/tests/` move there with their plan's absorption): a `#` header naming the plan, the ruling numbers, the harness and the probe-token vocabulary, then one row per step: `step slug executor depends probe witnesses`, and in most plans `ruling landing_files`. A step's `depends` names the steps it waits on.
 - **`harness/scripts/test_design_<name>_steps.sh`**: `--list` prints the table; `--step N` grades step N's witnesses in both modes (some plans also under `SCRIP_GC_STRESS=1`) and then its probe tokens; `--cut` re-cuts every ref from its oracle; some plans add `--rows0` (record SUITES.tsv's rows for a `rows=` probe) and `--out DIR`.
 - **The probe tokens are each harness's own** (read the `#` header of its table): for example `gate=NAME`, `smoke=L|ALL`, `nosym=a,b`, `sym=`, `nofile=`, `grepmax=REGEX@REL:N`, `tsvmin=FILE:N`, `rule5=N`, `rspmoves=N`, `layoutcheck=N`, `rows=`, `entries=e1,e2`, `census=`, `kind=`.
 
@@ -25,7 +25,7 @@ A design is the cto's for SCRIP and the suites (CEO-2025/2029/2067; Lon 2026-10-
 
 1. Measure first: the population the plan serves, read from `results.tsv` or the tree, with the tree named.
 2. Write the rulings the plan is under (Lon's words verbatim, the CEO numbers) and the design in the owning skill's DESIGN section.
-3. Cut the witnesses from the oracle (`--cut`, or `util_add_ladder_witness.py` for a rung); each red today at its named class.
+3. Add the witnesses to the container, cut from the oracle (`util_add_ladder_witness.py`; a step names them as `entries=e1,e2` and the harness grades `--partition entry:<name>`); each red today at its named class.
 4. Write `STEPS.tsv` and the harness; prove every probe token fail-once and pass-once (CEO-1680).
 5. Mint the step rows; telegram the executors; record the plan in the designer's GOAL file (`GOAL-CTO.md` or `GOAL-CIO.md`) LIVE CURSOR.
 

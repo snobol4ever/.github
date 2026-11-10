@@ -28,7 +28,7 @@ Every claim is proved by a command that reads RED now and GREEN when the work is
 ## 2. THE FILES
 
 - `harness/scripts/`: `test_gate_*.sh` (wired through `gate_wiring.tsv` by `util_gate_wiring.py`), `test_smoke_<lang>.sh`, `test_feature_reps.sh`, `test_<lang>_ladder.sh`, `test_design_*_steps.sh`, `lib_oracle_flags.sh`, `util_require_fresh.sh`, `util_run_slot.sh`, `corpus_suite_harness.py`, `util_add_ladder_witness.py`, `util_suite_partition.py`, `util_suite_row_at_100.sh`.
-- `corpus/tests/<lang>/`: `ALL.<ext>`, `ALL.ref`, `ALL.csv`, `ALL.wantrc`, `PARTITION.tsv`, `config/LADDER.tsv`, design folders with `STEPS.tsv`.
+- `corpus/tests/<lang>/`: `ALL.<ext>`, `ALL.ref`, `ALL.csv`, `ALL.wantrc`, `PARTITION.tsv`, `config/LADDER.tsv`, and nothing else (CIO-24: `python3 harness/scripts/util_tests_layout_census.py --lang <lang> --check`; the design folders that still stand are being absorbed).
 - The boards: `/home/resources/progress/{results.tsv,SUITES.tsv,SMOKE.tsv}`, written by the coo.
 
 ## 3. WORKED EXAMPLES
@@ -58,7 +58,7 @@ timeout -k 5 60 "$(swipl_bin)" -q -t halt -g main w.pl < /dev/null > w.ref
 ## 4. THE PROVING INSTRUMENTS
 
 - A gate: red on `<cure>^` or a corrupted ref, green after; wired in the same landing (`SCRIP/Makefile` line if it joins the blocking set, then `util_gate_wiring.py adopt`).
-- A witness: `util_add_ladder_witness.py` (a rung) or a design folder; `corpus_suite_harness.py run ... --modes m3,m4 --partition entry:<name>`; `util_suite_partition.py build` when `ALL.csv` changed.
+- A witness is a container entry (CIO-24), added by `util_add_ladder_witness.py`, never a loose pair or a design folder; `corpus_suite_harness.py run ... --modes m3,m4 --partition entry:<name>`; `util_suite_partition.py build` when `ALL.csv` changed.
 - A design step row: `test_design_<x>_steps.sh --step N` is its DONE-WHEN; the plan row's is `--list`.
 - A red: `monitor_run.sh <prog> --oracle` first, then asm-diff beside a passing sibling, gdb last.
 
