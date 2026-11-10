@@ -27,7 +27,7 @@ for r in SCRIP corpus harness .github; do [ -d "$FROM/$r/.git" ] || { echo "REFU
 src_seat="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["env"]["S4E_SEAT"])' "$FROM/.claude/settings.local.json")"
 for r in SCRIP harness .github; do git clone -q "$FROM/$r" "$root/$r" && git -C "$root/$r" remote set-url origin "$(git -C "$FROM/$r" remote get-url origin)" || exit 1; done
 git clone -q --no-checkout "$FROM/corpus" "$root/corpus" && git -C "$root/corpus" remote set-url origin "$(git -C "$FROM/corpus" remote get-url origin)" || exit 1
-git -C "$root/corpus" sparse-checkout set --no-cone tests packages programs library reference editor_configs README.md >/dev/null 2>&1 || git -C "$root/corpus" sparse-checkout set tests packages programs library reference editor_configs
+git -C "$root/corpus" sparse-checkout set --no-cone tests packages programs library include reference editor_configs README.md >/dev/null 2>&1 || git -C "$root/corpus" sparse-checkout set tests packages programs library include reference editor_configs
 git -C "$root/corpus" checkout -q main || exit 1
 for r in SCRIP corpus harness .github; do point_at_coo "$root" "$r" || exit 1; done
 for r in SCRIP corpus harness .github; do git -C "$root/$r" fetch -q origin && git -C "$root/$r" merge -q --ff-only origin/main || exit 1; done
