@@ -16,7 +16,7 @@ The record is GOAL-SNOBOL4-100.md, GOAL-SNOCONE-100.md and GOAL-REBUS-100.md (LI
 
 ## 2. The manuals
 
-`/home/resources/manuals/snobol4/spitbol-manual-v3.7.txt` (every primitive, keyword, exit code, error), `green-book.txt`, `discrete-patterns-theory-snobol4.txt`, `/home/resources/manuals/rebus/rebus-tr84-9.txt`, `/home/resources/manuals/byrd-boxes/`; Snocone's paper `corpus/tests/snocone/report.md` (the census standard, not the syntax spec). Before ruling: grep the manual, then run a five-line probe on `sbl -bf`.
+`/home/resources/manuals/snobol4/spitbol-manual-v3.7.txt` (every primitive, keyword, exit code, error), `green-book.txt`, `discrete-patterns-theory-snobol4.txt`, `/home/resources/manuals/rebus/rebus-tr84-9.txt`, `/home/resources/manuals/byrd-boxes/`; Snocone's paper `/home/resources/manuals/snocone/report.md` (the census standard, not the syntax spec). Before ruling: grep the manual, then run a five-line probe on `sbl -bf`.
 
 ## 3. The source map
 
