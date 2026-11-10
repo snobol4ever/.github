@@ -42,6 +42,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | templates-zero | `corpus/tests/shared/templates_zero/` | `test_design_templates_zero_steps.sh` | skill `box-templates` DESIGN |
 | prolog-lifo | `corpus/tests/prolog/lifo/` | `test_design_prolog_lifo_steps.sh` | skill `prolog-engine` DESIGN |
 | xsb-tabling-wfs | `corpus/tests/prolog/xsb_wfs/` | `test_design_xsb_tabling_wfs_steps.sh` | skill `prolog-tabling` DESIGN |
+| tabling-one-engine | `corpus/tests/prolog/one_engine/` | `test_design_tabling_one_engine_steps.sh` | skill `prolog-tabling` section 5 (reference) |
 | clpr-chr | `corpus/tests/prolog/clpr_chr/` | `test_design_clpr_chr_steps.sh` | skill `prolog-constraints` DESIGN |
 | consulted-clause-source-record | `corpus/tests/prolog/clause_source_record/` | `test_design_clause_source_record_steps.sh` | skill `prolog` DESIGN |
 | prolog-gnu-gaps | `corpus/tests/prolog/gnu_gaps/` | `test_design_prolog_gnu_gaps_steps.sh` | skill `prolog` reference section 8 |
