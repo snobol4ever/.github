@@ -40,7 +40,7 @@ The record is `.github/GOAL-ICON-100.md` (LIVE CURSOR entries, newest first). Ve
 
 | suite key | runner | population |
 |---|---|---|
-| icn-rungs (IcnRungs) | `test_icon_ladder.sh --list | --to N | --only N`, `test_icon_all_rungs.sh`; one entry: `corpus_suite_harness.py run ../corpus/tests/icon/ALL.icn ../corpus/tests/icon/ALL.ref --lang icon --modes m3,m4 --partition entry:<name>` | `corpus/tests/icon/` (`ALL.csv` with `heap_kb`/`stack_kb`, `ALL.in`, `ALL.argv`, `ALL.rc`, `ALL.omit`, `PARTITION.tsv`, `config/LADDER.tsv`) |
+| icn-rungs (IcnRungs) | `test_icon_ladder.sh --list | --to N | --only N`, `test_icon_all_rungs.sh`; one entry: `corpus_suite_harness.py run ../corpus/tests/icon/ALL.icn ../corpus/tests/icon/ALL.ref --lang icon --modes m3,m4 --partition entry:<name>` | `corpus/tests/icon/` (`ALL.csv` with `heap_kb`/`stack_kb`, `ALL.in`, `ALL.argv`, `ALL.rc`, `ALL.omit`, `PARTITION.tsv`, `LADDER.tsv`) |
 | arizona (Zona) | `test_icon_arizona_suite.sh` | `corpus/packages/icon/arizona_tests/` (the oracle's own tests) |
 | ipl (IPL) | `test_icon_ipl_suite.sh` (`lib_icon_ipl_isolation.sh`, `util_icon_package_units.py`) | `corpus/packages/icon/ipl/` (843 shipped, 644 the denominator after containers and the excluded) |
 | jcon (Jcon) | `test_icon_jcon_suite.sh`, `test_demo_icon_jcon.sh`, `test_demo_icon_jcon_selfhost.sh` | `corpus/packages/icon/jcon_tests/`, `jcon-compiler/` (the self-host is the big-program GC measure) |
