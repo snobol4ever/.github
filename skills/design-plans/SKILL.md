@@ -38,7 +38,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | builtin-table | `corpus/tests/shared/builtin_table/` | `test_design_builtin_table_steps.sh` | skill `runtime-calls` DESIGN |
 | exceptions | `corpus/tests/shared/exceptions/` | `test_design_exceptions_steps.sh` | skill `runtime-calls` DESIGN |
 | zeta-layout | `corpus/tests/shared/zeta_layout/` | `test_design_zeta_layout_steps.sh` | skill `scrip-memory-model` DESIGN |
-| planner-finish | `corpus/tests/snobol4/planner_finish/` | `test_design_planner_finish_steps.sh` | skill `scrip-memory-model` DESIGN |
+| planner-finish | `harness/designs/planner_finish/STEPS.tsv` (witnesses: snobol4 entries `planner_finish__*` of its master; icon, pascal, prolog loose until their rows absorb them) | `test_design_planner_finish_steps.sh` | skill `scrip-memory-model` DESIGN |
 | templates-zero | `corpus/tests/shared/templates_zero/` | `test_design_templates_zero_steps.sh` | skill `box-templates` DESIGN |
 | prolog-lifo | `corpus/tests/prolog/lifo/` | `test_design_prolog_lifo_steps.sh` | skill `prolog-engine` DESIGN |
 | xsb-tabling-wfs | `corpus/tests/prolog/xsb_wfs/` | `test_design_xsb_tabling_wfs_steps.sh` | skill `prolog-tabling` DESIGN |
