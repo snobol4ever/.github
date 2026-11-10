@@ -28,7 +28,7 @@ Every claim is proved by a command that reads RED now and GREEN when the work is
 ## 2. THE FILES
 
 - `harness/scripts/`: `test_gate_*.sh` (wired through `gate_wiring.tsv` by `util_gate_wiring.py`), `test_smoke_<lang>.sh`, `test_feature_reps.sh`, `test_<lang>_ladder.sh`, `test_design_*_steps.sh`, `lib_oracle_flags.sh`, `util_require_fresh.sh`, `util_run_slot.sh`, `corpus_suite_harness.py`, `util_add_ladder_witness.py`, `util_suite_partition.py`, `util_suite_row_at_100.sh`.
-- `corpus/tests/<lang>/`: `ALL.<ext>`, `ALL.ref`, `ALL.csv`, `ALL.wantrc`, `PARTITION.tsv`, `config/LADDER.tsv`, and nothing else (CIO-24: `python3 harness/scripts/util_tests_layout_census.py --lang <lang> --check`; the design folders that still stand are being absorbed).
+- `corpus/tests/<lang>/`: `ALL.<ext>`, `ALL.ref`, `ALL.csv`, `ALL.rc`, `PARTITION.tsv`, `config/LADDER.tsv`, and nothing else (CIO-24: `python3 harness/scripts/util_tests_layout_census.py --lang <lang> --check`; the design folders that still stand are being absorbed).
 - The boards: `/home/resources/progress/{results.tsv,SUITES.tsv,SMOKE.tsv}`, written by the coo.
 
 ## 3. WORKED EXAMPLES

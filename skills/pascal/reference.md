@@ -38,7 +38,7 @@ The record is `.github/GOAL-PASCAL-100.md` (LIVE FRONT sections on top) and the 
 
 | suite key | runner | population |
 |---|---|---|
-| pas-rungs (PasRungs) | `test_pascal_ladder.sh --list | --to N | --only N`; one entry: `corpus_suite_harness.py run ../corpus/tests/pascal/ALL.pas ../corpus/tests/pascal/ALL.ref --lang pascal --modes m3,m4 --partition entry:<name>` | `corpus/tests/pascal/` (`ALL.csv` the index with `heap_kb`/`stack_kb`, `ALL.in` stdin, `ALL.wantrc`, `ALL.excluded.txt`, `PARTITION.tsv`; `config/LADDER.tsv` the rungs 0-11: hello, var, arithmetic, if/while, for/repeat, proc/func, arrays, records, sets, strings, pointers, case) |
+| pas-rungs (PasRungs) | `test_pascal_ladder.sh --list | --to N | --only N`; one entry: `corpus_suite_harness.py run ../corpus/tests/pascal/ALL.pas ../corpus/tests/pascal/ALL.ref --lang pascal --modes m3,m4 --partition entry:<name>` | `corpus/tests/pascal/` (`ALL.csv` the index with `heap_kb`/`stack_kb`, `ALL.in` stdin, `ALL.rc`, `ALL.omit`, `PARTITION.tsv`; `config/LADDER.tsv` the rungs 0-11: hello, var, arithmetic, if/while, for/repeat, proc/func, arrays, records, sets, strings, pointers, case) |
 | pat (PAT, the ISO 7185 denominator) | `test_pascal_pat_suite.sh` | `corpus/packages/pascal/pat`: `iso7185prt*` are REJECTION tests (PASS = scrip exits non-zero with a diagnostic), `iso7185pat*` the ACCEPTANCE test against `fpc -Miso`; the `.cmp`/`.ecp` files are not the oracle |
 | fpc (FPC) | `test_pascal_fpc_suite.sh` | `corpus/packages/pascal/fpc_tests/`, refs from fpc in each file's mode |
 | rosetta-pascal (PasRosetta) | `test_pascal_rosetta_suite.sh` | `corpus/packages/pascal/rosetta-pascal/` (319 programs, `ALL.dialect`) |

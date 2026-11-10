@@ -36,7 +36,7 @@ The record is `.github/GOAL-RAKU-100.md` (LIVE CURSOR entries on top) and the AR
 
 | suite key | runner | population |
 |---|---|---|
-| raku-rungs (RakRungs) | `test_raku_ladder.sh --list | --to N | --only N`; one entry: `corpus_suite_harness.py run ../corpus/tests/raku/ALL.raku ../corpus/tests/raku/ALL.ref --lang raku --modes m3,m4 --partition entry:<name>` | `corpus/tests/raku/` (`ALL.csv` with `heap_kb`/`stack_kb`, `ALL.wantrc`, `ALL.refpins.tsv`, `ALL.excluded.txt`, `ALL.nolayout.tsv`, `ALL.argv.bare`, `PARTITION.tsv`; `config/LADDER.tsv` the rungs, `config/ROAST-RUNG-MAP.tsv`, `config/RAKUDO-SYNTAX-VERDICTS.tsv`) |
+| raku-rungs (RakRungs) | `test_raku_ladder.sh --list | --to N | --only N`; one entry: `corpus_suite_harness.py run ../corpus/tests/raku/ALL.raku ../corpus/tests/raku/ALL.ref --lang raku --modes m3,m4 --partition entry:<name>` | `corpus/tests/raku/` (`ALL.csv` with `heap_kb`/`stack_kb`, `ALL.rc`, `ALL.refpins.tsv`, `ALL.omit`, `ALL.nolayout.tsv`, `ALL.argv.bare`, `PARTITION.tsv`; `config/LADDER.tsv` the rungs, `config/ROAST-RUNG-MAP.tsv`, `config/RAKUDO-SYNTAX-VERDICTS.tsv`) |
 | roast (Roast) | `raku_roast_scoreboard.sh run | report` (`--limit N` smokes the instrument and writes no row), `lib_raku_roast_stage.sh`, `util_raku_roast_ablation_ranker.sh` | `/home/resources/roast-master` staged under `corpus/packages/raku/roast` |
 | raku-bench-ref (RakBench), raku-demos (RakDemo) | `test_raku_bench_suite.sh`, `bench_raku_bar.sh` | `corpus/benchmarks/raku/`, `corpus/demos/raku/` |
 
