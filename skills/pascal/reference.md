@@ -51,7 +51,7 @@ A package program: its runner with `S4E_CHUNK=entry:<name>`. A seat grades ONE p
 1. `bash ../harness/scripts/monitor_run.sh prog.pas --oracle` (fpc through the Pascal plug: `test_gate_pas_monitor_plug_sends_every_assignment.sh`): the bug lies between the last event both agree on and the first they diverge on. `--trace` prints the mode-3 trace; `--modes` runs mode 3 against mode 4 in lock-step; `--input FILE` feeds stdin.
 2. ASM-DIFF-FIRST: the smallest repro beside a passing sibling, `--compile` both, diff within one mode (modes may diverge legally).
 3. `--dump-pas-types` for a typing question (which kind the typer gave an expression); `--dump-ir` A/B over the population for a landing that claims no behaviour change (hq_pascal's 1,993-program proof).
-4. Only then gdb with a breakpoint and a hit count. A port trace: `test_gate_pas_port_trace.sh` (self-pin).
+4. Only then gdb with a breakpoint and a hit count.
 
 ## 7. Rulings a Pascal landing must not break (receipts in GOAL-PASCAL-100.md and GOAL-CEO.md)
 
