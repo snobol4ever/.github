@@ -70,9 +70,9 @@ Hand-off checks: `handoff_status.sh` rc 0, everything pushed, one plain closing 
 
 **The fleet check is RETIRED (Lon 2026-11-07 10:3x, verbatim: "you can delete the joke now." / "Just make sure I never see that piece of garbage EVER AGAIN.").** the fleet check script is deleted and CTO-541 and CTO-542 are void. No seat ever shows Lon a per-seat grid of squares, and none rebuilds one.
 
-## 8. DESIGN: fleet-queue (the cio, 2026-11-05)
+## 8. DESIGN: fleet-queue (the cio, 2026-11-05), now the file form (bus-one-queue, CIO-82, 2026-11-10)
 
-The queue design: tubes, tick, escalation and acceptance. Full text: `reference.md` section 8.
+The queue is `QUEUE.tsv` under `PO/.queue.flock`: a row's column `QUEUED:<tube>` is its tube, its claim's `RESERVED file` line the reserve; no daemon, no job ids. Full text: `reference.md` section 8 (the file form first, the daemon design after it as history).
 
 ## 9. DESIGN: skills-complete (the cio, 2026-11-07)
 
