@@ -53,3 +53,6 @@ Every ref is cut from the language's oracle through its accessor in `harness/scr
 
 The full text of this section (about 7 KB) is in `reference.md` beside this file, under the same heading, moved there verbatim on 2026-11-06 so the skill loads light (Lon: "Go and trim any skill that needs it."). Read it before executing, cutting or ruling on a step of this design.
 
+## 8. DESIGN-PLAN run-switches: SCRIP reads every master, warms Prolog, runs a package in its own layout, and dialect is one attribute (the cto, CTO-575, 2026-11-10; CIO-59)
+
+The full text is in `reference.md` beside this file, under the same heading: the reader's file fences and dialect column, the one oracle table, the warm parent for the two switches, the package switch `scrip --run-files`. Read it before executing, cutting or ruling on a step of this design (`harness/designs/run_switches/STEPS.tsv`, `test_design_run_switches_steps.sh`).

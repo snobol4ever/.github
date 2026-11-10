@@ -59,4 +59,5 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | box-scheduler | `corpus/tests/shared/box_scheduler/` | `test_design_box_scheduler_steps.sh` | skill `shared-box` section 8 |
 | fleet-queue | `corpus/tests/shared/fleet_queue/` | `test_design_fleet_queue_steps.sh` | skill `fleet-bus` section 8 (reference) |
 | skills-complete | `corpus/tests/shared/skills_complete/` | `test_design_skills_complete_steps.sh` | skill `fleet-bus` section 9 (reference) |
+| run-switches | `harness/designs/run_switches/` | `test_design_run_switches_steps.sh` (probes `s4e_probe_run_switches.sh N`) | skill `suites-and-grading` section 8 (reference) |
 | bus-one-queue | `corpus/tests/shared/bus_one_queue/` | `test_design_bus_one_queue_steps.sh` (probes `s4e_probe_bus_one_queue.sh N`) | the step table header (CIO-8 phase two, the cio; cut by officer_05; GOAL-CIO.md CIO-8 to CIO-10) |
