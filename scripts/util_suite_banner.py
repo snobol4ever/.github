@@ -546,6 +546,21 @@ def wall(r):
     if n<60: return f"{n}s"
     if n<3600: return f"{n//60}m{n%60:02d}s"
     return f"{n//3600}h{(n%3600)//60:02d}m"
+def run_range(r):
+    """The grid's Run cell: the date and time range of the readings the row was assembled from, the oldest reading to the newest, in the box's own
+    clock (Lon 2026-11-11 10:2x CST, in the coo's window, verbatim: "The stop turn banner should display the date/time-range of the run that
+    created the row."). The row's today_run_first and today_run_last hold the two readings' UTC stamps (util_score_row.py from-progress sets them,
+    --set-run). One day: 11-11 08:27-08:31. More than one day: 11-08>11-11 09:12 (the first day, then the last day and time). Blank when the row
+    carries no stamps (a row no reading has written since the column exists)."""
+    import calendar, time
+    def _loc(v):
+        m=re.match(r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?', (v or '').strip())
+        if not m: return None
+        return time.localtime(calendar.timegm((int(m.group(1)),int(m.group(2)),int(m.group(3)),int(m.group(4)),int(m.group(5)),int(m.group(6) or 0),0,0,0)))
+    a,b=_loc(r.get('today_run_first')),_loc(r.get('today_run_last'))
+    if not a or not b: return ""
+    d=lambda t: f"{t.tm_mon:02d}-{t.tm_mday:02d}"; h=lambda t: f"{t.tm_hour:02d}:{t.tm_min:02d}"
+    return f"{d(a)} {h(a)}-{h(b)}" if (a.tm_year,a.tm_yday)==(b.tm_year,b.tm_yday) else f"{d(a)}>{d(b)} {h(b)}"
 # ⭐ A SEAT'S GRID SHOWS ITS OWN LANGUAGES ON ITS OWN ENGINE (Lon 2026-10-17, in-chat to hq_jvm, verbatim: "The test suite banner is wrong
 # for this seat, since JVM is only SNOBOL4 and Snocone and Rebus." · "The test suite banners have the wrong languages." · "The suite banner
 # should represent the snobol4jvm program, not SCRIP."; to hq_dotnet: "The test suite banner is wrong since .NET supports only SNOBOL4,
@@ -607,7 +622,7 @@ def grid(plain=False):
         try: tp,tt=int(r['today_pass']),int(r['today_total'])
         except (ValueError,KeyError):
             _t=(r.get('today_total') or '').strip()
-            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-"] + _pm(r) + ["", (r.get('today_excluded') or '').strip() or "", "-", wall(r), "NO READING"] + ([_read_day(r)] if eng else [])); continue
+            data.append([r.get('lang',''), r['nick'], "-", _t if _t.isdigit() else "-"] + _pm(r) + ["", (r.get('today_excluded') or '').strip() or "", "-", wall(r), run_range(r), "NO READING"] + ([_read_day(r)] if eng else [])); continue
         # ⛔ `.0f` alone rounds 823/826 (99.64%) up to "100%" while the State column beside it correctly
         # reads not-DONE (tp<tt) -- a contradiction inside one row (Lon 2026-09-23, caught reading this
         # exact grid). 100% is reserved for tp>=tt (RULES.md: "100% only when FAIL=0 over the printed
@@ -619,12 +634,12 @@ def grid(plain=False):
             pct=f"{pv}%"
         # ⭐ EXCL (Lon 2026-09-26, CEO-1286: "We want to show this number of EXCLUDED tests in the test-suite grid."): the programs not in
         # the SPITBOL dialect that this row's Total leaves out, from today_excluded; blank for a suite with no such ruling (the rung suites).
-        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}"] + _pm(r) + [delta(r, tp, tt), (r.get('today_excluded') or '').strip(), pct, wall(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")] + ([_read_day(r)] if eng else []))
+        data.append([r.get('lang',''), r['nick'], f"{tp}", f"{tt}"] + _pm(r) + [delta(r, tp, tt), (r.get('today_excluded') or '').strip(), pct, wall(r), run_range(r), "VOID" if (r.get('today_void') or '').strip() else ("DONE" if tt and tp>=tt else "")] + ([_read_day(r)] if eng else []))
     data.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     if not data:
         if eng: print(f"SUITE GRID: no row yet (engine {eng}) -- no board has graded {GRID_PROGRAMS.get(eng, eng)} into SUITES.tsv"); return
         print("SUITE GRID: no readable rows in SUITES.tsv"); return
-    hdr=["Lang","Suite","Pass","Total","M3","M4","\u0394","Excl","Pct","Wall","State"] + (["Date"] if eng else [])
+    hdr=["Lang","Suite","Pass","Total","M3","M4","\u0394","Excl","Pct","Wall","Run","State"] + (["Date"] if eng else [])
     cols=len(hdr)
     # ⭐ ONE EXTRA COLUMN OF ROOM PER CELL (Lon 2026-09-13: "Give one extra space in each column to give room
     # to breath."). Added to the WIDTH, so the rules that span each column widen with it and the box still
@@ -919,7 +934,7 @@ def _suite_table_lock():
     os.environ['S4E_SUITE_TABLE_LOCKED']=str(os.getpid())
     return fd
 def main(a):
-    if '--set' in a or '--render' in a or '--open' in a or '--set-wall' in a: _suite_table_lock()
+    if '--set' in a or '--render' in a or '--open' in a or '--set-wall' in a or '--set-run' in a: _suite_table_lock()
     if '--open' in a:
         # ⛔⭐ A PORT ENGINE'S ROW IS OPENED BY ITS FIRST PUBLISH (ceo CEO-1822, to hq_dotnet: "A port engine's SUITES.tsv row is created by
         # that engine's FIRST PUBLISH through util_score_row.py, the table's one writer, under its lock and history writer, never by hand").
@@ -939,6 +954,28 @@ def main(a):
         before=open(TSV,encoding='utf-8').read()
         rows.append(new); save(head,rows); history(head,before,rows)
         print(f"⭐ --open {key}: the {eng} engine's row is open in SUITES.tsv ({base['nick']}, {base['lang']}), readings empty until its --set")
+        return
+    if '--set-run' in a:
+        # THE RUN'S DATE AND TIME RANGE (Lon 2026-11-11, verbatim: "The stop turn banner should display the date/time-range of the run that created the
+        # row."): --set-run KEY FIRST LAST writes the UTC stamps of the oldest and the newest reading the row was assembled from into today_run_first
+        # and today_run_last (the two columns are added on first use, as today_secs was) and touches no other cell; the word none for both blanks them.
+        i=a.index('--set-run'); key=a[i+1] if len(a)>i+1 else ''; f1=a[i+2] if len(a)>i+2 else ''; f2=a[i+3] if len(a)>i+3 else ''
+        _ts=r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z?$'
+        if not key or not ((re.match(_ts,f1) and re.match(_ts,f2)) or (f1=='none' and f2=='none')):
+            sys.stderr.write("REFUSE(rc=2): --set-run takes a suite key and two UTC stamps YYYY-MM-DDTHH:MM[:SS] (the oldest and the newest reading), or none none. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        head,rows=load(); r=next((x for x in rows if x['key']==key),None)
+        if r is None: sys.stderr.write(f"REFUSE(rc=2): no suite key {key} in {TSV}. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        for c in ('today_run_first','today_run_last'):
+            if c not in head:
+                head.append(c)
+                for x in rows: x.setdefault(c,'')
+        n1,n2=('','') if f1=='none' else (f1.rstrip('Z'),f2.rstrip('Z'))
+        if ((r.get('today_run_first') or '').strip(),(r.get('today_run_last') or '').strip())==(n1,n2):
+            print(f"--set-run {key}: the Run already reads {run_range(r) or 'blank'}; nothing written"); return
+        before=open(TSV,encoding='utf-8').read()
+        r['today_run_first'],r['today_run_last']=n1,n2; save(head,rows)
+        history(head,before,rows)
+        print(f"--set-run {key}: the Run reads {run_range(r) or 'blank'}")
         return
     if '--set-wall' in a:
         # ⛔⭐ THE WALL IS THE SUM OF EACH MEMBER'S MINIMUM TIME, NEVER THE MAXIMUM AND NEVER THE CURRENT (Lon 2026-10-18, in-chat to the coo, verbatim: "Fix the
