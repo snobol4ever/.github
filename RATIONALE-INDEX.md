@@ -204,3 +204,45 @@ Each row's baton carries the file, the recovery method (`scripts/` extraction un
 - `op_tail_ncap` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
 - `op_tail_seal` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
 - `op_wpop` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+
+### src/emitter/emit.h -- the node struct's field notes, section 2 (row rationale-emit-h)
+
+- `flat_all_zd` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `flat_deep_arrival` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `flat_fb_refine` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `flat_lcl_proc` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `flat_outer_nparams` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_arbno_body_actframe` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_arbno_body_defer_unsafe` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_arbno_body_k0` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_arbno_body_kk` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_arbno_framed` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_arbno_frame_off` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_arbno_rbp` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_cap_frame_off` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_fence0_release` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_fence_body_kk` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_fence_frame_off` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_frame_extra` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_frame_need` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_pair_rejoin` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_res_live` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_src` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_stmt_dyn` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_subj_cell` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_suspend_stmt_uclaim` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_wsteal` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_xf_off` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zdepth` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zdp_ad` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zdp_bd` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zdp_rbp` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zfc` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zgpop` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zkind` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zpat` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zread` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zread_xf` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `op_zres` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `zframe_graph` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
+- `zop_seen` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §2
