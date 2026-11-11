@@ -167,3 +167,40 @@ Ranked by stripped-RATIONALE-comment count (heuristic classifier, see the FINDIN
 Each row's baton carries the file, the recovery method (`scripts/` extraction under `/tmp/.../scratchpad/rationale/` this session — not yet promoted to a checked-in script; see the FINDING), and the same DECORATION/RATIONALE split instructions as this row. Row-factory rule carried forward: a session picking one of these should relocate its highest-value sub-cluster and spin off further rows rather than trying to clear an entire file's ~100-600 comments in one sitting.
 
 ⚠️ **Two of this table's provenance links are now DEAD, for two different and both legitimate reasons (found by hq_P 2026-09-11 while working row 2).** `FINDING-2026-08-22-recover-stripped-design-rationale-classification.md` — the methodology file every one of these rows names as a prerequisite — was removed by `f78d8b3f` under Lon's 2026-09-04 order *"Remove old FINDING-\*.md files"* (826 August FINDINGs), and `ARCH-PATTERN-CHOICE-CARRIER.md`, the worked precedent, was folded into `ARCH-ENGINE.md` by `9e0e624a`. ⛔ **The remaining rows in this table still cite both in their batons.** Neither loss is an error — but a row whose STEP 2 says *"read the parent FINDING before trusting a DECORATION verdict"* now names a file nobody can open, and **a prerequisite nobody can satisfy is either a blocker or a dead letter.** ⭐ **What survives is enough:** this file's own header carries the methodology summary, and `ARCH-ENGINE.md` §3 is the live precedent shape. Use those.
+
+### src/emitter/emit.h -- the node struct's field notes, section 1 (row rationale-emit-h)
+
+- `flat_bare_chain` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_dc_body_p` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_frame_bytes` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_gen` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_jmp_entry` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_layout_unknown` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_lex` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_main_body_p` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_pat` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_res_p` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `flat_seed_off` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_arbno_chain` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_arbno_dt` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_arbno_dt_susp` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_arbno_nzq` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_arbno_zq` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_beta_dead` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_body_has_arbno` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_defer_leaf_susp` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_define_role` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_fc_disp` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_fc_fpmax` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_fc_wbytes` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_scan` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_scan_head_off` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_seal` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_tail` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_tail_dfr` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_tail_fpb` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_tail_fpl` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_tail_fpr_rsp` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_tail_ncap` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_tail_seal` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
+- `op_wpop` -> `.github/ARCH-EMIT-NODE-FIELDS.md` §1
