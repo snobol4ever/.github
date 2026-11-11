@@ -51,6 +51,22 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=315s | 2026-11-04 | `01f9ae696` | done |
 | XsbTests | prolog | 344/550 EXCLUDED=357 WALL=5605s | 2026-11-04 | `c1c307e69` |  |
 | UniTests | icon | 154/162 EXCLUDED=60 WALL=115s | 2026-11-08 | `7370568db` |  |
+| Vanilla | snobol4 | 0/21 | 2026-11-10 | `2db659e0a` |  |
+| SnoMore | snobol4 | 0/238 | 2026-11-10 | `2db659e0a` |  |
+| IcnPacks | icon | 0/113 | 2026-11-10 | `2db659e0a` |  |
+| UniTree | icon | 0/710 | 2026-11-10 | `2db659e0a` |  |
+| Chat80 | prolog | 0/24 | 2026-11-10 | `2db659e0a` |  |
+| PRESS | prolog | 0/120 | 2026-11-10 | `2db659e0a` |  |
+| HakankMore | prolog | 0/193 | 2026-11-10 | `2db659e0a` |  |
+| TreallaMore | prolog | 0/243 | 2026-11-10 | `2db659e0a` |  |
+| XsbExamples | prolog | 0/90 | 2026-11-10 | `2db659e0a` |  |
+| ProSets | prolog | 0/167 | 2026-11-10 | `2db659e0a` |  |
+| OtherProlog | prolog | 0/1530 | 2026-11-10 | `2db659e0a` |  |
+| FpcSource | pascal | 0/7625 | 2026-11-10 | `2db659e0a` |  |
+| PasSets | pascal | 0/447 | 2026-11-10 | `2db659e0a` |  |
+| TeX | pascal | 0/3 | 2026-11-10 | `2db659e0a` |  |
+| RakudoT | raku | 0/1351 | 2026-11-10 | `2db659e0a` |  |
+| RakExamples | raku | 0/310 | 2026-11-10 | `2db659e0a` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)

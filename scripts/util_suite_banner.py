@@ -728,6 +728,12 @@ README_RUNNER = {
     # trealla (the coo opened TreallaTests at SCRIP da42f411d without naming its runner here; the ceo added it 2026-10-10, CEO-1616 -- the X32T lesson a third time: THE RENDERER'S MAP IS PART OF OPENING A ROW).
     'trealla': 'test_prolog_trealla_suite.sh', 'xsb': 'test_prolog_xsb_suite.sh', 'fpc': 'test_pascal_fpc_suite.sh', 'wirth76': 'test_pascal_wirth76_suite.sh', 'pat': 'test_pascal_pat_suite.sh', 'rosetta-pascal': 'test_pascal_rosetta_suite.sh', 'rosetta-prolog': 'test_prolog_rosetta_suite.sh',
     'unitests': 'test_icon_unicon_suite.sh',
+    # the sixteen suites found by the sweep of /home/resources (the cio 2026-11-10, CIO-113; Lon: "make it official and add all the new test suites to the test suite banner."):
+    # opened UNGRADED with their runner named the same day (the X32T lesson); each is built and graded by the one grader when its mining row lands.
+    'vanilla': 'corpus_suite_harness.py', 'snobol4-more': 'corpus_suite_harness.py', 'icon-packs': 'corpus_suite_harness.py', 'unicon-uni': 'corpus_suite_harness.py',
+    'chat80': 'corpus_suite_harness.py', 'press': 'corpus_suite_harness.py', 'hakank-more': 'corpus_suite_harness.py', 'trealla-more': 'corpus_suite_harness.py',
+    'xsb-examples': 'corpus_suite_harness.py', 'prolog-sets': 'corpus_suite_harness.py', 'other-prologs': 'corpus_suite_harness.py', 'fpc-source': 'corpus_suite_harness.py',
+    'pascal-sets': 'corpus_suite_harness.py', 'tex': 'corpus_suite_harness.py', 'rakudo-t': 'corpus_suite_harness.py', 'raku-examples': 'corpus_suite_harness.py',
     'roast': 'raku_roast_scoreboard.sh --run', 'sno-rungs': 'test_corpus_snobol4.sh', 'icn-rungs': 'board_icon_rungs.sh',
     'pl-rungs': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-rungs': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
     'raku-rungs': 'corpus_suite_harness.py run tests/raku/ALL.raku', 'snc-rungs': 'corpus_suite_harness.py run tests/snocone/ALL.sc',
