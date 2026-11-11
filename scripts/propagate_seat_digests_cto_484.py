@@ -26,6 +26,8 @@ ROLE_PARTS = {
 }
 # seat -> (role, identity block); a lane also carries (lang, ext) for the BUILD part
 SEATS = {
+    "grader": ("grading", """## THIS ROOT IS THE GRADER SEAT (postoffice identity `grader`): THE GRADE RUNNER'S SEAT. THIS ROOT IS THE TREE THE TEST CYCLE SYNCS AND GRADES FROM EVERY LAP: NEVER EDIT, BUILD, COMMIT OR SYNC HERE; WORK ONLY IN A WORKTREE UNDER /tmp/s4e/grader (`s4e_worktree.sh`) AND LAND THROUGH `s4e_land.sh` (Lon 2026-11-11, QUARTET, CIO-122)
+""", None),
     "cto": ("in-charge", """## THIS ROOT IS THE CTO SEAT (postoffice identity `cto`): THE OFFICER IN CHARGE AND THE FLEET'S DESIGNER
 - Lon is the CEO; the cto runs the fleet with the coo (Lon 2026-10-31, CTO-469): design and law are this seat's half, operating and testing the coo's. The fleet's humming is priority one: a seat with no work, an overloaded box or a red nobody owns is this seat's to route before any row of its own.
 - Every design, every DESIGN-PLAN, every placement ruling, the toughest jobs of any kind, and every shared red the coo escalates while a layer seat is stood down. GOAL-CTO.md is the cursor; every ruling is the next `CTO-NNNN` there, the same sitting.
