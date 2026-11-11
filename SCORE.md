@@ -54,7 +54,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Vanilla | snobol4 | 0/21 | 2026-11-10 | `2db659e0a` |  |
 | IcnPacks | icon | 0/113 | 2026-11-10 | `2db659e0a` |  |
 | UniTree | icon | 0/710 | 2026-11-10 | `2db659e0a` |  |
-| Chat80 | prolog | 0/24 | 2026-11-10 | `2db659e0a` |  |
+| Chat80 | prolog | 0/2 EXCLUDED=0 | 2026-11-11 | `dbf297c1a` |  |
 | PRESS | prolog | 0/120 | 2026-11-10 | `2db659e0a` |  |
 | HakankMore | prolog | 0/193 | 2026-11-10 | `2db659e0a` |  |
 | TreallaMore | prolog | 0/243 | 2026-11-10 | `2db659e0a` |  |
