@@ -730,10 +730,11 @@ README_RUNNER = {
     'unitests': 'test_icon_unicon_suite.sh',
     # the sixteen suites found by the sweep of /home/resources (the cio 2026-11-10, CIO-113; Lon: "make it official and add all the new test suites to the test suite banner."):
     # opened UNGRADED with their runner named the same day (the X32T lesson); each is built and graded by the one grader when its mining row lands.
+    # hakank-more (HakankMore) and other-prologs (OtherProlog) left the banner 2026-11-11 on Lon's word in the coo's window: "Get rid of the bogus test suites added." (COO-512; the grader's census: neither has entries of its own)
     # snobol4-more (SnoMore) left the banner 2026-11-11 on Lon's word in the grader's window: "It seems your SnoMore is invalid. That is not one thing, that is a mess." / "So then you remove the bogus SnoMore row in the banner."
     'vanilla': 'corpus_suite_harness.py', 'icon-packs': 'corpus_suite_harness.py', 'unicon-uni': 'corpus_suite_harness.py',
-    'chat80': 'corpus_suite_harness.py', 'press': 'corpus_suite_harness.py', 'hakank-more': 'corpus_suite_harness.py', 'trealla-more': 'corpus_suite_harness.py',
-    'xsb-examples': 'corpus_suite_harness.py', 'prolog-sets': 'corpus_suite_harness.py', 'other-prologs': 'corpus_suite_harness.py', 'fpc-source': 'corpus_suite_harness.py',
+    'chat80': 'corpus_suite_harness.py', 'press': 'corpus_suite_harness.py', 'trealla-more': 'corpus_suite_harness.py',
+    'xsb-examples': 'corpus_suite_harness.py', 'prolog-sets': 'corpus_suite_harness.py', 'fpc-source': 'corpus_suite_harness.py',
     'pascal-sets': 'corpus_suite_harness.py', 'tex': 'corpus_suite_harness.py', 'rakudo-t': 'corpus_suite_harness.py', 'raku-examples': 'corpus_suite_harness.py',
     'roast': 'raku_roast_scoreboard.sh --run', 'sno-rungs': 'test_corpus_snobol4.sh', 'icn-rungs': 'board_icon_rungs.sh',
     'pl-rungs': 'corpus_suite_harness.py run tests/prolog/ALL.pl', 'pas-rungs': 'corpus_suite_harness.py run tests/pascal/ALL.pas',
