@@ -42,6 +42,7 @@ The record is GOAL-PROLOG-100.md (LIVE CURSOR on top). Suite tables, the dialect
 2. Asm-diff the smallest repro beside a passing sibling within one mode.
 3. `util_diagnose_prolog_swi.sh <case>`, `util_swi_red_census.py`, `util_xsb_oracle_runs.py`; `SCRIP_PL_TRACE=1` the port tracer.
 4. gdb last, with a breakpoint and a hit count.
+5. A census of the reader's operators reads both tables of `prolog_parse.c`: `BIN_OPS[]` holds the infix operators, while the prefix ones (`\+`, `dynamic`) are hard-coded `strcmp` arms. A census of `BIN_OPS[]` alone reports every prefix operator as a false gap.
 
 ## 7. Rulings a landing must not break
 

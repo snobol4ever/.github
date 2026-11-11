@@ -14,6 +14,7 @@ Detail is in `.github/skills/speed-measurement/reference.md`, beside this file.
 - **A benchmark is an instruction count, never a wall clock** (CEO-1912; Lon 2026-10-22: "Forget about benchmarking based on wall clock; instead use instruction counts from calgrind and other techniques."). A count does not move with the box's load, so it runs at any time. A clock is taken only inside `util_quiet_slice.sh` (a reserved slice), and is never the basis of a row.
 - **A benchmark is a test**: every kernel has a ref and its answer is diffed before its count means anything; a fast wrong answer is a defect. The kernel is a pristine source; the harness generates the wrapping around it.
 - **No `-O2`**: the runtime builds at `RT_OPT=-O0`; a speed claim never rides a compiler flag.
+- **A multiple is reference over ours, written 2.00x**, and never carries "faster" or "slower" (below 1.00x is slower; "0.666 slower" says nothing). Only a percentage takes the English word: 10% faster is 1.10x.
 
 ## 2. The instrument
 

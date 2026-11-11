@@ -64,7 +64,7 @@ timeout -k 5 60 "$(swipl_bin)" -q -t halt -g main w.pl < /dev/null > w.ref
 
 ## 5. THE FORBIDDEN FORMS
 
-A test edited to exit 0; an `xfail` of 1; a prose DONE-WHEN, one that pins a count, or one a deletion satisfies (`! grep -q defect`); a plant in `src/`; a gate with no refusal arm; a gate anchored on one found witness; a board or suite row written by anyone but the coo; a ref cut from the other mode or from a bare oracle path; a run without `timeout -k 5`, or without `< /dev/null` when it reads no stdin; an env size knob in a runner; outputs under the root; a symlink; `pkill -f`; `grep -q` under `pipefail`; a wall-clock assertion in a probe; a proof row on the live queue; a pass probe that reads the coo's readings used as a landing gate; a sparse worktree without `include/`.
+A test edited to exit 0; an `xfail` of 1; a prose DONE-WHEN, one that pins a count, or one a deletion satisfies (`! grep -q defect`); a plant in `src/`; a gate with no refusal arm; a gate anchored on one found witness; a board or suite row written by anyone but the coo; a ref cut from the other mode or from a bare oracle path; a run without `timeout -k 5`, or without `< /dev/null` when it reads no stdin; an env size knob in a runner; outputs under the root; a symlink; `pkill -f`; `grep -q` under `pipefail`; a wall-clock assertion in a probe; a proof row on the live queue; a pass probe that reads the coo's readings used as a landing gate; a sparse worktree without `include/`; a timeout (rc 124) folded into a crash or a refusal (a verdict that turns on time records the duration, since an rc is no measure of time).
 
 ## 6. WHERE THE REST LIVES
 

@@ -42,6 +42,7 @@ The record is GOAL-SNOBOL4-100.md, GOAL-SNOCONE-100.md and GOAL-REBUS-100.md (LI
 2. Asm-diff the smallest repro beside a passing sibling within one mode.
 3. `--dump-plan`, `SCRIP_ZD_CHECK=1` for placement; `SCRIP_GC_STRESS=1` for a collector suspicion.
 4. gdb last, with a breakpoint and a hit count.
+5. A red that turns on an operator: SPITBOL tells a unary from a binary use by spacing alone (manual: no blank or tab between operator and operand). A unary operator touches its operand and a binary one has white space on both sides, so `$'='` is indirection and `a $ b` is immediate assignment; the same holds for `. * ~ & @ + -`.
 
 ## 7. Rulings a landing must not break
 
