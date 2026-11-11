@@ -12,7 +12,7 @@ re-minted from a current red (mint refuses a placeholder DONE-WHEN since this ru
 
   KEEP      CLAIMED or ASSIGNED (a live claim is never touched by script, CEO-755c); PARKED-LON-HOLD; PARKED-UMBRELLA (an HQ's
             own steps under its one thing); BLOCKED-ON / PARKED-AWAITING whose blocker is itself live after the sweep.
-  ARCHIVE   a DONE row still in the live file -> QUEUE.done.tsv (its receipt, if any, is in its claim file; none is minted here).
+  DELETE    a DONE row still in the live file: its line, its baton and its claim are removed; nothing is archived.
   RETIRE    SUPERSEDED and RETIRED rows -> QUEUE.retired.tsv; PARKED-EXECUTIVE-NO-SEAT (parked by a mode flip, never by a
             judgement), PARKED-REBUS-CLOSED, plain PARKED, orphaned BLOCKED/AWAITING -> QUEUE.retired.tsv as
             RETIRED:zero-base-<reason>; a FREE row whose DONE-WHEN is the mint placeholder (no finish line) or RUNS A BOARD
@@ -50,7 +50,7 @@ printed and nothing is written; --no-run skips the execution and reports the sta
 """
 import json, os, re, shutil, signal, subprocess, sys, tempfile, time
 PO = os.environ.get("S4E_POSTOFFICE", "/home/resources/postoffice")
-Q, QD, QR, TASKS = PO + "/QUEUE.tsv", PO + "/QUEUE.done.tsv", PO + "/QUEUE.retired.tsv", PO + "/tasks"
+Q, QR, TASKS = PO + "/QUEUE.tsv", PO + "/QUEUE.retired.tsv", PO + "/tasks"
 S4E = os.environ.get("S4E_HOME") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # the coo 2026-11-04: the root that holds this .github (the ceo root is gone; the default crashed every sweep since 11-01)
 if "--help" in sys.argv or "-h" in sys.argv: print(__doc__); sys.exit(0)
 apply = "--apply" in sys.argv; norun = "--no-run" in sys.argv
@@ -236,7 +236,7 @@ greens = [t for t, d in decisions.items() if d[0] == "GREEN-now"]
 if greens: print("GREEN now (archived as done):"); [print("   " + t) for t in greens]
 if not apply: print("DRY RUN: nothing written"); sys.exit(0)
 # ⛔ THE BUS'S QUEUE LOCK (ceo CEO-1708, 2026-10-14): every s4e_msg.sh verb that rewrites QUEUE.tsv takes the mkdir lock $PO/.mint.lock
-# (s4e_set_row_state, mint, ...); this sweep wrote QUEUE.tsv, QUEUE.done.tsv and QUEUE.retired.tsv without it, so a bus verb landing
+# (s4e_set_row_state, mint, ...); this sweep wrote QUEUE.tsv and QUEUE.retired.tsv without it, so a bus verb landing
 # between its fresh read and its write was lost. The write phase below holds the SAME lock -- never while a DONE-WHEN runs -- waits up
 # to 10 s for it, and REFUSES rc 2 with nothing written when it cannot take it; atexit releases it if the write phase dies.
 LK = PO + "/.mint.lock"
@@ -255,7 +255,7 @@ def _release_lock():
         pass
 atexit.register(_release_lock)
 # write against a fresh read
-fresh = rows_of(Q); out, done_add, ret_add, log, ledger_add, guard_add = [], [], [], [], [], []
+fresh = rows_of(Q); out, done_rm, ret_add, log, ledger_add, guard_add = [], [], [], [], [], []
 old_state = {f[1]: f[3] for f in parsed}
 for ln in fresh:
     f = ln.split("\t")
@@ -272,17 +272,20 @@ for ln in fresh:
         if cls.startswith("LOAD-GUARD"): guard_add.append((topic, f[0]))
         out.append("\t".join(f))
     elif place == "DONE":
-        f[3] = f[3] if cls == "ARCHIVE-DONE" else "DONE:zero-base-green-r-1386"; done_add.append("\t".join(f))
+        done_rm.append(topic)
+        for _p in (os.path.join(TASKS, topic + ".task.md"), os.path.join(PO, "claims", topic + ".claim")):
+            try: os.remove(_p)
+            except FileNotFoundError: pass
     else:
         f[3] = f[3] if cls == "RETIRE-ALREADY" else "RETIRED:zero-base-r-1386-" + cls.replace("RETIRE-", ""); ret_add.append("\t".join(f))
     log.append((topic, f[2], old_state[topic], cls, str(rc), place))
-for p in (Q, QD, QR):
+for p in (Q, QR):
     if os.path.exists(p): shutil.copyfile(p, p + ".bak.%s-zero-base-ceo-1386" % stamp)
 open(Q, "w", encoding="utf-8", newline="\n").write("\n".join(out))
 def append(p, rows):
     if not rows: return
     cur = rows_of(p); txt = "\n".join([r for r in cur if r != ""] + rows) + "\n"; open(p, "w", encoding="utf-8", newline="\n").write(txt)
-append(QD, done_add); append(QR, ret_add)
+append(QR, ret_add)
 _release_lock(); atexit.unregister(_release_lock)
 when = time.strftime("%Y-%m-%d %H:%M %Z")
 for topic, rank in ledger_add:
@@ -303,4 +306,4 @@ os.makedirs(PO + "/salvage", exist_ok=True)
 with open(PO + "/salvage/zero-base-%s-ceo-1386.tsv" % stamp, "w", encoding="utf-8", newline="\n") as fh:
     fh.write("topic\towner\told_state\tclass\trc\tplace\n")
     for l in log: fh.write("\t".join(l) + "\n")
-print("WRITTEN: live %d rows, +%d done, +%d retired, %d kept on the load guard; log postoffice/salvage/zero-base-%s-ceo-1386.tsv; backups beside the files" % (sum(1 for l in out if l and not l.startswith("#")), len(done_add), len(ret_add), len(guard_add), stamp))
+print("WRITTEN: live %d rows, +%d done, +%d retired, %d kept on the load guard; log postoffice/salvage/zero-base-%s-ceo-1386.tsv; backups beside the files" % (sum(1 for l in out if l and not l.startswith("#")), len(done_rm), len(ret_add), len(guard_add), stamp))
