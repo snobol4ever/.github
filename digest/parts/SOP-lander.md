@@ -1,8 +1,0 @@
-## EVERY SITTING, IN ORDER
-1. Sync the repos: `for r in SCRIP corpus harness .github; do git -C $r fetch -q origin && git -C $r merge --ff-only origin/main; done`, then `cd SCRIP && make -j8` (in the background past two minutes; `FETCHED <key>` is the build cache). Never pull half a cross-repo landing. Time labels from `date`.
-2. MODE: `head -2 /home/resources/postoffice/MODE` and its keyed lines (`ROSTER:` `LANES:` `ORDER-OF-WORK:`).
-3. Your rows: `grep -P '\t<seat>\t|:<seat>$' /home/resources/postoffice/QUEUE.tsv`; each held row's baton `/home/resources/postoffice/tasks/<topic>.task.md` (NEXT is where you resume); the LIVE CURSOR of your GOAL file.
-4. Inbox: `bash harness/scripts/s4e_msg.sh check` (long output into a file, read whole), act or reply, then `clear`. An empty inbox is the acknowledgement.
-5. `bash harness/scripts/s4e_msg.sh next` serves your ASSIGNED row, then your claim, then a FREE row of your lane; `claim` it. Load the skills the gate names before the first edit; read the oracle's manual before ruling on a builtin or a syntax.
-6. ONE row at a time by THE LANDING RECIPE; at most two live claims. A red in shared code goes by bus to its seat and is cured there, never patched around in the lane.
-7. Hand off: baton NEXT rewritten, LEDGER written, LIVE CURSOR moved, everything pushed, `bash harness/scripts/handoff_status.sh` pasted verbatim. Waiting on the coo's reading: `park <topic> PARKED-AWAITING:<request-id>` (the id `s4e_test_request.sh` printed; the row returns to you as ASSIGNED, with a telegram, the moment the verdict is in -- box-scheduler step 31); on another row: `BLOCKED-ON:<topic>`; on your own live measurement: `MEASURING:<seat>:<pid>`; then stop. The coo assigns your next row and wakes you.

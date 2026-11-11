@@ -1,4 +1,0 @@
-	&TRACE = 1
-	TRACE('NOPE', 'CALL')
-	OUTPUT = 'not reached'
-END
