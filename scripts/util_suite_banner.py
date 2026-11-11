@@ -657,14 +657,15 @@ def grid(plain=False):
             j = rpad if (c in NUM and not hdr_row) else pad
             return j(cs[c], w[c]-1) + " "
         return "\u2502" + "\u2502".join(cell(c) for c in range(cols)) + "\u2502"
-    done=sum(1 for r in data if r[10]=="DONE")
+    _si=hdr.index("State")   # by name: the Run column moved State from the eleventh cell to the twelfth, and the count read 0 at 100% (COO-517, the same hour)
+    done=sum(1 for r in data if r[_si]=="DONE")
     print(rule("\u250c","\u252c","\u2510"))
     print(line(hdr, hdr_row=True))
     print(rule("\u251c","\u253c","\u2524"))
     for r in data: print(line(r))
     print(rule("\u2514","\u2534","\u2518"))
     if eng:
-        stale=[r[1] for r in data if r[11]!=dt.date.today().strftime('%m-%d')]
+        stale=[r[1] for r in data if r[hdr.index('Date')]!=dt.date.today().strftime('%m-%d')]
         print(f"{len(data)} suites, {done} at 100% -- {GRID_PROGRAMS.get(eng, eng)}'s own readings (engine {eng}), {', '.join(langs or ())}")
         if stale: print(f"NOT WRITTEN TODAY: {', '.join(stale)} -- file them with the coo (s4e_test_request.sh --engine {eng} <key> --part chunk:NN|core); a row is current only when every entry has a reading (ceo CEO-1903)")
     else: print(f"{len(data)} suites, {done} at 100%")
