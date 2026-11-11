@@ -46,7 +46,7 @@ case "${1:---check}" in
     SET="$(printf '%s\n' $ROSTER | sort -u | tr '\n' ' ' | sed 's/ $//')"
     case "$MODE_NOW" in
       SOLO)    ok="ceo";;
-      DUO)     ok="ceo cto|ceo coo";;
+      DUO)     ok="cio cto";;   # re-ruled: Lon 2026-11-10 21:5x CST, in the cio's window, verbatim: "Go to DUET mode, CIO plus CTO, for DESIGN and ALL actions too, coding and testing." (DUET is DUO, the name of the five; CIO-112). The two older shapes named the ceo seat, removed 2026-10-31.
       TRIO)    ok="cfo coo cto|cio coo cto";;   # the second shape: Lon 2026-11-10 11:2x CST, in the cio's window: "Let the fleet go idle except CIO, CTO, and COO." then "Go to TRIO mode." (the three bosses; CIO-58);   # Lon 2026-11-03 23:5x CST, in the cto's window: "Go to TRIO mode. It is just you three overnight." (the cto, the coo, the cfo; cto CEO-2116)
       QUARTET) ok="ceo cfo coo cto";;
       TENET)   ok="*";;
