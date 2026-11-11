@@ -34,7 +34,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | X32T | snobol4 | 16/16 EXCLUDED=5 OUTSIDE=0 | 2026-11-11 | `d2d3bd01e` | done |
 | SnoBench | snobol4 | 23/23 EXCLUDED=0 WALL=16s | 2026-11-11 | `d2d3bd01e` | done |
 | IcnBench | icon | 26/26 EXCLUDED=0 WALL=4s | 2026-11-11 | `d2d3bd01e` | done |
-| ProBench | prolog | 42/42 EXCLUDED=0 WALL=281s | 2026-11-11 | `c89bb80f9` | done |
+| ProBench | prolog | 42/42 EXCLUDED=0 WALL=75s | 2026-11-11 | `4e5920c84` | done |
 | PasBench | pascal | 11/11 EXCLUDED=0 WALL=34s | 2026-11-11 | `4e5920c84` | done |
 | RebBench | rebus | 3/3 EXCLUDED=0 WALL=2s | 2026-11-11 | `d2d3bd01e` | done |
 | SnoDemo | snobol4 | 24/24 EXCLUDED=0 WALL=6s | 2026-11-11 | `d2d3bd01e` | done |
