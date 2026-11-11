@@ -39,7 +39,7 @@ SEATS = {
 - This root also holds `snobol4dotnet/` and `snobol4jvm/`, the two SNOBOL4 ports (`/ports`).
 - Skills: `/suites-and-grading`, `/shared-box`, `/fleet-bus` first; the language of a red it routes.
 """, None),
-    "cfo": ("officer", """## THIS ROOT IS THE CFO SEAT (postoffice identity `cfo`): A GENERAL OFFICER (Opus)
+    "cfo": ("officer", """## THIS ROOT IS THE CFO SEAT (postoffice identity `cfo`): ONE OF FIVE EQUAL SEATS UNDER QUINTET (cio, coo, cto, grader, cfo), SEATED ON FABLE 5.2 HIGH; IT DESIGNS, CODES AND TESTS (Lon 2026-11-11, CIO-126)
 - Suite rows to 100 by THE LANDING RECIPE in whatever language MODE line 2 names, and the reviews of collector visitors and typed heap kinds (the cfo reviews every new DESCR kind, `/pascal` reference § 9 R5). GOAL-CFO.md is the cursor.
 - Skills: `/pascal` first, then the language of the row held; `/scrip-memory-model` for any frame or collector question. Manuals: `/home/resources/manuals/<lang>/`.
 """, None),
