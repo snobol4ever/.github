@@ -6,19 +6,19 @@ One row per suite — our seven rung suites and every vendored package suite ali
 
 | suite | lang | result | graded | tree | state |
 |---|---|---|---|---|---|
-| Gimpel | snobol4 | 144/144 EXCLUDED=1 OUTSIDE=0 WALL=43s | 2026-10-28 | `e92462182` | done |
+| Gimpel | snobol4 | 141/144 EXCLUDED=1 OUTSIDE=0 WALL=5s | 2026-11-11 | `9ba77b2e8` |  |
 | Budne | snobol4 | 70/70 EXCLUDED=62 OUTSIDE=19 WALL=10s | 2026-11-04 | `01f9ae696` | done |
-| Flake | snobol4 | 126/126 EXCLUDED=54 OUTSIDE=52 WALL=18s | 2026-11-09 | `39ebe39b8` | done |
+| Flake | snobol4 | 79/79 EXCLUDED=54 OUTSIDE=52 WALL=1s | 2026-11-11 | `9ba77b2e8` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=13s | 2026-11-04 | `01f9ae696` | done |
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 WALL=2s | 2026-11-04 | `01f9ae696` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 WALL=2s | 2026-11-09 | `39ebe39b8` | done |
 | Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-11-04 | `65d7c686d` | done |
-| Jcon | icon | 85/85 EXCLUDED=6 WALL=22s | 2026-11-04 | `01f9ae696` | done |
+| Jcon | icon | 78/78 EXCLUDED=6 WALL=3s | 2026-11-11 | `9ba77b2e8` | done |
 | IPL | icon | 644/644 EXCLUDED=207 WALL=317s | 2026-11-04 | `01f9ae696` | done |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-11-08 | `9e0bc12de` | done |
 | SWI | prolog | 2218/2311 EXCLUDED=625 WALL=2170s | 2026-11-09 | `478395910` |  |
 | GNU source | prolog | 44/45 EXCLUDED=17 WALL=148s | 2026-11-04 | `5e816bdc9` |  |
-| FPC | pascal | 94/94 EXCLUDED=87 OUTSIDE=0 WALL=49s | 2026-11-09 | `c89bb80f9` | done |
+| FPC | pascal | 84/84 EXCLUDED=87 OUTSIDE=0 | 2026-11-11 | `9ba77b2e8` | done |
 | PAT | pascal | 399/399 EXCLUDED=30 OUTSIDE=0 WALL=11s | 2026-11-09 | `e6bd32eed` | done |
 | Roast | raku | 249/1302 EXCLUDED=162 WALL=701s | 2026-11-08 | `1ff4523a0` |  |
 | SnoRungs | snobol4 | 2276/2286 EXCLUDED=1 WALL=23s | 2026-11-11 | `9ba77b2e8` |  |
