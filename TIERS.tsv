@@ -4,6 +4,8 @@
 seat	name	root	model	effort	color	tier	role
 cio	CIO	/home/claude_cio	claude-opus-5-5	high	red	1	fleet-system
 cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
+grader	GRADER	/home/claude_grader	claude-opus-5-5	high	red	1	suite-grading
+cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	red	1	prolog-design
 coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green	2	testing-officer
 officer_01	OFFICER-01	/home/claude_officer_01	claude-opus-5-5	high	yellow	2	designer
 officer_02	OFFICER-02	/home/claude_officer_02	claude-opus-5-5	high	yellow	2	designer
