@@ -51,19 +51,24 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=315s | 2026-11-04 | `01f9ae696` | done |
 | XsbTests | prolog | 344/550 EXCLUDED=357 WALL=5605s | 2026-11-04 | `c1c307e69` |  |
 | UniTests | icon | 154/160 EXCLUDED=60 WALL=61s | 2026-11-11 | `5c5369a18` |  |
-| Vanilla | snobol4 | 0/21 | 2026-11-10 | `2db659e0a` |  |
+| Vanilla | snobol4 | 9/10 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
 | IcnPacks | icon | 0/113 | 2026-11-10 | `2db659e0a` |  |
 | UniTree | icon | 0/710 | 2026-11-10 | `2db659e0a` |  |
 | Chat80 | prolog | 0/2 EXCLUDED=0 | 2026-11-11 | `dbf297c1a` |  |
 | PRESS | prolog | 0/120 | 2026-11-10 | `2db659e0a` |  |
-| TreallaMore | prolog | 0/243 | 2026-11-10 | `2db659e0a` |  |
+| TreallaMore | prolog | 17/20 EXCLUDED=0 WALL=40s | 2026-11-11 | `d2d3bd01e` |  |
 | XsbExamples | prolog | 0/90 | 2026-11-10 | `2db659e0a` |  |
-| ProSets | prolog | 0/167 | 2026-11-10 | `2db659e0a` |  |
-| FpcSource | pascal | 0/7625 | 2026-11-10 | `2db659e0a` |  |
+| ProSets | prolog | 13/18 EXCLUDED=0 WALL=30s | 2026-11-11 | `d2d3bd01e` |  |
+| FpcSource | pascal | 395/1058 EXCLUDED=0 WALL=50s | 2026-11-11 | `eac16d740` |  |
 | PasSets | pascal | 0/447 | 2026-11-10 | `2db659e0a` |  |
 | TeX | pascal | 0/3 | 2026-11-10 | `2db659e0a` |  |
 | RakudoT | raku | 0/175 | 2026-11-10 | `2db659e0a` |  |
 | RakExamples | raku | 117/246 EXCLUDED=0 WALL=73s | 2026-11-11 | `eac16d740` |  |
+| PasStanford | pascal | 12/17 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasAdv350 | pascal | 0/4 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasTply | pascal | 0/3 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasCocoR | pascal | 1/2 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasDSA | pascal | 0/1 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
