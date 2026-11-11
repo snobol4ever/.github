@@ -3599,4 +3599,6 @@ page	old/FRONTEND-PROLOG.md	bb887dc01	2026-04-04	history	git -C .github show bb8
 page	old/FRONTEND-REBUS.md	bb887dc01	2026-04-04	history	git -C .github show bb887dc01^:old/FRONTEND-REBUS.md
 page	old/FRONTEND-SNOBOL4.md	bb887dc01	2026-04-04	history	git -C .github show bb887dc01^:old/FRONTEND-SNOBOL4.md
 page	old/FRONTEND-SNOCONE.md	bb887dc01	2026-04-04	history	git -C .github show bb887dc01^:old/FRONTEND-SNOCONE.md
+page	wip-patches/rules-semantics-snoflake-extensions-DRAFT.md	2b108f900	2026-11-11	history	git -C .github show 2b108f900^:wip-patches/rules-semantics-snoflake-extensions-DRAFT.md
+page	wip-patches/rules-x86-roadmap-amendment-DRAFT.md	2b108f900	2026-11-11	history	git -C .github show 2b108f900^:wip-patches/rules-x86-roadmap-amendment-DRAFT.md
 ruling-series	CEO-NNNN	5f0816e0c	2026-11-04	GOAL-CTO.md (the series closed at CEO-2133; rulings continue as CTO-NNNN, CTO-469; alias R-NNNN, CIO-1)	git -C .github show 5f0816e0c^:GOAL-CEO.md | grep -n 'CEO-NNNN'
