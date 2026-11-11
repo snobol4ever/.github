@@ -944,17 +944,19 @@ def main(a):
         # ⛔⭐ THE WALL IS THE SUM OF EACH MEMBER'S MINIMUM TIME, NEVER THE MAXIMUM AND NEVER THE CURRENT (Lon 2026-10-18, in-chat to the coo, verbatim: "Fix the
         # test-suite display banner to show the sum of minimum times of eac member. NOT the maximum nor the current."): util_score_row.py from-progress computes the
         # sum (the suite's programs and modes, each the smallest PASS seconds <db>.min holds) and this verb REPLACES today_secs with it -- a larger sum included (a
-        # member gained its first minimum) and a ZERO as a blank cell (no member has a minimum yet, so the grid shows no number rather than a run's clock). It
+        # member gained its first minimum). ZERO SECONDS IS A MEASURE AND IS SHOWN AS 0s (Lon 2026-11-11 09:3x, in the coo's window, verbatim: "Well, stupid, 0
+        # seconds is a valid measure I suppose at this scale." / "I want to see the time measurement in the stop hook banner."; MEASURED: eight suites whose
+        # passing programs sum to under half a second read blank, like a suite never run); the word none blanks the cell (no member has a minimum). It
         # touches no other cell; a run's clock (--secs) never reaches the Wall again.
         i=a.index('--set-wall'); key=a[i+1] if len(a)>i+1 else ''; n=a[i+2] if len(a)>i+2 else ''
-        if not key or not re.match(r'^\d+$', n):
-            sys.stderr.write("REFUSE(rc=2): --set-wall takes a suite key and a whole number of seconds. NOTHING WAS WRITTEN.\n"); sys.exit(2)
+        if not key or not re.match(r'^(\d+|none)$', n):
+            sys.stderr.write("REFUSE(rc=2): --set-wall takes a suite key and a whole number of seconds, or the word none. NOTHING WAS WRITTEN.\n"); sys.exit(2)
         head,rows=load(); r=next((x for x in rows if x['key']==key),None)
         if r is None: sys.stderr.write(f"REFUSE(rc=2): no suite key {key} in {TSV}. NOTHING WAS WRITTEN.\n"); sys.exit(2)
         if 'today_secs' not in head:
             head.append('today_secs')
             for x in rows: x.setdefault('today_secs','')
-        new=n if int(n)>0 else ''
+        new='' if n=='none' else str(int(n))
         if (r.get('today_secs') or '').strip()==new:
             print(f"--set-wall {key}: the Wall already reads {new or 'blank'}; nothing written"); return
         before=open(TSV,encoding='utf-8').read()
