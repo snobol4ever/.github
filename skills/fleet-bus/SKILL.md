@@ -27,6 +27,7 @@ Run verbs one at a time. Full text: `reference.md` section 2.
 - `done <topic>` closes on rc 0; refuses a red, rc 2, or no claim.
 - `assign <seat> <topic>` writes `ASSIGNED:<seat>` and the claim.
 - `reown <seat> <topic>` changes the owner column only.
+- `delete <topic> --verdict DELETED-DONE-IN-SOURCE|DELETED-NOT-REAL|REWRITTEN [--new <topic>] --stdin` removes a live row with its task file and claim, for a designer's re-cut verdict; the cio and the cto only, and it refuses a claim another seat holds.
 - `mint <topic> ... --stdin` is the only way to add work.
 - `recut <topic> --stdin` replaces DONE-WHEN or PREMISE-WHEN.
 - `queue <topic> --tier|--to <seat>` moves a FREE or QUEUED row to a tube.
