@@ -63,7 +63,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasSets | pascal | 0/447 | 2026-11-10 | `2db659e0a` |  |
 | TeX | pascal | 0/3 | 2026-11-10 | `2db659e0a` |  |
 | RakudoT | raku | 0/175 | 2026-11-10 | `2db659e0a` |  |
-| RakExamples | raku | 0/310 | 2026-11-10 | `2db659e0a` |  |
+| RakExamples | raku | 117/246 EXCLUDED=0 WALL=73s | 2026-11-11 | `eac16d740` |  |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
