@@ -2,8 +2,8 @@
 # Read by .github/scripts/spawn_fleet.sh (the windows), harness/scripts/util_tiers.py (the check), and every reader step 2 names.
 # A seat-specific pattern in any script is forbidden: the seat's tier, model, effort, color and role live here and nowhere else.
 seat	name	root	model	effort	color	tier	role
-cio	CIO	/home/claude_cio	claude-fable-5-1	high	red	1	fleet-system
-cto	CTO	/home/claude_cto	claude-fable-5-1	high	red	1	scrip-design,unitests
+cio	CIO	/home/claude_cio	claude-opus-5-5	high	red	1	fleet-system
+cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
 coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green	2	testing-officer
 officer_01	OFFICER-01	/home/claude_officer_01	claude-opus-5-5	high	yellow	2	designer
 officer_02	OFFICER-02	/home/claude_officer_02	claude-opus-5-5	high	yellow	2	designer
