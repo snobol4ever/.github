@@ -65,7 +65,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | FpcSource | pascal | 0/7625 | 2026-11-10 | `2db659e0a` |  |
 | PasSets | pascal | 0/447 | 2026-11-10 | `2db659e0a` |  |
 | TeX | pascal | 0/3 | 2026-11-10 | `2db659e0a` |  |
-| RakudoT | raku | 0/1351 | 2026-11-10 | `2db659e0a` |  |
+| RakudoT | raku | 0/175 | 2026-11-10 | `2db659e0a` |  |
 | RakExamples | raku | 0/310 | 2026-11-10 | `2db659e0a` |  |
 
 
