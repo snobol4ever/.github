@@ -24,9 +24,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | SnoRungs | snobol4 | 2276/2286 EXCLUDED=1 WALL=23s | 2026-11-11 | `9ba77b2e8` |  |
 | IcnRungs | icon | 956/956 WALL=44s | 2026-11-08 | `478395910` | done |
 | ProRungs | prolog | 584/584 WALL=550s | 2026-11-08 | `c89bb80f9` | done |
-| PasRungs | pascal | 383/383 WALL=29s | 2026-11-08 | `478395910` | done |
+| PasRungs | pascal | 446/449 WALL=22s | 2026-11-11 | `5c5369a18` |  |
 | RakRungs | raku | 1390/1390 WALL=138s | 2026-11-08 | `478395910` | done |
-| SncRungs | snocone | 358/358 WALL=20s | 2026-11-08 | `c89bb80f9` | done |
+| SncRungs | snocone | 421/421 WALL=3s | 2026-11-11 | `5c5369a18` | done |
 | SncBench | snocone | 23/23 EXCLUDED=0 WALL=4s | 2026-11-04 | `01f9ae696` | done |
 | RebRungs | rebus | 43/43 WALL=3s | 2026-11-08 | `c89bb80f9` | done |
 | Logtalk | prolog | 3524/3524 EXCLUDED=93 WALL=16371s | 2026-11-09 | `ea3791fb4` | done |
@@ -42,7 +42,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | IcnDemo | icon | 7/7 EXCLUDED=3 WALL=9s | 2026-11-04 | `01f9ae696` | done |
 | ProDemo | prolog | 8/8 EXCLUDED=15 WALL=103s | 2026-11-04 | `01f9ae696` | done |
 | TixDemo | scriptix | 12/12 EXCLUDED=2 WALL=11s | 2026-11-04 | `8e366c454` | done |
-| PasRosetta | pascal | 286/308 EXCLUDED=356 WALL=3823s | 2026-11-08 | `c89bb80f9` |  |
+| PasRosetta | pascal | 288/307 EXCLUDED=357 WALL=1575s | 2026-11-11 | `5c5369a18` |  |
 | ProRosetta | prolog | 483/483 EXCLUDED=303 WALL=2072s | 2026-11-08 | `4e633dac6` | done |
 | ProPuzzles | prolog | 264/266 EXCLUDED=149 WALL=11879s | 2026-11-08 | `478395910` |  |
 | TreallaTests | prolog | 318/318 EXCLUDED=138 WALL=507s | 2026-11-08 | `478395910` | done |
@@ -50,7 +50,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=315s | 2026-11-04 | `01f9ae696` | done |
 | XsbTests | prolog | 344/550 EXCLUDED=357 WALL=5605s | 2026-11-04 | `c1c307e69` |  |
-| UniTests | icon | 154/162 EXCLUDED=60 WALL=115s | 2026-11-08 | `7370568db` |  |
+| UniTests | icon | 154/160 EXCLUDED=60 WALL=61s | 2026-11-11 | `5c5369a18` |  |
 | Vanilla | snobol4 | 0/21 | 2026-11-10 | `2db659e0a` |  |
 | SnoMore | snobol4 | 0/238 | 2026-11-10 | `2db659e0a` |  |
 | IcnPacks | icon | 0/113 | 2026-11-10 | `2db659e0a` |  |
