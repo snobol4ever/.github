@@ -35,9 +35,9 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 
 | plan | table | harness | design text |
 |---|---|---|---|
-| builtin-table | `corpus/tests/shared/builtin_table/` | `test_design_builtin_table_steps.sh` | skill `runtime-calls` DESIGN |
-| exceptions | `corpus/tests/shared/exceptions/` | `test_design_exceptions_steps.sh` | skill `runtime-calls` DESIGN |
-| zeta-layout | `corpus/tests/shared/zeta_layout/` | `test_design_zeta_layout_steps.sh` | skill `scrip-memory-model` DESIGN |
+| builtin-table | `harness/designs/builtin_table/STEPS.tsv` (witnesses: snobol4 entries `builtin_table__*` of its master; icon and raku loose in `corpus/tests/<lang>/builtin_table/` until their rows enter them) | `test_design_builtin_table_steps.sh` | skill `runtime-calls` DESIGN |
+| exceptions | `harness/designs/exceptions/STEPS.tsv` (witnesses: snobol4 entries `exceptions__*`; icon, prolog, pascal and raku loose in `corpus/tests/<lang>/exceptions/`) | `test_design_exceptions_steps.sh` | skill `runtime-calls` DESIGN |
+| zeta-layout | `harness/designs/zeta_layout/STEPS.tsv` (witnesses: snobol4 entries `zeta_layout__*`; icon, prolog, pascal and raku loose in `corpus/tests/<lang>/zeta_layout/`) | `test_design_zeta_layout_steps.sh` | skill `scrip-memory-model` DESIGN |
 | planner-finish | `harness/designs/planner_finish/STEPS.tsv` (witnesses: snobol4 entries `planner_finish__*` of its master; icon, pascal, prolog loose until their rows absorb them) | `test_design_planner_finish_steps.sh` | skill `scrip-memory-model` DESIGN |
 | templates-zero | `harness/designs/templates_zero/` | `test_design_templates_zero_steps.sh` | skill `box-templates` DESIGN |
 | prolog-lifo | `corpus/tests/prolog/lifo/` | `test_design_prolog_lifo_steps.sh` | skill `prolog-engine` DESIGN |
@@ -53,7 +53,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | raku-rewrite, raku-to-100 | `harness/designs/raku_rewrite/STEPS.tsv` (witnesses: raku entries `rewrite__*`), `corpus/tests/raku/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
 | raku-core, raku-roast-causes | `harness/designs/raku_core/`, `harness/designs/raku_roast_causes/` (witnesses: raku entries `core__*`, `roast_causes__*`) | `test_design_raku_core_steps.sh`, `test_design_raku_roast_causes_steps.sh` | skill `raku` sections 8 and 9 |
 | shared-development | the step rows `shared-dev-step-*` | `util_seat_census.py` | skill `shared-box` |
-| batch-grader | `corpus/tests/shared/batch_grader/` | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
+| batch-grader | `harness/designs/batch_grader/STEPS.tsv` (witnesses: snobol4 entries `batch_grader__*`; icon and prolog loose in `corpus/tests/<lang>/batch_grader/`; bg08, which no oracle answers, the fixture `harness/fixtures/batch_grader/`) | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
 | fleet-control | `harness/designs/fleet_control/` | `test_design_fleet_control_steps.sh` | skill `shared-box` section 9 (supersedes box-scheduler, fleet-queue, test-cycle, box-budget, shared-development, batch-grader) |
 | test-cycle | `harness/designs/test_cycle/` | `test_design_test_cycle_steps.sh` | skill `suites-and-grading` section 7 |
 | box-budget | `harness/designs/box_budget/` | `test_design_box_budget_steps.sh` | skill `shared-box` section 7 |
