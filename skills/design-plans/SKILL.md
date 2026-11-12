@@ -51,7 +51,6 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | random-codegen-scope | `corpus/demos/scriptix/infinite_snobol4/` (with `COVERAGE.tsv`) | `test_design_random_codegen_scope_steps.sh` | skill `snobol4` DESIGN |
 | pascal-front-end | `corpus/tests/pascal/front_end/` | `test_design_pascal_front_end_steps.sh` | skill `pascal` DESIGN |
 | raku-rewrite, raku-to-100 | `corpus/tests/raku/rewrite/`, `corpus/tests/raku/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
-| header-split | `.github/scripts/headers/` | the header ratchet gates | skill `scrip-build` DESIGN |
 | shared-development | the step rows `shared-dev-step-*` | `util_seat_census.py` | skill `shared-box` |
 | batch-grader | `corpus/tests/shared/batch_grader/` | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
 | fleet-control | `corpus/tests/shared/fleet_control/` | `test_design_fleet_control_steps.sh` | skill `shared-box` section 9 (supersedes box-scheduler, fleet-queue, test-cycle, box-budget, shared-development, batch-grader) |
