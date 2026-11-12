@@ -47,7 +47,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | consulted-clause-source-record | `corpus/tests/prolog/clause_source_record/` | `test_design_clause_source_record_steps.sh` | skill `prolog` DESIGN |
 | prolog-gnu-gaps | `harness/designs/prolog_gnu_gaps/STEPS.tsv` (witnesses: prolog entries `gnu_gaps__*`, dialect `gnu`; `gg_listing_0` loose) | `test_design_prolog_gnu_gaps_steps.sh` | skill `prolog` reference section 8 |
 | icon-scanning-asm | `corpus/tests/icon/scanning_asm/` | `test_design_icon_scanning_asm_steps.sh` | skill `icon` DESIGN |
-| unicon | `corpus/tests/icon/unicon/` (steps 1-5 the surface, 6-16 UniTests to 100) | `test_design_unicon_steps.sh` | skill `unicon` sections 1-2 and 7 |
+| unicon | `harness/designs/unicon/` (steps 1-5 the surface, 6-16 UniTests to 100; its witnesses entries `unicon__<name>` of the icon master, the package ones loose in `corpus/tests/icon/unicon/` until the oracle cuts a multi-file package) | `test_design_unicon_steps.sh` | skill `unicon` sections 1-2 and 7 |
 | random-codegen-scope | `corpus/demos/scriptix/infinite_snobol4/` (with `COVERAGE.tsv`) | `test_design_random_codegen_scope_steps.sh` | skill `snobol4` DESIGN |
 | pascal-front-end | `corpus/tests/pascal/front_end/` | `test_design_pascal_front_end_steps.sh` | skill `pascal` DESIGN |
 | raku-rewrite, raku-to-100 | `corpus/tests/raku/rewrite/`, `corpus/tests/raku/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
