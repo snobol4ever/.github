@@ -1,11 +1,11 @@
 ---
 name: suites-and-grading
-description: How SCRIP is graded: the corpus masters and packages, the runners, corpus_suite_harness.py, results.tsv, SUITES.tsv, exclusions, the coo as the one testing officer. REQUIRED by the skill gate before editing the suite tables or the harness.
+description: How SCRIP is graded: the corpus masters and packages, the runners, corpus_suite_harness.py, results.tsv, SUITES.tsv, exclusions, who runs tests (every seat) and who writes the suite rows (the cycle and the coo). REQUIRED by the skill gate before editing the suite tables or the harness.
 ---
 
 # Suites and grading
 
-The coo is the ONE testing officer (CEO-1342 as amended): it runs the suites, the boards, the blocking set and the `.s` regeneration, and alone writes suite rows. A lander grades ONE program in both modes and runs the feature reps and smokes; it asks for anything more by test request. Detail is in `reference.md` beside this file.
+EVERY SEAT RUNS THE TESTS IT NEEDS (Lon 2026-11-12 10:4x CST, verbatim: "I'm not liking so many rules and I want to relax a little bit. We are about to start the entore fleet on fixing all the bugs ONE at a tIME. I want each seat free to run what tests it needs. We do not need ONLY ONE test runner. ... Send every bug fro the test suite to a junior. Then we'll watch somethings escaalate to senior, then officer, then BOSS (COO), the CHARIMAN-OF-THE-BOARD, me."): any program, any chunk, any board, through the same runners. THE CHECK THAT STAYS: a suite row is written only from the progress store, by the cycle and the coo (util_score_row.py); a seat's clean-tree reading feeds it, a dirty tree's is unread (CEO-2060). Detail is in `reference.md` beside this file.
 
 ## 1. The populations
 
