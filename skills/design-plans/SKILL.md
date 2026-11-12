@@ -45,7 +45,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | tabling-one-engine | `harness/designs/tabling_one_engine/STEPS.tsv` (witnesses: prolog entries `one_engine__*` of its master) | `test_design_tabling_one_engine_steps.sh` | skill `prolog-tabling` section 5 (reference) |
 | clpr-chr | `corpus/tests/prolog/clpr_chr/` | `test_design_clpr_chr_steps.sh` | skill `prolog-constraints` DESIGN |
 | consulted-clause-source-record | `corpus/tests/prolog/clause_source_record/` | `test_design_clause_source_record_steps.sh` | skill `prolog` DESIGN |
-| prolog-gnu-gaps | `corpus/tests/prolog/gnu_gaps/` | `test_design_prolog_gnu_gaps_steps.sh` | skill `prolog` reference section 8 |
+| prolog-gnu-gaps | `harness/designs/prolog_gnu_gaps/STEPS.tsv` (witnesses: prolog entries `gnu_gaps__*`, dialect `gnu`; `gg_listing_0` loose) | `test_design_prolog_gnu_gaps_steps.sh` | skill `prolog` reference section 8 |
 | icon-scanning-asm | `corpus/tests/icon/scanning_asm/` | `test_design_icon_scanning_asm_steps.sh` | skill `icon` DESIGN |
 | unicon | `corpus/tests/icon/unicon/` (steps 1-5 the surface, 6-16 UniTests to 100) | `test_design_unicon_steps.sh` | skill `unicon` sections 1-2 and 7 |
 | random-codegen-scope | `corpus/demos/scriptix/infinite_snobol4/` (with `COVERAGE.tsv`) | `test_design_random_codegen_scope_steps.sh` | skill `snobol4` DESIGN |
