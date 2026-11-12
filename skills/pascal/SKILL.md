@@ -41,6 +41,8 @@ The record is GOAL-PASCAL-100.md (LIVE FRONT on top); a page beats this skill. P
 2. Asm-diff the smallest repro beside a passing sibling within one mode.
 3. `--dump-pas-types` for a typing question; `--dump-ir` A/B for a no-behaviour-change landing.
 4. gdb last, with a breakpoint and a hit count.
+5. An ISO 7185 error SCRIP does not report is allowed only because `SCRIP/docs/PASCAL-ISO-7185-ERRORS-NOT-REPORTED.md` says so (ISO 7185 5.1(f)): that list must name exactly the undetected errors that `corpus/packages/pascal/pat/ISO_ACCEPTS.tsv` grades as acceptance tests, and a program leaves both the day SCRIP reports its error.
+6. A read of one variant arm after a write of another (6.5.3.3) is never refused: fpc-graded entries such as `test_tprec4` and `test_tprec12` pun across arms on purpose, and a var actual that is a variant component is the component itself, so the callee sees the other arm's write, as fpc does.
 
 ## 7. Rulings a landing must not break
 
