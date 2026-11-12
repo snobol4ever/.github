@@ -22,9 +22,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PAT | pascal | 399/399 EXCLUDED=30 OUTSIDE=0 WALL=1s | 2026-11-11 | `d2d3bd01e` | done |
 | Roast | raku | 239/1267 EXCLUDED=197 WALL=93s | 2026-11-11 | `7eda9950f` |  |
 | SnoRungs | snobol4 | 2276/2286 EXCLUDED=1 WALL=23s | 2026-11-11 | `d2d3bd01e` |  |
-| IcnRungs | icon | 956/956 WALL=44s | 2026-11-08 | `478395910` | done |
+| IcnRungs | icon | 1129/1136 WALL=9s | 2026-11-12 | `cf0f355c8` |  |
 | ProRungs | prolog | 584/584 WALL=550s | 2026-11-08 | `c89bb80f9` | done |
-| PasRungs | pascal | 446/449 WALL=22s | 2026-11-11 | `d2d3bd01e` |  |
+| PasRungs | pascal | 454/466 WALL=20s | 2026-11-12 | `cf0f355c8` |  |
 | RakRungs | raku | 1390/1390 WALL=43s | 2026-11-11 | `d2d3bd01e` | done |
 | SncRungs | snocone | 421/421 WALL=3s | 2026-11-11 | `d2d3bd01e` | done |
 | SncBench | snocone | 23/23 EXCLUDED=0 WALL=4s | 2026-11-11 | `d2d3bd01e` | done |
@@ -50,7 +50,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
 | RakBench | raku | 78/80 EXCLUDED=4 WALL=296s | 2026-11-11 | `4e5920c84` |  |
 | XsbTests | prolog | 344/550 EXCLUDED=357 WALL=5605s | 2026-11-04 | `c1c307e69` |  |
-| UniTests | icon | 154/160 EXCLUDED=60 WALL=61s | 2026-11-11 | `5c5369a18` |  |
+| UniTests | icon | 154/161 EXCLUDED=61 WALL=61s | 2026-11-12 | `cf0f355c8` |  |
 | Vanilla | snobol4 | 9/10 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
 | IcnPacks | icon | 0/21 | 2026-11-11 | `2db659e0a` |  |
 | UniTree | icon | 0/710 | 2026-11-10 | `2db659e0a` |  |
@@ -64,9 +64,9 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TeX | pascal | 0/3 | 2026-11-10 | `2db659e0a` |  |
 | RakudoT | raku | 0/175 | 2026-11-10 | `2db659e0a` |  |
 | RakExamples | raku | 117/246 EXCLUDED=0 WALL=73s | 2026-11-11 | `eac16d740` |  |
-| PasStanford | pascal | 12/17 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasStanford | pascal | 14/16 EXCLUDED=1 WALL=0s | 2026-11-12 | `cf0f355c8` |  |
 | PasAdv350 | pascal | 0/4 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
-| PasTply | pascal | 0/3 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasTply | pascal | 0/2 EXCLUDED=0 | 2026-11-12 | `cf0f355c8` |  |
 | PasCocoR | pascal | 1/2 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
 | PasDSA | pascal | 0/1 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
 | IcnLoadfpp | icon | 8/8 EXCLUDED=0 WALL=0s | 2026-11-11 | `56fd46273` | done |
