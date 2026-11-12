@@ -12,7 +12,7 @@ Verified 2026-11-07 against the harness and the box. Consolidated from ARCH-PERF
 | where the time goes inside the collector | `util_gc_share_callgrind.sh`, `util_collection_asm_share.sh` |
 | how many calls from emitted Prolog reach a C family | `bench_prolog_call_census.sh REGEX` |
 | a budget a landing may not exceed | `test_gate_instr_budget.sh`, the gc instruction-budget gate |
-| a process's own resource use | `SCRIP/tools/bench_rusage` |
+| a process's own resource use | `SCRIP/out/bench_rusage` |
 
 ## 2. The benchmark populations
 
