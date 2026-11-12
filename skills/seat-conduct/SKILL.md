@@ -19,6 +19,7 @@ The rules every seat is held to that are about the seat's own behaviour, not abo
 ## 2. Files and trees
 
 - **Outputs under `/tmp/s4e/<seat>/`, never under the root**; worktrees too (`s4e_worktree.sh`); the budget is 4 GB outside checkouts, idle ten minutes, swept (COO-474). A dirty root makes every reading unread (CEO-2060).
+- **A root's tracked files may be shared, read-only links** (the cio 2026-11-12; skill `shared-box` section 4): corpus, harness and .github of a converted root are hard links to one pristine every seat reads. Never make one writable and never write one in place; a `Permission denied` on a tracked file in a root means the edit belongs in a worktree (`s4e_worktree.sh`).
 - **Generated tables are regenerated, never edited**; a rebase conflict in a registered generated output is resolved by regeneration (`s4e_land.sh` step 19, CTO-491); the skill gate refuses an edit of one outright.
 - **The coo root's objects serve every other root** (`util_sync_root.sh`, alternates): no seat ever runs `git gc`, `git prune`, `git repack -d` or `git gc --prune` in a `/home/claude_coo/<repo>`; `gc.auto=0` stands there; a move, rename or re-clone of the coo root is a fleet event the cio rules on first (the cio 2026-11-07 09:1x).
 - **Cross-repo landings are one action through `s4e_land.sh`**: code repos first, `.github` last; never half a landing pulled or pushed; a hand push outside the lease is recorded by `s4e_push_rejected.sh` (skill `fleet-bus` section 7).
