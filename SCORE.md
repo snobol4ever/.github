@@ -68,7 +68,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | PasAdv350 | pascal | 0/4 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
 | PasTply | pascal | 0/2 EXCLUDED=0 | 2026-11-12 | `cf0f355c8` |  |
 | PasCocoR | pascal | 1/2 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
-| PasDSA | pascal | 0/1 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasDSA | pascal | 4/4 EXCLUDED=1 WALL=0s | 2026-11-12 | `7d535a66a` | done |
 | IcnLoadfpp | icon | 8/8 EXCLUDED=0 WALL=0s | 2026-11-11 | `56fd46273` | done |
 
 
