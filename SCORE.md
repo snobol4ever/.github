@@ -48,10 +48,10 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | TreallaTests | prolog | 318/318 EXCLUDED=138 WALL=507s | 2026-11-08 | `478395910` | done |
 | PasDemo | pascal | 9/9 EXCLUDED=0 WALL=68s | 2026-11-11 | `d2d3bd01e` | done |
 | RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
-| RakBench | raku | 78/80 EXCLUDED=4 WALL=296s | 2026-11-11 | `4e5920c84` |  |
+| RakBench | raku | 80/80 EXCLUDED=4 WALL=140s | 2026-11-12 | `25ac28f31` | done |
 | XsbTests | prolog | 344/550 EXCLUDED=357 WALL=5605s | 2026-11-04 | `c1c307e69` |  |
 | UniTests | icon | 154/161 EXCLUDED=61 WALL=61s | 2026-11-12 | `cf0f355c8` |  |
-| Vanilla | snobol4 | 9/10 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| Vanilla | snobol4 | 9/9 EXCLUDED=1 WALL=0s | 2026-11-12 | `cf0f355c8` | done |
 | IcnPacks | icon | 0/21 | 2026-11-11 | `2db659e0a` |  |
 | UniTree | icon | 0/710 | 2026-11-10 | `2db659e0a` |  |
 | Chat80 | prolog | 0/2 EXCLUDED=0 | 2026-11-11 | `dbf297c1a` |  |
