@@ -3,18 +3,14 @@
 # A seat-specific pattern in any script is forbidden: the seat's tier, model, effort, color and role live here and nowhere else.
 seat	name	root	model	effort	color	tier	role
 cio	CIO	/home/claude_cio	claude-opus-5-5	xhigh	red	1	fleet-system
-cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
-grader	GRADER	/home/claude_grader	claude-opus-5-5	high	red	1	suite-grading
-cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	red	1	prolog-design
+cto	CTO	/home/claude_cto	claude-opus-5-5	xhigh	red	1	scrip-design,unitests
+grader	GRADER	/home/claude_grader	claude-opus-5-5	xhigh	red	1	suite-grading
+cfo	CFO	/home/claude_cfo	claude-opus-5-5	xhigh	red	1	prolog-design
 coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green	2	testing-officer
 officer_01	OFFICER-01	/home/claude_officer_01	claude-opus-5-5	high	yellow	2	designer
 officer_02	OFFICER-02	/home/claude_officer_02	claude-opus-5-5	high	yellow	2	designer
 officer_03	OFFICER-03	/home/claude_officer_03	claude-opus-5-5	high	yellow	2	designer
 officer_04	OFFICER-04	/home/claude_officer_04	claude-opus-5-5	high	yellow	2	escalation
-officer_05	OFFICER-05	/home/claude_officer_05	claude-opus-5-5	high	yellow	2	escalation
-officer_06	OFFICER-06	/home/claude_officer_06	claude-opus-5-5	high	yellow	2	designer
-officer_07	OFFICER-07	/home/claude_officer_07	claude-opus-5-5	high	yellow	2	designer
-officer_08	OFFICER-08	/home/claude_officer_08	claude-opus-5-5	high	yellow	2	designer
 senior_01	SENIOR-01	/home/claude_senior_01	claude-sonnet-5-5	high	purple	3	senior
 senior_02	SENIOR-02	/home/claude_senior_02	claude-sonnet-5-5	high	purple	3	senior
 senior_03	SENIOR-03	/home/claude_senior_03	claude-sonnet-5-5	high	purple	3	senior
@@ -39,7 +35,3 @@ junior_13	JUNIOR-13	/home/claude_junior_13	claude-haiku-5-5	high	cyan	4	junior
 junior_14	JUNIOR-14	/home/claude_junior_14	claude-haiku-5-5	high	cyan	4	junior
 junior_15	JUNIOR-15	/home/claude_junior_15	claude-haiku-5-5	high	cyan	4	junior
 junior_16	JUNIOR-16	/home/claude_junior_16	claude-haiku-5-5	high	cyan	4	junior
-junior_17	JUNIOR-17	/home/claude_junior_17	claude-haiku-5-5	high	cyan	4	junior
-junior_18	JUNIOR-18	/home/claude_junior_18	claude-haiku-5-5	high	cyan	4	junior
-junior_19	JUNIOR-19	/home/claude_junior_19	claude-haiku-5-5	high	cyan	4	junior
-junior_20	JUNIOR-20	/home/claude_junior_20	claude-haiku-5-5	high	cyan	4	junior
