@@ -58,7 +58,7 @@ timeout -k 5 60 "$(swipl_bin)" -q -t halt -g main w.pl < /dev/null > w.ref
 ## 4. THE PROVING INSTRUMENTS
 
 - A gate: red on `<cure>^` or a corrupted ref, green after; wired in the same landing (`SCRIP/Makefile` line if it joins the blocking set, then `util_gate_wiring.py adopt`).
-- A witness is a container entry (CIO-24), added by `util_add_ladder_witness.py`, never a loose pair or a design folder; `corpus_suite_harness.py run ... --modes m3,m4 --partition entry:<name>`; `util_suite_partition.py build` when `ALL.csv` changed.
+- A witness is a container entry (CIO-24), added by `util_add_ladder_witness.py` (`--dialect D` cuts a Pascal answer in fpc's mode D and writes the row's `dialect` cell; `--file X` carries a companion standing beside the source as the entry's file fence, format 2 only; the cfo 2026-11-12), never a loose pair or a design folder; `corpus_suite_harness.py run ... --modes m3,m4 --partition entry:<name>`; `util_suite_partition.py build` when `ALL.csv` changed.
 - A design step row: `test_design_<x>_steps.sh --step N` is its DONE-WHEN; the plan row's is `--list`.
 - A red: `monitor_run.sh <prog> --oracle` first, then asm-diff beside a passing sibling, gdb last.
 

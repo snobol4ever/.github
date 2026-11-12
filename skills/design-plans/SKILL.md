@@ -49,8 +49,9 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | icon-scanning-asm | `corpus/tests/icon/scanning_asm/` | `test_design_icon_scanning_asm_steps.sh` | skill `icon` DESIGN |
 | unicon | `harness/designs/unicon/` (steps 1-5 the surface, 6-16 UniTests to 100; its witnesses entries `unicon__<name>` of the icon master, the six package ones in `harness/fixtures/unicon/` until the oracle cuts a multi-file package) | `test_design_unicon_steps.sh` | skill `unicon` sections 1-2 and 7 |
 | random-codegen-scope | `corpus/demos/scriptix/infinite_snobol4/` (with `COVERAGE.tsv`) | `test_design_random_codegen_scope_steps.sh` | skill `snobol4` DESIGN |
-| pascal-front-end | `corpus/tests/pascal/front_end/` | `test_design_pascal_front_end_steps.sh` | skill `pascal` DESIGN |
-| raku-rewrite, raku-to-100 | `corpus/tests/raku/rewrite/`, `corpus/tests/raku/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
+| pascal-front-end | `harness/designs/front_end/STEPS.tsv` (witnesses: pascal entries `front_end__*`, pf20d and pf20e with dialect `fpc`, pf30 with its unit as a file fence) | `test_design_pascal_front_end_steps.sh` | skill `pascal` DESIGN |
+| raku-rewrite, raku-to-100 | `harness/designs/raku_rewrite/STEPS.tsv` (witnesses: raku entries `rewrite__*`), `corpus/tests/raku/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
+| raku-core, raku-roast-causes | `harness/designs/raku_core/`, `harness/designs/raku_roast_causes/` (witnesses: raku entries `core__*`, `roast_causes__*`) | `test_design_raku_core_steps.sh`, `test_design_raku_roast_causes_steps.sh` | skill `raku` sections 8 and 9 |
 | shared-development | the step rows `shared-dev-step-*` | `util_seat_census.py` | skill `shared-box` |
 | batch-grader | `corpus/tests/shared/batch_grader/` | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
 | fleet-control | `harness/designs/fleet_control/` | `test_design_fleet_control_steps.sh` | skill `shared-box` section 9 (supersedes box-scheduler, fleet-queue, test-cycle, box-budget, shared-development, batch-grader) |
