@@ -3688,6 +3688,7 @@ page	old/FRONTEND-REBUS.md	bb887dc01	2026-04-04	history	git -C .github show bb88
 page	old/FRONTEND-SNOBOL4.md	bb887dc01	2026-04-04	history	git -C .github show bb887dc01^:old/FRONTEND-SNOBOL4.md
 page	old/FRONTEND-SNOCONE.md	bb887dc01	2026-04-04	history	git -C .github show bb887dc01^:old/FRONTEND-SNOCONE.md
 page	probes/prolog-heap-leak-2026-09-13/RUN.md	20fa29613	2026-11-11	history	git -C .github show 20fa29613^:probes/prolog-heap-leak-2026-09-13/RUN.md
+page	scripts/headers/step4/step4-plan.md	3cf7a86f0	2026-11-11	history	git -C .github show 3cf7a86f0^:scripts/headers/step4/step4-plan.md
 page	survey-src-2026-08-23/00-INDEX-and-mechanical.md	20fa29613	2026-11-11	history	git -C .github show 20fa29613^:survey-src-2026-08-23/00-INDEX-and-mechanical.md
 page	survey-src-2026-08-23/01-parser-sno-snc.md	20fa29613	2026-11-11	history	git -C .github show 20fa29613^:survey-src-2026-08-23/01-parser-sno-snc.md
 page	survey-src-2026-08-23/02-lower.md	20fa29613	2026-11-11	history	git -C .github show 20fa29613^:survey-src-2026-08-23/02-lower.md
