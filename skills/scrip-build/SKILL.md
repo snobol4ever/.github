@@ -31,3 +31,7 @@ make test                               # the blocking set (the coo's)
 - **R4 the fan-in ceiling**: a header outside the base set reaches at most its users plus 4 units, and at most a third of the units; no umbrella header (two or more includes, no declarations of its own).
 - **R5 the proof of a header move**: every object byte-identical after `objcopy --strip-debug` against the parent, both trees compiled the same way at the same path (`util_objects_identical_stripped.sh`); a body-moving step is proved instead by its smokes and the identity of what it did not move.
 - **The gate** `test_gate_no_header_reaches_more_units_than_its_users.sh` (in the blocking set), over `util_header_fanin.py`, which asks the compiler (`make -B -n build-all`, `gcc -MM`), never the possibly stale `.d` files. On 2026-11-01 (SCRIP 9cb24d2ca) it reads RED: 31 headers over the ceiling and one umbrella, after all seven header steps closed DONE.
+
+## 3. DESIGN: cache-tree (CTO-636, 2026-11-12; Lon: "split these C files into smaller pieces ... MAXIMIZE sharing of the CACHE")
+
+The tree is cut so a commit forces the fewest compile instructions through the shared ccache: data out of code (C1), hot units cut to the header floor by cluster (C2-C4), hot headers cut (C5), the tree by phase then language then cluster (C6), cold units joined (C7), every split a replayable manifest proved by function identity with its harness readers repointed (C8). Baseline 26.93 G per commit at SCRIP 1a78b0c0d. Full text: `reference.md` section 4; plan `harness/designs/cache_tree/STEPS.tsv`.
