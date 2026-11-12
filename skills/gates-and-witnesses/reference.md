@@ -98,45 +98,58 @@ A test edited to exit 0; an `xfail` cell set to 1; a prose DONE-WHEN, or one tha
 
 The landing recipe lives once, in skill `fleet-bus` section 7. The proof it owes from this skill is SKILL.md section 1: the criterion red once without a plant, the cure green in both modes with the feature reps and the smokes, the land gate split from the close criterion when the pass reads the coo's readings (the cao's `--land N`, 2026-11-05), and the coo's test request for the suite's part.
 
-## 8. THE INSTRUMENT LAWS, MEASURE AND CURE, THE MONITOR BRACKET: THEIR HOME (the cio, 2026-11-07, DESIGN-PLAN skills-complete step 5; the cto reviews)
+## 8. THE INSTRUMENT LAWS (moved here from RULES.md on 2026-11-11, when Lon ruled that the skills are the law)
 
-These sections of `.github/RULES.md` are the measuring law every lander and every grader obeys, and until 2026-11-07 no skill named them (the skills audit: 37 instrument-law sections, 150 KB, found by no grep of any skill). This skill is their home: this section is the index, read one law by its lines (`sed -n 'A,Bp' .github/RULES.md`; the ranges below are regenerated into `.github/RULES-INDEX.md` by `util_rules_index.py --regenerate`, so when they drift, the index is the truth and this list is re-cut from it). THE SHAPE every instrument law shares: a claim about a program is proved by an instrument that reads the machine (the monitor, a trace, an asm diff, a census over emitted code), never by reading source proximity or by inference; the bug lies between the last agreed event and the first diverging one (THE MONITOR BRACKET); you find it, you fix it, in its layer (MEASURE AND CURE), and the cure is proved by the same instrument reading green and by the witnesses of skill section 1.
 
-- L23-40 (17K) MEASURE AND CURE — YOU FIND IT, YOU FIX IT
-- L41-46 (2K) THE MONITOR BRACKET — THE BUG LIES BETWEEN THE LAST AGREED EVENT AND THE FIRST DIVERGING ONE; STEP OR TRACE A…
-- L433-441 (4K) THE INSTRUMENT LAWS
-- L442-447 (2K) THE INSTRUMENT LAWS, SECOND BATCH
-- L448-453 (2K) THE INSTRUMENT LAWS, THIRD BATCH
-- L454-458 (1K) THE INSTRUMENT LAWS, FOURTH BATCH
-- L459-469 (5K) THE INSTRUMENT LAWS, FIFTH BATCH
-- L486-490 (2K) THE INSTRUMENT LAWS, FIFTEENTH BATCH
-- L491-498 (5K) THE INSTRUMENT LAWS, SIXTEENTH BATCH
-- L499-502 (2K) THE INSTRUMENT LAWS, TWENTY-SECOND BATCH
-- L503-514 (5K) THE INSTRUMENT LAWS, TWENTY-FOURTH BATCH
-- L515-520 (3K) THE INSTRUMENT LAWS, TWENTY-FIFTH BATCH
-- L521-526 (3K) THE INSTRUMENT LAWS, TWENTY-SEVENTH BATCH
-- L546-554 (5K) THE INSTRUMENT LAWS, THIRTY-FOURTH BATCH
-- L555-574 (7K) THE INSTRUMENT LAWS, THIRTY-THIRD BATCH
-- L575-580 (6K) THE INSTRUMENT LAWS, THIRTY-SECOND BATCH
-- L581-588 (7K) THE INSTRUMENT LAWS, THIRTY-FIRST BATCH
-- L589-594 (6K) THE INSTRUMENT LAWS, THIRTIETH BATCH
-- L595-598 (1K) THE INSTRUMENT LAWS, TWENTY-NINTH BATCH
-- L599-604 (11K) THE INSTRUMENT LAWS, TWENTY-EIGHTH BATCH
-- L605-612 (4K) THE INSTRUMENT LAWS, TWENTY-SIXTH BATCH
-- L613-616 (1K) THE INSTRUMENT LAWS, TWENTY-THIRD BATCH
-- L617-622 (3K) THE INSTRUMENT LAWS, TWENTY-FIRST BATCH
-- L623-626 (1K) THE INSTRUMENT LAWS, TWENTIETH BATCH
-- L627-632 (3K) THE INSTRUMENT LAWS, NINETEENTH BATCH
-- L633-640 (1K) THE INSTRUMENT LAWS, EIGHTEENTH BATCH
-- L641-646 (5K) THE INSTRUMENT LAWS, SEVENTEENTH BATCH
-- L647-651 (2K) THE INSTRUMENT LAWS, EIGHTEENTH BATCH
-- L657-660 (2K) THE INSTRUMENT LAWS, THIRTEENTH BATCH
-- L661-664 (1K) THE INSTRUMENT LAWS, FOURTEENTH BATCH
-- L665-670 (1K) THE INSTRUMENT LAWS, TWELFTH BATCH
-- L671-674 (1K) THE INSTRUMENT LAWS, ELEVENTH BATCH
-- L675-678 (1K) THE INSTRUMENT LAWS, TENTH BATCH
-- L679-689 (3K) THE INSTRUMENT LAWS, NINTH BATCH
-- L690-704 (5K) THE INSTRUMENT LAWS, EIGHTH BATCH
-- L711-747 (16K) THE INSTRUMENT LAWS, SIXTH BATCH
+**Method**
+- A red whose language has an instrumented oracle is bracketed: `monitor_run.sh <prog> --oracle` gives the last agreed event and the first divergence, and the bug is in what SCRIP executes between them (gdb breakpoint at the last-agreed emission, step to the next, or a trace across the pair). It does not apply when the wrapper refuses because tracing changes the output, the oracle cannot run the program, SCRIP dies before the first event, the monitor agrees on a program the suite grades red, or the divergence is mode 3 against mode 4; then use the asm diff.
+- A bisect answers "which commit changed the observable", not "which commit is wrong"; a sound bisect onto a diff that cannot explain the failure is a latent defect plus a layout or timing perturbation, to be marked where the next author will trip on it.
+- An asymmetry says there are two paths, not which two: name the carrier with a watchpoint on the storage before naming a mechanism.
+- When every audit reads clean, sample the change (before and after one operation, two arrivals at one join), not the states; a defect can live in a transition.
+- Name the machine state (load) beside a result whether or not it helped; when a confound lifts, split the question rather than harvest the cleaner conditions.
+- Measure a correction at least as carefully as the claim it corrects, and show the command and unit.
 
-The landing recipe's first step (skill `fleet-bus` section 7: `monitor_run.sh <prog> --oracle`, then the asm diff against a passing sibling, gdb last) is THE MONITOR BRACKET applied; the three exit codes and fail-once (section 1) are the instrument laws applied to a gate.
+**What an instrument must say**
+- State the question the instrument decides before quoting its answer (`command -v` decides on-PATH, `bash -n` parseable, `ls | head` some-exist); ask what would look different if the stated reason were false.
+- Measured-and-clean and never-ran print differently; "zero found" and "zero examined" print identically, so a null is trusted only from an instrument shown to produce a non-null on the same population, and a zero in a summary is an assertion: count misses where they happen or print no zero.
+- Every grader states its denominator; PASS+FAIL must cover it. Read SKIP and CRASH before FAIL (a compile failure recorded as SKIP leaves FAIL=0). A zero denominator, or fewer inputs than a gate names, exits non-zero; `[ -f f ] && run` with no else disguises a skip as care. A standing refusal carries a re-point or a written reason to stand.
+- State the population beside every verdict; an audit reports how many subjects it could not resolve (non-zero refuses), which needs a population enumerable independently of the resolution step, else the census is a labelled floor and no ruling cites it as a total.
+- Print the reference value beside the measured one, and the names behind a total (`SUITE_LIST_ALL=1` lifts the 40-line cap).
+- Compare two readings by denominator, SKIP count and entry names in both directions; two readings can agree on a count and differ in membership.
+- An unknown argument is a refusal naming the real mechanism, never ignored; after a refusal compare the verdict line, not the artifact.
+- A refusal that recurs is re-derived from the instrument, never from the last explanation; a refusal is never closed by attributing it to another lane. Diagnose a refusal to exhaustion (one rc 2 hides many causes).
+- A rc is not a measure of time: a verdict that turns on duration records the duration. A truncated run proves a red it saw, never a green; rc 124 is never folded into a refusal before the verdict.
+- Keep a bucket nameable: every printed count answers "name one member", and a number not to be quoted as a defect count stays inside its qualifying sentence.
+- Success-shaped empty output (an empty tree, `md5("")`) is never graded as a pass; a bake step asserts its output is non-trivial.
+
+**Proving an instrument**
+- A new format is when strictness is free. Fail-once covers any field a human reads as state (a column no verb writes is unwritten, not stale), and the arms you write are the ones you thought of: ask whether the file's most natural content trips the leniency.
+- Before trusting a negative, run a positive control that must fire and a negative that must not, against the instrument itself; prove the instrument can see the event (a witness that maximises it moves the counter); instrument both of two symmetric arms; a plant-proved instrument is evidence only for the defect the planter understood.
+- A control arm licenses only the population convention it ran on (owe one per convention); a census that indicts 100 percent of its population is reporting on itself.
+- A gate pins the property, never the mechanism (a retired ratio guard went green with honest counters), and its positive arm must be able to go red when the property is absent.
+- A gate pins a message's meaning, never its spelling: read an error number as a whole-word token and negative-test the superstring (`2160`); a commit changing a message shape names every gate grepping it, on the bus too.
+- A check whose subject is a refusal matches the refusal's own sentence plus a positive marker from the path it should have reached; a gate claiming N checks prints N verdict lines.
+- A counter updated in a function on the right of a pipe is lost; use the gate's own shell, print `examined=N`, and treat a violation printed beside `examined 0` as a lost counter. In bash, an undefined function returns 127 and silently answers no: prove a verdict-driving predicate returns yes once in the same run.
+- The instrument that can see a cure lands with or before it; a cure behind a flag defaults ON with the flag as the control arm, both arms boarded, and a bypass such as `SCRIP_OPT=0` is not a control unless it is a correct path; a measurement path is disjoint from the measured one or reports its perturbation.
+- Extract by a line's identity and whole-word boundaries, not position; a count-based criterion anchors on regression, not `PASS >= N`; a cure named for a concept is graded on every spelling the noun covers; an all-clear names the list it ran and the campaign's own program is on it.
+- Census patterns over emitted text are byte-safe (labels carry literal Greek alpha and beta); `grep -a` before believing an absence in an `ALL.ref` (one NUL makes it "binary"); when the source language defeats a regex (token pasting) the census runs the preprocessor.
+- A comment relating two sites cannot be kept true by either file, and a stated cause expires toward work already done: bombs and refusals print the measurement first, the belief second, and both sides of a relationship are printable from one command.
+- A gate or hold carries the condition that discharges it, written where the waiter stands.
+- A tool that rebuilds elsewhere to detect drift reports clean first on a tree known current (`.file` carries the absolute path); sides built at different paths compare the path. A hand repro that drops the harness's environment (`SNO_LIB`, cwd, companion files) is a different program; build the population the grader builds, through the grader's own function.
+- A committed test no denominator contains is worse than an xfail: keep a floor-only-falls census of orphans, matching membership by substring because absorbed files are renamed `<origin>__<name>`.
+- A bounded cooperating set bounds the coordinator too; an exit trap that deletes scratch deletes the evidence; judge a tool on a witness that can exercise it.
+
+**Landing proof**
+- Boards in a commit bind the pushed tree: any later edit voids the quote; compile-check the edited unit and diff the landing site of every replace-all or whole-file write.
+- A retraction greps the claim's noun across neighbour pages, batons, script headers and printed diagnostics in the same sitting, and says "retracted".
+- A shared-node change (barrier templates, IR_BOUND, the collector, the zetas) carries the blocking set run gate by gate on base and head in a worktree, every non-green arm attributed; a head-only red is the change's. A control for your own gate is proved by reintroducing the defect.
+- The wiring check runs again after the last file is staged, not after the last cure.
+- A cure is measured base versus head on one origin tree (by rate when intermittent: N at least 5 runs per mode, count printed, refuse when the witness will not build) and re-proved after a rebase. Before attributing a moved cell to a cure, count whether the cured code runs in that program; re-draw any name seen on one side only; prove the population can move before reporting nothing moved.
+
+**Collector measurements**
+- A knob is a request, collections are the evidence: every GC gate reads `collections` from its own `[GC-EXERCISE]` line and refuses at zero, and every GC verdict prints how many arms collected. A failing witness first gets the zero-collection arm (stress 0, `collections=0`): fails there is emission, clean there and fails once a collection runs is collector.
+- Stress is a band, never a point: both the aggressive and the sparse ends, each point printing its collector count (inert refuses), the verdict a name set per point, published as "lower bound clean". Windows can be ragged, higher stress is cheaper, and a stress-pinned ceiling is calibrated per witness at a named collection count.
+- A safe-point insertion is cleared only by identical non-green name sets against a clean-tree control on the identical set under forced relocation; no proxy (return class, quick sweep, static register reader) clears a site. A root census excludes a register only by a declaration in the tree that says where it points.
+- The tiny arena is a second pass (`make test-arena`, `SCRIP_HEAP_KB_TINY`), not the blocking set's environment; a landing gate and a suite row grade the shipped arena, every board line names its arena, and each red the tiny pass finds is a row. No arena is the harshest: when the live set fits a smaller window collects more, when it does not the window grows (`grew`) and the point is not measuring the arena it names. A `heap exhausted at the reserve cap` abort is classified by window and cap before it is rowed.
+- A collector name set depends on the invocation (the argv string is an allocation; path spelling and length shift which allocation a forced collection lands on): publish the invocation beside the name set unless path-invariance was measured.
+
