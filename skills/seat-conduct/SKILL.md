@@ -5,7 +5,7 @@ description: How a seat behaves on the shared box: kill by pid and only your own
 
 # Seat conduct
 
-The rules every seat is held to that are about the seat's own behaviour, not about a language or a layer. Each was paid for at least three times in the three-month history (DESIGN-PLAN skills-complete, the cio 2026-11-07, the history audit: fourteen recurring problem classes; eight of thirteen friction reports of 2026-11-04 named the kill and background rules). The law is `.github/RULES.md` (FACT RULES, THE MAIL CHANNEL, COMMIT AND PUSH FREELY); this page is the working summary with its sources. The bus, the rows and the sitting are skill `fleet-bus`; the box and its pools are skill `shared-box`.
+The rules every seat is held to that are about the seat's own behaviour, not about a language or a layer. Each was paid for at least three times in the three-month history (DESIGN-PLAN skills-complete, the cio 2026-11-07, the history audit: fourteen recurring problem classes; eight of thirteen friction reports of 2026-11-04 named the kill and background rules). The law is the skills (RULES.md was triaged into them and retired, Lon 2026-11-11); this page is that law for a seat's own conduct with its sources. The bus, the rows and the sitting are skill `fleet-bus`; the box and its pools are skill `shared-box`.
 
 ## 1. Processes
 
@@ -25,7 +25,7 @@ The rules every seat is held to that are about the seat's own behaviour, not abo
 
 ## 3. The record
 
-- **The chat is not the record.** A ruling lands in its GOAL file's LIVE CURSOR on origin the same sitting; what you did goes in the baton's LEDGER as you go; a condition told to a seat and never written was lost twice (RULES.md's two-modes note, CEO-935; hq_pascal's friction report 2026-11-04).
+- **The chat is not the record.** A ruling with a lasting idea lands in the skill it governs, on origin, the same sitting (the GOAL files are deleted, Lon 2026-11-11); what you did goes in the baton's LEDGER as you go; a condition told to a seat and never written was lost twice (RULES.md's two-modes note, CEO-935; hq_pascal's friction report 2026-11-04).
 - **Every statement is MEASURED (the command beside it) or a HYPOTHESIS, marked**; a number with no command is a hypothesis whoever wrote it (the provenance law, skill `fleet-bus` section 4).
 - **Time labels come from `date`, read before the label** (COO-194; the cio's two-hour drift of 2026-11-05); a label is `HH:Mx CST`.
 - **A telegram is the record and wakes nobody; a SendMessage is a pointer** (CTO-469). `send` refuses a backtick or a command substitution in the body: write the command's name in words. An empty inbox is the acknowledgement; read, act or reply, clear.
@@ -33,4 +33,4 @@ The rules every seat is held to that are about the seat's own behaviour, not abo
 
 ## 4. Where the rest lives
 
-The sitting, the landing recipe and the bus verbs: skill `fleet-bus` sections 2 and 7. The pools, the cgroup tree, the memory caps and `/tmp`: skill `shared-box`. The exit codes, fail-once and the DONE-WHEN law: skill `gates-and-witnesses`. The law itself: `.github/RULES.md` through `.github/RULES-INDEX.md`.
+The sitting, the landing recipe and the bus verbs: skill `fleet-bus` sections 2 and 7. The pools, the cgroup tree, the memory caps and `/tmp`: skill `shared-box`. The exit codes, fail-once and the DONE-WHEN law: skill `gates-and-witnesses`. The law itself is the skills; nothing else is.

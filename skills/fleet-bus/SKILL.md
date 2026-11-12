@@ -5,7 +5,7 @@ description: The fleet: officers and seats, MODE, the bus verbs (s4e_msg.sh), ro
 
 # The fleet bus
 
-Law: `.github/RULES.md`. Rulings: `GOAL-CTO.md` LIVE CURSOR. Detail: `reference.md`.
+Law: the skills, `.github/skills/` (RULES.md was triaged into them and retired, Lon 2026-11-11). Rulings: a ruling with a lasting idea is an edit of the skill it governs (the GOAL files are deleted, Lon 2026-11-11). Detail: `reference.md`.
 
 ## 1. Who is who (MODE is the record; read it, never prose)
 
@@ -32,7 +32,7 @@ Run verbs one at a time. Full text: `reference.md` section 2.
 - `recut <topic> --stdin` replaces DONE-WHEN or PREMISE-WHEN.
 - `queue <topic> --tier|--to <seat>` moves a FREE or QUEUED row to a tube.
 - `expire <topic>` is the tick's verb for a claim whose job is back.
-- `rule <GOAL-file> <ID> --stdin` writes one ruling; refuses a used id.
+- `rule` is retired with the GOAL files: it refuses and writes nothing.
 - `resume <topic> ...` writes the RESUME line; write it before a stop.
 - `ask <topic> ...` sends a question up the ladder (the ask tube of the tier above); `answer <topic> --stdin` is the senior's reply, delivered to the asker's inbox.
 - `escalate <topic> --stdin` moves a job one tube up with the measurement in the body (refused without one); the baton gets an ESCALATION section.
@@ -65,7 +65,7 @@ Hand-off checks: `handoff_status.sh` rc 0, everything pushed, one plain closing 
 
 ## 7. The sitting and the landing
 
-**Every sitting.** (1) `bash harness/scripts/util_sync_root.sh` (absent in a root not yet synced: `for r in SCRIP corpus harness .github; do sem --id s4e-fetch -j 4 --fg git -C $r fetch -q origin && git -C $r merge -q --ff-only origin/main; done` once, then the script exists); `cd SCRIP && make -j8`; never `git gc` or `git prune` in a coo-root repo. (2) `head -2 /home/resources/postoffice/MODE`. (3) Your rows in QUEUE.tsv; each NEXT; your LIVE CURSOR. (4) `s4e_msg.sh check`; act or reply; `clear`. (5) `s4e_msg.sh next --wait 240`; load the gate's skills first; served nothing, run it again (THE WAKE, section 1: a live seat waits on its tube). (6) One row at a time; a verb that prints a `WAKE:` line is finished only when that SendMessage is sent. (7) Hand off: NEXT and LEDGER written, pushed, `handoff_status.sh` rc 0; park the wait (`PARKED-AWAITING:`, `BLOCKED-ON:`, `MEASURING:<seat>:<pid>`); stop.
+**Every sitting.** (1) `bash harness/scripts/util_sync_root.sh` (absent in a root not yet synced: `for r in SCRIP corpus harness .github; do sem --id s4e-fetch -j 4 --fg git -C $r fetch -q origin && git -C $r merge -q --ff-only origin/main; done` once, then the script exists); `cd SCRIP && make -j8`; never `git gc` or `git prune` in a coo-root repo. (2) `head -2 /home/resources/postoffice/MODE`. (3) Your rows in QUEUE.tsv; each NEXT. (4) `s4e_msg.sh check`; act or reply; `clear`. (5) `s4e_msg.sh next --wait 240`; load the gate's skills first; served nothing, run it again (THE WAKE, section 1: a live seat waits on its tube). (6) One row at a time; a verb that prints a `WAKE:` line is finished only when that SendMessage is sent. (7) Hand off: NEXT and LEDGER written, pushed, `handoff_status.sh` rc 0; park the wait (`PARKED-AWAITING:`, `BLOCKED-ON:`, `MEASURING:<seat>:<pid>`); stop.
 
 **The landing recipe.** (1) Reproduce with `monitor_run.sh <prog> --oracle`. (2) Criterion first: a DONE-WHEN red now, each line starting `cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" &&`. (3) Cure in a clean `git worktree`; never edit a generated table. (4) Prove: DONE-WHEN green; both modes against the oracle; `test_feature_reps.sh`; the smoke. (5) Land: `s4e_land.sh --row <topic>` (never `--probe` first: the lander's self-test runs once per lander hash for the whole box, cached in `/home/resources/progress/LAND_PROBE_GREEN.tsv`; Lon 2026-11-07); by hand only on refusal. (6) Record the LEDGER and NEXT; `claim` then `done` once the coo's reading is green.
 
