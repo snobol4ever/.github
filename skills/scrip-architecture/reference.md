@@ -43,7 +43,7 @@ The other graph fields (`keeps_choice`, `rt_redefinable`, `jcon_value_region`, `
 - `src/emitter/`: `emit.cpp` (`walk_bb_node_inner`, the prologue and epilogue), `emit_str.cpp`, `emit_call_probe.cpp`, the state headers `emit_state.h`, `emit_regime.h`, `emit_medium.h`, `g_emitter.h`.
 - `src/templates/`: `bb/` (one `bb_*.cpp` per box), `xa/` (emission helpers), `x86/` (the one encoder, `x86_asm.cpp` behind `x86_ops.h` and the family headers; the generated `gc_allocating_table.inc`).
 - `src/runtime/`: top level (values, strings, patterns `pattern_match.c`, arithmetic, `bignum.c`, `unification.c`, `runtime_eval.c`, `builtin_table.inc`, the generated `rt_entry_table.inc`), `rt/` (`rt.c` the call protocol, `gc_heap.c` the collector, `rt_slab.c`, `rt_coexpr.c`, `rt_pl_engine.c`, `rt_pl_trail.c`, `rt_stack_overflow.c`, `bb_pat_build.cpp`), `rtx/` (the asm leaves), `core/` (`g_runtime*.h`: the one runtime state struct `g_runtime`), `builtins/`.
-- `src/tools/`: `parser_main.c` (the `out/parser_<lang>` driver), `test_template_byte_identity.c`, `emit_per_kind_audit.c`, `ipp.icn`.
+- `src/parsers/parser_main.c` (the `out/parser_<lang>` driver, one frontend per build) and `src/parsers/icon/ipp.icn` (JCON's Icon preprocessor, compiled by scrip as `out/scrip-ipp`).
 - Outside `src/`: `bootstrap/` (the Snocone parsers and their library), `miscellaneous/` (the 2026-08 backend prototypes, skill `scrip-backends`), `Makefile` (skill `scrip-build`).
 
 ## 4. Retired names: what an old receipt or page names, and what it is now
