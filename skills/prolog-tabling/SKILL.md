@@ -24,7 +24,7 @@ Detail is in `reference.md` beside this file; the language's oracles and suites 
 
 The XSB dialect is the program's own (`xsb_dialect.pl`, `xsb_builtins.pl`, `xsb_tables.pl`, `xsb_ordsets.pl`); the entry runs the package's own driver as XSB's `test.sh` does, refs compared ignoring white space. Ruled: tabling engine scale is its own row, not call subsumption (CEO-2112: `sub_tests_decker` needs an SCC of about ten thousand tables inside the declared 128 MB and 4 MB, so per-table memory, an iterative leader and a trie-walk subsumer lookup instead of `'$tbl_sfind'` materialising `'$trie_entries'` per call).
 
-## 4. DESIGN: xsb-tabling-wfs (CEO-2005; `corpus/tests/prolog/xsb_wfs/STEPS.tsv`, `test_design_xsb_tabling_wfs_steps.sh`)
+## 4. DESIGN: xsb-tabling-wfs (CEO-2005; `harness/designs/xsb_tabling_wfs/STEPS.tsv`, `test_design_xsb_tabling_wfs_steps.sh`; the witnesses in `corpus/packages/prolog/xsb_witnesses/xsb_wfs/`, the package the six xsb_* witness folders moved to whole, the coo's ruling 2026-11-12)
 
 Steps 1-7 DONE (the loader reads table directives; the WFS driver as XSB runs it; the XSB reading; auto_table and suppl_table; the table builtin surface; one body one run; the SCC depth number). Step 8 (delay lists as XSB prints them), 9 (the cut over an incomplete table) and 11 (the finish) FREE; step 10 (call subsumption) CLAIMED by the cao, closing on xw11, sg1, lrtc1 and drtc1 with decker moved to the engine-scale row (CEO-2112).
 

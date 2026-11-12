@@ -26,6 +26,6 @@ SWI's libraries vendored verbatim and loaded by `use_module`: `clpfd.pl` (CLP(FD
 - Re-admission (CEO-1696): a program that becomes answerable returns to its suite's denominator in the landing that answers it.
 - The variable order is creation order (the serial), as swipl prints it (clpr-chr step 8, relanded after a revert).
 
-## 4. DESIGN: clpr-chr (CEO-1996/1998; `corpus/tests/prolog/clpr_chr/STEPS.tsv`, `test_design_clpr_chr_steps.sh`)
+## 4. DESIGN: clpr-chr (CEO-1996/1998; `harness/designs/clpr_chr/STEPS.tsv`, `test_design_clpr_chr_steps.sh`; the witnesses are the prolog master's entries `clpr_chr__*`)
 
 All ten steps DONE on 2026-11-01 (CHR declarations and options; simplification with guards; simpagation and partner lookup; propagation and the history; wake-up on binding; store inspection; CHR inside a module; fresh variables in creation order; the linprog driver and its source; the finish). The open constraint row is `prolog-swi-class-clpfd-infix-operators` (FREE).
