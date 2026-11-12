@@ -39,7 +39,7 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | exceptions | `corpus/tests/shared/exceptions/` | `test_design_exceptions_steps.sh` | skill `runtime-calls` DESIGN |
 | zeta-layout | `corpus/tests/shared/zeta_layout/` | `test_design_zeta_layout_steps.sh` | skill `scrip-memory-model` DESIGN |
 | planner-finish | `harness/designs/planner_finish/STEPS.tsv` (witnesses: snobol4 entries `planner_finish__*` of its master; icon, pascal, prolog loose until their rows absorb them) | `test_design_planner_finish_steps.sh` | skill `scrip-memory-model` DESIGN |
-| templates-zero | `corpus/tests/shared/templates_zero/` | `test_design_templates_zero_steps.sh` | skill `box-templates` DESIGN |
+| templates-zero | `harness/designs/templates_zero/` | `test_design_templates_zero_steps.sh` | skill `box-templates` DESIGN |
 | prolog-lifo | `corpus/tests/prolog/lifo/` | `test_design_prolog_lifo_steps.sh` | skill `prolog-engine` DESIGN |
 | xsb-tabling-wfs | `corpus/tests/prolog/xsb_wfs/` | `test_design_xsb_tabling_wfs_steps.sh` | skill `prolog-tabling` DESIGN |
 | tabling-one-engine | `harness/designs/tabling_one_engine/STEPS.tsv` (witnesses: prolog entries `one_engine__*` of its master) | `test_design_tabling_one_engine_steps.sh` | skill `prolog-tabling` section 5 (reference) |
@@ -53,11 +53,11 @@ A skill's DESIGN section in SKILL.md may be a two-line stub (since 2026-11-06, L
 | raku-rewrite, raku-to-100 | `corpus/tests/raku/rewrite/`, `corpus/tests/raku/LADDER.tsv` | `test_design_raku_rewrite_steps.sh`, `test_raku_ladder.sh` | skill `raku` DESIGN |
 | shared-development | the step rows `shared-dev-step-*` | `util_seat_census.py` | skill `shared-box` |
 | batch-grader | `corpus/tests/shared/batch_grader/` | `test_design_batch_grader_steps.sh` | skill `suites-and-grading` section 5 |
-| fleet-control | `corpus/tests/shared/fleet_control/` | `test_design_fleet_control_steps.sh` | skill `shared-box` section 9 (supersedes box-scheduler, fleet-queue, test-cycle, box-budget, shared-development, batch-grader) |
-| test-cycle | `corpus/tests/shared/test_cycle/` | `test_design_test_cycle_steps.sh` | skill `suites-and-grading` section 7 |
-| box-budget | `corpus/tests/shared/box_budget/` | `test_design_box_budget_steps.sh` | skill `shared-box` section 7 |
-| box-scheduler | `corpus/tests/shared/box_scheduler/` | `test_design_box_scheduler_steps.sh` | skill `shared-box` section 8 |
-| fleet-queue | `corpus/tests/shared/fleet_queue/` | `test_design_fleet_queue_steps.sh` | skill `fleet-bus` section 8 (reference) |
-| skills-complete | `corpus/tests/shared/skills_complete/` | `test_design_skills_complete_steps.sh` | skill `fleet-bus` section 9 (reference) |
+| fleet-control | `harness/designs/fleet_control/` | `test_design_fleet_control_steps.sh` | skill `shared-box` section 9 (supersedes box-scheduler, fleet-queue, test-cycle, box-budget, shared-development, batch-grader) |
+| test-cycle | `harness/designs/test_cycle/` | `test_design_test_cycle_steps.sh` | skill `suites-and-grading` section 7 |
+| box-budget | `harness/designs/box_budget/` | `test_design_box_budget_steps.sh` | skill `shared-box` section 7 |
+| box-scheduler | `harness/designs/box_scheduler/` | `test_design_box_scheduler_steps.sh` | skill `shared-box` section 8 |
+| fleet-queue | `harness/designs/fleet_queue/` | `test_design_fleet_queue_steps.sh` | skill `fleet-bus` section 8 (reference) |
+| skills-complete | `harness/designs/skills_complete/` | `test_design_skills_complete_steps.sh` | skill `fleet-bus` section 9 (reference) |
 | run-switches | `harness/designs/run_switches/` | `test_design_run_switches_steps.sh` (probes `s4e_probe_run_switches.sh N`) | skill `suites-and-grading` section 8 (reference) |
-| bus-one-queue | `corpus/tests/shared/bus_one_queue/` | `test_design_bus_one_queue_steps.sh` (probes `s4e_probe_bus_one_queue.sh N`) | the step table header (CIO-8 phase two, the cio; cut by officer_05; GOAL-CIO.md CIO-8 to CIO-10) |
+| bus-one-queue | `harness/designs/bus_one_queue/` | `test_design_bus_one_queue_steps.sh` (probes `s4e_probe_bus_one_queue.sh N`) | the step table header (CIO-8 phase two, the cio; cut by officer_05; GOAL-CIO.md CIO-8 to CIO-10) |

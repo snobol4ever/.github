@@ -77,4 +77,4 @@ The queue is `QUEUE.tsv` under `PO/.queue.flock`: a row's column `QUEUED:<tube>`
 
 ## 9. DESIGN: skills-complete (the cio, 2026-11-07)
 
-Every name a skill speaks is live, the gate fires on exactly the files a skill owns, each law has one home, and the drift reads RED by a census (`util_skill_refs_census.py --check`, the plan `corpus/tests/shared/skills_complete/STEPS.tsv`, `test_design_skills_complete_steps.sh`). The full text is `reference.md` section 9.
+Every name a skill speaks is live, the gate fires on exactly the files a skill owns, each law has one home, and the drift reads RED by a census (`util_skill_refs_census.py --check`, the plan `harness/designs/skills_complete/STEPS.tsv`, `test_design_skills_complete_steps.sh`). The full text is `reference.md` section 9.

@@ -42,14 +42,14 @@ Eight compile slots (`util_cc_slot.sh`, every compile through ccache) and eight 
 
 Instruction counts (`util_instr_count.sh`) run at any load. A clock runs only inside `util_quiet_slice.sh` (it drains both pools and takes the top weight; it refuses inside a held run slot). The ledgers: `util_seat_census.py now | --check | --memory-check | --health | --grader-rate | --acceptance` over `LOAD.tsv` and `SEATS.tsv` in `/home/resources/progress/`.
 
-## 7. DESIGN: box-budget (CTO-474, CTO-475, CTO-478; `corpus/tests/shared/box_budget/STEPS.tsv`, `test_design_box_budget_steps.sh`)
+## 7. DESIGN: box-budget (CTO-474, CTO-475, CTO-478; `harness/designs/box_budget/STEPS.tsv`, `test_design_box_budget_steps.sh`)
 
 The full text of this section (about 2 KB) is in `reference.md` beside this file, under the same heading, moved there verbatim on 2026-11-06 so the skill loads light (Lon: "Go and trim any skill that needs it."). Read it before executing, cutting or ruling on a step of this design.
 
-## 8. DESIGN: box-scheduler (CTO-496; `corpus/tests/shared/box_scheduler/STEPS.tsv`, `test_design_box_scheduler_steps.sh`; Lon 2026-11-04: "It appears COO needs help re-designing the ENTIRE FLEET system. It is a failure." / "There has been talk, and only talk, about using industry recognized ways of doing make and build load balancing and management." / "So get to it.")
+## 8. DESIGN: box-scheduler (CTO-496; `harness/designs/box_scheduler/STEPS.tsv`, `test_design_box_scheduler_steps.sh`; Lon 2026-11-04: "It appears COO needs help re-designing the ENTIRE FLEET system. It is a failure." / "There has been talk, and only talk, about using industry recognized ways of doing make and build load balancing and management." / "So get to it.")
 
 The full text of this section (about 11 KB) is in `reference.md` beside this file, under the same heading, moved there verbatim on 2026-11-06 so the skill loads light (Lon: "Go and trim any skill that needs it."). Read it before executing, cutting or ruling on a step of this design.
 
-## 9. DESIGN: fleet-control (the cio, 2026-11-07, on Lon's word: "SCRAP it and do it again the correct way"; `corpus/tests/shared/fleet_control/STEPS.tsv`, `test_design_fleet_control_steps.sh`)
+## 9. DESIGN: fleet-control (the cio, 2026-11-07, on Lon's word: "SCRAP it and do it again the correct way"; `harness/designs/fleet_control/STEPS.tsv`, `test_design_fleet_control_steps.sh`)
 
 The full text is `reference.md` section 9: the measurements of 2026-11-07, the law (kernel-enforced limits, fixed work once per hash, one controller on PSI, measured outcomes only, the cio's hand), the tools and the eight steps. It supersedes the 71 live rows of sections 7 and 8 and of fleet-queue, test-cycle, batch-grader and shared-development.
