@@ -100,7 +100,7 @@ Line 1 is `# TASK <topic>` and nothing else (state lives only in `QUEUE.tsv`: ra
 
 ## 5. Telegrams, SendMessage and the wake rule (CTO-469)
 
-- A telegram (`send`) is the record and is read at the recipient's next sitting; it wakes nobody. A SendMessage is a pointer that starts a turn. `send ceo` is refused: that seat was fired 2026-10-31.
+- A telegram (`send`) is the record and is read at the recipient's next sitting; it wakes nobody. Its WAKE line (CIO-8) names the addressee always, even under `FLEET: IDLE` where every other wake falls to the operating boss (the cfo's find 2026-11-12 12:4x CST: the line named the coo for tube seat-cio). A SendMessage is a pointer that starts a turn. `send ceo` is refused: that seat was fired 2026-10-31.
 - To the cto: a ruling ask, a design gap, a grant. To the coo: a cross-seat fact, a claim collision, a test request, a red. Unsure: both.
 - THE WAKE RULE (Lon 2026-11-04: "You ensure that the seat HAS WORK first, and then you wake it."): the coo, every tick, for each ROSTER seat with no live row and an idle session, finds its work (a red in its language, or an ASSIGNED or FREE row it can serve), mints what is not yet a row, assigns it, and only then sends the SendMessage naming the row. A seat with a RUNNING row and an idle session is sent its row. No wake list, no WAKE.txt. The cto wakes nobody.
 - A seat that stops because it waits parks the wait first (`PARKED-AWAITING:` or `BLOCKED-ON:`), shows its banner and stops; a seat that finished its row hands off and stops, and the coo gives it work and wakes it.

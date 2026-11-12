@@ -36,7 +36,7 @@ Run verbs one at a time. Full text: `reference.md` section 2.
 - `resume <topic> ...` writes the RESUME line; write it before a stop.
 - `ask <topic> ...` sends a question up the ladder (the ask tube of the tier above); `answer <topic> --stdin` is the senior's reply, delivered to the asker's inbox.
 - `escalate <topic> --stdin` moves a job one tube up with the measurement in the body (refused without one); the baton gets an ESCALATION section.
-- `send <seat> <topic> --stdin` is a telegram; wakes nobody.
+- `send <seat> <topic> --stdin` is a telegram; wakes nobody itself, and prints the addressee's WAKE pointer, never the coo's (a telegram is read by its addressee alone; the cio 2026-11-12).
 - `check` displays the inbox.
 - `clear` archives what check displayed.
 - `mailbox` lists your mailbox.
