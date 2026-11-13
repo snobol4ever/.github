@@ -51,6 +51,7 @@ The record is GOAL-SNOBOL4-100.md, GOAL-SNOCONE-100.md and GOAL-REBUS-100.md (LI
 - Every pattern node is a four-port box; a defect in one member of a box family is a class defect; no C function enters a box (CEO-1576).
 - The `.sc` parsers are never rewritten (Lon 2026-09-24); the method is transpile, SPITBOL, monitor.
 - Snocone is C surface over SPITBOL: `#` an OPSYN operator, `//` and `/* */` comments, `a[i,j]`, `|` alternation, `&&` concatenation; a census names both spellings of what Snocone spells twice.
+- **DATA fires no TWEAK hook in SNOBOL4** (the coo 2026-11-12, on officer_04's rung-4 measurement of row sno-rungs-red-gc-hb-data-tweak-hook: `DATA('pair(n,a)')`, `DEFINE('pair__TWEAK(self)')`, then `pair(1,2)` and `pair(3,4)` is plain legal SNOBOL4; SPITBOL treats `pair__TWEAK` as an ordinary function nobody calls and prints ` 1 3`, while SCRIP's DATA constructor called it on every construction, through rt_fire_buildplan_tweak_rq, and printed `2 100 300`): a SNOBOL4, Snocone or Rebus DATA constructor never calls a function by its name; the hook is Raku's (TWEAK), and the choice is made in lower as a fact on the DATA declaration, with no language flag past lower. Every ref stays the oracle's.
 - CODE/EVAL under the one granted global; LOAD/UNLOAD/SAVE/EXEC are a feature, not an error path.
 - Beauty is its own oracle (`beauty.sno < beauty.sno` is the identity); no md5 pinned.
 - A grammar edit needs `regenerate_parser_and_lexer_from_sources.sh`; a cure that trades one program for another never lands (CEO-589).
