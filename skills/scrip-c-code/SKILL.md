@@ -12,7 +12,7 @@ Every hand-written `.c`, `.h` and `.inc` under `SCRIP/src/` (the bison/flex pars
 - **The 200-column hierarchy rule** (CEO-1565): an item (a statement, or a block with its else-chain) that fits goes on ONE line of at most 200 bytes; one that does not fit opens on its own line, each child on its own line one level deeper, by the same rule. `.cpp` and `src/templates/` are line-oriented instead.
 - **Zero comments, zero blank lines:** the only comment is the 200-character separator between functions. What a comment would say goes in the ARCH page or GOAL cursor. A truncated separator swallows the next function.
 - **No `malloc`, `calloc`, `realloc`, `free` anywhere, under any spelling** (Lon 2026-09-17): run-time values on the collected heap (`rtx_alloc.s`), compile-time populations in the arena (`ct_alloc`, `ct_zalloc`, `ct_grow`, `ct_strdup`, `ct_drop`).
-- **No new global without Lon's in-chat grant that session:** state rides registers, a zeta, or a field of the stage struct (`g_lower`, `g_planner`, `g_emit`, the runtime's `g_*`); runtime-state fields need the grant too.
+- **No new global without Lon's in-chat grant that session:** state rides registers, a zeta, or a field of the stage struct (`g_lower`, `g_planner`, `g_emit`, the runtime's `g_*`); a field of those process-wide structs needs the grant too; a field of a per-instance record (a stream, a cell, a frame) does not (CTO-641).
 - **No fixed limit a program can reach:** a growable `cv_t` or arena table; the fixed-caps population only falls (`test_gate_dyn_caps_ratchet.sh`).
 - **No `-O2`, ever:** `RT_OPT ?= -O0 -g -fno-strict-aliasing -fwrapv -fno-omit-frame-pointer`.
 - **The length is carried, never measured:** a DESCR's `slen`, never `strlen` on `.s` (NUL is a valid character).
@@ -23,7 +23,7 @@ Every hand-written `.c`, `.h` and `.inc` under `SCRIP/src/` (the bison/flex pars
 
 - `SCRIP/src/`: `driver/`, `parsers/` (exempt), `lower/`, `ir/` (`ct_arena.c/.h`), `planner/`, `emitter/` (`emit.cpp` line-oriented; its `.h` files under the rule), `runtime/`, `templates/` (line-oriented).
 - Checkers in `harness/scripts/`: `util_reflow_200.py --check|--apply|--proof PATH...`, `strip_comments.py --check`, `audit_fixed_caps_census.py`, `audit_runtime_globals_census.py`.
-- Gates: `test_gate_c_allocators_are_eradicated_and_say_where_they_went.sh`, `test_gate_dyn_caps_ratchet.sh`, `test_gate_no_new_function_scope_static.sh`, `test_gate_globals_census_counts_writable_sections_only.sh`, `test_gate_ir_field_discipline.sh`, `test_gate_emit_no_lang.sh`.
+- The six gates this page named (allocators, dyn-caps ratchet, function-scope static, globals census, IR field discipline, emit-no-lang) are deleted with gates-zero (CTO-637); the census tools above stand.
 
 ## 3. WORKED EXAMPLES
 

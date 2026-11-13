@@ -52,6 +52,7 @@ The record is GOAL-RAKU-100.md (LIVE CURSOR on top); the design is `reference.md
 - The parser reaches 100% first; the recognizer is translated from Rakudo's grammar.
 - A kernel box is born with its family's first rung; a Roast file is cured by its rung, never by its name; RakRungs and RakBench never fall below 100 at a landing.
 - S17 (concurrency) stays closed until Lon opens it. No global, side table, frame marker, second stack or fixed limit; the Raku smoke before every push (all eight for shared code).
+- **The RakDemo compiler object is a SCRIP feature, never an exclusion** (CTO-642, the cto 2026-11-12 18:3x CST, on junior_13's measurement relayed by the coo, row raku-demos-red-demos-raku-rakudo-compiler-rakudo-compiler-raku): Lon opened the suite for that one program (CEO-1607, 1616: "it will be the Raku compiler written in Raku"), so `nqp::getcomp('Raku')` returns SCRIP's own compiler object, whose `.parse` runs SCRIP's Raku recognizer and answers a Match tree named by Grammar.nqp's rules, `hash`, `list`, `from` and `Str` as the demo reads them. It is a design, not a junior's bug: the red row is the cto's until the plan is written; no other `nqp::` op is admitted by it.
 
 ## 8. DESIGN: Roast to 100, the triage framework and four rulings (CTO-514, 2026-11-05; the cao triages every red under this frame, hq_raku lands, the coo grades)
 
