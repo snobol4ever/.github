@@ -37,6 +37,7 @@ Eight compile slots (`util_cc_slot.sh`, every compile through ccache) and eight 
 ## 5. Memory and /tmp
 
 - A runaway is killed inside its own cgroup: your scope at 8 GB, a batch or board scope at 8 GB. Bound an experiment's memory with a cgroup (`util_mem_scope.py`), never with a timeout.
+- **systemd-oomd never chooses a seat's session** (Lon 2026-11-12 19:3x CST: "some seatds died."; MEASURED: at 19:02 systemd-oomd killed s4e-seat-junior_16.scope and s4e-seat-senior_08.scope under the box's memory pressure, each session's peak only about 300 MB, while big-heap runs elsewhere, fusc at a 5.3 GB heap and a rung at 6 GB, drove the pressure): every seat scope carries `ManagedOOMPreference=omit` (set at launch, `-p ManagedOOMPreference=omit`, and at runtime by `systemctl --user set-property --runtime`), so under pressure oomd kills the run that made it, never a session. A hand run with a declared heap over 2 GB goes through `util_mem_scope.py`, never bare in the seat's own scope.
 - `memory.current` counts page cache: a scope over `memory.high` with small `anon` in `memory.stat` is file pages, and `echo 2G > memory.reclaim` in the scope's own cgroup frees them without killing anything.
 - Large outputs die in `/tmp`, never under a root; the harness places its scratch under `/tmp/s4e/<seat>`; `util_tmp_sweep.sh` (cron, the batch slice) ages it out. `/tmp` is shared by every seat: an ENOSPC fakes reds, so `df /tmp` before believing one.
 
