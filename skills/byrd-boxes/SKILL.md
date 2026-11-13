@@ -262,7 +262,7 @@ Method: one predicate per construct in `/home/resources/postoffice/escalations/p
 | 3.6 a deterministic builtin with an output: functor/3, arg/3, `=..`, copy_term/2, msort/2, atom_length/2 and their like | a leaf call whose γ and ω the box takes | the leaf is handed the output variable and unifies it in C; the n-th leaves of 3.7 do the same |
 | a ground literal | `$mkground`, one box | `rt_pl_mkground` rebuilds the term at every pass (12 of a negation loop) |
 | 3.11 tabling | the tabled predicate calls the prelude's `$tbl_call/2` | the tables, their tries and the copies are C (8 of 100 instructions in boxes) |
-| cost, not law: every cut and commit calls the prelude's `$scc_cut/0`; every binding construct calls `$wakeup/0` | boxes | a predicate call where the layout has one test |
+| cost, not law: in a program with an attributed variable every binding construct is followed by an if-then-else around the wake probe | `IR_BOUND`, the probe, `IR_UNMARK`, `IR_GATE_ARM`, `IR_GATE` | 70 instructions where the layout has one test and one store (skill `prolog-engine` section 8 step 7). CORRECTED 2026-11-13: a cut is already right, its probe inline and `$scc_cut/0` called only when a cleanup is pending |
 
 **MISSING**
 
