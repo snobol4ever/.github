@@ -10,7 +10,7 @@ The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this sk
 ## 1. The oracle
 
 - **One oracle: Arizona `icont`/`iconx` 9.5.25a** under `/home/resources/icon-master/bin/`, through `icont_bin()`, `iconx_bin()` in `harness/scripts/lib_oracle_flags.sh`, never `command -v`. No dialect marker, no jcon arm (CEO-390).
-- **Semicolon-required, newlines are whitespace** (CEO-495/544, settled): `;` separates statements; none before `end`. Every shipped `.icn` carries them.
+- **Semicolon-required, newlines are whitespace** (CEO-495/544, settled): `;` ends every statement of a procedure body, the last one before `end` too (MEASURED 2026-11-13 on `scrip --dump-ast`: `return 1`, a bare `return`, `fail` and an expression statement directly before `end` are each refused with expected ';', and `return 1;` parses; the parser is `stmt_end` in icon_parse.c), and separates the statements of a `{ }` block, whose last expression is bare. Every shipped `.icn` carries them.
 - A ref is cut from the oracle; no XFAIL. A ref the oracle cannot produce (it does not terminate, or its own defect) comes from the second implementation and is NAMED in `OUTSIDE_ARIZONA_BASELINE.tsv` (CEO-491). Refusal, crash or hang is `NO_ORACLE_ANSWER` (CEO-1696).
 - Runtime errors are iconx's numbers and texts; the traceback names every frame as iconx does.
 
