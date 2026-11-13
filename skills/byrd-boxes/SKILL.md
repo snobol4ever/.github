@@ -167,7 +167,7 @@ retract(C)          the generator of P over the clauses that match C's head; aft
                     body succeeds, the candidate is erased and the box takes γ; β steps on.
 clause(H, B)        the same generator; γ after H and B unify with the candidate.
 ```
-The logical update view is the cell g: a call sees the clauses alive at the generation it started in, whatever is asserted or retracted while it runs. A fact's head is unified by the same unifier every other box uses, against the stored term (a ground fact is shared, a fact with variables is renamed first). A rule is its own clause box, compiled once when it is asserted. The store answers "the next candidate after c"; it selects nothing and unifies nothing.
+The logical update view is the cell g: a call sees the clauses alive at the generation it started in, whatever is asserted or retracted while it runs. A fact's head is unified by the same unifier every other box uses, against the stored term (a ground fact is shared, a fact with variables is renamed first). A rule is its own clause box, compiled once when it is asserted, as SNOBOL4's CODE compiles a string once (SCRIP does this today). The way into the predicate is a jump through its chain head: no guard leaf, no name. The store answers "the next candidate after c"; it selects nothing and unifies nothing.
 
 ### 3.11 Tabling, coroutines, grammar rules
 ```
@@ -224,7 +224,69 @@ Shares of user instructions in mode 4 binaries (`perf record -e instructions:u`,
 | tabling | 8 | 52 | 41 |
 | the sieve benchmark (assert and retract) | 3 | 96 | 1 |
 
-The skeleton is boxes and no C enters one; but outside pure clause resolution a box is a shell around C. The dynamic database is a C interpreter (the candidate is picked and its head unified by `rt_pl_db_cand_next`, `rt_pl_db_data_unify` and a second, C unifier: 5,388 instructions for one call of an indexed asserted fact). Meta-call formats a "name/arity" string and hashes it at every call. A ground literal is rebuilt at every pass. The collectors, the catcher and the tables copy and match in C. The programme that brings each to its layout of section 3, on Lon's word that day ("do all as you suggest."), is skill `prolog-engine` section 8; each step is proved by this table's instrument falling and by the answers unchanged against swipl.
+The skeleton is boxes and no C enters one; but outside pure clause resolution a box is a shell around C. The audit below says where, construct by construct; the programme that brings each to its layout, on Lon's word that day ("do all as you suggest." / "let's get all those you suggest fixed, addressed."), is skill `prolog-engine` section 8. Each step is proved by the leaf it removes no longer being named in the emitted code of its witness, by the answers unchanged against swipl, and by this table's instrument falling.
+
+### 5.1 The audit: each layout of section 3 against what SCRIP emits (MEASURED 2026-11-13, SCRIP 0a8dacb91c)
+
+Method: one predicate per construct in `/home/resources/postoffice/escalations/prolog-boxes-not-c/audit.pl` (66 predicates), `scrip --dump-ir`, and for each predicate the IR kinds it is built from and the leaves it calls (`audit.py` beside it); for a leaf that takes part in control, whether its C body unifies or decides (read in the runtime). PROPER: the construct is its layout and C only serves values. PARTIAL: the box is there and C still unifies or decides inside it. MISSING: no box does it; C interprets.
+
+**PROPER**
+
+| Layout | What SCRIP emits |
+|---|---|
+| 3.1 true, fail | no node at all: wiring |
+| 3.1 repeat; 3.7 between/3 | `IR_TO`, a generator box, with guard leaves and the prelude's `$between_test/3` |
+| 3.2 conjunction | no node: the γ and ω edges of consecutive `IR_CALL_PROC_STAGED` |
+| 3.2 disjunction | `IR_DISJUNCTION` |
+| 3.3 if-then-else, if-then, soft cut, `\+`, once, ignore, forall | `IR_BOUND`, `IR_GATE`, `IR_GATE_ARM`, `IR_UNMARK` (the soft cut four gates) |
+| 3.4 cut | `IR_CUT` |
+| 3.5 a static predicate, its clause step and index switch, a clause, a fact | `IR_CALL_PROC_STAGED`; `IR_UNIFY_CONST`, `IR_UNIFY_STRUCT`, `IR_UNIFY_VALUE`, `IR_UNIFY_FIRST` |
+| 3.6 `X = Y`, `X \= Y` | the `$unify` leaf kind, which is the asm unifier `rtx_pl_unify`; cells by `$mkc` |
+| 3.6 comparisons, type tests, `is/2` | `IR_CALL_PL_LEAF` of `$cmp_*`, `$atom`, `$var`, `$ax_*`, `$is_v`: values in, the box takes the exit |
+| 3.6 the wake after a binding | a call of the prelude's `$wakeup/0` after each construct that can bind |
+| 3.7 the enumeration of sub_atom/5, atom_concat/3, current_op/3 | `IR_TO` over a count leaf and an n-th leaf (`$sub_atom_n`, `$sub_atom_at`) |
+| 3.9 throw/1; setup_call_cleanup/3 | the `$throw` leaf arms the ball; `IR_CLEANUP` and prelude clauses |
+| 3.10 assertz/1, asserta/1, retractall/1 | store leaves, deterministic |
+| 3.10 an asserted RULE | compiled once, when it is stored, into its own fragment (the slot's `frag` word, `un_09_pl.c`), as SNOBOL4's CODE compiles a string; a consulted predicate is compiled whole until it is first modified (`pl_db_materialize`, `pl_db_dynamize`). Read in the code; the entry into it is the PARTIAL row below |
+| 3.11 freeze/2, dif/2, when/2; a grammar rule and phrase/2,3 | prelude clauses; translation |
+| the list library: member, append, select, nth0, length, maplist, predsort, aggregate_all | prelude clauses, so clause boxes |
+
+**PARTIAL**
+
+| Layout | The box that exists | What C still does |
+|---|---|---|
+| 3.8 call/N | `IR_CALL_VALUE` enters the callee through a run-time port | `rt_pl_goal_resolve_c` formats a name/arity string and hashes it at every call (66 of 100 instructions) |
+| 3.8 findall/3, bagof/3, setof/3 | the `IR_BOUND`, `IR_GATE` loop over the goal | `$findall_new`, `$findall_add`, `$findall_result` collect, copy and build the list in C (39) |
+| 3.9 catch/3 | `IR_BOUND`, `IR_GATE` around the goal | `rt_pl_catch_handle_c` unifies the ball with the catcher and decides the match (56) |
+| 3.10 retract/1, clause/2 | an `IR_TO` generator over the clauses | `$clause_unify` unifies head and body in C |
+| 3.6 a deterministic builtin with an output: functor/3, arg/3, `=..`, copy_term/2, msort/2, atom_length/2 and their like | a leaf call whose γ and ω the box takes | the leaf is handed the output variable and unifies it in C; the n-th leaves of 3.7 do the same |
+| a ground literal | `$mkground`, one box | `rt_pl_mkground` rebuilds the term at every pass (12 of a negation loop) |
+| 3.11 tabling | the tabled predicate calls the prelude's `$tbl_call/2` | the tables, their tries and the copies are C (8 of 100 instructions in boxes) |
+| cost, not law: every cut and commit calls the prelude's `$scc_cut/0`; every binding construct calls `$wakeup/0` | boxes | a predicate call where the layout has one test |
+
+**MISSING**
+
+| Layout | What runs instead |
+|---|---|
+| 3.10 a call of a dynamic predicate of facts | `IR_TO` named `db:trl:det` whose step is the C function `rt_pl_db_cand_next`, then the leaf `$db_data_unify`: `rt_pl_db_data_unify` picks and unifies the stored clause with the C unifier (9 of 100 instructions in boxes; 3 in the sieve benchmark; 5,388 instructions a call) |
+| 3.10 the entry into a dynamic predicate | before every call two guard leaves run in C, `$db_alive` and `$db_nonempty`; `rt_pl_dop_db_alive_c` is handed the predicate's name as a string and `rt_pl_db_born_undef` parses it, so a lexer runs in the call path (about 10 of 100 instructions of a loop calling one asserted rule; that loop is 24 in boxes and 10 in the asm unifier) |
+| the law's one unifier | a second unifier in C (`plw_unify_*`, `plc_unify_*`, `runtime/unification/`) serves the database, catch, the tables and the builtins |
+
+Not audited: engines and threads (excluded by Lon, CEO-1766), `reset/3` and `shift/1`, the `^` of bagof.
+
+### 5.2 The three languages side by side (MEASURED 2026-11-13, the same kernels in each; `k1` to `k5` in the escalations folder; shares of user instructions in mode 4)
+
+| Kernel | SNOBOL4 | Icon | Prolog |
+|---|---|---|---|
+| an arithmetic loop, 1,000,000 passes | 37 in boxes (REMDR is a builtin called through C) | 90 | 83 in boxes and 16 in the asm unifier |
+| a user function or predicate called 500,000 times | 92 | 91 | 76 and 20 |
+| backtracking | 66 (a pattern with alternation and ARBNO; 28 is capture bookkeeping in C) | 91 (two nested `every`) | 83 and 16 as a recursion; 48 and 14 as a `between/3` failure loop over global variables |
+| a table or database lookup, 400,000 | not measured (the kernel did not build) | 59 (the hash is C, a value service) | 9 |
+| code created at run time, then called 300,000 times | 5 (a function whose body CODE compiled) | not written | 24 and 10 (an asserted rule) |
+
+What Icon and SNOBOL4 got right: each primitive of the goal-directed core is its own template whose four ports do the work inline (Icon's `to`, arithmetic and comparison; SNOBOL4's call through a static record). On static clauses Prolog is as good or better. Where Prolog misses, SNOBOL4 misses too: at code that arrives at run time. A function defined through CODE is entered by name through C at every call (`rt_call_name_sn4_rq`, `rt_proc_find`, `sn4_is_system_fn`), exactly as a Prolog meta-call and a dynamic predicate are.
+
+**THE PRINCIPLE (Lon 2026-11-13 12:2x CST, verbatim: "Is not the dynamic database really just like CODE/EVAL in SNOBOL4?" / "let's get that ratio for Prolog closer to how SNOBOL4 and Icon look. Go notice how those two languages got things CORRECT, and how Prolog misses."): code that arrives at run time is compiled once and then LINKED, never looked up.** After the one compile, the way in is a jump through a cell the compile filled: the procedure's entry cell, the predicate's chain head, the goal's functor entry. No name is formatted, hashed or parsed on the way to a box.
 
 ## 6. The sources (reference.md)
 
