@@ -37,7 +37,7 @@ The module design (each parser a compiland with its own namespace: SNOBOL4's INC
 - `FENCE` wherever a choice is final. `ARBNO` is SHORTEST FIRST: match-time work after an ARBNO'd capture runs on every prefix, so place two cursors around the body and do the work after the closing delimiter. A nested match that must consume is ANCHORED: `X ? (POS(0) ARBNO(P) RPOS(0))`.
 - White space and a statement list are TAIL FORMS, never ARBNO: `White = *white FENCE(*White | epsilon)`, `StmtStar = FENCE(*StmtRest *StmtStar | epsilon)`. Under ARBNO a FENCE'd continuation takes one blank only, and a refusal late in an ARBNO'd statement list backtracks 2^n through the statements before it.
 - THE PREPROCESS STAGE and THE DRIVER TAIL are labelled top-level code outside the match: the directive line is replaced in `Src` and the scan restarts; the driver resets the stacks, matches `Src ? *Compiland` and hands `ptree` on.
-- Prove it with `harness/scripts/`: `run_scrip_parser.sh <lang> [file]`, `util_parser_sc_census.py --lang <l>`, `test_bootstrap_parsers.py`, `test_gate_snocone_parsers_match_the_c_parsers_tree_for_tree.sh`, `test_gate_bootstrap_parse_stage_ir_identity.sh`, `util_parser_sc_grade.sh`, `test_gate_bootstrap_parsers_define_no_functions.sh`.
+- Prove it with `harness/scripts/`: `run_scrip_parser.sh <lang> [file]`, `util_parser_sc_census.py --lang <l>`, `test_bootstrap_parsers.py`, `util_parser_sc_parity.sh`, `test_gate_bootstrap_parse_stage_ir_identity.sh`, `util_parser_sc_grade.sh`, `test_gate_bootstrap_parsers_define_no_functions.sh`.
 
 ## 6. Debugging a parser red
 
