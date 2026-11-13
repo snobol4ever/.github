@@ -11,6 +11,10 @@ officer_01	OFFICER-01	/home/claude_officer_01	claude-opus-5-5	high	yellow	2	desi
 officer_02	OFFICER-02	/home/claude_officer_02	claude-opus-5-5	high	yellow	2	designer
 officer_03	OFFICER-03	/home/claude_officer_03	claude-opus-5-5	high	yellow	2	designer
 officer_04	OFFICER-04	/home/claude_officer_04	claude-opus-5-5	high	yellow	2	escalation
+officer_05	OFFICER-05	/home/claude_officer_05	claude-opus-5-5	high	yellow	2	designer
+officer_06	OFFICER-06	/home/claude_officer_06	claude-opus-5-5	high	yellow	2	designer
+officer_07	OFFICER-07	/home/claude_officer_07	claude-opus-5-5	high	yellow	2	designer
+officer_08	OFFICER-08	/home/claude_officer_08	claude-opus-5-5	high	yellow	2	designer
 senior_01	SENIOR-01	/home/claude_senior_01	claude-sonnet-5-5	high	purple	3	senior
 senior_02	SENIOR-02	/home/claude_senior_02	claude-sonnet-5-5	high	purple	3	senior
 senior_03	SENIOR-03	/home/claude_senior_03	claude-sonnet-5-5	high	purple	3	senior
