@@ -47,12 +47,12 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProPuzzles | prolog | 264/266 EXCLUDED=149 WALL=11879s | 2026-11-08 | `478395910` |  |
 | TreallaTests | prolog | 318/318 EXCLUDED=138 WALL=507s | 2026-11-08 | `478395910` | done |
 | PasDemo | pascal | 9/9 EXCLUDED=0 WALL=68s | 2026-11-11 | `d2d3bd01e` | done |
-| RakDemo | raku | 0/1 | 2026-10-10 | `174588d8e` |  |
+| RakDemo | raku | 0/1 | 2026-11-12 | `7dd357ecc` |  |
 | RakBench | raku | 80/80 EXCLUDED=4 WALL=140s | 2026-11-12 | `25ac28f31` | done |
 | XsbTests | prolog | 344/550 EXCLUDED=357 WALL=5605s | 2026-11-04 | `c1c307e69` |  |
 | UniTests | icon | 154/161 EXCLUDED=61 WALL=61s | 2026-11-12 | `cf0f355c8` |  |
 | Vanilla | snobol4 | 9/9 EXCLUDED=1 WALL=0s | 2026-11-12 | `cf0f355c8` | done |
-| IcnPacks | icon | 0/21 | 2026-11-11 | `2db659e0a` |  |
+| IcnPacks | icon | 0/12 EXCLUDED=0 | 2026-11-12 | `7dd357ecc` |  |
 | UniTree | icon | 0/710 | 2026-11-10 | `2db659e0a` |  |
 | Chat80 | prolog | 0/2 EXCLUDED=0 | 2026-11-11 | `dbf297c1a` |  |
 | PRESS | prolog | 6/6 EXCLUDED=0 WALL=600s | 2026-11-11 | `d2d3bd01e` | done |
@@ -61,7 +61,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProSets | prolog | 13/18 EXCLUDED=0 WALL=30s | 2026-11-11 | `d2d3bd01e` |  |
 | FpcSource | pascal | 578/1940 EXCLUDED=0 WALL=65s | 2026-11-11 | `daf39d294` |  |
 | PasSets | pascal | 0/447 | 2026-11-10 | `2db659e0a` |  |
-| TeX | pascal | 0/3 | 2026-11-10 | `2db659e0a` |  |
+| TeX | pascal | 1/1 EXCLUDED=0 WALL=85s | 2026-11-12 | `f26e6626c` | done |
 | RakudoT | raku | 0/175 | 2026-11-10 | `2db659e0a` |  |
 | RakExamples | raku | 117/246 EXCLUDED=0 WALL=73s | 2026-11-11 | `eac16d740` |  |
 | PasStanford | pascal | 14/16 EXCLUDED=1 WALL=0s | 2026-11-12 | `cf0f355c8` |  |
