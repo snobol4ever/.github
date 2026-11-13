@@ -8,13 +8,13 @@ One row per suite — our seven rung suites and every vendored package suite ali
 |---|---|---|---|---|---|
 | Gimpel | snobol4 | 141/144 EXCLUDED=1 OUTSIDE=0 WALL=5s | 2026-11-11 | `d2d3bd01e` |  |
 | Budne | snobol4 | 70/70 EXCLUDED=62 OUTSIDE=19 WALL=10s | 2026-11-04 | `01f9ae696` | done |
-| Flake | snobol4 | 79/79 EXCLUDED=54 OUTSIDE=52 WALL=1s | 2026-11-11 | `d2d3bd01e` | done |
+| Flake | snobol4 | 122/122 EXCLUDED=58 OUTSIDE=52 WALL=3s | 2026-11-12 | `16a8b032a1` | done |
 | AIS | snobol4 | 8/8 EXCLUDED=1 OUTSIDE=0 WALL=3s | 2026-11-11 | `d2d3bd01e` | done |
 | Dotnet | snobol4 | 6/6 EXCLUDED=8 OUTSIDE=1 | 2026-11-11 | `d2d3bd01e` | done |
 | TPgm | snobol4 | 8/8 EXCLUDED=0 OUTSIDE=0 | 2026-11-11 | `d2d3bd01e` | done |
 | Zona | icon | 118/118 EXCLUDED=6 WALL=33s | 2026-11-04 | `65d7c686d` | done |
 | Jcon | icon | 78/78 EXCLUDED=6 WALL=3s | 2026-11-11 | `d2d3bd01e` | done |
-| IPL | icon | 644/644 EXCLUDED=207 WALL=317s | 2026-11-04 | `01f9ae696` | done |
+| IPL | icon | 580/622 EXCLUDED=229 WALL=56s | 2026-11-12 | `39ebe39b8` |  |
 | INRIA | prolog | 440/440 EXCLUDED=5 WALL=399s | 2026-11-08 | `9e0bc12de` | done |
 | SWI | prolog | 2218/2311 EXCLUDED=625 WALL=2170s | 2026-11-09 | `478395910` |  |
 | GNU source | prolog | 45/45 EXCLUDED=17 WALL=37s | 2026-11-11 | `4e5920c84` | done |
@@ -23,7 +23,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Roast | raku | 239/1267 EXCLUDED=197 WALL=93s | 2026-11-11 | `7eda9950f` |  |
 | SnoRungs | snobol4 | 2276/2286 EXCLUDED=1 WALL=23s | 2026-11-11 | `d2d3bd01e` |  |
 | IcnRungs | icon | 1129/1136 WALL=9s | 2026-11-12 | `cf0f355c8` |  |
-| ProRungs | prolog | 584/584 WALL=550s | 2026-11-08 | `c89bb80f9` | done |
+| ProRungs | prolog | 700/729 WALL=1320s | 2026-11-12 | `cf0f355c8` |  |
 | PasRungs | pascal | 454/466 WALL=20s | 2026-11-12 | `cf0f355c8` |  |
 | RakRungs | raku | 1390/1390 WALL=43s | 2026-11-11 | `d2d3bd01e` | done |
 | SncRungs | snocone | 421/421 WALL=3s | 2026-11-11 | `d2d3bd01e` | done |
@@ -65,11 +65,12 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RakudoT | raku | 0/175 | 2026-11-10 | `2db659e0a` |  |
 | RakExamples | raku | 117/246 EXCLUDED=0 WALL=73s | 2026-11-11 | `eac16d740` |  |
 | PasStanford | pascal | 14/16 EXCLUDED=1 WALL=0s | 2026-11-12 | `cf0f355c8` |  |
-| PasAdv350 | pascal | 0/4 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasAdv350 | pascal | 3/3 EXCLUDED=213 WALL=7s | 2026-11-12 | `16a8b032a1` | done |
 | PasTply | pascal | 2/2 EXCLUDED=19 WALL=99s | 2026-11-12 | `58c5f4768` | done |
 | PasCocoR | pascal | 2/2 EXCLUDED=16 WALL=10s | 2026-11-12 | `35cb2a4e0` | done |
 | PasDSA | pascal | 4/4 EXCLUDED=1 WALL=0s | 2026-11-12 | `7d535a66a` | done |
 | IcnLoadfpp | icon | 8/8 EXCLUDED=0 WALL=0s | 2026-11-11 | `56fd46273` | done |
+| PasLisp | pascal | 0/0 EXCLUDED=8 | 2026-11-12 | `cf0f355c8` | done |
 
 
 ## THE LEAF SHARE — WHERE EACH LANGUAGE'S INSTRUCTIONS GO (CEO-1535; the coo's row instruments-the-leaf-census-...; read by hq_runtime to choose its asm conversions)
