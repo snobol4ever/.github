@@ -43,7 +43,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | ProDemo | prolog | 8/8 EXCLUDED=15 WALL=23s | 2026-11-11 | `4e5920c84` | done |
 | TixDemo | scriptix | 12/12 EXCLUDED=2 WALL=11s | 2026-11-11 | `d2d3bd01e` | done |
 | PasRosetta | pascal | 288/307 EXCLUDED=357 WALL=1575s | 2026-11-11 | `5c5369a18` |  |
-| ProRosetta | prolog | 483/483 EXCLUDED=303 WALL=2072s | 2026-11-08 | `4e633dac6` | done |
+| ProRosetta | prolog | 483/483 EXCLUDED=303 WALL=600s | 2026-11-12 | `cf0f355c8` | done |
 | ProPuzzles | prolog | 264/266 EXCLUDED=149 WALL=11879s | 2026-11-08 | `478395910` |  |
 | TreallaTests | prolog | 318/318 EXCLUDED=138 WALL=507s | 2026-11-08 | `478395910` | done |
 | PasDemo | pascal | 9/9 EXCLUDED=0 WALL=68s | 2026-11-11 | `d2d3bd01e` | done |
@@ -54,7 +54,7 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | Vanilla | snobol4 | 9/9 EXCLUDED=1 WALL=0s | 2026-11-12 | `cf0f355c8` | done |
 | IcnPacks | icon | 0/12 EXCLUDED=0 | 2026-11-12 | `7dd357ecc` |  |
 | UniTree | icon | 0/710 | 2026-11-10 | `2db659e0a` |  |
-| Chat80 | prolog | 0/2 EXCLUDED=0 | 2026-11-11 | `dbf297c1a` |  |
+| Chat80 | prolog | 2/2 EXCLUDED=0 WALL=51s | 2026-11-12 | `cf0f355c8` | done |
 | PRESS | prolog | 6/6 EXCLUDED=0 WALL=600s | 2026-11-11 | `d2d3bd01e` | done |
 | TreallaMore | prolog | 17/20 EXCLUDED=0 WALL=40s | 2026-11-11 | `d2d3bd01e` |  |
 | XsbExamples | prolog | 0/90 | 2026-11-10 | `2db659e0a` |  |
@@ -66,8 +66,8 @@ One row per suite — our seven rung suites and every vendored package suite ali
 | RakExamples | raku | 117/246 EXCLUDED=0 WALL=73s | 2026-11-11 | `eac16d740` |  |
 | PasStanford | pascal | 14/16 EXCLUDED=1 WALL=0s | 2026-11-12 | `cf0f355c8` |  |
 | PasAdv350 | pascal | 0/4 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
-| PasTply | pascal | 0/2 EXCLUDED=0 | 2026-11-12 | `cf0f355c8` |  |
-| PasCocoR | pascal | 1/2 EXCLUDED=0 | 2026-11-11 | `d2d3bd01e` |  |
+| PasTply | pascal | 2/2 EXCLUDED=19 WALL=99s | 2026-11-12 | `58c5f4768` | done |
+| PasCocoR | pascal | 2/2 EXCLUDED=16 WALL=10s | 2026-11-12 | `35cb2a4e0` | done |
 | PasDSA | pascal | 4/4 EXCLUDED=1 WALL=0s | 2026-11-12 | `7d535a66a` | done |
 | IcnLoadfpp | icon | 8/8 EXCLUDED=0 WALL=0s | 2026-11-11 | `56fd46273` | done |
 
