@@ -8,3 +8,5 @@ cto	CTO	/home/claude_cto	claude-fable-5-2	high	red	1	scrip-design,unitests
 grader	GRADER	/home/claude_grader	claude-opus-5-5	xhigh	red	1	suite-grading
 cfo	CFO	/home/claude_cfo	claude-fable-5-2	high	red	1	prolog-design
 coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green	2	testing-officer
+cqo	CQO	/home/claude_cqo	claude-fable-5-2	high	red	1	quality
+cao	CAO	/home/claude_cao	claude-fable-5-2	high	red	1	architecture
