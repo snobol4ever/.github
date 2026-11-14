@@ -1,45 +1,10 @@
 # TIERS.tsv -- THE ONE TIERS TABLE (fleet-queue step 2; the cio, 2026-11-05; Lon: "each level in the hierarchy serving the one below").
 # Read by .github/scripts/spawn_fleet.sh (the windows), harness/scripts/util_tiers.py (the check), and every reader step 2 names.
 # A seat-specific pattern in any script is forbidden: the seat's tier, model, effort, color and role live here and nowhere else.
+# THE FIVE THAT RUN (Lon 2026-11-14: "Moving forward there will be no JUNIORS, SENIORS, nor OFFICERS. Just COO, CIO, CTO, CFO, GRADER, HQ-DOTNET and HQ-JVM."): the two port seats are on MODE's ROSTER and get a row here when Lon names their model.
 seat	name	root	model	effort	color	tier	role
 cio	CIO	/home/claude_cio	claude-fable-5-2	high	red	1	fleet-system
 cto	CTO	/home/claude_cto	claude-fable-5-2	high	red	1	scrip-design,unitests
 grader	GRADER	/home/claude_grader	claude-opus-5-5	xhigh	red	1	suite-grading
 cfo	CFO	/home/claude_cfo	claude-fable-5-2	high	red	1	prolog-design
 coo	COO	/home/claude_coo	claude-opus-5-5	xhigh	green	2	testing-officer
-officer_01	OFFICER-01	/home/claude_officer_01	claude-opus-5-5	high	yellow	2	designer
-officer_02	OFFICER-02	/home/claude_officer_02	claude-opus-5-5	high	yellow	2	designer
-officer_03	OFFICER-03	/home/claude_officer_03	claude-opus-5-5	high	yellow	2	designer
-officer_04	OFFICER-04	/home/claude_officer_04	claude-opus-5-5	high	yellow	2	escalation
-officer_05	OFFICER-05	/home/claude_officer_05	claude-opus-5-5	high	yellow	2	designer
-officer_06	OFFICER-06	/home/claude_officer_06	claude-opus-5-5	high	yellow	2	designer
-officer_07	OFFICER-07	/home/claude_officer_07	claude-opus-5-5	high	yellow	2	designer
-officer_08	OFFICER-08	/home/claude_officer_08	claude-opus-5-5	high	yellow	2	designer
-senior_01	SENIOR-01	/home/claude_senior_01	claude-sonnet-5-5	high	purple	3	senior
-senior_02	SENIOR-02	/home/claude_senior_02	claude-sonnet-5-5	high	purple	3	senior
-senior_03	SENIOR-03	/home/claude_senior_03	claude-sonnet-5-5	high	purple	3	senior
-senior_04	SENIOR-04	/home/claude_senior_04	claude-sonnet-5-5	high	purple	3	senior
-senior_05	SENIOR-05	/home/claude_senior_05	claude-sonnet-5-5	high	purple	3	senior
-senior_06	SENIOR-06	/home/claude_senior_06	claude-sonnet-5-5	high	purple	3	senior
-senior_07	SENIOR-07	/home/claude_senior_07	claude-sonnet-5-5	high	purple	3	senior
-senior_08	SENIOR-08	/home/claude_senior_08	claude-sonnet-5-5	high	purple	3	senior
-senior_09	SENIOR-09	/home/claude_senior_09	claude-sonnet-5-5	high	purple	3	senior
-senior_10	SENIOR-10	/home/claude_senior_10	claude-sonnet-5-5	high	purple	3	senior
-senior_11	SENIOR-11	/home/claude_senior_11	claude-sonnet-5-5	high	purple	3	senior
-senior_12	SENIOR-12	/home/claude_senior_12	claude-sonnet-5-5	high	purple	3	senior
-junior_01	JUNIOR-01	/home/claude_junior_01	claude-haiku-5-5	high	cyan	4	junior
-junior_02	JUNIOR-02	/home/claude_junior_02	claude-haiku-5-5	high	cyan	4	junior
-junior_03	JUNIOR-03	/home/claude_junior_03	claude-haiku-5-5	high	cyan	4	junior
-junior_04	JUNIOR-04	/home/claude_junior_04	claude-haiku-5-5	high	cyan	4	junior
-junior_05	JUNIOR-05	/home/claude_junior_05	claude-haiku-5-5	high	cyan	4	junior
-junior_06	JUNIOR-06	/home/claude_junior_06	claude-haiku-5-5	high	cyan	4	junior
-junior_07	JUNIOR-07	/home/claude_junior_07	claude-haiku-5-5	high	cyan	4	junior
-junior_08	JUNIOR-08	/home/claude_junior_08	claude-haiku-5-5	high	cyan	4	junior
-junior_09	JUNIOR-09	/home/claude_junior_09	claude-haiku-5-5	high	cyan	4	junior
-junior_10	JUNIOR-10	/home/claude_junior_10	claude-haiku-5-5	high	cyan	4	junior
-junior_11	JUNIOR-11	/home/claude_junior_11	claude-haiku-5-5	high	cyan	4	junior
-junior_12	JUNIOR-12	/home/claude_junior_12	claude-haiku-5-5	high	cyan	4	junior
-junior_13	JUNIOR-13	/home/claude_junior_13	claude-haiku-5-5	high	cyan	4	junior
-junior_14	JUNIOR-14	/home/claude_junior_14	claude-haiku-5-5	high	cyan	4	junior
-junior_15	JUNIOR-15	/home/claude_junior_15	claude-haiku-5-5	high	cyan	4	junior
-junior_16	JUNIOR-16	/home/claude_junior_16	claude-haiku-5-5	high	cyan	4	junior
