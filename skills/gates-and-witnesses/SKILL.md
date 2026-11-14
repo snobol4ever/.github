@@ -20,7 +20,7 @@ The 1,679 `test_gate_*.sh` scripts (153,521 lines; 1,367 of them wired into `mak
 - **Stale-binary preflight on line 2** of any gate that runs `./scrip`: `util_require_fresh.sh --gate "$(basename "${BASH_SOURCE[0]}" .sh)" || exit $?`.
 - **Fail once, never by a plant** (CEO-1680): show it red on the commit before the cure, or on a corrupted copy of the ref in scratch. No test-only seam in `src/`. A gate that can no longer trip is dead (CEO-576).
 - **No XFAIL.** A known red stays red as debt; what the oracle cannot answer is excluded as `NO_ORACLE_ANSWER` (CEO-1696/1934).
-- **A DONE-WHEN is a command** graded on origin that a deletion cannot satisfy (CEO-553/555). It starts `cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" &&`, reads the denominator it grades, never pins a count, and carries a PREMISE-WHEN.
+- **A DONE-WHEN is a command** graded on origin that a deletion cannot satisfy (CEO-553/555). It starts `cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" && . "${S4E_HARNESS:-/home/harness}/scripts/lib_paths.sh" &&`, reads the denominator it grades, never pins a count, and carries a PREMISE-WHEN. **It names the absolute paths, never a sibling** (THE ABSOLUTE MODEL, Lon 2026-11-13 18:1x CST, verbatim: "all shell scripts will change from the SIBLING model to the ABSOLUtE model."; row harness-one-disk-step-5-every-criterion-names-the-absolute-paths): after the source, `$S4E_HARNESS/scripts/...`, `$S4E_CORPUS/...`, `$S4E_GITHUB/...` and `$S4E_SCRIP/scrip` (`cd "$S4E_SCRIP"` for a run from the SCRIP clone), never `harness/`, `corpus/`, `.github/`, `SCRIP/` or `$S4E_HOME/SCRIP`. lib_paths.sh sets the four (the environment, else /home/harness, /home/corpus, /home/.github once each is a checkout, else the sibling; S4E_SCRIP the root when it is the SCRIP clone, else its sibling). The feeders (util_reds_to_juniors.py, util_reds_to_designers.py) write that form; `python3 -I "$S4E_HARNESS/scripts/util_criteria_absolute.py" --check` lists any live row whose criterion still names a sibling, and `--plan`, `--verify`, `--apply` recut them with the verdict read before and after.
 - **A witness** is one program, its ref cut from the oracle through its accessor in `lib_oracle_flags.sh`, graded in both modes (`--modes m3,m4`), each mode against the oracle.
 - **Declared sizes** (CEO-1353): every entry's `heap_kb`/`stack_kb` in `ALL.csv`; runners pass `-d<kb>k -s<kb>k`, never an env knob.
 - **Every seat tests what it needs** (relaxed 2026-11-12, Lon: "I want each seat free to run what tests it needs. We do not need ONLY ONE test runner."): a lander proves its program in mode 3 against the oracle (mode 4 too when it touches mode 4), runs `test_feature_reps.sh` and the smokes of the languages its diff touches, and may run any chunk or board it needs; the suite rows stay the cycle's and the coo's to write, from the progress store.
@@ -42,8 +42,8 @@ The 1,679 `test_gate_*.sh` scripts (153,521 lines; 1,367 of them wired into `mak
 The standard DONE-WHEN of a suite row (every suite-to-100 row uses it; `done` reads the board and runs nothing):
 
 ```bash
-DONE-WHEN: cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" && bash harness/scripts/util_suite_row_at_100.sh fpc
-PREMISE-WHEN: cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" && bash harness/scripts/util_suite_row_at_100.sh fpc; [ "$?" = 1 ]
+DONE-WHEN: cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" && . "${S4E_HARNESS:-/home/harness}/scripts/lib_paths.sh" && bash "$S4E_HARNESS/scripts/util_suite_row_at_100.sh" fpc
+PREMISE-WHEN: cd "${S4E_HOME:?REFUSE(2): S4E_HOME unset}" && . "${S4E_HARNESS:-/home/harness}/scripts/lib_paths.sh" && bash "$S4E_HARNESS/scripts/util_suite_row_at_100.sh" fpc; [ "$?" = 1 ]
 ```
 
 A gate's ending, `test_gate_no_rsp_reset_at_beta.sh` (refuse, then the verdict):
