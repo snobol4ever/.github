@@ -1,6 +1,6 @@
 # Speed measurement: the reference
 
-Verified 2026-11-07 against the harness and the box. Consolidated from ARCH-PERF-TOOLING (2026-08-28) and ARCH-BENCH-CAMPAIGN-README-TABLES, retired (`.github/RETIRED-ARCH-PAGES.tsv`); both predate CEO-1912, so their wall-clock and three-angle method is history: the count of § 2 of .github/skills/speed-measurement/SKILL.md replaced it.
+Verified 2026-11-07 against the harness and the box. Consolidated from ARCH-PERF-TOOLING (2026-08-28) and ARCH-BENCH-CAMPAIGN-README-TABLES, retired (`/home/.github/RETIRED-ARCH-PAGES.tsv`); both predate CEO-1912, so their wall-clock and three-angle method is history: the count of § 2 of /home/.github/skills/speed-measurement/SKILL.md replaced it.
 
 ## 1. The instruments by question
 
@@ -12,11 +12,11 @@ Verified 2026-11-07 against the harness and the box. Consolidated from ARCH-PERF
 | where the time goes inside the collector | `util_gc_share_callgrind.sh`, `util_collection_asm_share.sh` |
 | how many calls from emitted Prolog reach a C family | `bench_prolog_call_census.sh REGEX` |
 | a budget a landing may not exceed | `test_gate_instr_budget.sh`, the gc instruction-budget gate |
-| a process's own resource use | `SCRIP/out/bench_rusage` |
+| a process's own resource use | `$S4E_SCRIP/out/bench_rusage` |
 
 ## 2. The benchmark populations
 
-`corpus/benchmarks/<lang>/` (the only tree beside the demos with committed `.s`), each kernel with its ref; the Icon set's library modules (`post.icn`, `options.icn`, `shuffle.icn`) are not programs and must be precompiled for icont, or five real programs falsely read as icont failures; the Icon program count excludes them. The README tables of the repos are rendered from the measurements, never typed.
+`/home/corpus/benchmarks/<lang>/` (the only tree beside the demos with committed `.s`), each kernel with its ref; the Icon set's library modules (`post.icn`, `options.icn`, `shuffle.icn`) are not programs and must be precompiled for icont, or five real programs falsely read as icont failures; the Icon program count excludes them. The README tables of the repos are rendered from the measurements, never typed.
 
 ## 3. History that still explains an old number
 

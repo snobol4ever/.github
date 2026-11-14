@@ -21,9 +21,9 @@ The lowerer is the ONE stage that knows a language. It reads a `tree_t` (and not
 
 ## 2. THE FILES
 
-- `SCRIP/src/lower/`: `lower_snobol4.c`, `lower_snocone.c`, `lower_rebus.c`, `lower_icon.c`, `lower_prolog.c` and `lower_prolog_chr.c`, `lower_pascal.c` with `lower_pascal_tree.c`, `_types.c`, `_class.c`, `lower_raku.c`, `lower_common.c`, `lower_call_forms.c`, `tree_to_sno.c`; `g_lower.h` (the one state struct).
-- `SCRIP/src/ir/`: `ir_node.h` (the op enum `IR_e`, `IR_t`, `IR_LIT`), `ir_graph.h` (`IR_graph_t` and the graph-fact registry), `scrip_ir.c` (op names), `ct_arena.c`.
-- Tables: `harness/scripts/builtins.tsv` → `src/runtime/builtin_table.inc` (`util_gen_builtin_table.py`).
+- `$S4E_SCRIP/src/lower/`: `lower_snobol4.c`, `lower_snocone.c`, `lower_rebus.c`, `lower_icon.c`, `lower_prolog.c` and `lower_prolog_chr.c`, `lower_pascal.c` with `lower_pascal_tree.c`, `_types.c`, `_class.c`, `lower_raku.c`, `lower_common.c`, `lower_call_forms.c`, `tree_to_sno.c`; `g_lower.h` (the one state struct).
+- `$S4E_SCRIP/src/ir/`: `ir_node.h` (the op enum `IR_e`, `IR_t`, `IR_LIT`), `ir_graph.h` (`IR_graph_t` and the graph-fact registry), `scrip_ir.c` (op names), `ct_arena.c`.
+- Tables: `/home/harness/scripts/builtins.tsv` → `src/runtime/builtin_table.inc` (`util_gen_builtin_table.py`).
 - Dumps: `./scrip --dump-ast prog`, `--dump-ir`, `--dump-bb`, `--dump-plan`; `SCRIP_PARSE_STAGE=sc` lowers from the Snocone parser's tree.
 
 ## 3. WORKED EXAMPLES
@@ -52,7 +52,7 @@ Tree in, graph out, for `x = 'ab' 'c'`:
 
 ## 4. THE PROVING INSTRUMENTS
 
-In `harness/scripts/`: the dumps are the proof (`--dump-ast` unchanged, `--dump-ir` before and after); `test_gate_lower_isolation.sh`, `test_gate_emit_no_lang.sh`, `test_gate_no_lang_names.sh`, `test_gate_ir_field_discipline.sh`, `test_gate_template_form_choices_outside_lower_only_fall.sh`, `test_gate_builtin_table_is_current.sh`, `test_gate_bootstrap_parse_stage_ir_identity.sh`; `test_<lang>_ladder.sh --only N`; `test_feature_reps.sh`; the smokes (`lower_common.c`: all eight). For a wrong answer: `monitor_run.sh prog --oracle`, then asm-diff, then gdb at the construct's case.
+In `/home/harness/scripts/`: the dumps are the proof (`--dump-ast` unchanged, `--dump-ir` before and after); `test_gate_lower_isolation.sh`, `test_gate_emit_no_lang.sh`, `test_gate_no_lang_names.sh`, `test_gate_ir_field_discipline.sh`, `test_gate_template_form_choices_outside_lower_only_fall.sh`, `test_gate_builtin_table_is_current.sh`, `test_gate_bootstrap_parse_stage_ir_identity.sh`; `test_<lang>_ladder.sh --only N`; `test_feature_reps.sh`; the smokes (`lower_common.c`: all eight). For a wrong answer: `monitor_run.sh prog --oracle`, then asm-diff, then gdb at the construct's case.
 
 ## 5. THE FORBIDDEN FORMS
 

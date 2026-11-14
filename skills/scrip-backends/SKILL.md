@@ -15,7 +15,7 @@ description: SCRIP's backends: x86-64 the one live target; JVM, .NET, JavaScript
 
 - `--target=x86` (or none) is the only target. Any other name refuses rc 1 with "--target=NAME removed (Stack-Machine codegen removed)" (`src/driver/scrip.c`); the usage text still lists jvm, js and wasm, which is stale.
 - The 2026-08 emitter scaffolding (`emit_core.c` with `IS_JVM`, `IS_NET`, `IS_JS`, `IS_WASM` arms, `SM_templates/`, `BB_templates/`, `emit_jvm.c`, `emit_js.c`, `emit_wasm.c`) is deleted.
-- The prototypes survive under `SCRIP/miscellaneous/` (last touched 2026-08-29): `runtimes/jvm/` (Jasmin `.j` boxes and runtime, `SnoPat.java`), `runtimes/net/` (MSIL `.il` boxes and runtime, `DESCR.cs`, `ByrdBoxLinkage.cs`), `runtimes/js/` (`bb_boxes.js`, `sno_engine.js`, `sno_runtime.js`), `runtimes/wasm/` (`bb_boxes.wat`, the SNOBOL4 and Prolog runtimes, `sno_host.mjs`), tree-walk interpreters under `interpreters/`, and `jasmin.jar`.
+- The prototypes survive under `$S4E_SCRIP/miscellaneous/` (last touched 2026-08-29): `runtimes/jvm/` (Jasmin `.j` boxes and runtime, `SnoPat.java`), `runtimes/net/` (MSIL `.il` boxes and runtime, `DESCR.cs`, `ByrdBoxLinkage.cs`), `runtimes/js/` (`bb_boxes.js`, `sno_engine.js`, `sno_runtime.js`), `runtimes/wasm/` (`bb_boxes.wat`, the SNOBOL4 and Prolog runtimes, `sno_host.mjs`), tree-walk interpreters under `interpreters/`, and `jasmin.jar`.
 - Tool chains on the box: `java`, `javac` and `dotnet` are installed; `ilasm`, `node` and `wat2wasm` are not.
 - Dead harness scripts that drive the deleted `scrip -jvm`: `run_snobol4_via_jvm_backend.sh`, `test_icon_jvm_runner.sh`, `test_prolog_jvm_rung.sh`, `test_crosscheck_jvm_rung.sh`, `generate_demo_jvm_artifacts.sh`.
 

@@ -9,7 +9,7 @@ The record is GOAL-SNOBOL4-100.md, GOAL-SNOCONE-100.md and GOAL-REBUS-100.md (LI
 
 ## 1. The oracle
 
-- **One oracle: SPITBOL `sbl -bf`**, through `sbl_correctness_bin()` in `harness/scripts/lib_oracle_flags.sh` (the benchmark oracle through `sbl_clean_bin()`). `-bf` always; `--compat` and `-F` are refused: SNOBOL4 and Snocone are CASE-SENSITIVE. CSNOBOL4 (Budne) is a population, never a second oracle.
+- **One oracle: SPITBOL `sbl -bf`**, through `sbl_correctness_bin()` in `/home/harness/scripts/lib_oracle_flags.sh` (the benchmark oracle through `sbl_clean_bin()`). `-bf` always; `--compat` and `-F` are refused: SNOBOL4 and Snocone are CASE-SENSITIVE. CSNOBOL4 (Budne) is a population, never a second oracle.
 - Snocone: `scrip --transpile prog.sc` gives portable SNOBOL4 that runs on `sbl -bf` first; its output is the ref. Rebus the same road; its spec is TR84-9.
 - A ref is cut from the oracle; no XFAIL. What SPITBOL refuses, crashes on or hangs is `NO_ORACLE_ANSWER` (CEO-1696). SPITBOL's exit codes and fatal line are part of the ref.
 - Shipped sizes `-d128m -i1m -s4m -m16m` (CEO-1261); declared sizes are a hard cap (CEO-1353). Keywords answer as SPITBOL answers.
@@ -20,7 +20,7 @@ The record is GOAL-SNOBOL4-100.md, GOAL-SNOCONE-100.md and GOAL-REBUS-100.md (LI
 
 ## 3. The source map
 
-- Parsers: `src/parsers/snobol4/` (`snobol4.l`, `snobol4.y`; generated twins by `regenerate_parser_and_lexer_from_sources.sh`), `src/parsers/snocone/`, `src/parsers/rebus/`; the bootstrap parsers `SCRIP/bootstrap/parser_<lang>.sc` (never rewritten).
+- Parsers: `src/parsers/snobol4/` (`snobol4.l`, `snobol4.y`; generated twins by `regenerate_parser_and_lexer_from_sources.sh`), `src/parsers/snocone/`, `src/parsers/rebus/`; the bootstrap parsers `$S4E_SCRIP/bootstrap/parser_<lang>.sc` (never rewritten).
 - Lowering: `src/lower/lower_snobol4.c`, `lower_snocone.c`, `lower_rebus.c`, `tree_to_sno.c` (`--transpile`).
 - Runtime: `pattern_match.c`, `runtime_eval.c` (CODE/EVAL; the one granted global `g_sno_stmt_compiled`, CEO-1271), `string_ops.c`, `aggregates.c`, `keywords.c`, `io_format.c`; the leaves `rtx_match.s`, `rtx_str.s`, `rtx_table.s`; boxes `bb_match_*.cpp`.
 - `./scrip --dump-ast|--dump-ir|--dump-plan prog.sno`; mode 3 `--run`, mode 4 `--compile --out=prog.s`.
@@ -31,7 +31,7 @@ The record is GOAL-SNOBOL4-100.md, GOAL-SNOCONE-100.md and GOAL-REBUS-100.md (LI
 
 ## 5. The suites
 
-- Keys: `sno-rungs`, `gimpel`, `csnobol4` (Budne), `snoflake`, `aisnobol`, `dotnet`, `testpgms`, `x64tests`, `x32tests`, `snobol4-bench-ref`, `snobol4-demos`, `snc-rungs`, `snocone-bench-ref`, `snocone-demos`, `reb-rungs`, `rebus-bench-ref`. Runners `harness/scripts/test_snobol4_*_suite.sh`, `test_snobol4_ladder.sh`, `test_snocone_*`, `test_rebus_*`.
+- Keys: `sno-rungs`, `gimpel`, `csnobol4` (Budne), `snoflake`, `aisnobol`, `dotnet`, `testpgms`, `x64tests`, `x32tests`, `snobol4-bench-ref`, `snobol4-demos`, `snc-rungs`, `snocone-bench-ref`, `snocone-demos`, `reb-rungs`, `rebus-bench-ref`. Runners `/home/harness/scripts/test_snobol4_*_suite.sh`, `test_snobol4_ladder.sh`, `test_snocone_*`, `test_rebus_*`.
 - One program: `corpus_suite_harness.py run ../corpus/tests/snobol4/ALL.sno ../corpus/tests/snobol4/ALL.ref --lang snobol4 --modes m3,m4 --partition entry:<name>`. A master is a container, never run whole.
 - Per landing: the DONE-WHEN, `test_feature_reps.sh snobol4 <feature>`, `test_smoke_snobol4.sh` (plus snocone and rebus smokes for their lowerers); then `s4e_test_request.sh <key> <entry>...` for the coo.
 - Speed is open for SNOBOL4 by instruction count (`util_instr_count.sh`, `bench_snobol4_bar.sh`), behind correctness (CEO-1886/2035).

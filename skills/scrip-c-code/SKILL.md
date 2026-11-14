@@ -1,11 +1,11 @@
 ---
 name: scrip-c-code
-description: Hand-written C under SCRIP/src (.c, .h, .inc): the column rule, no comments or blank lines, no malloc, no new global without a grant, no fixed limits, generated tables never edited. REQUIRED by the skill gate before any edit of them.
+description: Hand-written C under $S4E_SCRIP/src (.c, .h, .inc): the column rule, no comments or blank lines, no malloc, no new global without a grant, no fixed limits, generated tables never edited. REQUIRED by the skill gate before any edit of them.
 ---
 
 # SCRIP C code
 
-Every hand-written `.c`, `.h` and `.inc` under `SCRIP/src/` (the bison/flex parsers and generated tables excepted) follows one shape and a set of prohibitions Lon ruled on verbatim. The law is RULES.md (C code style, CEO-1565; the malloc FACT RULE, CEO-832/842; NO NEW GLOBAL VARIABLES; THE LENGTH IS CARRIED; NO `-O2`; NO FIXED LIMITS) and `reference.md` § 6 (dynamic storage, the runtime globals). Lon's verbatim words, the full gate list and receipts are in `reference.md` beside this file.
+Every hand-written `.c`, `.h` and `.inc` under `$S4E_SCRIP/src/` (the bison/flex parsers and generated tables excepted) follows one shape and a set of prohibitions Lon ruled on verbatim. The law is RULES.md (C code style, CEO-1565; the malloc FACT RULE, CEO-832/842; NO NEW GLOBAL VARIABLES; THE LENGTH IS CARRIED; NO `-O2`; NO FIXED LIMITS) and `reference.md` § 6 (dynamic storage, the runtime globals). Lon's verbatim words, the full gate list and receipts are in `reference.md` beside this file.
 
 ## 1. THE RULES
 
@@ -21,8 +21,8 @@ Every hand-written `.c`, `.h` and `.inc` under `SCRIP/src/` (the bison/flex pars
 
 ## 2. THE FILES
 
-- `SCRIP/src/`: `driver/`, `parsers/` (exempt), `lower/`, `ir/` (`ct_arena.c/.h`), `planner/`, `emitter/` (`emit.cpp` line-oriented; its `.h` files under the rule), `runtime/`, `templates/` (line-oriented).
-- Checkers in `harness/scripts/`: `util_reflow_200.py --check|--apply|--proof PATH...`, `strip_comments.py --check`, `audit_fixed_caps_census.py`, `audit_runtime_globals_census.py`.
+- `$S4E_SCRIP/src/`: `driver/`, `parsers/` (exempt), `lower/`, `ir/` (`ct_arena.c/.h`), `planner/`, `emitter/` (`emit.cpp` line-oriented; its `.h` files under the rule), `runtime/`, `templates/` (line-oriented).
+- Checkers in `/home/harness/scripts/`: `util_reflow_200.py --check|--apply|--proof PATH...`, `strip_comments.py --check`, `audit_fixed_caps_census.py`, `audit_runtime_globals_census.py`.
 - The six gates this page named (allocators, dyn-caps ratchet, function-scope static, globals census, IR field discipline, emit-no-lang) are deleted with gates-zero (CTO-637); the census tools above stand.
 
 ## 3. WORKED EXAMPLES
@@ -55,7 +55,7 @@ void ct_drop(void *p);
 
 ## 4. THE PROVING INSTRUMENTS
 
-On every file touched: `python3 harness/scripts/util_reflow_200.py --check <paths>` and `strip_comments.py --check <paths>`; the ratchets the diff's area owns (dyn-caps, the C-allocator gate, the globals gates, any `_is_current` gate); `make -j8` with no warnings. `make preflight` is cheap but not the per-push check (CEO-1316).
+On every file touched: `python3 /home/harness/scripts/util_reflow_200.py --check <paths>` and `strip_comments.py --check <paths>`; the ratchets the diff's area owns (dyn-caps, the C-allocator gate, the globals gates, any `_is_current` gate); `make -j8` with no warnings. `make preflight` is cheap but not the per-push check (CEO-1316).
 
 ## 5. THE FORBIDDEN FORMS
 

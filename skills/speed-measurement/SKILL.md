@@ -5,7 +5,7 @@ description: How speed is measured: a benchmark is an instruction count, never a
 
 # Speed measurement
 
-Detail is in `.github/skills/speed-measurement/reference.md`, beside this file.
+Detail is in `/home/.github/skills/speed-measurement/reference.md`, beside this file.
 
 ## 1. The rulings
 
@@ -30,7 +30,7 @@ It counts `instructions:u` with perf stat for the process and every thread it st
 
 - Do the analysis in mode 4 (a real ELF); mode 3's slab shows as unknown to the tools.
 - SCRIP is not a call and return machine: ports are wired into jumps, so a flame graph of the slab is flat. Edge profiling is the model: `callgrind --collect-jumps=yes`, joined to `--dump-bb`'s box graph.
-- `harness/scripts/profile_callgrind.sh`.
+- `/home/harness/scripts/profile_callgrind.sh`.
 - PERF, MEASURED 2026-11-04 (hq_snobol4, after a wasted detour): `/usr/bin/perf` is Ubuntu's dispatching shim; it execs `/usr/lib/linux-tools/$(uname -r)/perf`, and for kernel 6.17.0-1032-oem that directory holds no perf (package `linux-oem-6.17-tools-6.17.0-1032` ships acpidbg, cpupower, rtla, turbostat and no perf). So the shim prints `WARNING: perf not found for kernel 6.17.0-1032 ... install linux-tools-6.17.0-1032-oem linux-cloud-tools-6.17.0-1032-oem` although `linux-tools-6.17.0-1032-oem` is already installed (`dpkg -l`). ⛔ DO NOT apt install anything (the binary is not in the package; nothing to install cures it) and DO NOT conclude perf is unavailable or fall back to a clock: the counter works.
 - The real perf is `/usr/lib/linux-tools-6.8.0-138/perf` (perf 6.8.12): `perf stat -x, -e instructions:u CMD` counts correctly on the 6.17 kernel (`kernel.perf_event_paranoid` is 1). Since 2026-11-04 plain `perf` works for every seat too: `/home/satirical/.local/bin/perf` is a six-line sh launcher ahead of `/usr/bin` on PATH (one unix user, one PATH); it execs `/usr/lib/linux-tools/$(uname -r)/perf` if one ever exists, else the newest `/usr/lib/linux-tools-*/perf`. CHECK: `perf --version` must print `perf version 6.8.12`. If it prints the WARNING, `type -a perf` and recreate the launcher; do not install packages. The harness (`util_instr_count.sh`, the `bench_*` scripts) finds a working perf itself and needs none of this.
 - WHY THIS NOTE IS NOT THE CURE: this skill already said `never /usr/bin/perf` and a seat still lost time to the shim's message, because a seat that types `perf` does not open a skill. What cures it is the launcher on PATH (plain `perf` works) and the line every seat's CLAUDE.md now carries (digest parts BUILD*.md, applied to all 19 roots 2026-11-04); this paragraph is reference for the cause.

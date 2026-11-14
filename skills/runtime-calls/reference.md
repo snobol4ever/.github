@@ -1,6 +1,6 @@
 # Runtime calls: the reference
 
-Verified 2026-11-01 against SCRIP 9cb24d2ca, the harness and the queue. Consolidated from ARCH-RT-CALL-PROTOCOL, ARCH-BUILTIN-TABLE and ARCH-EXCEPTIONS-ONE-PROTOCOL (retired; `.github/RETIRED-ARCH-PAGES.tsv` reads them at their last commit). The old call-protocol page named many functions that are now gone (`rt_proc_enter`, `rt_tiny_record_enter`, `rt_lvl_close`, `rt_outer_call_delta0`, `rt_pat_prim_int`, `rt_proc_save_count`, `CALL_ARGS_MAX`); § 1 lists what exists.
+Verified 2026-11-01 against SCRIP 9cb24d2ca, the harness and the queue. Consolidated from ARCH-RT-CALL-PROTOCOL, ARCH-BUILTIN-TABLE and ARCH-EXCEPTIONS-ONE-PROTOCOL (retired; `/home/.github/RETIRED-ARCH-PAGES.tsv` reads them at their last commit). The old call-protocol page named many functions that are now gone (`rt_proc_enter`, `rt_tiny_record_enter`, `rt_lvl_close`, `rt_outer_call_delta0`, `rt_pat_prim_int`, `rt_proc_save_count`, `CALL_ARGS_MAX`); § 1 lists what exists.
 
 ## 1. The call protocol's entry points (all in `src/runtime/rt/rt.c` unless named)
 

@@ -1,6 +1,6 @@
 # The collector: the reference
 
-Verified 2026-11-01 against SCRIP 9cb24d2ca. Consolidated from ARCH-GC-COMPILE-TIME-FRAME-MAPS (sections 0-18) and ARCH-GC-PINNED-ALLOCATOR-LIFETIME-CLASSES, both retired; `.github/RETIRED-ARCH-PAGES.tsv` reads either at its last commit.
+Verified 2026-11-01 against SCRIP 9cb24d2ca. Consolidated from ARCH-GC-COMPILE-TIME-FRAME-MAPS (sections 0-18) and ARCH-GC-PINNED-ALLOCATOR-LIFETIME-CLASSES, both retired; `/home/.github/RETIRED-ARCH-PAGES.tsv` reads either at its last commit.
 
 ## 1. The source map
 

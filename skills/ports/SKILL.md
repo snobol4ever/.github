@@ -7,7 +7,7 @@ description: The two SNOBOL4 ports, snobol4dotnet (C#) and snobol4jvm (Clojure):
 
 ## 1. What they are
 
-- **Two separate SNOBOL4 implementations**, each in its own repo beside the seat's harness and corpus: `/home/claude_dotnet/snobol4dotnet` (C#, Jeffrey Cooper's, built with `dotnet build snobol4dotnet/Snobol4/Snobol4.csproj -c Release`) and `/home/claude_jvm/snobol4jvm` (Clojure, built with `lein uberjar` by `harness/scripts/build_snobol4jvm.sh`, which also records an AppCDS class archive).
+- **Two separate SNOBOL4 implementations**, each in its own repo beside the seat's harness and corpus: `/home/claude_dotnet/snobol4dotnet` (C#, Jeffrey Cooper's, built with `dotnet build snobol4dotnet/Snobol4/Snobol4.csproj -c Release`) and `/home/claude_jvm/snobol4jvm` (Clojure, built with `lein uberjar` by `/home/harness/scripts/build_snobol4jvm.sh`, which also records an AppCDS class archive).
 - **They are not SCRIP**: not its backends (SCRIP's own JVM and .NET targets are new template sets, skill `scrip-backends`) and not its oracle. The oracle of all three engines is SPITBOL, `sbl -bf` (`lib_oracle_flags.sh`).
 - **Seats and lanes** (MODE `LANES:`): `snobol4@dotnet=hq_dotnet`; `snobol4@jvm`, `snocone@jvm`, `rebus@jvm=hq_jvm`. Each port grades its own suites (CEO-1822/1912). Cursors: `GOAL-HQ-DOTNET.md`, `GOAL-HQ-JVM.md`. The two seats are off the ROSTER this evening (Lon 2026-11-01 09:01); their speed rows rest under Lon's hold (CEO-2049).
 
@@ -18,7 +18,7 @@ description: The two SNOBOL4 ports, snobol4dotnet (C#) and snobol4jvm (Clojure):
 - `run_port_as_scrip.sh` re-says SCRIP's m3 command line in that shape, so a SNOBOL4 package runner grades a port with its own grading untouched; any switch outside the closed vocabulary is refused by name.
 - Switch facts: snobol4jvm maps `-sNk` to a thread stack (the declared size the hard cap) and has no heap cap (`-d` accepted, not mapped); snobol4dotnet takes the switches as SPITBOL does and runs SNOBOL4 source only.
 - Speed is by instruction count against `sbl` (CEO-2035); the bench scripts are `bench_snobol4jvm.sh`, `bench_snobol4_jvm_demos.sh`, `bench_snobol4_jvm_table.sh`. The smokes are `test_smoke_snobol4_jvm*.sh`.
-- The `Dotnet` package (`corpus/packages/snobol4/dotnet`, runner `test_snobol4_dotnet_suite.sh`) is snobol4dotnet's own test programs vendored as a SNOBOL4 suite that SCRIP is graded on too.
+- The `Dotnet` package (`/home/corpus/packages/snobol4/dotnet`, runner `test_snobol4_dotnet_suite.sh`) is snobol4dotnet's own test programs vendored as a SNOBOL4 suite that SCRIP is graded on too.
 
 ## 3. Rules a port landing keeps
 

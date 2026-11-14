@@ -37,7 +37,7 @@ The detail is `reference.md`, the section of the same number (the summary that s
 
 ## 8. The map
 
-A step's state is its probe, never a column here: `bash harness/scripts/test_design_box_scheduler_steps.sh --list` and `--step N` (fleet-queue, box-budget, test-cycle and skills-complete likewise, each by its own harness). The 2026-11-04 state column is gone (the cio 2026-11-07: it read open for steps that had been green for days).
+A step's state is its probe, never a column here: `bash /home/harness/scripts/test_design_box_scheduler_steps.sh --list` and `--step N` (fleet-queue, box-budget, test-cycle and skills-complete likewise, each by its own harness). The 2026-11-04 state column is gone (the cio 2026-11-07: it read open for steps that had been green for days).
 
 | industry mechanism | box-scheduler step |
 |---|---|

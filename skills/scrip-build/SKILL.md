@@ -10,7 +10,7 @@ The shared box's caches and pools are skill `shared-box`; the C style is skill `
 ## 1. The build
 
 ```bash
-cd SCRIP && make -j8                    # ./scrip + out/libscrip_rt.so + out/scrip-ipp; never above -j8
+cd "$S4E_SCRIP" && make -j8                    # ./scrip + out/libscrip_rt.so + out/scrip-ipp; never above -j8
 make parsers-sc                         # the seven Snocone parsers as out/parser_<lang> and their modules
 make pristine                           # wipe and rebuild
 make test                               # the blocking set (the coo's)
@@ -21,7 +21,7 @@ make test                               # the blocking set (the coo's)
 - **ccache** wraps every compile (`CCACHE_BASEDIR=/home`, so trees under /home share hits); `S4E_NO_CCACHE=1` builds without it (the control arm).
 - **The build cache** `/home/resources/builds/scrip/<key>/` (the key from SCRIP's tree, the harness tree and the toolchain): `make` on a clean tree at a cached key copies the build in and prints `FETCHED <key>`; the first clean build of a tree publishes it. A dirty tree builds locally and publishes nothing.
 - **`RT_OPT` is `-O0`** with frame pointers; no `-O2` build, ever (RULES.md § NO -O2 BUILDS).
-- **Generated sources are regenerated, never edited**: the bison and flex parsers by `harness/scripts/regenerate_parser_and_lexer_from_sources.sh` (a grammar edit is invisible until it runs); `box_cell_shapes.inc`, `gc_allocating_table.inc`, `rt_entry_table.inc`, `builtin_table.inc` by their generators, before the build, or the freshness guard refuses.
+- **Generated sources are regenerated, never edited**: the bison and flex parsers by `/home/harness/scripts/regenerate_parser_and_lexer_from_sources.sh` (a grammar edit is invisible until it runs); `box_cell_shapes.inc`, `gc_allocating_table.inc`, `rt_entry_table.inc`, `builtin_table.inc` by their generators, before the build, or the freshness guard refuses.
 
 ## 2. The header rule (CEO-2032, the header-split design; Lon: "how about re-design our headers")
 
@@ -34,4 +34,4 @@ make test                               # the blocking set (the coo's)
 
 ## 3. DESIGN: cache-tree (CTO-636, 2026-11-12; Lon: "split these C files into smaller pieces ... MAXIMIZE sharing of the CACHE")
 
-The tree is cut so a commit forces the fewest compile instructions through the shared ccache: data out of code (C1), hot units cut to the header floor by cluster (C2-C4), hot headers cut (C5), the tree by phase then language then cluster (C6), cold units joined (C7), every split a replayable manifest proved by function identity with its harness readers repointed (C8). Baseline 26.93 G per commit at SCRIP 1a78b0c0d. Full text: `reference.md` section 4; plan `harness/designs/cache_tree/STEPS.tsv`.
+The tree is cut so a commit forces the fewest compile instructions through the shared ccache: data out of code (C1), hot units cut to the header floor by cluster (C2-C4), hot headers cut (C5), the tree by phase then language then cluster (C6), cold units joined (C7), every split a replayable manifest proved by function identity with its harness readers repointed (C8). Baseline 26.93 G per commit at SCRIP 1a78b0c0d. Full text: `reference.md` section 4; plan `/home/harness/designs/cache_tree/STEPS.tsv`.

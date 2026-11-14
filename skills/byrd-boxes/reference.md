@@ -249,7 +249,7 @@ So the systems of the manuals INTERPRET a dynamic clause, and the WAM COMPILES e
 11. Dynamic clauses get first-argument indexing and last-clause determinacy like static ones (Q:3588, 3713-3714).
 12. throw copies the ball, finds the innermost unifying catch, cuts the goal's choice points, restores the catch's entry state, then calls the recovery (exc:275-278, 305-308).
 
-## 6. Lon's seeds (`/home/resources/ByrdBox/`; copies in `corpus/library/probe_reference/bb/`)
+## 6. Lon's seeds (`/home/resources/ByrdBox/`; copies in `/home/corpus/library/probe_reference/bb/`)
 
 Hand-written C in which every construct is four labeled entries and every transfer is a `goto`. They are where the port names α β γ ω and the frame record ζ come from.
 

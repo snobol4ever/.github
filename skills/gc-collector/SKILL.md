@@ -31,7 +31,7 @@ The law is RULES.md (THE COLLECTOR GUESSES NOTHING, NO FRAME MARKERS, NO PINNING
 
 ## 4. Instruments (each red once before trusted)
 
-`SCRIP_GC_STRESS=1` (collect at every safe point; `3` for more) with `SCRIP_GC_PLANT_FLIP=1` (move every block, so a stale pointer becomes a located fault; filter the `[GC-` banner before diffing); `SCRIP_GC_CHAIN_CHECK=1..3`; `SCRIP_GC_SITES_REPORT=1` with `--compile` (the site records); `SCRIP_ZETA_TELEM=1` (per-collection regeneration lines: the identity proof of a collector landing); `SCRIP_GC_VERIFY`, `SCRIP_GC_TRAP`, `SCRIP_GC_MAPS`. The witnesses are `harness/scripts/gc_witnesses/` (programs with refs) and `gc_bare_poll_witnesses.tsv` (keyed by file and callee, re-keyed last). The window is set by hand with `SCRIP_HEAP_KB` (overrides `SCRIP_HEAP_MB`) and `SCRIP_HEAP_MAX_MB`, never a program's size.
+`SCRIP_GC_STRESS=1` (collect at every safe point; `3` for more) with `SCRIP_GC_PLANT_FLIP=1` (move every block, so a stale pointer becomes a located fault; filter the `[GC-` banner before diffing); `SCRIP_GC_CHAIN_CHECK=1..3`; `SCRIP_GC_SITES_REPORT=1` with `--compile` (the site records); `SCRIP_ZETA_TELEM=1` (per-collection regeneration lines: the identity proof of a collector landing); `SCRIP_GC_VERIFY`, `SCRIP_GC_TRAP`, `SCRIP_GC_MAPS`. The witnesses are `/home/harness/scripts/gc_witnesses/` (programs with refs) and `gc_bare_poll_witnesses.tsv` (keyed by file and callee, re-keyed last). The window is set by hand with `SCRIP_HEAP_KB` (overrides `SCRIP_HEAP_MB`) and `SCRIP_HEAP_MAX_MB`, never a program's size.
 
 ## 5. Rules a landing here keeps
 

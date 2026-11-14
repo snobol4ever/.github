@@ -9,7 +9,7 @@ The record is GOAL-RAKU-100.md (LIVE CURSOR on top); the design is `reference.md
 
 ## 1. The oracle
 
-- **rakudo 2026.05; the spec is the roast** (`/home/resources/roast-master`). The binary through `rakudo_bin()` in `harness/scripts/lib_oracle_flags.sh`; the `raku` on PATH (2022.12) is never the oracle. One dialect, no switch.
+- **rakudo 2026.05; the spec is the roast** (`/home/resources/roast-master`). The binary through `rakudo_bin()` in `/home/harness/scripts/lib_oracle_flags.sh`; the `raku` on PATH (2022.12) is never the oracle. One dialect, no switch.
 - A ref is cut from rakudo; a ref cut from our output is a SELF-PIN, not an oracle; no XFAIL. Refusal, crash or hang (`timeout -k 5`) is `NO_ORACLE_ANSWER` (CEO-1696); an implementation accident is no answer (CEO-1934). Gotchas: `OUTER` is a pseudo-package, a mid-line `}` needs `;`, EVAL of a string needs `MONKEY-SEE-NO-EVAL`.
 - Interim (the re-design's layer (c), `reference.md` § 8): the program's own names win; a lib-path export does not beat the setting until F05's typed multi dispatch lands.
 - Test is Rakudo's `src/parsers/raku/setting/Test.rakumod`, vendored as the setting's first file.
@@ -31,7 +31,7 @@ The record is GOAL-RAKU-100.md (LIVE CURSOR on top); the design is `reference.md
 
 ## 5. The suites
 
-- Keys and runners in `harness/scripts/`: `raku-rungs` (`test_raku_ladder.sh --list|--to N|--only N`), `roast` (`raku_roast_scoreboard.sh`), `raku-bench-ref`, `raku-demos`.
+- Keys and runners in `/home/harness/scripts/`: `raku-rungs` (`test_raku_ladder.sh --list|--to N|--only N`), `roast` (`raku_roast_scoreboard.sh`), `raku-bench-ref`, `raku-demos`.
 - One program: `corpus_suite_harness.py run ../corpus/tests/raku/ALL.raku ../corpus/tests/raku/ALL.ref --lang raku --modes m3,m4 --partition entry:<name>`. The master is a container.
 - A rung: at most 20 lines, one construct, ref cut from rakudo, red once on the base binary (`util_add_ladder_witness.py`); rung N+1 opens when N is green in both modes; `util_raku_ladder_status.py` reads the ladder.
 - Per landing: the DONE-WHEN, `test_feature_reps.sh raku <feature>`, `test_smoke_raku.sh`; then `s4e_test_request.sh` for the coo. Speed is CLOSED for Raku (CEO-1914).

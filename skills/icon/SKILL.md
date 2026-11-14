@@ -9,7 +9,7 @@ The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this sk
 
 ## 1. The oracle
 
-- **One oracle: Arizona `icont`/`iconx` 9.5.25a** under `/home/resources/icon-master/bin/`, through `icont_bin()`, `iconx_bin()` in `harness/scripts/lib_oracle_flags.sh`, never `command -v`. No dialect marker, no jcon arm (CEO-390).
+- **One oracle: Arizona `icont`/`iconx` 9.5.25a** under `/home/resources/icon-master/bin/`, through `icont_bin()`, `iconx_bin()` in `/home/harness/scripts/lib_oracle_flags.sh`, never `command -v`. No dialect marker, no jcon arm (CEO-390).
 - **Semicolon-required, newlines are whitespace** (CEO-495/544, settled): `;` ends every statement of a procedure body, the last one before `end` too (MEASURED 2026-11-13 on `scrip --dump-ast`: `return 1`, a bare `return`, `fail` and an expression statement directly before `end` are each refused with expected ';', and `return 1;` parses; the parser is `stmt_end` in icon_parse.c), and separates the statements of a `{ }` block, whose last expression is bare. Every shipped `.icn` carries them.
 - **`&progname` is the stem** (the coo 2026-11-13, on junior_08's measurement of gate_cases_icon pinwitness): SCRIP runs a program as `icont` then `iconx` does, and its driver cuts the extension on purpose (src/driver/scrip.c), so a ref that prints `&progname` is cut by the built convention (`run_icon_built_oracle`, iconx on the stem), as arizona's and jcon's `kwds` refs are, never by the one-step `icon` driver, which keeps the `.icn`.
 - A ref is cut from the oracle; no XFAIL. A ref the oracle cannot produce (it does not terminate, or its own defect) comes from the second implementation and is NAMED in `OUTSIDE_ARIZONA_BASELINE.tsv` (CEO-491). Refusal, crash or hang is `NO_ORACLE_ANSWER` (CEO-1696).
@@ -32,7 +32,7 @@ The record is GOAL-ICON-100.md (LIVE CURSOR, newest first); a page beats this sk
 
 ## 5. The suites
 
-- Keys and runners in `harness/scripts/`: `icn-rungs` (`test_icon_ladder.sh`), `arizona` (`test_icon_arizona_suite.sh`), `ipl` (`test_icon_ipl_suite.sh`), `jcon` (`test_icon_jcon_suite.sh`), `icon-bench-ref`, `icon-demos`.
+- Keys and runners in `/home/harness/scripts/`: `icn-rungs` (`test_icon_ladder.sh`), `arizona` (`test_icon_arizona_suite.sh`), `ipl` (`test_icon_ipl_suite.sh`), `jcon` (`test_icon_jcon_suite.sh`), `icon-bench-ref`, `icon-demos`.
 - One program: `corpus_suite_harness.py run ../corpus/tests/icon/ALL.icn ../corpus/tests/icon/ALL.ref --lang icon --modes m3,m4 --partition entry:<name>`; a package program by its runner with `S4E_CHUNK=entry:<name>`.
 - Per landing: the DONE-WHEN, `test_feature_reps.sh icon <feature>`, `test_smoke_icon.sh`; then `s4e_test_request.sh` for the coo. Speed is open for Icon by instruction count, behind correctness (CEO-1886/2035).
 

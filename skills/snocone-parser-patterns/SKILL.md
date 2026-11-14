@@ -1,6 +1,6 @@
 ---
 name: snocone-parser-patterns
-description: Writing the bootstrap parsers (SCRIP/bootstrap/parser_*.sc) as one Snocone pattern: Shift and Reduce by conditional assignment, the counter stack, FENCE and ARBNO, the token tables. REQUIRED by the skill gate before editing a .sc parser.
+description: Writing the bootstrap parsers ($S4E_SCRIP/bootstrap/parser_*.sc) as one Snocone pattern: Shift and Reduce by conditional assignment, the counter stack, FENCE and ARBNO, the token tables. REQUIRED by the skill gate before editing a .sc parser.
 ---
 
 # Parsers as patterns in Snocone
@@ -15,11 +15,11 @@ A parser matches a WHOLE FILE with ONE closed set of mutually referential patter
 
 ## 2. The manuals
 
-`/home/resources/manuals/snobol4/spitbol-manual-v3.7.txt` (`.` deferred and `$` immediate assignment, `*e`, `FENCE`, `ARBNO`, `POS`/`RPOS`, the 130-character literal limit), `green-book.txt`, `/home/resources/manuals/byrd-boxes/`; the Snocone surface in `corpus/tests/snocone/report.md`. Probe a construct in five lines on `sbl -bf` and `./scrip` before writing it.
+`/home/resources/manuals/snobol4/spitbol-manual-v3.7.txt` (`.` deferred and `$` immediate assignment, `*e`, `FENCE`, `ARBNO`, `POS`/`RPOS`, the 130-character literal limit), `green-book.txt`, `/home/resources/manuals/byrd-boxes/`; the Snocone surface in `/home/corpus/tests/snocone/report.md`. Probe a construct in five lines on `sbl -bf` and `./scrip` before writing it.
 
 ## 3. The source map
 
-- Parsers: `SCRIP/bootstrap/parser_{snobol4,snocone,rebus,icon,prolog,pascal,raku}.sc`.
+- Parsers: `$S4E_SCRIP/bootstrap/parser_{snobol4,snocone,rebus,icon,prolog,pascal,raku}.sc`.
 - Library (Makefile `SC_MOD_LIB`, concatenated before a parser): `global.sc`, `tree.sc`, `stack.sc` (`$'@S'`), `counter.sc` (`$'#N'`), `ShiftReduce.sc` (Shift, Reduce, PushVal, PopVal), `semantic.sc` (`nTop`), `tdump.sc`, and the rest.
 - Module wrapper: `mod_head.sc`, `mod_tail.sc`, generated `out/sc_mod/scmod_<lang>.sc`; the C entry is `src/runtime/rt/rt_sc_module.c` (cells `ModSrc ModLinked ModTree ModInited`).
 
@@ -37,11 +37,11 @@ The module design (each parser a compiland with its own namespace: SNOBOL4's INC
 - `FENCE` wherever a choice is final. `ARBNO` is SHORTEST FIRST: match-time work after an ARBNO'd capture runs on every prefix, so place two cursors around the body and do the work after the closing delimiter. A nested match that must consume is ANCHORED: `X ? (POS(0) ARBNO(P) RPOS(0))`.
 - White space and a statement list are TAIL FORMS, never ARBNO: `White = *white FENCE(*White | epsilon)`, `StmtStar = FENCE(*StmtRest *StmtStar | epsilon)`. Under ARBNO a FENCE'd continuation takes one blank only, and a refusal late in an ARBNO'd statement list backtracks 2^n through the statements before it.
 - THE PREPROCESS STAGE and THE DRIVER TAIL are labelled top-level code outside the match: the directive line is replaced in `Src` and the scan restarts; the driver resets the stacks, matches `Src ? *Compiland` and hands `ptree` on.
-- Prove it with `harness/scripts/`: `run_scrip_parser.sh <lang> [file]`, `util_parser_sc_census.py --lang <l>`, `test_bootstrap_parsers.py`, `util_parser_sc_parity.sh`, `test_gate_bootstrap_parse_stage_ir_identity.sh`, `util_parser_sc_grade.sh`, `test_gate_bootstrap_parsers_define_no_functions.sh`.
+- Prove it with `/home/harness/scripts/`: `run_scrip_parser.sh <lang> [file]`, `util_parser_sc_census.py --lang <l>`, `test_bootstrap_parsers.py`, `util_parser_sc_parity.sh`, `test_gate_bootstrap_parse_stage_ir_identity.sh`, `util_parser_sc_grade.sh`, `test_gate_bootstrap_parsers_define_no_functions.sh`.
 
 ## 6. Debugging a parser red
 
-1. `bash harness/scripts/monitor_run.sh prog.sno --oracle` on the transpiled twin when a library or language question is suspected.
+1. `bash /home/harness/scripts/monitor_run.sh prog.sno --oracle` on the transpiled twin when a library or language question is suspected.
 2. The tree first: `out/parser_<lang> file` against the `.sc` dump (`util_parser_sc_grade.sh` names the smallest differing file); `xTrace = 3` prints every Shift and Reduce as it replays.
 3. A five-line probe and a sibling one ingredient apart. A check that reads the stack inside the match reads it empty: queued actions have not run.
 4. Slow file: an ARBNO prefix explosion; read `PARSER-METRICS`.

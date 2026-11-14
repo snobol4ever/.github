@@ -1,6 +1,6 @@
 # Prolog constraints: the reference
 
-Verified 2026-11-01 against SCRIP 9cb24d2ca. Consolidated from ARCH-PROLOG-CLPFD, ARCH-PROLOG-CONSTRAINTS and ARCH-PROLOG-CLPR-CHR (retired; `.github/RETIRED-ARCH-PAGES.tsv`). The 10-10 design's marker in `slen` (`PL_ATTV_SLEN`) and the leaf `'$attv_new'` were not what landed: the flag is `PL_VAR_ATTV` in the tag word and a variable is made by `pl_var_make`.
+Verified 2026-11-01 against SCRIP 9cb24d2ca. Consolidated from ARCH-PROLOG-CLPFD, ARCH-PROLOG-CONSTRAINTS and ARCH-PROLOG-CLPR-CHR (retired; `/home/.github/RETIRED-ARCH-PAGES.tsv`). The 10-10 design's marker in `slen` (`PL_ATTV_SLEN`) and the leaf `'$attv_new'` were not what landed: the flag is `PL_VAR_ATTV` in the tag word and a variable is made by `pl_var_make`.
 
 ## 1. The bind roads a change to attributed variables must cover
 

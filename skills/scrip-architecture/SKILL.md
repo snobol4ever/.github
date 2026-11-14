@@ -5,12 +5,12 @@ description: The map of SCRIP: the one pipeline (driver, parser, lower, optimize
 
 # SCRIP's architecture
 
-One `scrip` binary compiles SNOBOL4, Snocone, Rebus, Icon (and its Unicon superset), Prolog, Raku and Pascal to x86-64. Every pattern, generator and goal is a four-port Byrd box (α proceed, β recede, γ succeed, ω concede) wired at compile time into straight-line jumps: SNOBOL4 patterns, Icon generators and Prolog backtracking are three syntaxes over one machine. The law is `.github/RULES.md`; this skill is the map. Detail and the retired-name table are in `reference.md` beside this file.
+One `scrip` binary compiles SNOBOL4, Snocone, Rebus, Icon (and its Unicon superset), Prolog, Raku and Pascal to x86-64. Every pattern, generator and goal is a four-port Byrd box (α proceed, β recede, γ succeed, ω concede) wired at compile time into straight-line jumps: SNOBOL4 patterns, Icon generators and Prolog backtracking are three syntaxes over one machine. The law is `/home/.github/RULES.md`; this skill is the map. Detail and the retired-name table are in `reference.md` beside this file.
 
 ## 1. The pipeline (each stage hands the next exactly one thing)
 
 1. **Driver** `src/driver/scrip.c`: the extension picks the frontend from `scrip_exts[]` (an unknown extension refuses, it never guesses). `.scrip` and `.md` are polyglot: fenced blocks tagged SNOBOL4, Icon, Prolog, Raku, Rebus (`src/driver/polyglot.c`). Since CTO-511 (Lon 2026-11-04) every fenced section runs in document order like Jupyter's Run All, sharing the registry, the globals and the heap; the Jupyter notebook is a second reader of the same runner (cells are sections, `metadata.scrip.language` is the fence name) and the two must print the same.
-2. **Parser** `src/parsers/<lang>/`: C front ends (bison and flex for SNOBOL4, Rebus, Pascal, Snocone; hand-written for Icon, Prolog, Raku). Output: the pruned parse tree `tree_t` (`src/ir/ast.h`). Only `tree_t` crosses to lower (CEO-1322/1369/1371/1377/1378). The seven Snocone parsers in `SCRIP/bootstrap/parser_<lang>.sc` are the bootstrap: built as `out/parser_<lang>` by `make parsers-sc`, graded tree for tree against the C parsers (skill `snocone-parser-patterns`).
+2. **Parser** `src/parsers/<lang>/`: C front ends (bison and flex for SNOBOL4, Rebus, Pascal, Snocone; hand-written for Icon, Prolog, Raku). Output: the pruned parse tree `tree_t` (`src/ir/ast.h`). Only `tree_t` crosses to lower (CEO-1322/1369/1371/1377/1378). The seven Snocone parsers in `$S4E_SCRIP/bootstrap/parser_<lang>.sc` are the bootstrap: built as `out/parser_<lang>` by `make parsers-sc`, graded tree for tree against the C parsers (skill `snocone-parser-patterns`).
 3. **Lower** `src/lower/lower_<lang>*.c`: `tree_t` in, `IR_graph_t` population out, registered in `g_stage2.bbp` by `bb_program_add`. The driver runs each segment's lowerer (`lower_sno_stage2`, `lower_icon_stage2`, `lower_pl_stage2`, ...) inside `sm_preamble` (`src/driver/scrip_sm.c`). Every runtime table is built here; every builtin is resolved here (skill `lowering`).
 4. **Optimizer** `src/optimizer/optimizer.c`: `optimizer_run(g)` per graph (constant and arithmetic folding, copy propagation, dead code, branch chains).
 5. **Planner** `src/planner/`: `planner_stage_procs`, `planner_stage_main`, `planner_stage_proc`. Placement of every cell on the three zetas is decided once, here, into the plan table (CEO-1895; skill `scrip-memory-model`).
@@ -67,7 +67,7 @@ One `scrip` binary compiles SNOBOL4, Snocone, Rebus, Icon (and its Unicon supers
 
 ## 6. Names a reader of old receipts meets that are gone
 
-`IR.h` (now `src/ir/ir_node.h`, `ir_graph.h`, `ir_fwd.h`); `MOD_OP` trace tags (deleted, the tag-ceiling rule is void); `IR_INDIRECT_GOTO` and `IR_MOVE_LABEL` (now `IR_GATE`, `IR_GATE_ARM`); `bb_broker`, `emit_core.c`, `SM_templates/`, `BB_templates/`, `emit_jvm.c`, `emit_js.c`, `emit_wasm.c`; `STMT_t.lang`, `LANG_*`, `g_lang`; modes 1 and 2. The full table is `reference.md` § 4. A retired ARCH page is read with the command in `.github/RETIRED-ARCH-PAGES.tsv`.
+`IR.h` (now `src/ir/ir_node.h`, `ir_graph.h`, `ir_fwd.h`); `MOD_OP` trace tags (deleted, the tag-ceiling rule is void); `IR_INDIRECT_GOTO` and `IR_MOVE_LABEL` (now `IR_GATE`, `IR_GATE_ARM`); `bb_broker`, `emit_core.c`, `SM_templates/`, `BB_templates/`, `emit_jvm.c`, `emit_js.c`, `emit_wasm.c`; `STMT_t.lang`, `LANG_*`, `g_lang`; modes 1 and 2. The full table is `reference.md` § 4. A retired ARCH page is read with the command in `/home/.github/RETIRED-ARCH-PAGES.tsv`.
 
 ## THE TWO MODES AND THE EXTENSIONS (moved from CLAUDE.md 2026-11-05)
 

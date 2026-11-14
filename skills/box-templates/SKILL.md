@@ -21,10 +21,10 @@ A box is the body of ONE IR kind for ONE form, emitted as straight-line x86 with
 
 ## 2. THE FILES
 
-- `SCRIP/src/templates/bb/bb_*.cpp` (one family per file), `src/emitter/emit_state.h` (`#define _ g_emit`), `bb_templates.h`.
-- `SCRIP/src/templates/x86/`: `x86_asm.cpp` (the encoder, compiled once) behind `x86_ops.h`; family headers `x86_jump` `x86_frame` `x86_rtcc` `x86_rodata` `x86_zeta` `x86_zverify` `x86_gc` `x86_call` `x86_icn` `x86_rsp_tracker` `x86_arg_roles`, and `x86_armed.h`. A template includes `x86_ops.h` and only the family headers it names.
-- `SCRIP/src/templates/xa/xa_*.cpp`: the non-box emissions (prologue, epilogue, flat, rodata), same rules.
-- `SCRIP/src/emitter/emit.cpp`: `bb_prepare(nd)` and the per-kind `case IR_X:` blocks are the only graph readers; `emit.h` holds `g_emit`'s fields; `emit_str.h` holds `IF()` and `FOR()`.
+- `$S4E_SCRIP/src/templates/bb/bb_*.cpp` (one family per file), `src/emitter/emit_state.h` (`#define _ g_emit`), `bb_templates.h`.
+- `$S4E_SCRIP/src/templates/x86/`: `x86_asm.cpp` (the encoder, compiled once) behind `x86_ops.h`; family headers `x86_jump` `x86_frame` `x86_rtcc` `x86_rodata` `x86_zeta` `x86_zverify` `x86_gc` `x86_call` `x86_icn` `x86_rsp_tracker` `x86_arg_roles`, and `x86_armed.h`. A template includes `x86_ops.h` and only the family headers it names.
+- `$S4E_SCRIP/src/templates/xa/xa_*.cpp`: the non-box emissions (prologue, epilogue, flat, rodata), same rules.
+- `$S4E_SCRIP/src/emitter/emit.cpp`: `bb_prepare(nd)` and the per-kind `case IR_X:` blocks are the only graph readers; `emit.h` holds `g_emit`'s fields; `emit_str.h` holds `IF()` and `FOR()`.
 - Generated, never edited: `box_cell_shapes.tsv` → `src/planner/box_cell_shapes.inc`; `rt_entries.tsv` → `src/runtime/rt_entry_table.inc`; `gc_allocating_table.inc`.
 
 ## 3. WORKED EXAMPLES
@@ -55,7 +55,7 @@ Its prepare block in `emit.cpp`, the only place the node is read:
 
 ## 4. THE PROVING INSTRUMENTS
 
-In `harness/scripts/`: `audit_bb_fixup_file.sh <file>` (rc 0 conformant) and `audit_bb_fixup_rank.sh` (GRAND); `audit_template_watch.sh BASE [HEAD]`; `test_gate_template_medium_invisible.sh`, `test_gate_bb_emit_blind.sh`, `test_gate_template_returns_count_per_function.sh`, `test_gate_em_template_byte_identity.sh`; placement: `test_gate_no_rsp_reset_at_beta.sh`, `test_gate_box_cell_shapes_inc_is_current.sh`; calls: `test_gate_rt_entry_table_matches_the_binary.sh`, `test_gate_rtx_calls_carry_no_veneer.sh`. Read a box's input with `--dump-plan` and `--dump-zeta`; `SCRIP_ZD_RTCHECK=1` traps a depth mismatch at run time.
+In `/home/harness/scripts/`: `audit_bb_fixup_file.sh <file>` (rc 0 conformant) and `audit_bb_fixup_rank.sh` (GRAND); `audit_template_watch.sh BASE [HEAD]`; `test_gate_template_medium_invisible.sh`, `test_gate_bb_emit_blind.sh`, `test_gate_template_returns_count_per_function.sh`, `test_gate_em_template_byte_identity.sh`; placement: `test_gate_no_rsp_reset_at_beta.sh`, `test_gate_box_cell_shapes_inc_is_current.sh`; calls: `test_gate_rt_entry_table_matches_the_binary.sh`, `test_gate_rtx_calls_carry_no_veneer.sh`. Read a box's input with `--dump-plan` and `--dump-zeta`; `SCRIP_ZD_RTCHECK=1` traps a depth mismatch at run time.
 
 ## 5. THE FORBIDDEN FORMS
 
