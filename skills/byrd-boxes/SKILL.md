@@ -28,7 +28,7 @@ No skill held the model before this one: sixteen skill files named a Byrd box on
 4. In a conjunction the ω of the right is the β of the left and the β of the whole is the β of the right.
 5. The ω of one alternative is the α of the next; a β must re-enter the alternative that last took γ, so that alternative is recorded.
 6. A deterministic box answers β with ω.
-7. The clauses a call sees are fixed when it is called.
+7. The clauses a call sees are fixed when it is called (the logical update view of ISO, SWI and GNU; an XSB-dialect program sees XSB's immediate view, skill `prolog` section 1).
 8. A cut succeeds once and discards every choice up to and including its predicate's.
 
 ## 2. THE LAW: goal-directed evaluation is boxes
