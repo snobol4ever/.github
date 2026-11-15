@@ -21,7 +21,7 @@ An rtx leaf is a hand-written asm routine that emitted code calls BARE (no venee
 ## 2. THE FILES
 
 - `$S4E_SCRIP/src/runtime/rtx/`: the leaves `rtx_{alloc,arith,gc,icnagg,icncall,icngen,icnnum,icnrel,icnsub,icnvar,match,misc,plunify,str,table,zdp}.s`; the batteries `rtx_*_test.c`; `rtx_abi.inc` (the macros); `rtcc.h`, `rtcc_init.c`; `rtx_init.c` (the gates).
-- Tables: `/home/harness/scripts/rt_entries.tsv` → `src/runtime/rt_entry_table.inc` (`util_gen_rt_entry_table.py`; clobbers derived from the objects); `src/templates/x86/gc_allocating_table.inc` (`util_gen_gc_allocating_table.py`, until zeta-layout step 5c deletes it). Generated, never edited.
+- Tables: `src/runtime/rt_entries.tsv` (in the SCRIP clone since 2026-11-14, skill `scrip-build`) → `src/runtime/rt_entry_table.inc` (`util_gen_rt_entry_table.py`; clobbers derived from the objects); `src/templates/x86/gc_allocating_table.inc` (`util_gen_gc_allocating_table.py`, until zeta-layout step 5c deletes it). Generated, never edited.
 - C twins `c_<name>` in `src/runtime/{core,rt,builtins}/`; the DESCR layout in `descr.h` and `descr_tags.inc`.
 
 ## 3. WORKED EXAMPLES

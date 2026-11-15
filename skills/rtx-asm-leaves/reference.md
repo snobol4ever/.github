@@ -35,7 +35,7 @@ An rtx leaf is a hand-written assembly routine of the runtime that emitted code 
 #define RTX_CALL_ALIGN(k) RTX_PUSH(rsp); RTX_PUSH(qword ptr [rsp]); and rsp, -16; RTX_CFA_DYN(8, k)
 ```
 
-- The tables beside it: `/home/harness/scripts/rt_entries.tsv` → `src/runtime/rt_entry_table.inc` (`util_gen_rt_entry_table.py`); `src/templates/x86/gc_allocating_table.inc` (which entries can collect; a leaf that calls the allocator is a row). The callers: `x86_*.{h,cpp}` `"call_bare"` (1897) and `x86_rtcc_call` (570).
+- The tables beside it: `src/runtime/rt_entries.tsv` (in the SCRIP clone since 2026-11-14) → `src/runtime/rt_entry_table.inc` (`util_gen_rt_entry_table.py`); `src/templates/x86/gc_allocating_table.inc` (which entries can collect; a leaf that calls the allocator is a row). The callers: `x86_*.{h,cpp}` `"call_bare"` (1897) and `x86_rtcc_call` (570).
 - The C twins live beside the C runtime (`src/runtime/core/`, `src/runtime/rt/`, `src/runtime/builtins/`) under the `c_` prefix; the DESCR layout is `descr.h` and `descr_tags.inc` (`DT_I`, `DT_S`, `DT_NOTSTR_MASK`, the 16-byte cell: tag word, value word).
 
 ## 3. WORKED EXAMPLES (quoted)
