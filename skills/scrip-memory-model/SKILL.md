@@ -28,7 +28,7 @@ A box is definite when `E_i` is a compile-time constant on every path. Two thing
 
 ## 4. The planner and the plan table (CEO-1895: placement decided once)
 
-`src/planner/` runs after lower and before the emitter: definiteness, homes, carves, depths, layout, site rules, then `zd_check`. The row per node (`zeta_plan_t`; `--dump-plan` prints `PLAN_COLUMNS E X K definite zeta off depth retains_code owner fenced gpop wpop restore act vdj`) is read by four readers and no fifth: the emitter, the collector's site and map records, the verifiers, the instruments. The emitter decides no placement and computes no depth; no accessor layer is built over the row (Lon 2026-10-24: "forget about ZCELL"; deciders are deleted, not wrapped). Plan-time code uses the `_g` forms. A new IR kind needs a row in `/home/harness/scripts/box_cell_shapes.tsv` and the include regenerated with `--write`.
+`src/planner/` runs after lower and before the emitter: definiteness, homes, carves, depths, layout, site rules, then `zd_check`. The row per node (`zeta_plan_t`; `--dump-plan` prints `PLAN_COLUMNS E X K definite zeta off depth retains_code owner fenced gpop wpop restore act vdj`) is read by four readers and no fifth: the emitter, the collector's site and map records, the verifiers, the instruments. The emitter decides no placement and computes no depth; no accessor layer is built over the row (Lon 2026-10-24: "forget about ZCELL"; deciders are deleted, not wrapped). Plan-time code uses the `_g` forms. A new IR kind needs a row in `src/planner/box_cell_shapes.tsv` and the include regenerated with `--write`.
 
 ## 5. Verifiers (each red once before it is trusted, CEO-1680)
 

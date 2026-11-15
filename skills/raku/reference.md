@@ -30,7 +30,7 @@ The record is `/home/.github/GOAL-RAKU-100.md` (LIVE CURSOR entries on top) and 
 | the twelve rewrite steps R1-R12 | this file § 9 |
 | generators, suspend and the pull protocol Raku reuses from Icon | `icon`, GOAL-RAKU-100.md § THE MODEL |
 | the one exception protocol | `runtime-calls` |
-| placement of Raku's cells, native cell kinds | `scrip-memory-model`, `/home/harness/scripts/box_cell_shapes.tsv` |
+| placement of Raku's cells, native cell kinds | `scrip-memory-model`, `src/planner/box_cell_shapes.tsv` |
 
 ## 5. The suites and how one program is graded
 
