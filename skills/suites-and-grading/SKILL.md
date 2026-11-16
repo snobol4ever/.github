@@ -37,6 +37,7 @@ bash ../harness/scripts/s4e_test_request.sh <suite-key> <entry>...        # at m
   - Both roads do it: the per-entry road (`_out_files_clear` and `_out_files_append` in corpus_suite_harness.py), and `scrip --run-files` for a files-form package since SCRIP 946acf03d (scrip_rl_outfiles in scrip.c), which before deferred every out_files entry.
   - A name with a slash is refused on both roads: the folder is the program's own.
   - MEASURED: vanilla wdstar writes its whole answer to a file named 5000, because SPITBOL reads OUTPUT(.OUTPUT,6,5000)'s record length as a name. It read UNPROVEN while the switch deferred it, and its captured output now equals wdstar.out byte for byte.
+- **A program of a package read in place runs in a scratch copy of its folder, never where it stands** (the CAO's finding of 2026-11-15: slobol's `lex.sbl` writes `sbl.lex`, `sbl.com` and `minimal.txt` beside itself, and `asm.sbl` then read them). Both roads keep it: the grade road (`scrip --run-files`, for SNOBOL4, Icon and Prolog alike) and the builder's mine road (`_mine_run`: a copy per worker and folder, made again after any run that changed a file, CTO-583 (2)). MEASURED by the grader 2026-11-16: a planted program that writes `made.txt` beside itself graded PASS on each road and the collection and the package were left as they were. `corpus_suite_harness.py --probe-source` now plants such a program, so a road that ran in place reads `in_place=RED`.
 
 ## 3. The record
 
