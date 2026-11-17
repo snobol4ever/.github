@@ -13,6 +13,13 @@ description: The two SNOBOL4 ports, snobol4dotnet (C#) and snobol4jvm (Clojure):
 
 ## 2. How a port is graded (the same runners, the same refs)
 
+- **snobol4jvm IS GRADED BY THE ONE CYCLE ON EVERY SNOBOL4 CONTAINER, AND EVERY SNOBOL4 TEST PASSES ON IT** (Lon 2026-11-17 16:4x CST, in the JVM window, verbatim: "You need to incorporate the consolidated test-suite cycle-runner and all its container files and get ALL SNOBOL4 tests working with snobol4jvm."). Before it, MEASURED that hour by seat jvm (`/home/resources/progress/ports-2026-11-17/`): the port had 11 rows `<suite>@jvm`, read by hand and last on 2026-10-31. `s4e_cycle.sh` launches only `master` and `pkg` rows, so no lap graded a port. And `corpus_suite_harness.py` refused under a port engine every package read in place (`ALL.source`): 23 of the 32 SNOBOL4 packages. THE WORK, in order:
+  - the harness grades a read-in-place package per entry under a port engine, each entry in a copy of its own folder (`_port_src_road`);
+  - `SUITE_RUNNERS.tsv` carries a `port` row `<suite>@jvm` for every SNOBOL4 suite SCRIP is graded on, and the cycle launches `port` rows under `S4E_ENGINE`, from a build of the port at its origin;
+  - every red is cured in the port, one cause a commit, until each row reads 100. A red is the port's defect unless the ref was cut wrong (section 3).
+  
+  Snocone and Rebus come after SNOBOL4: snobol4jvm's command line runs SNOBOL4 source alone (`run_snobol4jvm.sh --binaries --lang snocone` refuses rc 2).
+
 - `S4E_ENGINE` in {`scrip`, `dotnet`, `jvm`} names the graded engine. Under a port, `corpus_suite_harness.py`'s mode-3 arm calls the port's runner instead of `scrip --run`, and grades its output with the same reader, masks, `want_rc` and refs; a port has no mode 4 (`--compile` is refused rc 2). The engine's rows leave its own denominator only.
 - **The runners share one calling shape:** `run_snobol4dotnet.sh` and `run_snobol4jvm.sh` take `[-dNk] [-sNk] [-u STR] name.sno [-- arg ...]`, run in the entry's own folder with stdin from its input sidecar, and answer `--binaries [--lang LANG]` (the graded files, driver first, or rc 2 for a missing, stale or unsupported build; the board's one check) and `--paths` (the same list, checking nothing, for the fingerprints).
 - `run_port_as_scrip.sh` re-says SCRIP's m3 command line in that shape, so a SNOBOL4 package runner grades a port with its own grading untouched; any switch outside the closed vocabulary is refused by name.
