@@ -3,14 +3,15 @@
 # A seat-specific pattern in any script is forbidden: the seat's tier, model, effort, color and role live here and nowhere else.
 # THE FIVE THAT RUN (Lon 2026-11-14: "Moving forward there will be no JUNIORS, SENIORS, nor OFFICERS. Just COO, CIO, CTO, CFO, GRADER, HQ-DOTNET and HQ-JVM."): the two port seats are on MODE's ROSTER and get a row here when Lon names their model.
 # THE OFFICERS ARE SEATED AGAIN (Lon 2026-11-16 07:2x CST, in the coo's window, verbatim: "We will be using the /home/claude_officer_xx roots." / "The bosses will be Fable 5.2 high and the officers will be Opus 5.5 high. COO will also be Fable 5.2 high."; asked, he chose to populate all eight roots now): officer_01 to officer_08 on Opus 5.5 high, tier 2; the bosses (MODE's BOSSES: cio coo cto) on Fable 5.2 high, so the coo moves from Opus 5.5 xhigh; the grader is unchanged.
+# EVERY CxO BOSS IS ON FABLE 5.2 HIGH AGAIN, THE COO INCLUDED (Lon 2026-11-17 10:1x CST, in the coo's window; skill fleet-bus section 1, its first bullet): cio, cto, cfo, cqo, cao and coo read claude-fable-5-2 high; the grader stays Opus 5.5 xhigh and the twelve officers Opus 5.5 high. It ends the Opus seating of 2026-11-16 18:0x CST.
 seat	name	root	model	effort	color	tier	role
-cio	CIO	/home/claude_cio	claude-opus-5-5	high	red	1	fleet-system
-cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
+cio	CIO	/home/claude_cio	claude-fable-5-2	high	red	1	fleet-system
+cto	CTO	/home/claude_cto	claude-fable-5-2	high	red	1	scrip-design,unitests
 grader	GRADER	/home/claude_grader	claude-opus-5-5	xhigh	red	1	suite-grading
-cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	red	1	prolog-design
-coo	COO	/home/claude_coo	claude-opus-5-5	high	green	2	testing-officer
-cqo	CQO	/home/claude_cqo	claude-opus-5-5	high	red	1	quality
-cao	CAO	/home/claude_cao	claude-opus-5-5	high	red	1	architecture
+cfo	CFO	/home/claude_cfo	claude-fable-5-2	high	red	1	prolog-design
+coo	COO	/home/claude_coo	claude-fable-5-2	high	green	2	testing-officer
+cqo	CQO	/home/claude_cqo	claude-fable-5-2	high	red	1	quality
+cao	CAO	/home/claude_cao	claude-fable-5-2	high	red	1	architecture
 officer_01	OFFICER-01	/home/claude_officer_01	claude-opus-5-5	high	yellow	2	officer
 officer_02	OFFICER-02	/home/claude_officer_02	claude-opus-5-5	high	yellow	2	officer
 officer_03	OFFICER-03	/home/claude_officer_03	claude-opus-5-5	high	yellow	2	officer
