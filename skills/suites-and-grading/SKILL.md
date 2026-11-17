@@ -106,3 +106,55 @@ Lon, verbatim: "The test-suite cycle runner better be GREASED LIGHTING. Each uni
 - **A quick approval is BASE+SPECIAL, before the push** (DESIGN, not built): a seat asks before it pushes. Its change is a local commit in its worktree, fetched from that path (`git fetch /tmp/s4e/<seat>/wt-<name>/<repo> <commit>`; no push, no origin), or an uncommitted diff the request carries (`git apply --3way`). The grader puts it on the current base in a throwaway worktree (`git cherry-pick`, a seat's commits in order), builds, grades the chunks the request names, answers the seat with the verdict and the base, and deletes the worktree. A change that does not apply is answered at once with the files and the base, so the seat rebases; nothing is graded. The seat lands through `s4e_land.sh` only on a green answer.
 - **The unit shrinks to one program** (DESIGN, not built): one warm harness worker (`corpus_suite_harness.py serve`) pins once and grades programs fed to it one at a time, so the 4.4 s launch is paid once a worker; then a program whose last reading took over 60 s goes to the slow lane.
 - **A probe of the cycle runs sandboxed**: `S4E_CYCLE_PROG`, `S4E_CYCLE_TMP`, `S4E_PROGRESS_DB`, `S4E_RESULTS`, `S4E_SUITES_TSV`, `S4E_POST`, `S4E_POSTOFFICE`, `S4E_TEST_REQUEST_DIR` and `S4E_SCORE_MD` all pointed at scratch, on a worktree whose SUITE_RUNNERS.tsv is trimmed; the live store, table, postoffice and queue are never touched.
+
+## 10. DESIGN-PLAN one-container: every suite is one identical container, run by the one cycle (the grader 2026-11-17)
+
+Lon, in the grader's window, verbatim: "Do we have ONE unified set of containers run by ONE consolidated cycle runner? If not, make it so." / "We want a consistent test-suite system where the stdin, stdout, exit-value, compile args, run-time args, needed environment variables, and a list of needed input files and locations, list of output files and locations, etc. We want one system where the tracking containers are all identical and run by ONE system."
+
+MEASURED that hour (`util_container_check.py --list`, harness of the plan's first landing):
+- **The runner:** ONE runner, `s4e_cycle.sh` (one process, its cells its own subshells).
+- **The containers:** NOT one. Of 143 suites, 106 are in the files form, 24 are the old container (`ALL.<ext>` with `ALL.ref`), 5 masters keep the two groups, and 8 run their own script (`gnu`, the seven `*-bench-ref`).
+- **One fact, many spellings:** the ALL.csv files hold 450 distinct column names, and one run fact is written many ways:
+  - stdin: `ALL.in`, `ALL.stdin`, `NAME.in`, `NAME.dat`, `NAME.inp`, a `stdin` column;
+  - arguments: `ALL.args`, `ALL.argv`, `NAME.args`, `run_args`;
+  - exit value: `ALL.rc`, `NAME.rc`, `want_rc`;
+  - environment: `ALL.env`, `NAME.env`;
+  - output files: `out_files`, `ALL.outfiles`, `NAME.outfiles`;
+  - answers: `ALL.ref`, `NAME.out`, `NAME.ref`, `NAME.std`, `NAME.cmp`.
+
+0 of 143 conform.
+
+THE ONE CONTAINER. A suite is one folder, the same in every language, hosted or not. A program's files are beside it, or under the `ALL.source` root for a package we do not host.
+- **`ALL.csv`:** the one index, one row an entry. Every run fact of the entry is a column of its row, the same columns in every suite:
+  - `entry`, `path` (the program; a master's `path` names its group and entry);
+  - `dialect`, `compile_args`, `run_args`;
+  - `env`: `KEY=VALUE` pairs joined by `;`;
+  - `stdin`: the name of the entry's stdin file, empty for none;
+  - `in_files`: the files placed in the run folder before the run, `NAME` (beside the program) or `NAME=SOURCE` (from SOURCE, relative to the suite folder), joined by `;`;
+  - `out_files`: the files the run writes in its folder, appended to its answer in order;
+  - `want_rc`, `stderr` (empty, `merged` or `graded`), `compare`;
+  - `heap_kb`, `stack_kb`, `timeout_s`.
+
+  An empty cell is the default.
+- **The answers:** each entry's beside its program: `NAME.out` (stdout), `NAME.err` (stderr, when `stderr` is `graded`), and the stdin file `NAME.in` (the `stdin` cell names it).
+- **The other files:**
+  - `PARTITION.tsv` (the chunks), `FEATURES.tsv` (the feature columns the partition reads, out of ALL.csv);
+  - `EXCLUDED.tsv` (every program not an entry, with its class and measurement; `ALL.omit` folds into it);
+  - `ALL.mask` (the line masks), `ALL.source` (an unhosted package's root);
+  - `README.md`.
+
+Nothing else spells a run fact. Every whole-suite file and every per-entry sidecar above becomes a column.
+
+The same columns serve the screen road's and the sidecars' facts as their cells are added, in the plan's later steps: events, cap, depth, display, the pin, the shims, the alone folder.
+
+ONE SYSTEM: the cycle launches every row through `corpus_suite_harness.py` on the per-entry road or the run-files switch, and both read only these columns. The builder writes only these columns.
+
+THE STEPS: `/home/harness/designs/one_container/STEPS.tsv`, harness `test_design_one_container_steps.sh` (`--list`, `--step N`), each step's probe a count of conforming suites or a probe that reads rc 0. Every conversion lands with its suite graded before and after on the cycle's road, its verdicts equal, so no score moves by the move:
+- **0:** the baseline.
+- **1:** the harness reads every run column.
+- **2:** the converter.
+- **3:** the 106 files-form suites.
+- **4:** the 24 old containers become files.
+- **5:** the masters' groups get the same columns.
+- **6:** the 8 script suites become containers.
+- **7:** every old spelling is refused, and the old readers are deleted.
