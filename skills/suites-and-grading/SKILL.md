@@ -130,7 +130,7 @@ THE ONE CONTAINER. A suite is one folder, the same in every language, hosted or 
   - `dialect`, `compile_args`, `run_args`;
   - `env`: `KEY=VALUE` pairs joined by `;`;
   - `stdin`: the name of the entry's stdin file, empty for none;
-  - `in_files`: the files placed in the run folder before the run, `NAME` (beside the program) or `NAME=SOURCE` (from SOURCE, relative to the suite folder), joined by `;`;
+  - `in_files`: the files placed in the run folder before the run, `NAME` (beside the program) or `NAME=SOURCE` (from SOURCE, relative to the suite folder), joined by `;`. Each is placed again before every run, after the `out_files` clear, so a program that rewrites its input names the file in both cells and reads the source every run (the grader 2026-11-17, MEASURED on icon_lane_tools' `diary-index` and `wiki_highlight`: placed once, before the clear, the input was deleted and both read FAIL; `--probe-one-container` arm `rewrite`);
   - `out_files`: the files the run writes in its folder, appended to its answer in order;
   - `want_rc`, `stderr` (empty, `merged` or `graded`), `compare`;
   - `heap_kb`, `stack_kb`, `timeout_s`.
