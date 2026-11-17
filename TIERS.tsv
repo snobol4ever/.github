@@ -4,6 +4,7 @@
 # THE FIVE THAT RUN (Lon 2026-11-14: "Moving forward there will be no JUNIORS, SENIORS, nor OFFICERS. Just COO, CIO, CTO, CFO, GRADER, HQ-DOTNET and HQ-JVM."): the two port seats are on MODE's ROSTER and get a row here when Lon names their model.
 # THE OFFICERS ARE SEATED AGAIN (Lon 2026-11-16 07:2x CST, in the coo's window, verbatim: "We will be using the /home/claude_officer_xx roots." / "The bosses will be Fable 5.2 high and the officers will be Opus 5.5 high. COO will also be Fable 5.2 high."; asked, he chose to populate all eight roots now): officer_01 to officer_08 on Opus 5.5 high, tier 2; the bosses (MODE's BOSSES: cio coo cto) on Fable 5.2 high, so the coo moves from Opus 5.5 xhigh; the grader is unchanged.
 # THE SEATING OF 2026-11-17 11:5x CST (Lon, in the coo's window; skill fleet-bus section 1, its first bullet): cto, cfo, cqo and cao claude-opus-5-5 high; the coo claude-fable-5-2 medium; the cio claude-fable-5-2 high; the twelve officers claude-sonnet-5-5 high; the grader claude-opus-5-5 high (his word the same hour: GRADER stays as Opus 5.5 high; the table had read xhigh). It ends the all-Fable seating of 10:1x the same day.
+# THE TWO PORT SEATS JOIN, dotnet AND jvm (Lon 2026-11-17 15:5x CST, in the cio's window, verbatim: "Let's have DOTNET and JVM join us as Opus 5.5 high. Drop the \"HQ-\" prefix." / "Just like a SCRIP seat, the clone goes directly at the root." / "That is root being, /home/claude_dotnet and /home/claude_jvm."): the seats hq_dotnet and hq_jvm are dotnet and jvm, windows DOTNET and JVM, each root its port's clone, claude-opus-5-5 high, role port.
 seat	name	root	model	effort	color	tier	role
 cio	CIO	/home/claude_cio	claude-fable-5-2	high	red	1	fleet-system
 cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
@@ -24,3 +25,5 @@ officer_09	OFFICER-09	/home/claude_officer_09	claude-sonnet-5-5	high	yellow	2	of
 officer_10	OFFICER-10	/home/claude_officer_10	claude-sonnet-5-5	high	yellow	2	officer
 officer_11	OFFICER-11	/home/claude_officer_11	claude-sonnet-5-5	high	yellow	2	officer
 officer_12	OFFICER-12	/home/claude_officer_12	claude-sonnet-5-5	high	yellow	2	officer
+dotnet	DOTNET	/home/claude_dotnet	claude-opus-5-5	high	purple	2	port
+jvm	JVM	/home/claude_jvm	claude-opus-5-5	high	purple	2	port
