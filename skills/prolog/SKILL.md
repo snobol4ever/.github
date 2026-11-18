@@ -54,6 +54,7 @@ The record is GOAL-PROLOG-100.md (LIVE CURSOR on top). Suite tables, the dialect
 - Directives run in place, in source order, as swipl; `main/0` auto-invoke is sanctioned (the ENTRY-POINT CONVENTION, `reference.md` § 4); `initialization(main, main)` exits with main's status; errors carry the dialect oracle's culprit and context (the `test_gate_pl_*_as_swipl.sh` and `_as_gprolog.sh` gates are the rulings).
 - Regenerate after a grammar or operator change; `util_gen_gc_allocating_table.py --check` reads rc 0 after any allocating runtime function is added (regenerate, never edit).
 - The planner, never the emitter, decides a home (CEO-1895).
+- **A predicate a later unit gives again replaces the earlier definition** (the cao's rule of 2026-11-16, row jupyter-step-10n, SCRIP `213118218`): in a session or a document with more than one Prolog unit, the clauses a unit gives for name/arity are that predicate's whole text definition from then on, for the callers compiled earlier too, as swipl's consult of a second file; a prelude procedure is never replaced, and a unit that loads its clauses at run time (it holds `goal_expansion` or `term_expansion`) does not take this road yet. The site and the measurements are skill `scrip-architecture` section 7, THE LATER DEFINITION WINS.
 
 ## 8. DESIGN
 
