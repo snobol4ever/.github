@@ -5,6 +5,7 @@
 # THE OFFICERS ARE SEATED AGAIN (Lon 2026-11-16 07:2x CST, in the coo's window, verbatim: "We will be using the /home/claude_officer_xx roots." / "The bosses will be Fable 5.2 high and the officers will be Opus 5.5 high. COO will also be Fable 5.2 high."; asked, he chose to populate all eight roots now): officer_01 to officer_08 on Opus 5.5 high, tier 2; the bosses (MODE's BOSSES: cio coo cto) on Fable 5.2 high, so the coo moves from Opus 5.5 xhigh; the grader is unchanged.
 # THE SEATING OF 2026-11-17 11:5x CST (Lon, in the coo's window; skill fleet-bus section 1, its first bullet): cto, cfo, cqo and cao claude-opus-5-5 high; the coo claude-fable-5-2 medium; the cio claude-fable-5-2 high; the twelve officers claude-sonnet-5-5 high; the grader claude-opus-5-5 high (his word the same hour: GRADER stays as Opus 5.5 high; the table had read xhigh). It ends the all-Fable seating of 10:1x the same day.
 # THE TWO PORT SEATS JOIN, dotnet AND jvm (Lon 2026-11-17 15:5x CST, in the cio's window, verbatim: "Let's have DOTNET and JVM join us as Opus 5.5 high. Drop the \"HQ-\" prefix." / "Just like a SCRIP seat, the clone goes directly at the root." / "That is root being, /home/claude_dotnet and /home/claude_jvm."): the seats hq_dotnet and hq_jvm are dotnet and jvm, windows DOTNET and JVM, each root its port's clone, claude-opus-5-5 high, role port.
+# THE TWELVE ARE DEVELOPERS, developer_01 TO developer_12 (Lon 2026-11-18 07:4x CST, in the cio's window, verbatim: "We made a mistake calling seats OFFICER-xx since CxO were always officers. Let's rename OFFICER-xx to DEVELOPER-xx, so I can call CxO officers and not be ambiguous."): seat developer_NN, window DEVELOPER-NN, root /home/claude_developer_NN, role developer; an officer is a CxO. The lines above that say officer of the twelve are history.
 seat	name	root	model	effort	color	tier	role
 cio	CIO	/home/claude_cio	claude-fable-5-2	high	red	1	fleet-system
 cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
@@ -13,17 +14,17 @@ cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	red	1	prolog-design
 coo	COO	/home/claude_coo	claude-fable-5-2	medium	green	2	testing-officer
 cqo	CQO	/home/claude_cqo	claude-opus-5-5	high	red	1	quality
 cao	CAO	/home/claude_cao	claude-opus-5-5	high	red	1	architecture
-officer_01	OFFICER-01	/home/claude_officer_01	claude-sonnet-5-5	high	yellow	2	officer
-officer_02	OFFICER-02	/home/claude_officer_02	claude-sonnet-5-5	high	yellow	2	officer
-officer_03	OFFICER-03	/home/claude_officer_03	claude-sonnet-5-5	high	yellow	2	officer
-officer_04	OFFICER-04	/home/claude_officer_04	claude-sonnet-5-5	high	yellow	2	officer
-officer_05	OFFICER-05	/home/claude_officer_05	claude-sonnet-5-5	high	yellow	2	officer
-officer_06	OFFICER-06	/home/claude_officer_06	claude-sonnet-5-5	high	yellow	2	officer
-officer_07	OFFICER-07	/home/claude_officer_07	claude-sonnet-5-5	high	yellow	2	officer
-officer_08	OFFICER-08	/home/claude_officer_08	claude-sonnet-5-5	high	yellow	2	officer
-officer_09	OFFICER-09	/home/claude_officer_09	claude-sonnet-5-5	high	yellow	2	officer
-officer_10	OFFICER-10	/home/claude_officer_10	claude-sonnet-5-5	high	yellow	2	officer
-officer_11	OFFICER-11	/home/claude_officer_11	claude-sonnet-5-5	high	yellow	2	officer
-officer_12	OFFICER-12	/home/claude_officer_12	claude-sonnet-5-5	high	yellow	2	officer
+developer_01	DEVELOPER-01	/home/claude_developer_01	claude-sonnet-5-5	high	yellow	2	developer
+developer_02	DEVELOPER-02	/home/claude_developer_02	claude-sonnet-5-5	high	yellow	2	developer
+developer_03	DEVELOPER-03	/home/claude_developer_03	claude-sonnet-5-5	high	yellow	2	developer
+developer_04	DEVELOPER-04	/home/claude_developer_04	claude-sonnet-5-5	high	yellow	2	developer
+developer_05	DEVELOPER-05	/home/claude_developer_05	claude-sonnet-5-5	high	yellow	2	developer
+developer_06	DEVELOPER-06	/home/claude_developer_06	claude-sonnet-5-5	high	yellow	2	developer
+developer_07	DEVELOPER-07	/home/claude_developer_07	claude-sonnet-5-5	high	yellow	2	developer
+developer_08	DEVELOPER-08	/home/claude_developer_08	claude-sonnet-5-5	high	yellow	2	developer
+developer_09	DEVELOPER-09	/home/claude_developer_09	claude-sonnet-5-5	high	yellow	2	developer
+developer_10	DEVELOPER-10	/home/claude_developer_10	claude-sonnet-5-5	high	yellow	2	developer
+developer_11	DEVELOPER-11	/home/claude_developer_11	claude-sonnet-5-5	high	yellow	2	developer
+developer_12	DEVELOPER-12	/home/claude_developer_12	claude-sonnet-5-5	high	yellow	2	developer
 dotnet	DOTNET	/home/claude_dotnet	claude-opus-5-5	high	purple	2	port
 jvm	JVM	/home/claude_jvm	claude-opus-5-5	high	purple	2	port
