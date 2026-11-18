@@ -6,6 +6,7 @@
 # THE SEATING OF 2026-11-17 11:5x CST (Lon, in the coo's window; skill fleet-bus section 1, its first bullet): cto, cfo, cqo and cao claude-opus-5-5 high; the coo claude-fable-5-2 medium; the cio claude-fable-5-2 high; the twelve officers claude-sonnet-5-5 high; the grader claude-opus-5-5 high (his word the same hour: GRADER stays as Opus 5.5 high; the table had read xhigh). It ends the all-Fable seating of 10:1x the same day.
 # THE TWO PORT SEATS JOIN, dotnet AND jvm (Lon 2026-11-17 15:5x CST, in the cio's window, verbatim: "Let's have DOTNET and JVM join us as Opus 5.5 high. Drop the \"HQ-\" prefix." / "Just like a SCRIP seat, the clone goes directly at the root." / "That is root being, /home/claude_dotnet and /home/claude_jvm."): the seats hq_dotnet and hq_jvm are dotnet and jvm, windows DOTNET and JVM, each root its port's clone, claude-opus-5-5 high, role port.
 # THE TWELVE ARE DEVELOPERS, developer_01 TO developer_12 (Lon 2026-11-18 07:4x CST, in the cio's window, verbatim: "We made a mistake calling seats OFFICER-xx since CxO were always officers. Let's rename OFFICER-xx to DEVELOPER-xx, so I can call CxO officers and not be ambiguous."): seat developer_NN, window DEVELOPER-NN, root /home/claude_developer_NN, role developer; an officer is a CxO. The lines above that say officer of the twelve are history.
+# SIXTEEN DEVELOPERS, developer_13 TO developer_16 JOIN (Lon 2026-11-18 07:5x CST, in the cio's window, verbatim: "I'm thinking we need 16 developers."; he made the four folders): the same model, effort, color, tier and role as the twelve.
 seat	name	root	model	effort	color	tier	role
 cio	CIO	/home/claude_cio	claude-fable-5-2	high	red	1	fleet-system
 cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
@@ -26,5 +27,9 @@ developer_09	DEVELOPER-09	/home/claude_developer_09	claude-sonnet-5-5	high	yello
 developer_10	DEVELOPER-10	/home/claude_developer_10	claude-sonnet-5-5	high	yellow	2	developer
 developer_11	DEVELOPER-11	/home/claude_developer_11	claude-sonnet-5-5	high	yellow	2	developer
 developer_12	DEVELOPER-12	/home/claude_developer_12	claude-sonnet-5-5	high	yellow	2	developer
+developer_13	DEVELOPER-13	/home/claude_developer_13	claude-sonnet-5-5	high	yellow	2	developer
+developer_14	DEVELOPER-14	/home/claude_developer_14	claude-sonnet-5-5	high	yellow	2	developer
+developer_15	DEVELOPER-15	/home/claude_developer_15	claude-sonnet-5-5	high	yellow	2	developer
+developer_16	DEVELOPER-16	/home/claude_developer_16	claude-sonnet-5-5	high	yellow	2	developer
 dotnet	DOTNET	/home/claude_dotnet	claude-opus-5-5	high	purple	2	port
 jvm	JVM	/home/claude_jvm	claude-opus-5-5	high	purple	2	port
