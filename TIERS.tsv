@@ -7,12 +7,13 @@
 # THE TWO PORT SEATS JOIN, dotnet AND jvm (Lon 2026-11-17 15:5x CST, in the cio's window, verbatim: "Let's have DOTNET and JVM join us as Opus 5.5 high. Drop the \"HQ-\" prefix." / "Just like a SCRIP seat, the clone goes directly at the root." / "That is root being, /home/claude_dotnet and /home/claude_jvm."): the seats hq_dotnet and hq_jvm are dotnet and jvm, windows DOTNET and JVM, each root its port's clone, claude-opus-5-5 high, role port.
 # THE TWELVE ARE DEVELOPERS, developer_01 TO developer_12 (Lon 2026-11-18 07:4x CST, in the cio's window, verbatim: "We made a mistake calling seats OFFICER-xx since CxO were always officers. Let's rename OFFICER-xx to DEVELOPER-xx, so I can call CxO officers and not be ambiguous."): seat developer_NN, window DEVELOPER-NN, root /home/claude_developer_NN, role developer; an officer is a CxO. The lines above that say officer of the twelve are history.
 # SIXTEEN DEVELOPERS, developer_13 TO developer_16 JOIN (Lon 2026-11-18 07:5x CST, in the cio's window, verbatim: "I'm thinking we need 16 developers."; he made the four folders): the same model, effort, color, tier and role as the twelve.
+# THE TWO BOSSES ARE THE chairman AND THE president (Lon 2026-11-18 08:1x CST, in the chairman's window, verbatim: "CIO should be CHAIRMAN, and COO should be PRESIDENT."): the seats named cio and coo until that day; the lines above that say cio or coo are history.
 seat	name	root	model	effort	color	tier	role
-cio	CIO	/home/claude_cio	claude-fable-5-2	high	red	1	fleet-system
+chairman	CHAIRMAN	/home/claude_chairman	claude-fable-5-2	high	red	1	fleet-system
 cto	CTO	/home/claude_cto	claude-opus-5-5	high	red	1	scrip-design,unitests
 grader	GRADER	/home/claude_grader	claude-opus-5-5	high	red	1	suite-grading
 cfo	CFO	/home/claude_cfo	claude-opus-5-5	high	red	1	prolog-design
-coo	COO	/home/claude_coo	claude-fable-5-2	medium	green	2	testing-officer
+president	PRESIDENT	/home/claude_president	claude-fable-5-2	medium	green	2	testing-officer
 cqo	CQO	/home/claude_cqo	claude-opus-5-5	high	red	1	quality
 cao	CAO	/home/claude_cao	claude-opus-5-5	high	red	1	architecture
 developer_01	DEVELOPER-01	/home/claude_developer_01	claude-sonnet-5-5	high	yellow	2	developer
