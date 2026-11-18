@@ -14,7 +14,7 @@ The record is `/home/.github/GOAL-PROLOG-100.md` (LIVE CURSOR on top). Verified 
 - SWI-Prolog 9 manual, one file per chapter: `/home/resources/manuals/prolog/swi-*.txt` (`swi-builtin.txt` the builtins, `swi-threads.txt`, `swi-attvar.txt`, `swi-foreign.txt` and the other chapters, named as in `swipl-devel-master/man/`); the library sources themselves are `/home/resources/swipl-devel-master/library/*.pl` (the vendored prelude copies are `$S4E_SCRIP/src/parsers/prolog/prelude/*.pl`).
 - GNU Prolog 1.6 manual: `/home/resources/manuals/prolog/gprolog-*.txt`.
 - The ISO conformance suites: `/home/resources/prolog-iso-conformance/` (inriasuite, prologsuite).
-- XSB: `/home/resources/prologs/xsb/XSB/` (its own `docs/` and the `xsb_tests` sources under `/home/corpus/packages/prolog/xsb_tests/`).
+- XSB: `/home/packages/prolog/xsb/XSB/` (its own `docs/` and the `xsb_tests` sources under `/home/corpus/packages/prolog/xsb_tests/`).
 - The Byrd-box literature (the model every goal compiles to): `/home/resources/manuals/byrd-boxes/`.
 - Before ruling what a builtin does: `grep -n -A12 'name/arity' /home/resources/manuals/prolog/swi-*.txt`, then run the oracle on a three-line probe. The manual says what; the oracle's answer is the ref.
 

@@ -9,7 +9,7 @@ The record is GOAL-RAKU-100.md (LIVE CURSOR on top); the design is `reference.md
 
 ## 1. The oracle
 
-- **rakudo 2026.05; the spec is the roast** (`/home/resources/roast-master`). The binary through `rakudo_bin()` in `/home/harness/scripts/lib_oracle_flags.sh`; the `raku` on PATH (2022.12) is never the oracle. One dialect, no switch.
+- **rakudo 2026.05; the spec is the roast** (`/home/packages/raku/roast`). The binary through `rakudo_bin()` in `/home/harness/scripts/lib_oracle_flags.sh`; the `raku` on PATH (2022.12) is never the oracle. One dialect, no switch.
 - A ref is cut from rakudo; a ref cut from our output is a SELF-PIN, not an oracle; no XFAIL. Refusal, crash or hang (`timeout -k 5`) is `NO_ORACLE_ANSWER` (CEO-1696); an implementation accident is no answer (CEO-1934). Gotchas: `OUTER` is a pseudo-package, a mid-line `}` needs `;`, EVAL of a string needs `MONKEY-SEE-NO-EVAL`.
 - Interim (the re-design's layer (c), `reference.md` § 8): the program's own names win; a lib-path export does not beat the setting until F05's typed multi dispatch lands.
 - Test is Rakudo's `src/parsers/raku/setting/Test.rakumod`, vendored as the setting's first file.

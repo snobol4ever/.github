@@ -20,7 +20,7 @@ The record is GOAL-PROLOG-100.md (LIVE CURSOR on top). Suite tables, the dialect
 
 ## 2. The manuals
 
-`/home/resources/manuals/prolog/swi-*.txt` (one file per chapter: `swi-builtin.txt`, `swi-attvar.txt`, ...), `gprolog-*.txt`; the SWI library sources `/home/resources/swipl-devel-master/library/*.pl`; the ISO suites `/home/resources/prolog-iso-conformance/`; XSB under `/home/resources/prologs/xsb/XSB/`; `/home/resources/manuals/byrd-boxes/`. Before ruling on a builtin: grep the manual, then run the oracle on a three-line probe.
+`/home/resources/manuals/prolog/swi-*.txt` (one file per chapter: `swi-builtin.txt`, `swi-attvar.txt`, ...), `gprolog-*.txt`; the SWI library sources `/home/resources/swipl-devel-master/library/*.pl`; the ISO suites `/home/resources/prolog-iso-conformance/`; XSB under `/home/packages/prolog/xsb/XSB/`; `/home/resources/manuals/byrd-boxes/`. Before ruling on a builtin: grep the manual, then run the oracle on a three-line probe.
 
 ## 3. The source map
 
