@@ -43,7 +43,7 @@ Law: the skills, `/home/.github/skills/` (RULES.md was triaged into them and ret
 
 Run verbs one at a time. Full text: `reference.md` section 2.
 
-- `next` serves tube jobs, then ASSIGNED rows, then your claim.
+- `next` serves tube jobs, then ASSIGNED rows, then your claim. A ROW PARKED AROUND ITS CLAIM IS SERVED TO NOBODY (the chairman 2026-11-18, on the cao's report from developer_11, harness 43e2d33fb): `park` keeps the holder's claim and appends PARKED-AROUND, so the row's state column is the word and the claim alone never is; a row that reads `PARKED`, `PARKED-LON-HOLD:<why>`, `BLOCKED-ON:` or `DONE` is skipped by both passes, said as one SKIP line, its claim kept as the record. MEASURED before the cure: the ASSIGNED pass read the claim and not the row, and seven rows on Lon's hold were the first thing the `next` of developer_02, 04, 11 and 15 served (`next --probe-serve`, the parked arm).
 - `claim <topic>` takes a FREE or ASSIGNED row; cap two live.
 - `unclaim <topic>` releases your claim; the row goes FREE.
 - `park <topic> <STATE>` sets the state (MEASURING for a live measurement).
